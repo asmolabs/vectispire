@@ -17,18 +17,38 @@
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 
-<!-- The open issues of a node, by severity: one tag per severity that has any, worst first. -->
-<ng-template #badges let-issues>
+<!--
+    The open issues of a node, by severity: one tag per severity that has any, worst first. On a
+    solution or a project each tag opens the list it counts — that severity, that scope, and
+    `unsettled`, because these figures leave settled triage out and a list that kept it would
+    disagree with the number that opened it. "No project" has no such filter, so its tags stay
+    figures.
+-->
+<ng-template #badges let-issues let-scope="scope" let-name="name">
     <span class="inline-flex flex-wrap items-center gap-1" data-testid="open-issues">
         @if (total(issues) === 0) {
             <p-tag severity="success" [value]="'solutions.no_open_issues' | translate" />
         } @else {
             @for (severity of severities(); track severity.field) {
                 @if (count(issues, severity.field) > 0) {
-                    <p-tag
-                        [severity]="severity.colour"
-                        [value]="count(issues, severity.field) + ' ' + severity.label"
-                    />
+                    @if (scope) {
+                        <a
+                            [routerLink]="['/issues']"
+                            [queryParams]="issuesLink(scope, severity.field)"
+                            [attr.aria-label]="openIssuesLabel(count(issues, severity.field), severity.label, name)"
+                            data-testid="open-issues-link"
+                        >
+                            <p-tag
+                                [severity]="severity.colour"
+                                [value]="count(issues, severity.field) + ' ' + severity.label"
+                            />
+                        </a>
+                    } @else {
+                        <p-tag
+                            [severity]="severity.colour"
+                            [value]="count(issues, severity.field) + ' ' + severity.label"
+                        />
+                    }
                 }
             }
         }
@@ -71,7 +91,16 @@
                                     [value]="'solutions.partial' | translate: { count: solution.repositoryCount }"
                                 />
                             }
-                            <ng-container *ngTemplateOutlet="badges; context: { $implicit: solution.openIssues }" />
+                            <ng-container
+                                *ngTemplateOutlet="
+                                    badges;
+                                    context: {
+                                        $implicit: solution.openIssues,
+                                        scope: { solution_id: solution.id },
+                                        name: solution.name
+                                    }
+                                "
+                            />
                         </div>
                     </div>
                     @if (isAdmin()) {
@@ -143,7 +172,14 @@
                                             />
                                         }
                                         <ng-container
-                                            *ngTemplateOutlet="badges; context: { $implicit: project.openIssues }"
+                                            *ngTemplateOutlet="
+                                                badges;
+                                                context: {
+                                                    $implicit: project.openIssues,
+                                                    scope: { project_id: project.id },
+                                                    name: solution.name + ' / ' + project.name
+                                                }
+                                            "
                                         />
                                     </div>
                                 </div>

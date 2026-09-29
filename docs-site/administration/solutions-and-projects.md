@@ -82,6 +82,11 @@ and one tag per severity that has open issues ("2 Critical", "1 High"), or "No o
 you see only in part carries **Partially visible: N repositories you can see**. A repository name
 opens the issues of that repository.
 
+On a solution or a project, **each severity tag is a link** to the [issues list](../guide/issues.md)
+narrowed to that solution or project, that severity, and **Hide settled triage** — the clause the tag
+counts by, so the list holds the number the tag showed. The tags of **No project** are figures only:
+the list has no filter for "in no project".
+
 Administrators also get:
 
 | Action | Where | What the screen says first |

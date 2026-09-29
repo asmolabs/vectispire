@@ -1330,7 +1330,11 @@
     "provenance_tool": "Tool",
     "provenance_scope": "Resolution scope",
     "provenance_plugin_short": "analysed by Vectispire · {{tool}}",
-    "provenance_imported_short": "declared by {{source}} · {{tool}}"
+    "provenance_imported_short": "declared by {{source}} · {{tool}}",
+    "chip_project": "Project: {{name}}",
+    "chip_solution": "Solution: {{name}}",
+    "aria_remove_project": "Remove the project filter {{name}}",
+    "aria_remove_solution": "Remove the solution filter {{name}}"
   },
   "layout": {
     "menu_mode": {
@@ -2139,7 +2143,8 @@
     "plugin_activated_by": "switched on by {{who}}",
     "aria_plugin_toggle": "Run {{id}} on this project",
     "plugins_error_load": "Could not load this project's plugins.",
-    "plugins_error_change": "The plugin could not be switched."
+    "plugins_error_change": "The plugin could not be switched.",
+    "aria_open_issues": "Open the issues of {{severity}} severity in {{name}} ({{count}})"
   },
   "soa": {
     "applicability": {

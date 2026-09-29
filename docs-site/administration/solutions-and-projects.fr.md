@@ -85,6 +85,12 @@ vide. Chaque solution, chaque projet et le groupe « sans projet » portent leur
 ouvert ». Un nœud que vous ne voyez qu'en partie porte **Visible en partie : N dépôts que vous
 pouvez voir**. Le nom d'un dépôt ouvre les constats de ce dépôt.
 
+Sur une solution ou un projet, **chaque étiquette de sévérité est un lien** vers la
+[liste des constats](../guide/issues.md) restreinte à cette solution ou à ce projet, à cette sévérité,
+et à **Masquer le triage réglé** — la clause selon laquelle l'étiquette compte, pour que la liste
+contienne le nombre que l'étiquette affichait. Les étiquettes de **Sans projet** ne sont que des
+chiffres : la liste n'a pas de filtre « dans aucun projet ».
+
 Les administrateurs disposent en plus de :
 
 | Action | Où | Ce que l'écran dit d'abord |

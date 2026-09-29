@@ -8,7 +8,7 @@
             [options]="states()"
             optionLabel="label"
             optionValue="value"
-            (onChange)="reload(0)"
+            (onChange)="filtersChanged()"
             [placeholder]="'issues.filter_state' | translate"
         />
         <p-select
@@ -16,7 +16,7 @@
             [options]="severities()"
             optionLabel="label"
             optionValue="value"
-            (onChange)="reload(0)"
+            (onChange)="filtersChanged()"
             [placeholder]="'issues.filter_severity' | translate"
             [showClear]="true"
         />
@@ -25,7 +25,7 @@
             [options]="types()"
             optionLabel="label"
             optionValue="value"
-            (onChange)="reload(0)"
+            (onChange)="filtersChanged()"
             [placeholder]="'issues.col_type' | translate"
             [showClear]="true"
         />
@@ -34,7 +34,7 @@
             [options]="targets()"
             optionLabel="label"
             optionValue="value"
-            (onChange)="reload(0)"
+            (onChange)="filtersChanged()"
             [placeholder]="'issues.col_target' | translate"
             [showClear]="true"
             [filter]="true"
@@ -46,7 +46,7 @@
             [options]="triageOptions()"
             optionLabel="label"
             optionValue="value"
-            (onChange)="reload(0)"
+            (onChange)="filtersChanged()"
             [placeholder]="'issues.col_triage' | translate"
             [showClear]="true"
         />
@@ -55,11 +55,58 @@
             <input
                 pInputText
                 [(ngModel)]="search"
-                (keyup.enter)="reload(0)"
+                (keyup.enter)="filtersChanged()"
                 [placeholder]="'issues.search_placeholder' | translate"
             />
         </p-iconfield>
     </div>
+
+    <!--
+        The scope a link from the tree applies, shown and removable. A list narrowed to one project
+        with nothing on screen saying so reads as a backlog that lost most of its rows.
+    -->
+    @if (projectLabel() !== null || solutionLabel() !== null) {
+        <div class="flex flex-wrap items-center gap-2 mb-4" data-testid="issue-scope">
+            @if (solutionLabel(); as name) {
+                <span
+                    class="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+                    style="border-color: var(--surface-border)"
+                    data-testid="scope-solution"
+                >
+                    <i class="pi pi-objects-column text-muted-color" aria-hidden="true"></i>
+                    {{ 'issues.chip_solution' | translate: { name } }}
+                    <p-button
+                        icon="pi pi-times"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'issues.aria_remove_solution' | translate: { name }"
+                        data-testid="remove-solution"
+                        (onClick)="removeSolution()"
+                    />
+                </span>
+            }
+            @if (projectLabel(); as name) {
+                <span
+                    class="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+                    style="border-color: var(--surface-border)"
+                    data-testid="scope-project"
+                >
+                    <i class="pi pi-folder text-muted-color" aria-hidden="true"></i>
+                    {{ 'issues.chip_project' | translate: { name } }}
+                    <p-button
+                        icon="pi pi-times"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'issues.aria_remove_project' | translate: { name }"
+                        data-testid="remove-project"
+                        (onClick)="removeProject()"
+                    />
+                </span>
+            }
+        </div>
+    }
 
     <!--
         Written as `[ngModel]` plus one `(ngModelChange)` rather than the banana-in-a-box with a
@@ -72,14 +119,18 @@
     -->
     <div class="flex flex-wrap gap-x-6 gap-y-3 mb-4">
         <div class="flex items-center gap-2">
-            <p-toggleswitch inputId="filter-kev" [ngModel]="onlyKev" (ngModelChange)="onlyKev = $event; reload(0)" />
+            <p-toggleswitch
+                inputId="filter-kev"
+                [ngModel]="onlyKev"
+                (ngModelChange)="onlyKev = $event; filtersChanged()"
+            />
             <label for="filter-kev" class="m-0">{{ 'issues.filter_kev_label' | translate }}</label>
         </div>
         <div class="flex items-center gap-2">
             <p-toggleswitch
                 inputId="filter-overdue"
                 [ngModel]="overdue"
-                (ngModelChange)="overdue = $event; reload(0)"
+                (ngModelChange)="overdue = $event; filtersChanged()"
             />
             <!--
                 "Past its deadline" and not "late": the server also drops what triage settled, so
@@ -92,7 +143,7 @@
             <p-toggleswitch
                 inputId="filter-unsettled"
                 [ngModel]="unsettled"
-                (ngModelChange)="unsettled = $event; reload(0)"
+                (ngModelChange)="unsettled = $event; filtersChanged()"
             />
             <label for="filter-unsettled" class="m-0">
                 {{ 'issues.filter_unsettled' | translate }}
@@ -103,7 +154,7 @@
             <p-toggleswitch
                 inputId="filter-direct"
                 [ngModel]="onlyDirect"
-                (ngModelChange)="onlyDirect = $event; reload(0)"
+                (ngModelChange)="onlyDirect = $event; filtersChanged()"
             />
             <label for="filter-direct" class="m-0">
                 {{ 'issues.filter_direct' | translate }}

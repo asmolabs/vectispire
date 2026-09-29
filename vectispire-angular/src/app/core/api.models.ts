@@ -391,6 +391,11 @@ export interface IssueFilters {
     triage_status?: string;
     repository_id?: number;
     container_id?: number;
+    /** The repositories filed in that project at request time, over what the reader may see;
+     *  containers never match. A project the reader sees nothing of answers an empty page. */
+    project_id?: number;
+    /** The same, over every project of the solution. Combines with `project_id`: both apply. */
+    solution_id?: number;
     only_direct?: boolean;
     search?: string;
     limit?: number;

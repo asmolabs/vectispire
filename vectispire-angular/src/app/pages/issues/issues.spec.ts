@@ -2,7 +2,9 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { of } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
@@ -506,7 +508,13 @@ describe('the backlog opened from a dashboard link', () => {
                 provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 provideRouter([]),
-                { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) } } }
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: { queryParamMap: convertToParamMap(queryParams) },
+                        queryParamMap: of(convertToParamMap(queryParams))
+                    }
+                }
             ]
         });
 
@@ -563,5 +571,192 @@ describe('the backlog opened from a dashboard link', () => {
 
         expect(fixture.componentInstance.onlyKev).toBe(false);
         expect(fixture.nativeElement.querySelector('#filter-kev').checked).toBe(false);
+    });
+});
+
+/**
+ * The scope a link from the solutions tree applies (`project_id`, `solution_id`), through a real
+ * router, because what is being tested is the URL: the page read a snapshot of it, so a second link
+ * into the open page changed the address and left the list as it was.
+ */
+describe('the backlog narrowed to a project or a solution', () => {
+    let harness: RouterTestingHarness;
+    let http: HttpTestingController;
+
+    const TREE = asSchema('SolutionTree', {
+        solutions: [
+            {
+                id: 1,
+                name: 'Payments',
+                description: null,
+                createdAt: '2026-09-01T00:00:00Z',
+                partial: false,
+                repositoryCount: 1,
+                openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
+                projects: [
+                    {
+                        id: 12,
+                        solutionId: 1,
+                        name: 'Ledger',
+                        description: null,
+                        createdAt: '2026-09-01T00:00:00Z',
+                        partial: false,
+                        repositoryCount: 1,
+                        openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
+                        repositories: [{ id: 10, name: 'ledger-core' }]
+                    }
+                ]
+            }
+        ],
+        unfiled: {
+            repositoryCount: 0,
+            openIssues: { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 },
+            repositories: []
+        }
+    });
+
+    const EMPTY_PAGE = { items: [], total: 0, limit: 50, offset: 0 };
+    const page = () => harness.routeNativeElement as HTMLElement;
+    const button = (name: string) =>
+        [...page().querySelectorAll('button')].find((candidate) => candidate.getAttribute('aria-label') === name);
+
+    /** Answers everything the page asks for on arrival, and returns the backlog request's parameters. */
+    async function open(url: string): Promise<URLSearchParams> {
+        await harness.navigateByUrl(url);
+        let issues: URLSearchParams | null = null;
+        for (const request of http.match(() => true)) {
+            const path = request.request.url;
+            if (path === '/api/v1/issues') {
+                issues = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+                request.flush(EMPTY_PAGE);
+            } else if (path === '/api/v1/solutions') request.flush(TREE);
+            else if (path === '/api/v1/ai-advisor/status') request.flush({ enabled: false });
+            else request.flush([]);
+        }
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        expect(issues).not.toBeNull();
+        return issues!;
+    }
+
+    /** The one backlog request a URL change should cause. */
+    async function nextRequest(): Promise<URLSearchParams> {
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        request.flush(EMPTY_PAGE);
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        return new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+    }
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                provideRouter([{ path: 'issues', component: Issues }])
+            ]
+        });
+        useEnglish();
+        http = TestBed.inject(HttpTestingController);
+        harness = await RouterTestingHarness.create();
+    }, 20_000);
+
+    it('sends the project with the rest of the link, and names it in a chip that can be taken off', async () => {
+        const params = await open('/issues?project_id=12&severity=high&unsettled=true');
+
+        expect(params.get('project_id')).toBe('12');
+        expect(params.get('severity')).toBe('high');
+        expect(params.get('unsettled')).toBe('true');
+        expect(params.has('solution_id')).toBe(false);
+
+        expect(page().querySelector('[data-testid="scope-project"]')?.textContent).toContain(
+            'Project: Payments / Ledger'
+        );
+        expect(button('Remove the project filter Payments / Ledger')).toBeDefined();
+        expect(page().querySelector('[data-testid="scope-solution"]')).toBeNull();
+    });
+
+    it('sends a solution, and both when the link carries both, each with its chip', async () => {
+        const params = await open('/issues?solution_id=1&project_id=12');
+
+        expect(params.get('solution_id')).toBe('1');
+        expect(params.get('project_id')).toBe('12');
+        expect(page().querySelector('[data-testid="scope-solution"]')?.textContent).toContain('Solution: Payments');
+        expect(button('Remove the solution filter Payments')).toBeDefined();
+        expect(page().querySelector('[data-testid="scope-project"]')).not.toBeNull();
+    });
+
+    it('takes the project off the URL and the request, and leaves the rest of the link alone', async () => {
+        await open('/issues?project_id=12&severity=high&unsettled=true');
+
+        button('Remove the project filter Payments / Ledger')!.click();
+        const params = await nextRequest();
+
+        expect(params.has('project_id')).toBe(false);
+        expect(params.get('severity')).toBe('high');
+        expect(params.get('unsettled')).toBe('true');
+        const url = TestBed.inject(Router).url;
+        expect(url).not.toContain('project_id');
+        expect(url).toContain('severity=high');
+        expect(page().querySelector('[data-testid="scope-project"]')).toBeNull();
+    });
+
+    it('follows a second link into the open page instead of keeping the first one', async () => {
+        await open('/issues?project_id=12&severity=high&unsettled=true');
+        const before = harness.routeDebugElement!.componentInstance as Issues;
+
+        await harness.navigateByUrl('/issues?solution_id=1');
+        const params = await nextRequest();
+
+        // The same component, reused by the router: only the subscription can have seen the change.
+        expect(harness.routeDebugElement!.componentInstance).toBe(before);
+        expect(params.get('solution_id')).toBe('1');
+        expect(params.has('project_id')).toBe(false);
+        // A filter the new link does not carry is off, on screen and in the request — not left
+        // over from the link before it.
+        expect(params.has('severity')).toBe(false);
+        expect(params.has('unsettled')).toBe(false);
+        expect(before.severity).toBeNull();
+        expect(before.unsettled).toBe(false);
+        expect(page().querySelector('[data-testid="scope-project"]')).toBeNull();
+        expect(page().querySelector('[data-testid="scope-solution"]')).not.toBeNull();
+    });
+
+    it('writes a control into the URL, keeping the scope it was opened with', async () => {
+        await open('/issues?project_id=12');
+        const component = harness.routeDebugElement!.componentInstance as Issues;
+
+        component.severity = 'critical';
+        component.onlyKev = true;
+        component.filtersChanged();
+        const params = await nextRequest();
+
+        expect(params.get('project_id')).toBe('12');
+        expect(params.get('severity')).toBe('critical');
+        const url = TestBed.inject(Router).url;
+        expect(url).toContain('project_id=12');
+        expect(url).toContain('severity=critical');
+        expect(url).toContain('is_kev=true');
+        // A default stays out of the address, so a plain visit reads `/issues`.
+        expect(url).not.toContain('state=');
+    });
+
+    it('shows a project it cannot name as the number the link carried, over the ordinary empty list', async () => {
+        const params = await open('/issues?project_id=99');
+
+        // The server answers a hidden project and a missing one alike, with an empty page; the
+        // screen must not tell them apart either.
+        expect(params.get('project_id')).toBe('99');
+        expect(page().querySelector('[data-testid="scope-project"]')?.textContent).toContain('Project: #99');
+        expect(page().textContent).toContain('No issue matches these filters');
+    });
+
+    it('does not read the tree when the link carries no scope', async () => {
+        await harness.navigateByUrl('/issues');
+        expect(http.match((call) => call.url === '/api/v1/solutions')).toEqual([]);
+        for (const request of http.match(() => true))
+            request.flush(request.request.url.endsWith('/issues') ? EMPTY_PAGE : []);
     });
 });

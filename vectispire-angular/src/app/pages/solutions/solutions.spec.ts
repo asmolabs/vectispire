@@ -165,6 +165,44 @@ describe('the solutions tree', () => {
         expect(text('[data-testid="project-21"]')).toContain('No open issues');
     });
 
+    /**
+     * A figure opens the list it counts. Read from the anchors' `href`, because that is what a click
+     * follows: a badge whose link dropped `unsettled` would open "3 high" onto a list of five.
+     */
+    it('links each severity badge of a solution and a project to that severity, that scope, unsettled only', async () => {
+        await mount('USER');
+
+        const links = (selector: string) =>
+            [...page().querySelectorAll(`${selector} [data-testid="open-issues-link"]`)].map((anchor) => ({
+                href: anchor.getAttribute('href'),
+                name: anchor.getAttribute('aria-label')
+            }));
+
+        // The solution's own badges, and not its projects' (which sit inside the same section).
+        const solution = links('[data-testid="solution-1"] > div');
+        expect(solution).toEqual([
+            {
+                href: '/issues?solution_id=1&severity=critical&unsettled=true',
+                name: 'Open the issues of critical severity in Payments (2)'
+            },
+            {
+                href: '/issues?solution_id=1&severity=high&unsettled=true',
+                name: 'Open the issues of high severity in Payments (1)'
+            }
+        ]);
+        expect(links('[data-testid="project-12"]')).toEqual([
+            {
+                href: '/issues?project_id=12&severity=high&unsettled=true',
+                name: 'Open the issues of high severity in Payments / Ledger (1)'
+            }
+        ]);
+
+        // "No project" has no filter on the list: its figures stay figures rather than opening a
+        // list that would disagree with them.
+        expect(text('[data-testid="unfiled"]')).toContain('4 Medium');
+        expect(links('[data-testid="unfiled"]')).toEqual([]);
+    });
+
     it('marks a project seen only in part, in words, with what the reader can see', async () => {
         await mount('USER');
 

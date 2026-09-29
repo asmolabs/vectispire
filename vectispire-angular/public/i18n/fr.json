@@ -1330,7 +1330,11 @@
     "provenance_tool": "Outil",
     "provenance_scope": "Portée de résolution",
     "provenance_plugin_short": "analysé par Vectispire · {{tool}}",
-    "provenance_imported_short": "déclaré par {{source}} · {{tool}}"
+    "provenance_imported_short": "déclaré par {{source}} · {{tool}}",
+    "chip_project": "Projet : {{name}}",
+    "chip_solution": "Solution : {{name}}",
+    "aria_remove_project": "Retirer le filtre sur le projet {{name}}",
+    "aria_remove_solution": "Retirer le filtre sur la solution {{name}}"
   },
   "layout": {
     "menu_mode": {
@@ -2253,7 +2257,8 @@
     "plugin_activated_by": "activé par {{who}}",
     "aria_plugin_toggle": "Exécuter {{id}} sur ce projet",
     "plugins_error_load": "Impossible de charger les plugins de ce projet.",
-    "plugins_error_change": "Le plugin n'a pas pu être basculé."
+    "plugins_error_change": "Le plugin n'a pas pu être basculé.",
+    "aria_open_issues": "Ouvrir les constats de sévérité {{severity}} de {{name}} ({{count}})"
   },
   "soa": {
     "applicability": {

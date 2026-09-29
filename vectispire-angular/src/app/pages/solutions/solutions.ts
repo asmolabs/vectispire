@@ -336,6 +336,27 @@ export class Solutions {
         return issues?.[field] ?? 0;
     }
 
+    /**
+     * The list a badge counts. `unsettled` is not optional: the tree's figures leave settled triage
+     * out, and without it "3 high" opens a list of five — the list is right about something else,
+     * and the figure is what looks wrong.
+     */
+    issuesLink(
+        scope: { project_id: number } | { solution_id: number },
+        severity: Severity
+    ): Record<string, string | number | boolean> {
+        return { ...scope, severity, unsettled: true };
+    }
+
+    /** "Open the issues of high severity in FinBackoffice / Develop (5)" — the tag alone says "5 High". */
+    openIssuesLabel(count: number, severity: string, name: string): string {
+        return this.i18n.t('solutions.aria_open_issues', {
+            count,
+            severity: severity.toLocaleLowerCase(this.i18n.currentLang()),
+            name
+        });
+    }
+
     // --- Create, rename -------------------------------------------------------------------------
 
     newSolution(): void {

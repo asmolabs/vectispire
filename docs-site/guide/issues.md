@@ -70,6 +70,15 @@ the record has to be able to tell the difference.
   the issues of that part — the part the solutions tree shows you — and a project you see nothing of
   shows an empty list, exactly as a project that does not exist does. The tree's badges count with
   settled triage left out; add `unsettled=true` for the list to agree with them.
+
+  On screen there is no selector for it: a severity tag on a solution or a project in
+  **Solutions & projects** opens this list with the scope, that severity and **Hide settled triage**
+  already set (see [Solutions and projects](../administration/solutions-and-projects.md)). The scope
+  shows above the list as a chip — **Project: Payments / Ledger**, **Solution: Payments** — and its
+  cross takes it off while leaving the other filters as they are. A project the tree does not show you
+  is named by the number in the link, over the ordinary empty list. Every filter on this page is kept
+  in the address, so a filtered list can be bookmarked or sent, and **Back** returns to the page it
+  was opened from.
 - **Hide settled triage** — leaves out what was argued not affected or marked fixed. It is the
   clause the dashboard's per-severity figures count by, and the links from those figures set it.
 

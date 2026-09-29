@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, ParamMap, Params, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -18,8 +19,9 @@ import { messageOf } from '../../core/api-error';
 import { IntelApi } from '@/app/core/api/intel.api';
 import { TargetsApi } from '@/app/core/api/targets.api';
 import { IssuesApi } from '@/app/core/api/issues.api';
+import { SolutionsApi } from '@/app/core/api/solutions.api';
 import { SessionStore } from '@/app/core/session.store';
-import { Issue, TriageRequest, AiVulnerabilityAdvice, AiDeterministic } from '@/app/core/api.models';
+import { Issue, TriageRequest, AiVulnerabilityAdvice, AiDeterministic, SolutionTree } from '@/app/core/api.models';
 import * as wording from '@/app/shared/ai-advice';
 import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
 
@@ -75,7 +77,9 @@ export class Issues {
     private readonly intelApi = inject(IntelApi);
     private readonly targetsApi = inject(TargetsApi);
     private readonly issuesApi = inject(IssuesApi);
+    private readonly solutionsApi = inject(SolutionsApi);
     private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
 
     readonly session = inject(SessionStore);
     /**
@@ -164,6 +168,45 @@ export class Issues {
      */
     readonly targets = signal<{ label: string; value: string }[]>([]);
 
+    /**
+     * The project and the solution the list is narrowed to, from the URL alone.
+     *
+     * No select for them: the tree is where a project is chosen, and its badges link here. What
+     * this screen owes the link is to **show** the scope it applies — a list narrowed to one
+     * project with nothing on screen saying so reads as a backlog that lost most of its rows —
+     * and to let it be taken off. Both may be present; the server applies both.
+     */
+    readonly projectId = signal<number | null>(null);
+    readonly solutionId = signal<number | null>(null);
+
+    /**
+     * The tree, read once and only when a scope needs naming — never a request per row, and none
+     * at all on the common visit that carries no scope.
+     */
+    private readonly tree = signal<SolutionTree | null>(null);
+    private treeRequested = false;
+
+    /**
+     * The scope in words. **A project the tree does not hold is named by its number**, the one the
+     * URL already carries: the tree answers only what the reader may see, so "unknown project" for
+     * a hidden one and a name for a visible one would be the difference the server's empty page is
+     * careful not to make. The number says nothing the link did not.
+     */
+    readonly projectLabel = computed(() => {
+        const id = this.projectId();
+        if (id === null) return null;
+        for (const solution of this.tree()?.solutions ?? []) {
+            const project = (solution.projects ?? []).find((candidate) => candidate.id === id);
+            if (project) return `${solution.name} / ${project.name}`;
+        }
+        return `#${id}`;
+    });
+    readonly solutionLabel = computed(() => {
+        const id = this.solutionId();
+        if (id === null) return null;
+        return (this.tree()?.solutions ?? []).find((candidate) => candidate.id === id)?.name ?? `#${id}`;
+    });
+
     readonly states = computed(() => {
         this.i18n.translations();
         return [
@@ -245,35 +288,17 @@ export class Issues {
     });
 
     constructor() {
-        const params = this.route.snapshot.queryParamMap;
-        const repositoryId = params.get('repository_id');
-        const containerId = params.get('container_id');
-        // Reflected into the control, not only into the query: arriving from a link used to
-        // filter the list while every filter on screen read "all", so the short list looked
-        // like the whole backlog having lost most of its rows.
-        if (repositoryId) this.target = `repository:${repositoryId}`;
-        if (containerId) this.target = `container:${containerId}`;
-        if (params.get('type')) this.type = params.get('type');
-
-        // The dashboard has always linked here with these three, and this screen read none of
-        // them: clicking "8 high" opened the whole backlog, and so did the KEV panel. Nothing
-        // failed — the page loaded, full of issues, simply not the ones that were asked for.
-        if (params.get('severity')) this.severity = params.get('severity');
-        if (params.get('state')) this.state = params.get('state')!;
-        // Into the controls, not into a hidden object: the filter has to apply *and* show as
-        // applied, or the screen disagrees with the link that opened it.
-        if (params.get('is_kev') === 'true') this.onlyKev = true;
-        // The same arrangement for the deadline figure: the dashboard links here, and a link
-        // this screen does not read is a filter that silently does nothing.
-        if (params.get('overdue') === 'true') this.overdue = true;
-        // The per-severity figures on the dashboard leave settled triage out and link here with
-        // this; unread, "3 critical" would open a list of five.
-        if (params.get('unsettled') === 'true') this.unsettled = true;
-        if (params.get('only_direct') === 'true') this.onlyDirect = true;
-        if (params.get('triage_status')) this.triageFilter = params.get('triage_status');
+        // **The URL is the filter, and it is followed, not read once.** The page read a snapshot:
+        // a second link into it — a badge on the tree while the list was open, the back button,
+        // a chip taken off — changed the address and left the list as it was. Every control
+        // writes the URL (`filtersChanged`), and every change of the URL lands here.
+        this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+            this.applyUrl(params);
+            this.nameScope();
+            this.reload(0);
+        });
 
         this.loadTargets();
-        this.reload(0);
 
         // **The advisor is offered only if it exists.** With no model configured, the button opened
         // a dialog that could say nothing; a read failure — not an access one — so a call that fails
@@ -281,6 +306,101 @@ export class Issues {
         this.intelApi.getAiAdvisorStatus().subscribe({
             next: (status) => this.aiEnabled.set(status?.enabled === true),
             error: () => this.aiEnabled.set(false)
+        });
+    }
+
+    /**
+     * Every filter from the URL, **absent meaning off**: a parameter that is not there has to clear
+     * its control, or taking a chip off would leave the list narrowed by what the chip said.
+     */
+    private applyUrl(params: ParamMap): void {
+        const repositoryId = params.get('repository_id');
+        const containerId = params.get('container_id');
+        // Reflected into the control, not only into the query: arriving from a link used to
+        // filter the list while every filter on screen read "all", so the short list looked
+        // like the whole backlog having lost most of its rows.
+        this.target = repositoryId ? `repository:${repositoryId}` : containerId ? `container:${containerId}` : null;
+        this.type = params.get('type');
+        // The dashboard has always linked here with these, and this screen once read none of
+        // them: clicking "8 high" opened the whole backlog, and so did the KEV panel. Nothing
+        // failed — the page loaded, full of issues, simply not the ones that were asked for.
+        this.severity = params.get('severity');
+        this.state = params.get('state') ?? 'open';
+        this.onlyKev = params.get('is_kev') === 'true';
+        this.overdue = params.get('overdue') === 'true';
+        // The per-severity figures on the dashboard and the tree leave settled triage out and
+        // link here with this; unread, "3 critical" would open a list of five.
+        this.unsettled = params.get('unsettled') === 'true';
+        this.onlyDirect = params.get('only_direct') === 'true';
+        this.triageFilter = params.get('triage_status');
+        this.search = params.get('search') ?? '';
+        this.projectId.set(idOf(params.get('project_id')));
+        this.solutionId.set(idOf(params.get('solution_id')));
+    }
+
+    /** The filters as the URL spells them; a default is left out, so a plain visit stays `/issues`. */
+    private urlParams(): Params {
+        const [kind, id] = this.target?.split(':') ?? [];
+        const params: Params = {
+            repository_id: kind === 'repository' ? id : undefined,
+            container_id: kind === 'container' ? id : undefined,
+            project_id: this.projectId() ?? undefined,
+            solution_id: this.solutionId() ?? undefined,
+            state: this.state !== 'open' ? this.state : undefined,
+            severity: this.severity ?? undefined,
+            type: this.type ?? undefined,
+            triage_status: this.triageFilter ?? undefined,
+            only_direct: this.onlyDirect || undefined,
+            is_kev: this.onlyKev || undefined,
+            overdue: this.overdue || undefined,
+            unsettled: this.unsettled || undefined,
+            search: this.search || undefined
+        };
+        return Object.fromEntries(
+            Object.entries(params)
+                .filter(([, value]) => value !== undefined)
+                .map(([key, value]) => [key, String(value)])
+        );
+    }
+
+    /**
+     * A control moved: the URL is rewritten and the subscription reloads. Replacing the entry
+     * rather than pushing one, so that "back" returns to the page the list was opened from and
+     * not through every filter tried on the way.
+     *
+     * An unchanged URL emits nothing, and pressing Enter again in the search box is still a
+     * request to read the list again — so that case reloads here.
+     */
+    filtersChanged(): void {
+        const next = this.urlParams();
+        const current = this.route.snapshot.queryParamMap;
+        const same =
+            current.keys.length === Object.keys(next).length &&
+            Object.entries(next).every(([key, value]) => current.get(key) === value);
+        if (same) {
+            this.reload(0);
+            return;
+        }
+        void this.router.navigate([], { relativeTo: this.route, queryParams: next, replaceUrl: true });
+    }
+
+    removeProject(): void {
+        this.projectId.set(null);
+        this.filtersChanged();
+    }
+
+    removeSolution(): void {
+        this.solutionId.set(null);
+        this.filtersChanged();
+    }
+
+    /** A failure leaves the chip named by its number: the list, not the name, is what was asked for. */
+    private nameScope(): void {
+        if (this.treeRequested || (this.projectId() === null && this.solutionId() === null)) return;
+        this.treeRequested = true;
+        this.solutionsApi.solutionTree().subscribe({
+            next: (tree) => this.tree.set(tree),
+            error: () => undefined
         });
     }
 
@@ -321,6 +441,8 @@ export class Issues {
             this.issuesApi.issues({
                 repository_id: kind === 'repository' ? Number(id) : undefined,
                 container_id: kind === 'container' ? Number(id) : undefined,
+                project_id: this.projectId() ?? undefined,
+                solution_id: this.solutionId() ?? undefined,
                 state: this.state,
                 severity: this.severity ?? undefined,
                 type: this.type ?? undefined,
@@ -593,4 +715,14 @@ export class Issues {
             void navigator.clipboard.writeText(text);
         }
     }
+}
+
+/**
+ * A positive integer, or nothing. A garbled id is dropped rather than sent: the server would refuse
+ * `project_id=abc` with a 400, and the page would show an error for what is a bad link.
+ */
+function idOf(value: string | null): number | null {
+    if (value === null || !/^\d+$/.test(value)) return null;
+    const id = Number(value);
+    return id > 0 ? id : null;
 }

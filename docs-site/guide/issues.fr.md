@@ -73,6 +73,15 @@ différence.
   celle que l'arborescence des solutions vous montre — et un projet dont vous ne voyez rien montre une
   liste vide, exactement comme un projet qui n'existe pas. Les pastilles de l'arborescence comptent
   sans le triage réglé ; ajoutez `unsettled=true` pour que la liste s'accorde avec elles.
+
+  L'écran n'a pas de sélecteur pour ce filtre : une étiquette de sévérité sur une solution ou un projet
+  dans **Solutions et projets** ouvre cette liste avec le périmètre, cette sévérité et **Masquer le
+  triage réglé** déjà positionnés (voir [Solutions et projets](../administration/solutions-and-projects.md)).
+  Le périmètre s'affiche au-dessus de la liste en pastille — **Projet : Payments / Ledger**,
+  **Solution : Payments** — et sa croix le retire en laissant les autres filtres tels quels. Un projet
+  que l'arborescence ne vous montre pas est nommé par le numéro du lien, au-dessus de la liste vide
+  ordinaire. Chaque filtre de cette page est gardé dans l'adresse : une liste filtrée se met en favori
+  ou s'envoie, et **Précédent** revient à la page d'où elle a été ouverte.
 - **Masquer le triage réglé** — écarte ce qui a été jugé non affecté ou marqué corrigé. C'est la
   règle selon laquelle comptent les chiffres par gravité du tableau de bord, et les liens depuis ces
   chiffres l'activent.
