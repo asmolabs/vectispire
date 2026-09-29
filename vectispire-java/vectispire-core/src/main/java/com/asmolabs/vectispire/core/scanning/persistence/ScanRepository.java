@@ -431,6 +431,23 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("pattern") String pattern);
 
     /**
+     * Per repository, its newest scan with this status (the highest id) and the languages that scan's
+     * census recorded — null when it recorded none. A repository with no such scan is absent.
+     *
+     * <p>{@code repoIds} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select s.repoId, s.detectedLanguages
+              from ScanEntity s
+             where s.repoId in :repoIds
+               and s.id = (select max(l.id) from ScanEntity l
+                            where l.repoId = s.repoId
+                              and l.status = :status)""")
+    List<Object[]> findNewestDetectedLanguages(
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("status") String status);
+
+    /**
      * Per repository, its scans with this status created at or after {@code since}, and how many of
      * them hold no {@code examined_types} — scans from before the record, which say nothing of whether
      * a step ran (decision 0032, §6). A repository with no such scan is absent from the answer.

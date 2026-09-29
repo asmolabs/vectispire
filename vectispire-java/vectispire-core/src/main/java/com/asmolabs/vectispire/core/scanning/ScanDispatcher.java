@@ -686,6 +686,11 @@ public class ScanDispatcher {
         // The built-in types that examined the tree are already on the row: the ingestor left there
         // the very set it resolved the backlog against (`ExaminedTypes`), and it is written here,
         // for the built-in worker and for an agent's result alike.
+        // The census's languages, or null when no whole census was taken — "unknown", which a screen
+        // must not read as "no language" (`DetectedLanguages`). Written, not left alone when absent as
+        // the project's type is: the column describes this scan's tree, and a newest completed scan
+        // carrying an older scan's languages would claim a count nobody made of it.
+        scan.setDetectedLanguages(DetectedLanguages.write(artifacts.languages()));
         scan.setClaimedBy(null);
         scan.setClaimedAt(null);
         scan.setLeaseExpiresAt(null);

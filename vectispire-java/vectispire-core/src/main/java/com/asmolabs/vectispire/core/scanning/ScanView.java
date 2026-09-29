@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +18,9 @@ import java.util.Set;
  * @param examinedTypes the built-in types whose step produced in this scan; empty when nobody recorded
  *     it — every scan from before V49, and one that never ran — which is not the empty set, "recorded,
  *     and no step produced" (see {@link ExaminedTypes})
+ * @param detectedLanguages the languages the scan's census found in the tree; empty when no whole
+ *     census was recorded, which is not the empty set, "no file named a language" (see {@link
+ *     DetectedLanguages})
  */
 public record ScanView(
         Long id,
@@ -43,7 +47,8 @@ public record ScanView(
         int attempts,
         Instant notBefore,
         List<PluginOutcome> plugins,
-        Optional<Set<FindingType>> examinedTypes) {
+        Optional<Set<FindingType>> examinedTypes,
+        Optional<Set<Language>> detectedLanguages) {
 
     public static ScanView of(ScanEntity scan) {
         return new ScanView(
@@ -71,6 +76,7 @@ public record ScanView(
                 scan.getAttempts(),
                 scan.getNotBefore(),
                 PluginOutcome.read(scan.getPluginSteps()),
-                ExaminedTypes.read(scan.getExaminedTypes()));
+                ExaminedTypes.read(scan.getExaminedTypes()),
+                DetectedLanguages.read(scan.getDetectedLanguages()));
     }
 }

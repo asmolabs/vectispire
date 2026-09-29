@@ -56,6 +56,24 @@ class AgentResultWireTest {
     }
 
     @Test
+    @DisplayName("the tree's languages cross as names: missing is unknown, [] is none, a newer name fails nothing")
+    void languagesSurviveTheWire() throws Exception {
+        assertThat(json.readValue(AGENT_BODY, ScanArtifacts.class).languages())
+                .describedAs("an agent older than the census's record did not send one: unknown")
+                .isEmpty();
+        assertThat(json.readValue("{\"languages\":[],\"failures\":[]}", ScanArtifacts.class).languages())
+                .contains(java.util.Set.of());
+        assertThat(json.readValue("{\"languages\":[\"java\",null,\"zig\"],\"failures\":[]}", ScanArtifacts.class)
+                        .languages())
+                .describedAs("a language only a newer agent knows is carried, and dropped when written, not a 400")
+                .contains(java.util.Set.of("java", "zig"));
+        String written = json.writeValueAsString(ScanArtifacts.builder()
+                .languages(java.util.Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.KOTLIN))
+                .build(Duration.ZERO));
+        assertThat(json.readTree(written).path("languages").path(0).asText()).isEqualTo("kotlin");
+    }
+
+    @Test
     @DisplayName("a duration written as seconds by an agent from before the contract was pinned is still read")
     void aLegacyNumericDurationIsSeconds() throws Exception {
         ScanArtifacts read = json.readValue("{\"failures\":[],\"duration\":12.345000000}", ScanArtifacts.class);

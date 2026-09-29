@@ -55,6 +55,31 @@ class PluginWireTest {
     }
 
     @Test
+    @DisplayName("the tree's languages cross as wire names; missing or null is unknown, [] is none")
+    void languages() throws Exception {
+        ScanArtifacts written = ScanArtifacts.builder()
+                .languages(Set.of(Language.JAVA, Language.TYPESCRIPT))
+                .build(Duration.ofSeconds(1));
+        String body = json.writeValueAsString(written);
+
+        assertThat(json.readTree(body).path("languages")).extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("java", "typescript");
+        assertThat(json.readValue(body, ScanArtifacts.class).languages()).contains(Set.of("java", "typescript"));
+        assertThat(json.readValue("{\"failures\":[],\"duration\":\"PT1S\"}", ScanArtifacts.class).languages())
+                .describedAs("an agent older than the field did not count: unknown")
+                .isEmpty();
+        assertThat(json.readValue("{\"languages\":null,\"failures\":[]}", ScanArtifacts.class).languages())
+                .isEmpty();
+        assertThat(json.readValue("{\"languages\":[],\"failures\":[]}", ScanArtifacts.class).languages())
+                .describedAs("counted, and no file said a language")
+                .contains(Set.of());
+        assertThat(json.readValue("{\"languages\":[\"java\",\"zig\"],\"failures\":[]}", ScanArtifacts.class)
+                        .languages())
+                .describedAs("a name a newer executor knows does not fail the result it travels in")
+                .contains(Set.of("java", "zig"));
+    }
+
+    @Test
     @DisplayName("a result from an agent older than plugins carries none, and none is read — not an empty run")
     void olderAgent() throws Exception {
         ScanArtifacts read = json.readValue("{\"failures\":[],\"duration\":\"PT1S\"}", ScanArtifacts.class);

@@ -586,7 +586,7 @@ class PluginStepsTest {
     @Test
     @DisplayName("a produced step whose findings did not arrive is absent, never empty")
     void missingFindingsAreAbsent() {
-        ScanArtifacts artifacts = new ScanArtifacts(null, null, null, null, null, null, null, null,
+        ScanArtifacts artifacts = new ScanArtifacts(null, null, null, null, null, null, null, null, null,
                 List.of(new PluginStep.Produced("a", DIGEST, "t", null, null)), null, Duration.ZERO);
 
         assertThat(artifacts.plugins()).singleElement().isInstanceOf(PluginStep.Absent.class);

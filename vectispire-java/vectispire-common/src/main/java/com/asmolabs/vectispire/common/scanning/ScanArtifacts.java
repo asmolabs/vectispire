@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning;
 
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
 import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner.DependencyFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.IacScanner.IacFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.SastScanner.SastFinding;
@@ -12,6 +13,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * What a scan produced.
@@ -23,6 +25,15 @@ import java.util.Optional;
 public record ScanArtifacts(
         Optional<JsonNode> sbom,
         Optional<ProjectManifest.Project> project,
+        // **The languages the tree is written in, as the census names them** — the wire names of
+        // `Language`, the vocabulary a plugin manifest declares. Absent when no census was taken or
+        // it stopped before the end of the tree (an image, a walk past its bounds, an agent older
+        // than the field): "we do not know", which must never read as the empty set, "the census
+        // saw every file and none says a language" (decision 0007). Strings rather than
+        // `Language`, whose reader refuses a name it does not know: a newer executor naming a
+        // language this control plane has never heard of would otherwise fail the whole result, its
+        // findings with it. The name is dropped when written instead (`DetectedLanguages`).
+        Optional<Set<String>> languages,
         Optional<List<DependencyFinding>> dependencies,
         Optional<List<SecretFinding>> secrets,
         Optional<List<IacFinding>> iac,
@@ -55,6 +66,9 @@ public record ScanArtifacts(
     public ScanArtifacts {
         sbom = sbom == null ? Optional.empty() : sbom.filter(node -> !node.isNull() && !node.isMissingNode());
         project = project == null ? Optional.empty() : project;
+        languages = languages == null ? Optional.empty() : languages.map(names -> names.stream()
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet()));
         dependencies = dependencies == null ? Optional.empty() : dependencies;
         secrets = secrets == null ? Optional.empty() : secrets;
         iac = iac == null ? Optional.empty() : iac;
@@ -103,6 +117,7 @@ public record ScanArtifacts(
     public static final class Builder {
         private JsonNode sbom;
         private ProjectManifest.Project project;
+        private Set<String> languages;
         private List<DependencyFinding> dependencies;
         private List<SecretFinding> secrets;
         private List<IacFinding> iac;
@@ -114,6 +129,11 @@ public record ScanArtifacts(
 
         public Builder sbom(JsonNode value) { this.sbom = value; return this; }
         public Builder project(ProjectManifest.Project value) { this.project = value; return this; }
+        public Builder languages(Set<Language> value) {
+            this.languages = value == null ? null : value.stream().map(Language::wireName).collect(
+                    java.util.stream.Collectors.toUnmodifiableSet());
+            return this;
+        }
         public Builder dependencies(List<DependencyFinding> value) { this.dependencies = value; return this; }
         public Builder secrets(List<SecretFinding> value) { this.secrets = value; return this; }
         public Builder iac(List<IacFinding> value) { this.iac = value; return this; }
@@ -131,6 +151,7 @@ public record ScanArtifacts(
             return new ScanArtifacts(
                     Optional.ofNullable(sbom),
                     Optional.ofNullable(project),
+                    Optional.ofNullable(languages),
                     Optional.ofNullable(dependencies),
                     Optional.ofNullable(secrets),
                     Optional.ofNullable(iac),

@@ -248,6 +248,31 @@ public class ScanCatalog {
     }
 
     /**
+     * The languages each of these repositories' newest completed scan found in its tree — what a screen
+     * puts beside a plugin's declared languages, in the same vocabulary ({@link DetectedLanguages}).
+     *
+     * <p><b>A repository missing from the answer is unknown</b>: it has no completed scan, or its newest
+     * one recorded no whole census — from before V57, or a census that stopped short. Never an older
+     * scan's languages in its place: the newest completed scan is what the repository is now, and a set
+     * borrowed from last month would describe a tree that may have changed language since. A present
+     * empty set is "counted, and no file named a language". Newest is the highest id, as for the
+     * latest-scan rollups; batched as {@link #newestExamining}, a project's repositories being sized by
+     * the data.
+     */
+    public Map<Long, java.util.Set<com.asmolabs.vectispire.common.domain.plugins.Language>> newestDetectedLanguages(
+            Collection<Long> repositoryIds) {
+        Map<Long, java.util.Set<com.asmolabs.vectispire.common.domain.plugins.Language>> detected = new java.util.HashMap<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            for (Object[] row : scans.findNewestDetectedLanguages(batch,
+                    com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName())) {
+                long repository = ((Number) row[0]).longValue();
+                DetectedLanguages.read((String) row[1]).ifPresent(languages -> detected.put(repository, languages));
+            }
+        }
+        return Map.copyOf(detected);
+    }
+
+    /**
      * {@code %"pluginId":"<id>"%}, the id closed by its quote so that {@code java} never matches {@code
      * java-arch}. Refused for anything but an id's characters: a {@code %} or {@code _} in it would be a
      * wildcard, and a quote would end the field.

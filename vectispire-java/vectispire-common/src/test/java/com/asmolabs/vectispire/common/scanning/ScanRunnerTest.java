@@ -85,7 +85,7 @@ class ScanRunnerTest {
                         new com.asmolabs.vectispire.common.domain.plugins.PluginRef(javaOnly.id(), javaOnly.digest())));
 
         ScanArtifacts.Builder builder = ScanArtifacts.builder();
-        runner.runPlugins(task, workspace, workspace.source(), builder);
+        runner.runPlugins(task, workspace, workspace.source(), null, builder);
         ScanArtifacts artifacts = builder.build(java.time.Duration.ZERO);
 
         assertThat(artifacts.plugins()).extracting(step -> step.getClass().getSimpleName())
@@ -94,6 +94,57 @@ class ScanRunnerTest {
                 .describedAs("the plugin that wrote no report is a failure under its name; the inapplicable one is not")
                 .extracting(ScanArtifacts.Failure::step)
                 .containsExactly("plugin acme-lint");
+    }
+
+    @Test
+    @DisplayName("the tree's languages are kept whole, in the plugin manifests' vocabulary, and nothing is not unknown")
+    void theCensusIsKept(@org.junit.jupiter.api.io.TempDir Path root) throws java.io.IOException {
+        java.nio.file.Files.createDirectories(root.resolve("web/src"));
+        java.nio.file.Files.writeString(root.resolve("pom.xml"), "<project/>");
+        java.nio.file.Files.writeString(root.resolve("web/src/main.ts"), "export {}");
+        java.nio.file.Files.writeString(root.resolve("README.md"), "#");
+
+        ScanArtifacts.Builder builder = ScanArtifacts.builder();
+        LanguageCensus.Census census = ScanRunner.census(root, builder);
+
+        assertThat(builder.build(java.time.Duration.ZERO).languages())
+                .describedAs("the wire names a manifest declares, so a screen compares the two as they are")
+                .contains(Set.of("java", "typescript"));
+        assertThat(census.complete()).isTrue();
+
+        java.nio.file.Path prose = java.nio.file.Files.createDirectories(root.resolve("prose"));
+        java.nio.file.Files.writeString(prose.resolve("NOTES.md"), "#");
+        ScanArtifacts.Builder none = ScanArtifacts.builder();
+        ScanRunner.census(prose, none);
+        assertThat(none.build(java.time.Duration.ZERO).languages())
+                .describedAs("a whole census that saw no language says so: recorded, and empty")
+                .contains(Set.of());
+    }
+
+    @Test
+    @DisplayName("a census that did not see the whole tree records nothing, which reads as unknown")
+    void anIncompleteCensusIsAbsent(@org.junit.jupiter.api.io.TempDir Path root) {
+        ScanArtifacts.Builder builder = ScanArtifacts.builder();
+        LanguageCensus.Census census = ScanRunner.census(root.resolve("not-there"), builder);
+
+        assertThat(census.complete()).isFalse();
+        assertThat(builder.build(java.time.Duration.ZERO).languages())
+                .describedAs("absent, never the partial or empty set: a screen would read it as \"no Java here\"")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("an image scan has no tree to count, and records no language")
+    void anImageHasNoLanguages() {
+        ContainerRunner containers = mock(ContainerRunner.class);
+        when(containers.run(any())).thenReturn(new ContainerRunner.ContainerResult("", "", 0));
+
+        ScanArtifacts artifacts = runner(containers).run(new ScanTask(
+                new ScanTask.Target.Image(new ImageReference(null, "nginx", "1.27"), "linux/amd64"),
+                null,
+                Set.of(ScanTask.Step.DEPENDENCIES)));
+
+        assertThat(artifacts.languages()).isEmpty();
     }
 
     private static ScanRunner runner(ContainerRunner containers) {

@@ -66,6 +66,14 @@ public class ScanEntity {
     @Column(name = "examined_types", length = 255)
     private String examinedTypes;
 
+    /**
+     * The languages the scan's census found, as wire names — see {@code DetectedLanguages}. Null when
+     * no whole census was recorded (every scan from before V57, an image, a walk that stopped short),
+     * which is not "no language": that is the empty string.
+     */
+    @Column(name = "detected_languages", length = 512)
+    private String detectedLanguages;
+
     @Column(name = "duration_ms")
     private Long durationMs;
 
@@ -190,6 +198,14 @@ public class ScanEntity {
 
     public void setExaminedTypes(String examinedTypes) {
         this.examinedTypes = examinedTypes;
+    }
+
+    public String getDetectedLanguages() {
+        return detectedLanguages;
+    }
+
+    public void setDetectedLanguages(String detectedLanguages) {
+        this.detectedLanguages = detectedLanguages;
     }
 
     public Long getDurationMs() {

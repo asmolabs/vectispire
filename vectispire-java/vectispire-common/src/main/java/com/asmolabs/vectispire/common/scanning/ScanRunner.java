@@ -133,6 +133,12 @@ public final class ScanRunner {
             // would put "no pom.xml" in the same list as "Semgrep timed out".
             ProjectManifest.read(scanRoot).ifPresent(artifacts::project);
 
+            // Not a step either, for the same reason: counting file names is no analysis. Taken whole
+            // — no language "wanted", so the walk does not stop at the plugins' — because what it
+            // finds is kept on the scan for the screens (which languages a project is written in, face
+            // to a plugin's), and the plugins below are decided on the same census.
+            LanguageCensus.Census census = census(scanRoot, artifacts);
+
             // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger).
             //
             // **A step like the others, no longer a swallowed exception.** A failure here was
@@ -205,7 +211,7 @@ public final class ScanRunner {
             }
 
             // Last, and each on its own: see runPlugins.
-            runPlugins(task, workspace, scanRoot, artifacts);
+            runPlugins(task, workspace, scanRoot, census, artifacts);
 
             return artifacts.build(Duration.between(started, clock.instant()));
         });
@@ -255,16 +261,36 @@ public final class ScanRunner {
      * failure — see {@link PluginStep} for why that third state exists. Package-private so the
      * wiring is exercised without a clone.
      */
-    void runPlugins(ScanTask task, Workspace workspace, Path scanRoot, ScanArtifacts.Builder artifacts) {
+    void runPlugins(
+            ScanTask task, Workspace workspace, Path scanRoot, LanguageCensus.Census census, ScanArtifacts.Builder artifacts) {
         if (task.plugins().isEmpty()) {
             return;
         }
-        for (PluginStep step : plugins.run(task.plugins(), workspace, scanRoot)) {
+        for (PluginStep step : plugins.run(task.plugins(), workspace, scanRoot, census)) {
             artifacts.plugin(step);
             if (step instanceof PluginStep.Absent absent) {
                 artifacts.failed("plugin " + absent.pluginId(), absent.reason());
             }
         }
+    }
+
+    /**
+     * The languages of the tree, taken once for the scan: kept in the artifacts when the census is
+     * complete, left absent when it is not.
+     *
+     * <p><b>An incomplete census records nothing</b>, not what it saw so far: a walk stopped at its
+     * bound has not seen the rest of the tree, and a screen comparing the partial set with a plugin's
+     * languages would tell an operator that a Java repository holds no Java. Absent reads as unknown
+     * (decision 0007), which is the truth. The plugins are still decided on it — an incomplete census
+     * runs every one of them ({@link LanguageCensus.Census#applies}). Package-private so the rule is
+     * exercised without a clone.
+     */
+    static LanguageCensus.Census census(Path scanRoot, ScanArtifacts.Builder artifacts) {
+        LanguageCensus.Census census = LanguageCensus.of(scanRoot, java.util.Set.of());
+        if (census.complete()) {
+            artifacts.languages(census.found());
+        }
+        return census;
     }
 
     /** The sub-path as the scanners are handed it, or the scan's refusal — see {@link #scanRoot}. */

@@ -25,7 +25,8 @@ import java.util.Set;
  *   <li><b>Every manifest is fetched and checked against the task's digest</b> before anything runs.
  *       One that cannot be fetched, does not hash to the digest, or does not validate is absent: the
  *       executor will not run a plugin other than the one the control plane decided.
- *   <li><b>The census is taken once</b>, for the union of the languages the plugins declare.
+ *   <li><b>The census is taken once</b> — the runner's, of the whole tree, or here for the union of
+ *       the languages the plugins declare.
  *   <li><b>Each plugin is not applicable, produced or absent.</b> A plugin whose languages the census
  *       proves absent is not run. Any failure of a plugin is its own: the next one still runs, and the
  *       scanners' results are not touched.
@@ -43,11 +44,19 @@ public final class PluginSteps {
 
     private record Resolved(PluginRef reference, PluginManifest manifest) {}
 
+    /** The same, taking its own census of the tree. */
+    public List<PluginStep> run(List<PluginRef> references, Workspace workspace, Path analysedRoot) {
+        return run(references, workspace, analysedRoot, null);
+    }
+
     /**
      * @param analysedRoot the directory the scan is limited to; when it is absent from this
      *     checkout, every plugin is absent — nothing was examined, which is not "no language"
+     * @param census the census the runner already took of {@code analysedRoot}, whole — or null, and
+     *     one is taken here for the plugins' languages only
      */
-    public List<PluginStep> run(List<PluginRef> references, Workspace workspace, Path analysedRoot) {
+    public List<PluginStep> run(
+            List<PluginRef> references, Workspace workspace, Path analysedRoot, LanguageCensus.Census census) {
         List<PluginStep> steps = new ArrayList<>(references.size());
         List<Resolved> resolved = new ArrayList<>(references.size());
         for (PluginRef reference : references) {
@@ -69,9 +78,11 @@ public final class PluginSteps {
             return List.copyOf(steps);
         }
 
-        Set<Language> wanted = EnumSet.noneOf(Language.class);
-        resolved.forEach(plugin -> wanted.addAll(plugin.manifest().languages()));
-        LanguageCensus.Census census = LanguageCensus.of(analysedRoot, wanted);
+        if (census == null) {
+            Set<Language> wanted = EnumSet.noneOf(Language.class);
+            resolved.forEach(plugin -> wanted.addAll(plugin.manifest().languages()));
+            census = LanguageCensus.of(analysedRoot, wanted);
+        }
 
         for (Resolved plugin : resolved) {
             PluginRef reference = plugin.reference();
