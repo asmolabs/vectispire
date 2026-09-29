@@ -171,7 +171,12 @@ tentatives en quelques secondes ; le worker intégré faisait échouer une analy
 première erreur, avec le message brut. Un sous-chemin absent du clone fait désormais échouer l'analyse
 avant tout analyseur, là où chacun le signalait.
 
-**Les migrations V32 à V54 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Signer une checklist demande la clé de signature.** La signature d'une checklist rend et signe
+désormais son document dans la même transaction. Une installation sans `ENCRYPTION_KEY` ni
+`vectispire.signing.key` configurée y répond 412, comme tout autre export signé — et une signature qui ne
+peut pas être signée n'est pas enregistrée. Voir [Checklists de sécurité](../guide/security-checklists.fr.md).
+
+**Les migrations V32 à V55 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -312,6 +317,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Nouveautés
 
+- **Une checklist signée est un document signé** (V55 ajoute `t_checklist_document`).
+  `GET /api/v1/projects/{id}/checklists/{revision}/document` renvoie un zip : `checklist.xlsx`, le
+  classeur de l'organisation dont seules les cellules de réponse, de commentaire et d'en-tête sont
+  écrites, avec une feuille `Evidence` ajoutée, et `checklist.json`, la même déclaration lisible par une
+  machine — chacun avec sa signature détachée quand la révision est signée. Ce paquet est rendu et signé
+  pendant la signature, puis servi tel qu'enregistré : le téléchargement de l'an prochain est le
+  document qui a été signé ; une révision en brouillon ou soumise est rendue à la demande, non signée, et
+  le dit. `@AcceptsApiKey(EXPORT)`, audité `CHECKLIST_EXPORTED`. Vérification :
+  `cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature checklist.xlsx.sig checklist.xlsx`
+  — [Checklists de sécurité](../guide/security-checklists.fr.md).
 - **Les lignes de checklist mesurées par les preuves qui ont tourné** (V54 ajoute
   `t_checklist_measurement`). Un responsable sécurité lie une règle à une ligne d'un brouillon
   (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`, sur la `revision` lue, consigné
@@ -426,7 +441,13 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 Cette version corrige les constats de la revue de sécurité du 2026-09-26 et leurs suites —
 limites d'authentification sous tentatives concurrentes, liaison de l'authentification unique,
 SSRF et différences d'analyse des URL de clonage, lectures sortantes bornées, complétude de
-l'audit et du SIEM, clé de scellement de l'agent. Les dépendances et plugins de la construction
+l'audit et du SIEM, clé de scellement de l'agent. Jackson est relevé au-dessus du BOM Spring Boot pour
+GHSA-q4xh-88c3-wmh7 (High) et deux avis liés, sur le plan de contrôle **et sur l'agent**, dont le SBOM
+est désormais scanné par le pipeline — il ne l'était pas, et restait sur une version vulnérable sans que
+rien ne le dise. Les commandes `cosign verify-blob --key` que donnent le produit et le guide de
+conformité portent désormais `--insecure-ignore-tlog=true` : sans ce drapeau, cosign cherchait la
+signature dans un journal de transparence où Vectispire ne publie rien, et refusait chaque export. Les
+dépendances et plugins de la construction
 sont désormais vérifiés par signature et somme de contrôle. Le détail est dans l'historique des
 commits et dans le
 [registre des décisions](https://github.com/asmolabs/vectispire/tree/main/docs/architecture/fr/decisions).

@@ -156,7 +156,12 @@ attempts in seconds; the built-in worker failed a scan for good at its first err
 message. A sub-path the clone does not hold now fails the scan before any scanner runs, where each
 analyser used to report it.
 
-**Schema migrations V32 to V54 run at start**, on MySQL and PostgreSQL. Back up the database
+**Signing a checklist off needs the signing key.** The sign-off now renders and signs the checklist's
+document in the same transaction. An installation with neither `ENCRYPTION_KEY` nor a configured
+`vectispire.signing.key` answers 412 there, as every other signed export already did — and a sign-off
+that cannot be signed is not recorded. See [Security checklists](../guide/security-checklists.md).
+
+**Schema migrations V32 to V55 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -280,6 +285,16 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **A signed-off checklist is a signed document** (V55 adds `t_checklist_document`).
+  `GET /api/v1/projects/{id}/checklists/{revision}/document` returns a zip: `checklist.xlsx`, the
+  organisation's own workbook with only the answer, comment and header cells written and an `Evidence`
+  sheet added, and `checklist.json`, the same statement machine-readable — each with a detached
+  signature when the revision is signed off. That package is rendered and signed inside the sign-off
+  and served as stored, so next year's download is the document that was signed; a draft or submitted
+  revision renders on request, unsigned, and says so. `@AcceptsApiKey(EXPORT)`, audited
+  `CHECKLIST_EXPORTED`. Verify with
+  `cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature checklist.xlsx.sig checklist.xlsx`
+  — [Security checklists](../guide/security-checklists.md).
 - **Checklist lines measured by the evidence that ran** (V54 adds `t_checklist_measurement`). A security
   lead binds a rule to a draft's line (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`,
   on the `revision` read, audited `CHECKLIST_TEMPLATE_RULES_BOUND`): dependency analysis, a findings
@@ -384,6 +399,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 This release closes the findings of the security review of 2026-09-26 and its follow-ups —
 authentication limits under concurrent attempts, single sign-on linking, SSRF and parser
 differentials on clone URLs, bounded outbound reads, audit and SIEM completeness, and the
-agent's sealing key. Build dependencies and plugins are now verified against signatures and
+agent's sealing key. Jackson is raised above the Spring Boot BOM for GHSA-q4xh-88c3-wmh7 (High) and
+two related advisories, on the control plane **and the agent**, whose own SBOM is now scanned in the
+pipeline — it was not, and sat on an advised version unseen. The `cosign verify-blob --key` commands
+the product and the compliance guide hand out now carry `--insecure-ignore-tlog=true`: without it,
+cosign looked for the signature in a transparency log Vectispire never publishes to and refused every
+export. Build dependencies and plugins are now verified against signatures and
 checksums. The detail is in the commit history and in the
 [decision register](https://github.com/asmolabs/vectispire/tree/main/docs/architecture/en/decisions).
