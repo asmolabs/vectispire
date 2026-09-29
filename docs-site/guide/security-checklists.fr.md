@@ -258,6 +258,16 @@ remettre : un zip, toujours servi en téléchargement.
 chaque téléchargement renvoie ces mêmes octets, quoi qui ait changé depuis. Un brouillon, une révision
 soumise ou remplacée est rendu pour la requête, **sans signature**, ses lignes mesurées mesurées pour
 lui, sa cellule de date laissée vide et sa feuille Evidence ouverte par *Draft — not signed off*.
+Une révision approuvée **avant que les documents soient signés** n'a pas de paquet conservé : elle est
+rendue de la même façon, sans signature, et sa feuille Evidence s'ouvre en disant qu'elle a été
+approuvée mais qu'aucun document signé n'a été produit alors. La page propose tout de même son
+téléchargement comme un *paquet signé* — elle ne voit que le statut —, si bien qu'un zip sans
+entrées `.sig` relève de ce cas, et non d'une panne.
+
+Sur la page de la checklist, **Document** télécharge la révision affichée — *Télécharger le paquet
+signé* pour une révision approuvée, *Télécharger un rendu non signé* sinon — et **Révisions** propose
+de même celui de chaque révision antérieure. Une révision approuvée montre aussi les commandes
+ci-dessous, prêtes à copier, et un lien vers la clé publique.
 
 Quiconque peut lire la checklist peut la télécharger ; une [clé d'intégration](../administration/api-keys.fr.md)
 ayant la portée `export` aussi — mais une clé restreinte à un dépôt ne voit jamais un projet en entier,

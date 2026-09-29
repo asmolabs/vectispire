@@ -249,6 +249,15 @@ over: a zip, always served as a download.
 download returns those same bytes, whatever changed since. A draft, a submitted or a superseded
 revision is rendered for the request, **unsigned**, its measured lines measured for it, its date cell
 left empty and its Evidence sheet opening with *Draft — not signed off*.
+A revision signed off **before signed documents existed** has no stored package: it is rendered the
+same way, unsigned, and its Evidence sheet opens by saying it was signed off but no signed document was
+produced then. The page still offers its download as a *signed package* — the status is all it sees —
+so a zip without `.sig` entries is that case, not a fault.
+
+On the checklist page, **Document** downloads the revision shown — *Download the signed package* for a
+signed-off one, *Download an unsigned rendering* otherwise — and **Revisions** offers each earlier one's
+the same way. A signed-off revision also shows the commands below, ready to copy, and a link to the
+public key.
 
 Anybody who may read the checklist may download it; so may an [integration key](../administration/api-keys.md)
 with the `export` scope — though a key restricted to one repository never sees a whole project, and is
