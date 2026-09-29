@@ -138,6 +138,31 @@ public class TargetNaming {
     }
 
     /**
+     * The names of these repositories, those that exist, keyed by identifier — asked {@value
+     * #LOOKUP_BATCH} at a time.
+     *
+     * <p>Batched where {@link #forIds} is not, because its caller sizes the list by an estate rather than
+     * by a page: a project's checklist names every repository its measurements looked at, and {@code
+     * findAllById} binds one parameter per identifier, which the PostgreSQL driver refuses past 65,535.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, String> repositoryNames(Collection<Long> repositoryIds) {
+        if (repositoryIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> distinct = List.copyOf(Set.copyOf(repositoryIds));
+        Map<Long, String> named = new HashMap<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            repositories.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+                    .forEach(row -> named.put(row.getId(), of(row)));
+        }
+        return named;
+    }
+
+    /** How many identifiers one lookup binds: far under every engine's limit. */
+    static final int LOOKUP_BATCH = 1_000;
+
+    /**
      * Every target's name, in two queries.
      *
      * <p>Loaded whole rather than one lookup per row: a list of two hundred scans would

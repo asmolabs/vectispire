@@ -2334,7 +2334,7 @@ export type ChecklistItem = Refine<
         sheetRow: number;
         evidenceKind: ChecklistEvidenceKind;
         evidenceValidityMonths: number | null;
-        boundRule: string | null;
+        boundRule: ChecklistRule | null;
     }
 >;
 
@@ -2421,20 +2421,21 @@ export type ChecklistPreview = Refine<
  * modified again, only reopened as the next revision; a superseded one is an open revision set aside
  * by a move to another version.
  */
-export type ChecklistStatus = 'draft' | 'submitted' | 'signed_off' | 'superseded';
+export type ChecklistStatus = NonNullable<Schema<'ChecklistRevisionSummary'>['status']>;
 
 /** An answer, `ChecklistAnswer.wireName()`; `not_applicable` only on a version that offers it. */
-export type ChecklistAnswerValue = 'yes' | 'no' | 'not_applicable';
+export type ChecklistAnswerValue = NonNullable<Schema<'ChecklistAnswerView'>['value']>;
 
 /**
- * What keeps a line from a submission, in the order a person fixes them — `ProjectChecklistService.problems`.
- * A proof is asked of a "yes" only.
+ * What keeps a line from a submission, in the order a person fixes them — `ProjectChecklistService.problems`,
+ * the judgement the submission itself makes: on a draft, `measurement_contradicted` for a "yes" against a
+ * failing measurement, and a comment and a proof for a "yes" where there is no data. A proof is asked of
+ * a "yes" only.
  */
-export type ChecklistLineProblem =
-    'unanswered' | 'awaiting_confirmation' | 'comment_required' | 'evidence_required' | 'evidence_expired';
+export type ChecklistLineProblem = NonNullable<Schema<'ChecklistLineView'>['problems']>[number];
 
 /** What a line asks as proof of a "yes" — `EvidenceRequirement.Kind.wireName()`. */
-export type ChecklistEvidenceKind = 'none' | 'link_or_file' | 'file';
+export type ChecklistEvidenceKind = NonNullable<Schema<'ChecklistLineView'>['evidenceKind']>;
 
 /**
  * One revision as a listing shows it. `edition` counts its writes: every write names the edition
@@ -2511,9 +2512,9 @@ export type ChecklistEvidence = Refine<
 
 /**
  * One line: the template's words, the rule it is measured by (null for none), the current answer (null
- * while unanswered), its proofs and its problems. `problems` never names what a measurement keeps from
- * a submission — those are the measurements route's (`MeasuredLine.problems`), which is why the view's
- * `readyToSubmit` can be true of a revision the submission will refuse.
+ * while unanswered), its proofs and its problems. On a draft, `problems` include what the line's
+ * measurement keeps from a submission, judged as the submission judges it — so the view's
+ * `readyToSubmit` is what the submission will say, unless something changes first.
  */
 export type ChecklistLine = Refine<
     Schema<'ChecklistLineView'>,
@@ -2578,23 +2579,22 @@ export type ChecklistProjectContext = Refine<
 >;
 
 /**
- * One line a `checklist-incomplete` refusal names, in the problem's `lines` extension member — which
- * the document cannot describe, a problem having no schema there. `problems` are a line's own tokens.
+ * One line a `checklist-incomplete` refusal names, in the problem's `lines` extension member
+ * (`ChecklistIncompleteProblem`). `problems` are a line's own tokens — never `measurement_contradicted`,
+ * which refuses under a cause of its own.
  */
-export interface ChecklistIncompleteLine {
-    itemId: number;
-    position: number;
-    problems: ChecklistLineProblem[];
-}
+export type ChecklistIncompleteLine = Refine<
+    Schema<'IncompleteLine'>,
+    { problems: Exclude<ChecklistLineProblem, 'measurement_contradicted'>[] }
+>;
 
 // ---------------------------------------------------------------------- measured lines (decision 0032 §6)
 
 /** What a line is measured by — `ChecklistRule.Kind.wireName()`. */
-export type ChecklistRuleKind =
-    'dependency_analysis' | 'findings_threshold' | 'coverage_threshold' | 'test_suite_passed' | 'component_versions';
+export type ChecklistRuleKind = NonNullable<Schema<'ChecklistRuleForm'>['kind']>;
 
 /** The severities a threshold names — `Severity.wireName()`. */
-export type ChecklistSeverity = 'critical' | 'high' | 'medium' | 'low' | 'negligible' | 'unknown';
+export type ChecklistSeverity = NonNullable<Schema<'MeasuredFigure'>['severity']>;
 
 /** What one severity may still hold: at most so many open, at least such a share resolved — one or both. */
 export type ChecklistThreshold = Refine<
@@ -2607,8 +2607,7 @@ export type ChecklistAllowedComponent = Refine<Schema<'ComponentForm'>, { purlPr
 
 /**
  * A rule as the binding route reads it and as a line's view shows it — one shape for every kind, each
- * kind taking its own fields. An item's `boundRule` is the same shape as canonical text: keys sorted,
- * lists in order. The server refuses a key another kind takes, so the client sends only the kind's own
+ * kind taking its own fields; an item's `boundRule` and a measurement's are this shape too. The server refuses a key another kind takes, so the client sends only the kind's own
  * and leaves the others out; a rule read back may carry them as null.
  */
 export type ChecklistRule = Refine<
@@ -2632,49 +2631,37 @@ export type ChecklistRule = Refine<
 export type ChecklistItemRule = Refine<Schema<'ChecklistItemRule'>, { itemKey: string; rule: ChecklistRule | null }>;
 
 /** `MeasurementOutcome.wireName()`: no data is never a pass. */
-export type MeasurementOutcome = 'pass' | 'fail' | 'no_data';
+export type MeasurementOutcome = NonNullable<Schema<'ChecklistMeasurementView'>['outcome']>;
 
 /** Why a measurement has no data — `NoDataReason.wireName()`, a closed set. */
-export type NoDataReason =
-    | 'no_repository'
-    | 'never_examined'
-    | 'step_absent'
-    | 'examination_unrecorded'
-    | 'stale'
-    | 'not_applicable_anywhere'
-    | 'suite_not_found'
-    | 'no_test_ran';
+export type NoDataReason = NonNullable<Schema<'ChecklistMeasurementView'>['reason']>;
 
 /** An answer beside its line's measurement — `Reconciliation.wireName()`. */
-export type Reconciliation =
-    | 'consistent'
-    | 'contradicted'
-    | 'declared_not_measured'
-    | 'understated'
-    | 'excluded'
-    | 'not_measured_here'
-    | 'unanswered';
+export type Reconciliation = NonNullable<Schema<'MeasuredLineView'>['reconciliation']>;
 
 /**
  * What a measurement keeps from a submission — `ProjectChecklistService.measurements`: a yes against a
  * failure, or what a yes where there is no data still needs (question 4).
  */
-export type MeasuredLineProblem =
-    'measurement_contradicted' | 'comment_required' | 'evidence_required' | 'evidence_expired';
+export type MeasuredLineProblem = NonNullable<Schema<'MeasuredLineView'>['problems']>[number];
 
 /** What a measurement read — `MeasurementFacts.Source.wireName()`. */
-export type MeasurementSource = 'scan' | 'sarif_import' | 'coverage_import' | 'test_report_import';
+export type MeasurementSource = NonNullable<Schema<'RepositoryLook'>['source']>;
+
+/** A repository's look: `examined`, `not_applicable`, or the no-data reason it lacks data for. */
+export type RepositoryLookStatus = NonNullable<Schema<'RepositoryLook'>['status']>;
 
 /**
- * One repository's contribution. `status` is `examined`, `not_applicable`, or the no-data reason it
- * lacks data for; `source` and what follows it are null when nothing was read. `detail` is the
- * server's English.
+ * One repository's contribution. `repositoryName` is the repository as every screen names it — null
+ * for one no longer in the project, or gone, which a stored measurement may still cite: fall back to
+ * its id. `source` and what follows it are null when nothing was read. `detail` is the server's English.
  */
 export type RepositoryLook = Refine<
     Schema<'RepositoryLook'>,
     {
+        repositoryName: string | null;
         scope: string | null;
-        status: string;
+        status: RepositoryLookStatus;
         source: MeasurementSource | null;
         sourceId: number | null;
         at: string | null;
@@ -2687,7 +2674,7 @@ export type RepositoryLook = Refine<
 /** Issues of one severity in one scope — or, under `all`, the total a threshold was judged on. */
 export type MeasuredFigure = Refine<
     Schema<'MeasuredFigure'>,
-    { scope: string; severity: string; met: boolean | null; detail: string | null }
+    { scope: string; severity: ChecklistSeverity; met: boolean | null; detail: string | null }
 >;
 
 /** The evidence as judged. `summary` is one English sentence, for the audit entry and the document. */
@@ -2708,7 +2695,7 @@ export type ChecklistMeasurement = Refine<
         purpose: 'read' | 'answer' | 'submission' | 'sign_off';
         ruleKind: ChecklistRuleKind;
         ruleDigest: string;
-        boundRule: string;
+        boundRule: ChecklistRule;
         outcome: MeasurementOutcome;
         reason: NoDataReason | null;
         asOf: string | null;
@@ -2748,15 +2735,16 @@ export type ChecklistMeasurements = Refine<
 
 /**
  * One line a `checklist-measurement-contradicted` or `checklist-measurement-changed` refusal names, in
- * the problem's `lines` member — which the document cannot describe either: its answer, what the rule
- * finds now and, for a sign-off, what it found at the submission.
+ * the problem's `lines` member (`ChecklistMeasurementProblem`): its answer, what the rule finds now and,
+ * for a sign-off, what it found at the submission.
  */
-export interface ChecklistMeasuredConflictLine {
-    itemId: number;
-    position: number;
-    answer: ChecklistAnswerValue | null;
-    outcome: MeasurementOutcome;
-    reason: NoDataReason | null;
-    submittedOutcome: MeasurementOutcome | null;
-    submittedReason: NoDataReason | null;
-}
+export type ChecklistMeasuredConflictLine = Refine<
+    Schema<'MeasuredLine'>,
+    {
+        answer: ChecklistAnswerValue | null;
+        outcome: MeasurementOutcome;
+        reason: NoDataReason | null;
+        submittedOutcome: MeasurementOutcome | null;
+        submittedReason: NoDataReason | null;
+    }
+>;

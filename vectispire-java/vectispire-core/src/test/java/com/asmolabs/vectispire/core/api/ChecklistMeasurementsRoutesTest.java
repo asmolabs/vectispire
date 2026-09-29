@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -31,6 +32,7 @@ import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepositor
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -454,6 +456,78 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             });
             assertThat(entries("CHECKLIST_SUBMITTED")).singleElement()
                     .satisfies(entry -> assertThat(entry.getDescription()).contains("1 measured line: 1 fail"));
+        }
+
+        @Test
+        @DisplayName("the read's readiness is the submission's: a failing measurement alone keeps a draft, on the line it names")
+        void readinessIsTheSubmissions() throws Exception {
+            publishWithRule(SECRETS);
+            scan(first, hoursAgo(2), "secret", null, true);
+            open(developer, project);
+            List<Long> lines = itemIds(read(developer, 1));
+            answerAll(lines);
+
+            // A yes where there is no data (the second repository was never scanned): the read names what
+            // the submission asks, before it is asked.
+            JsonNode unmeasured = read(developer, 1);
+            assertThat(unmeasured.at("/readyToSubmit").asBoolean()).isFalse();
+            assertThat(unmeasured.at("/lines/0/problems").toString())
+                    .isEqualTo("[\"comment_required\",\"evidence_required\"]");
+            MvcResult incomplete = submit(developer, 1, edition()).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(incomplete)).isEqualTo(PROBLEM + "checklist-incomplete");
+            assertThat(json.readTree(incomplete.getResponse().getContentAsString()).at("/lines/0/problems"))
+                    .isEqualTo(unmeasured.at("/lines/0/problems"));
+
+            // Measured, and failing. Every line answered, nothing asked of a proof: the failing measurement
+            // is the only obstacle, and the read says so on the line the submission then names.
+            scan(second, hoursAgo(1), "secret", null, true);
+            issue(second, "secret", null, "critical", "open", "under_review");
+            JsonNode draft = read(developer, 1);
+            assertThat(draft.at("/readyToSubmit").asBoolean()).as("a yes against a failure is not ready").isFalse();
+            assertThat(draft.at("/lines/0/itemId").asLong()).isEqualTo(lines.getFirst());
+            assertThat(draft.at("/lines/0/problems").toString()).isEqualTo("[\"measurement_contradicted\"]");
+            for (int line = 1; line < lines.size(); line++) {
+                assertThat(draft.at("/lines/" + line + "/problems").isEmpty()).as("line %s", line + 1).isTrue();
+            }
+            MvcResult refused = submit(developer, 1, edition()).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "checklist-measurement-contradicted");
+            JsonNode problem = json.readTree(refused.getResponse().getContentAsString());
+            assertThat(problem.at("/lines").size()).isEqualTo(1);
+            assertThat(problem.at("/lines/0/itemId").asLong()).as("the line the read named").isEqualTo(lines.getFirst());
+
+            // Ready once the read says so, and the submission agrees.
+            answer(developer, 1, lines.getFirst(), "no", "The leaked key is being rotated.", null, edition())
+                    .andExpect(status().isCreated());
+            assertThat(read(developer, 1).at("/readyToSubmit").asBoolean()).isTrue();
+            JsonNode submitted = read(submit(developer, 1, edition()).andExpect(status().isOk()));
+            assertThat(submitted.at("/readyToSubmit").asBoolean()).as("past the draft, nothing is to submit").isFalse();
+        }
+
+        @Test
+        @DisplayName("the evidence names each repository as every screen does, and none that has left the project")
+        void theEvidenceNamesItsRepositories() throws Exception {
+            publishWithRule(SECRETS);
+            scan(first, hoursAgo(2), "secret", null, true);
+            scan(second, hoursAgo(2), "secret", null, true);
+            open(developer, project);
+            answerAll(itemIds(read(developer, 1)));
+            submit(developer, 1, edition()).andExpect(status().isOk());
+
+            JsonNode live = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(repository(live, first).at("/repositoryName").asText())
+                    .isEqualTo(TargetNaming.of(repositories.findById(first).orElseThrow()));
+            assertThat(repository(live, second).at("/repositoryName").asText())
+                    .isEqualTo(TargetNaming.of(repositories.findById(second).orElseThrow()));
+            JsonNode atSubmission = measurements(developer, project, 1).at("/lines/0/atSubmission");
+            assertThat(repository(atSubmission, second).at("/repositoryName").asText()).isNotBlank();
+
+            // The submission's stored evidence still cites the repository; the project no longer holds it.
+            mvc.perform(authenticated(delete("/api/v1/projects/" + project + "/repositories/" + second), asAdmin()))
+                    .andExpect(status().isNoContent());
+            JsonNode after = measurements(developer, project, 1).at("/lines/0/atSubmission");
+            assertThat(repository(after, second).at("/repositoryName").isNull())
+                    .as("a name is handed out for the repositories the reader was judged by, only").isTrue();
+            assertThat(repository(after, first).at("/repositoryName").asText()).isNotBlank();
         }
 
         @Test

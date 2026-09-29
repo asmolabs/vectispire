@@ -64,6 +64,7 @@ export const ANSWER_KEYS = {
 export const PROBLEM_KEYS = {
     unanswered: 'project_checklist.problem_unanswered',
     awaiting_confirmation: 'project_checklist.problem_awaiting_confirmation',
+    measurement_contradicted: 'project_checklist.measured_problem_contradicted',
     comment_required: 'project_checklist.problem_comment_required',
     evidence_required: 'project_checklist.problem_evidence_required',
     evidence_expired: 'project_checklist.problem_evidence_expired'

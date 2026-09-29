@@ -354,6 +354,13 @@ public class ProjectChecklistsController {
             + "checklist-incomplete — whose problem names the lines in its lines member as well as in its detail: each "
             + "line's itemId, position and problems, the tokens a line's view carries — and "
             + "checklist-measurement-contradicted, its lines in the same member.")
+    // Declaring the 409 drops the 200 springdoc would infer, so it is declared too, as it was inferred.
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "*/*", schema = @Schema(implementation = ChecklistView.class)))
+    @ApiResponse(responseCode = "409", description = "The revision cannot be submitted; checklist-incomplete and "
+            + "checklist-measurement-contradicted name their lines",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(oneOf = {
+                    ChecklistRefusals.Incomplete.class, ChecklistRefusals.Measured.class})))
     @PostMapping("/{revision}/submission")
     @RequiresWriteAccount
     public ChecklistView submit(
@@ -387,6 +394,13 @@ public class ProjectChecklistsController {
             + "another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete "
             + "(a proof lapsed since the submission), checklist-measurement-changed (a measurement changed since the "
             + "submission) — their lines in the problem's lines member.")
+    // Declaring the 409 drops the 200 springdoc would infer, so it is declared too, as it was inferred.
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "*/*", schema = @Schema(implementation = ChecklistView.class)))
+    @ApiResponse(responseCode = "409", description = "The revision cannot be signed off; checklist-incomplete and "
+            + "checklist-measurement-changed name their lines",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(oneOf = {
+                    ChecklistRefusals.Incomplete.class, ChecklistRefusals.Measured.class})))
     @PostMapping("/{revision}/sign-off")
     @RequiresWriteAccount
     public ChecklistView signOff(

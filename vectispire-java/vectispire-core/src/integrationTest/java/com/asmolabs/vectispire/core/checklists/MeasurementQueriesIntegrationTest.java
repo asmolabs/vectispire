@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
@@ -104,6 +105,9 @@ class MeasurementQueriesIntegrationTest {
 
     @Autowired
     private GitRepositoryRepository repositories;
+
+    @Autowired
+    private TargetNaming naming;
 
     @BeforeEach
     void empty() {
@@ -211,6 +215,16 @@ class MeasurementQueriesIntegrationTest {
         assertThat(listed).containsOnlyKeys(scanned);
         assertThat(listed.get(scanned)).extracting(ComponentCatalog.Component::purl)
                 .containsExactlyInAnyOrder("pkg:maven/com.example/ledger-core@3.2.1", "pkg:npm/left-pad@1.3.0");
+    }
+
+    @Test
+    @DisplayName("the names the evidence carries: seventy thousand repositories' worth of identifiers, those that exist named")
+    void theRepositoriesNames() {
+        long named = repository("checkout-api");
+        long other = repository("checkout-web");
+        Map<Long, String> names = naming.repositoryNames(ids(named, other));
+        assertThat(names).containsOnlyKeys(named, other);
+        assertThat(names.get(named)).isEqualTo(TargetNaming.of(repositories.findById(named).orElseThrow()));
     }
 
     /** The real identifiers among seventy thousand no row carries, first and last. */

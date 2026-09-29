@@ -624,7 +624,7 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
                         "high", Map.of("maxOpen", 0)));
 
         @Test
-        @DisplayName("is bound on a draft's lines in its canonical form, audited, and moves each bound line's digest alone")
+        @DisplayName("is bound on a draft's lines, read back structured, audited, and moves each bound line's digest alone")
         void bindingAndReadingBack() throws Exception {
             int revision = draftWithLayout("release");
             JsonNode before = version("release", 1);
@@ -633,9 +633,14 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             JsonNode after = read(rules(reviewer, "release", 1, List.of(bound(keys.get(0), SECRETS)), revision)
                     .andExpect(status().isOk()));
 
-            String canonical = after.at("/items/0/boundRule").asText();
-            assertThat(canonical).isEqualTo("{\"kind\":\"findings_threshold\",\"maxAgeDays\":7,\"scopes\":[\"builtin:secret\"],"
-                    + "\"thresholds\":{\"critical\":{\"maxOpen\":0},\"high\":{\"maxOpen\":0}}}");
+            // Structured, as a line's rule and the binding route are — never the canonical text as a string.
+            JsonNode boundRule = after.at("/items/0/boundRule");
+            assertThat(boundRule.isObject()).as("the rule as an object").isTrue();
+            assertThat(boundRule.at("/kind").asText()).isEqualTo("findings_threshold");
+            assertThat(boundRule.at("/maxAgeDays").asInt()).isEqualTo(7);
+            assertThat(boundRule.at("/scopes").toString()).isEqualTo("[\"builtin:secret\"]");
+            assertThat(boundRule.at("/thresholds/critical/maxOpen").asInt()).isZero();
+            assertThat(boundRule.at("/thresholds/high/maxOpen").asInt()).isZero();
             assertThat(after.at("/items/1/boundRule").isNull()).as("a line not listed keeps its own").isTrue();
             assertThat(after.at("/items/0/contentDigest").asText()).isNotEqualTo(before.at("/items/0/contentDigest").asText());
             assertThat(after.at("/items/1/contentDigest").asText()).isEqualTo(before.at("/items/1/contentDigest").asText());
@@ -643,7 +648,7 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             assertThat(after.at("/version/draftAuthors").toString()).as("whoever binds a rule wrote the draft")
                     .contains(reviewerName);
             // The stored form reads as the route's own shape: what a screen shows is what it may send back.
-            assertThat(json.readValue(canonical, com.asmolabs.vectispire.core.checklists.ChecklistRuleForm.class).scopes())
+            assertThat(json.treeToValue(boundRule, com.asmolabs.vectispire.core.checklists.ChecklistRuleForm.class).scopes())
                     .containsExactly("builtin:secret");
 
             assertThat(entries("CHECKLIST_TEMPLATE_RULES_BOUND")).singleElement().satisfies(entry -> {
@@ -670,7 +675,7 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
 
             JsonNode derived = read(mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), importer))
                     .andExpect(status().isCreated()));
-            assertThat(derived.at("/items/0/boundRule").asText()).contains("builtin:secret");
+            assertThat(derived.at("/items/0/boundRule/scopes").toString()).contains("builtin:secret");
             assertThat(changes(preview("release", 2).at("/pairing"))).containsOnly("unchanged");
 
             Map<String, Object> stricter = new LinkedHashMap<>(SECRETS);
@@ -690,14 +695,14 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             rules(importer, "release", 1, List.of(bound(keys.get(0), SECRETS)), revision).andExpect(status().isOk());
 
             JsonNode relaid = read(confirm(importer, "release", 1, layout(9)).andExpect(status().isOk()));
-            assertThat(relaid.at("/items/0/boundRule").asText()).as("the workbook states no rule").contains("builtin:secret");
+            assertThat(relaid.at("/items/0/boundRule/scopes").toString()).as("the workbook states no rule").contains("builtin:secret");
             publish(reviewer, "release", 1, currentRevision("release", 1)).andExpect(status().isOk());
 
             importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.SECOND), "")
                     .andExpect(status().isCreated());
             JsonNode second = read(confirm(importer, "release", 2, layout(10)).andExpect(status().isOk()));
             assertThat(second.at("/items/0/itemKey").asText()).isEqualTo(keys.get(0));
-            assertThat(second.at("/items/0/boundRule").asText()).contains("builtin:secret");
+            assertThat(second.at("/items/0/boundRule/scopes").toString()).contains("builtin:secret");
             assertThat(changes(preview("release", 2).at("/pairing")).getFirst())
                     .as("the unchanged control stays unchanged: its answers are carried as current")
                     .isEqualTo("unchanged");

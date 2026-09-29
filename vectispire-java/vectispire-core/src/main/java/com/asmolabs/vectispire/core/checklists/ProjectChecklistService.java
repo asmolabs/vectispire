@@ -43,6 +43,7 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVers
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
@@ -171,6 +172,7 @@ public class ProjectChecklistService {
     private final ChecklistMeasurer measurer;
     private final ChecklistDocumentService documents;
     private final SolutionQueryService projects;
+    private final TargetNaming naming;
     private final SettingsService settings;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
@@ -190,6 +192,7 @@ public class ProjectChecklistService {
             ChecklistMeasurer measurer,
             ChecklistDocumentService documents,
             SolutionQueryService projects,
+            TargetNaming naming,
             SettingsService settings,
             AuditLogService audit,
             TransactionTemplate transactions,
@@ -207,6 +210,7 @@ public class ProjectChecklistService {
         this.measurer = measurer;
         this.documents = documents;
         this.projects = projects;
+        this.naming = naming;
         this.settings = settings;
         this.audit = audit;
         this.transactions = transactions;
@@ -277,8 +281,9 @@ public class ProjectChecklistService {
     }
 
     public ChecklistView read(long projectId, int revision, VisibilityService.Allowance allowance) {
-        VisibleProject project = requireProject(projectId, allowance);
-        return view(project, requireRevision(project, revision));
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
+        return view(guarded, requireRevision(project, revision));
     }
 
     /** Every answer and every proof of one line, oldest first. */
@@ -322,7 +327,8 @@ public class ProjectChecklistService {
      */
     public ChecklistView open(long projectId, VisibilityService.Allowance allowance, String templateSlug,
             Integer versionOrdinal, Integer seenEdition, Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         if (templateSlug == null || templateSlug.isBlank() || versionOrdinal == null) {
             throw new InvalidInputException("Name the template (\"template\", its slug) and its version (\"version\", "
                     + "its number) to open the checklist on.");
@@ -372,7 +378,7 @@ public class ProjectChecklistService {
                         + template.getSlug() + "\", revision " + opened.getRevision() + ".";
         audit.record(who.actor().entry(moved ? AuditOperation.CHECKLIST_MOVED_TO_VERSION : AuditOperation.CHECKLIST_OPENED,
                 resource(project, opened.getRevision()), line));
-        return view(project, opened);
+        return view(guarded, opened);
     }
 
     /**
@@ -384,7 +390,8 @@ public class ProjectChecklistService {
      */
     public ChecklistView reopen(long projectId, int revision, VisibilityService.Allowance allowance, Integer seenEdition,
             Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         ChecklistEntity signed = requireRevision(project, revision);
         requireEdition(seenEdition);
         if (ChecklistStatus.ofStored(signed.getStatus()) != ChecklistStatus.SIGNED_OFF) {
@@ -403,7 +410,7 @@ public class ProjectChecklistService {
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_REOPENED, resource(project, opened.getRevision()),
                 "Checklist of project \"" + project.name() + "\": signed-off revision " + revision + " reopened as revision "
                         + opened.getRevision() + " on the same version" + carried.describe()));
-        return view(project, opened);
+        return view(guarded, opened);
     }
 
     // ------------------------------------------------------------------ answering
@@ -456,7 +463,7 @@ public class ProjectChecklistService {
                                 + ", evidence sha256 " + measured.measurement().evidenceDigest().substring(0, 12))
                                 .orElse("")
                         + "."));
-        return view(project, written);
+        return view(guarded, written);
     }
 
     /**
@@ -491,7 +498,8 @@ public class ProjectChecklistService {
      */
     public ChecklistView confirm(long projectId, int revision, long itemId, VisibilityService.Allowance allowance,
             Integer seenEdition, Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         ChecklistEntity checklist = requireRevision(project, revision);
         requireEdition(seenEdition);
         ChecklistItemEntity item = requireLine(checklist, itemId);
@@ -517,7 +525,7 @@ public class ProjectChecklistService {
                 "Checklist of project \"" + project.name() + "\", revision " + revision + ", line " + item.getPosition()
                         + " (row " + item.getSheetRow() + "): the answer " + confirmed.getFirst().given().value().wireName()
                         + " carried from " + confirmed.getFirst().carried().getAnsweredBy() + " confirmed."));
-        return view(project, written);
+        return view(guarded, written);
     }
 
     // ------------------------------------------------------------------ evidence
@@ -529,7 +537,8 @@ public class ProjectChecklistService {
      */
     public ChecklistView attachLink(long projectId, int revision, long itemId, VisibilityService.Allowance allowance,
             String link, String performedOn, Integer seenEdition, Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         ChecklistEntity checklist = requireRevision(project, revision);
         requireEdition(seenEdition);
         ChecklistItemEntity item = requireLine(checklist, itemId);
@@ -539,7 +548,7 @@ public class ProjectChecklistService {
 
         ChecklistEntity written = writeLine(checklist, item.getId(), seenEdition, edition -> {
             ChecklistEvidenceEntity row = proofRow(checklist, item, performed, who, now, edition);
-            row.setKind("link");
+            row.setKind(ProofKind.LINK.wireName());
             row.setLink(url);
             evidence.save(row);
         });
@@ -547,7 +556,7 @@ public class ProjectChecklistService {
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_EVIDENCE_ADDED, resource(project, revision),
                 "Checklist of project \"" + project.name() + "\", revision " + revision + ", line " + item.getPosition()
                         + ": a link attached as proof, performed on " + performed + " — " + BoundedText.clip(url, 200)));
-        return view(project, written);
+        return view(guarded, written);
     }
 
     /**
@@ -558,7 +567,8 @@ public class ProjectChecklistService {
      */
     public ChecklistView attachFile(long projectId, int revision, long itemId, VisibilityService.Allowance allowance,
             String fileName, String mediaType, String performedOn, byte[] content, Integer seenEdition, Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         ChecklistEntity checklist = requireRevision(project, revision);
         requireEdition(seenEdition);
         ChecklistItemEntity item = requireLine(checklist, itemId);
@@ -584,7 +594,7 @@ public class ProjectChecklistService {
             file.setContent(content);
             ChecklistFileEntity stored = files.save(file);
             ChecklistEvidenceEntity row = proofRow(checklist, item, performed, who, now, edition);
-            row.setKind("file");
+            row.setKind(ProofKind.FILE.wireName());
             row.setFileId(stored.getId());
             row.setFileName(name);
             row.setMediaType(type);
@@ -597,13 +607,14 @@ public class ProjectChecklistService {
                 "Checklist of project \"" + project.name() + "\", revision " + revision + ", line " + item.getPosition()
                         + ": the file \"" + BoundedText.clip(name, 100) + "\" attached as proof, " + content.length
                         + " bytes, sha256 " + sha256 + ", performed on " + performed + "."));
-        return view(project, written);
+        return view(guarded, written);
     }
 
     /** Withdraws a proof from a draft's line. The row stays, dated and attributed. */
     public ChecklistView withdraw(long projectId, int revision, long evidenceId, VisibilityService.Allowance allowance,
             Integer seenEdition, Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         ChecklistEntity checklist = requireRevision(project, revision);
         requireEdition(seenEdition);
         ChecklistEvidenceEntity proof = requireEvidence(checklist, evidenceId);
@@ -624,7 +635,7 @@ public class ProjectChecklistService {
                 "Checklist of project \"" + project.name() + "\", revision " + revision + ": proof " + evidenceId + " ("
                         + (proof.getFileName() != null ? "the file \"" + BoundedText.clip(proof.getFileName(), 100) + "\""
                                 : "a link") + ") withdrawn."));
-        return view(project, written);
+        return view(guarded, written);
     }
 
     // ------------------------------------------------------------------ submitting, returning, signing off
@@ -656,11 +667,13 @@ public class ProjectChecklistService {
         Instant now = clock.instant();
         List<ChecklistMeasurer.LineMeasurement> measured = measurer.measure(guarded.repositoryIds(),
                 items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId()), now);
-        requireComplete(checklist, "submitted", outcomes(measured));
+        // The very judgement a read makes of a draft (view): what readyToSubmit promised is what is refused.
+        List<ChecklistLineView> judged = lines(checklist, today(), outcomes(measured));
+        requireComplete(checklist, "submitted", judged);
         Map<Long, ChecklistAnswerEntity> current = currentAnswers(checklist.getId());
+        Set<Long> contradictedLines = contradicted(judged);
         List<ChecklistConflict.MeasuredLine> contradicted = measured.stream()
-                .filter(line -> reconciliation(current.get(line.item().getId()), line.measurement())
-                        == Reconciliation.CONTRADICTED)
+                .filter(line -> contradictedLines.contains(line.item().getId()))
                 .map(line -> measuredLine(line.item(), Optional.ofNullable(current.get(line.item().getId())),
                         line.measurement(), null))
                 .toList();
@@ -681,7 +694,7 @@ public class ProjectChecklistService {
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_SUBMITTED, resource(project, revision),
                 "Checklist of project \"" + project.name() + "\", revision " + revision + " submitted for sign-off at "
                         + "edition " + seenEdition + tally(measured) + "."));
-        return view(project, reread(checklist));
+        return view(guarded, reread(checklist));
     }
 
     /**
@@ -692,7 +705,8 @@ public class ProjectChecklistService {
      */
     public ChecklistView returnToAuthors(long projectId, int revision, VisibilityService.Allowance allowance,
             String reason, Integer seenEdition, Participant who) {
-        VisibleProject project = requireProject(projectId, allowance);
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
         ChecklistEntity checklist = requireRevision(project, revision);
         requireEdition(seenEdition);
         String why = BoundedText.optional(reason, MAX_REASON, "The reason");
@@ -710,7 +724,7 @@ public class ProjectChecklistService {
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_RETURNED, resource(project, revision),
                 "Checklist of project \"" + project.name() + "\", revision " + revision + " returned to its authors: "
                         + BoundedText.clip(why, 300)));
-        return view(project, reread(checklist));
+        return view(guarded, reread(checklist));
     }
 
     /**
@@ -763,7 +777,7 @@ public class ProjectChecklistService {
         Instant now = clock.instant();
         List<ChecklistMeasurer.LineMeasurement> measured = measurer.measure(guarded.repositoryIds(),
                 items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId()), now);
-        List<ChecklistConflict.IncompleteLine> lapsed = incompleteLines(checklist, outcomes(measured));
+        List<ChecklistConflict.IncompleteLine> lapsed = incompleteLines(lines(checklist, today(), outcomes(measured)));
         if (!lapsed.isEmpty()) {
             audit.record(who.actor().entry(AuditOperation.CHECKLIST_SIGN_OFF_REFUSED, resource(project, revision),
                     "Checklist of project \"" + project.name() + "\", revision " + revision + ": sign-off refused, "
@@ -819,7 +833,7 @@ public class ProjectChecklistService {
                         + checklist.getSubmittedBy() + "; four-eyes " + (fourEyes
                                 ? "required, and the signer is none of its authors (" + names(authors) + ")"
                                 : "not required") + tally(measured) + "; signed document SHA-256 " + document + "."));
-        return view(project, reread(checklist));
+        return view(guarded, reread(checklist));
     }
 
     // ------------------------------------------------------------------ measurements (§6)
@@ -845,19 +859,22 @@ public class ProjectChecklistService {
         boolean live = status == ChecklistStatus.DRAFT || status == ChecklistStatus.SUBMITTED;
         Instant now = clock.instant();
 
+        // Named by the guard's repositories alone, in one batched lookup: every one the caller was judged
+        // to see, and nothing a stored measurement cites from before a repository left the project.
+        Map<Long, String> names = naming.repositoryNames(guarded.repositoryIds());
         Map<Long, ChecklistMeasurementView> shown = new HashMap<>();
         Map<Long, Optional<MeasurementOutcome>> outcomes = new HashMap<>();
         if (live) {
             for (ChecklistMeasurer.LineMeasurement line : measurer.measure(guarded.repositoryIds(), bound, now)) {
                 ChecklistAnswerEntity answer = current.get(line.item().getId());
-                shown.put(line.item().getId(), liveView(checklist.getId(), line, now, reader, answer));
+                shown.put(line.item().getId(), liveView(checklist.getId(), line, now, reader, answer, names));
                 outcomes.put(line.item().getId(), Optional.of(line.measurement().outcome()));
             }
         } else {
             Map<Long, ChecklistMeasurementEntity> stored = new HashMap<>(
                     newestPerLine(checklist.getId(), MeasurementPurpose.SUBMISSION));
             stored.putAll(newestPerLine(checklist.getId(), MeasurementPurpose.SIGN_OFF));
-            stored.forEach((itemId, row) -> shown.put(itemId, ChecklistMeasurementView.of(row)));
+            stored.forEach((itemId, row) -> shown.put(itemId, ChecklistMeasurementView.of(row, names, forms::ruleForm)));
         }
 
         Map<Long, List<ChecklistEvidenceEntity>> proofs = new HashMap<>();
@@ -871,22 +888,21 @@ public class ProjectChecklistService {
             Optional<ChecklistAnswer> value = Optional.ofNullable(answer).map(row -> ChecklistAnswer.parse(row.getValue()));
             Optional<MeasurementOutcome> outcome = Optional.ofNullable(measurement)
                     .flatMap(view -> MeasurementOutcome.ofStored(view.outcome()));
-            List<String> problems = new ArrayList<>();
+            // The line's own judgement, narrowed to what its measurement adds: the contradiction, and what
+            // the missing data asks of a "yes" (question 4) — its comment and a proof in date.
             Reconciliation reconciled = Reconciliation.of(value, outcome);
-            if (live && reconciled == Reconciliation.CONTRADICTED) {
-                problems.add("measurement_contradicted");
-            }
-            if (live && reconciled == Reconciliation.DECLARED_NOT_MEASURED && value.orElseThrow() == ChecklistAnswer.YES) {
-                // What the missing data asks of a "yes": its comment and a proof in date (question 4).
-                problems(item, answer, proofs.getOrDefault(item.getId(), List.of()), today, outcome).stream()
-                        .filter(problem -> problem.equals("comment_required") || problem.startsWith("evidence_"))
-                        .forEach(problems::add);
-            }
+            boolean declaredYes = reconciled == Reconciliation.DECLARED_NOT_MEASURED
+                    && value.orElseThrow() == ChecklistAnswer.YES;
+            List<String> problems = !live ? List.of()
+                    : wire(problems(item, answer, proofs.getOrDefault(item.getId(), List.of()), today, outcome).stream()
+                            .filter(problem -> problem == LineProblem.MEASUREMENT_CONTRADICTED
+                                    || (declaredYes && problem.askedWhereNoData()))
+                            .toList());
             ChecklistMeasurementEntity submittedRow = atSubmission.get(item.getId());
             lines.add(new ChecklistMeasurementsView.MeasuredLineView(item.getId(), item.getPosition(), item.getItemKey(),
                     forms.ruleForm(item.getBoundRule()), answer == null ? null : answer.getValue(),
                     answer == null ? null : answer.getId(), measurement,
-                    submittedRow == null ? null : ChecklistMeasurementView.of(submittedRow),
+                    submittedRow == null ? null : ChecklistMeasurementView.of(submittedRow, names, forms::ruleForm),
                     measurement == null ? Reconciliation.NOT_MEASURED_HERE.wireName()
                             : Reconciliation.of(value, outcome).wireName(),
                     problems));
@@ -896,16 +912,16 @@ public class ProjectChecklistService {
     }
 
     private ChecklistMeasurementView liveView(long checklistId, ChecklistMeasurer.LineMeasurement line, Instant now,
-            Participant reader, ChecklistAnswerEntity answer) {
+            Participant reader, ChecklistAnswerEntity answer, Map<Long, String> names) {
         Measurement measurement = line.measurement();
         Optional<ChecklistAnswer> value = Optional.ofNullable(answer).map(row -> ChecklistAnswer.parse(row.getValue()));
         return new ChecklistMeasurementView(null, checklistId, line.item().getId(), MeasurementPurpose.READ.wireName(),
-                line.rule().kind().wireName(), line.rule().digest(), line.rule().canonical(),
+                line.rule().kind().wireName(), line.rule().digest(), forms.ruleForm(line.rule().canonical()),
                 measurement.outcome().wireName(), measurement.reason().map(NoDataReason::wireName).orElse(null),
                 measurement.asOf().orElse(null), now, reader.username(), answer == null ? null : answer.getId(),
                 answer == null ? null : answer.getValue(),
                 Reconciliation.of(value, Optional.of(measurement.outcome())).wireName(), measurement.evidenceDigest(),
-                ChecklistMeasurementView.evidence(measurement));
+                ChecklistMeasurementView.evidence(measurement, names));
     }
 
     /** Stores what the rules found, each with the answer it was reconciled with — inside the caller's transaction. */
@@ -954,11 +970,6 @@ public class ProjectChecklistService {
         Map<Long, MeasurementOutcome> outcomes = new HashMap<>();
         measured.forEach(line -> outcomes.put(line.item().getId(), line.measurement().outcome()));
         return outcomes;
-    }
-
-    private static Reconciliation reconciliation(ChecklistAnswerEntity answer, Measurement measurement) {
-        return Reconciliation.of(Optional.ofNullable(answer).map(row -> ChecklistAnswer.parse(row.getValue())),
-                Optional.of(measurement.outcome()));
     }
 
     private static ChecklistConflict.MeasuredLine measuredLine(ChecklistItemEntity item,
@@ -1074,8 +1085,8 @@ public class ProjectChecklistService {
         }
     }
 
-    private void requireComplete(ChecklistEntity checklist, String act, Map<Long, MeasurementOutcome> measured) {
-        List<ChecklistConflict.IncompleteLine> incomplete = incompleteLines(checklist, measured);
+    private static void requireComplete(ChecklistEntity checklist, String act, List<ChecklistLineView> judged) {
+        List<ChecklistConflict.IncompleteLine> incomplete = incompleteLines(judged);
         if (!incomplete.isEmpty()) {
             throw ChecklistConflict.incomplete("Revision " + checklist.getRevision() + " cannot be " + act + ": "
                     + inWords(incomplete) + ".", incomplete);
@@ -1386,13 +1397,26 @@ public class ProjectChecklistService {
      * proof is asked of a "yes" only: a "no" or "not applicable" states that the control is not in
      * place, and its comment says why — requiring a document proving a control that is absent would
      * push the honest answer towards the dishonest one.
+     *
+     * <p>A contradicted measurement is left out here: it has a refusal of its own, {@code
+     * checklist-measurement-contradicted}, whose lines carry the answer and the outcome, and a sign-off
+     * reads a measurement that moved since the submission as {@code checklist-measurement-changed}.
      */
-    private List<ChecklistConflict.IncompleteLine> incompleteLines(ChecklistEntity checklist,
-            Map<Long, MeasurementOutcome> measured) {
-        return lines(checklist, today(), measured).stream()
+    private static List<ChecklistConflict.IncompleteLine> incompleteLines(List<ChecklistLineView> judged) {
+        return judged.stream()
+                .map(line -> new ChecklistConflict.IncompleteLine(line.itemId(), line.position(), line.problems().stream()
+                        .filter(problem -> !problem.equals(LineProblem.MEASUREMENT_CONTRADICTED.wireName()))
+                        .toList()))
                 .filter(line -> !line.problems().isEmpty())
-                .map(line -> new ChecklistConflict.IncompleteLine(line.itemId(), line.position(), line.problems()))
                 .toList();
+    }
+
+    /** The lines answered "yes" where their measurement fails. */
+    private static Set<Long> contradicted(List<ChecklistLineView> judged) {
+        return judged.stream()
+                .filter(line -> line.problems().contains(LineProblem.MEASUREMENT_CONTRADICTED.wireName()))
+                .map(ChecklistLineView::itemId)
+                .collect(Collectors.toSet());
     }
 
     /** The lines in the refusal's sentence and the audit entry: "line 2 unanswered; line 3 evidence required". */
@@ -1402,33 +1426,36 @@ public class ProjectChecklistService {
                 .collect(Collectors.joining("; "));
     }
 
-    private List<String> problems(ChecklistItemEntity item, ChecklistAnswerEntity answer,
-            List<ChecklistEvidenceEntity> proofs, LocalDate today) {
-        return problems(item, answer, proofs, today, Optional.empty());
-    }
-
     /**
-     * What keeps a line from a submission, its measurement included when it was taken.
+     * What keeps a line from a submission, its measurement included when it was taken — the one judgement
+     * a read, a submission and a sign-off all make, so that {@code readyToSubmit} cannot promise what the
+     * submission then refuses.
+     *
+     * <p><b>A "yes" against a failing measurement is contradicted</b> (question 3): the submission refuses
+     * it under its own cause, {@code checklist-measurement-contradicted}, and a read names it on the line.
      *
      * <p><b>A "yes" where there is no data is declared, not measured</b> (question 4): allowed, with a
      * comment saying why and a proof — a link or a file, in date — whatever the line itself asks for. The
      * measurement could not see the control; the person says it is in place, and shows it.
      */
-    private List<String> problems(ChecklistItemEntity item, ChecklistAnswerEntity answer,
+    private List<LineProblem> problems(ChecklistItemEntity item, ChecklistAnswerEntity answer,
             List<ChecklistEvidenceEntity> proofs, LocalDate today, Optional<MeasurementOutcome> measured) {
         if (answer == null) {
-            return List.of("unanswered");
+            return List.of(LineProblem.UNANSWERED);
         }
-        List<String> problems = new ArrayList<>();
+        List<LineProblem> problems = new ArrayList<>();
         if (answer.isNeedsConfirmation()) {
-            problems.add("awaiting_confirmation");
+            problems.add(LineProblem.AWAITING_CONFIRMATION);
         }
         ChecklistAnswer value = ChecklistAnswer.parse(answer.getValue());
-        boolean declaredNotMeasured = value == ChecklistAnswer.YES
-                && measured.filter(MeasurementOutcome.NO_DATA::equals).isPresent();
+        Reconciliation reconciled = Reconciliation.of(Optional.of(value), measured);
+        if (reconciled == Reconciliation.CONTRADICTED) {
+            problems.add(LineProblem.MEASUREMENT_CONTRADICTED);
+        }
+        boolean declaredNotMeasured = value == ChecklistAnswer.YES && reconciled == Reconciliation.DECLARED_NOT_MEASURED;
         if ((value.requiresComment() || declaredNotMeasured)
                 && (answer.getComment() == null || answer.getComment().isBlank())) {
-            problems.add("comment_required");
+            problems.add(LineProblem.COMMENT_REQUIRED);
         }
         EvidenceRequirement.Kind asked = declaredNotMeasured && evidenceKind(item) == EvidenceRequirement.Kind.NONE
                 ? EvidenceRequirement.Kind.LINK_OR_FILE
@@ -1436,15 +1463,20 @@ public class ProjectChecklistService {
         if (value == ChecklistAnswer.YES && asked != EvidenceRequirement.Kind.NONE) {
             List<ChecklistEvidenceEntity> eligible = proofs.stream()
                     .filter(proof -> proof.getWithdrawnAt() == null)
-                    .filter(proof -> asked == EvidenceRequirement.Kind.LINK_OR_FILE || "file".equals(proof.getKind()))
+                    .filter(proof -> asked == EvidenceRequirement.Kind.LINK_OR_FILE
+                            || ProofKind.FILE.wireName().equals(proof.getKind()))
                     .toList();
             if (eligible.isEmpty()) {
-                problems.add("evidence_required");
+                problems.add(LineProblem.EVIDENCE_REQUIRED);
             } else if (eligible.stream().noneMatch(proof -> inDate(proof, today))) {
-                problems.add("evidence_expired");
+                problems.add(LineProblem.EVIDENCE_EXPIRED);
             }
         }
         return problems;
+    }
+
+    private static List<String> wire(List<LineProblem> problems) {
+        return problems.stream().map(LineProblem::wireName).toList();
     }
 
     /**
@@ -1518,13 +1550,25 @@ public class ProjectChecklistService {
                 row.getSignOffFourEyes(), row.getSupersededAt(), row.getSupersededBy());
     }
 
-    private ChecklistView view(VisibleProject project, ChecklistEntity checklist) {
+    /**
+     * A revision whole. <b>A draft's measured lines are measured for the read</b>, over the repositories the
+     * guard judged the caller by, and their problems are the submission's own ({@link #problems}): without
+     * it {@code readyToSubmit} answered true of a draft the submission then refused for a "yes" against a
+     * failing measurement, and the screen needed the measurements route to know which. Another status is
+     * past submitting: its lines carry what their answers and proofs keep, and a sign-off measures again.
+     */
+    private ChecklistView view(Guarded guarded, ChecklistEntity checklist) {
+        VisibleProject project = guarded.project();
         ChecklistTemplateVersionEntity version = versions.findById(checklist.getTemplateVersionId())
                 .orElseThrow(() -> new IllegalStateException("The version of checklist " + checklist.getId() + " is gone."));
         AnswerWords words = forms.layout(version.getLayout()).answers();
-        List<ChecklistLineView> lines = lines(checklist, today());
-        boolean ready = ChecklistStatus.ofStored(checklist.getStatus()) == ChecklistStatus.DRAFT
-                && lines.stream().allMatch(line -> line.problems().isEmpty());
+        boolean draft = ChecklistStatus.ofStored(checklist.getStatus()) == ChecklistStatus.DRAFT;
+        Map<Long, MeasurementOutcome> measured = draft
+                ? outcomes(measurer.measure(guarded.repositoryIds(),
+                        items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId()), clock.instant()))
+                : Map.of();
+        List<ChecklistLineView> lines = lines(checklist, today(), measured);
+        boolean ready = draft && lines.stream().allMatch(line -> line.problems().isEmpty());
         return new ChecklistView(summary(checklist, versionRef(version.getId()), new HashMap<>()), project.name(),
                 words.offersNotApplicable(),
                 new ChecklistView.AnswerWordsView(words.yes(), words.no(), words.notApplicable().orElse(null)),
@@ -1532,14 +1576,10 @@ public class ProjectChecklistService {
                 settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED), ready, lines);
     }
 
-    private List<ChecklistLineView> lines(ChecklistEntity checklist, LocalDate today) {
-        return lines(checklist, today, Map.of());
-    }
-
     /**
-     * @param measured the outcome of each measured line, when a submission or a sign-off has just taken
-     *     it; a read takes none, and its lines' problems are those of the answers and proofs alone — the
-     *     measurements route names what a measurement adds
+     * @param measured the outcome of each measured line, as a read of a draft, a submission or a sign-off
+     *     has just taken it; empty for a revision past submitting, whose lines' problems are those of the
+     *     answers and proofs alone
      */
     private List<ChecklistLineView> lines(ChecklistEntity checklist, LocalDate today, Map<Long, MeasurementOutcome> measured) {
         Map<Long, ChecklistAnswerEntity> current = new LinkedHashMap<>();
@@ -1568,7 +1608,7 @@ public class ProjectChecklistService {
                             answer == null ? null : ChecklistAnswerView.of(answer),
                             attached.stream().map(row -> evidenceView(row, today)).toList(),
                             editions.getOrDefault(item.getId(), 0),
-                            problems(item, answer, attached, today, Optional.ofNullable(measured.get(item.getId()))));
+                            wire(problems(item, answer, attached, today, Optional.ofNullable(measured.get(item.getId())))));
                 })
                 .toList();
     }

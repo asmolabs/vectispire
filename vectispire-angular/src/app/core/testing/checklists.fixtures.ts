@@ -269,9 +269,9 @@ export const BOUND_VERSION: ChecklistVersion = asSchema('ChecklistVersionView', 
     ...VERSION,
     version: { ...DRAFT, revision: 5 },
     items: [
-        { ...VERSION.items[0], boundRule: COVERAGE_CANONICAL },
+        { ...VERSION.items[0], boundRule: COVERAGE_RULE },
         VERSION.items[1],
-        { ...VERSION.items[2], boundRule: SECRETS_CANONICAL }
+        { ...VERSION.items[2], boundRule: SECRETS_RULE }
     ]
 });
 
@@ -546,6 +546,7 @@ const COMPUTED_AT = '2026-09-28T10:00:00Z';
 const look = (extra: Partial<RepositoryLook> = {}): RepositoryLook =>
     asSchema('RepositoryLook', {
         repositoryId: 31,
+        repositoryName: 'checkout-api',
         scope: null,
         status: 'examined',
         source: null,
@@ -566,7 +567,7 @@ export const measurement = (itemId: number, extra: Partial<ChecklistMeasurement>
         purpose: 'read',
         ruleKind: 'findings_threshold',
         ruleDigest: 'd'.repeat(64),
-        boundRule: SECRETS_CANONICAL,
+        boundRule: SECRETS_RULE,
         outcome: 'no_data',
         reason: 'never_examined',
         asOf: null,
@@ -585,7 +586,7 @@ const SUMMARY = 'summary';
 /** Coverage met on repository 31, from its newest coverage import. */
 export const PASS_MEASUREMENT = measurement(101, {
     ruleKind: 'coverage_threshold',
-    boundRule: COVERAGE_CANONICAL,
+    boundRule: COVERAGE_RULE,
     outcome: 'pass',
     reason: null,
     asOf: '2026-09-27T09:00:00Z',

@@ -976,7 +976,7 @@ public class ChecklistTemplateService {
         ChecklistTemplateVersionEntity version = versions.findById(versionId)
                 .orElseThrow(() -> new IllegalStateException("Template version " + versionId + " is gone."));
         List<ChecklistItemView> lines = items.findByVersionIdOrderByPositionAsc(versionId).stream()
-                .map(ChecklistItemView::of).toList();
+                .map(item -> ChecklistItemView.of(item, forms::ruleForm)).toList();
         return new ChecklistVersionView(template.getSlug(), template.getName(), summary,
                 Optional.ofNullable(version.getLayout()).map(forms::layout).map(ChecklistLayoutForm::of).orElse(null),
                 lines, forms.pairs(version.getItemPairs()).stream()

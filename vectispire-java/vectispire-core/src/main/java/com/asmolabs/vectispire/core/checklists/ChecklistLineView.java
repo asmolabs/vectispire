@@ -15,8 +15,11 @@ import java.util.List;
  * @param edition the revision's edition at which the line last changed — an answer, a proof, a
  *     withdrawal; a write on the line naming an older edition is refused as stale
  * @param problems what keeps the line from a submission, in the order a person fixes them: {@code
- *     unanswered}, {@code awaiting_confirmation}, {@code comment_required}, {@code evidence_required},
- *     {@code evidence_expired}; empty when the line is ready
+ *     unanswered}, {@code awaiting_confirmation}, {@code measurement_contradicted}, {@code
+ *     comment_required}, {@code evidence_required}, {@code evidence_expired}; empty when the line is
+ *     ready. On a draft they are the submission's own judgement, its measured lines measured for the
+ *     read: a "yes" against a failing measurement is contradicted, a "yes" where there is no data asks
+ *     for a comment and a proof in date. Past the draft they are its answers' and proofs' alone
  */
 public record ChecklistLineView(
         Long itemId,

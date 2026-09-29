@@ -4,6 +4,8 @@ import com.asmolabs.vectispire.common.domain.checklists.Measurement;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementEntity;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 /**
  * What a rule found for one line, as the API shows it (decision 0032 §6): stored — relied on by an
@@ -18,7 +20,8 @@ import java.util.List;
  *     examination_unrecorded}, {@code stale}, {@code not_applicable_anywhere}, {@code suite_not_found},
  *     {@code no_test_ran}; null otherwise
  * @param asOf the oldest evidence the measurement rests on; null when it rests on none
- * @param boundRule the canonical form of the rule applied, as the line held it
+ * @param boundRule the rule applied, as the line held it, in the shape a line's {@code rule} has — structured,
+ *     like every other rule the API shows; {@code ruleDigest} is the SHA-256 of its stored canonical text
  * @param answerValue and {@code reconciliation}: the answer it was reconciled with at a submission or a
  *     sign-off, or the one resting on it, and what the two said together
  */
@@ -29,7 +32,7 @@ public record ChecklistMeasurementView(
         String purpose,
         String ruleKind,
         String ruleDigest,
-        String boundRule,
+        ChecklistRuleForm boundRule,
         String outcome,
         String reason,
         Instant asOf,
@@ -51,6 +54,9 @@ public record ChecklistMeasurementView(
     }
 
     /**
+     * @param repositoryName the repository's name as every screen names it ({@code TargetNaming}) — null for
+     *     one no longer in the project, or gone: the reader was judged by the project's repositories as they
+     *     are, and a name is not handed out for one outside them, which a stored measurement may still cite
      * @param scope the scope's key for a findings rule, null for the other kinds
      * @param status {@code examined}, {@code not_applicable}, or the reason the repository has no data
      * @param source {@code scan}, {@code sarif_import}, {@code coverage_import}, {@code test_report_import};
@@ -59,7 +65,7 @@ public record ChecklistMeasurementView(
      * @param met whether the repository meets the rule's conditions; null where it has no data or the rule
      *     judges the project whole
      */
-    public record RepositoryLook(long repositoryId, String scope, String status, String source, Long sourceId,
+    public record RepositoryLook(long repositoryId, String repositoryName, String scope, String status, String source, Long sourceId,
             Instant at, String digest, Boolean met, String detail) {}
 
     /**
@@ -68,17 +74,22 @@ public record ChecklistMeasurementView(
      */
     public record MeasuredFigure(String scope, String severity, long open, long resolved, Boolean met, String detail) {}
 
-    static ChecklistMeasurementView of(ChecklistMeasurementEntity row) {
+    /**
+     * @param names the names of the repositories the reader may be told of, by identifier
+     * @param rules the stored canonical text of a rule, read as its form
+     */
+    static ChecklistMeasurementView of(ChecklistMeasurementEntity row, Map<Long, String> names,
+            Function<String, ChecklistRuleForm> rules) {
         return new ChecklistMeasurementView(row.getId(), row.getChecklistId(), row.getItemId(), row.getPurpose(),
-                row.getRuleKind(), row.getRuleDigest(), row.getBoundRule(), row.getOutcome(), row.getReason(),
+                row.getRuleKind(), row.getRuleDigest(), rules.apply(row.getBoundRule()), row.getOutcome(), row.getReason(),
                 row.getAsOf(), row.getComputedAt(), row.getComputedBy(), row.getAnswerId(), row.getAnswerValue(),
-                row.getReconciliation(), row.getEvidenceDigest(), evidence(Measurement.read(row.getEvidence())));
+                row.getReconciliation(), row.getEvidenceDigest(), evidence(Measurement.read(row.getEvidence()), names));
     }
 
-    static MeasurementEvidence evidence(Measurement measurement) {
+    static MeasurementEvidence evidence(Measurement measurement, Map<Long, String> names) {
         return new MeasurementEvidence(measurement.summary(),
                 measurement.repositories().stream().map(line -> new RepositoryLook(line.repositoryId(),
-                        line.scope().orElse(null), line.status(),
+                        names.get(line.repositoryId()), line.scope().orElse(null), line.status(),
                         line.look().map(look -> look.source().wireName()).orElse(null),
                         line.look().map(look -> look.id()).orElse(null),
                         line.look().map(look -> look.at()).orElse(null),

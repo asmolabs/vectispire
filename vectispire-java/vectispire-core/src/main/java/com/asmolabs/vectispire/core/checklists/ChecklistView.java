@@ -13,7 +13,8 @@ import java.util.List;
  *     holds, confirmed a carried line, attached or withdrew a proof, submitted it; carrying answers
  *     over is not writing: with four-eyes on, none of them signs it off
  * @param fourEyesRequired whether four-eyes is on now, which decides whether an author may sign off
- * @param readyToSubmit a draft whose every line is ready
+ * @param readyToSubmit a draft whose every line is ready — its measured lines included, judged as the
+ *     submission judges them, so that true means the submission passes unless something changes first
  */
 public record ChecklistView(
         ChecklistRevisionSummary checklist,

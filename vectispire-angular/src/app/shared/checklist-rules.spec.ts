@@ -244,6 +244,10 @@ describe('the checklist rules, as the form reads them', () => {
         expect(canonicalRule(COVERAGE_RULE)).toBe(COVERAGE_CANONICAL);
     });
 
+    it('takes a bound rule as the server sends it, structured', () => {
+        expect(parseBoundRule(COVERAGE_RULE)).toBe(COVERAGE_RULE);
+    });
+
     it('reads a bound rule from its canonical text, and nothing from text that is none', () => {
         expect(parseBoundRule(SECRETS_CANONICAL)).toEqual(SECRETS_RULE);
         expect(parseBoundRule(null)).toBeNull();

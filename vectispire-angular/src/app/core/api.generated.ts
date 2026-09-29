@@ -4173,7 +4173,8 @@ export interface components {
             /** Format: int64 */
             measurementId?: number;
             needsConfirmation: boolean;
-            value?: string;
+            /** @enum {string} */
+            value?: "yes" | "no" | "not_applicable";
         };
         ChecklistDeriveRequest: {
             label?: string;
@@ -4202,7 +4203,8 @@ export interface components {
             inDate: boolean;
             /** Format: int64 */
             itemId?: number;
-            kind?: string;
+            /** @enum {string} */
+            kind?: "link" | "file";
             link?: string;
             mediaType?: string;
             /** Format: date */
@@ -4212,6 +4214,16 @@ export interface components {
             /** Format: date-time */
             withdrawnAt?: string;
             withdrawnBy?: string;
+        };
+        /** @description A checklist-incomplete refusal: an RFC 9457 problem whose lines member names each line kept from the submission or the sign-off, with its problems. */
+        ChecklistIncompleteProblem: {
+            detail?: string;
+            instance?: string;
+            lines?: components["schemas"]["IncompleteLine"][];
+            /** Format: int32 */
+            status: number;
+            title?: string;
+            type?: string;
         };
         ChecklistItemEvidence: {
             evidenceKind?: string;
@@ -4228,12 +4240,13 @@ export interface components {
             rule?: components["schemas"]["ChecklistRuleForm"];
         };
         ChecklistItemView: {
-            boundRule?: string;
+            boundRule?: components["schemas"]["ChecklistRuleForm"];
             contact?: string;
             contentDigest?: string;
             control?: string;
             domain?: string;
-            evidenceKind?: string;
+            /** @enum {string} */
+            evidenceKind?: "none" | "link_or_file" | "file";
             /** Format: int32 */
             evidenceValidityMonths?: number;
             /** Format: int64 */
@@ -4280,7 +4293,8 @@ export interface components {
             /** Format: int32 */
             edition: number;
             evidence?: components["schemas"]["ChecklistEvidenceView"][];
-            evidenceKind?: string;
+            /** @enum {string} */
+            evidenceKind?: "none" | "link_or_file" | "file";
             /** Format: int32 */
             evidenceValidityMonths?: number;
             /** Format: int64 */
@@ -4290,7 +4304,7 @@ export interface components {
             objective?: string;
             /** Format: int32 */
             position?: number;
-            problems?: string[];
+            problems?: ("unanswered" | "awaiting_confirmation" | "measurement_contradicted" | "comment_required" | "evidence_required" | "evidence_expired")[];
             rule?: components["schemas"]["ChecklistRuleForm"];
         };
         ChecklistLinkRequest: {
@@ -4299,13 +4313,24 @@ export interface components {
             link?: string;
             performedOn?: string;
         };
+        /** @description A checklist-measurement-contradicted or checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with its answer, what the rule finds now and, for a sign-off, what it found at the submission. */
+        ChecklistMeasurementProblem: {
+            detail?: string;
+            instance?: string;
+            lines?: components["schemas"]["MeasuredLine"][];
+            /** Format: int32 */
+            status: number;
+            title?: string;
+            type?: string;
+        };
         ChecklistMeasurementView: {
             /** Format: int64 */
             answerId?: number;
-            answerValue?: string;
+            /** @enum {string} */
+            answerValue?: "yes" | "no" | "not_applicable";
             /** Format: date-time */
             asOf?: string;
-            boundRule?: string;
+            boundRule?: components["schemas"]["ChecklistRuleForm"];
             /** Format: int64 */
             checklistId?: number;
             /** Format: date-time */
@@ -4317,12 +4342,17 @@ export interface components {
             id?: number;
             /** Format: int64 */
             itemId?: number;
-            outcome?: string;
-            purpose?: string;
-            reason?: string;
-            reconciliation?: string;
+            /** @enum {string} */
+            outcome?: "pass" | "fail" | "no_data";
+            /** @enum {string} */
+            purpose?: "read" | "answer" | "submission" | "sign_off";
+            /** @enum {string} */
+            reason?: "no_repository" | "never_examined" | "step_absent" | "examination_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            /** @enum {string} */
+            reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             ruleDigest?: string;
-            ruleKind?: string;
+            /** @enum {string} */
+            ruleKind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions";
         };
         ChecklistMeasurementsView: {
             /** Format: date-time */
@@ -4333,7 +4363,8 @@ export interface components {
             projectId: number;
             /** Format: int32 */
             revision: number;
-            status?: string;
+            /** @enum {string} */
+            status?: "draft" | "submitted" | "signed_off" | "superseded";
         };
         ChecklistOfferedVersion: {
             /** Format: int64 */
@@ -4394,7 +4425,8 @@ export interface components {
             /** Format: date-time */
             signedOffAt?: string;
             signedOffBy?: string;
-            status?: string;
+            /** @enum {string} */
+            status?: "draft" | "submitted" | "signed_off" | "superseded";
             /** Format: date-time */
             submittedAt?: string;
             submittedBy?: string;
@@ -4410,12 +4442,15 @@ export interface components {
             versionOrdinal: number;
         };
         ChecklistRuleForm: {
-            aggregation?: string;
+            /** @enum {string} */
+            aggregation?: "per_repository" | "project_weighted";
             components?: components["schemas"]["ComponentForm"][];
-            kind?: string;
+            /** @enum {string} */
+            kind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions";
             /** Format: int32 */
             maxAgeDays?: number;
-            metric?: string;
+            /** @enum {string} */
+            metric?: "line" | "branch";
             minimumRatio?: number;
             /** Format: int32 */
             minimumTests?: number;
@@ -4479,7 +4514,8 @@ export interface components {
             sourceSha256?: string;
             /** Format: int64 */
             sourceSize: number;
-            status?: string;
+            /** @enum {string} */
+            status?: "draft" | "published" | "retired";
         };
         ChecklistVersionView: {
             items?: components["schemas"]["ChecklistItemView"][];
@@ -5167,6 +5203,13 @@ export interface components {
             predicateType?: string;
             subject?: components["schemas"]["Subject"][];
         };
+        IncompleteLine: {
+            /** Format: int64 */
+            itemId: number;
+            /** Format: int32 */
+            position: number;
+            problems?: ("unanswered" | "awaiting_confirmation" | "comment_required" | "evidence_required" | "evidence_expired")[];
+        };
         IngestionResult: {
             appliedCves?: string[];
             /** Format: int32 */
@@ -5448,10 +5491,28 @@ export interface components {
             /** Format: int64 */
             resolved: number;
             scope?: string;
-            severity?: string;
+            /** @enum {string} */
+            severity?: "critical" | "high" | "medium" | "low" | "negligible" | "unknown";
+        };
+        MeasuredLine: {
+            /** @enum {string} */
+            answer?: "yes" | "no" | "not_applicable";
+            /** Format: int64 */
+            itemId: number;
+            /** @enum {string} */
+            outcome?: "pass" | "fail" | "no_data";
+            /** Format: int32 */
+            position: number;
+            /** @enum {string} */
+            reason?: "no_repository" | "never_examined" | "step_absent" | "examination_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            /** @enum {string} */
+            submittedOutcome?: "pass" | "fail" | "no_data";
+            /** @enum {string} */
+            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "examination_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         MeasuredLineView: {
-            answer?: string;
+            /** @enum {string} */
+            answer?: "yes" | "no" | "not_applicable";
             /** Format: int64 */
             answerId?: number;
             atSubmission?: components["schemas"]["ChecklistMeasurementView"];
@@ -5461,8 +5522,9 @@ export interface components {
             measurement?: components["schemas"]["ChecklistMeasurementView"];
             /** Format: int32 */
             position: number;
-            problems?: string[];
-            reconciliation?: string;
+            problems?: ("measurement_contradicted" | "comment_required" | "evidence_required" | "evidence_expired")[];
+            /** @enum {string} */
+            reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             rule?: components["schemas"]["ChecklistRuleForm"];
         };
         MeasurementEvidence: {
@@ -6069,11 +6131,14 @@ export interface components {
             met?: boolean;
             /** Format: int64 */
             repositoryId: number;
+            repositoryName?: string;
             scope?: string;
-            source?: string;
+            /** @enum {string} */
+            source?: "scan" | "sarif_import" | "coverage_import" | "test_report_import";
             /** Format: int64 */
             sourceId?: number;
-            status?: string;
+            /** @enum {string} */
+            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "examination_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         RepositoryRef: {
             /** Format: int64 */
@@ -10538,6 +10603,15 @@ export interface operations {
                     "*/*": components["schemas"]["ChecklistView"];
                 };
             };
+            /** @description The revision cannot be signed off; checklist-incomplete and checklist-measurement-changed name their lines */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ChecklistIncompleteProblem"] | components["schemas"]["ChecklistMeasurementProblem"];
+                };
+            };
         };
     };
     submit: {
@@ -10563,6 +10637,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+            /** @description The revision cannot be submitted; checklist-incomplete and checklist-measurement-contradicted name their lines */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ChecklistIncompleteProblem"] | components["schemas"]["ChecklistMeasurementProblem"];
                 };
             };
         };

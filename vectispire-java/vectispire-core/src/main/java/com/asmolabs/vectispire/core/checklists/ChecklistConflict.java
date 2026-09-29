@@ -142,7 +142,8 @@ public class ChecklistConflict extends ConflictException {
      *
      * @param itemId the template item the line answers — what the line's routes name
      * @param problems {@code unanswered}, {@code awaiting_confirmation}, {@code comment_required}, {@code
-     *     evidence_required}, {@code evidence_expired}, as a line's view names them
+     *     evidence_required}, {@code evidence_expired}, as a line's view names them — never {@code
+     *     measurement_contradicted}, which refuses under a cause of its own
      */
     public record IncompleteLine(long itemId, int position, List<String> problems) {
 

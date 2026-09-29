@@ -1224,6 +1224,7 @@
             "type" : "boolean"
           },
           "value" : {
+            "enum" : [ "yes", "no", "not_applicable" ],
             "type" : "string"
           }
         },
@@ -1297,6 +1298,7 @@
             "type" : "integer"
           },
           "kind" : {
+            "enum" : [ "link", "file" ],
             "type" : "string"
           },
           "link" : {
@@ -1322,6 +1324,35 @@
           }
         },
         "required" : [ "inDate" ],
+        "type" : "object"
+      },
+      "ChecklistIncompleteProblem" : {
+        "description" : "A checklist-incomplete refusal: an RFC 9457 problem whose lines member names each line kept from the submission or the sign-off, with its problems.",
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/IncompleteLine"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
         "type" : "object"
       },
       "ChecklistItemEvidence" : {
@@ -1364,7 +1395,7 @@
       "ChecklistItemView" : {
         "properties" : {
           "boundRule" : {
-            "type" : "string"
+            "$ref" : "#/components/schemas/ChecklistRuleForm"
           },
           "contact" : {
             "type" : "string"
@@ -1379,6 +1410,7 @@
             "type" : "string"
           },
           "evidenceKind" : {
+            "enum" : [ "none", "link_or_file", "file" ],
             "type" : "string"
           },
           "evidenceValidityMonths" : {
@@ -1499,6 +1531,7 @@
             "type" : "array"
           },
           "evidenceKind" : {
+            "enum" : [ "none", "link_or_file", "file" ],
             "type" : "string"
           },
           "evidenceValidityMonths" : {
@@ -1524,6 +1557,7 @@
           },
           "problems" : {
             "items" : {
+              "enum" : [ "unanswered", "awaiting_confirmation", "measurement_contradicted", "comment_required", "evidence_required", "evidence_expired" ],
               "type" : "string"
             },
             "type" : "array"
@@ -1550,6 +1584,35 @@
         },
         "type" : "object"
       },
+      "ChecklistMeasurementProblem" : {
+        "description" : "A checklist-measurement-contradicted or checklist-measurement-changed refusal: an RFC 9457 problem whose lines member names each line with its answer, what the rule finds now and, for a sign-off, what it found at the submission.",
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MeasuredLine"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "ChecklistMeasurementView" : {
         "properties" : {
           "answerId" : {
@@ -1557,6 +1620,7 @@
             "type" : "integer"
           },
           "answerValue" : {
+            "enum" : [ "yes", "no", "not_applicable" ],
             "type" : "string"
           },
           "asOf" : {
@@ -1564,7 +1628,7 @@
             "type" : "string"
           },
           "boundRule" : {
-            "type" : "string"
+            "$ref" : "#/components/schemas/ChecklistRuleForm"
           },
           "checklistId" : {
             "format" : "int64",
@@ -1592,21 +1656,26 @@
             "type" : "integer"
           },
           "outcome" : {
+            "enum" : [ "pass", "fail", "no_data" ],
             "type" : "string"
           },
           "purpose" : {
+            "enum" : [ "read", "answer", "submission", "sign_off" ],
             "type" : "string"
           },
           "reason" : {
+            "enum" : [ "no_repository", "never_examined", "step_absent", "examination_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
+            "enum" : [ "consistent", "contradicted", "declared_not_measured", "understated", "excluded", "not_measured_here", "unanswered" ],
             "type" : "string"
           },
           "ruleDigest" : {
             "type" : "string"
           },
           "ruleKind" : {
+            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions" ],
             "type" : "string"
           }
         },
@@ -1636,6 +1705,7 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "draft", "submitted", "signed_off", "superseded" ],
             "type" : "string"
           }
         },
@@ -1786,6 +1856,7 @@
             "type" : "string"
           },
           "status" : {
+            "enum" : [ "draft", "submitted", "signed_off", "superseded" ],
             "type" : "string"
           },
           "submittedAt" : {
@@ -1826,6 +1897,7 @@
       "ChecklistRuleForm" : {
         "properties" : {
           "aggregation" : {
+            "enum" : [ "per_repository", "project_weighted" ],
             "type" : "string"
           },
           "components" : {
@@ -1835,6 +1907,7 @@
             "type" : "array"
           },
           "kind" : {
+            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions" ],
             "type" : "string"
           },
           "maxAgeDays" : {
@@ -1842,6 +1915,7 @@
             "type" : "integer"
           },
           "metric" : {
+            "enum" : [ "line", "branch" ],
             "type" : "string"
           },
           "minimumRatio" : {
@@ -2023,6 +2097,7 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "draft", "published", "retired" ],
             "type" : "string"
           }
         },
@@ -3889,6 +3964,27 @@
         },
         "type" : "object"
       },
+      "IncompleteLine" : {
+        "properties" : {
+          "itemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "position" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "problems" : {
+            "items" : {
+              "enum" : [ "unanswered", "awaiting_confirmation", "comment_required", "evidence_required", "evidence_expired" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "itemId", "position" ],
+        "type" : "object"
+      },
       "IngestionResult" : {
         "properties" : {
           "appliedCves" : {
@@ -4593,15 +4689,51 @@
             "type" : "string"
           },
           "severity" : {
+            "enum" : [ "critical", "high", "medium", "low", "negligible", "unknown" ],
             "type" : "string"
           }
         },
         "required" : [ "open", "resolved" ],
         "type" : "object"
       },
+      "MeasuredLine" : {
+        "properties" : {
+          "answer" : {
+            "enum" : [ "yes", "no", "not_applicable" ],
+            "type" : "string"
+          },
+          "itemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "outcome" : {
+            "enum" : [ "pass", "fail", "no_data" ],
+            "type" : "string"
+          },
+          "position" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reason" : {
+            "enum" : [ "no_repository", "never_examined", "step_absent", "examination_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "type" : "string"
+          },
+          "submittedOutcome" : {
+            "enum" : [ "pass", "fail", "no_data" ],
+            "type" : "string"
+          },
+          "submittedReason" : {
+            "enum" : [ "no_repository", "never_examined", "step_absent", "examination_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "itemId", "position" ],
+        "type" : "object"
+      },
       "MeasuredLineView" : {
         "properties" : {
           "answer" : {
+            "enum" : [ "yes", "no", "not_applicable" ],
             "type" : "string"
           },
           "answerId" : {
@@ -4627,11 +4759,13 @@
           },
           "problems" : {
             "items" : {
+              "enum" : [ "measurement_contradicted", "comment_required", "evidence_required", "evidence_expired" ],
               "type" : "string"
             },
             "type" : "array"
           },
           "reconciliation" : {
+            "enum" : [ "consistent", "contradicted", "declared_not_measured", "understated", "excluded", "not_measured_here", "unanswered" ],
             "type" : "string"
           },
           "rule" : {
@@ -6286,10 +6420,14 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "repositoryName" : {
+            "type" : "string"
+          },
           "scope" : {
             "type" : "string"
           },
           "source" : {
+            "enum" : [ "scan", "sarif_import", "coverage_import", "test_report_import" ],
             "type" : "string"
           },
           "sourceId" : {
@@ -6297,6 +6435,7 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "examination_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -13749,6 +13888,20 @@
               }
             },
             "description" : "OK"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/ChecklistIncompleteProblem"
+                  }, {
+                    "$ref" : "#/components/schemas/ChecklistMeasurementProblem"
+                  } ]
+                }
+              }
+            },
+            "description" : "The revision cannot be signed off; checklist-incomplete and checklist-measurement-changed name their lines"
           }
         },
         "summary" : "Sign off project checklist",
@@ -13796,6 +13949,20 @@
               }
             },
             "description" : "OK"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "oneOf" : [ {
+                    "$ref" : "#/components/schemas/ChecklistIncompleteProblem"
+                  }, {
+                    "$ref" : "#/components/schemas/ChecklistMeasurementProblem"
+                  } ]
+                }
+              }
+            },
+            "description" : "The revision cannot be submitted; checklist-incomplete and checklist-measurement-contradicted name their lines"
           }
         },
         "summary" : "Submit project checklist",
