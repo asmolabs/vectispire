@@ -76,6 +76,13 @@ class ChecklistVocabularies implements OpenApiCustomizer {
                 "problems", Stream.of(LineProblem.values())
                         .filter(problem -> problem == LineProblem.MEASUREMENT_CONTRADICTED || problem.askedWhereNoData())
                         .map(LineProblem::wireName).toList()));
+        // The act gives a "yes" on a passing measurement, never anything else — ProjectChecklistService.answerAsMeasured.
+        table.put("AsMeasuredAnswer", Map.of("value", List.of(ChecklistAnswer.YES.wireName())));
+        table.put("AsMeasuredSkip", Map.of(
+                "reason", wire(AsMeasuredSkipReason.values(), AsMeasuredSkipReason::wireName),
+                "outcome", outcomes,
+                "noDataReason", reasons,
+                "answer", answers));
         table.put("RepositoryLook", Map.of(
                 "status", Stream.concat(
                         Stream.of(Measurement.RepositoryEvidence.EXAMINED, Measurement.RepositoryEvidence.NOT_APPLICABLE),

@@ -582,6 +582,178 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         }
     }
 
+    // ------------------------------------------------------------------ every measured line, as measured, at once
+
+    @Nested
+    @DisplayName("answering every measured line as measured")
+    class AsMeasured {
+
+        private static final Map<String, Object> SAST = Map.of("kind", "findings_threshold", "maxAgeDays", 7,
+                "scopes", List.of("builtin:sast"), "thresholds", Map.of("critical", Map.of("maxOpen", 0)));
+
+        private static final Map<String, Object> IAC = Map.of("kind", "findings_threshold", "maxAgeDays", 7,
+                "scopes", List.of("builtin:iac"), "thresholds", Map.of("critical", Map.of("maxOpen", 0)));
+
+        /** Four measured lines: secrets passing, static analysis failing, IaC never looked at, secrets again. */
+        private List<Long> fourMeasuredLines() throws Exception {
+            publishWithRules(ChecklistWorkbooks.SECOND, List.of(SECRETS, SAST, IAC, SECRETS));
+            scan(first, hoursAgo(2), "secret,sast", null, true);
+            scan(second, hoursAgo(2), "secret,sast", null, true);
+            issue(first, "sast", null, "critical", "open", "under_review");
+            open(developer, project);
+            return itemIds(read(developer, 1));
+        }
+
+        @Test
+        @DisplayName("a pass is answered yes by the caller, resting on its measurement; a fail, no data and an answer are left alone")
+        void passesAreAnsweredAndTheRestIsLeftAlone() throws Exception {
+            List<Long> lines = fourMeasuredLines();
+            answer(developer, 1, lines.get(3), "no", "The vault migration is not finished.", null, edition())
+                    .andExpect(status().isCreated());
+            int before = edition();
+
+            JsonNode done = read(asMeasured(ciso, 1, before).andExpect(status().isOk()));
+
+            assertThat(done.at("/checklist/checklist/edition").asInt()).as("one act, one edition").isEqualTo(before + 1);
+            assertThat(done.at("/answered")).hasSize(1);
+            JsonNode given = done.at("/answered/0");
+            assertThat(given.at("/itemId").asLong()).isEqualTo(lines.get(0));
+            assertThat(given.at("/value").asText()).isEqualTo("yes");
+            assertThat(done.at("/checklist/lines/0/answer/answeredBy").asText()).isEqualTo(ciso.name());
+            assertThat(done.at("/checklist/lines/0/answer/measurementId").asLong())
+                    .isEqualTo(given.at("/measurementId").asLong());
+
+            Map<Long, JsonNode> skipped = new LinkedHashMap<>();
+            done.at("/skipped").forEach(line -> skipped.put(line.at("/itemId").asLong(), line));
+            assertThat(skipped.keySet()).containsExactly(lines.get(1), lines.get(2), lines.get(3));
+            assertThat(skipped.get(lines.get(1)).at("/reason").asText()).isEqualTo("needs_comment");
+            assertThat(skipped.get(lines.get(1)).at("/outcome").asText()).isEqualTo("fail");
+            assertThat(skipped.get(lines.get(2)).at("/reason").asText()).isEqualTo("no_data");
+            assertThat(skipped.get(lines.get(2)).at("/noDataReason").asText()).isEqualTo("step_absent");
+            assertThat(skipped.get(lines.get(3)).at("/reason").asText()).isEqualTo("already_answered");
+            assertThat(skipped.get(lines.get(3)).at("/outcome").asText()).as("passing, and still left alone")
+                    .isEqualTo("pass");
+            assertThat(skipped.get(lines.get(3)).at("/answer").asText()).isEqualTo("no");
+
+            // The answer is the caller's, a row of the line's history, resting on the measurement stored with it.
+            assertThat(answers.findAll()).filteredOn(row -> row.getItemId().equals(lines.get(0))).singleElement()
+                    .satisfies(row -> {
+                        assertThat(row.getAnsweredBy()).isEqualTo(ciso.name());
+                        assertThat(row.getAnsweredById()).isEqualTo(ciso.id());
+                        assertThat(row.getValue()).isEqualTo("yes");
+                        assertThat(row.getComment()).isNull();
+                        assertThat(row.getEdition()).isEqualTo(before + 1);
+                        assertThat(row.getId()).isEqualTo(given.at("/answerId").asLong());
+                    });
+            assertThat(measurements.findById(given.at("/measurementId").asLong())).hasValueSatisfying(row -> {
+                assertThat(row.getPurpose()).isEqualTo("answer");
+                assertThat(row.getOutcome()).isEqualTo("pass");
+                assertThat(row.getAnswerValue()).isEqualTo("yes");
+                assertThat(row.getComputedBy()).isEqualTo(ciso.name());
+                assertThat(row.getEvidenceDigest()).isEqualTo(given.at("/evidenceDigest").asText());
+            });
+            assertThat(measurements.findAll()).as("only the answered line's measurement is stored").hasSize(1);
+            JsonNode history = read(mvc.perform(authenticated(
+                    get(base(project) + "/1/items/" + lines.get(0) + "/history"), developer.token())).andExpect(status().isOk()));
+            assertThat(history.at("/answers")).singleElement().satisfies(row -> {
+                assertThat(row.at("/answeredBy").asText()).isEqualTo(ciso.name());
+                assertThat(row.at("/measurementId").asLong()).isEqualTo(given.at("/measurementId").asLong());
+            });
+
+            // A person's answer is never replaced; the failing and the unmeasured lines stay unanswered.
+            assertThat(answers.findAll()).filteredOn(row -> row.getItemId().equals(lines.get(3))).singleElement()
+                    .satisfies(row -> assertThat(row.getAnsweredBy()).isEqualTo(developer.name()));
+            assertThat(answers.findAll()).noneMatch(row -> row.getItemId().equals(lines.get(1))
+                    || row.getItemId().equals(lines.get(2)));
+
+            assertThat(entries("CHECKLIST_ANSWERED")).filteredOn(entry -> entry.getDescription().contains("in one act"))
+                    .singleElement().satisfies(entry -> {
+                        assertThat(entry.getUserId()).isEqualTo(ciso.name());
+                        assertThat(entry.getDescription()).contains("line 1 ").contains("resting on its measurement — pass");
+                    });
+        }
+
+        @Test
+        @DisplayName("with nothing left to answer, nothing is written and the edition stays")
+        void nothingToAnswer() throws Exception {
+            List<Long> lines = fourMeasuredLines();
+            answer(developer, 1, lines.get(0), "yes", null, null, edition()).andExpect(status().isCreated());
+            answer(developer, 1, lines.get(3), "yes", null, null, edition()).andExpect(status().isCreated());
+            int before = edition();
+            JsonNode done = read(asMeasured(ciso, 1, before).andExpect(status().isOk()));
+            assertThat(done.at("/answered")).isEmpty();
+            assertThat(done.at("/skipped")).hasSize(4);
+            assertThat(edition()).isEqualTo(before);
+            assertThat(answers.findAll()).hasSize(2);
+            assertThat(measurements.findAll()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a stale edition is refused and writes nothing; no edition is a bad request")
+        void aStaleEdition() throws Exception {
+            List<Long> lines = fourMeasuredLines();
+            int read = edition();
+            answer(developer, 1, lines.get(3), "no", "Being migrated.", null, read).andExpect(status().isCreated());
+
+            MvcResult stale = asMeasured(ciso, 1, read).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(stale)).isEqualTo(PROBLEM + "checklist-changed");
+            assertThat(answers.findAll()).singleElement()
+                    .satisfies(row -> assertThat(row.getItemId()).isEqualTo(lines.get(3)));
+            assertThat(measurements.findAll()).isEmpty();
+            assertThat(entries("CHECKLIST_ANSWERED")).hasSize(1);
+
+            // With nothing left to answer nothing would be written, and the edition read is still judged.
+            answer(developer, 1, lines.get(0), "yes", null, null, edition()).andExpect(status().isCreated());
+            assertThat(typeOf(asMeasured(ciso, 1, read).andExpect(status().isConflict()).andReturn()))
+                    .isEqualTo(PROBLEM + "checklist-changed");
+
+            asMeasured(ciso, 1, null).andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("a submitted revision is not answered")
+        void aSubmittedRevision() throws Exception {
+            publishWithRule(SECRETS);
+            scan(first, hoursAgo(2), "secret", null, true);
+            scan(second, hoursAgo(2), "secret", null, true);
+            open(developer, project);
+            answerAll(itemIds(read(developer, 1)));
+            submit(developer, 1, edition()).andExpect(status().isOk());
+            long answered = answers.count();
+
+            MvcResult refused = asMeasured(ciso, 1, edition()).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "checklist-not-draft");
+            assertThat(answers.count()).isEqualTo(answered);
+        }
+
+        @Test
+        @DisplayName("a partial reader is answered as if the project did not exist; an auditor may not answer")
+        void whoMayAnswer() throws Exception {
+            fourMeasuredLines();
+            int edition = edition();
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+            Account partial = account(Role.USER);
+            grant(partial.id(), "repository", first);
+            assertThat(detailOf(asMeasured(partial, 1, edition).andExpect(status().isNotFound()).andReturn()))
+                    .isEqualTo("Project not found.");
+
+            Account auditor = account(Role.AUDITOR);
+            asMeasured(auditor, 1, edition).andExpect(status().isForbidden());
+            assertThat(answers.findAll()).isEmpty();
+
+            grant(partial.id(), "repository", second);
+            asMeasured(partial, 1, edition).andExpect(status().isOk());
+            assertThat(answers.findAll()).as("the two passing lines, under the caller's name").hasSize(2)
+                    .allSatisfy(row -> assertThat(row.getAnsweredBy()).isEqualTo(partial.name()));
+        }
+
+        private ResultActions asMeasured(Account who, int revision, Integer edition) throws Exception {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("edition", edition);
+            return send(who, base(project) + "/" + revision + "/answers/as-measured", body);
+        }
+    }
+
     // ------------------------------------------------------------------ who may read them
 
     @Test
@@ -680,19 +852,32 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
 
     /** The first template, its first line bound to {@code rule}, published — as an administrator, four-eyes off. */
     private void publishWithRule(Map<String, Object> rule) throws Exception {
+        publishWithRules(ChecklistWorkbooks.FIRST, List.of(rule));
+    }
+
+    /**
+     * A template of {@code lines}, its first lines bound to {@code rules} in order, published — as an
+     * administrator, four-eyes off.
+     */
+    private void publishWithRules(List<ChecklistWorkbooks.Line> lines, List<Map<String, Object>> rules) throws Exception {
         mvc.perform(authenticated(post(TEMPLATES + "/release/versions"), asAdmin())
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM).content(ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST)))
+                        .contentType(MediaType.APPLICATION_OCTET_STREAM).content(ChecklistWorkbooks.of(lines)))
                 .andExpect(status().isCreated());
         JsonNode laid = read(mvc.perform(authenticated(put(TEMPLATES + "/release/versions/1/layout"), asAdmin())
                         .param("revision", "1")
-                        .contentType(MediaType.APPLICATION_JSON).content(write(layout())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(layout(ChecklistWorkbooks.FIRST_ITEM_ROW + lines.size() - 1))))
                 .andExpect(status().isOk()));
-        Map<String, Object> line = new LinkedHashMap<>();
-        line.put("itemKey", laid.at("/items/0/itemKey").asText());
-        line.put("rule", rule);
+        List<Map<String, Object>> bindings = new ArrayList<>();
+        for (int i = 0; i < rules.size(); i++) {
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("itemKey", laid.at("/items/" + i + "/itemKey").asText());
+            line.put("rule", rules.get(i));
+            bindings.add(line);
+        }
         JsonNode bound = read(mvc.perform(authenticated(put(TEMPLATES + "/release/versions/1/rules"), asAdmin())
                         .param("revision", String.valueOf(laid.at("/version/revision").asInt()))
-                        .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("items", List.of(line)))))
+                        .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("items", bindings))))
                 .andExpect(status().isOk()));
         mvc.perform(authenticated(post(TEMPLATES + "/release/versions/1/publish"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -700,13 +885,13 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk());
     }
 
-    private static Map<String, Object> layout() {
+    private static Map<String, Object> layout(int lastItemRow) {
         Map<String, Object> layout = new LinkedHashMap<>();
         layout.put("sheet", "Checklist");
         layout.put("columns", Map.of("domain", "A", "objective", "B", "control", "C", "contact", "D", "kpi", "E",
                 "answer", "F", "comment", "G"));
         layout.put("firstItemRow", ChecklistWorkbooks.FIRST_ITEM_ROW);
-        layout.put("lastItemRow", 9);
+        layout.put("lastItemRow", lastItemRow);
         layout.put("header", Map.of(
                 "date", Map.of("label", "A2", "value", "B2"),
                 "product", Map.of("label", "A3", "value", "B3"),

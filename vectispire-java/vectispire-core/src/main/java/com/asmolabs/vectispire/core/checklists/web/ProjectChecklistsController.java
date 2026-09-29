@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.checklists.ChecklistAsMeasuredView;
 import com.asmolabs.vectispire.core.checklists.ChecklistDocumentDownload;
 import com.asmolabs.vectispire.core.checklists.ChecklistDocumentService;
 import com.asmolabs.vectispire.core.checklists.ChecklistEvidenceDownload;
@@ -220,6 +221,28 @@ public class ProjectChecklistsController {
             HttpServletRequest request) {
         return checklists.answer(projectId, revision, itemId, allowanceOf(principal), body == null ? null : body.value(),
                 body == null ? null : body.comment(), body == null ? null : body.measurementDigest(),
+                body == null ? null : body.edition(), participant(principal, request));
+    }
+
+    @Operation(summary = "Answer measured checklist lines as measured", description = "On a draft, in one act: "
+            + "every line bound to a rule is measured now, and each unanswered line whose measurement passes is "
+            + "answered yes by the caller, resting on that measurement, stored with it — the one click of the answer "
+            + "route, given for each line at once. Left alone, each named in skipped with its reason: a line already "
+            + "answered (already_answered — any current answer, one awaiting confirmation or one equal to the "
+            + "measurement included), a measurement with no data (no_data), a failing one (needs_comment — its no "
+            + "needs the comment the person writes, one line at a time). edition is the one read; anything written "
+            + "since refuses the act. One transaction, one edition; nothing to answer writes nothing and leaves the "
+            + "edition. Each answer is audited as a single one. 400 for no edition; 409 checklist-not-draft, "
+            + "checklist-changed.")
+    @PostMapping("/{revision}/answers/as-measured")
+    @RequiresWriteAccount
+    public ChecklistAsMeasuredView answerAsMeasured(
+            @PathVariable long projectId,
+            @PathVariable int revision,
+            @RequestBody ChecklistEditionRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return checklists.answerAsMeasured(projectId, revision, allowanceOf(principal),
                 body == null ? null : body.edition(), participant(principal, request));
     }
 

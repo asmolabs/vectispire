@@ -490,6 +490,104 @@ public class ProjectChecklistService {
     }
 
     /**
+     * Answers every measured line of a draft as measured, in one act: the one click of {@link #answer}
+     * resting on a measurement, given by the caller for each line where it can be given without them
+     * writing anything (decision 0032 §6).
+     *
+     * <p><b>The answers are the caller's.</b> Each is a row of its line's history under the principal's
+     * name, resting on the measurement it was answered by, stored with it as the single one-click stores
+     * it — Vectispire still never answers; the person asked for every line at once. The lines are
+     * measured here, now, as a read and a submission measure them; the caller named the edition they
+     * read, not each line's evidence, so the response names each measurement an answer rests on.
+     *
+     * <p><b>What it leaves alone</b>, each named with its reason: a line already answered — any current
+     * answer, a carried one awaiting confirmation and one equal to the measurement included: a person's
+     * answer is never replaced by a gesture that did not look at it; a line with no data; and a failing
+     * line, whose answer would be "no", which needs its comment (§5) — the single one-click opens the
+     * form for the person to write it, and a comment the product invented would be a claim nobody made.
+     * So every answer this act gives is a "yes" on a passing measurement.
+     *
+     * <p><b>The revision's grain.</b> The act writes as many lines as it finds, so it is refused when
+     * <em>anything</em> changed since the edition read ({@code checklist-changed}), like a transition:
+     * the lines it answers are those the person saw unanswered. One transaction, one edition: every
+     * row is written at the edition after the one read, or none is. With nothing to answer, nothing is
+     * written and the edition does not move. Each answer is audited as the single one is, one {@code
+     * CHECKLIST_ANSWERED} entry per line, after the commit — the audit trail reads a line's answers the
+     * same whichever gesture gave them.
+     *
+     * @throws InvalidInputException no edition (400)
+     * @throws ChecklistConflict {@code checklist-not-draft}, {@code checklist-changed}
+     */
+    public ChecklistAsMeasuredView answerAsMeasured(long projectId, int revision, VisibilityService.Allowance allowance,
+            Integer seenEdition, Participant who) {
+        Guarded guarded = requireWhole(projectId, allowance);
+        VisibleProject project = guarded.project();
+        ChecklistEntity checklist = requireRevision(project, revision);
+        requireEdition(seenEdition);
+        requireStatus(checklist, ChecklistStatus.DRAFT, Cause.NOT_DRAFT, "answered");
+        requireSeen(checklist, seenEdition, "answering its measured lines");
+        GivenAnswer yes = GivenAnswer.of(ChecklistAnswer.YES, null, wordsOf(checklist));
+        Instant now = clock.instant();
+        List<ChecklistMeasurer.LineMeasurement> measured = measurer.measure(guarded.repositoryIds(),
+                items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId()), now);
+        Map<Long, ChecklistAnswerEntity> current = currentAnswers(checklist.getId());
+
+        List<ChecklistMeasurer.LineMeasurement> passing = new ArrayList<>();
+        List<ChecklistAsMeasuredView.AsMeasuredSkip> skipped = new ArrayList<>();
+        for (ChecklistMeasurer.LineMeasurement line : measured) {
+            ChecklistAnswerEntity answer = current.get(line.item().getId());
+            MeasurementOutcome outcome = line.measurement().outcome();
+            // Answered first: a person's answer stands whatever the measurement now says.
+            AsMeasuredSkipReason reason = answer != null ? AsMeasuredSkipReason.ALREADY_ANSWERED
+                    : switch (outcome) {
+                        case PASS -> null;
+                        case FAIL -> AsMeasuredSkipReason.NEEDS_COMMENT;
+                        case NO_DATA -> AsMeasuredSkipReason.NO_DATA;
+                    };
+            if (reason == null) {
+                passing.add(line);
+            } else {
+                skipped.add(new ChecklistAsMeasuredView.AsMeasuredSkip(line.item().getId(), line.item().getPosition(),
+                        reason.wireName(), outcome.wireName(),
+                        line.measurement().reason().map(NoDataReason::wireName).orElse(null),
+                        answer == null ? null : answer.getValue()));
+            }
+        }
+        if (passing.isEmpty()) {
+            return new ChecklistAsMeasuredView(view(guarded, checklist), List.of(), skipped);
+        }
+
+        List<ChecklistAsMeasuredView.AsMeasuredAnswer> answered = new ArrayList<>(passing.size());
+        transactions.executeWithoutResult(status -> {
+            // One conditional statement on the edition the person read: any write since — on any line —
+            // and nothing of this act is written.
+            requireStill(checklists.touchDraft(checklist.getId(), seenEdition, ChecklistStatus.DRAFT.wireName()),
+                    checklist);
+            for (ChecklistMeasurer.LineMeasurement line : passing) {
+                ChecklistMeasurementEntity rested = measurements.save(measurementRow(checklist.getId(), line,
+                        MeasurementPurpose.ANSWER, now, who, null, Optional.of(yes.value())));
+                ChecklistAnswerEntity row = answerRow(checklist.getId(), line.item().getId(), yes.value().wireName(),
+                        null, who, now, null, seenEdition + 1);
+                row.setMeasurementId(rested.getId());
+                ChecklistAnswerEntity saved = answers.save(row);
+                answered.add(new ChecklistAsMeasuredView.AsMeasuredAnswer(line.item().getId(), line.item().getPosition(),
+                        yes.value().wireName(), saved.getId(), rested.getId(), line.measurement().evidenceDigest()));
+            }
+        });
+
+        for (ChecklistMeasurer.LineMeasurement line : passing) {
+            ChecklistItemEntity item = line.item();
+            audit.record(who.actor().entry(AuditOperation.CHECKLIST_ANSWERED, resource(project, revision),
+                    "Checklist of project \"" + project.name() + "\", revision " + revision + ", line " + item.getPosition()
+                            + " (row " + item.getSheetRow() + "): answered " + yes.value().wireName()
+                            + ", resting on its measurement — " + describe(line.measurement())
+                            + ", evidence sha256 " + line.measurement().evidenceDigest().substring(0, 12)
+                            + "; one of " + passing.size() + " measured lines answered as measured in one act."));
+        }
+        return new ChecklistAsMeasuredView(view(guarded, reread(checklist)), answered, skipped);
+    }
+
+    /**
      * Confirms an answer carried onto a line that changed: the confirmer states it still holds, and a
      * new row says so under their name.
      *
