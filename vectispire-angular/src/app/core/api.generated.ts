@@ -6361,7 +6361,7 @@ export interface components {
             /** Format: int64 */
             sourceId?: number;
             sourceSlug?: string;
-            toolKeys?: string;
+            toolKeys?: string[];
             tools?: string[];
         };
         SarifLog: {

@@ -6951,7 +6951,10 @@
             "type" : "string"
           },
           "toolKeys" : {
-            "type" : "string"
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "tools" : {
             "items" : {
