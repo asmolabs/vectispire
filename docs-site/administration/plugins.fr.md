@@ -153,7 +153,8 @@ cette section — liste chaque plugin avec son état, ses langages, son exceptio
 digest de son manifeste ; l'œil
 ouvre son détail : l'image, le digest complet, les arguments dans l'ordre, le fichier du rapport, les
 codes de sortie, le réseau et sa justification, le délai, et qui l'a enregistré et modifié en dernier.
-Les rôles de gouvernance voient aussi les projets pour lesquels il est activé. Seul le gouverneur a
+Les rôles de gouvernance voient aussi les projets pour lesquels il est activé, sous la forme
+*solution / projet*. Seul le gouverneur a
 **Enregistrer un plugin**, le crayon qui modifie le manifeste, et **Activer** / **Désactiver**. Le
 formulaire dit, là où l'id se saisit, qu'il ne pourra jamais être renommé ni réutilisé, et le verrouille
 en modification ; un refus — id déjà pris, tag à côté du digest, justification trop courte — reste dans
@@ -261,7 +262,9 @@ nouveau le même slug avec une nouvelle clé — pour la faire tourner — prolo
 
 **À l'écran**, **Sources déclarées**, dans la section Administration pour les rôles de gouvernance,
 liste les déclarations — identifiant et nom, la portée par nom de projet ou de dépôt, ce que chacune
-**livre** (SARIF, couverture, rapports de tests), les outils, la clé, qui l'a déclarée. Le gouverneur a
+**livre** (SARIF, couverture, rapports de tests), les outils, la clé par son nom — le RSSI et
+l'auditeur, qui n'ouvrent pas les clés d'API, la lisent aussi, et une clé révoquée se lit **Clé
+révoquée** — et qui l'a déclarée. Le gouverneur a
 **Déclarer une source** : les types se cochent (SARIF par défaut, au moins un), la clé se choisit parmi
 les clés non expirées portant la portée de chaque type coché — `sarif_import` pour le SARIF,
 `report_import` pour les deux autres —, la portée est un projet *ou* un dépôt, et les outils, séparés
@@ -302,7 +305,7 @@ journal d'audit ; un import refusé est un événement SIEM (`VECTI-SEC-023`).
 
 Chaque ligne de [Dépôts](../guide/repositories.md) a **Imports**, qui ouvre la dernière couverture et
 le dernier rapport de tests de ce dépôt (voir [plus bas](#importer-des-rapports-de-couverture-et-de-tests))
-puis l'historique de ses imports SARIF, en lecture seule : quand et par quelle source et quel compte, les outils, les nombres
+puis l'historique de ses imports SARIF, en lecture seule : quand et par quelle source et quel compte, les outils (une étiquette chacun), les nombres
 d'issues ouvertes, résolues et rouvertes, et le SHA-256 du document. Rien n'est téléversé depuis
 l'interface. Dans le backlog, une issue importée dit d'où elle vient sous son type (« déclaré par
 payments-ci · SonarQube »), le filtre par type propose **plugin** et **importé**, et la page d'une issue

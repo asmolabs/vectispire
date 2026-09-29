@@ -85,7 +85,11 @@ describe('the declared sources', () => {
         expect(row).toContain('Payments CI');
         expect(row).toContain('Project Payments / Gateway');
         expect(row).toContain('SonarQube');
-        expect(row).toContain(SOURCE.apiKeyId.slice(0, 8));
+        // By its name, from the source itself: an auditor cannot list the keys and is not asked to.
+        http.expectNone('/api/v1/api-keys');
+        expect(
+            dom().querySelector('[data-testid="source-payments-ci"] [data-testid="source-key"]')?.textContent?.trim()
+        ).toBe('payments-ci-key');
         expect(dom().querySelector('#declare-source')).toBeNull();
         expect(dom().querySelector('[aria-label="Remove source payments-ci"]')).toBeNull();
     });
@@ -99,6 +103,17 @@ describe('the declared sources', () => {
             SOURCE.apiKeyId,
             BOTH_KEY
         ]);
+    });
+
+    it('says a source whose key was revoked has lost its key, rather than showing an id', async () => {
+        await start('CISO');
+
+        fixture.componentInstance.sources.set([{ ...SOURCE, apiKeyName: null }]);
+        fixture.detectChanges();
+
+        const cell = dom().querySelector('[data-testid="source-payments-ci"] [data-testid="source-key"]');
+        expect(cell?.textContent?.trim()).toBe('Key revoked');
+        expect(cell?.textContent).not.toContain(SOURCE.apiKeyId.slice(0, 8));
     });
 
     it('lists every kind a source delivers, by name, and a kind it does not know as itself', async () => {

@@ -70,7 +70,8 @@ const KIND_SCOPES: Record<SourceKind, 'sarif_import' | 'report_import'> = {
  *
  * The key is chosen from the keys holding the scope every chosen kind needs — `sarif_import` for
  * SARIF, `report_import` for the others — which only an administrator's session can list; the
- * governor is one. A governance reader who is not sees the key's id.
+ * governor is one. The table names each source's key from the source itself (`apiKeyName`), so a
+ * CISO or an auditor, who cannot open the keys screen, reads the same name the governor does.
  */
 @Component({
     selector: 'app-sarif-sources',
@@ -199,11 +200,6 @@ export class SarifSources {
         this.i18n.translations();
         const key = (KIND_KEYS as Record<string, string | undefined>)[kind];
         return key ? this.i18n.t(key) : kind;
-    }
-
-    keyLabel(source: SarifSource): string {
-        const key = this.keys().find((candidate) => candidate.id === source.apiKeyId);
-        return key ? key.name : `${source.apiKeyId.slice(0, 8)}…`;
     }
 
     openDeclare(): void {

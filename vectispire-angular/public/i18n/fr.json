@@ -2692,7 +2692,8 @@
     "kind_coverage": "Couverture",
     "kind_test_report": "Rapports de tests",
     "kinds_hint": "Le SARIF exige une clé portant sarif_import et les outils qu'elle peut livrer ; la couverture et les rapports de tests exigent report_import, et sont des chiffres qu'une checklist lit, jamais des constats.",
-    "no_kind": "Choisissez au moins un type de rapport."
+    "no_kind": "Choisissez au moins un type de rapport.",
+    "key_revoked": "Clé révoquée"
   },
   "report_imports": {
     "explain": "Déposés par une source interne déclarée avec sa clé d'intégration, depuis la CI ; rien n'est déposé d'ici. Ce sont des chiffres qu'une checklist lit : ils n'ouvrent aucun constat et n'atteignent aucune barrière.",

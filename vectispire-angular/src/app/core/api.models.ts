@@ -2107,10 +2107,22 @@ export type Plugin = Refine<
     }
 >;
 
-/** A plugin switched on for one project. */
+/**
+ * A plugin switched on for one project, named as grants name it. The names are null only when the
+ * project was deleted between the activation's read and its naming.
+ */
 export type PluginActivation = Refine<
     Schema<'PluginActivationView'>,
-    { id: number; pluginId: string; projectId: number; activatedAt: string | null; activatedBy: string | null }
+    {
+        id: number;
+        pluginId: string;
+        projectId: number;
+        projectName: string | null;
+        solutionId: number | null;
+        solutionName: string | null;
+        activatedAt: string | null;
+        activatedBy: string | null;
+    }
 >;
 
 /**
@@ -2157,6 +2169,8 @@ export type SarifSource = Refine<
         slug: string;
         name: string;
         apiKeyId: string;
+        /** Null once the key is revoked: the source stays declared, and delivers nothing until re-keyed. */
+        apiKeyName: string | null;
         projectId: number | null;
         repositoryId: number | null;
         tools: string[];

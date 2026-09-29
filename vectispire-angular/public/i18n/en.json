@@ -2578,7 +2578,8 @@
     "kind_coverage": "Coverage",
     "kind_test_report": "Test reports",
     "kinds_hint": "SARIF needs a key holding sarif_import and the tools it may deliver; coverage and test reports need report_import, and are figures a checklist reads, never findings.",
-    "no_kind": "Choose at least one kind of report."
+    "no_kind": "Choose at least one kind of report.",
+    "key_revoked": "Key revoked"
   },
   "report_imports": {
     "explain": "Deposited by a declared internal source with its integration key, from CI; nothing is uploaded from here. These are figures a checklist reads: they open no issue and reach no gate.",

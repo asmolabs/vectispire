@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import type { components } from '../src/app/core/api.generated';
 import { resetLoginThrottle } from './support/fixture';
-import { goTo, signIn, signInAs } from './support/session';
+import { BOOTSTRAP_PASSWORD, E2E_PASSWORD, goTo, signIn, signInAs } from './support/session';
 
 type Manifest = components['schemas']['PluginManifest'];
 
@@ -19,6 +19,18 @@ type Manifest = components['schemas']['PluginManifest'];
  * the product's rule, not the suite's. The campaign's SQLite file is disposable.
  */
 test.describe.configure({ mode: 'serial' });
+
+/** A bearer token for `page.request`: the session lives in memory, where no request can read it. */
+async function adminToken(page: Page): Promise<string> {
+    for (const password of [E2E_PASSWORD, BOOTSTRAP_PASSWORD]) {
+        const response = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password } });
+        if (response.ok()) {
+            const token = ((await response.json()) as { token?: string }).token;
+            if (token) return token;
+        }
+    }
+    throw new Error('no token for admin');
+}
 
 test.describe('Plugins and SARIF sources', () => {
     test.beforeEach(() => resetLoginThrottle());
@@ -90,5 +102,26 @@ test.describe('Plugins and SARIF sources', () => {
 
         await expect(page.getByTestId('manifest-digest')).toContainText(created.manifestDigest!, { timeout: 15_000 });
         await expect(page.getByTestId(`plugin-${id}`)).toContainText('Enabled');
+
+        // **The projects it reads, named by the server.** The screen no longer loads the solution
+        // tree for these names; only the real activation view can show that the names arrive.
+        const token = await adminToken(page);
+        const headers = { Authorization: `Bearer ${token}` };
+        const solution = await page.request.post('/api/v1/solutions', { headers, data: { name: `${id} solution` } });
+        expect(solution.ok(), await solution.text()).toBe(true);
+        const solutionId = ((await solution.json()) as { id: number }).id;
+        const project = await page.request.post(`/api/v1/solutions/${solutionId}/projects`, {
+            headers,
+            data: { name: `${id} project` }
+        });
+        expect(project.ok(), await project.text()).toBe(true);
+        const projectId = ((await project.json()) as { id: number }).id;
+        const activated = await page.request.put(`/api/v1/projects/${projectId}/plugins/${id}`, { headers });
+        expect(activated.ok(), await activated.text()).toBe(true);
+
+        await page.getByRole('button', { name: `Show plugin ${id}` }).click();
+        await expect(page.getByTestId('plugin-projects')).toContainText(`${id} solution / ${id} project`, {
+            timeout: 15_000
+        });
     });
 });

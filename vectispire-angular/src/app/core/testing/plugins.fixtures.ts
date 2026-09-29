@@ -36,6 +36,9 @@ export const ACTIVATION: PluginActivation = asSchema('PluginActivationView', {
     id: 1,
     pluginId: 'acme-lint',
     projectId: 12,
+    projectName: 'Gateway',
+    solutionId: 1,
+    solutionName: 'Payments',
     activatedAt: '2026-09-27T09:00:00Z',
     activatedBy: 'ciso'
 });
@@ -45,6 +48,7 @@ export const SOURCE: SarifSource = asSchema('SarifSourceView', {
     slug: 'payments-ci',
     name: 'Payments CI',
     apiKeyId: '5f0c3c1e-0000-4000-8000-000000000001',
+    apiKeyName: 'payments-ci-key',
     projectId: 12,
     repositoryId: null,
     tools: ['Semgrep OSS', 'SonarQube'],

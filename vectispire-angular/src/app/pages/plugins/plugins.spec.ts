@@ -104,19 +104,25 @@ describe('the plugin registry', () => {
         expect(dom().querySelector('[data-testid="plugin-projects"]')).toBeNull();
     });
 
-    it('shows a governance reader the projects the plugin reads, by name', async () => {
+    it('shows a governance reader the projects the plugin reads, named by the activations themselves', async () => {
         await start('AUDITOR');
 
         fixture.componentInstance.open('acme-lint');
         http.expectOne('/api/v1/plugins/acme-lint').flush(PLUGIN);
-        http.expectOne('/api/v1/plugins/acme-lint/projects').flush([ACTIVATION]);
-        http.expectOne('/api/v1/solutions').flush({
-            solutions: [{ id: 1, name: 'Payments', projects: [{ id: 12, name: 'Gateway' }] }],
-            unfiled: null
-        });
+        http.expectOne('/api/v1/plugins/acme-lint/projects').flush([
+            ACTIVATION,
+            // A project deleted between the read and its naming: the id is still the right answer.
+            { ...ACTIVATION, id: 2, projectId: 99, projectName: null, solutionId: null, solutionName: null }
+        ]);
         fixture.detectChanges();
 
-        expect(dom().querySelector('[data-testid="plugin-projects"]')?.textContent).toContain('Payments / Gateway');
+        const items = Array.from(dom().querySelectorAll('[data-testid="plugin-projects"] li')).map((item) =>
+            item.textContent?.replace(/\s+/g, ' ').trim()
+        );
+        expect(items[0]).toMatch(/^Payments \/ Gateway ·/);
+        expect(items[1]).toMatch(/^#99 ·/);
+        // The whole solution tree used to be loaded for these names.
+        http.expectNone('/api/v1/solutions');
     });
 
     it('says an unknown id is unknown, rather than a failure to retry', async () => {

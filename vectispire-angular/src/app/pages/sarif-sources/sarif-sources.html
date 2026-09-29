@@ -55,7 +55,17 @@
                         }
                     </div>
                 </td>
-                <td class="text-sm">{{ keyLabel(source) }}</td>
+                <td class="text-sm" data-testid="source-key">
+                    <!--
+                        A revoked key leaves the source declared and delivering nothing: said as such,
+                        rather than as an id nobody can look up.
+                    -->
+                    @if (source.apiKeyName; as keyName) {
+                        {{ keyName }}
+                    } @else {
+                        <p-tag severity="warn" icon="pi pi-ban" [value]="'sarif_sources.key_revoked' | translate" />
+                    }
+                </td>
                 <td>
                     @if (source.enabled) {
                         <p-tag severity="success" [value]="'sarif_sources.enabled' | translate" />

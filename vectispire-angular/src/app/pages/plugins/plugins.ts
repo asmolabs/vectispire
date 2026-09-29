@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -15,15 +15,7 @@ import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
 import { PluginsApi } from '../../core/api/plugins.api';
-import { SolutionsApi } from '../../core/api/solutions.api';
-import type {
-    Plugin,
-    PluginActivation,
-    PluginLanguage,
-    PluginManifest,
-    PluginSignature,
-    SolutionTree
-} from '../../core/api.models';
+import type { Plugin, PluginActivation, PluginLanguage, PluginManifest, PluginSignature } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
@@ -125,7 +117,6 @@ export const JUSTIFICATION_MAX = 500;
 })
 export class Plugins {
     private readonly api = inject(PluginsApi);
-    private readonly solutionsApi = inject(SolutionsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
@@ -148,18 +139,6 @@ export class Plugins {
     readonly selected = signal<Plugin | null>(null);
     readonly selectedError = signal<string | null>(null);
     readonly projects = signal<PluginActivation[] | null>(null);
-    private readonly tree = signal<SolutionTree | null>(null);
-
-    /** "Solution / Project", as grants name a project; the bare id when the tree does not hold it. */
-    readonly projectNames = computed(() => {
-        const names = new Map<number, string>();
-        for (const solution of this.tree()?.solutions ?? []) {
-            for (const project of solution.projects ?? []) {
-                names.set(project.id, `${solution.name} / ${project.name}`);
-            }
-        }
-        return names;
-    });
 
     readonly formVisible = signal(false);
     readonly editing = signal<Plugin | null>(null);
@@ -224,14 +203,17 @@ export class Plugins {
             next: (activations) => this.projects.set(activations),
             error: () => this.projects.set([])
         });
-        if (!this.tree()) {
-            // For the names only: a failure leaves the ids, which are still the right answer.
-            this.solutionsApi.solutionTree().subscribe({ next: (tree) => this.tree.set(tree), error: () => undefined });
-        }
     }
 
-    projectName(projectId: number): string {
-        return this.projectNames().get(projectId) ?? `#${projectId}`;
+    /**
+     * "Solution / Project", as grants name a project, from the activation itself — the screen used to
+     * load the whole solution tree for these two words. The names are null only when the project was
+     * deleted between the activation's read and its naming; the id is then still the right answer.
+     */
+    projectName(activation: PluginActivation): string {
+        return activation.projectName && activation.solutionName
+            ? `${activation.solutionName} / ${activation.projectName}`
+            : `#${activation.projectId}`;
     }
 
     shortDigest(digest: string | null | undefined): string {

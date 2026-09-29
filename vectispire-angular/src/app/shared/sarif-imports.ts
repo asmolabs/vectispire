@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../core/api-error';
 import { SarifApi } from '../core/api/sarif.api';
 import type { SarifImport } from '../core/api.models';
@@ -24,7 +25,7 @@ import { LatestRequest } from '../core/latest-request';
 @Component({
     selector: 'app-sarif-imports',
     standalone: true,
-    imports: [CommonModule, MessageModule, TableModule, TranslatePipe],
+    imports: [CommonModule, MessageModule, TableModule, TagModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         @if (error(); as message) {
@@ -51,7 +52,14 @@ import { LatestRequest } from '../core/latest-request';
                             <div class="text-muted-color">{{ row.importedBy ?? '—' }}</div>
                         </td>
                         <td class="font-mono text-sm">{{ row.sourceSlug }}</td>
-                        <td class="text-sm">{{ row.tools.join(', ') }}</td>
+                        <td>
+                            <!-- One tag per tool, as the declared sources list them: a tool name may hold a comma. -->
+                            <div class="flex flex-wrap gap-1" data-testid="sarif-import-tools">
+                                @for (tool of row.tools; track $index) {
+                                    <p-tag severity="secondary" [value]="tool" />
+                                }
+                            </div>
+                        </td>
                         <td class="text-right">{{ row.resultsCount }}</td>
                         <td class="text-right">{{ row.createdCount }}</td>
                         <td class="text-right">{{ row.resolvedCount }}</td>

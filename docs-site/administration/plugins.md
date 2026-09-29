@@ -151,7 +151,7 @@ section — lists each plugin with its state, languages, network exception and t
 manifest digest; the eye opens its
 detail: the image, the digest in full, the arguments in order, the report file, the exit codes, the
 network and its justification, the timeout, and who registered and last changed it. Governance readers
-also see the projects it is switched on for. The governor alone gets **Register a plugin**, the pencil
+also see the projects it is switched on for, as *solution / project*. The governor alone gets **Register a plugin**, the pencil
 that edits the manifest, and **Enable** / **Disable**. The form says where the id is typed that it can
 never be renamed or reused, and locks it when editing; a refusal — an id already taken, a tag beside
 the digest, a justification too short — stays in the form with the server's reason. The page itself
@@ -256,7 +256,9 @@ slug again with a new key — to rotate it — continues the same backlog.
 
 **On screen**, **Declared sources**, in the Administration section for the governance roles, lists the
 declarations — slug and name, the scope by project or repository name, what each **delivers** (SARIF,
-coverage, test reports), the tools, the key, who declared it. The governor has **Declare a source**:
+coverage, test reports), the tools, the key by its name — the CISO and the auditor, who cannot open
+API keys, read it too, and a revoked key reads **Key revoked** — and who declared it. The governor has
+**Declare a source**:
 the kinds are ticked (SARIF by default, at least one), the key is chosen among the unexpired keys
 holding the scope of every ticked kind — `sarif_import` for SARIF, `report_import` for the other two —
 the scope is a project *or* a repository, and the tools, separated by commas, are asked only while
@@ -290,7 +292,7 @@ else — no other tool's issues, no plugin's, no scanner's.
 
 Every repository row on [Repositories](../guide/repositories.md) has **Imports**, which opens that
 repository's latest coverage and test report (see [below](#importing-coverage-and-test-reports)) and
-then its SARIF import history, read-only: when and by which source and account, the tools, the counts
+then its SARIF import history, read-only: when and by which source and account, the tools (one tag each), the counts
 opened, resolved and reopened, and the document's SHA-256. Nothing is uploaded from the interface.
 
 Imported issues say where they came from: type **imported**, the source, and the tool's name and

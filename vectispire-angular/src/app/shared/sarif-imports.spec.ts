@@ -51,7 +51,11 @@ describe("a repository's SARIF imports", () => {
         const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="sarif-import"]');
         const text = row?.textContent ?? '';
         expect(text).toContain('payments-ci');
-        expect(text).toContain('SonarQube, Semgrep OSS');
+        // One tag per tool, never a joined string: a tool whose name holds a comma stays one tool.
+        const tools = Array.from(row?.querySelectorAll('[data-testid="sarif-import-tools"] p-tag') ?? []).map((tag) =>
+            tag.textContent?.trim()
+        );
+        expect(tools).toEqual(['SonarQube', 'Semgrep OSS']);
         expect(text).toContain('f'.repeat(64));
         expect(text).toContain('ci-bot');
         const cells = Array.from(row?.querySelectorAll('td') ?? []).map((cell) => cell.textContent?.trim());
