@@ -33,9 +33,10 @@ that may not write sees the checklist without a single control that changes it.
 
 ## 1. Open the checklist
 
-A project without a checklist offers the **published** template versions. Choose one and **Open the
-checklist**: revision 1 opens as a **draft**, you as its author, every line unanswered. A draft or
-retired version is never offered.
+The page is headed with the project's name, even before it has a checklist. A project without a
+checklist offers the **published** template versions. Choose one and **Open the checklist**:
+revision 1 opens as a **draft**, you as its author, every line unanswered. A draft or retired version
+is never offered.
 
 A project has **one open revision at a time**. If somebody opened one after you loaded the page, your
 opening is refused and the screen offers to reload — you see theirs rather than opening a second.
@@ -118,7 +119,9 @@ the refusal is recorded in the audit log and sent to the SIEM (`VECTI-SEC-026`).
 an approver may sign what they wrote.
 
 A sign-off is also refused when a proof stopped holding since the submission — its validity ran out
-in between. Return the revision to its authors, who attach a newer proof and submit again.
+in between. The lines refused are marked in red, each with what the server found missing — *Evidence
+out of date*, for instance. Return the revision to its authors, who attach a newer proof and submit
+again.
 
 A signed-off revision states in its header who submitted it, who signed it off and when, and whether
 four-eyes required the two to differ.
@@ -171,7 +174,7 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 | Somebody else wrote on this line | Another answer or proof arrived on the same line. Reload to see it. |
 | This revision is no longer a draft / no longer waiting for a sign-off | It was submitted, signed off, returned or set aside meanwhile. |
 | Only a signed-off revision is reopened / a newer revision exists | Act on the newest revision. |
-| Not every line is ready | Lines still need attention; they are named. |
+| Not every line is ready | Lines still need attention: they are named, and each is marked *Refused for this line* with its problems — unanswered, comment required, evidence required or out of date, awaiting confirmation — as the server found them, which a proof lapsed since you loaded the page can make differ from what the line showed. |
 | Four-eyes approval: a second person must sign it off | You wrote part of this revision. |
 | That version is no longer published / already on that version | Choose another version; after a sign-off, reopen instead. |
 | No carried answer awaiting confirmation / evidence already withdrawn | Somebody did it before you. |

@@ -2,8 +2,8 @@
     <div>
         <h1 class="text-2xl font-semibold m-0">
             {{ 'project_checklist.title' | translate }}
-            @if (view(); as shown) {
-                <span class="text-muted-color font-normal">— {{ shown.projectName }}</span>
+            @if (projectName(); as name) {
+                <span class="text-muted-color font-normal" data-testid="project-name">— {{ name }}</span>
             }
         </h1>
         <p class="text-muted-color mt-1 mb-0">{{ 'project_checklist.subtitle' | translate }}</p>
@@ -368,9 +368,13 @@
                                 <li
                                     class="border rounded-md p-3"
                                     [style.border-color]="
-                                        awaiting(line) ? 'var(--p-orange-400)' : 'var(--surface-border)'
+                                        refusedFor(line)
+                                            ? 'var(--p-red-500)'
+                                            : awaiting(line)
+                                              ? 'var(--p-orange-400)'
+                                              : 'var(--surface-border)'
                                     "
-                                    [class.border-2]="awaiting(line)"
+                                    [class.border-2]="awaiting(line) || !!refusedFor(line)"
                                     [attr.data-testid]="'line-' + line.position"
                                 >
                                     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -425,6 +429,21 @@
                                             }
                                         </div>
                                     </div>
+
+                                    <!-- What the server refused a submission or a sign-off for, on this line. -->
+                                    @if (refusedFor(line); as refused) {
+                                        <div
+                                            class="mt-2 flex flex-wrap items-center gap-2 text-sm"
+                                            [attr.data-testid]="'incomplete-' + line.position"
+                                        >
+                                            <span class="font-medium">{{
+                                                'project_checklist.incomplete_line' | translate
+                                            }}</span>
+                                            @for (problem of refused; track problem) {
+                                                <p-tag severity="danger" [value]="problemLabel(problem)" />
+                                            }
+                                        </div>
+                                    }
 
                                     <!-- The answer as it stands. -->
                                     <div class="mt-3 text-sm" data-testid="answer">

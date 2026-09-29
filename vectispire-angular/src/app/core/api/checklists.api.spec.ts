@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
     CHECKLIST,
     CONFIRMED_PREVIEW,
+    CONTEXT,
     DRAFT_REVISION,
     LAYOUT,
     LINE_HISTORY,
@@ -165,9 +166,12 @@ describe('the project checklist client', () => {
 
     afterEach(() => http.verify());
 
-    it('lists the revisions, the offered versions, reads one and a line history', () => {
+    it('lists the revisions, reads the context and the offered versions, one revision and a line history', () => {
         api.projectChecklists(PROJECT_ID).subscribe();
         http.expectOne({ method: 'GET', url: BASE }).flush([DRAFT_REVISION]);
+
+        api.projectChecklistContext(PROJECT_ID).subscribe();
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(CONTEXT);
 
         api.offeredChecklistVersions(PROJECT_ID).subscribe();
         http.expectOne({ method: 'GET', url: `${BASE}/offered` }).flush(OFFERED);

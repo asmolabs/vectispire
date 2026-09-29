@@ -7,6 +7,7 @@ import type {
     ChecklistLineHistory,
     ChecklistOfferedVersion,
     ChecklistPreview,
+    ChecklistProjectContext,
     ChecklistRevisionSummary,
     ChecklistTemplate,
     ChecklistVersion,
@@ -278,6 +279,21 @@ export const DRAFT_REVISION: ChecklistRevisionSummary = asSchema('ChecklistRevis
     signedOffAt: null,
     signedOffBy: null,
     signOffFourEyes: null
+});
+
+/** Gateway's context, its newest revision the draft at edition 5. */
+export const CONTEXT: ChecklistProjectContext = asSchema('ChecklistProjectContext', {
+    projectId: PROJECT_ID,
+    projectName: 'Gateway',
+    latestRevision: 2,
+    latestEdition: 5
+});
+
+/** The context of a project with no checklist yet: its name, and nothing for an opening to name. */
+export const EMPTY_CONTEXT: ChecklistProjectContext = asSchema('ChecklistProjectContext', {
+    ...CONTEXT,
+    latestRevision: null,
+    latestEdition: null
 });
 
 const answer = (itemId: number, extra: Partial<ChecklistAnswer> = {}): ChecklistAnswer =>

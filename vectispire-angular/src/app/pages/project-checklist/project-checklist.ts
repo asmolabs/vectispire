@@ -3,7 +3,7 @@ import { HttpHeaders } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { Observable } from 'rxjs';
+import { forkJoin, type Observable } from 'rxjs';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -17,10 +17,12 @@ import type {
     ChecklistAnswerValue,
     ChecklistEvidence,
     ChecklistEvidenceKind,
+    ChecklistIncompleteLine,
     ChecklistLine,
     ChecklistLineHistory,
     ChecklistLineProblem,
     ChecklistOfferedVersion,
+    ChecklistProjectContext,
     ChecklistRevisionSummary,
     ChecklistStatus,
     ChecklistView
@@ -199,8 +201,14 @@ export class ProjectChecklist {
     /** `canApproveTriage`: who may sign off at all. */
     readonly approves = this.session.canApproveTriage;
 
+    readonly context = signal<ChecklistProjectContext | null>(null);
     readonly revisions = signal<ChecklistRevisionSummary[]>([]);
     readonly view = signal<ChecklistView | null>(null);
+    /**
+     * The lines a `checklist-incomplete` refusal named, by item, with their problems as the server
+     * found them — which may not be what the view on screen says: a proof lapses without a write.
+     */
+    readonly incomplete = signal<Record<number, ChecklistLineProblem[]>>({});
     readonly offered = signal<ChecklistOfferedVersion[]>([]);
     readonly loading = signal(true);
     readonly notFound = signal(false);
@@ -221,6 +229,8 @@ export class ProjectChecklist {
     /** The histories open, by line; `null` while one is being read. */
     readonly histories = signal<Record<number, ChecklistLineHistory | null>>({});
 
+    /** Named before any checklist exists, from the context; from the view only if the context is not read yet. */
+    readonly projectName = computed(() => this.context()?.projectName ?? this.view()?.projectName ?? null);
     readonly summary = computed(() => this.view()?.checklist ?? null);
     readonly latest = computed(() => this.revisions()[0] ?? null);
     readonly isLatest = computed(() => {
@@ -265,22 +275,34 @@ export class ProjectChecklist {
         this.load(this.id());
     }
 
+    /**
+     * The context and the revisions, read together. **The context decides whether there is a
+     * checklist to show**, not the list: it is the read whose edition an opening names, so the page
+     * that offers to open one is the page that saw none there — a checklist opened between the two
+     * reads is then refused by the server rather than moved onto, unseen.
+     */
     private load(projectId: number): void {
         this.loading.set(true);
         this.error.set(null);
         this.refusal.set(null);
+        this.incomplete.set({});
         this.closeForms();
-        this.readRequest.run(this.api.projectChecklists(projectId), {
-            next: (revisions) => {
+        const both = forkJoin({
+            context: this.api.projectChecklistContext(projectId),
+            revisions: this.api.projectChecklists(projectId)
+        });
+        this.readRequest.run(both, {
+            next: ({ context, revisions }) => {
+                this.context.set(context);
                 this.revisions.set(revisions);
                 this.notFound.set(false);
                 if (this.writes()) this.loadOffered(projectId);
-                if (revisions.length === 0) {
+                if (context.latestRevision === null) {
                     this.view.set(null);
                     this.loading.set(false);
                     return;
                 }
-                this.read(revisions[0].revision);
+                this.read(revisions[0]?.revision ?? context.latestRevision);
             },
             error: (failure) => this.failed(failure)
         });
@@ -289,6 +311,7 @@ export class ProjectChecklist {
     /** One revision, the newest or an earlier one, read-only unless it is the newest draft. */
     read(revision: number): void {
         this.loading.set(true);
+        this.incomplete.set({});
         this.closeForms();
         this.readRequest.run(this.api.projectChecklist(this.id(), revision), {
             next: (view) => {
@@ -308,6 +331,7 @@ export class ProjectChecklist {
             this.notFound.set(true);
             this.view.set(null);
             this.revisions.set([]);
+            this.context.set(null);
             return;
         }
         this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_load')));
@@ -364,6 +388,11 @@ export class ProjectChecklist {
         return !!line.answer?.needsConfirmation;
     }
 
+    /** What the last refusal said keeps this line back, or `null` when it named no such thing. */
+    refusedFor(line: ChecklistLine): ChecklistLineProblem[] | null {
+        return this.incomplete()[line.itemId] ?? null;
+    }
+
     problemLabel(problem: string): string {
         this.i18n.translations();
         const key = (PROBLEM_KEYS as Record<string, string | undefined>)[problem];
@@ -394,11 +423,16 @@ export class ProjectChecklist {
 
     // ------------------------------------------------------------------ opening, moving
 
-    /** The first checklist of the project: no edition, since the screen showed none. */
+    /**
+     * The first checklist of the project, naming the edition the context read — null, since the page
+     * offers this only when the context saw no checklist, and the server refuses it when one was
+     * opened since.
+     */
     openChecklist(): void {
         const choice = parseChoice(this.openChoice());
         if (!choice) return;
-        this.write(this.api.openProjectChecklist(this.id(), choice.slug, choice.ordinal, null), null, (view) => {
+        const edition = this.context()?.latestEdition ?? null;
+        this.write(this.api.openProjectChecklist(this.id(), choice.slug, choice.ordinal, edition), null, (view) => {
             this.openChoice.set(null);
             this.notice.set(this.i18n.t('project_checklist.opened_notice', { revision: view.checklist.revision }));
             this.refreshRevisions();
@@ -672,6 +706,7 @@ export class ProjectChecklist {
     ): void {
         this.busy.set(true);
         this.refusal.set(null);
+        this.incomplete.set({});
         this.error.set(null);
         this.notice.set(null);
         request.subscribe({
@@ -696,6 +731,12 @@ export class ProjectChecklist {
                 ? revisions.map((one) => (one.revision === summary.revision ? summary : one))
                 : [summary, ...revisions]
         );
+        // The newest revision's edition moved with the write: the context says so too.
+        this.context.update((context) =>
+            context && (context.latestRevision === null || summary.revision >= context.latestRevision)
+                ? { ...context, latestRevision: summary.revision, latestEdition: summary.edition }
+                : context
+        );
     }
 
     /** A cause named by the problem's type gets its sentence; anything else, the server's own words. */
@@ -708,7 +749,13 @@ export class ProjectChecklist {
                 itemId
             };
         }
-        const lines = this.unready();
+        // The lines the refusal names, as data, over the ones the view shows: the server's are the
+        // ones it refused for, and a proof that lapsed since the view was read is on no line here.
+        const named = cause === 'incomplete' ? incompleteLinesOf(failure) : null;
+        if (named) {
+            this.incomplete.set(Object.fromEntries(named.map((line) => [line.itemId, line.problems])));
+        }
+        const lines = named ? named.map((line) => line.position).sort((a, b) => a - b) : this.unready();
         const message =
             cause === 'incomplete' && lines.length === 0
                 ? this.i18n.t('project_checklist.conflict_incomplete_reload')
@@ -739,6 +786,24 @@ const LINK = /^https?:\/\/[^\s/?#]+/i;
 export function conflictOf(failure: unknown): ConflictCause | null {
     const type = (failure as { error?: { type?: unknown } } | null)?.error?.type;
     return typeof type === 'string' ? (CONFLICT_TYPES[type] ?? null) : null;
+}
+
+/**
+ * The lines a `checklist-incomplete` refusal names in its `lines` member, or `null` when it names
+ * none the screen can read — a server from before the member, or a shape it does not expect — so that
+ * the caller falls back to the lines the view shows.
+ */
+export function incompleteLinesOf(failure: unknown): ChecklistIncompleteLine[] | null {
+    const lines = (failure as { error?: { lines?: unknown } } | null)?.error?.lines;
+    if (!Array.isArray(lines)) return null;
+    const read = lines.filter(
+        (line): line is ChecklistIncompleteLine =>
+            typeof (line as ChecklistIncompleteLine | null)?.itemId === 'number' &&
+            typeof (line as ChecklistIncompleteLine).position === 'number' &&
+            Array.isArray((line as ChecklistIncompleteLine).problems) &&
+            (line as ChecklistIncompleteLine).problems.every((problem) => typeof problem === 'string')
+    );
+    return read.length > 0 ? read : null;
 }
 
 /**

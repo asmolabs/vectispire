@@ -2887,6 +2887,7 @@
     "conflict_not_latest": "A newer revision of this checklist exists: act on that one. Reload the checklist.",
     "conflict_incomplete": "Not every line is ready: lines {{lines}} still need attention.",
     "conflict_incomplete_reload": "Not every line is ready any more. Reload the checklist to see which.",
+    "incomplete_line": "Refused for this line:",
     "conflict_four_eyes": "Four-eyes approval: you wrote part of this revision, so a second person must sign it off. Written by: {{authors}}.",
     "conflict_version_not_published": "That version is no longer published. Reload to see the versions offered.",
     "conflict_same_version": "The checklist is already on that version. After a sign-off, reopen the signed revision to start again on it.",

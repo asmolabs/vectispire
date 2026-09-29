@@ -3,11 +3,14 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ChecklistRevisionSummary, ChecklistView } from '@/app/core/api.models';
+import type { ChecklistProjectContext, ChecklistRevisionSummary, ChecklistView } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import {
     CHECKLIST,
+    conflict,
+    CONTEXT,
     DRAFT_REVISION,
+    EMPTY_CONTEXT,
     LINE_HISTORY,
     OFFERED,
     PROJECT_ID,
@@ -25,6 +28,7 @@ import {
     CONFLICT_TYPES,
     EVIDENCE_KIND_KEYS,
     groupsOf,
+    incompleteLinesOf,
     PROBLEM_KEYS,
     ProjectChecklist,
     signOffBlockOf,
@@ -58,11 +62,19 @@ describe('the project checklist screen', () => {
     interface Start {
         revisions?: ChecklistRevisionSummary[];
         view?: ChecklistView;
+        context?: ChecklistProjectContext;
     }
+
+    /** The context the server answers beside the revisions: the newest one's number and edition. */
+    const contextOf = (revisions: ChecklistRevisionSummary[]): ChecklistProjectContext =>
+        revisions.length === 0
+            ? EMPTY_CONTEXT
+            : { ...CONTEXT, latestRevision: revisions[0].revision, latestEdition: revisions[0].edition };
 
     async function start(role: string, username = 'someone', given: Start = {}): Promise<void> {
         const view = given.view ?? CHECKLIST;
         const revisions = given.revisions ?? [view.checklist, SIGNED_REVISION];
+        const context = given.context ?? contextOf(revisions);
         await TestBed.configureTestingModule({
             imports: [ProjectChecklist],
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
@@ -79,11 +91,14 @@ describe('the project checklist screen', () => {
         fixture.componentRef.setInput('projectId', String(PROJECT_ID));
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(context);
         http.expectOne({ method: 'GET', url: BASE }).flush(revisions);
         // The versions a checklist may be opened on or moved to are read for those who write only.
         for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` })) offered.flush(OFFERED);
-        if (revisions.length > 0) {
-            http.expectOne({ method: 'GET', url: `${BASE}/${revisions[0].revision}` }).flush(view);
+        if (context.latestRevision !== null) {
+            http.expectOne({ method: 'GET', url: `${BASE}/${revisions[0]?.revision ?? context.latestRevision}` }).flush(
+                view
+            );
         }
         fixture.detectChanges();
     }
@@ -205,10 +220,12 @@ describe('the project checklist screen', () => {
         fixture.componentRef.setInput('projectId', String(PROJECT_ID));
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
-        http.expectOne(BASE).flush(
+        http.expectOne(`${BASE}/context`).flush(
             { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Project not found.' },
             { status: 404, statusText: 'Not Found' }
         );
+        // Read beside the context, and dropped with it: one refusal is the answer.
+        expect(http.match(BASE).map((request) => request.cancelled)).toEqual([true]);
         fixture.detectChanges();
 
         expect(text('[data-testid="not-found"]')).toBe(
@@ -242,6 +259,36 @@ describe('the project checklist screen', () => {
 
         expect(text('[data-testid="no-checklist"]')).toContain('Somebody with write access opens one');
         expect(has('#open-version')).toBe(false);
+    });
+
+    it.each(['USER', 'AUDITOR'])(
+        'names the project from its context before any checklist exists, to %s',
+        async (role) => {
+            await start(role, 'someone', { revisions: [] });
+
+            expect(has('[data-testid="no-checklist"]')).toBe(true);
+            expect(text('h1')).toBe('Security checklist — Gateway');
+        }
+    );
+
+    it('names the project as its context does, over the name a checklist header carries', async () => {
+        await start('USER', 'someone', { context: { ...CONTEXT, projectName: 'Gateway API' } });
+
+        expect(text('[data-testid="project-name"]')).toBe('— Gateway API');
+    });
+
+    it('shows no checklist when its context saw none, and opens naming the edition that context read', async () => {
+        // A checklist opened between the two reads: the list has it, the context did not. The page
+        // offers to open one as the context says, and the server — named no edition — refuses it.
+        await start('USER', 'carol', { revisions: [DRAFT_REVISION], context: EMPTY_CONTEXT });
+
+        expect(has('[data-testid="no-checklist"]')).toBe(true);
+        choose('#open-version', 'Release checklist — version 1 (2025 edition)');
+        click('open-checklist');
+        const request = post(BASE);
+        expect(request.request.body).toEqual({ template: 'release', version: 1 });
+        refuse(request, 'urn:vectispire:problem:checklist-changed');
+        expect(text('[data-testid="refusal-message"]')).toContain('The checklist changed since you read it.');
     });
 
     // ------------------------------------------------------------------ the header and the lines
@@ -593,6 +640,64 @@ describe('the project checklist screen', () => {
         expect(text('[data-testid="refusal"]')).toContain('Not every line is ready: lines 2, 3 still need attention.');
     });
 
+    const tags = (testId: string) =>
+        Array.from(dom().querySelectorAll(`[data-testid="${testId}"] p-tag`)).map((tag) => tag.textContent?.trim());
+
+    /** The `lines` a `checklist-incomplete` names: line 2's proof lapsed, line 3 lost its answer and comment. */
+    const INCOMPLETE = conflict('checklist-incomplete', 'line 2 evidence expired; line 3 unanswered', {
+        lines: [
+            { itemId: 103, position: 3, problems: ['unanswered', 'comment_required'] },
+            { itemId: 102, position: 2, problems: ['evidence_expired'] }
+        ]
+    });
+
+    it('highlights the lines an incomplete refusal names, with their problems in words, over what the view shows', async () => {
+        // Every line reads ready on screen: the refusal's lines are the only place the server's say so.
+        await start('USER', 'carol', { view: READY_CHECKLIST });
+
+        click('submit-checklist');
+        post(`${BASE}/2/submission`).flush(INCOMPLETE, { status: 409, statusText: 'Conflict' });
+        fixture.detectChanges();
+
+        expect(text('[data-testid="refusal-message"]')).toBe(
+            'Not every line is ready: lines 2, 3 still need attention.'
+        );
+        expect(text('[data-testid="incomplete-2"] span')).toBe('Refused for this line:');
+        expect(tags('incomplete-2')).toEqual(['Evidence out of date']);
+        expect(tags('incomplete-3')).toEqual(['Not answered yet', 'Comment required']);
+        expect(has('[data-testid="incomplete-1"]')).toBe(false);
+        expect(dom().textContent).not.toContain('line 2 evidence expired');
+        expect((dom().querySelector('[data-testid="line-2"]') as HTMLElement).style.borderColor).toBe(
+            'var(--p-red-500)'
+        );
+
+        // Read again, the checklist says for itself where it stands: the refusal's marks go.
+        click('reload-checklist');
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(CONTEXT);
+        http.expectOne({ method: 'GET', url: BASE }).flush([DRAFT_REVISION, SIGNED_REVISION]);
+        http.expectOne({ method: 'GET', url: `${BASE}/offered` }).flush(OFFERED);
+        http.expectOne({ method: 'GET', url: `${BASE}/2` }).flush(CHECKLIST);
+        fixture.detectChanges();
+        expect(has('[data-testid="incomplete-2"]')).toBe(false);
+        expect(has('[data-testid="incomplete-3"]')).toBe(false);
+    });
+
+    it('highlights the lines a sign-off is refused for once a proof lapsed since the submission', async () => {
+        await start('SECURITY_CHAMPION', 'bob', { view: SUBMITTED_CHECKLIST });
+
+        click('sign-off-checklist');
+        post(`${BASE}/2/sign-off`).flush(
+            conflict('checklist-incomplete', 'line 2 evidence expired', {
+                lines: [{ itemId: 102, position: 2, problems: ['evidence_expired'] }]
+            }),
+            { status: 409, statusText: 'Conflict' }
+        );
+        fixture.detectChanges();
+
+        expect(text('[data-testid="refusal-message"]')).toBe('Not every line is ready: lines 2 still need attention.');
+        expect(tags('incomplete-2')).toEqual(['Evidence out of date']);
+    });
+
     it('shows a line refusal on the line itself, and reloads the checklist when asked', async () => {
         await start('USER');
 
@@ -605,6 +710,7 @@ describe('the project checklist screen', () => {
             'Somebody else wrote on this line since you read it.'
         );
         click('reload-checklist');
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush({ ...CONTEXT, latestEdition: 7 });
         http.expectOne({ method: 'GET', url: BASE }).flush([DRAFT_REVISION, SIGNED_REVISION]);
         http.expectOne({ method: 'GET', url: `${BASE}/offered` }).flush(OFFERED);
         http.expectOne({ method: 'GET', url: `${BASE}/2` }).flush(after(CHECKLIST, 7));
@@ -756,6 +862,25 @@ describe('the project checklist, by its rules', () => {
         expect(signOffBlockOf(SUBMITTED_CHECKLIST, true, ' CAROL ')).toBe('four_eyes');
         expect(signOffBlockOf(SUBMITTED_CHECKLIST, true, 'bob')).toBeNull();
         expect(signOffBlockOf({ ...SUBMITTED_CHECKLIST, fourEyesRequired: false }, true, 'carol')).toBeNull();
+    });
+
+    it('reads the lines an incomplete refusal names, and nothing from one that names none it can read', () => {
+        expect(incompleteLinesOf({ error: conflict('checklist-incomplete', 'x', { lines: [] }) })).toBeNull();
+        expect(incompleteLinesOf({ error: conflict('checklist-incomplete') })).toBeNull();
+        expect(incompleteLinesOf({ error: 'text' })).toBeNull();
+        expect(incompleteLinesOf(null)).toBeNull();
+        expect(
+            incompleteLinesOf({
+                error: conflict('checklist-incomplete', 'x', {
+                    lines: [
+                        { itemId: '102', position: 2, problems: ['unanswered'] },
+                        { itemId: 103, position: 3, problems: 'unanswered' },
+                        { itemId: 104, position: 4, problems: [4] },
+                        { itemId: 101, position: 1, problems: ['comment_required'] }
+                    ]
+                })
+            })
+        ).toEqual([{ itemId: 101, position: 1, problems: ['comment_required'] }]);
     });
 
     it('knows every cause the server names, and no other', () => {

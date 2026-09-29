@@ -2561,3 +2561,22 @@ export type ChecklistOfferedVersion = Refine<
     Schema<'ChecklistOfferedVersion'>,
     { templateSlug: string; templateName: string; label: string | null; publishedAt: string }
 >;
+
+/**
+ * What a project's checklist page shows before it has a checklist: the project's name, and where its
+ * newest revision stands — both null while it has none, which is the edition opening one names.
+ */
+export type ChecklistProjectContext = Refine<
+    Schema<'ChecklistProjectContext'>,
+    { projectName: string; latestRevision: number | null; latestEdition: number | null }
+>;
+
+/**
+ * One line a `checklist-incomplete` refusal names, in the problem's `lines` extension member — which
+ * the document cannot describe, a problem having no schema there. `problems` are a line's own tokens.
+ */
+export interface ChecklistIncompleteLine {
+    itemId: number;
+    position: number;
+    problems: ChecklistLineProblem[];
+}

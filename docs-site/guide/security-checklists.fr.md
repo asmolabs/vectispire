@@ -33,9 +33,10 @@ qui ne peut pas écrire voit la checklist sans un seul contrôle qui la modifie.
 
 ## 1. Ouvrir la checklist
 
-Un projet sans checklist propose les versions **publiées** des modèles. Choisissez-en une et
-**Ouvrir la checklist** : la révision 1 s'ouvre en **brouillon**, vous comme auteur, chaque ligne sans
-réponse. Une version en brouillon ou retirée n'est jamais proposée.
+La page porte le nom du projet, même avant qu'il ait une checklist. Un projet sans checklist propose
+les versions **publiées** des modèles. Choisissez-en une et **Ouvrir la checklist** : la révision 1
+s'ouvre en **brouillon**, vous comme auteur, chaque ligne sans réponse. Une version en brouillon ou
+retirée n'est jamais proposée.
 
 Un projet a **une seule révision ouverte à la fois**. Si quelqu'un en a ouvert une après que vous avez
 chargé la page, votre ouverture est refusée et l'écran propose de recharger — vous voyez la sienne
@@ -124,8 +125,9 @@ l'approuver*. Le serveur décide — le refus est inscrit au journal d'audit et 
 (`VECTI-SEC-026`). Double validation éteinte, un approbateur peut approuver ce qu'il a écrit.
 
 Une approbation est aussi refusée quand une preuve a cessé de valoir depuis la soumission — sa validité
-a expiré entre-temps. Renvoyez la révision à ses auteurs, qui joignent une preuve plus récente et
-soumettent de nouveau.
+a expiré entre-temps. Les lignes refusées sont marquées en rouge, chacune avec ce que le serveur y a
+trouvé manquant — *Preuve périmée*, par exemple. Renvoyez la révision à ses auteurs, qui joignent une
+preuve plus récente et soumettent de nouveau.
 
 Une révision approuvée indique dans son en-tête qui l'a soumise, qui l'a approuvée et quand, et si la
 double validation exigeait que les deux diffèrent.
@@ -179,7 +181,7 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 | Quelqu'un d'autre a écrit sur cette ligne | Une autre réponse ou preuve est arrivée sur la même ligne. Rechargez pour la voir. |
 | Cette révision n'est plus un brouillon / n'attend plus d'approbation | Elle a été soumise, approuvée, renvoyée ou mise de côté entre-temps. |
 | Seule une révision approuvée se rouvre / une révision plus récente existe | Agissez sur la révision la plus récente. |
-| Toutes les lignes ne sont pas prêtes | Des lignes demandent encore de l'attention ; elles sont nommées. |
+| Toutes les lignes ne sont pas prêtes | Des lignes demandent encore de l'attention : elles sont nommées, et chacune est marquée *Refusé pour cette ligne* avec ses problèmes — pas de réponse, commentaire requis, preuve requise ou périmée, en attente de confirmation — tels que le serveur les a trouvés, ce qu'une preuve expirée depuis le chargement de la page peut faire différer de ce que la ligne montrait. |
 | Principe des quatre yeux : une deuxième personne doit l'approuver | Vous avez écrit une partie de cette révision. |
 | Cette version n'est plus publiée / déjà sur cette version | Choisissez une autre version ; après une approbation, rouvrez plutôt. |
 | Plus de réponse reportée en attente / preuve déjà retirée | Quelqu'un l'a fait avant vous. |

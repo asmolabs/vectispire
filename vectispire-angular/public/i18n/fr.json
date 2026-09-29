@@ -3001,6 +3001,7 @@
     "conflict_not_latest": "Une révision plus récente de cette checklist existe : agissez sur celle-là. Rechargez la checklist.",
     "conflict_incomplete": "Toutes les lignes ne sont pas prêtes : les lignes {{lines}} demandent encore de l'attention.",
     "conflict_incomplete_reload": "Toutes les lignes ne sont plus prêtes. Rechargez la checklist pour voir lesquelles.",
+    "incomplete_line": "Refusé pour cette ligne :",
     "conflict_four_eyes": "Principe des quatre yeux : vous avez écrit une partie de cette révision, une deuxième personne doit donc l'approuver. Écrite par : {{authors}}.",
     "conflict_version_not_published": "Cette version n'est plus publiée. Rechargez pour voir les versions proposées.",
     "conflict_same_version": "La checklist est déjà sur cette version. Après une approbation, rouvrez la révision approuvée pour recommencer dessus.",

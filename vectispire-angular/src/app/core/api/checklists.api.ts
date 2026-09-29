@@ -9,6 +9,7 @@ import type {
     ChecklistLineHistory,
     ChecklistOfferedVersion,
     ChecklistPreview,
+    ChecklistProjectContext,
     ChecklistRevisionSummary,
     ChecklistTemplate,
     ChecklistVersion,
@@ -178,6 +179,14 @@ export class ChecklistsApi {
     /** Every revision of the project's checklist, newest first. */
     projectChecklists(projectId: number): Observable<ChecklistRevisionSummary[]> {
         return this.http.get<ChecklistRevisionSummary[]>(projectPath(projectId));
+    }
+
+    /**
+     * The project's name and its newest revision's number and edition — what the page shows and names
+     * before a checklist exists, which neither the list nor the offered versions can say.
+     */
+    projectChecklistContext(projectId: number): Observable<ChecklistProjectContext> {
+        return this.http.get<ChecklistProjectContext>(`${projectPath(projectId)}/context`);
     }
 
     /** The published versions the checklist may be opened on or moved to. */
