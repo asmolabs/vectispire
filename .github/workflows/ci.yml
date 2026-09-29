@@ -202,6 +202,15 @@ jobs:
           name: jar
           path: vectispire-java/vectispire-core/build/libs/
           retention-days: 7
+      # The agent ships too, as its own image on hosts that hold a Docker socket. It had no SBOM and
+      # no scan: when GHSA-q4xh-88c3-wmh7 reached jackson-databind, the control plane's gate failed
+      # on 2.22.1 while the agent sat on 2.21.5, equally advised, and nothing said so.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: agent-jar
+          path: vectispire-java/vectispire-agent/build/libs/vectispire-agent.jar
+          retention-days: 7
 
   frontend:
     runs-on: ubuntu-latest
@@ -258,16 +267,24 @@ jobs:
         with:
           name: jar
           path: libs
-      - name: build the SBOM of the jar that ships
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: agent-jar
+          path: libs
+      - name: build the SBOMs of the jars that ship
         run: |
-          docker run --rm -v "$PWD/libs:/work:ro" \
-            anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
-            scan file:/work/vectispire-core.jar -o cyclonedx-json > vectispire-jvm.cdx.json
-          echo "components: $(grep -o '"bom-ref"' vectispire-jvm.cdx.json | wc -l)"
+          for jar in core:vectispire-jvm agent:vectispire-agent; do
+            docker run --rm -v "$PWD/libs:/work:ro" \
+              anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
+              scan "file:/work/vectispire-${jar%%:*}.jar" -o cyclonedx-json > "${jar#*:}.cdx.json"
+            echo "${jar#*:} components: $(grep -o '"bom-ref"' "${jar#*:}.cdx.json" | wc -l)"
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
-          path: vectispire-jvm.cdx.json
+          path: |
+            vectispire-jvm.cdx.json
+            vectispire-agent.cdx.json
           retention-days: 30
 
   vulnerabilities:
@@ -286,11 +303,20 @@ jobs:
       # Porting to `docker run --rm` removed the name and I kept the words, which sent them to
       # grype as positional arguments: `accepts at most 1 arg(s), received 2`. There is no `report`
       # subcommand; the target is the only positional argument grype takes.
+      #
+      # Both SBOMs are scanned before the verdict: stopping at the first failure would hide the
+      # agent's table behind the control plane's, and the fix for one is rarely the fix for both.
       - name: report, then fail on a fixable high
         run: |
-          docker run --rm -v "$PWD:/work:ro" \
-            anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
-            sbom:/work/vectispire-jvm.cdx.json --only-fixed --fail-on high -o table
+          failed=0
+          for sbom in vectispire-jvm vectispire-agent; do
+            echo "::group::$sbom"
+            docker run --rm -v "$PWD:/work:ro" \
+              anchore/grype@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db \
+              "sbom:/work/$sbom.cdx.json" --only-fixed --fail-on high -o table || failed=1
+            echo "::endgroup::"
+          done
+          exit $failed
 
   npm-audit:
     runs-on: ubuntu-latest
