@@ -52,6 +52,16 @@ itself. Check [Agents](../administration/agents.md).
 [SSH keys](../administration/ssh-keys.md), selected on the repository, and granted
 read-only access at your provider.
 
+**"The clone … could not reach its host", though the host answers from your machine.** The
+repository's host resolves to a private address that one of Docker's own networks also covers — a
+corporate network in `172.16.0.0/12` is the usual case, since Docker hands out bridge subnets from that
+range. Inside the daemon, the route to that network wins, and the clone never leaves the host. Compare
+`getent hosts <git host>` from inside the control-plane container with
+`docker network inspect <network> --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` for each network
+on the daemon, not only Vectispire's. Move the overlapping network: give the daemon address pools outside
+your corporate ranges (`"default-address-pools": [{"base": "10.203.0.0/16", "size": 24}]` in the daemon
+configuration, then recreate the networks), or recreate that one network with an explicit `--subnet`.
+
 **An SSH key shows as unreadable.** No configured key decrypts it — most likely it predates
 any `ENCRYPTION_KEY`. That old default has been removed and its private half is public:
 replace the key pair at your provider.

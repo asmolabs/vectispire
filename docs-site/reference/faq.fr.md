@@ -54,6 +54,16 @@ jamais annoncé. Voir [Agents](../administration/agents.md).
 [Clés SSH](../administration/ssh-keys.md), sélectionnée sur le dépôt, et dotée d'un accès en
 lecture seule chez votre hébergeur.
 
+**« The clone … could not reach its host », alors que l'hôte répond depuis votre poste.** L'hôte du
+dépôt se résout en une adresse privée qu'un des réseaux de Docker couvre aussi — un réseau d'entreprise
+en `172.16.0.0/12` est le cas courant, puisque Docker attribue ses sous-réseaux bridge dans cette plage.
+Dans le démon, la route vers ce réseau l'emporte et le clone ne sort jamais de l'hôte. Comparez
+`getent hosts <hôte git>` depuis le conteneur du plan de contrôle avec
+`docker network inspect <réseau> --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` pour chaque réseau
+du démon, pas seulement ceux de Vectispire. Déplacez le réseau qui chevauche : donnez au démon des plages
+hors de vos réseaux d'entreprise (`"default-address-pools": [{"base": "10.203.0.0/16", "size": 24}]` dans
+sa configuration, puis recréez les réseaux), ou recréez ce seul réseau avec un `--subnet` explicite.
+
 **Une clé SSH s'affiche comme illisible.** Aucune clé configurée ne la déchiffre — le plus
 probable est qu'elle précède tout `ENCRYPTION_KEY`. Cet ancien défaut a été retiré et sa moitié
 privée est publique : remplacez la paire de clés chez votre hébergeur.
