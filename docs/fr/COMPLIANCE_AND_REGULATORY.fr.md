@@ -149,6 +149,15 @@ $$\text{Statut Contrôle} = \begin{cases}
 \text{NON CONFORME (NON\_COMPLIANT)} & \text{si } \text{Score} < 60 
 \end{cases}$$
 
+### Sans donnée (`NO_DATA`)
+Tant qu'aucune cible n'a été analysée avec succès, chaque contrôle des catégories ① à ⑥ vaut
+**`NO_DATA`**, score 0 — pas une mesure, et non un zéro mesuré : chacun est noté sur le parc, et un parc
+que personne n'a regardé n'a aucun constat à compter. ⑦ lit la chaîne de cette instance et reste
+mesuré. Un référentiel dont un contrôle est `NO_DATA` vaut lui-même `NO_DATA`, score 0 : noté sur ⑦
+seul, il présenterait la politique de connexion de la plateforme comme la posture du parc. La
+déclaration d'applicabilité confronte une déclaration prouvée ici à un `NO_DATA` comme `UNEVIDENCED`,
+jamais `CONSISTENT`.
+
 ### Score Global du Référentiel
 $$\text{Score Global} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score}(\text{Contrôle}_i)\right)$$
 

@@ -157,6 +157,14 @@ $$\text{Control Status} = \begin{cases}
 \text{NON\_COMPLIANT} & \text{if } \text{Score} < 60 
 \end{cases}$$
 
+### No data (`NO_DATA`)
+While no target has been scanned successfully, every control of categories ① to ⑥ reads **`NO_DATA`**,
+score 0 — no measurement, not a measured zero: each is scored on the estate, and an estate nobody
+looked at has no findings to count. ⑦ reads this instance's own chain and is measured. A framework with
+any `NO_DATA` control reads `NO_DATA` itself, score 0: scored on ⑦ alone it would present the
+platform's sign-in policy as the estate's posture. The statement of applicability sets a declaration
+evidenced here against `NO_DATA` as `UNEVIDENCED`, never `CONSISTENT`.
+
 ### Framework Overall Score
 $$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score}(\text{Control}_i)\right)$$
 

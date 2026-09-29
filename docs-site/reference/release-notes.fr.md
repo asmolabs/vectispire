@@ -181,6 +181,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Changements visibles d'une intégration
 
+- **Un verdict de conformité peut être `NO_DATA`.** Tant qu'aucune cible n'a été analysée avec succès,
+  chaque contrôle qui lit le parc — et chaque référentiel — vaut `NO_DATA` avec un score de zéro, qui
+  n'est pas une mesure, sur `GET /api/v1/compliance/summary`, le détail d'un référentiel, le
+  `01_compliance_frameworks.json` du bundle de preuves et le `measured` de la déclaration
+  d'applicabilité ; une cible jamais analysée vaut `NO_DATA` dans la matrice, sans `frameworkScores`.
+  Il valait *conforme* sur zéro constat que personne n'avait cherché, et l'A.8.8 de l'ISO 27001 *non
+  conforme* sur « 1 target(s) have never been scanned » sans aucune cible enregistrée. Le `divergence`
+  de la déclaration gagne `UNEVIDENCED`, entre `OVERSTATED` et `UNDERSTATED`, pour une ligne prouvée ici
+  sans rien de mesuré — elle valait `CONSISTENT`. Aucune capture mensuelle n'est écrite pour un
+  référentiel sans rien de mesuré.
 - **Une réponse de checklist nomme la nature de son auteur.** Chaque réponse d'une vue de checklist,
   de l'historique d'une ligne et de `checklist.json` porte `answeredByKind` — `person`, ou `system` pour
   une réponse donnée par Vectispire à partir de la mesure de la ligne — et `withdrawn`, vrai seulement

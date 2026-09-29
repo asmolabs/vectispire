@@ -24,6 +24,7 @@ top.
 |---|---|
 | **Contradicted** | Declared implemented, measured non-compliant. The organisation is not merely short of the control, it said otherwise in writing. |
 | **Overstated** | Declared implemented, measured partial. A document ahead of the practice — a different class of problem from a false claim. |
+| **Not yet evidenced** | Evidenced here, by the declaration's own account, and nothing here has measured it yet: the control reads *no data*. Neither a contradiction nor an agreement. |
 | **Understated** | Declared planned, measured compliant. The document has drifted behind the practice. |
 | **Undeclared** | Nobody addressed this control at all. |
 | **Excluded without justification** | Clause 6.1.3 d allows an exclusion and requires it to be argued. |
@@ -34,6 +35,12 @@ top.
 Clause 6.1.3 d requires *every* control to be addressed. Silence is the gap, so an empty document
 reports one finding per control rather than a clean page. Sorting the undeclared to the bottom
 would have made an empty document look like a finished one.
+
+The measurement is empty too. Until a target has been scanned successfully, every control that reads
+the estate measures **no data** — not *compliant* on findings nobody looked for — and a control
+declared as evidenced here reads **not yet evidenced** rather than *consistent*. The audit trail's
+controls, in the frameworks that have them, read this instance's own chain and are measured from the
+start.
 
 ## Evidence that lives somewhere else
 

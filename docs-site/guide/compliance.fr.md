@@ -21,6 +21,16 @@ une élégance : une évaluation qui varie d'une exécution à l'autre est une �
 auditeur a raison d'écarter, et dont vous ne pouvez pas vous servir pour montrer qu'un contrôle
 a tenu sur une période.
 
+## Sans donnée n'est pas conforme
+
+Un contrôle noté sur l'absence de constats ne dit rien d'une cible que personne n'a regardée. Tant
+qu'aucune cible n'a été analysée avec succès, chaque contrôle qui lit le parc est **`NO_DATA`**, et
+chaque référentiel aussi — le contrôle de la piste d'audit, qui lit la chaîne de cette instance, reste
+mesuré et affiché. Le score d'un `NO_DATA` vaut zéro et n'est pas une mesure : les écrans affichent un
+tiret, la matrice laisse vide la colonne du référentiel, le PDF indique *NO DATA*, et la progression
+mensuelle n'enregistre aucun mois pour un référentiel sans rien de mesuré. Dès qu'une partie du parc
+est observée, les cibles jamais analysées plafonnent comme avant les contrôles qui lisent les constats.
+
 ## Le coffre de preuves
 
 Un clic exporte un **paquet de preuves signé cryptographiquement** :

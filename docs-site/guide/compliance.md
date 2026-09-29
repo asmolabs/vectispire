@@ -20,6 +20,16 @@ The same estate at the same moment produces the same verdict, every time. That i
 requirement rather than a nicety: an evaluation that varies between runs is one an auditor
 is right to discard, and one you cannot use to show that a control held over a period.
 
+## No data is not compliant
+
+A control scored on the absence of findings says nothing of a target nobody looked at. Until a target
+has been scanned successfully, every control that reads the estate is **`NO_DATA`**, and so is every
+framework — the audit trail's control, which reads this instance's own chain, is still measured and
+shown. A `NO_DATA` score is zero and is no measurement: the screens show a dash, the matrix leaves the
+framework's column empty, the PDF reads *NO DATA*, and the monthly progression records no month for a
+framework with nothing measured. Once part of the estate is observed, the never-scanned targets cap
+the controls that read findings, as before.
+
 ## The Evidence Vault
 
 One click exports a **cryptographically signed evidence bundle**:

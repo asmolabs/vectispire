@@ -25,6 +25,7 @@ haut.
 |---|---|
 | **Contredit** | Déclaré en place, mesuré non conforme. L'organisation n'est pas seulement en défaut : elle a écrit le contraire. |
 | **Surévalué** | Déclaré en place, mesuré partiel. Un document en avance sur la pratique — autre classe de problème qu'une affirmation fausse. |
+| **Pas encore étayé** | Selon la déclaration, la preuve est ici, et rien ici ne l'a encore mesuré : le contrôle est *sans donnée*. Ni une contradiction, ni un accord. |
 | **Sous-évalué** | Déclaré prévu, mesuré conforme. Le document a décroché derrière la pratique. |
 | **Non déclaré** | Personne n'a traité ce contrôle. |
 | **Exclu sans justification** | La clause 6.1.3 d autorise une exclusion et exige qu'elle soit argumentée. |
@@ -35,6 +36,12 @@ haut.
 La clause 6.1.3 d demande que *chaque* contrôle soit traité. Le silence est le manque : un document
 vide rapporte donc un constat par contrôle plutôt qu'une page propre. Trier les non déclarés en bas
 aurait fait passer un document vide pour un document fini.
+
+La mesure est vide elle aussi. Tant qu'aucune cible n'a été analysée avec succès, chaque contrôle qui
+lit le parc est **sans donnée** — et non *conforme* sur des constats que personne n'a cherchés — et un
+contrôle déclaré prouvé ici est **pas encore étayé** plutôt que *cohérent*. Les contrôles de la piste
+d'audit, dans les référentiels qui en ont, lisent la chaîne de cette instance et sont mesurés dès le
+départ.
 
 ## Les preuves qui vivent ailleurs
 

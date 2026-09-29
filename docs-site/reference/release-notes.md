@@ -166,6 +166,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### Changes an integration can see
 
+- **A compliance verdict can be `NO_DATA`.** Until a target has been scanned successfully, every control
+  that reads the estate — and every framework — reads `NO_DATA` with a score of zero, which is no
+  measurement, on `GET /api/v1/compliance/summary`, the framework detail, the evidence bundle's
+  `01_compliance_frameworks.json` and the statement of applicability's `measured`; a target never
+  scanned reads `NO_DATA` in the matrix, with no `frameworkScores`. It read *compliant* on zero findings
+  nobody looked for, and ISO 27001 A.8.8 *non-compliant* on "1 target(s) have never been scanned" with
+  no target registered. The SoA's `divergence` gains `UNEVIDENCED`, between `OVERSTATED` and
+  `UNDERSTATED`, for a line evidenced here with nothing measured — it read `CONSISTENT`. No monthly
+  capture is written for a framework with nothing measured.
 - **A checklist answer names its author's kind.** Every answer in a checklist view, a line's history
   and `checklist.json` carries `answeredByKind` — `person`, or `system` for an answer Vectispire gave
   from the line's measurement — and `withdrawn`, true only on the history row by which Vectispire
