@@ -2027,7 +2027,10 @@ export interface paths {
         delete: operations["remove_4"];
         options?: never;
         head?: never;
-        /** Rename or describe project */
+        /**
+         * Rename, describe or move project
+         * @description A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404; a name the target solution already holds answers 409 with the type urn:vectispire:problem:project-name-taken; a rename within the solution to a name it holds answers 400.
+         */
         patch: operations["update_5"];
         trace?: never;
     };
@@ -5957,6 +5960,8 @@ export interface components {
         ProjectChange: {
             description?: string;
             name?: string;
+            /** Format: int64 */
+            solutionId?: number;
         };
         ProjectNode: {
             /** Format: date-time */

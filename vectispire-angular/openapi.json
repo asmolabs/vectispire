@@ -5912,6 +5912,10 @@
           },
           "name" : {
             "type" : "string"
+          },
+          "solutionId" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -13173,6 +13177,7 @@
         "tags" : [ "Solutions" ]
       },
       "patch" : {
+        "description" : "A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404; a name the target solution already holds answers 409 with the type urn:vectispire:problem:project-name-taken; a rename within the solution to a name it holds answers 400.",
         "operationId" : "update_5",
         "parameters" : [ {
           "in" : "path",
@@ -13205,7 +13210,7 @@
             "description" : "OK"
           }
         },
-        "summary" : "Rename or describe project",
+        "summary" : "Rename, describe or move project",
         "tags" : [ "Solutions" ]
       }
     },
