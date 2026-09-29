@@ -268,11 +268,11 @@ answered as if the project did not exist.
 ```bash
 curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o checklist.zip \
   "$VECTISPIRE_URL/api/v1/projects/12/checklists/3/document"
-curl -fsS -o vectispire.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
+curl -fsS -o vectispire-signing-key.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
 unzip checklist.zip
-cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true \
+cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
   --signature checklist.xlsx.sig checklist.xlsx
-cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true \
+cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
   --signature checklist.json.sig checklist.json
 ```
 
