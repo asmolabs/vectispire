@@ -106,8 +106,9 @@ line. The screen explains the refusal and offers to reload.
 
 An administrator, a CISO or a security champion **signs off** a submitted revision: the release
 attestation. With [four-eyes approval](../administration/four-eyes.md) on, the signer must be **none
-of the revision's authors** — whoever opened it, answered, carried or confirmed a line, attached or
-withdrew a proof, or submitted it. The header lists those authors, and the **Sign off** button is
+of the revision's authors** — whoever opened a fresh checklist, gave an answer it holds (a carried
+answer stays its author's), confirmed a carried line, attached or withdrew a proof, or submitted it.
+Carrying answers over is not writing: reopening or moving does not make you an author. The header lists those authors, and the **Sign off** button is
 greyed out for one of them with the reason: *a second person must sign it off*. The server decides —
 the refusal is recorded in the audit log and sent to the SIEM (`VECTI-SEC-026`). With four-eyes off,
 an approver may sign what they wrote.
@@ -124,8 +125,10 @@ A signed-off revision is never modified. **Reopen as a new revision** opens the 
 **same version**, every answer and every proof carried as current — nothing to confirm, since no line
 changed. The signed revision stays as it was signed, listed below.
 
-Reopening or moving makes you the new revision's author — you opened it, and every answer in it was
-carried under your name — so under four-eyes somebody else signs that revision off.
+Reopening or moving does **not** make you an author of the new revision: the answers carried stay
+their authors', and you have said nothing about any line. An approver who reopens a checklist may
+sign it off, provided they confirm, answer or attach nothing in it; whoever confirms a carried line
+becomes an author, since confirming is where somebody vouches for it again.
 
 ## 7. Move to a newer version
 

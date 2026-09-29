@@ -50,8 +50,9 @@ Switching it **off** stays possible either way: it is enabling that needs a seco
 ## Signing a checklist off
 
 A project's checklist is signed off by an approver. With four-eyes on, the server refuses the
-sign-off by **any of the revision's authors** — the account that opened it, answered, carried or
-confirmed a line, attached or withdrew a proof, or submitted it, compared as an account and as a name.
+sign-off by **any of the revision's authors** — the account that opened a fresh checklist, gave an
+answer it holds, confirmed a carried line, attached or withdrew a proof, or submitted it, compared as
+an account and as a name. Carrying answers over, by reopening or moving, is not writing.
 The refusal is recorded in the audit log and sent to the SIEM (`VECTI-SEC-026`); a sign-off records
 whether the rule applied. With four-eyes off, an approver may sign what they wrote.
 

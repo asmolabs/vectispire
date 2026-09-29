@@ -53,9 +53,10 @@ L'**éteindre** reste possible dans tous les cas : c'est l'activation qui demand
 ## Approuver une checklist
 
 La checklist d'un projet est approuvée par un approbateur. Double contrôle activé, le serveur refuse
-l'approbation par **n'importe lequel des auteurs de la révision** — le compte qui l'a ouverte, a
-répondu à, reporté ou confirmé une ligne, joint ou retiré une preuve, ou l'a soumise, comparé comme
-compte et comme nom. Le refus est inscrit au journal d'audit et envoyé au SIEM (`VECTI-SEC-026`) ;
+l'approbation par **n'importe lequel des auteurs de la révision** — le compte qui a ouvert une
+checklist neuve, donné une réponse qu'elle contient, confirmé une ligne reportée, joint ou retiré une
+preuve, ou l'a soumise, comparé comme compte et comme nom. Reporter des réponses, en rouvrant ou en
+changeant de version, n'est pas écrire. Le refus est inscrit au journal d'audit et envoyé au SIEM (`VECTI-SEC-026`) ;
 une approbation indique si la règle s'appliquait. Double contrôle éteint, un approbateur peut
 approuver ce qu'il a écrit.
 

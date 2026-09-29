@@ -112,8 +112,9 @@ import org.springframework.util.unit.DataSize;
  * <p>Signing off is an approver's — {@code canApproveTriage}: an administrator, a CISO, a security
  * champion — refused 403 to anybody else before anything is read, the governor included, who decides
  * the rules and takes no decision under them. With {@code FOUR_EYES_APPROVAL_REQUIRED} on (open
- * question 2), the signer is <b>none of the revision's authors</b>: whoever opened it, answered,
- * carried or confirmed a line, attached or withdrew a proof, or submitted it — compared as two people,
+ * question 2), the signer is <b>none of the revision's authors</b>: whoever opened a fresh checklist,
+ * gave an answer it holds, confirmed a carried line, attached or withdrew a proof, or submitted it —
+ * carrying answers over is not writing (see {@code authorsOf}) — compared as two people,
  * the account and its name, like the template versions' publisher. The ADR names the submitter; an
  * answerer is as much the revision's author, and signing one's own answers is what four-eyes exists to
  * stop. The refusal is audited and signalled ({@code VECTI-SEC-026}), and so is a sign-off refused
@@ -1079,17 +1080,24 @@ public class ProjectChecklistService {
     }
 
     /**
-     * Everybody who wrote the revision: opened it, answered, carried or confirmed a line — a carried
-     * answer is its author's as much as the carrier's — attached or withdrew a proof, submitted it.
+     * Everybody who wrote what the revision says: opened a fresh checklist, gave an answer it holds —
+     * a carried answer stays its author's — confirmed a carried line, attached or withdrew a proof,
+     * submitted it.
+     *
+     * <p><b>Carrying is not writing.</b> Reopening a signed-off revision, or moving to a new version,
+     * copies answers mechanically, and the person who does it has said nothing about any line. Counted
+     * as an author, an approver who reopened a checklist could never sign it off; with two approvers,
+     * one reopening and the other confirming a line, nobody could (decided on 2026-09-29). So the
+     * carrier, and the opener of a revision that supersedes another, are left out; whoever confirms a
+     * carried line is not, since confirming is where somebody vouches for it again.
      */
     private List<Author> authorsOf(ChecklistEntity checklist) {
         Set<Author> authors = new LinkedHashSet<>();
-        authors.add(new Author(checklist.getAuthorId(), checklist.getAuthor()));
+        if (checklist.getSupersedesId() == null) {
+            authors.add(new Author(checklist.getAuthorId(), checklist.getAuthor()));
+        }
         for (ChecklistAnswerEntity row : answers.findByChecklistIdOrderByIdAsc(checklist.getId())) {
             authors.add(new Author(row.getAnsweredById(), row.getAnsweredBy()));
-            if (row.getCarriedById() != null) {
-                authors.add(new Author(row.getCarriedById(), row.getCarriedBy()));
-            }
         }
         for (ChecklistEvidenceEntity row : evidence.findByChecklistIdOrderByIdAsc(checklist.getId())) {
             authors.add(new Author(row.getAddedById(), row.getAddedBy()));

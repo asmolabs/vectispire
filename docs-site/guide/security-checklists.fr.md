@@ -110,8 +110,10 @@ recharger.
 
 Un administrateur, un RSSI ou un security champion **approuve** une révision soumise : l'attestation
 de mise en production. [Double validation](../administration/four-eyes.fr.md) active, l'approbateur
-ne doit être **aucun des auteurs de la révision** — quiconque l'a ouverte, a répondu à, reporté ou
-confirmé une ligne, joint ou retiré une preuve, ou l'a soumise. L'en-tête liste ces auteurs, et le
+ne doit être **aucun des auteurs de la révision** — quiconque a ouvert une checklist neuve, donné une
+réponse qu'elle contient (une réponse reportée reste à son auteur), confirmé une ligne reportée, joint
+ou retiré une preuve, ou l'a soumise. Reporter des réponses n'est pas écrire : rouvrir ou changer de
+version ne fait pas de vous un auteur. L'en-tête liste ces auteurs, et le
 bouton **Approuver** est grisé pour l'un d'eux avec la raison : *une deuxième personne doit
 l'approuver*. Le serveur décide — le refus est inscrit au journal d'audit et envoyé au SIEM
 (`VECTI-SEC-026`). Double validation éteinte, un approbateur peut approuver ce qu'il a écrit.
@@ -130,9 +132,10 @@ suivante sur la **même version**, chaque réponse et chaque preuve reportées c
 confirmer, puisqu'aucune ligne n'a changé. La révision approuvée reste telle qu'elle a été approuvée,
 listée plus bas.
 
-Rouvrir ou changer de version fait de vous l'auteur de la nouvelle révision — vous l'avez ouverte, et
-chaque réponse y a été reportée sous votre nom — si bien que, double validation active, quelqu'un
-d'autre approuve cette révision.
+Rouvrir ou changer de version ne fait **pas** de vous un auteur de la nouvelle révision : les réponses
+reportées restent à leurs auteurs, et vous ne vous êtes prononcé sur aucune ligne. Un approbateur qui
+rouvre une checklist peut l'approuver, tant qu'il n'y confirme, ne répond ni ne joint rien ; qui
+confirme une ligne reportée en devient auteur, puisque confirmer, c'est s'en porter garant à nouveau.
 
 ## 7. Passer à une version plus récente
 

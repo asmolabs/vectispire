@@ -595,6 +595,22 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("with four-eyes on, the approver who reopened a checklist, having written nothing, may sign it off")
+        void carryingIsNotWriting() throws Exception {
+            settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+            signedOffRevisionOne();
+            read(send(champion, base() + "/1/reopen", Map.of("edition", edition(1))).andExpect(status().isCreated()));
+            submit(developer, 2, edition(2)).andExpect(status().isOk());
+
+            JsonNode signed = read(signOff(champion, 2, edition(2)).andExpect(status().isOk()));
+            assertThat(signed.at("/checklist/status").asText()).isEqualTo("signed_off");
+            assertThat(signed.at("/checklist/signOffFourEyes").asBoolean()).isTrue();
+            assertThat(signed.at("/authors").toString())
+                    .as("the answers carried stay their author's").contains(developer.name())
+                    .doesNotContain(champion.name());
+        }
+
+        @Test
         @DisplayName("across two versions: unchanged lines carried as current, changed and paired ones to be confirmed")
         void movingAcrossTwoVersions() throws Exception {
             open(developer, "release", 1, null).andExpect(status().isCreated());
