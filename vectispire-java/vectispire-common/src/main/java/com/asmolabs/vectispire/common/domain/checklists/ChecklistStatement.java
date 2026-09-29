@@ -49,7 +49,12 @@ public record ChecklistStatement(
         Instant producedAt,
         List<Line> lines) {
 
-    public static final int FORM = 1;
+    /**
+     * 2 since the scans answer the lines they measure: an answer names its author's kind, and a line's
+     * history may hold Vectispire withdrawing its own answer. A reader of form 1 would take an automatic
+     * answer for a person's named "Vectispire", and a withdrawal for an answer.
+     */
+    public static final int FORM = 2;
 
     public ChecklistStatement {
         Objects.requireNonNull(status, "status");
@@ -86,7 +91,8 @@ public record ChecklistStatement(
      *
      * @param row the line's row in the template's checklist sheet, where its answer and comment are written
      * @param evidenceRequired {@code none}, {@code link_or_file} or {@code file}: what a "yes" needs
-     * @param answer the current answer, absent while the line is unanswered
+     * @param answer the current answer, absent while the line is unanswered — and when Vectispire withdrew
+     *     its own, the newest row of the history then being that withdrawal
      * @param history every answer the line was given in this revision, oldest first, the current one last
      * @param measurement the line's measurement, absent when no rule is bound to it
      * @param reconciliation the answer beside the measurement, in {@link Reconciliation}'s words
@@ -125,21 +131,34 @@ public record ChecklistStatement(
      *
      * @param value {@code yes}, {@code no} or {@code not_applicable}
      * @param word the template's own word for it — what the workbook's answer cell holds
-     * @param answeredBy the person who gave it; a carried copy keeps theirs, and names its carrier beside it
+     * @param answeredBy who gave it; a carried copy keeps theirs, and names its carrier beside it
+     * @param answeredByKind {@code person}, or {@code system} for an answer Vectispire gave from the line's
+     *     measurement — the automatic answers a document marks. Read this, never the name: an account may be
+     *     called "Vectispire"
+     * @param withdrawn whether this row is Vectispire withdrawing its own answer, {@code value} and {@code
+     *     word} being what was withdrawn; only ever in a history
      */
-    @JsonPropertyOrder({"id", "value", "word", "comment", "answeredBy", "answeredAt", "carriedFrom", "carriedBy",
-            "carriedAt", "needsConfirmation"})
+    @JsonPropertyOrder({"id", "value", "word", "comment", "answeredBy", "answeredByKind", "answeredAt", "carriedFrom",
+            "carriedBy", "carriedAt", "needsConfirmation", "withdrawn"})
     public record Answer(
             long id,
             String value,
             String word,
             String comment,
             String answeredBy,
+            String answeredByKind,
             Instant answeredAt,
             Long carriedFrom,
             String carriedBy,
             Instant carriedAt,
-            boolean needsConfirmation) {}
+            boolean needsConfirmation,
+            boolean withdrawn) {
+
+        /** Whether Vectispire gave it — by the kind; a kind this version does not know is a person's. */
+        public boolean automatic() {
+            return AnswerAuthor.isSystem(answeredByKind);
+        }
+    }
 
     /**
      * What a rule found.

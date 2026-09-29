@@ -1,6 +1,8 @@
 /**
  * Security checklists — the organisation's templates, their versions and their items, imported from
- * its own workbooks, and each project's checklist answered against them by people, with its proofs,
+ * its own workbooks, and each project's checklist answered against them by people — and on its measured
+ * lines by Vectispire, from the scans and imports it is told of ({@code RepositoryScanned}, {@code
+ * RepositoryReported}, ports of {@code scanning} and {@code plugins} it implements) — with its proofs,
  * its submission and its sign-off, and the measurements a line's rule takes of the project (decision
  * 0032).
  *

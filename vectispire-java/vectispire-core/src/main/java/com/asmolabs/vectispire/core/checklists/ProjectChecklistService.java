@@ -1,7 +1,9 @@
 package com.asmolabs.vectispire.core.checklists;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleProject;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.checklists.AnswerAuthor;
 import com.asmolabs.vectispire.common.domain.checklists.AnswerWords;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistAnswer;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistItem;
@@ -63,6 +65,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -70,7 +74,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.unit.DataSize;
 
 /**
- * A project's checklists, answered by people (decision 0032 §4, §5, §8).
+ * A project's checklists, answered by people — and, on the lines a rule measures, by Vectispire (decision
+ * 0032 §4, §5, §8, and the amendment "the scans answer the lines they measure").
  *
  * <h2>The whole project, or nothing</h2>
  *
@@ -130,13 +135,24 @@ import org.springframework.util.unit.DataSize;
  * <h2>Measured lines (§6)</h2>
  *
  * <p>A line bound to a rule is measured by {@link ChecklistMeasurer} over exactly the repositories the
- * whole-project guard judged the caller by. <b>Vectispire never answers</b>: a measurement is evidence
- * beside a person's answer. It is computed for a reader and stored nowhere, and stored when something
+ * whole-project guard judged the caller by. It is evidence beside the line's answer, computed for a
+ * reader and stored nowhere, and stored when something
  * relies on it — an answer resting on the measurement its person read, the submission, the sign-off —
  * each time applied again, since freshness is judged at every step that relies on it. A "yes" against
  * a failure is refused at submission (question 3); a "yes" where there is no data needs its comment
  * and a proof (question 4); a sign-off whose measurement is no longer what the submission stored is
  * refused, and an accepted one freezes the revision's measurements with it.
+ *
+ * <h2>Vectispire's own answers</h2>
+ *
+ * <p>Since 2026-09-29 Vectispire answers a draft's measured lines itself ({@link #answerFromEvidence}),
+ * under a platform setting on by default: when a scan or an import completes on one of the project's
+ * repositories, and when a revision is opened, moved or reopened. Such an answer names its author's kind,
+ * {@code system}, and no account; it rests on the measurement that produced it, is replaced by the
+ * system only when that measurement's evidence changes, and never replaces a person's. Submitting and
+ * signing off stay people's acts, the submission's rules unchanged: a "no" carries the measurement as its
+ * comment, and a "yes" on a line asking for a file still needs the file. The system is none of a
+ * revision's authors for four-eyes.
  *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
  * on SQLite would wait on this one's file lock.
@@ -156,6 +172,15 @@ public class ProjectChecklistService {
 
     /** How many times a write reads again after another write came first, before answering 409. */
     private static final int ATTEMPTS = 3;
+
+    /**
+     * Vectispire's own allowance, when it answers with nobody asking: everything, stated as a visibility of
+     * its own and passed through the same guard, rather than reaching an unchecked form of the reads.
+     */
+    private static final VisibilityService.Allowance SYSTEM =
+            new VisibilityService.Allowance(Visibility.everything(), Set.of());
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectChecklistService.class);
 
     /** No proof is dated before this: a day earlier is a typing mistake, not a penetration test. */
     private static final LocalDate EARLIEST_PROOF = LocalDate.of(1970, 1, 1);
@@ -378,7 +403,8 @@ public class ProjectChecklistService {
                         + template.getSlug() + "\", revision " + opened.getRevision() + ".";
         audit.record(who.actor().entry(moved ? AuditOperation.CHECKLIST_MOVED_TO_VERSION : AuditOperation.CHECKLIST_OPENED,
                 resource(project, opened.getRevision()), line));
-        return view(guarded, opened);
+        answerAfterOpening(guarded, opened);
+        return view(guarded, reread(opened));
     }
 
     /**
@@ -410,7 +436,8 @@ public class ProjectChecklistService {
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_REOPENED, resource(project, opened.getRevision()),
                 "Checklist of project \"" + project.name() + "\": signed-off revision " + revision + " reopened as revision "
                         + opened.getRevision() + " on the same version" + carried.describe()));
-        return view(guarded, opened);
+        answerAfterOpening(guarded, opened);
+        return view(guarded, reread(opened));
     }
 
     // ------------------------------------------------------------------ answering
@@ -422,8 +449,9 @@ public class ProjectChecklistService {
      * person names the measurement they read, by its {@code evidenceDigest}, and the line's rule is
      * applied again now. The same evidence, and the answer is stored resting on that measurement, which
      * is stored with it; other evidence, and the answer is refused — the person would be accepting a
-     * finding they never saw. The value stays the person's: Vectispire never answers, and a "yes"
-     * against a failure is the submission's to refuse, not this.
+     * finding they never saw. The value stays the person's, and a "yes" against a failure is the
+     * submission's to refuse, not this. Given over an answer of Vectispire's, it takes the line over:
+     * the scans leave a person's answer alone.
      *
      * @param measurementDigest the {@code evidenceDigest} of the measurement the person read, to rest the
      *     answer on it; null or blank for an answer resting on none
@@ -449,7 +477,7 @@ public class ProjectChecklistService {
             ChecklistAnswerEntity row = answerRow(checklist.getId(), item.getId(), given.value().wireName(),
                     given.comment().orElse(null), who, now, null, edition);
             resting.ifPresent(measured -> row.setMeasurementId(measurements.save(measurementRow(checklist.getId(),
-                    measured, MeasurementPurpose.ANSWER, now, who, null, Optional.of(given.value()))).getId()));
+                    measured, MeasurementPurpose.ANSWER, now, who.username(), null, Optional.of(given.value()))).getId()));
             answers.save(row);
         });
 
@@ -503,10 +531,10 @@ public class ProjectChecklistService {
      *
      * <p><b>The answers are the caller's, on the measurements they saw.</b> Each is a row of its line's
      * history under the principal's name, resting on the measurement it was answered by, stored with it
-     * as the single one-click stores it — Vectispire still never answers; the person asked for the lines
-     * shown at once. The caller names each measurement they were shown, by its digest, and the lines
-     * are measured here, now, as a read and a submission measure them: a line is answered only when it is
-     * named and its evidence is still the one read. Named by the edition alone, the act answered "yes"
+     * as the single one-click stores it — the person asked for the lines shown at once. The caller names
+     * each measurement they were shown, by its digest, and the lines are measured here, now, as a read
+     * and a submission measure them: a line is answered only when it is named and its evidence is still
+     * the one read. Named by the edition alone, the act answered "yes"
      * on a line whose "no data" had turned into a pass between the read and the click — a finding
      * nobody saw. A named line whose measurement moved is left alone ({@code measurement_changed}, with
      * the digest it has now), and a passing line not named is too ({@code not_shown}).
@@ -584,7 +612,7 @@ public class ProjectChecklistService {
                     checklist);
             for (ChecklistMeasurer.LineMeasurement line : passing) {
                 ChecklistMeasurementEntity rested = measurements.save(measurementRow(checklist.getId(), line,
-                        MeasurementPurpose.ANSWER, now, who, null, Optional.of(yes.value())));
+                        MeasurementPurpose.ANSWER, now, who.username(), null, Optional.of(yes.value())));
                 ChecklistAnswerEntity row = answerRow(checklist.getId(), line.item().getId(), yes.value().wireName(),
                         null, who, now, null, seenEdition + 1);
                 row.setMeasurementId(rested.getId());
@@ -604,6 +632,218 @@ public class ProjectChecklistService {
                             + "; one of " + passing.size() + " measured lines answered as measured in one act."));
         }
         return new ChecklistAsMeasuredView(view(guarded, reread(checklist)), answered, skipped);
+    }
+
+    // ------------------------------------------------------------------ Vectispire's own answers
+
+    /**
+     * Answers, as Vectispire, the measured lines of the draft checklist of the project a repository is
+     * filed in — called once new evidence about that repository is committed: a completed scan, an
+     * accepted SARIF, coverage or test report (decision 0032, amendment "the scans answer the lines they
+     * measure"). Nothing when the setting is off, when the repository is in no project, or when the
+     * project's newest revision is not a draft.
+     *
+     * <p><b>No caller, so the system states its own allowance.</b> Nobody asked: the project is refused
+     * through the same whole-project guard as every read, with Vectispire's allowance — everything, as the
+     * rules measure the whole project whoever reads it later — so that the rows measured are the guard's,
+     * never a second reading of the project.
+     *
+     * @return how many lines were written, withdrawals included
+     */
+    public int answerFromEvidence(long repositoryId) {
+        if (!settings.isEnabled(Setting.CHECKLIST_AUTO_ANSWER)) {
+            return 0;
+        }
+        Optional<Long> projectId = projects.projectOf(repositoryId);
+        if (projectId.isEmpty()) {
+            return 0;
+        }
+        Guarded guarded;
+        try {
+            guarded = requireWhole(projectId.get(), SYSTEM);
+        } catch (NotFoundException gone) {
+            // Deleted between the lookup and now: nothing left to answer.
+            return 0;
+        }
+        return checklists.findFirstByProjectIdOrderByRevisionDesc(guarded.project().projectId())
+                .filter(checklist -> ChecklistStatus.ofStored(checklist.getStatus()) == ChecklistStatus.DRAFT)
+                .map(checklist -> answerAutomatically(guarded, checklist))
+                .orElse(0);
+    }
+
+    /**
+     * Vectispire's answers right after a revision was opened, moved or reopened, so that the response
+     * already shows them. After the opening's own commit and audit entry, not inside them: the revision is
+     * opened whatever the measurements do, and a failure here is logged and leaves the lines unanswered for
+     * the next scan to answer — answering 500 would tell the person their checklist was not opened.
+     */
+    private void answerAfterOpening(Guarded guarded, ChecklistEntity opened) {
+        if (!settings.isEnabled(Setting.CHECKLIST_AUTO_ANSWER)) {
+            return;
+        }
+        try {
+            answerAutomatically(guarded, reread(opened));
+        } catch (RuntimeException failed) {
+            log.warn("Checklist revision {} of project {} was opened; answering its measured lines failed: {}",
+                    opened.getRevision(), guarded.project().projectId(), failed.toString());
+        }
+    }
+
+    /** One line Vectispire writes: an answer resting on the measurement, or the withdrawal of its own. */
+    private record Automatic(ChecklistMeasurer.LineMeasurement line, ChecklistAnswer value, String comment,
+            boolean withdrawal) {}
+
+    /**
+     * The act itself, on one draft: every line bound to a rule measured as a read measures it, over the
+     * guard's repositories, and answered from what it found.
+     *
+     * <ul>
+     *   <li><b>A person's answer is never replaced</b> — any current answer whose author is a person, a
+     *       carried one awaiting confirmation included. Decided by the author's kind, never by the name.
+     *   <li><b>Vectispire's own answer is replaced only when its measurement changed</b> — the evidence's
+     *       digest is not the one it rests on. The same evidence writes nothing: run twice, the act writes
+     *       nothing the second time, and a revision's edition does not move under the people filling it.
+     *       A carried answer rests on no measurement of this revision (measurements are never carried) and
+     *       is measured again once.
+     *   <li>{@code PASS} answers yes; {@code FAIL} answers no, with the measurement as its comment — what
+     *       was measured, in the product's words, never presented as a person's; {@code NO_DATA} answers
+     *       nothing, and <b>withdraws</b> an answer of Vectispire's that rested on data it no longer has: a
+     *       "yes" left standing on a measurement that stopped seeing anything is a claim nobody makes any
+     *       more, and the submission would only catch it as a "yes" without data.
+     * </ul>
+     *
+     * <p><b>One transaction, one edition.</b> The rows are written behind the conditional statement on the
+     * edition read before measuring: a person's write in between and the act reads again and decides
+     * again — their answer then stands — a few times before giving up (logged by the caller). Nothing to
+     * write, nothing is written and the edition does not move. Each line is audited as {@code
+     * CHECKLIST_ANSWERED}, after the commit, with no actor — nobody asked, and inventing a user would put
+     * a person who does not exist into the audit trail — and a description that names Vectispire.
+     *
+     * @return how many lines were written
+     */
+    private int answerAutomatically(Guarded guarded, ChecklistEntity read) {
+        VisibleProject project = guarded.project();
+        ChecklistEntity checklist = read;
+        for (int attempt = 1; attempt <= ATTEMPTS; attempt++) {
+            if (ChecklistStatus.ofStored(checklist.getStatus()) != ChecklistStatus.DRAFT) {
+                return 0;
+            }
+            int edition = checklist.getEdition();
+            long checklistId = checklist.getId();
+            Instant now = clock.instant();
+            List<ChecklistMeasurer.LineMeasurement> measured = measurer.measure(guarded.repositoryIds(),
+                    items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId()), now);
+            List<Automatic> planned = plan(checklistId, measured, wordsOf(checklist));
+            if (planned.isEmpty()) {
+                return 0;
+            }
+            Boolean done = transactions.execute(status -> {
+                if (checklists.touchDraft(checklistId, edition, ChecklistStatus.DRAFT.wireName()) != 1) {
+                    return false;
+                }
+                for (Automatic automatic : planned) {
+                    ChecklistMeasurementEntity rested = measurements.save(measurementRow(checklistId, automatic.line(),
+                            MeasurementPurpose.ANSWER, now, AnswerAuthor.SYSTEM_NAME, null, Optional.of(automatic.value())));
+                    answers.save(systemAnswerRow(checklistId, automatic, rested.getId(), now, edition + 1));
+                }
+                return true;
+            });
+            if (Boolean.TRUE.equals(done)) {
+                int revision = checklist.getRevision();
+                for (Automatic automatic : planned) {
+                    audit.record(new AuditLogService.Record(AuditOperation.CHECKLIST_ANSWERED, resource(project, revision),
+                            describeAutomatic(project, revision, automatic), null, null, null));
+                }
+                return planned.size();
+            }
+            checklist = reread(checklist);
+        }
+        throw new ChecklistConflict(Cause.CHANGED, "Revision " + read.getRevision() + " kept changing while Vectispire "
+                + "answered its measured lines; the next scan answers them.");
+    }
+
+    /** What the act writes on each line, from what the rules found and the lines' current answers. */
+    private List<Automatic> plan(long checklistId, List<ChecklistMeasurer.LineMeasurement> measured, AnswerWords words) {
+        Map<Long, ChecklistAnswerEntity> current = currentAnswers(checklistId);
+        Map<Long, ChecklistMeasurementEntity> rested = new HashMap<>();
+        measurements.findByChecklistIdAndPurposeOrderByIdAsc(checklistId, MeasurementPurpose.ANSWER.wireName())
+                .forEach(row -> rested.put(row.getId(), row));
+        List<Automatic> planned = new ArrayList<>();
+        for (ChecklistMeasurer.LineMeasurement line : measured) {
+            ChecklistAnswerEntity answer = current.get(line.item().getId());
+            if (answer != null && !AnswerAuthor.isSystem(answer.getAnsweredByKind())) {
+                continue;
+            }
+            Measurement found = line.measurement();
+            if (answer != null && !answer.isNeedsConfirmation()) {
+                ChecklistMeasurementEntity restingOn = answer.getMeasurementId() == null
+                        ? null
+                        : rested.get(answer.getMeasurementId());
+                if (restingOn != null && restingOn.getEvidenceDigest().equals(found.evidenceDigest())) {
+                    continue;
+                }
+            }
+            switch (found.outcome()) {
+                case PASS -> planned.add(new Automatic(line, GivenAnswer.of(ChecklistAnswer.YES, null, words).value(),
+                        null, false));
+                case FAIL -> {
+                    GivenAnswer no = GivenAnswer.of(ChecklistAnswer.NO, generatedComment(line), words);
+                    planned.add(new Automatic(line, no.value(), no.comment().orElseThrow(), false));
+                }
+                case NO_DATA -> {
+                    if (answer != null) {
+                        planned.add(new Automatic(line, ChecklistAnswer.parse(answer.getValue()),
+                                BoundedText.clip("Withdrawn by Vectispire: the measurement this answer rested on has no "
+                                        + "data any more — " + found.summary(), MAX_REASON), true));
+                    }
+                }
+            }
+        }
+        return planned;
+    }
+
+    /**
+     * The comment of a "no" Vectispire gives: the rule and what the measurement found, in English like the
+     * {@code Evidence} sheet — the platform states no document language, and the organisation's own words
+     * are the template's answer words, not the product's sentences. It says who measured, so that nobody
+     * reads it as a person's reason.
+     */
+    static String generatedComment(ChecklistMeasurer.LineMeasurement line) {
+        return BoundedText.clip("Measured by Vectispire (" + line.rule().kind().wireName() + "): "
+                + line.measurement().summary(), MAX_REASON);
+    }
+
+    private static ChecklistAnswerEntity systemAnswerRow(long checklistId, Automatic automatic, long measurementId,
+            Instant now, int edition) {
+        ChecklistAnswerEntity row = new ChecklistAnswerEntity();
+        row.setChecklistId(checklistId);
+        row.setItemId(automatic.line().item().getId());
+        row.setValue(automatic.value().wireName());
+        row.setComment(automatic.comment());
+        // No account: the kind says so, and the check constraint refuses a system row naming one.
+        row.setAnsweredBy(AnswerAuthor.SYSTEM_NAME);
+        row.setAnsweredById(null);
+        row.setAnsweredByKind(AnswerAuthor.SYSTEM.wireName());
+        row.setAnsweredAt(now);
+        row.setMeasurementId(measurementId);
+        row.setNeedsConfirmation(false);
+        row.setWithdrawn(automatic.withdrawal());
+        row.setEdition(edition);
+        return row;
+    }
+
+    private static String describeAutomatic(VisibleProject project, int revision, Automatic automatic) {
+        ChecklistItemEntity item = automatic.line().item();
+        Measurement found = automatic.line().measurement();
+        String line = "Checklist of project \"" + project.name() + "\", revision " + revision + ", line "
+                + item.getPosition() + " (row " + item.getSheetRow() + "): ";
+        return automatic.withdrawal()
+                ? line + "the automatic answer " + automatic.value().wireName() + " withdrawn by Vectispire, its "
+                        + "measurement having no data any more — " + describe(found) + "."
+                : line + "answered " + automatic.value().wireName() + " automatically by Vectispire, resting on its "
+                        + "measurement — " + describe(found) + ", evidence sha256 "
+                        + found.evidenceDigest().substring(0, 12) + "."
+                        + (automatic.comment() == null ? "" : " The comment is the measurement's summary.");
     }
 
     /**
@@ -1046,13 +1286,13 @@ public class ProjectChecklistService {
             MeasurementPurpose purpose, Instant now, Participant who, Map<Long, ChecklistAnswerEntity> current) {
         measurements.saveAll(measured.stream().map(line -> {
             ChecklistAnswerEntity answer = current.get(line.item().getId());
-            return measurementRow(checklist.getId(), line, purpose, now, who, answer,
+            return measurementRow(checklist.getId(), line, purpose, now, who.username(), answer,
                     Optional.ofNullable(answer).map(row -> ChecklistAnswer.parse(row.getValue())));
         }).toList());
     }
 
     private static ChecklistMeasurementEntity measurementRow(long checklistId, ChecklistMeasurer.LineMeasurement line,
-            MeasurementPurpose purpose, Instant now, Participant who, ChecklistAnswerEntity answer,
+            MeasurementPurpose purpose, Instant now, String computedBy, ChecklistAnswerEntity answer,
             Optional<ChecklistAnswer> value) {
         Measurement measurement = line.measurement();
         ChecklistMeasurementEntity row = new ChecklistMeasurementEntity();
@@ -1066,7 +1306,7 @@ public class ProjectChecklistService {
         row.setReason(measurement.reason().map(NoDataReason::wireName).orElse(null));
         row.setAsOf(measurement.asOf().orElse(null));
         row.setComputedAt(now);
-        row.setComputedBy(who.username());
+        row.setComputedBy(computedBy);
         row.setAnswerId(answer == null ? null : answer.getId());
         row.setAnswerValue(value.map(ChecklistAnswer::wireName).orElse(null));
         row.setReconciliation(Reconciliation.of(value, Optional.of(measurement.outcome())).wireName());
@@ -1305,16 +1545,31 @@ public class ProjectChecklistService {
         return newest;
     }
 
-    /** The newest answer of each line of a revision. */
+    /** The current answer of each line of a revision — see {@link #currentOf}. */
     private Map<Long, ChecklistAnswerEntity> currentAnswers(long checklistId) {
-        Map<Long, ChecklistAnswerEntity> current = new HashMap<>();
-        answers.findByChecklistIdOrderByIdAsc(checklistId).forEach(row -> current.put(row.getItemId(), row));
-        return current;
+        return currentOf(answers.findByChecklistIdOrderByIdAsc(checklistId));
     }
 
     private Optional<ChecklistAnswerEntity> currentAnswer(long checklistId, long itemId) {
-        List<ChecklistAnswerEntity> rows = answers.findByChecklistIdAndItemIdOrderByIdAsc(checklistId, itemId);
-        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.getLast());
+        return Optional.ofNullable(currentOf(answers.findByChecklistIdAndItemIdOrderByIdAsc(checklistId, itemId)).get(itemId));
+    }
+
+    /**
+     * The current answer of each line among {@code rows}, oldest first: its newest row — unless that row
+     * is Vectispire withdrawing its own answer, when the line has none. Every reader of "the answer" goes
+     * through here, the document's included: a withdrawn "yes" read as the newest row would stand in a
+     * workbook, a carried copy and a submission's reconciliation as an answer nobody gives any more.
+     */
+    static Map<Long, ChecklistAnswerEntity> currentOf(List<ChecklistAnswerEntity> rows) {
+        Map<Long, ChecklistAnswerEntity> current = new LinkedHashMap<>();
+        for (ChecklistAnswerEntity row : rows) {
+            if (row.isWithdrawn()) {
+                current.remove(row.getItemId());
+            } else {
+                current.put(row.getItemId(), row);
+            }
+        }
+        return current;
     }
 
     private static ChecklistAnswerEntity answerRow(long checklistId, long itemId, String value, String comment,
@@ -1326,6 +1581,7 @@ public class ProjectChecklistService {
         row.setComment(comment);
         row.setAnsweredBy(who.username());
         row.setAnsweredById(who.accountId());
+        row.setAnsweredByKind(AnswerAuthor.PERSON.wireName());
         row.setAnsweredAt(now);
         row.setCarriedFromId(confirmedFrom);
         row.setNeedsConfirmation(false);
@@ -1389,8 +1645,7 @@ public class ProjectChecklistService {
         after.forEach(item -> afterByKey.put(item.getItemKey(), item));
         boolean offersNotApplicable = forms.layout(version.getLayout()).offersNotApplicable();
 
-        Map<Long, ChecklistAnswerEntity> currentByItem = new HashMap<>();
-        answers.findByChecklistIdOrderByIdAsc(previous.getId()).forEach(row -> currentByItem.put(row.getItemId(), row));
+        Map<Long, ChecklistAnswerEntity> currentByItem = currentOf(answers.findByChecklistIdOrderByIdAsc(previous.getId()));
         Map<Long, List<ChecklistEvidenceEntity>> proofsByItem = new HashMap<>();
         evidence.findByChecklistIdOrderByIdAsc(previous.getId()).stream()
                 .filter(row -> row.getWithdrawnAt() == null)
@@ -1455,6 +1710,7 @@ public class ProjectChecklistService {
         // The answer is the person's who gave it, then: the copy keeps their name and instant.
         row.setAnsweredBy(source.getAnsweredBy());
         row.setAnsweredById(source.getAnsweredById());
+        row.setAnsweredByKind(source.getAnsweredByKind());
         row.setAnsweredAt(source.getAnsweredAt());
         row.setCarriedFromId(source.getId());
         row.setNeedsConfirmation(confirm);
@@ -1648,7 +1904,11 @@ public class ProjectChecklistService {
             authors.add(new Author(checklist.getAuthorId(), checklist.getAuthor()));
         }
         for (ChecklistAnswerEntity row : answers.findByChecklistIdOrderByIdAsc(checklist.getId())) {
-            authors.add(new Author(row.getAnsweredById(), row.getAnsweredBy()));
+            // Vectispire's answers are nobody's: counted, a person named "Vectispire" could never sign
+            // off a checklist the scans had answered — and the system holds no account to compare.
+            if (!AnswerAuthor.isSystem(row.getAnsweredByKind())) {
+                authors.add(new Author(row.getAnsweredById(), row.getAnsweredBy()));
+            }
         }
         for (ChecklistEvidenceEntity row : evidence.findByChecklistIdOrderByIdAsc(checklist.getId())) {
             authors.add(new Author(row.getAddedById(), row.getAddedBy()));
@@ -1736,8 +1996,9 @@ public class ProjectChecklistService {
         Map<Long, ChecklistAnswerEntity> current = new LinkedHashMap<>();
         Map<Long, List<ChecklistEvidenceEntity>> proofs = new HashMap<>();
         Map<Long, Integer> editions = new HashMap<>();
-        for (ChecklistAnswerEntity row : answers.findByChecklistIdOrderByIdAsc(checklist.getId())) {
-            current.put(row.getItemId(), row);
+        List<ChecklistAnswerEntity> given = answers.findByChecklistIdOrderByIdAsc(checklist.getId());
+        current.putAll(currentOf(given));
+        for (ChecklistAnswerEntity row : given) {
             editions.merge(row.getItemId(), row.getEdition(), Math::max);
         }
         for (ChecklistEvidenceEntity row : evidence.findByChecklistIdOrderByIdAsc(checklist.getId())) {

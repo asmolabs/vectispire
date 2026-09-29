@@ -12,6 +12,13 @@ import java.time.Instant;
  * and when; {@code needsConfirmation} marks one carried onto a line that changed, which somebody must
  * answer again or confirm before the revision is submitted. {@code edition} is the revision's edition
  * the row was written at.
+ *
+ * <p>{@code answeredByKind} is {@code person} or {@code system} ({@code AnswerAuthor}): a system answer
+ * was written by Vectispire from the measurement it rests on ({@code measurementId}), and its {@code
+ * answeredBy} is "Vectispire" — a name any account could hold, so a reader tells the two apart by the
+ * kind, never by the name. {@code withdrawn} marks, in a line's history only, the row by which Vectispire
+ * withdrew its own answer when its measurement stopped having data: a line whose newest row is one has
+ * no current answer.
  */
 public record ChecklistAnswerView(
         Long id,
@@ -19,17 +26,20 @@ public record ChecklistAnswerView(
         String value,
         String comment,
         String answeredBy,
+        String answeredByKind,
         Instant answeredAt,
         Long measurementId,
         Long carriedFromId,
         String carriedBy,
         Instant carriedAt,
         boolean needsConfirmation,
+        boolean withdrawn,
         Integer edition) {
 
     static ChecklistAnswerView of(ChecklistAnswerEntity row) {
         return new ChecklistAnswerView(row.getId(), row.getItemId(), row.getValue(), row.getComment(),
-                row.getAnsweredBy(), row.getAnsweredAt(), row.getMeasurementId(), row.getCarriedFromId(),
-                row.getCarriedBy(), row.getCarriedAt(), row.isNeedsConfirmation(), row.getEdition());
+                row.getAnsweredBy(), row.getAnsweredByKind(), row.getAnsweredAt(), row.getMeasurementId(),
+                row.getCarriedFromId(), row.getCarriedBy(), row.getCarriedAt(), row.isNeedsConfirmation(),
+                row.isWithdrawn(), row.getEdition());
     }
 }

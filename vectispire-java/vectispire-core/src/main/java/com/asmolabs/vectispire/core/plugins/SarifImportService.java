@@ -83,6 +83,7 @@ public class SarifImportService {
     private final IssueSyncService issues;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
+    private final ReportedRepositories reported;
     private final Clock clock;
     private final long maxBytes;
 
@@ -93,6 +94,7 @@ public class SarifImportService {
             IssueSyncService issues,
             AuditLogService audit,
             TransactionTemplate transactions,
+            ReportedRepositories reported,
             Clock clock,
             @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize maxBytes) {
         this.sources = sources;
@@ -101,6 +103,7 @@ public class SarifImportService {
         this.issues = issues;
         this.audit = audit;
         this.transactions = transactions;
+        this.reported = reported;
         this.clock = clock;
         this.maxBytes = maxBytes.toBytes();
     }
@@ -211,6 +214,7 @@ public class SarifImportService {
                 "SARIF from source \"" + source.getSlug() + "\" (" + tools + ") imported into repository " + repositoryId
                         + ": " + resultsCount + " result(s), " + saved.getCreatedCount() + " new, "
                         + saved.getResolvedCount() + " resolved, sha256 " + sha256.substring(0, 12) + "."));
+        reported.announce(repositoryId);
         return SarifImportView.of(saved);
     }
 

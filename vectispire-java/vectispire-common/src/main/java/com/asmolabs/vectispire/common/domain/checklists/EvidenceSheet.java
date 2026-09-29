@@ -104,7 +104,8 @@ final class EvidenceSheet {
     }
 
     private static String answeredBy(ChecklistStatement.Answer answer) {
-        String by = answer.answeredBy();
+        // By the kind, never the name: an account called "Vectispire" is a person, and says so.
+        String by = answer.automatic() ? AnswerAuthor.SYSTEM_NAME + " (automatic, from its measurement)" : answer.answeredBy();
         if (answer.carriedBy() != null) {
             by += " (carried by " + answer.carriedBy() + ")";
         }

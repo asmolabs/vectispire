@@ -114,6 +114,9 @@ public class ScanDispatcher {
      */
     private final AuditLogService audit;
 
+    /** Told of every repository's completed scan once it is committed — see {@link RepositoryScanned}. */
+    private final Optional<RepositoryScanned> scanned;
+
     public ScanDispatcher(
             ScanQueue queue,
             TargetCatalog targets,
@@ -129,7 +132,8 @@ public class ScanDispatcher {
             AuditLogService audit,
             PlatformMetrics metrics,
             TransactionTemplate transactions,
-            GitHostAllowlist allowedHosts) {
+            GitHostAllowlist allowedHosts,
+            Optional<RepositoryScanned> scanned) {
         this.queue = queue;
         this.targets = targets;
         this.credentials = credentials;
@@ -145,6 +149,7 @@ public class ScanDispatcher {
         this.metrics = metrics;
         this.transactions = transactions;
         this.allowedHosts = allowedHosts;
+        this.scanned = scanned;
     }
 
     /** @param claimed how many scans this round took, of which {@code completed + failed} ran */
@@ -607,7 +612,32 @@ public class ScanDispatcher {
         if (prepared.isEmpty()) {
             return false;
         }
-        return Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts, prepared.get())));
+        boolean written = Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts, prepared.get())));
+        if (written) {
+            announce(scanId);
+        }
+        return written;
+    }
+
+    /**
+     * Tells the module above that a repository's scan completed — after the commit, here where both
+     * executors' results pass, and never at the scan's expense: whatever the reaction throws is logged
+     * and dropped. Thrown on, it would reach the built-in worker's handler, which abandons the scan whose
+     * results are already written, or the agent's route, which answers an error for a result it kept.
+     */
+    private void announce(long scanId) {
+        if (scanned.isEmpty()) {
+            return;
+        }
+        try {
+            queue.byId(scanId)
+                    .filter(scan -> com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName()
+                            .equals(scan.getStatus()))
+                    .map(ScanEntity::getRepoId)
+                    .ifPresent(repositoryId -> scanned.get().scanned(repositoryId));
+        } catch (RuntimeException failed) {
+            log.warn("Scan {} completed, and what reacts to it failed — the scan stands: {}", scanId, failed.toString());
+        }
     }
 
     private boolean write(long scanId, String worker, ScanArtifacts artifacts, ScanIngestor.Prepared prepared) {

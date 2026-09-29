@@ -284,7 +284,7 @@ public class ChecklistDocumentService {
         for (ChecklistItemEntity item : lines) {
             List<ChecklistStatement.Answer> history = given.getOrDefault(item.getId(), List.of()).stream()
                     .map(row -> answer(row, words)).toList();
-            ChecklistStatement.Answer current = history.isEmpty() ? null : history.getLast();
+            ChecklistStatement.Answer current = history.isEmpty() || history.getLast().withdrawn() ? null : history.getLast();
             ChecklistStatement.Measured measurement = measured.get(item.getId());
             Reconciliation reconciliation = measurement == null
                     ? Reconciliation.NOT_MEASURED_HERE
@@ -346,8 +346,8 @@ public class ChecklistDocumentService {
 
     private static ChecklistStatement.Answer answer(ChecklistAnswerEntity row, AnswerWords words) {
         return new ChecklistStatement.Answer(row.getId(), row.getValue(), words.written(ChecklistAnswer.parse(row.getValue())),
-                row.getComment(), row.getAnsweredBy(), row.getAnsweredAt(), row.getCarriedFromId(), row.getCarriedBy(),
-                row.getCarriedAt(), row.isNeedsConfirmation());
+                row.getComment(), row.getAnsweredBy(), row.getAnsweredByKind(), row.getAnsweredAt(), row.getCarriedFromId(),
+                row.getCarriedBy(), row.getCarriedAt(), row.isNeedsConfirmation(), row.isWithdrawn());
     }
 
     private static ChecklistStatement.Proof proof(ChecklistEvidenceEntity row) {

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists;
 
+import com.asmolabs.vectispire.common.domain.checklists.AnswerAuthor;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistAnswer;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule;
 import com.asmolabs.vectispire.common.domain.checklists.EvidenceRequirement;
@@ -54,7 +55,8 @@ class ChecklistVocabularies implements OpenApiCustomizer {
         table.put("ChecklistMeasurementsView", Map.of("status", statuses));
         table.put("ChecklistVersionSummary",
                 Map.of("status", wire(TemplateVersionStatus.values(), TemplateVersionStatus::wireName)));
-        table.put("ChecklistAnswerView", Map.of("value", answers));
+        table.put("ChecklistAnswerView", Map.of("value", answers,
+                "answeredByKind", wire(AnswerAuthor.values(), AnswerAuthor::wireName)));
         table.put("ChecklistEvidenceView", Map.of("kind", wire(ProofKind.values(), ProofKind::wireName)));
         table.put("ChecklistItemView", Map.of("evidenceKind", evidenceKinds));
         table.put("ChecklistLineView", Map.of("evidenceKind", evidenceKinds, "problems", lineProblems));

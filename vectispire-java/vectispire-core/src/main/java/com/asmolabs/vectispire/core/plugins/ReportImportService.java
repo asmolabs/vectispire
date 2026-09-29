@@ -84,6 +84,7 @@ public class ReportImportService {
     private final TargetCatalog targets;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
+    private final ReportedRepositories reported;
     private final Clock clock;
     private final long maxCoverageBytes;
     private final long maxTestReportBytes;
@@ -96,6 +97,7 @@ public class ReportImportService {
             TargetCatalog targets,
             AuditLogService audit,
             TransactionTemplate transactions,
+            ReportedRepositories reported,
             Clock clock,
             @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize maxCoverageBytes,
             @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize maxTestReportBytes) {
@@ -106,6 +108,7 @@ public class ReportImportService {
         this.targets = targets;
         this.audit = audit;
         this.transactions = transactions;
+        this.reported = reported;
         this.clock = clock;
         this.maxCoverageBytes = maxCoverageBytes.toBytes();
         this.maxTestReportBytes = maxTestReportBytes.toBytes();
@@ -162,6 +165,7 @@ public class ReportImportService {
                         + (saved.getBranchesTotal() == null ? ""
                                 : ", branches " + saved.getBranchesCovered() + "/" + saved.getBranchesTotal())
                         + stated(said) + ", sha256 " + saved.getDocumentSha256().substring(0, 12) + "."));
+        reported.announce(repositoryId);
         return CoverageImportView.of(saved);
     }
 
@@ -217,6 +221,7 @@ public class ReportImportService {
                         + saved.getSuitesCount() + " suite(s), " + saved.getTestsCount() + " test(s), "
                         + saved.getFailuresCount() + " failed, " + saved.getErrorsCount() + " in error, "
                         + saved.getSkippedCount() + " skipped" + stated(said) + ", sha256 " + sha256.substring(0, 12) + "."));
+        reported.announce(repositoryId);
         return TestReportImportView.of(saved);
     }
 

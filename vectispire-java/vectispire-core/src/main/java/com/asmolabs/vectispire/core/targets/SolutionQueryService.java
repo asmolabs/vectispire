@@ -140,6 +140,16 @@ public class SolutionQueryService {
     }
 
     /**
+     * The project a repository is filed in now, if any — a repository is in one project at most. Asked by
+     * a module that reacts to new evidence about a repository on behalf of its project (the checklists'
+     * automatic answers), with no caller to judge: whoever serves the result applies its own guard.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Long> projectOf(long repositoryId) {
+        return repositories.findById(repositoryId).map(RepositoryEntity::getProjectId);
+    }
+
+    /**
      * The repositories filed in this solution's projects now, visible or not — empty when there is no
      * such solution, or it holds none. The backlog narrows by them and applies its reader's visibility
      * beside them, so the list carries no more than a lookup of the tree would.

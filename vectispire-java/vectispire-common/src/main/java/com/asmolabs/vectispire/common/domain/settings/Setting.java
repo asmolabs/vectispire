@@ -403,6 +403,22 @@ public enum Setting {
     FOUR_EYES_APPROVAL_REQUIRED("triage_four_eyes_required", SettingType.BOOLEAN, Section.TRIAGE,
             "Require double validation (Four-Eyes approval) for VEX triage",
             "When enabled, marking an issue as NOT_AFFECTED or FIXED by a user without CISO/Admin approval privileges creates a PENDING_APPROVAL request. When disabled, any authorized user can directly settle triage decisions.",
+            "true"),
+
+    /**
+     * Whether Vectispire answers the measured lines of a draft checklist itself (decision 0032, amendment
+     * "the scans answer the lines they measure"). A rule, not a parameter — who may write an answer in a
+     * document a person signs — so it sits in a governance section, the platform governor's to change,
+     * and is forwarded to the SOC when it moves.
+     */
+    CHECKLIST_AUTO_ANSWER("checklist_auto_answer", SettingType.BOOLEAN, Section.CHECKLISTS,
+            "Answer measured checklist lines automatically",
+            "When a scan or an import completes, and when a checklist is opened or moved to another version, "
+                    + "Vectispire answers every line bound to a rule in a draft checklist: yes when it passes, no "
+                    + "with the measurement as its comment when it fails, nothing when there is no data. The "
+                    + "answers are marked as Vectispire's, never replace a person's, and a person still submits "
+                    + "and signs off. Switched off, existing answers stay and nothing new is written "
+                    + "automatically; answering as measured in one click remains.",
             "true");
 
     /** The group the screen files a setting under. */
@@ -417,6 +433,7 @@ public enum Setting {
         RETENTION("Retention"),
         NOTIFICATIONS("Notifications"),
         LICENSES("Licenses"),
+        CHECKLISTS("Security checklists"),
         TICKETS("Ticket tracker"),
         MODEL_REVIEW("OWASP review");
 
@@ -575,7 +592,7 @@ public enum Setting {
             case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, NOTIFICATION_ALLOW_PRIVATE_URL,
                     SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
                     WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
-                    AI_REVIEW_OLLAMA_URL -> true;
+                    AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER -> true;
             case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, RETENTION_KEEP_PER_TARGET,
                     RETENTION_MAX_AGE_DAYS, EVIDENCE_RETENTION_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
                     SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,

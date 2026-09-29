@@ -122,6 +122,50 @@ class ChecklistStorageIntegrationTest {
     }
 
     @Test
+    @DisplayName("an answer's author: a person names an account, Vectispire none, and only Vectispire withdraws")
+    void theAnswersAuthor() {
+        long checklist = checklists.save(checklist(++nextProject, 1, "draft", 1)).getId();
+        ChecklistAnswerEntity automatic = answer(checklist, 1L, "yes", null);
+        automatic.setAnsweredBy("Vectispire");
+        automatic.setAnsweredById(null);
+        automatic.setAnsweredByKind("system");
+        long systemId = answers.saveAndFlush(automatic).getId();
+        ChecklistAnswerEntity withdrawal = answer(checklist, 1L, "yes", "Withdrawn by Vectispire.");
+        withdrawal.setAnsweredBy("Vectispire");
+        withdrawal.setAnsweredById(null);
+        withdrawal.setAnsweredByKind("system");
+        withdrawal.setWithdrawn(true);
+        answers.saveAndFlush(withdrawal);
+
+        ChecklistAnswerEntity read = answers.findById(systemId).orElseThrow();
+        assertThat(read.getAnsweredById()).as("no account").isNull();
+        assertThat(read.getAnsweredByKind()).isEqualTo("system");
+        assertThat(answers.findByChecklistIdAndItemIdOrderByIdAsc(checklist, 1L)).extracting(ChecklistAnswerEntity::isWithdrawn)
+                .containsExactly(false, true);
+
+        // The check constraint, on each engine: a system row naming an account, a person's naming none, a
+        // person withdrawing, a kind nobody knows — none of them is ever stored.
+        ChecklistAnswerEntity systemWithAccount = answer(checklist, 2L, "yes", null);
+        systemWithAccount.setAnsweredByKind("system");
+        assertThatThrownBy(() -> answers.saveAndFlush(systemWithAccount)).as("a system answer naming an account")
+                .isInstanceOf(RuntimeException.class);
+        ChecklistAnswerEntity personWithout = answer(checklist, 2L, "yes", null);
+        personWithout.setAnsweredById(null);
+        assertThatThrownBy(() -> answers.saveAndFlush(personWithout)).as("a person's answer naming no account")
+                .isInstanceOf(RuntimeException.class);
+        ChecklistAnswerEntity personWithdrawing = answer(checklist, 2L, "yes", null);
+        personWithdrawing.setWithdrawn(true);
+        assertThatThrownBy(() -> answers.saveAndFlush(personWithdrawing)).as("a person withdrawing")
+                .isInstanceOf(RuntimeException.class);
+        ChecklistAnswerEntity unknown = answer(checklist, 2L, "yes", null);
+        unknown.setAnsweredById(null);
+        unknown.setAnsweredByKind("robot");
+        assertThatThrownBy(() -> answers.saveAndFlush(unknown)).as("a kind nobody knows")
+                .isInstanceOf(RuntimeException.class);
+        assertThat(answers.findByChecklistIdAndItemIdOrderByIdAsc(checklist, 2L)).isEmpty();
+    }
+
+    @Test
     @DisplayName("each transition matches at the edition its writer read, and frees the slot when it closes the revision")
     void theStatementsArbitrate() {
         long project = ++nextProject;
@@ -334,6 +378,7 @@ class ChecklistStorageIntegrationTest {
         row.setComment(comment);
         row.setAnsweredBy("developer");
         row.setAnsweredById(7L);
+        row.setAnsweredByKind("person");
         row.setAnsweredAt(NOW);
         row.setEdition(2);
         return row;

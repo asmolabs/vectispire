@@ -43,7 +43,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * A project's checklists, answered by people (decision 0032 §5, §8).
+ * A project's checklists, answered by people and, on their measured lines, by Vectispire (decision 0032
+ * §5, §8, and its amendment of 2026-09-29).
  *
  * <p><b>Every route names a project, and the service refuses it.</b> Each resolves the caller's
  * allowance — the account's grants intersected with the credential's restriction — and hands it on;
@@ -69,7 +70,8 @@ import org.springframework.web.bind.annotation.RestController;
  * a raw body where it could not bound a part — capped at {@code
  * vectispire.http.max-body.checklist-evidence}, and goes back only as a download.
  */
-@Tag(name = "Project checklists", description = "A project's security checklist, answered by people. A 409 names "
+@Tag(name = "Project checklists", description = "A project's security checklist, answered by people and, on its measured lines, "
+        + "automatically by Vectispire (answeredByKind system). A 409 names "
         + "its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, "
         + "checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, "
         + "checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, "

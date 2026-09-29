@@ -18,6 +18,12 @@ import org.hibernate.type.SqlTypes;
  * <p>{@code answeredBy} and {@code answeredAt} are the person who gave the answer and when. A copy
  * carried into another revision keeps them, points at the row it came from, and names who carried
  * it beside them (§4).
+ *
+ * <p>{@code answeredByKind} says whether a person wrote it or Vectispire did, from a measurement
+ * ({@code AnswerAuthor}): a system answer names no account, so {@code answeredById} is null for it and
+ * only for it — a check constraint holds the two together (V56). {@code withdrawn} marks the row by
+ * which Vectispire withdraws its own answer: the line then has no current answer, and the history keeps
+ * what was withdrawn.
  */
 @Entity
 @Table(name = "t_checklist_answer")
@@ -45,8 +51,13 @@ public class ChecklistAnswerEntity {
     @Column(name = "answered_by", length = 255, nullable = false)
     private String answeredBy;
 
-    @Column(name = "answered_by_id", nullable = false)
+    /** The account that answered; null for an answer Vectispire wrote, which is no account's. */
+    @Column(name = "answered_by_id")
     private Long answeredById;
+
+    /** {@code person} or {@code system} — the wire names of {@code AnswerAuthor}. */
+    @Column(name = "answered_by_kind", length = 10, nullable = false)
+    private String answeredByKind;
 
     @Column(name = "answered_at", nullable = false)
     private Instant answeredAt;
@@ -68,6 +79,9 @@ public class ChecklistAnswerEntity {
 
     @Column(name = "needs_confirmation", nullable = false)
     private boolean needsConfirmation;
+
+    @Column(name = "withdrawn", nullable = false)
+    private boolean withdrawn;
 
     @Column(name = "edition", nullable = false)
     private Integer edition;
@@ -126,6 +140,22 @@ public class ChecklistAnswerEntity {
 
     public void setAnsweredById(Long answeredById) {
         this.answeredById = answeredById;
+    }
+
+    public String getAnsweredByKind() {
+        return answeredByKind;
+    }
+
+    public void setAnsweredByKind(String answeredByKind) {
+        this.answeredByKind = answeredByKind;
+    }
+
+    public boolean isWithdrawn() {
+        return withdrawn;
+    }
+
+    public void setWithdrawn(boolean withdrawn) {
+        this.withdrawn = withdrawn;
     }
 
     public Instant getAnsweredAt() {

@@ -118,7 +118,8 @@ class ScanDispatcherTest {
                 audit,
                 mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
-                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""));
+                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
+                Optional.empty());
     }
 
     @Test
@@ -369,7 +370,8 @@ class ScanDispatcherTest {
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(mock(PlatformTransactionManager.class)),
-                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
+                        Optional.empty())
                 .dispatch("worker-1", 3, List.of());
 
         verify(queue).claim(2, "worker-1", List.of());
@@ -432,7 +434,8 @@ class ScanDispatcherTest {
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(mock(PlatformTransactionManager.class)),
-                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
+                        Optional.empty())
                 .dispatch("worker-1", 2, List.of());
 
         verify(runner, never()).run(any());
@@ -469,7 +472,8 @@ class ScanDispatcherTest {
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(manager),
-                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
+                        Optional.empty())
                 .dispatch("worker-1", 1, List.of());
 
         InOrder order = inOrder(ingestor, manager);
@@ -520,7 +524,8 @@ class ScanDispatcherTest {
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
                         new TransactionTemplate(manager),
-                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""),
+                        Optional.empty())
                 .dispatch("worker-1", 2, List.of());
     }
 
@@ -641,7 +646,7 @@ class ScanDispatcherTest {
                 settings, ruleSets, plugins, envelopes, new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
-                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"));
+                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"), Optional.empty());
 
         assertThat(restricted.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
         assertThat(abandonedAs(7L, FailureKind.PERMANENT)).contains("is not allowed");

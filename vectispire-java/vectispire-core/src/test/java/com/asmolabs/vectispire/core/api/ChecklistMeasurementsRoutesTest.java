@@ -126,6 +126,10 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
     @BeforeEach
     void estate() throws Exception {
         settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+        // What people do with a measurement — rest an answer on it, answer as measured, submit against it —
+        // with Vectispire answering nothing: its own answers are ChecklistAutomaticAnswersRoutesTest's, and
+        // here they would answer the lines these tests have a person answer.
+        settings.set(Setting.CHECKLIST_AUTO_ANSWER, "false");
         developer = account(Role.USER);
         ciso = account(Role.CISO);
         project = project("Checkout");

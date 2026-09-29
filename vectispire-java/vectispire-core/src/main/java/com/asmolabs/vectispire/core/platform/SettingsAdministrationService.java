@@ -44,7 +44,7 @@ public class SettingsAdministrationService {
 
     /** The sections whose contents are a rule, not a setting. */
     private static final Set<Setting.Section> GOVERNANCE_SECTIONS =
-            Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE);
+            Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE, Setting.Section.CHECKLISTS);
 
     /**
      * The longest credential one of the four secret routes accepts.
@@ -171,14 +171,15 @@ public class SettingsAdministrationService {
                         setting.label() + " is recorded by the server when the public endpoint is turned on, "
                                 + "and cannot be set here.");
             }
-            // **The two settings that decide rules, reserved to the governor.** They are
+            // **The settings that decide rules, reserved to the governor.** Two of them are
             // `target_visibility` — who sees which targets — and `triage_four_eyes_required` — does
             // dismissing a vulnerability take two people. Four-eyes was bypassable by anyone who
             // could both switch it off and triage: switch off, settle alone, switch back on, one
             // audit entry for a trace. What closes the hole is not removing the right to approve —
             // the service settles everyone's decision when the setting is off — but breaking the
             // conjunction. The one role that can lift the rule is the one that cannot act under
-            // it.
+            // it. The third, `checklist_auto_answer`, decides whether Vectispire writes answers in a
+            // document people sign: whoever answers or signs off checklists does not decide it.
             if (GOVERNANCE_SECTIONS.contains(setting.section()) && !governsPlatform(writer)) {
                 throw new AccessDeniedException(
                         setting.label() + " decides a rule rather than a setting: only a platform "

@@ -96,7 +96,7 @@ class ChecklistRendererTest {
     }
 
     private static ChecklistStatement.Answer answer(long id, String value, String comment, Instant at) {
-        return new ChecklistStatement.Answer(id, value, value, comment, "developer", at, null, null, null, false);
+        return new ChecklistStatement.Answer(id, value, value, comment, "developer", "person", at, null, null, null, false, false);
     }
 
     private static ChecklistStatement.Measured measured(String outcome, String reason, String summary) {
@@ -310,6 +310,36 @@ class ChecklistRendererTest {
                     .containsEntry("Produced by", "Vectispire 1.2.3 at 2026-09-29T12:00:00Z")
                     .containsKey("Template source SHA-256");
         }
+    }
+
+    @Test
+    @DisplayName("an automatic answer is marked as Vectispire's, and a person named Vectispire is not")
+    void automaticAnswersAreMarked() {
+        byte[] template = new XlsxFixture().bytes();
+        ChecklistStatement statement = statement(template, false);
+        Instant at = Instant.parse("2026-09-29T10:00:00Z");
+        List<ChecklistStatement.Line> lines = new ArrayList<>(statement.lines());
+        // Line 1 answered by an account called "Vectispire"; line 4 by Vectispire from its measurement.
+        lines.set(0, withAnswer(lines.get(0), new ChecklistStatement.Answer(1, "yes", "yes", null, "Vectispire", "person", at,
+                null, null, null, false, false)));
+        lines.set(3, withAnswer(lines.get(3), new ChecklistStatement.Answer(4, "yes", "yes", null, "Vectispire", "system", at,
+                null, null, null, false, false)));
+        ChecklistStatement marked = new ChecklistStatement(statement.form(), statement.status(), statement.signed(),
+                statement.project(), statement.revision(), statement.template(), statement.header(), statement.opened(),
+                statement.submitted(), statement.signedOff(), statement.fourEyesRequired(), statement.productVersion(),
+                statement.producedAt(), lines);
+
+        Sheet evidence = Workbook.read(ChecklistRenderer.render(template, layout(), marked), 10L * 1024 * 1024)
+                .sheet(ChecklistRenderer.EVIDENCE_SHEET).orElseThrow();
+        assertThat(text(evidence, "D4")).as("a person, whatever the name").isEqualTo("Vectispire");
+        assertThat(text(evidence, "D7")).isEqualTo("Vectispire (automatic, from its measurement)");
+    }
+
+    private static ChecklistStatement.Line withAnswer(ChecklistStatement.Line line, ChecklistStatement.Answer answer) {
+        return new ChecklistStatement.Line(line.itemId(), line.key(), line.position(), line.row(), line.domain(),
+                line.objective(), line.control(), line.contact(), line.kpi(), line.contentDigest(), line.evidenceRequired(),
+                line.evidenceValidityMonths(), answer, List.of(answer), line.measurement(), line.reconciliation(),
+                line.evidence());
     }
 
     // ------------------------------------------------------------------ refusals

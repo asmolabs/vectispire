@@ -733,6 +733,7 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
             late.setComment("Written after the signature.");
             late.setAnsweredBy(developer.name());
             late.setAnsweredById(developer.id());
+            late.setAnsweredByKind("person");
             late.setAnsweredAt(java.time.Instant.now());
             late.setEdition(99);
             answers.save(late);
