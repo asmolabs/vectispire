@@ -273,8 +273,10 @@ Vectispire signs the documents it produces — SBOMs, VEX, CSAF, evidence bundle
 - **Detached Cosign Signatures**: All SBOM and VEX deliverables in Evidence Vault carry companion `.sig` files.
 - **CLI Verification**:
   ```bash
-  cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json
+  cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
+    --signature manifest.json.sig manifest.json
   ```
+  `--insecure-ignore-tlog=true` is required: Vectispire signs with its own key and publishes nothing to the Rekor transparency log, which cosign otherwise consults first — without the flag it answers *signature not found in transparency log* for a document that is correctly signed. The check that matters, the signature against the published key, is still made: a modified file is refused.
 
 ---
 

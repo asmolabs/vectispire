@@ -279,8 +279,10 @@ Vectispire signe les documents qu'il produit — SBOM, VEX, CSAF, paquets de pre
 - **Signatures Détachées Cosign** : Tous les SBOMs et avis VEX de l'archive Evidence Vault sont accompagnés de leur signature `.sig`.
 - **Vérification CLI** :
   ```bash
-  cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json
+  cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
+    --signature manifest.json.sig manifest.json
   ```
+  `--insecure-ignore-tlog=true` est nécessaire : Vectispire signe avec sa propre clé et ne publie rien dans le journal de transparence Rekor, que cosign consulte sinon d'abord — sans ce drapeau, il répond *signature not found in transparency log* pour un document correctement signé. Le contrôle qui compte, la signature contre la clé publiée, est bien fait : un fichier modifié est refusé.
 
 ---
 

@@ -115,6 +115,14 @@ class CryptoRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/crypto/cosign-cli-helper"), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.keyAlgorithm").value("ECDSA_P256"))
-                .andExpect(jsonPath("$.commands.cosignVerifyManifest").exists());
+                .andExpect(jsonPath("$.commands.cosignVerifyManifest").exists())
+                // Without it cosign looks for the signature in Rekor, where Vectispire uploads nothing,
+                // and refuses every export — checked against the pinned cosign image.
+                .andExpect(jsonPath("$.commands.cosignVerifyManifest",
+                        org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")))
+                .andExpect(jsonPath("$.commands.cosignVerifyVex",
+                        org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")))
+                .andExpect(jsonPath("$.commands.cosignVerifyCycloneDx",
+                        org.hamcrest.Matchers.containsString("--insecure-ignore-tlog=true")));
     }
 }

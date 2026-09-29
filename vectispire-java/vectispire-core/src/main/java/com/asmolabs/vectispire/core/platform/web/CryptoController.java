@@ -72,10 +72,15 @@ public class CryptoController {
                 "keyId", signingKeyService.getKeyId(),
                 "keyAlgorithm", "ECDSA_P256",
                 "instructions", "Verify artifacts using standard cosign or openssl CLI",
+                // `--insecure-ignore-tlog=true` on every cosign command: Vectispire signs with its own
+                // key and uploads nothing to Rekor, and cosign 2 looks the signature up in the
+                // transparency log by default — without the flag each of these answered "signature not
+                // found in transparency log" for every export ever produced, and an auditor following
+                // them concluded the document was not signed.
                 "commands", Map.of(
-                        "cosignVerifyManifest", "cosign verify-blob --key vectispire-signing-key.pub --signature manifest.json.sig manifest.json",
-                        "cosignVerifyVex", "cosign verify-blob --key vectispire-signing-key.pub --signature 05_openvex_advisory.json.sig 05_openvex_advisory.json",
-                        "cosignVerifyCycloneDx", "cosign verify-blob --key vectispire-signing-key.pub --signature 08_cyclonedx_1_5_vex.json.sig 08_cyclonedx_1_5_vex.json",
+                        "cosignVerifyManifest", "cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature manifest.json.sig manifest.json",
+                        "cosignVerifyVex", "cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature 05_openvex_advisory.json.sig 05_openvex_advisory.json",
+                        "cosignVerifyCycloneDx", "cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature 08_cyclonedx_1_5_vex.json.sig 08_cyclonedx_1_5_vex.json",
                         "opensslVerify", "openssl dgst -sha256 -verify vectispire-signing-key.pub -signature <(base64 -d manifest.json.sig) manifest.json"
                 )
         );
