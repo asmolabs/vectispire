@@ -164,7 +164,8 @@ A line the template binds to a rule — see
 [checklist templates](../administration/checklist-templates.md#measured-lines-the-rule-a-line-is-bound-to)
 — is **measured**: Vectispire reads what its scans, the plugins, the imports from your CI and the
 backlog recorded for every repository of the project, and says what it found beside the answer.
-**Vectispire never answers**: the measurement is evidence, and the answer stays a person's.
+The measurement is evidence beside the answer — and, unless your platform governor switched it off,
+Vectispire also **answers the line itself** from it: see [automatic answers](#automatic-answers).
 
 Each bound line shows, under its words, **Measured by** and the rule in words, then its measurement:
 **Met**, **Not met** or **No data** — never a pass by default — with the reason in a sentence when
@@ -230,7 +231,7 @@ line you were not shown as **not shown**. It also leaves alone, and names with t
 even one awaiting confirmation or equal to the measurement: an answer somebody gave is never
 replaced by a gesture that did not look at it; a line with **no data**; and a line *not met*, whose no
 **needs a comment** — the one click opens the form for you to write it, and a comment the product
-wrote would be a claim nobody made, so answer those one at a time. If anything was written on the
+wrote under your name would be a claim you never made, so answer those one at a time. If anything was written on the
 revision since the edition you read, nothing is answered (`checklist-changed`): read it again.
 
 On the page, the act is the button **Answer every measured line as measured**, at the top of the lines,
@@ -261,6 +262,58 @@ like any refused sign-off; return the revision, and submit it again. An accepted
 measurements: a signed-off revision reads its measurements as they were signed, whatever the
 backlog does next.
 
+## Automatic answers
+
+With the platform setting [**Answer measured checklist lines automatically**](../administration/settings.md#security-checklists)
+on — the default — **Vectispire answers the measured lines of a draft itself**, from their
+measurement, so that a checklist arrives filled with everything the scans can state:
+
+| The measurement | Vectispire's answer |
+|---|---|
+| Met | *yes* |
+| Not met | *no*, with a comment written from the measurement — the rule and what failed it, starting with *Measured by Vectispire* |
+| No data | nothing |
+
+The comment is written **in English**, like the *Evidence* sheet: the platform states no document
+language, and your organisation's own words are the template's (its yes and no), not the product's
+sentences.
+
+**When.** When a scan completes on a repository of the project, when a SARIF, coverage or test report
+is accepted for one, and when the checklist is opened, moved to another version or reopened — the page
+you are sent to already shows the answers. Never on a submitted or signed-off revision, and never
+because somebody read the page.
+
+**Who.** The author is **Vectispire**: no account, no role. Every such answer shows *automatic* beside
+its author, rests on the measurement that produced it, is a row of the line's history like any other,
+and is written to the audit log as `CHECKLIST_ANSWERED` **with no user** — nobody asked — and a
+description naming Vectispire. What tells an automatic answer from a person's is its **kind**,
+`answeredByKind: system`, never the name: an account may be called *Vectispire*, and its answers are a
+person's.
+
+**People first.**
+
+- **A person's answer is never replaced** by Vectispire — any answer somebody gave, one carried from an
+  earlier revision and awaiting confirmation included.
+- **Answer a line yourself and it is yours**: your answer replaces Vectispire's, and the scans leave it
+  alone from then on — even if the measurement then contradicts it, which the submission will name.
+- **Vectispire replaces its own answer only when the measurement changes** — a new scan or import with
+  other evidence. The same evidence writes nothing, however often the checklist is opened or scanned:
+  the revision's edition does not move under the people filling it. The history keeps every answer.
+- **When the measurement no longer has data** — the newest scan fell past the rule's maximum age, a
+  step stopped producing — Vectispire **withdraws** its own answer: the line is unanswered again, and
+  its history shows the answer and its withdrawal. A *yes* left standing on data that is no longer
+  there would be a claim nobody makes any more.
+
+**What still takes a person.** Submitting and signing off are unchanged — people, under
+[four-eyes](../administration/four-eyes.md). The submitter attests to the whole revision, automatic
+answers included. Vectispire is **none of the revision's authors**: four-eyes compares the people who
+wrote it. The submission's rules apply to automatic answers as to any: a *no* carries its generated
+comment, so it goes; an automatic *yes* on a line that asks for **a file or a link still needs that
+proof** — attach it, or the line keeps the revision back as *evidence required*.
+
+**Switched off**, nothing new is answered automatically; the answers already written stay, each marked
+as Vectispire's, until somebody answers over them. Answering as measured in one click remains.
+
 ## The document
 
 `GET /api/v1/projects/{id}/checklists/{revision}/document` returns the revision as a document to hand
@@ -268,8 +321,8 @@ over: a zip, always served as a download.
 
 | Entry | What it is |
 |---|---|
-| `checklist.xlsx` | **Your template's own workbook, filled in.** Every part of the file is the template's, byte for byte, except the cells written: each line's answer — in the template's own word — and comment, and the header's product, author and date. The validation lists, extensions, comments and styles are untouched. The date is a **value, the sign-off instant** — a formula such as `TODAY()` is replaced, since it would date every copy to the day it was last opened. One sheet is added, **Evidence**: one row per line with its answer, who gave it and when, the measurement's outcome, the instant it is as of, the summary and SHA-256 of its evidence, what the answer and the measurement say together (*declared, not measured* for a yes without data), the proofs' links and file digests; then who submitted, who signed off, and whether four-eyes applied. Instants are UTC. |
-| `checklist.json` | The same statement, machine-readable: project, revision, template slug, version and source SHA-256, every line with its current answer and history, its measurement (rule and evidence as the exact texts their digests cover) and its proofs — files named by SHA-256, never included — the submitter, the signer and the Vectispire version. |
+| `checklist.xlsx` | **Your template's own workbook, filled in.** Every part of the file is the template's, byte for byte, except the cells written: each line's answer — in the template's own word — and comment, and the header's product, author and date. The validation lists, extensions, comments and styles are untouched. The date is a **value, the sign-off instant** — a formula such as `TODAY()` is replaced, since it would date every copy to the day it was last opened. One sheet is added, **Evidence**: one row per line with its answer, who gave it — *Vectispire (automatic, from its measurement)* for an automatic answer — and when, the measurement's outcome, the instant it is as of, the summary and SHA-256 of its evidence, what the answer and the measurement say together (*declared, not measured* for a yes without data), the proofs' links and file digests; then who submitted, who signed off, and whether four-eyes applied. Instants are UTC. |
+| `checklist.json` | The same statement, machine-readable: project, revision, template slug, version and source SHA-256, every line with its current answer and history — each answer with its `answeredByKind`, `person` or `system`, and a withdrawal by Vectispire marked `withdrawn` (statement `form` 2) — its measurement (rule and evidence as the exact texts their digests cover) and its proofs — files named by SHA-256, never included — the submitter, the signer and the Vectispire version. |
 | `checklist.xlsx.sig`, `checklist.json.sig` | Detached signatures by the platform's signing key — **a signed-off revision only**. |
 
 **A signed-off revision's document is produced and signed with its sign-off** and stored: every
@@ -332,7 +385,8 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 
 ## What is recorded
 
-Opening, moving, reopening, every answer and confirmation, every proof attached or withdrawn, the
+Opening, moving, reopening, every answer and confirmation — Vectispire's automatic answers and
+withdrawals included, with no user and a description naming Vectispire — every proof attached or withdrawn, the
 submission, the return, the sign-off and a refused sign-off are written to the
 [audit log](../administration/audit-log.md), and so is each download of the document, with its SHA-256. A sign-off is signalled to the SIEM as `VECTI-SEC-025`; a
 refused sign-off and a return as `VECTI-SEC-026`.

@@ -22,6 +22,11 @@ lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte
 SIEM est configuré et testé par un CISO, et l'interrupteur qui décide s'il peut joindre le réseau
 interne n'est pas laissé au même rôle.
 
+Trois paramètres décident des règles plutôt que des réglages et reviennent au seul **gouverneur de
+plateforme** — qui voit quelles cibles, si un triage demande [deux personnes](four-eyes.fr.md), et si
+Vectispire répond aux lignes mesurées d'une checklist (ci-dessous) : qui agit sous une règle ne la lève
+pas.
+
 Le formulaire SIEM fonctionne à l'inverse, parce que le même rôle y règle le point d'arrivée et
 l'en-tête : changer le point d'arrivée **efface l'en-tête enregistré**, sauf si un nouveau est saisi
 avec lui. Un en-tête est émis pour un collecteur. Il n'est envoyé qu'avec le webhook, et refusé avec
@@ -59,6 +64,22 @@ plutôt qu'à chaque bibliothèque.
 La liste de blocage évaluée contre les données du SBOM. Ce qui doit y figurer est la décision
 de votre organisation : l'AGPL est fatale pour un produit propriétaire distribué et sans objet
 pour un service interne jamais livré.
+
+## Checklists de sécurité
+
+**Répondre automatiquement aux lignes mesurées des checklists** (`checklist_auto_answer`, **activé par
+défaut**) décide si Vectispire répond aux lignes d'une [checklist de sécurité](../guide/security-checklists.fr.md#reponses-automatiques)
+en brouillon qu'une règle mesure — *oui* quand la mesure est atteinte, *non* avec la mesure pour
+commentaire quand elle ne l'est pas, rien sans données — quand une analyse ou un import se termine sur
+l'un des dépôts du projet, et quand une checklist est ouverte ou passée à une autre version. Ses
+réponses sont marquées comme étant de Vectispire, ne remplacent jamais celle d'une personne, et la
+soumission comme l'approbation restent des actes de personnes.
+
+Il décide qui peut écrire une réponse dans un document que des personnes signent : c'est une règle et
+non un paramètre, **seul un gouverneur de plateforme le change**, et un changement est audité et
+signalé au SIEM comme paramètre de sécurité. Désactivé, plus rien n'est répondu automatiquement ; les
+réponses déjà écrites restent jusqu'à ce que quelqu'un y réponde par-dessus, et la réponse « comme
+mesuré » en un clic demeure.
 
 ## Rétention
 

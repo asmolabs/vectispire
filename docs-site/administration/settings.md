@@ -21,6 +21,10 @@ Otherwise a role that cannot read a credential could collect it by pointing it a
 configured and tested by a CISO, and the switch deciding whether it may reach the internal network
 is not left to the same role.
 
+Three settings decide rules rather than parameters and are a **platform governor's** only — who
+sees which targets, whether a triage takes [two people](four-eyes.md), and whether Vectispire answers
+the measured lines of a checklist (below): whoever acts under a rule does not lift it.
+
 The SIEM form works the other way round, because the same role sets its endpoint and its header:
 changing the endpoint **drops the stored header** unless a new one is typed with it. A header is
 issued for one collector. It is sent with the webhook only, and refused with a syslog protocol — see
@@ -56,6 +60,20 @@ library.
 The blocklist evaluated against SBOM data. What belongs on it is your organisation's
 decision: AGPL is fatal for a proprietary distributed product and irrelevant for an
 internal service that is never shipped.
+
+## Security checklists
+
+**Answer measured checklist lines automatically** (`checklist_auto_answer`, **on by default**) decides
+whether Vectispire answers the lines of a draft [security checklist](../guide/security-checklists.md#automatic-answers)
+that a rule measures — *yes* when the measurement is met, *no* with the measurement as its comment when
+it is not, nothing without data — when a scan or an import completes on one of the project's
+repositories, and when a checklist is opened or moved to another version. Its answers are marked as
+Vectispire's, never replace a person's, and submitting and signing off stay acts of people.
+
+It decides who may write an answer in a document people sign, so it is a rule rather than a
+parameter: **only a platform governor changes it**, and a change is audited and signalled to the SIEM
+as a security setting. Switched off, nothing new is answered automatically; the answers already
+written stay until somebody answers over them, and answering as measured in one click remains.
 
 ## Retention
 

@@ -166,6 +166,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### Changes an integration can see
 
+- **A checklist answer names its author's kind.** Every answer in a checklist view, a line's history
+  and `checklist.json` carries `answeredByKind` — `person`, or `system` for an answer Vectispire gave
+  from the line's measurement — and `withdrawn`, true only on the history row by which Vectispire
+  withdrew its own answer. Tell an automatic answer by `answeredByKind`, never by `answeredBy`: it
+  reads `Vectispire`, a name an account may also hold. `checklist.json` is statement `form` 2 for it.
 - **Every error is an RFC 9457 problem** (`application/problem+json`) with a `detail` meant to be
   shown — see [API errors](errors.md). Refusals that carried no sentence now do: an unknown route,
   405, 406, 415, an unreadable body, the sign-in refusals, the 401 of a missing or invalid
@@ -300,6 +305,19 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **Vectispire answers the lines it measures** (V56 adds `answered_by_kind` and `withdrawn` to
+  `t_checklist_answer`). On a draft checklist, a line bound to a rule is answered *yes* when its
+  measurement passes and *no*, with the measurement as its comment, when it fails — when a scan
+  completes or a SARIF, coverage or test report is accepted for one of the project's repositories, and
+  when the checklist is opened, moved or reopened; no data answers nothing, and withdraws an answer of
+  Vectispire's that rested on data it no longer has. The author is Vectispire, no account: marked
+  *automatic* on the screen, in the history, the `Evidence` sheet and `checklist.json`, audited as
+  `CHECKLIST_ANSWERED` with no user. A person's answer is never replaced; Vectispire replaces its own
+  only when the measurement's evidence changes, so the same evidence writes nothing twice. Submitting
+  and signing off are unchanged — people, under four-eyes, and a *yes* on a line asking for a proof
+  still needs it. **On by default**: the platform governor's setting `checklist_auto_answer` returns to
+  answers by people only. Checklists already in draft are answered at their project's next scan, import
+  or opening. See [Security checklists](../guide/security-checklists.md#automatic-answers).
 - **The measured lines of a checklist answered as measured, in one act.**
   `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`, body
   `{ edition, lines: [{ itemId, measurementDigest }] }`, on a draft: each line named — as shown, with

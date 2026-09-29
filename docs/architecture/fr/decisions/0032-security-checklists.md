@@ -701,3 +701,28 @@ risque que nommait le §6 — un document signé portant une affirmation que son
 - **Qui décide.** Un réglage de plateforme, actif par défaut, permet à une organisation de revenir à des
   réponses données par des personnes seulement ; la réponse en un clic et l'acte « comme mesuré »
   restent dans les deux cas.
+
+**Tel que construit (2026-09-29).** Six points que l'amendement laissait à l'implémentation, tranchés
+dans le code :
+
+- **L'auteur est une nature, pas un nom.** `t_checklist_answer.answered_by_kind` (`person`, `system`,
+  V56), et `answered_by_id` nul pour le système et pour lui seul — une contrainte de vérification tient
+  les deux ensemble sur chaque moteur. `answered_by` vaut *Vectispire*, nom qu'un compte peut aussi
+  porter : chaque lecteur (les scans, la double validation, le document) décide par la nature. Le
+  système n'est aucun des auteurs d'une révision.
+- **L'absence de données retire la réponse de Vectispire.** La table reste en ajout seul : une ligne
+  système marquée `withdrawn` rend la ligne sans réponse et garde dans l'historique ce qui a été retiré.
+  Laissé debout, un *oui* sur des données qui ont cessé d'exister serait une affirmation que personne ne
+  fait ; la soumission ne l'attraperait que comme un *oui* sans données.
+- **« Sa mesure change », c'est l'empreinte de ses preuves.** Les mêmes preuves n'écrivent rien : ni un
+  second scan qui trouve la même chose ni une ouverture ne font bouger l'édition sous les personnes qui
+  remplissent la checklist.
+- **L'entrée d'audit n'a pas d'acteur**, comme toute entrée que personne n'a demandée (le rapport de
+  posture, une acceptation échue) : une description qui nomme Vectispire, jamais un utilisateur inventé.
+- **Le commentaire généré est en anglais**, comme la feuille `Evidence` — la plateforme ne déclare pas de
+  langue de document — et dit *Measured by Vectispire*.
+- **Les déclencheurs sont des ports** que déclarent `scanning` et `plugins` (`RepositoryScanned`,
+  `RepositoryReported`), appelés après leur propre commit et incapables de faire échouer le scan ou
+  l'import ; une ouverture répond juste après son propre commit, pour que la réponse montre les réponses.
+  Le réglage `checklist_auto_answer` appartient au gouverneur de plateforme, comme les autres règles, et
+  est audité comme réglage de sécurité.

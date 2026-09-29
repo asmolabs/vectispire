@@ -644,3 +644,24 @@ carrying a claim its signer never made — is met by naming the author, not by f
   answers were automatic.
 - **Who decides.** A platform setting, on by default, lets an organisation return to answers by people
   only; the one-click and the as-measured act remain either way.
+
+**As built (2026-09-29).** Six points the amendment left to the implementation, settled in the code:
+
+- **The author is a kind, not a name.** `t_checklist_answer.answered_by_kind` (`person`, `system`, V56),
+  and `answered_by_id` null for the system and only for it — a check constraint holds the two together
+  on every engine. `answered_by` reads *Vectispire*, which an account may also be called: every reader
+  (the scans, four-eyes, the document) decides by the kind. The system is none of a revision's authors.
+- **No data withdraws Vectispire's own answer.** The table stays append-only: a system row marked
+  `withdrawn` makes the line unanswered and keeps what was withdrawn in the history. Left standing, a
+  *yes* on data that stopped existing would be a claim nobody makes; the submission would catch it only
+  as a *yes* without data.
+- **"Its measurement changes" is its evidence digest.** The same evidence writes nothing, so neither a
+  second scan finding the same nor an opening moves the edition under the people filling the checklist.
+- **The audit entry has no actor**, as every entry nobody asked for (the posture digest, a lapsed
+  acceptance): a description naming Vectispire, never an invented user.
+- **The generated comment is in English**, like the `Evidence` sheet — the platform states no document
+  language — and says *Measured by Vectispire*.
+- **The triggers are ports** `scanning` and `plugins` declare (`RepositoryScanned`, `RepositoryReported`),
+  called after their own commit and never able to fail the scan or the import; an opening answers right
+  after its own commit, so the response shows the answers. The setting `checklist_auto_answer` is the
+  platform governor's, like the other rules, and audited as a security setting.

@@ -171,7 +171,9 @@ Une ligne que le modèle lie à une règle — voir
 [modèles de checklists](../administration/checklist-templates.fr.md#lignes-mesurees-la-regle-liee-a-une-ligne)
 — est **mesurée** : Vectispire lit ce que ses analyses, les plugins, les imports de votre CI et le
 passif ont enregistré pour chaque dépôt du projet, et dit ce qu'il a trouvé à côté de la réponse.
-**Vectispire ne répond jamais** : la mesure est une preuve, et la réponse reste celle d'une personne.
+La mesure est une preuve à côté de la réponse — et, sauf si votre gouverneur de plateforme l'a
+désactivé, Vectispire **répond aussi lui-même à la ligne** à partir d'elle : voir
+[réponses automatiques](#reponses-automatiques).
 
 Chaque ligne liée montre, sous ses mots, **Mesurée par** et la règle en mots, puis sa mesure :
 **Atteint**, **Non atteint** ou **Pas de données** — jamais un succès par défaut — avec la raison en une
@@ -239,7 +241,7 @@ une ligne **déjà répondue** — quelle que soit
 la réponse, même en attente de confirmation ou égale à la mesure : une réponse donnée par quelqu'un
 n'est jamais remplacée par un geste qui ne l'a pas regardée ; une ligne **sans données** ; et une ligne
 *non atteinte*, dont le non **demande un commentaire** — le clic unique ouvre le formulaire pour que
-vous l'écriviez, et un commentaire écrit par le produit serait une affirmation que personne n'a faite :
+vous l'écriviez, et un commentaire écrit par le produit sous votre nom serait une affirmation que vous n'avez pas faite :
 répondez-y une à une. Si quoi que ce soit a été écrit sur la révision depuis l'édition lue, rien n'est
 répondu (`checklist-changed`) : relisez-la.
 
@@ -274,6 +276,62 @@ attesté non plus). Le refus est consigné et signalé comme toute approbation r
 révision, et soumettez-la à nouveau. Une approbation acceptée conserve ses mesures : une révision
 approuvée lit ses mesures telles qu'elles ont été signées, quoi que fasse le passif ensuite.
 
+## Réponses automatiques
+
+Avec le paramètre de plateforme [**Répondre automatiquement aux lignes mesurées des checklists**](../administration/settings.fr.md#checklists-de-securite)
+activé — c'est le défaut — **Vectispire répond lui-même aux lignes mesurées d'un brouillon**, à partir
+de leur mesure, pour qu'une checklist arrive remplie de tout ce que les analyses peuvent affirmer :
+
+| La mesure | La réponse de Vectispire |
+|---|---|
+| Atteint | *oui* |
+| Non atteint | *non*, avec un commentaire rédigé à partir de la mesure — la règle et ce qui l'a fait échouer, commençant par *Measured by Vectispire* |
+| Pas de données | rien |
+
+Le commentaire est écrit **en anglais**, comme la feuille *Evidence* : la plateforme ne déclare pas de
+langue de document, et les mots de votre organisation sont ceux du modèle (oui, non), pas les phrases
+du produit.
+
+**Quand.** Quand une analyse se termine sur un dépôt du projet, quand un rapport SARIF, de couverture
+ou de tests est accepté pour l'un d'eux, et quand la checklist est ouverte, passée à une autre version
+ou rouverte — la page où vous arrivez montre déjà les réponses. Jamais sur une révision soumise ou
+approuvée, et jamais parce que quelqu'un a lu la page.
+
+**Qui.** L'auteur est **Vectispire** : aucun compte, aucun rôle. Chacune de ces réponses porte la
+mention *automatique* à côté de son auteur, repose sur la mesure qui l'a produite, est une ligne de
+l'historique comme une autre, et est inscrite au journal d'audit en `CHECKLIST_ANSWERED` **sans
+utilisateur** — personne ne l'a demandée — avec une description qui nomme Vectispire. Ce qui distingue
+une réponse automatique de celle d'une personne est sa **nature**, `answeredByKind: system`, jamais le
+nom : un compte peut s'appeler *Vectispire*, et ses réponses sont celles d'une personne.
+
+**Les personnes d'abord.**
+
+- **La réponse d'une personne n'est jamais remplacée** par Vectispire — toute réponse donnée par
+  quelqu'un, y compris une réponse reportée d'une révision antérieure et en attente de confirmation.
+- **Répondez vous-même à une ligne et elle est à vous** : votre réponse remplace celle de Vectispire,
+  et les analyses la laissent ensuite en paix — même si la mesure la contredit, ce que la soumission
+  nommera.
+- **Vectispire ne remplace sa propre réponse que si la mesure change** — une nouvelle analyse ou un
+  nouvel import aux preuves différentes. Les mêmes preuves n'écrivent rien, aussi souvent que la
+  checklist soit ouverte ou analysée : l'édition de la révision ne bouge pas sous les personnes qui la
+  remplissent. L'historique garde chaque réponse.
+- **Quand la mesure n'a plus de données** — l'analyse la plus récente a dépassé l'âge maximal de la
+  règle, une étape a cessé de produire — Vectispire **retire** sa propre réponse : la ligne redevient
+  sans réponse, et son historique montre la réponse et son retrait. Un *oui* laissé debout sur des
+  données qui ne sont plus là serait une affirmation que plus personne ne fait.
+
+**Ce qui demande toujours une personne.** La soumission et l'approbation sont inchangées — des
+personnes, sous [double validation](../administration/four-eyes.fr.md). L'auteur de la soumission
+atteste de toute la révision, réponses automatiques comprises. Vectispire n'est **aucun des auteurs de
+la révision** : la double validation compare les personnes qui l'ont écrite. Les règles de la soumission
+s'appliquent aux réponses automatiques comme aux autres : un *non* porte son commentaire généré, il
+passe donc ; un *oui* automatique sur une ligne qui demande **un fichier ou un lien exige toujours
+cette preuve** — joignez-la, sinon la ligne retient la révision en *preuve requise*.
+
+**Désactivé**, plus rien n'est répondu automatiquement ; les réponses déjà écrites restent, chacune
+marquée comme étant de Vectispire, jusqu'à ce que quelqu'un y réponde par-dessus. La réponse « comme
+mesuré » en un clic demeure.
+
 ## Le document
 
 `GET /api/v1/projects/{id}/checklists/{revision}/document` renvoie la révision comme un document à
@@ -281,8 +339,8 @@ remettre : un zip, toujours servi en téléchargement.
 
 | Entrée | Ce que c'est |
 |---|---|
-| `checklist.xlsx` | **Le classeur de votre propre modèle, rempli.** Chaque partie du fichier est celle du modèle, octet pour octet, sauf les cellules écrites : la réponse de chaque ligne — dans le mot du modèle — et son commentaire, et, dans l'en-tête, le produit, l'auteur et la date. Les listes de validation, les extensions, les commentaires et les styles sont intacts. La date est une **valeur, l'instant de l'approbation** — une formule comme `AUJOURDHUI()` est remplacée, puisqu'elle daterait chaque copie du jour de sa dernière ouverture. Une feuille est ajoutée, **Evidence** : une ligne par ligne de la checklist avec sa réponse, qui l'a donnée et quand, le résultat de la mesure, l'instant dont elle date, le résumé et le SHA-256 de ses preuves, ce que disent ensemble la réponse et la mesure (*declared, not measured* pour un oui sans données), les liens et les empreintes des fichiers de preuve ; puis qui a soumis, qui a approuvé, et si la double validation s'appliquait. Les instants sont en UTC. |
-| `checklist.json` | La même déclaration, lisible par une machine : projet, révision, identifiant du modèle, version et SHA-256 du fichier source, chaque ligne avec sa réponse courante et son historique, sa mesure (la règle et les preuves en textes exacts, ceux que couvrent leurs empreintes) et ses preuves — les fichiers nommés par leur SHA-256, jamais inclus —, l'auteur de la soumission, l'approbateur et la version de Vectispire. |
+| `checklist.xlsx` | **Le classeur de votre propre modèle, rempli.** Chaque partie du fichier est celle du modèle, octet pour octet, sauf les cellules écrites : la réponse de chaque ligne — dans le mot du modèle — et son commentaire, et, dans l'en-tête, le produit, l'auteur et la date. Les listes de validation, les extensions, les commentaires et les styles sont intacts. La date est une **valeur, l'instant de l'approbation** — une formule comme `AUJOURDHUI()` est remplacée, puisqu'elle daterait chaque copie du jour de sa dernière ouverture. Une feuille est ajoutée, **Evidence** : une ligne par ligne de la checklist avec sa réponse, qui l'a donnée — *Vectispire (automatic, from its measurement)* pour une réponse automatique — et quand, le résultat de la mesure, l'instant dont elle date, le résumé et le SHA-256 de ses preuves, ce que disent ensemble la réponse et la mesure (*declared, not measured* pour un oui sans données), les liens et les empreintes des fichiers de preuve ; puis qui a soumis, qui a approuvé, et si la double validation s'appliquait. Les instants sont en UTC. |
+| `checklist.json` | La même déclaration, lisible par une machine : projet, révision, identifiant du modèle, version et SHA-256 du fichier source, chaque ligne avec sa réponse courante et son historique — chaque réponse avec son `answeredByKind`, `person` ou `system`, et un retrait par Vectispire marqué `withdrawn` (déclaration de `form` 2) —, sa mesure (la règle et les preuves en textes exacts, ceux que couvrent leurs empreintes) et ses preuves — les fichiers nommés par leur SHA-256, jamais inclus —, l'auteur de la soumission, l'approbateur et la version de Vectispire. |
 | `checklist.xlsx.sig`, `checklist.json.sig` | Signatures détachées par la clé de signature de la plateforme — **seulement pour une révision approuvée**. |
 
 **Le document d'une révision approuvée est produit et signé avec son approbation**, puis conservé :
@@ -346,7 +404,9 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 
 ## Ce qui est consigné
 
-L'ouverture, le passage de version, la réouverture, chaque réponse et chaque confirmation, chaque
+L'ouverture, le passage de version, la réouverture, chaque réponse et chaque confirmation — les
+réponses automatiques de Vectispire et leurs retraits compris, sans utilisateur et avec une
+description qui nomme Vectispire —, chaque
 preuve jointe ou retirée, la soumission, le renvoi, l'approbation et une approbation refusée sont
 inscrits au [journal d'audit](../administration/audit-log.fr.md), de même que chaque téléchargement
 du document, avec son SHA-256. Une approbation est signalée au SIEM

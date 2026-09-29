@@ -181,6 +181,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Changements visibles d'une intégration
 
+- **Une réponse de checklist nomme la nature de son auteur.** Chaque réponse d'une vue de checklist,
+  de l'historique d'une ligne et de `checklist.json` porte `answeredByKind` — `person`, ou `system` pour
+  une réponse donnée par Vectispire à partir de la mesure de la ligne — et `withdrawn`, vrai seulement
+  sur la ligne d'historique par laquelle Vectispire a retiré sa propre réponse. Reconnaissez une réponse
+  automatique à `answeredByKind`, jamais à `answeredBy` : il vaut `Vectispire`, un nom qu'un compte peut
+  aussi porter. `checklist.json` passe pour cela à la déclaration de `form` 2.
 - **Chaque erreur est un problème RFC 9457** (`application/problem+json`) avec un `detail` fait
   pour être affiché — voir [Erreurs de l'API](errors.md). Les refus qui ne portaient aucune phrase
   en portent une : une route inconnue, 405, 406, 415, un corps illisible, les refus de connexion,
@@ -334,6 +340,21 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Nouveautés
 
+- **Vectispire répond aux lignes qu'il mesure** (V56 ajoute `answered_by_kind` et `withdrawn` à
+  `t_checklist_answer`). Sur une checklist en brouillon, une ligne liée à une règle reçoit *oui* quand
+  sa mesure est atteinte et *non*, avec la mesure pour commentaire, quand elle échoue — quand une
+  analyse se termine ou qu'un rapport SARIF, de couverture ou de tests est accepté pour l'un des dépôts
+  du projet, et quand la checklist est ouverte, passée à une autre version ou rouverte ; l'absence de
+  données ne répond rien, et retire une réponse de Vectispire qui reposait sur des données qu'il n'a
+  plus. L'auteur est Vectispire, aucun compte : marqué *automatique* à l'écran, dans l'historique, la
+  feuille `Evidence` et `checklist.json`, audité en `CHECKLIST_ANSWERED` sans utilisateur. La réponse
+  d'une personne n'est jamais remplacée ; Vectispire ne remplace la sienne que si les preuves de la
+  mesure changent, et les mêmes preuves n'écrivent donc rien deux fois. La soumission et l'approbation
+  sont inchangées — des personnes, sous double validation, et un *oui* sur une ligne qui demande une
+  preuve l'exige toujours. **Activé par défaut** : le paramètre `checklist_auto_answer`, celui du
+  gouverneur de plateforme, revient aux réponses des seules personnes. Les checklists déjà en brouillon
+  reçoivent leurs réponses à la prochaine analyse, au prochain import ou à la prochaine ouverture de leur
+  projet. Voir [Checklists de sécurité](../guide/security-checklists.fr.md#reponses-automatiques).
 - **Les lignes mesurées d'une checklist répondues comme mesuré, en un seul geste.**
   `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`, corps
   `{ edition, lines: [{ itemId, measurementDigest }] }`, sur un brouillon : chaque ligne désignée — telle
