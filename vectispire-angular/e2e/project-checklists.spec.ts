@@ -101,13 +101,16 @@ test.describe('Project checklists', () => {
         });
     }
 
-    async function answer(page: Page, position: number, value: RegExp, comment?: string): Promise<void> {
+    // `ready: false` for a line the read still holds back once saved — a yes on a measured line with no
+    // data asks for a comment and a proof straight away, since the read counts the measurements.
+    async function answer(page: Page, position: number, value: RegExp, comment?: string, ready = true): Promise<void> {
         const line = page.getByTestId(`line-${position}`);
         await line.getByRole('button', { name: `Answer line ${position}` }).click();
         await line.getByRole('radio', { name: value }).check();
         if (comment) await line.getByLabel('Comment:').fill(comment);
         await line.getByRole('button', { name: 'Save the answer' }).click();
-        await expect(line.getByTestId('problems')).toHaveText('Ready');
+        if (ready) await expect(line.getByTestId('problems')).toHaveText('Ready');
+        else await expect(line.getByTestId('problems')).not.toHaveText('Ready');
     }
 
     test('a CISO opens, answers and submits a checklist; four-eyes refuses them its sign-off; an administrator gives it', async ({
@@ -358,7 +361,7 @@ test.describe('Project checklists', () => {
         // No data offers nothing to rest an answer on.
         await expect(page.getByRole('button', { name: 'Answer line 1 as measured' })).toHaveCount(0);
 
-        await answer(page, 1, /^Yes/);
+        await answer(page, 1, /^Yes/, undefined, false);
         await answer(page, 2, /^Yes/);
         await answer(page, 3, /^Yes/);
         const line = page.getByTestId('line-1');
@@ -373,7 +376,7 @@ test.describe('Project checklists', () => {
             'Not ready to submit: lines 1 still need attention.'
         );
 
-        await answer(page, 1, /^Yes/, 'No repository filed yet: the secrets review was done by hand.');
+        await answer(page, 1, /^Yes/, 'No repository filed yet: the secrets review was done by hand.', false);
         await expect(problems).not.toContainText('Comment required');
         await expect(problems).toContainText('Evidence required');
         await line.getByRole('button', { name: 'Add evidence to line 1' }).click();
