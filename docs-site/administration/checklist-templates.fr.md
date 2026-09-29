@@ -21,7 +21,7 @@ consigne pourquoi il fonctionne ainsi.
 | | Gouverneur de la plateforme, administrateur, CISO | Auditeur | Tous les autres |
 |---|---|---|---|
 | Voir les modèles, leurs versions, la feuille, la disposition, les items et l'appariement | oui | oui | non — l'entrée n'est pas dans leur menu |
-| Importer un classeur, confirmer une disposition, apparier des items, dériver une version | oui | non | non |
+| Importer un classeur, confirmer une disposition, apparier des items, dire quelle preuve chaque ligne demande, dériver une version | oui | non | non |
 | Publier un brouillon, retirer une version publiée | oui et, [double validation](four-eyes.fr.md) active, **pas la personne qui l'a écrit** | non | non |
 | Écarter un brouillon | oui, son auteur compris | non | non |
 
@@ -82,7 +82,7 @@ Une fois la disposition confirmée, chaque item est comparé avec la version pub
 | Changement | Ce qu'il signifie pour la réponse d'un projet, quand le projet passe à la nouvelle version |
 |---|---|
 | Inchangé | Même clé, même contenu : reportée telle quelle. |
-| Modifié | Même clé, contenu différent — la formulation, le KPI ou la liaison ont bougé : reportée, à confirmer. |
+| Modifié | Même clé, contenu différent — la formulation, le KPI, l'exigence de preuve ou la liaison ont bougé : reportée, à confirmer. |
 | Ajouté | Aucune clé dans la version précédente : commence sans réponse. |
 | Supprimé | Absent de cette version : sa réponse reste là où elle a été donnée. |
 
@@ -97,7 +97,36 @@ publication : quand un autre responsable a modifié le brouillon après que vous
 modification est refusée, les deux révisions nommées, plutôt que de remplacer la sienne sans qu'il le
 voie. Rechargez le brouillon et refaites-la.
 
-## 4. Publier
+## 4. Dire quelle preuve chaque ligne demande
+
+Un classeur dit ce que chaque ligne demande, jamais la preuve qu'il lui faut : chaque ligne d'un
+nouveau brouillon ne demande donc **aucune** preuve — sauf si la ligne existait déjà : confirmer à
+nouveau une disposition garde ce que chaque ligne demandait, et la ligne d'un nouveau classeur prend
+l'exigence de la ligne de même clé de la version précédente. Sur un brouillon dont la disposition est
+confirmée, donnez l'exigence de chaque ligne :
+
+| Exigence | Ce qu'un *oui* demande avant que la checklist puisse être soumise |
+|---|---|
+| `none` | Rien. |
+| `link_or_file` | Un lien ou un fichier, à jour. |
+| `file` | Un fichier, à jour — un lien ne suffit pas. |
+
+et, pour une preuve qui expire, **combien de mois elle vaut**, de 1 à 120 — chaque preuve vaut alors
+jusqu'au jour où le travail a été fait plus ce nombre de mois. Une exigence est envoyée sur la
+**révision affichée**, comme une disposition, et qui la définit devient l'un des auteurs du brouillon.
+
+L'exigence **fait partie de ce que la ligne demande** : une ligne dont l'exigence a bougé est
+*modifiée* par rapport à la version précédente, et la réponse d'un projet reportée sur elle attend que
+quelqu'un la confirme — elle a été donnée quand aucune preuve, ou une autre, n'était demandée. Les
+exigences d'une version publiée ne changent jamais ; dérivez un nouveau brouillon pour en changer une.
+
+!!! note "Par l'API tant que l'écran ne le propose pas"
+    L'écran du brouillon ne définit pas encore les exigences. D'ici là, un script les définit avec
+    `PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence?revision=…`, dont le corps liste
+    les lignes par leur `itemKey` telle que la version la montre, chacune avec son `evidenceKind` et,
+    quand une preuve expire, son `evidenceValidityMonths` ; les lignes non listées gardent la leur.
+
+## 5. Publier
 
 Publier fait de la version celle sur laquelle les projets ouvrent leurs checklists. Le bouton nomme la
 **révision** affichée — le compteur de modifications du brouillon — et c'est cette révision qui est
@@ -119,10 +148,10 @@ Quand le serveur refuse, l'écran dit pourquoi :
 Double validation active, la plateforme refuse de se retrouver avec un seul compte capable de
 publier — voir [double validation](four-eyes.fr.md#lactiver-demande-quune-seconde-personne-existe).
 
-## 5. Dériver, retirer, écarter
+## 6. Dériver, retirer, écarter
 
 - **Dériver un nouveau brouillon** d'une version publiée pour changer ce qu'une version publiée ne peut
-  jamais changer en place : le même classeur, la même disposition et les mêmes items, apparié avec la
+  jamais changer en place : le même classeur, la même disposition et les mêmes items — chacun demandant la même preuve —, apparié avec la
   version dont il vient, et un libellé à lui si vous en donnez un.
 - **Retirer** une version publiée : aucune nouvelle checklist ne s'ouvre dessus, et chaque checklist
   qui l'utilise déjà reste lisible et exportable. Double validation active, elle est retirée par
@@ -153,8 +182,8 @@ même chose.
 
 ## Ce qui est consigné
 
-Chaque import, confirmation de disposition, appariement, dérivation, publication et retrait est inscrit
-au [journal d'audit](audit-log.fr.md). Publier une version, et retirer une version publiée, est aussi
+Chaque import, confirmation de disposition, appariement, exigence de preuve définie, dérivation,
+publication et retrait est inscrit au [journal d'audit](audit-log.fr.md). Publier une version, et retirer une version publiée, est aussi
 signalé au SIEM comme `VECTI-SEC-024`.
 
 ## À lire aussi

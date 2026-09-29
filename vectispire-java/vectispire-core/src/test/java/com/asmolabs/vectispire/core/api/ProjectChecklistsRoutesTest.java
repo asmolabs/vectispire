@@ -17,8 +17,6 @@ import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistFileRepository;
-import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
-import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -81,9 +79,6 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
 
     @Autowired
     private ChecklistFileRepository files;
-
-    @Autowired
-    private ChecklistItemRepository items;
 
     /** An account the test acts as: its token, its identifier, its name. */
     private record Account(String token, long id, String name) {}
@@ -414,16 +409,30 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
 
         @Test
-        @DisplayName("a yes on a line asking for a file is submitted with one in date, never with a link or a lapsed one")
+        @DisplayName("a yes on a line whose template asks for a file is submitted with one in date, never with a link or a lapsed one")
         void theEvidenceRequirement() throws Exception {
-            open(developer, "release", 1, null).andExpect(status().isCreated());
-            List<Long> lines = itemIds(read(developer, 1));
-            // No route binds an evidence requirement yet (the rules' lot will): set on the stored item.
-            ChecklistItemEntity asksAFile = items.findById(lines.getFirst()).orElseThrow();
-            asksAFile.setEvidenceKind("file");
-            asksAFile.setEvidenceValidityMonths(1);
-            items.save(asksAFile);
+            // The requirement set on the template's draft, by its route, before the version is published.
+            importDraft("proofs", ChecklistWorkbooks.FIRST, 9);
+            String firstKey = read(mvc.perform(authenticated(get(TEMPLATES + "/proofs/versions/1"), asAdmin()))
+                    .andExpect(status().isOk())).at("/items/0/itemKey").asText();
+            mvc.perform(authenticated(put(TEMPLATES + "/proofs/versions/1/evidence"), asAdmin())
+                            .param("revision", String.valueOf(templateRevision("proofs", 1)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("items", List.of(Map.of("itemKey", firstKey, "evidenceKind", "file",
+                                    "evidenceValidityMonths", 1))))))
+                    .andExpect(status().isOk());
+            publish("proofs", 1);
+
+            open(developer, "proofs", 1, null).andExpect(status().isCreated());
+            JsonNode opened = read(developer, 1);
+            assertThat(opened.at("/lines/0/evidenceKind").asText()).isEqualTo("file");
+            assertThat(opened.at("/lines/0/evidenceValidityMonths").asInt()).isEqualTo(1);
+            List<Long> lines = itemIds(opened);
             answerAll(developer, 1, lines);
+            assertThat(read(developer, 1).at("/lines/0/problems").toString()).contains("evidence_required");
+            MvcResult unproven = submit(developer, 1, edition(1)).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(unproven)).isEqualTo(PROBLEM + "checklist-incomplete");
+            assertThat(detailOf(unproven)).contains("line 1 evidence required");
 
             attachLink(developer, 1, lines.getFirst(), "https://wiki.example.invalid/review", today().toString(), edition(1))
                     .andExpect(status().isCreated());

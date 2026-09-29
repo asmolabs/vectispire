@@ -574,3 +574,25 @@ Each with the recommendation this proposal makes.
 
 Split into independently shippable lots in
 [the implementation plan](../../../analysis/security-checklists-plan.md).
+
+## Amendment (2026-09-29) — who sets an item's evidence requirement
+
+**The gap.** §2 gives every item an evidence requirement — none, a link or a file, or a file, and a
+validity in months — and §5 refuses a submission until each is met and in date; neither says who sets
+it. No column of an organisation's workbook states it, so the import of §3 read every item as `none`,
+and no proof was ever required of anybody.
+
+**The resolution.** The requirement is set by a person on a **draft** version, like its layout and its
+pairs (§3, before step 6): `PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, for
+each item named by its key, the kind and the optional validity (1 to 120 months). It is the security
+lead's (§8), names the `revision` the editor read (absent 400, stale 409 `checklist-template-changed`),
+makes its editor one of the draft's authors for four-eyes, and is audited as
+`CHECKLIST_TEMPLATE_EVIDENCE_SET` — an operation of its own, since nothing of the workbook is read
+again. A published version's requirements never change: derive a new version, which carries them.
+
+The requirement stays in the content digest, as §2 has it, so a moved requirement makes the item
+*changed* (§4) and a carried answer waits for confirmation. Two consequences follow, and both are
+decided the same way — a requirement follows its item's key: confirming a draft's layout again keeps
+each item's requirement, and a new workbook's item takes the requirement of the previous version's
+item with the same key. Read as the workbook says, both would drop every requirement, and the second
+would mark every such item changed.

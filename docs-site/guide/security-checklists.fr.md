@@ -88,6 +88,11 @@ où le travail a été fait plus ce nombre de mois, et la ligne affiche *Preuve 
 vaut plus. Une preuve n'est demandée qu'à un *oui* — un *non* dit que le contrôle n'est pas en place,
 et son commentaire dit pourquoi. Une ligne qui demande un fichier n'est pas satisfaite par un lien.
 
+Quelles lignes demandent une preuve, de quelle sorte et pour combien de temps, relève du **modèle**,
+défini sur son brouillon avant sa publication — voir [modèles de checklists](../administration/checklist-templates.fr.md#4-dire-quelle-preuve-chaque-ligne-demande).
+Une ligne montre ce qu'elle demande ; une ligne qui n'en demande aucune n'a besoin d'aucune preuve,
+quelle que soit sa réponse.
+
 **Retirer** une preuve tant que la révision est un brouillon. Elle n'est jamais supprimée : elle cesse
 de compter, et elle reste dans la liste, barrée, avec qui l'a retirée et quand.
 

@@ -480,6 +480,142 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
     }
 
     @Nested
+    @DisplayName("what proof a line asks for")
+    class EvidenceRequirements {
+
+        @Test
+        @DisplayName("is set on a draft's lines, read back, audited, and moves each changed line's digest alone")
+        void settingAndReadingBack() throws Exception {
+            int revision = draftWithLayout("release");
+            JsonNode before = version("release", 1);
+            List<String> keys = keys(before);
+
+            JsonNode after = read(evidence(reviewer, "release", 1, List.of(
+                            line(keys.get(0), "file", 12), line(keys.get(1), "link_or_file", null)), revision)
+                    .andExpect(status().isOk()));
+
+            assertThat(after.at("/items/0/evidenceKind").asText()).isEqualTo("file");
+            assertThat(after.at("/items/0/evidenceValidityMonths").asInt()).isEqualTo(12);
+            assertThat(after.at("/items/1/evidenceKind").asText()).isEqualTo("link_or_file");
+            assertThat(after.at("/items/1/evidenceValidityMonths").isNull()).isTrue();
+            assertThat(after.at("/items/2/evidenceKind").asText()).as("a line not listed keeps its own").isEqualTo("none");
+            assertThat(keys(after)).as("the keys do not move").isEqualTo(keys);
+            assertThat(after.at("/items/0/contentDigest").asText()).isNotEqualTo(before.at("/items/0/contentDigest").asText());
+            assertThat(after.at("/items/1/contentDigest").asText()).isNotEqualTo(before.at("/items/1/contentDigest").asText());
+            assertThat(after.at("/items/2/contentDigest").asText()).isEqualTo(before.at("/items/2/contentDigest").asText());
+            assertThat(after.at("/version/revision").asInt()).isEqualTo(revision + 1);
+            assertThat(after.at("/version/draftAuthors").toString()).as("whoever sets a requirement wrote the draft")
+                    .contains(reviewerName);
+            assertThat(version("release", 1).at("/items")).isEqualTo(after.at("/items"));
+
+            assertThat(entries("CHECKLIST_TEMPLATE_EVIDENCE_SET")).singleElement().satisfies(entry -> {
+                assertThat(entry.getResourceId()).isEqualTo("release/1");
+                assertThat(entry.getDescription()).contains("2 lines").contains("line 1 (row 7) asks for a file, holding 12 months")
+                        .contains("line 2 (row 8) asks for a link or a file");
+            });
+
+            // Back to none, and the digest is the imported one again: the requirement is all that moved.
+            JsonNode reset = read(evidence(reviewer, "release", 1, List.of(line(keys.get(0), "none", null)),
+                    revision + 1).andExpect(status().isOk()));
+            assertThat(reset.at("/items/0/contentDigest").asText()).isEqualTo(before.at("/items/0/contentDigest").asText());
+        }
+
+        @Test
+        @DisplayName("is carried by derive, and a requirement moved on the derived draft makes its line changed")
+        void carriedByDeriveAndPairedAsChanged() throws Exception {
+            int revision = draftWithLayout("release");
+            List<String> keys = keys(version("release", 1));
+            evidence(importer, "release", 1, List.of(line(keys.get(0), "file", 6)), revision).andExpect(status().isOk());
+            publish(reviewer, "release", 1, currentRevision("release", 1)).andExpect(status().isOk());
+
+            JsonNode derived = read(mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), importer))
+                    .andExpect(status().isCreated()));
+            assertThat(derived.at("/items/0/evidenceKind").asText()).isEqualTo("file");
+            assertThat(derived.at("/items/0/evidenceValidityMonths").asInt()).isEqualTo(6);
+            assertThat(changes(preview("release", 2).at("/pairing"))).containsOnly("unchanged");
+
+            evidence(importer, "release", 2, List.of(line(keys.get(1), "file", null)), currentRevision("release", 2))
+                    .andExpect(status().isOk());
+            JsonNode pairing = preview("release", 2).at("/pairing");
+            assertThat(changes(pairing)).as("§4: the line asks something else, an answer carried onto it waits")
+                    .containsExactly("unchanged", "changed", "unchanged");
+            assertThat(pairing.get(1).at("/pairedByHand").asBoolean()).isFalse();
+        }
+
+        @Test
+        @DisplayName("survives a layout confirmed again, and a new workbook inherits the previous version's by key")
+        void keptByKey() throws Exception {
+            int revision = draftWithLayout("release");
+            List<String> keys = keys(version("release", 1));
+            evidence(importer, "release", 1, List.of(line(keys.get(0), "file", 6)), revision).andExpect(status().isOk());
+
+            JsonNode relaid = read(confirm(importer, "release", 1, layout(9)).andExpect(status().isOk()));
+            assertThat(relaid.at("/items/0/evidenceKind").asText()).as("the workbook states no requirement")
+                    .isEqualTo("file");
+            assertThat(relaid.at("/items/0/evidenceValidityMonths").asInt()).isEqualTo(6);
+            publish(reviewer, "release", 1, currentRevision("release", 1)).andExpect(status().isOk());
+
+            importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.SECOND), "")
+                    .andExpect(status().isCreated());
+            JsonNode second = read(confirm(importer, "release", 2, layout(10)).andExpect(status().isOk()));
+            assertThat(second.at("/items/0/itemKey").asText()).isEqualTo(keys.get(0));
+            assertThat(second.at("/items/0/evidenceKind").asText()).isEqualTo("file");
+            assertThat(changes(preview("release", 2).at("/pairing")).getFirst())
+                    .as("the unchanged control stays unchanged: its answers are carried as current")
+                    .isEqualTo("unchanged");
+        }
+
+        @Test
+        @DisplayName("names the revision read, on a draft with a layout, and refuses what cannot be one in words")
+        void refusals() throws Exception {
+            importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")
+                    .andExpect(status().isCreated());
+            MvcResult noLayout = evidence(importer, "release", 1, List.of(line("text:x", "file", null)), 1)
+                    .andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(noLayout)).isEqualTo(PROBLEM + "checklist-template-no-layout");
+
+            int revision = read(confirm(importer, "release", 1, layout(9)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+            String key = keys(version("release", 1)).getFirst();
+
+            MvcResult stale = evidence(importer, "release", 1, List.of(line(key, "file", null)), revision - 1)
+                    .andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(stale)).isEqualTo(PROBLEM + "checklist-template-changed");
+            assertThat(detailOf(stale)).contains("has changed since revision " + (revision - 1));
+            assertThat(detailOf(evidence(importer, "release", 1, List.of(line(key, "file", null)), null)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("revision");
+
+            assertThat(detailOf(evidence(importer, "release", 1, List.of(line(key, "photo", null)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("none, link_or_file, file");
+            assertThat(detailOf(evidence(importer, "release", 1, List.of(line(key, "file", 0)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("between 1 and 120");
+            evidence(importer, "release", 1, List.of(line(key, "file", 121)), revision).andExpect(status().isBadRequest());
+            assertThat(detailOf(evidence(importer, "release", 1, List.of(line(key, "none", 12)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("asks for none");
+            assertThat(detailOf(evidence(importer, "release", 1, List.of(line("text:nothing", "file", null)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("has no item");
+            assertThat(detailOf(evidence(importer, "release", 1,
+                            List.of(line(key, "file", null), line(key, "none", null)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("named twice");
+            evidence(importer, "release", 1, List.of(), revision).andExpect(status().isBadRequest());
+            assertThat(version("release", 1).at("/version/revision").asInt()).as("no refusal writes").isEqualTo(revision);
+            assertThat(entries("CHECKLIST_TEMPLATE_EVIDENCE_SET")).isEmpty();
+
+            for (Role refused : List.of(Role.SECURITY_CHAMPION, Role.AUDITOR, Role.USER)) {
+                evidence(tokenFor("refused-" + refused + "-" + System.nanoTime(), refused, false), "release", 1,
+                        List.of(line(key, "file", null)), revision).andExpect(status().isForbidden());
+            }
+
+            publish(reviewer, "release", 1, revision).andExpect(status().isOk());
+            MvcResult published = evidence(importer, "release", 1, List.of(line(key, "file", null)),
+                    currentRevision("release", 1)).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(published)).as("a published version is changed by deriving a new one")
+                    .isEqualTo(PROBLEM + "checklist-template-not-draft");
+            assertThat(version("release", 1).at("/items/0/evidenceKind").asText()).isEqualTo("none");
+        }
+    }
+
+    @Nested
     @DisplayName("retiring")
     class Retiring {
 
@@ -616,6 +752,24 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
         }
         return mvc.perform(authenticated(put, token).contentType(MediaType.APPLICATION_JSON)
                 .content(write(Map.of("pairs", pairs))));
+    }
+
+    private ResultActions evidence(String token, String slug, int ordinal, List<Map<String, Object>> lines,
+            Integer revision) throws Exception {
+        var put = put(BASE + "/" + slug + "/versions/" + ordinal + "/evidence");
+        if (revision != null) {
+            put = put.param("revision", String.valueOf(revision));
+        }
+        return mvc.perform(authenticated(put, token).contentType(MediaType.APPLICATION_JSON)
+                .content(write(Map.of("items", lines))));
+    }
+
+    private static Map<String, Object> line(String itemKey, String kind, Integer validityMonths) {
+        Map<String, Object> line = new LinkedHashMap<>();
+        line.put("itemKey", itemKey);
+        line.put("evidenceKind", kind);
+        line.put("evidenceValidityMonths", validityMonths);
+        return line;
     }
 
     /** The version's revision as a reader sees it now; absent for a version that does not exist. */

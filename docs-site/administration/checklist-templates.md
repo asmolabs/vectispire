@@ -19,7 +19,7 @@ records why it works the way it does.
 | | Platform governor, administrator, CISO | Auditor | Everybody else |
 |---|---|---|---|
 | See the templates, their versions, the sheet, the layout, the items and the pairing | yes | yes | no — the entry is not in their sidebar |
-| Import a workbook, confirm a layout, pair items, derive a version | yes | no | no |
+| Import a workbook, confirm a layout, pair items, set what proof each line asks for, derive a version | yes | no | no |
 | Publish a draft, retire a published version | yes, and with [four-eyes approval](four-eyes.md) on, **not the person who wrote it** | no | no |
 | Set a draft aside | yes, the author included | no | no |
 
@@ -78,7 +78,7 @@ Once the layout is confirmed, each item is compared with the previous published 
 | Change | What it means for a project's answer, when the project moves to the new version |
 |---|---|
 | Unchanged | Same key, same content: carried as it is. |
-| Changed | Same key, different content — the wording, the KPI or the binding moved: carried, to be confirmed. |
+| Changed | Same key, different content — the wording, the KPI, the evidence requirement or the binding moved: carried, to be confirmed. |
 | Added | No key in the previous version: starts unanswered. |
 | Removed | Not in this version: its answer stays where it was given. |
 
@@ -91,7 +91,35 @@ Confirming a layout and pairing items are sent on the **revision on screen**, li
 another lead changed the draft after you opened it, your change is refused with both revisions named,
 rather than replacing theirs unseen. Reload the draft and make it again.
 
-## 4. Publish
+## 4. Say what proof each line asks for
+
+A workbook states what each line asks, never what proof it needs, so every line of a new draft asks
+for **none** — unless the line was there before: confirming a layout again keeps what each line
+asked for, and a new workbook's line takes the requirement of the previous version's line with the
+same key. On a draft with a confirmed layout, set each line's requirement:
+
+| Requirement | What a *yes* needs before the checklist can be submitted |
+|---|---|
+| `none` | Nothing. |
+| `link_or_file` | A link or a file, in date. |
+| `file` | A file, in date — a link does not satisfy it. |
+
+and, for a proof that expires, **how many months it holds**, 1 to 120 — each proof is then valid
+until the day the work was done plus that many months. A requirement is sent on the **revision on
+screen**, like a layout, and whoever sets it becomes one of the draft's authors.
+
+The requirement is **part of what the line asks**: a line whose requirement moved is *changed*
+against the previous version, and a project's answer carried onto it waits for somebody to confirm
+it — the answer was given when no proof, or another one, was asked. A published version's
+requirements never change; derive a new draft to change one.
+
+!!! note "Through the API until the screen offers it"
+    The draft's screen does not set requirements yet. Until it does, a script sets them with
+    `PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence?revision=…`, whose body lists
+    the lines by their `itemKey` as the version shows it, each with its `evidenceKind` and, when a
+    proof expires, its `evidenceValidityMonths`; lines not listed keep theirs.
+
+## 5. Publish
 
 Publishing makes the version what projects open their checklists on. The button names the
 **revision** on screen — the draft's edit counter — and that revision is what is sent: an edit made
@@ -112,10 +140,10 @@ When the server refuses, the screen says why:
 With four-eyes on, the platform refuses to be left with a single account able to publish — see
 [four-eyes approval](four-eyes.md#switching-it-on-requires-that-a-second-person-exist).
 
-## 5. Derive, retire, set aside
+## 6. Derive, retire, set aside
 
 - **Derive a new draft** from a published version to change what a published version may never
-  change in place: the same workbook, layout and items, paired with the version it comes from, and a
+  change in place: the same workbook, layout and items — each asking for the same proof — paired with the version it comes from, and a
   label of its own if you give one.
 - **Retire** a published version: no new checklist opens on it, and every checklist already on it
   stays readable and exportable. With four-eyes on, it is retired by somebody who did not write it.
@@ -144,7 +172,8 @@ which is written for a person and may change.
 
 ## What is recorded
 
-Every import, layout confirmation, pairing, derivation, publication and retirement is written to the
+Every import, layout confirmation, pairing, evidence requirement set, derivation, publication and
+retirement is written to the
 [audit log](audit-log.md). Publishing a version, and retiring a published one, is also signalled to
 the SIEM as `VECTI-SEC-024`.
 

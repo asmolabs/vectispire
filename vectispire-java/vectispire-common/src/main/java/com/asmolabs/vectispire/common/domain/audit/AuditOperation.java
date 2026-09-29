@@ -324,6 +324,13 @@ public enum AuditOperation {
      */
     CHECKLIST_TEMPLATE_ITEMS_PAIRED,
 
+    /**
+     * What proof some of a draft's lines ask for, and how long a proof holds, was set. A requirement
+     * decides what every project must attach before it can submit, so who set it is recorded — an
+     * operation of its own, not a layout confirmation: nothing of the workbook was read again.
+     */
+    CHECKLIST_TEMPLATE_EVIDENCE_SET,
+
     /** A new draft was derived from a published version: same workbook, same layout, same items. */
     CHECKLIST_TEMPLATE_DERIVED,
 

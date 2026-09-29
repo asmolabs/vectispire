@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.common.domain.checklists;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.DisplayName;
@@ -152,5 +153,16 @@ class ChecklistItemTest {
         assertThatThrownBy(() -> new EvidenceRequirement(EvidenceRequirement.Kind.FILE,
                 Optional.of(EvidenceRequirement.MAX_VALIDITY_MONTHS + 1)))
                 .hasMessageContaining("between 1 and");
+    }
+
+    @Test
+    @DisplayName("a requirement is named by its wire name, and anything else is refused in words, not by valueOf")
+    void evidenceKindParsed() {
+        assertThat(EvidenceRequirement.Kind.parse(" Link_Or_File ")).isEqualTo(EvidenceRequirement.Kind.LINK_OR_FILE);
+        assertThat(EvidenceRequirement.Kind.parse("none")).isEqualTo(EvidenceRequirement.Kind.NONE);
+        assertThatThrownBy(() -> EvidenceRequirement.Kind.parse("photo"))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessageContaining("none, link_or_file, file").hasMessageContaining("\"photo\"");
+        assertThatThrownBy(() -> EvidenceRequirement.Kind.parse(null)).hasMessageContaining("none was given");
     }
 }

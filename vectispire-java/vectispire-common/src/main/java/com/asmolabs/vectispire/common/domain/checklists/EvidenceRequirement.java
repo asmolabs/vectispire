@@ -1,9 +1,12 @@
 package com.asmolabs.vectispire.common.domain.checklists;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * What proof a line asks for before its checklist can be submitted, and for how long a proof holds.
@@ -25,6 +28,19 @@ public record EvidenceRequirement(Kind kind, Optional<Integer> validityMonths) {
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);
+        }
+
+        /**
+         * A kind as a request names it, refused in words: {@code Enum.valueOf} on a caller's value is a
+         * 500 that quotes nothing but a correlation id.
+         */
+        public static Kind parse(String value) {
+            String wanted = value == null ? "" : value.strip().toLowerCase(Locale.ROOT);
+            return Arrays.stream(values()).filter(kind -> kind.wireName().equals(wanted)).findFirst()
+                    .orElseThrow(() -> new InvalidInputException("A line's evidence requirement is one of "
+                            + Arrays.stream(values()).map(Kind::wireName).collect(Collectors.joining(", "))
+                            + (wanted.isEmpty() ? "; none was given." : "; \"" + BoundedText.clip(wanted, 40)
+                                    + "\" is not one.")));
         }
     }
 

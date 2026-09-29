@@ -788,6 +788,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set checklist template evidence requirements
+         * @description Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the proof a yes needs before a checklist can be submitted — evidenceKind none, link_or_file or file — and, for a proof that expires, evidenceValidityMonths, 1 to 120. Lines not listed keep theirs. The requirement is part of the line's content digest: a line whose requirement moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a requirement that is none, a validity out of bounds or on a line asking for no proof; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.
+         */
+        put: operations["setEvidence"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/checklist-templates/{slug}/versions/{ordinal}/layout": {
         parameters: {
             query?: never;
@@ -4081,6 +4101,9 @@ export interface components {
             /** Format: int32 */
             edition?: number;
         };
+        ChecklistEvidenceRequest: {
+            items?: components["schemas"]["ChecklistItemEvidence"][];
+        };
         ChecklistEvidenceView: {
             /** Format: date-time */
             addedAt?: string;
@@ -4108,6 +4131,12 @@ export interface components {
             /** Format: date-time */
             withdrawnAt?: string;
             withdrawnBy?: string;
+        };
+        ChecklistItemEvidence: {
+            evidenceKind?: string;
+            /** Format: int32 */
+            evidenceValidityMonths?: number;
+            itemKey?: string;
         };
         ChecklistItemPair: {
             added?: string;
@@ -7974,6 +8003,35 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    setEvidence: {
+        parameters: {
+            query?: {
+                revision?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEvidenceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

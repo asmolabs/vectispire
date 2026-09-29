@@ -86,6 +86,10 @@ and the line shows *Evidence out of date* once none holds. Evidence is asked of 
 states that the control is not in place, and its comment says why. A line that asks for a file is not
 satisfied by a link.
 
+Which lines ask for a proof, of what kind and for how long, is the **template's**, set on its draft
+before it is published — see [checklist templates](../administration/checklist-templates.md#4-say-what-proof-each-line-asks-for).
+A line shows what it asks for; a line asking for none needs no proof, whatever its answer.
+
 **Withdraw** a proof while the revision is a draft. It is never deleted: it stops counting, and it
 stays in the list, struck through, with who withdrew it and when.
 

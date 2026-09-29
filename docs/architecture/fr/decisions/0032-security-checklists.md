@@ -622,3 +622,27 @@ Chacune avec la recommandation de cette proposition.
 
 Découpée en lots livrables indépendamment dans
 [le plan de mise en œuvre](../../../analysis/security-checklists-plan.md) (en anglais).
+
+## Amendement (2026-09-29) — qui définit l'exigence de preuve d'un item
+
+**Le manque.** Le §2 donne à chaque item une exigence de preuve — aucune, un lien ou un fichier, ou un
+fichier, et une validité en mois — et le §5 refuse une soumission tant que chacune n'est pas satisfaite
+et à jour ; aucun des deux ne dit qui la définit. Aucune colonne du classeur d'une organisation ne
+l'énonce, si bien que l'import du §3 lisait chaque item comme `none`, et qu'aucune preuve n'était
+jamais demandée à personne.
+
+**La résolution.** L'exigence est définie par une personne sur une version **brouillon**, comme sa
+disposition et ses appariements (§3, avant l'étape 6) :
+`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, pour chaque item nommé par sa
+clé, la sorte et la validité facultative (1 à 120 mois). Elle revient au responsable sécurité (§8),
+nomme la `revision` que l'éditeur a lue (absente 400, périmée 409 `checklist-template-changed`), fait
+de son éditeur l'un des auteurs du brouillon pour la double validation, et est consignée comme
+`CHECKLIST_TEMPLATE_EVIDENCE_SET` — une opération à elle, puisque rien du classeur n'est relu. Les
+exigences d'une version publiée ne changent jamais : on dérive une nouvelle version, qui les reporte.
+
+L'exigence reste dans l'empreinte du contenu, comme le veut le §2 : une exigence qui bouge rend l'item
+*modifié* (§4) et une réponse reportée attend confirmation. Deux conséquences en découlent, tranchées
+de la même façon — une exigence suit la clé de son item : confirmer à nouveau la disposition d'un
+brouillon garde l'exigence de chaque item, et l'item d'un nouveau classeur prend l'exigence de l'item
+de même clé de la version précédente. Lues comme le dit le classeur, les deux perdraient chaque
+exigence, et la seconde marquerait modifié chacun de ces items.

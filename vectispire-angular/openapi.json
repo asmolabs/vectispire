@@ -1244,6 +1244,17 @@
         },
         "type" : "object"
       },
+      "ChecklistEvidenceRequest" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistItemEvidence"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "ChecklistEvidenceView" : {
         "properties" : {
           "addedAt" : {
@@ -1308,6 +1319,21 @@
           }
         },
         "required" : [ "inDate" ],
+        "type" : "object"
+      },
+      "ChecklistItemEvidence" : {
+        "properties" : {
+          "evidenceKind" : {
+            "type" : "string"
+          },
+          "evidenceValidityMonths" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "itemKey" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ChecklistItemPair" : {
@@ -10064,6 +10090,60 @@
           }
         },
         "summary" : "Derive checklist template version",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence" : {
+      "put" : {
+        "description" : "Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the proof a yes needs before a checklist can be submitted — evidenceKind none, link_or_file or file — and, for a proof that expires, evidenceValidityMonths, 1 to 120. Lines not listed keep theirs. The requirement is part of the line's content digest: a line whose requirement moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a requirement that is none, a validity out of bounds or on a line asking for no proof; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.",
+        "operationId" : "setEvidence",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "revision",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistEvidenceRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Set checklist template evidence requirements",
         "tags" : [ "Checklist templates" ]
       }
     },

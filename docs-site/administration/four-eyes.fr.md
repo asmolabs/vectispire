@@ -38,7 +38,7 @@ Il refuse aussi tant que **moins de deux comptes actifs peuvent publier un modè
 gouverneur de la plateforme, un administrateur ou un CISO. Sous les quatre yeux, une version de modèle
 est publiée par quelqu'un d'autre que son auteur, et l'écrire demande le même rôle : avec un seul tel
 compte, chaque brouillon pourrait être importé et aucun jamais publié. Créez-en d'abord un second.
-[Modèles de checklists](checklist-templates.fr.md#4-publier) décrit ce qu'on dit à l'auteur d'un
+[Modèles de checklists](checklist-templates.fr.md#5-publier) décrit ce qu'on dit à l'auteur d'un
 brouillon quand le serveur refuse qu'il le publie lui-même.
 
 Et il refuse tant que **moins de deux comptes actifs peuvent approuver** — un administrateur, un CISO

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.checklists.ChecklistItemEvidence;
 import com.asmolabs.vectispire.core.checklists.ChecklistItemPair;
 import com.asmolabs.vectispire.core.checklists.ChecklistLayoutForm;
 import com.asmolabs.vectispire.core.checklists.ChecklistTemplatePreview;
@@ -32,8 +33,9 @@ import org.springframework.web.bind.annotation.RestController;
  * <p><b>Organisation-wide, not target-scoped.</b> A template is the organisation's own checklist: it
  * names no repository, no image, no project, and describes nobody's estate — so no route resolves a
  * visibility, and the roles decide. Writing one — importing a workbook, confirming a draft's layout
- * and words, pairing its items, deriving, publishing, retiring — is {@code @RequiresSecurityLead}, the
- * roles that {@code canWriteGovernance}: the platform governor, an administrator, a CISO. Reading one
+ * and words, pairing its items, setting what proof its lines ask for, deriving, publishing, retiring —
+ * is {@code @RequiresSecurityLead}, the roles that {@code canWriteGovernance}: the platform governor, an
+ * administrator, a CISO. Reading one
  * is {@code @RequiresGovernanceRead}, which adds the auditor: the words an organisation asks its teams
  * to attest to are governance, and the auditor reads everything and writes nothing. With four-eyes
  * on, the service refuses an author of a version as its publisher.
@@ -67,6 +69,9 @@ public class ChecklistTemplatesController {
 
     /** @param pairs every pair the draft is to have: an empty list clears them */
     public record ChecklistPairsRequest(List<ChecklistItemPair> pairs) {}
+
+    /** @param items the lines whose requirement changes; a line not listed keeps its own */
+    public record ChecklistEvidenceRequest(List<ChecklistItemEvidence> items) {}
 
     /** @param label how the new version is known, beside its number; optional */
     public record ChecklistDeriveRequest(String label) {}
@@ -160,6 +165,28 @@ public class ChecklistTemplatesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return templates.pairItems(slug, ordinal, revision, body == null ? null : body.pairs(),
+                editor(principal, request));
+    }
+
+    @Operation(summary = "Set checklist template evidence requirements", description = "Security lead only, on a "
+            + "draft with a confirmed layout. For each line named by its itemKey: the proof a yes needs before a "
+            + "checklist can be submitted — evidenceKind none, link_or_file or file — and, for a proof that expires, "
+            + "evidenceValidityMonths, 1 to 120. Lines not listed keep theirs. The requirement is part of the line's "
+            + "content digest: a line whose requirement moved is changed against the previous version, and a "
+            + "project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 "
+            + "without revision or lines, for a line named twice or not in the version, a requirement that is none, a "
+            + "validity out of bounds or on a line asking for no proof; 409 checklist-template-not-draft, "
+            + "checklist-template-no-layout, checklist-template-changed.")
+    @PutMapping("/{slug}/versions/{ordinal}/evidence")
+    @RequiresSecurityLead
+    public ChecklistVersionView setEvidence(
+            @PathVariable String slug,
+            @PathVariable int ordinal,
+            @RequestParam(required = false) Integer revision,
+            @RequestBody ChecklistEvidenceRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return templates.setEvidence(slug, ordinal, revision, body == null ? null : body.items(),
                 editor(principal, request));
     }
 

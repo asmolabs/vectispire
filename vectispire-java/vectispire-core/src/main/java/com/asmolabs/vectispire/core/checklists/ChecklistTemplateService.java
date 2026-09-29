@@ -105,6 +105,9 @@ public class ChecklistTemplateService {
     /** Column {@code t_checklist_item.item_key}. */
     private static final int MAX_KEY = 255;
 
+    /** The lines an evidence entry of the audit log names one by one; a whole catalogue would be a page. */
+    private static final int AUDITED_LINES = 20;
+
     private final ChecklistTemplateRepository templates;
     private final ChecklistTemplateVersionRepository versions;
     private final ChecklistItemRepository items;
@@ -261,7 +264,8 @@ public class ChecklistTemplateService {
     /**
      * Confirms a draft's layout and answer words, and reads its items from the workbook by them —
      * blank domain and objective cells filled down, rows without a control left out. Pairs made
-     * earlier are cleared: they named items as the previous layout read them.
+     * earlier are cleared: they named items as the previous layout read them. Evidence requirements
+     * are kept, by key ({@link #keepingEvidence}).
      *
      * @param seenRevision the revision the editor read — a draft edited since is refused
      */
@@ -272,12 +276,13 @@ public class ChecklistTemplateService {
         ChecklistTemplateVersionEntity version = requireDraft(requireVersion(template, ordinal), "have its layout confirmed");
         requireSeen(template, version, seenRevision, "confirming its layout");
         TemplateVersion read = TemplateVersion.read(stored(version), layout);
+        List<ChecklistItem> lines = keepingEvidence(version, read.items());
 
         List<DraftAuthor> authors = withAuthor(forms.authors(version.getDraftAuthors()), editor);
         transactions.executeWithoutResult(status -> {
             requireStill(versions.editDraft(version.getId(), version.getRevision(), TemplateVersionStatus.DRAFT.wireName(),
                     forms.layout(layout), layout.offersNotApplicable(), null, forms.authors(authors)), version);
-            replaceItems(version.getId(), read.items());
+            replaceItems(version.getId(), lines);
         });
 
         audit.record(editor.actor().entry(AuditOperation.CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED,
@@ -324,6 +329,74 @@ public class ChecklistTemplateService {
                 "Checklist template \"" + template.getSlug() + "\" version " + ordinal + ": " + pairs.size()
                         + (pairs.size() == 1 ? " item" : " items") + " paired by hand with version "
                         + ordinalOf(version.getPreviousVersionId()) + "; their answers follow them, to be confirmed."));
+        return versionView(template, version.getId());
+    }
+
+    /**
+     * Sets what proof some of a draft's lines ask for, and how long a proof holds (decision 0032 §2):
+     * the lines listed change, the others keep theirs. The requirement is part of each line's content
+     * digest, so a line whose requirement moved is <em>changed</em> against the previous version, and
+     * an answer carried onto it waits for a person's confirmation (§4) — asking for a file where a word
+     * sufficed is asking something else.
+     *
+     * <p><b>Why a route of its own.</b> The ADR defines the requirement and checks it at submission,
+     * and said nowhere who sets it; the import read every line as {@code none}, so no proof was ever
+     * required. A requirement is the template's, not the workbook's — no column of the organisation's
+     * sheet states it — so a person sets it on the draft, like the layout, before somebody else
+     * publishes it.
+     *
+     * @param seenRevision the revision the editor read — a draft edited since is refused
+     * @throws InvalidInputException no revision, no line, a line named twice or not in the version, a
+     *     requirement that is none, a validity outside 1 to 120 months or given to a line asking for no
+     *     proof (400)
+     * @throws ChecklistConflict {@code checklist-template-not-draft}, {@code checklist-template-no-layout},
+     *     {@code checklist-template-changed} (409)
+     */
+    public ChecklistVersionView setEvidence(
+            String slug, int ordinal, Integer seenRevision, List<ChecklistItemEvidence> requested, Editor editor) {
+        Map<String, EvidenceRequirement> wanted = parseEvidence(requested);
+        ChecklistTemplateEntity template = requireTemplate(slug);
+        ChecklistTemplateVersionEntity version = requireDraft(requireVersion(template, ordinal),
+                "have its evidence requirements set");
+        requireSeen(template, version, seenRevision, "setting its evidence requirements");
+        requireLayout(version, "setting its evidence requirements");
+
+        Map<String, ChecklistItemEntity> byKey = new LinkedHashMap<>();
+        items.findByVersionIdOrderByPositionAsc(version.getId()).forEach(item -> byKey.put(item.getItemKey(), item));
+        List<ChecklistItemEntity> changed = new ArrayList<>();
+        List<String> described = new ArrayList<>();
+        wanted.forEach((key, evidence) -> {
+            ChecklistItemEntity item = byKey.get(key);
+            if (item == null) {
+                throw new InvalidInputException("Version " + ordinal + " of \"" + template.getSlug() + "\" has no item \""
+                        + BoundedText.clip(key, 60) + "\"; a line is named by its key as the version shows it.");
+            }
+            ChecklistItem requiring = domain(item).withEvidence(evidence);
+            item.setEvidenceKind(evidence.kind().wireName());
+            item.setEvidenceValidityMonths(evidence.validityMonths().orElse(null));
+            // The digest is what the version's view and its documents state: a requirement written
+            // without it would say the line asks what it asked before.
+            item.setContentDigest(requiring.contentDigest());
+            changed.add(item);
+            described.add("line " + item.getPosition() + " (row " + item.getSheetRow() + ") " + describe(evidence));
+        });
+
+        List<DraftAuthor> authors = withAuthor(forms.authors(version.getDraftAuthors()), editor);
+        transactions.executeWithoutResult(status -> {
+            requireStill(versions.editDraft(version.getId(), version.getRevision(), TemplateVersionStatus.DRAFT.wireName(),
+                    version.getLayout(), version.isOffersNotApplicable(), version.getItemPairs(), forms.authors(authors)),
+                    version);
+            items.saveAll(changed);
+        });
+
+        audit.record(editor.actor().entry(AuditOperation.CHECKLIST_TEMPLATE_EVIDENCE_SET, resource(template, ordinal),
+                "Checklist template \"" + template.getSlug() + "\" version " + ordinal + ": evidence requirement set on "
+                        + changed.size() + (changed.size() == 1 ? " line — " : " lines — ")
+                        + String.join("; ", described.subList(0, Math.min(described.size(), AUDITED_LINES)))
+                        + (described.size() > AUDITED_LINES
+                                ? "; and " + (described.size() - AUDITED_LINES) + " more"
+                                : "")
+                        + "."));
         return versionView(template, version.getId());
     }
 
@@ -541,6 +614,45 @@ public class ChecklistTemplateService {
         return new ItemKey(key);
     }
 
+    /**
+     * The requirements a request states, by line key, refused in words where one cannot be: the
+     * requirement's own record bounds the validity and refuses one on a line asking for no proof.
+     */
+    private static Map<String, EvidenceRequirement> parseEvidence(List<ChecklistItemEvidence> requested) {
+        if (requested == null || requested.isEmpty()) {
+            throw new InvalidInputException("Name the lines whose evidence requirement to set — \"items\", each with "
+                    + "its \"itemKey\" and its \"evidenceKind\".");
+        }
+        Map<String, EvidenceRequirement> wanted = new LinkedHashMap<>();
+        for (ChecklistItemEvidence line : requested) {
+            if (line == null || line.itemKey() == null || line.itemKey().isBlank()) {
+                throw new InvalidInputException("Each line is named by its \"itemKey\", as the version shows it; one "
+                        + "is empty.");
+            }
+            String key = line.itemKey().strip();
+            if (key.length() > MAX_KEY) {
+                throw new InvalidInputException("A line's key is at most " + MAX_KEY + " characters; \""
+                        + BoundedText.clip(key, 40) + "\" is longer.");
+            }
+            EvidenceRequirement evidence = new EvidenceRequirement(EvidenceRequirement.Kind.parse(line.evidenceKind()),
+                    Optional.ofNullable(line.evidenceValidityMonths()));
+            if (wanted.put(key, evidence) != null) {
+                throw new InvalidInputException("The line \"" + BoundedText.clip(key, 60) + "\" is named twice.");
+            }
+        }
+        return wanted;
+    }
+
+    private static String describe(EvidenceRequirement evidence) {
+        String asked = switch (evidence.kind()) {
+            case NONE -> "asks for no proof";
+            case LINK_OR_FILE -> "asks for a link or a file";
+            case FILE -> "asks for a file";
+        };
+        return asked + evidence.validityMonths().map(months -> ", holding " + months + (months == 1 ? " month" : " months"))
+                .orElse("");
+    }
+
     // ------------------------------------------------------------------ rows
 
     private ChecklistTemplateEntity requireTemplate(String slug) {
@@ -682,6 +794,29 @@ public class ChecklistTemplateService {
         return new ChecklistItem(new ItemKey(item.getItemKey()), item.getPosition(), item.getDomain(), item.getObjective(),
                 item.getControl(), item.getContact(), item.getKpi(), item.getSheetRow(), evidence,
                 Optional.ofNullable(item.getBoundRule()));
+    }
+
+    /**
+     * The items a layout has just read, each asking for the proof its line already asked for: the
+     * draft's own requirement when the line was read before, else the previous version's line under
+     * the same key.
+     *
+     * <p><b>Why not every line as {@code none}, as the workbook says.</b> No column of the workbook
+     * states a requirement, so what the reader returns is always {@code none}, and the requirement is
+     * part of the digest. Read as the workbook says, confirming a layout again would silently drop
+     * every requirement a lead had set on the draft, and a new workbook imported over a version that
+     * asked for proofs would make each such line <em>changed</em> — every project's answer on it
+     * waiting for a confirmation nobody meant to ask for, and no proof asked of it any more.
+     */
+    private List<ChecklistItem> keepingEvidence(ChecklistTemplateVersionEntity version, List<ChecklistItem> read) {
+        Map<ItemKey, EvidenceRequirement> asked = new HashMap<>();
+        if (version.getPreviousVersionId() != null) {
+            itemsOf(version.getPreviousVersionId()).forEach(item -> asked.put(item.key(), item.evidence()));
+        }
+        asRead(version).forEach(item -> asked.put(item.key(), item.evidence()));
+        return read.stream()
+                .map(item -> Optional.ofNullable(asked.get(item.key())).map(item::withEvidence).orElse(item))
+                .toList();
     }
 
     private List<ChecklistItem> itemsOf(long versionId) {

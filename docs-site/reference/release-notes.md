@@ -267,6 +267,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **What proof a checklist line asks for is set on the template's draft**
+  (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, on the `revision` read): for
+  each line, `none`, `link_or_file` or `file`, and for a proof that expires, its validity in months
+  (1–120). Until now every imported line asked for none, so no proof was ever required at submission.
+  The requirement is part of what the line asks: a line whose requirement moved is *changed* against
+  the previous version, and a project's answer carried onto it waits for confirmation. Confirming a
+  layout again keeps each line's requirement, and a new workbook's line takes the previous version's
+  under the same key; deriving a version carries them. Audited `CHECKLIST_TEMPLATE_EVIDENCE_SET`. The
+  screen follows with the interface's half — [Checklist templates](../administration/checklist-templates.md#4-say-what-proof-each-line-asks-for).
 - **Project checklists, answered by people** (V52 adds `t_checklist`, `t_checklist_answer`,
   `t_checklist_evidence`, `t_checklist_file`). A project's checklist is opened on a published template
   version (`POST /api/v1/projects/{id}/checklists`), answered line by line — every answer kept, with
