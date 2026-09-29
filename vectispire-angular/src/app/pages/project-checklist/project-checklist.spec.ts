@@ -899,7 +899,9 @@ describe('the project checklist, by its rules', () => {
                 'version-not-published',
                 'same-version',
                 'nothing-to-confirm',
-                'evidence-withdrawn'
+                'evidence-withdrawn',
+                'measurement-contradicted',
+                'measurement-changed'
             ]
                 .map((token) => `urn:vectispire:problem:checklist-${token}`)
                 .sort()

@@ -227,13 +227,25 @@
                             id="submit-checklist"
                             icon="pi pi-send"
                             [label]="'project_checklist.submit_btn' | translate"
-                            [disabled]="!shown.readyToSubmit || busy()"
+                            [disabled]="!canSubmit() || busy()"
                             [loading]="busy()"
                             (onClick)="submit()"
                         />
                         @if (!shown.readyToSubmit) {
                             <span class="text-sm text-muted-color" data-testid="submit-blocked">
                                 {{ 'project_checklist.submit_blocked' | translate: { lines: unready().join(', ') } }}
+                            </span>
+                        }
+                        @if (measurementBlocks().length > 0) {
+                            <span class="text-sm text-muted-color" data-testid="submit-blocked-measured">
+                                {{
+                                    'project_checklist.submit_blocked_measured'
+                                        | translate: { lines: measurementBlocks().join(', ') }
+                                }}
+                            </span>
+                        } @else if (measurementsPending()) {
+                            <span class="text-sm text-muted-color" data-testid="submit-waiting">
+                                {{ 'project_checklist.submit_waiting_measurements' | translate }}
                             </span>
                         }
                     </div>
@@ -245,10 +257,18 @@
                             icon="pi pi-verified"
                             severity="success"
                             [label]="'project_checklist.sign_off_btn' | translate"
-                            [disabled]="signOffBlock() !== null || busy()"
+                            [disabled]="signOffBlock() !== null || changedSinceSubmission().length > 0 || busy()"
                             [loading]="busy()"
                             (onClick)="signOff()"
                         />
+                        @if (changedSinceSubmission().length > 0) {
+                            <span class="text-sm text-muted-color" data-testid="sign-off-blocked-measured">
+                                {{
+                                    'project_checklist.sign_off_blocked_measured'
+                                        | translate: { lines: changedSinceSubmission().join(', ') }
+                                }}
+                            </span>
+                        }
                         @if (signOffBlock() === 'not_approver') {
                             <span class="text-sm text-muted-color" data-testid="sign-off-blocked">
                                 {{ 'project_checklist.sign_off_not_approver' | translate }}
@@ -354,6 +374,41 @@
         <!-- The lines, grouped as the template groups them: by domain, then by objective. -->
         <p-card styleClass="mb-4">
             <ng-template #title>{{ 'project_checklist.lines_title' | translate }}</ng-template>
+            <!-- Live or frozen: a reader must know whether the measurements move under them. -->
+            @if (measured()) {
+                @if (measurements(); as read) {
+                    <p-message
+                        severity="info"
+                        [closable]="false"
+                        styleClass="mb-4 w-full"
+                        data-testid="measurements-mode"
+                    >
+                        @if (read.live) {
+                            {{
+                                'project_checklist.measurements_live'
+                                    | translate: { at: (read.computedAt | date: 'dd/MM/yyyy HH:mm') ?? '' }
+                            }}
+                        } @else if (read.status === 'signed_off') {
+                            {{ 'project_checklist.measurements_frozen' | translate }}
+                        } @else {
+                            {{ 'project_checklist.measurements_stored' | translate }}
+                        }
+                    </p-message>
+                } @else if (measurementsError(); as message) {
+                    <p-message
+                        severity="error"
+                        [closable]="false"
+                        styleClass="mb-4 w-full"
+                        data-testid="measurements-error"
+                    >
+                        {{ message }}
+                    </p-message>
+                } @else {
+                    <p class="text-sm text-muted-color mt-0" data-testid="measurements-loading">
+                        {{ 'project_checklist.measurements_loading' | translate }}
+                    </p>
+                }
+            }
             @for (group of groups(); track group.domain) {
                 <section class="mb-6" [attr.data-testid]="'domain-' + $index">
                     <h3 class="text-lg font-semibold mt-0 mb-2">
@@ -368,13 +423,13 @@
                                 <li
                                     class="border rounded-md p-3"
                                     [style.border-color]="
-                                        refusedFor(line)
+                                        refusedFor(line) || conflictFor(line)
                                             ? 'var(--p-red-500)'
                                             : awaiting(line)
                                               ? 'var(--p-orange-400)'
                                               : 'var(--surface-border)'
                                     "
-                                    [class.border-2]="awaiting(line) || !!refusedFor(line)"
+                                    [class.border-2]="awaiting(line) || !!refusedFor(line) || !!conflictFor(line)"
                                     [attr.data-testid]="'line-' + line.position"
                                 >
                                     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -443,6 +498,61 @@
                                                 <p-tag severity="danger" [value]="problemLabel(problem)" />
                                             }
                                         </div>
+                                    }
+
+                                    <!-- What the measurement refused a submission, a sign-off or an answer for, on this line. -->
+                                    @if (conflictFor(line); as conflicted) {
+                                        <div
+                                            class="mt-2 flex flex-wrap items-center gap-2 text-sm"
+                                            [attr.data-testid]="'measured-conflict-' + line.position"
+                                        >
+                                            <p-tag
+                                                severity="danger"
+                                                [value]="'project_checklist.measured_conflict_tag' | translate"
+                                            />
+                                            <span>
+                                                {{
+                                                    'project_checklist.measured_conflict_line'
+                                                        | translate
+                                                            : {
+                                                                  answer: conflicted.answer
+                                                                      ? answerLabel(conflicted.answer)
+                                                                      : ('project_checklist.unanswered_value'
+                                                                        | translate),
+                                                                  outcome: measuredWords(
+                                                                      conflicted.outcome,
+                                                                      conflicted.reason
+                                                                  )
+                                                              }
+                                                }}
+                                                @if (conflicted.submittedOutcome) {
+                                                    ·
+                                                    {{
+                                                        'project_checklist.measured_conflict_was'
+                                                            | translate
+                                                                : {
+                                                                      outcome: measuredWords(
+                                                                          conflicted.submittedOutcome,
+                                                                          conflicted.submittedReason
+                                                                      )
+                                                                  }
+                                                    }}
+                                                }
+                                            </span>
+                                        </div>
+                                    }
+
+                                    <!-- The line's measurement, beside the answer (decision 0032 §6). -->
+                                    @if (line.rule; as rule) {
+                                        <app-line-measurement
+                                            [rule]="rule"
+                                            [position]="line.position"
+                                            [measured]="measuredOf(line)"
+                                            [live]="!!measurements()?.live"
+                                            [answerable]="editable()"
+                                            [busy]="busy()"
+                                            (answerAsMeasured)="answerAsMeasured(line)"
+                                        />
                                     }
 
                                     <!-- The answer as it stands. -->
@@ -742,6 +852,22 @@
                                                 <small class="text-muted-color">{{
                                                     'project_checklist.comment_hint' | translate
                                                 }}</small>
+                                                @if (draft.restingOn; as resting) {
+                                                    <small class="text-muted-color" data-testid="answer-resting">
+                                                        {{
+                                                            draft.value === resting.value
+                                                                ? ('project_checklist.answer_resting'
+                                                                  | translate
+                                                                      : {
+                                                                            at:
+                                                                                (resting.computedAt
+                                                                                    | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                                                        })
+                                                                : ('project_checklist.answer_resting_dropped'
+                                                                  | translate)
+                                                        }}
+                                                    </small>
+                                                }
                                                 @if (answerError(); as message) {
                                                     <small class="text-red-500" data-testid="answer-error">{{
                                                         message

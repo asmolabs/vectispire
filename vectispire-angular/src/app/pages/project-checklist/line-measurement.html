@@ -1,0 +1,196 @@
+<div
+    class="mt-3 p-3 rounded-md border text-sm"
+    style="border-color: var(--surface-border)"
+    [attr.data-testid]="'measurement-' + position()"
+>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+            <span class="font-medium">{{ 'project_checklist.label_measured_by' | translate }}</span>
+            <span data-testid="rule-kind">{{ ruleKind() }}</span>
+            <ul class="m-0 pl-5 text-muted-color" data-testid="rule-words">
+                @for (words of ruleWords(); track $index) {
+                    <li>{{ words }}</li>
+                }
+            </ul>
+        </div>
+        @if (found(); as m) {
+            <div class="flex flex-wrap gap-1 justify-end" data-testid="measurement-badges">
+                <p-tag
+                    [severity]="outcomeSeverity(m.outcome)"
+                    [value]="outcomeLabel(m.outcome)"
+                    data-testid="outcome"
+                />
+                @if (measured(); as line) {
+                    <p-tag
+                        [severity]="reconciliationSeverity(line.reconciliation)"
+                        [value]="reconciliationLabel(line.reconciliation)"
+                        data-testid="reconciliation"
+                    />
+                    @for (problem of line.problems; track problem) {
+                        <p-tag severity="danger" [value]="problemLabel(problem)" data-testid="measured-problem" />
+                    }
+                }
+            </div>
+        }
+    </div>
+
+    @if (found(); as m) {
+        @if (m.reason) {
+            <p class="mt-2 mb-0" data-testid="reason">
+                <i class="pi pi-eye-slash text-muted-color" aria-hidden="true"></i>
+                {{ reasonSentence(m.reason) }}
+            </p>
+        }
+        <p class="mt-2 mb-0 text-muted-color" data-testid="as-of">
+            @if (m.asOf) {
+                {{ 'project_checklist.measured_as_of' | translate: { at: (m.asOf | date: 'dd/MM/yyyy HH:mm') ?? '' } }}
+            } @else {
+                {{ 'project_checklist.measured_as_of_none' | translate }}
+            }
+        </p>
+        @if (changedSinceSubmission()) {
+            @if (measured()?.atSubmission; as then) {
+                <p class="mt-2 mb-0" data-testid="changed-since-submission">
+                    <p-tag
+                        severity="danger"
+                        [value]="
+                            'project_checklist.changed_since_submission'
+                                | translate: { outcome: outcomeLabel(then.outcome) }
+                        "
+                    />
+                </p>
+            }
+        }
+
+        @if (m.evidence.figures.length > 0) {
+            <table class="mt-2 text-sm" data-testid="figures">
+                <caption class="sr-only">
+                    {{
+                        'project_checklist.figures_caption' | translate: { position: position() }
+                    }}
+                </caption>
+                <thead>
+                    <tr>
+                        <th class="text-left pr-3">{{ 'project_checklist.col_scope' | translate }}</th>
+                        <th class="text-left pr-3">{{ 'project_checklist.col_severity' | translate }}</th>
+                        <th class="text-right pr-3">{{ 'project_checklist.col_open' | translate }}</th>
+                        <th class="text-right pr-3">{{ 'project_checklist.col_resolved' | translate }}</th>
+                        <th class="text-left">{{ 'project_checklist.col_met' | translate }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (figure of m.evidence.figures; track $index) {
+                        <tr [class.font-medium]="figure.scope === 'all'">
+                            <td class="pr-3">{{ scopeLabel(figure.scope) }}</td>
+                            <td class="pr-3">{{ severityLabel(figure.severity) }}</td>
+                            <td class="text-right pr-3">{{ figure.open }}</td>
+                            <td class="text-right pr-3">{{ figure.resolved }}</td>
+                            <td>
+                                {{ metLabel(figure.met) }}
+                                @if (figure.detail) {
+                                    <span class="text-muted-color">· {{ figure.detail }}</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+            @if (offered(); as value) {
+                <p-button
+                    [id]="'answer-measured-' + m.itemId"
+                    icon="pi pi-check-square"
+                    size="small"
+                    [label]="
+                        value === 'yes'
+                            ? ('project_checklist.answer_measured_yes_btn' | translate)
+                            : ('project_checklist.answer_measured_no_btn' | translate)
+                    "
+                    [ariaLabel]="'project_checklist.aria_answer_measured' | translate: { position: position() }"
+                    [disabled]="busy()"
+                    (onClick)="answerAsMeasured.emit()"
+                />
+            } @else if (live() && answerable() && m.outcome === 'no_data') {
+                <span class="text-muted-color" data-testid="no-one-click">{{
+                    'project_checklist.no_data_answer_hint' | translate
+                }}</span>
+            }
+            @if (m.evidence.repositories.length > 0) {
+                <p-button
+                    [id]="'measured-evidence-' + m.itemId"
+                    icon="pi pi-list"
+                    size="small"
+                    [text]="true"
+                    [label]="
+                        evidenceOpen()
+                            ? ('project_checklist.measured_evidence_hide_btn' | translate)
+                            : ('project_checklist.measured_evidence_show_btn'
+                              | translate: { count: m.evidence.repositories.length })
+                    "
+                    [ariaLabel]="'project_checklist.aria_measured_evidence' | translate: { position: position() }"
+                    (onClick)="evidenceOpen.set(!evidenceOpen())"
+                />
+            }
+        </div>
+
+        @if (evidenceOpen()) {
+            <div class="overflow-auto mt-2">
+                <table class="text-sm" [attr.data-testid]="'measured-evidence-' + position()">
+                    <caption class="sr-only">
+                        {{
+                            'project_checklist.aria_measured_evidence' | translate: { position: position() }
+                        }}
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_repository' | translate }}</th>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_scope' | translate }}</th>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_status' | translate }}</th>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_source' | translate }}</th>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_at' | translate }}</th>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_digest' | translate }}</th>
+                            <th class="text-left pr-3">{{ 'project_checklist.col_met' | translate }}</th>
+                            <th class="text-left">{{ 'project_checklist.col_detail' | translate }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (repository of m.evidence.repositories; track $index) {
+                            <tr>
+                                <td class="pr-3 font-mono">
+                                    {{ 'project_checklist.repository_n' | translate: { id: repository.repositoryId } }}
+                                </td>
+                                <td class="pr-3">{{ repository.scope ? scopeLabel(repository.scope) : '—' }}</td>
+                                <td class="pr-3">{{ statusLabel(repository.status) }}</td>
+                                <td class="pr-3">
+                                    @if (repository.source === 'scan' && repository.sourceId !== null) {
+                                        <a [routerLink]="['/scans', repository.sourceId]">{{
+                                            sourceLabel(repository)
+                                        }}</a>
+                                    } @else if (repository.source) {
+                                        {{ sourceLabel(repository) }}
+                                    } @else {
+                                        —
+                                    }
+                                </td>
+                                <td class="pr-3 whitespace-nowrap">
+                                    {{ repository.at ? (repository.at | date: 'dd/MM/yyyy HH:mm') : '—' }}
+                                </td>
+                                <td class="pr-3 font-mono" [attr.title]="repository.digest">
+                                    {{ repository.digest ? repository.digest.slice(0, 12) : '—' }}
+                                </td>
+                                <td class="pr-3">{{ metLabel(repository.met) }}</td>
+                                <td>{{ repository.detail ?? '' }}</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    } @else if (measured()) {
+        <p class="mt-2 mb-0 text-muted-color" data-testid="measurement-none">
+            {{ 'project_checklist.measurement_none' | translate }}
+        </p>
+    }
+</div>

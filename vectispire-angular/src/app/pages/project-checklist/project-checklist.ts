@@ -21,17 +21,29 @@ import type {
     ChecklistLine,
     ChecklistLineHistory,
     ChecklistLineProblem,
+    ChecklistMeasuredConflictLine,
+    ChecklistMeasurements,
     ChecklistOfferedVersion,
     ChecklistProjectContext,
     ChecklistRevisionSummary,
     ChecklistStatus,
-    ChecklistView
+    ChecklistView,
+    MeasuredLine
 } from '../../core/api.models';
 import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
+import { LineMeasurement } from './line-measurement';
+import {
+    changedSinceSubmission,
+    measuredAnswer,
+    measuredConflictLinesOf,
+    measurementBlocks,
+    NO_DATA_SHORT_KEYS,
+    OUTCOME_KEYS
+} from './measurements';
 
 // Literal keys, so the i18n check sees each value's translation and a new one cannot ship as a raw
 // key (decision 0019). The check counts none of these — they are not `t('…')` calls — so the spec
@@ -79,7 +91,9 @@ export type ConflictCause =
     | 'version_not_published'
     | 'same_version'
     | 'nothing_to_confirm'
-    | 'evidence_withdrawn';
+    | 'evidence_withdrawn'
+    | 'measurement_contradicted'
+    | 'measurement_changed';
 
 /** `ApiExceptionHandler.PROBLEM_TYPE` followed by `Cause.token()`, one per cause. */
 export const CONFLICT_TYPES: Readonly<Record<string, ConflictCause>> = {
@@ -94,7 +108,9 @@ export const CONFLICT_TYPES: Readonly<Record<string, ConflictCause>> = {
     'urn:vectispire:problem:checklist-version-not-published': 'version_not_published',
     'urn:vectispire:problem:checklist-same-version': 'same_version',
     'urn:vectispire:problem:checklist-nothing-to-confirm': 'nothing_to_confirm',
-    'urn:vectispire:problem:checklist-evidence-withdrawn': 'evidence_withdrawn'
+    'urn:vectispire:problem:checklist-evidence-withdrawn': 'evidence_withdrawn',
+    'urn:vectispire:problem:checklist-measurement-contradicted': 'measurement_contradicted',
+    'urn:vectispire:problem:checklist-measurement-changed': 'measurement_changed'
 };
 
 export const CONFLICT_KEYS = {
@@ -109,7 +125,9 @@ export const CONFLICT_KEYS = {
     version_not_published: 'project_checklist.conflict_version_not_published',
     same_version: 'project_checklist.conflict_same_version',
     nothing_to_confirm: 'project_checklist.conflict_nothing_to_confirm',
-    evidence_withdrawn: 'project_checklist.conflict_evidence_withdrawn'
+    evidence_withdrawn: 'project_checklist.conflict_evidence_withdrawn',
+    measurement_contradicted: 'project_checklist.conflict_measurement_contradicted',
+    measurement_changed: 'project_checklist.conflict_measurement_changed'
 } as const satisfies Record<ConflictCause, string>;
 
 /** Why the sign-off is greyed out for the person on screen — a hint: the server decides. */
@@ -127,6 +145,11 @@ interface AnswerDraft {
     itemId: number;
     value: ChecklistAnswerValue | null;
     comment: string;
+    /**
+     * The measurement the form was opened from, by its evidence digest and the answer it offered: sent
+     * only while that answer is the one chosen — another answer rests on no measurement.
+     */
+    restingOn: { digest: string; value: ChecklistAnswerValue; computedAt: string } | null;
 }
 
 /** The proof being attached to one line. */
@@ -176,7 +199,8 @@ export interface DomainGroup {
         TableModule,
         TagModule,
         TextareaModule,
-        TranslatePipe
+        TranslatePipe,
+        LineMeasurement
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './project-checklist.html'
@@ -188,6 +212,8 @@ export class ProjectChecklist {
     // The revision shown can be switched faster than the server answers; the older answer must not
     // land over the newer one.
     private readonly readRequest = new LatestRequest();
+    // The measurements are read again after every write; an older answer must not land over a newer one.
+    private readonly measureRequest = new LatestRequest();
 
     /** The route's `:projectId`, bound by `withComponentInputBinding`. */
     readonly projectId = input.required<string>();
@@ -228,6 +254,14 @@ export class ProjectChecklist {
     readonly returnError = signal<string | null>(null);
     /** The histories open, by line; `null` while one is being read. */
     readonly histories = signal<Record<number, ChecklistLineHistory | null>>({});
+    /** The revision's measured lines; null until read, and while the revision has none bound. */
+    readonly measurements = signal<ChecklistMeasurements | null>(null);
+    readonly measurementsError = signal<string | null>(null);
+    /**
+     * The lines a measurement refusal named — `checklist-measurement-contradicted` at a submission,
+     * `checklist-measurement-changed` at a sign-off or an answer — by item, as the server found them.
+     */
+    readonly measuredConflicts = signal<Record<number, ChecklistMeasuredConflictLine>>({});
 
     /** Named before any checklist exists, from the context; from the view only if the context is not read yet. */
     readonly projectName = computed(() => this.context()?.projectName ?? this.view()?.projectName ?? null);
@@ -259,6 +293,28 @@ export class ProjectChecklist {
             .map((version) => this.option(version));
     });
     readonly today = todayUtc();
+
+    /** Whether any line of the revision is bound to a rule: only then are the measurements read. */
+    readonly measured = computed(() => (this.view()?.lines ?? []).some((line) => !!line.rule));
+    readonly measuredLines = computed(
+        () => new Map((this.measurements()?.lines ?? []).map((line) => [line.itemId, line] as const))
+    );
+    /** Bound lines on screen, their measurements not read yet (nor refused): the submission waits for them. */
+    readonly measurementsPending = computed(
+        () => this.measured() && this.measurements() === null && this.measurementsError() === null
+    );
+    /** What a live measurement keeps from a submission, which `readyToSubmit` does not count. */
+    readonly measurementBlocks = computed(() => measurementBlocks(this.measurements()));
+    /**
+     * `readyToSubmit` combined with the measurements: the view's flag counts each line's own problems
+     * only, and a yes the measurement contradicts — or a yes without data, its comment or its proof
+     * missing — would be refused by the submission (409) on a screen that had offered it.
+     */
+    readonly canSubmit = computed(
+        () => !!this.view()?.readyToSubmit && !this.measurementsPending() && this.measurementBlocks().length === 0
+    );
+    /** Lines measured otherwise than at the submission: the sign-off would be refused for them. */
+    readonly changedSinceSubmission = computed(() => changedSinceSubmission(this.measurements()));
 
     constructor() {
         // An effect rather than a call in the constructor: a signal input is not bound yet there.
@@ -299,6 +355,7 @@ export class ProjectChecklist {
                 if (this.writes()) this.loadOffered(projectId);
                 if (context.latestRevision === null) {
                     this.view.set(null);
+                    this.measurements.set(null);
                     this.loading.set(false);
                     return;
                 }
@@ -318,9 +375,62 @@ export class ProjectChecklist {
                 this.view.set(view);
                 this.histories.set({});
                 this.loading.set(false);
+                this.measuredConflicts.set({});
+                this.readMeasurements();
             },
             error: (failure) => this.failed(failure)
         });
+    }
+
+    /**
+     * The measurements of the revision shown, read beside it — and only when a line is bound, so that a
+     * checklist measured by no rule costs no request. A draft's and a submitted revision's are computed
+     * for this read; they move with every write and every scan, so every write reads them again.
+     */
+    readMeasurements(): void {
+        const shown = this.summary();
+        this.measurementsError.set(null);
+        if (!shown || !this.measured()) {
+            this.measurements.set(null);
+            return;
+        }
+        // The previous revision's, or the previous read's, must not stand for this one while it is read.
+        if (this.measurements()?.revision !== shown.revision) this.measurements.set(null);
+        this.measureRequest.run(this.api.checklistMeasurements(this.id(), shown.revision), {
+            next: (measurements) => this.measurements.set(measurements),
+            error: (failure) => {
+                this.measurements.set(null);
+                this.measurementsError.set(messageOf(failure, this.i18n.t('project_checklist.error_measurements')));
+            }
+        });
+    }
+
+    /** The line's measurement as the route answered, or null while it is read. */
+    measuredOf(line: ChecklistLine): MeasuredLine | null {
+        return this.measuredLines().get(line.itemId) ?? null;
+    }
+
+    /** What the last measurement refusal said of this line, or null. */
+    conflictFor(line: ChecklistLine): ChecklistMeasuredConflictLine | null {
+        return this.measuredConflicts()[line.itemId] ?? null;
+    }
+
+    outcomeLabel(outcome: string | null): string {
+        this.i18n.translations();
+        const key = outcome ? (OUTCOME_KEYS as Record<string, string | undefined>)[outcome] : undefined;
+        return key ? this.i18n.t(key) : '—';
+    }
+
+    reasonShort(reason: string | null): string {
+        this.i18n.translations();
+        const key = reason ? (NO_DATA_SHORT_KEYS as Record<string, string | undefined>)[reason] : undefined;
+        return key ? this.i18n.t(key) : '';
+    }
+
+    /** "Not met", or "No data (never examined)": what a refused line's measurement says, in words. */
+    measuredWords(outcome: string | null, reason: string | null): string {
+        const short = this.reasonShort(reason);
+        return short ? `${this.outcomeLabel(outcome)} (${short})` : this.outcomeLabel(outcome);
     }
 
     private failed(failure: unknown): void {
@@ -477,8 +587,42 @@ export class ProjectChecklist {
         this.answering.set({
             itemId: line.itemId,
             value: line.answer?.value ?? null,
-            comment: line.answer?.comment ?? ''
+            comment: line.answer?.comment ?? '',
+            restingOn: null
         });
+    }
+
+    /**
+     * The one click a measured line offers (§6): the person's answer, resting on the measurement they
+     * read, named by its evidence digest. Met, it is a yes and is sent at once; not met, it is a no, and
+     * a no needs its comment — the form opens with the answer chosen and the measurement kept with it.
+     */
+    answerAsMeasured(line: ChecklistLine): void {
+        const measured = this.measuredOf(line);
+        const shown = this.summary();
+        const value = measuredAnswer(measured);
+        const found = measured?.measurement;
+        if (!shown || !value || !found) return;
+        const restingOn = { digest: found.evidenceDigest, value, computedAt: found.computedAt };
+        if (value === 'no') {
+            this.proving.set(null);
+            this.answerError.set(null);
+            this.answering.set({ itemId: line.itemId, value, comment: line.answer?.comment ?? '', restingOn });
+            return;
+        }
+        this.answering.set(null);
+        this.write(
+            this.api.answerChecklistLine(
+                this.id(),
+                shown.revision,
+                line.itemId,
+                value,
+                null,
+                shown.edition,
+                restingOn.digest
+            ),
+            line.itemId
+        );
     }
 
     setAnswer(patch: Partial<Pick<AnswerDraft, 'value' | 'comment'>>): void {
@@ -506,7 +650,8 @@ export class ProjectChecklist {
                 line.itemId,
                 draft.value,
                 draft.comment,
-                shown.edition
+                shown.edition,
+                draft.restingOn?.value === draft.value ? draft.restingOn.digest : null
             ),
             line.itemId,
             () => this.answering.set(null)
@@ -707,6 +852,7 @@ export class ProjectChecklist {
         this.busy.set(true);
         this.refusal.set(null);
         this.incomplete.set({});
+        this.measuredConflicts.set({});
         this.error.set(null);
         this.notice.set(null);
         request.subscribe({
@@ -737,6 +883,8 @@ export class ProjectChecklist {
                 ? { ...context, latestRevision: summary.revision, latestEdition: summary.edition }
                 : context
         );
+        // An answer moves its line's reconciliation, a submission or a sign-off what is live or frozen.
+        this.readMeasurements();
     }
 
     /** A cause named by the problem's type gets its sentence; anything else, the server's own words. */
@@ -748,6 +896,9 @@ export class ProjectChecklist {
                 reload: false,
                 itemId
             };
+        }
+        if (cause === 'measurement_contradicted' || cause === 'measurement_changed') {
+            return this.explainMeasured(cause, failure, itemId);
         }
         // The lines the refusal names, as data, over the ones the view shows: the server's are the
         // ones it refused for, and a proof that lapsed since the view was read is on no line here.
@@ -765,6 +916,37 @@ export class ProjectChecklist {
                   });
         // Four-eyes is the one cause reloading does not cure: the person is who they are.
         return { message, reload: cause !== 'four_eyes', itemId };
+    }
+
+    /**
+     * A measurement refused the write: the lines it names are highlighted with what the rule finds now
+     * — and, at a sign-off, what it found at the submission — and the measurements are read again, since
+     * the ones on screen are, by the refusal's own account, not the server's any more.
+     *
+     * On an answer (a line named), `checklist-measurement-changed` means the evidence moved between the
+     * read and the click: the person reads the new measurement before answering again.
+     */
+    private explainMeasured(
+        cause: 'measurement_contradicted' | 'measurement_changed',
+        failure: unknown,
+        itemId: number | null
+    ): Refusal {
+        const named = measuredConflictLinesOf(failure) ?? [];
+        this.measuredConflicts.set(Object.fromEntries(named.map((line) => [line.itemId, line])));
+        this.readMeasurements();
+        if (cause === 'measurement_changed' && itemId !== null) {
+            return {
+                message: this.i18n.t('project_checklist.conflict_measurement_changed_answer'),
+                reload: false,
+                itemId
+            };
+        }
+        const lines = named.map((line) => line.position).sort((a, b) => a - b);
+        return {
+            message: this.i18n.t(CONFLICT_KEYS[cause], { lines: lines.join(', ') || '—' }),
+            reload: true,
+            itemId
+        };
     }
 
     private closeForms(): void {

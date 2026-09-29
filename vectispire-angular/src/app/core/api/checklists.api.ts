@@ -8,6 +8,7 @@ import type {
     ChecklistItemRule,
     ChecklistLayout,
     ChecklistLineHistory,
+    ChecklistMeasurements,
     ChecklistOfferedVersion,
     ChecklistPreview,
     ChecklistProjectContext,
@@ -235,6 +236,14 @@ export class ChecklistsApi {
 
     checklistLineHistory(projectId: number, revision: number, itemId: number): Observable<ChecklistLineHistory> {
         return this.http.get<ChecklistLineHistory>(`${linePath(projectId, revision, itemId)}/history`);
+    }
+
+    /**
+     * The measured lines of a revision, each beside its answer: a draft's and a submitted one's computed
+     * for this read and stored nowhere, a signed-off one's as its sign-off froze them.
+     */
+    checklistMeasurements(projectId: number, revision: number): Observable<ChecklistMeasurements> {
+        return this.http.get<ChecklistMeasurements>(`${revisionPath(projectId, revision)}/measurements`);
     }
 
     /**

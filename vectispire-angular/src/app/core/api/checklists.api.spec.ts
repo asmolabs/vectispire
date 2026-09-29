@@ -11,6 +11,7 @@ import {
     LAYOUT,
     LINE_HISTORY,
     MEASURED_CHECKLIST,
+    MEASUREMENTS,
     OFFERED,
     PASS_MEASUREMENT,
     PROJECT_ID,
@@ -232,6 +233,11 @@ describe('the project checklist client', () => {
         const bare = http.expectOne({ method: 'POST', url: `${BASE}/2/items/101/answers` });
         expect(asSchema('ChecklistAnswerRequest', bare.request.body)).toEqual({ value: 'yes', edition: 6 });
         bare.flush(CHECKLIST, { status: 201, statusText: 'Created' });
+    });
+
+    it('reads the measurements of a revision', () => {
+        api.checklistMeasurements(PROJECT_ID, 2).subscribe();
+        http.expectOne({ method: 'GET', url: `${BASE}/2/measurements` }).flush(MEASUREMENTS);
     });
 
     it('rests an answer on the measurement read by naming its evidence digest, and on none without one', () => {
