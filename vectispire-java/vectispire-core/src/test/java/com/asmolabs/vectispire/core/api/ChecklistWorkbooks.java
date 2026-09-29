@@ -140,11 +140,18 @@ final class ChecklistWorkbooks {
                 + REL + "\"><sheetData>" + rows + "</sheetData>" + after + "</worksheet>";
     }
 
+    private static final long FIXED_ENTRY_TIME = 315_532_800_000L; // 1980-01-01T00:00:00Z, the DOS epoch
+
     static byte[] zip(Map<String, byte[]> entries) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
             for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
-                zip.putNextEntry(new ZipEntry(entry.getKey()));
+                // A fixed time: a `ZipEntry` left alone takes the clock's, at two-second resolution, so
+                // the same workbook generated twice in one test hashed differently whenever a boundary
+                // fell between the import and the comparison — and the source digest check failed in CI.
+                ZipEntry zipEntry = new ZipEntry(entry.getKey());
+                zipEntry.setTime(FIXED_ENTRY_TIME);
+                zip.putNextEntry(zipEntry);
                 zip.write(entry.getValue());
                 zip.closeEntry();
             }
