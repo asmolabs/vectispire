@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
@@ -23,6 +24,7 @@ import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -81,8 +83,16 @@ public class RepositoryAdministrationService {
      * project it is filed in.
      *
      * @param projectName {@code Solution / Project}, or null for a repository in no project
+     * @param detectedLanguages the languages its newest completed scan found in the tree; empty when
+     *     unknown — no completed scan, or one that recorded no whole census — which is not the empty
+     *     set (see {@link TargetScans#detectedLanguages})
      */
-    public record Listed(RepositoryView repository, Optional<LatestScan> latestScan, long openIssues, String projectName) {}
+    public record Listed(
+            RepositoryView repository,
+            Optional<LatestScan> latestScan,
+            long openIssues,
+            String projectName,
+            Optional<Set<Language>> detectedLanguages) {}
 
     /**
      * What an operator asked for, field by field.
@@ -133,12 +143,16 @@ public class RepositoryAdministrationService {
                 .map(RepositoryEntity::getProjectId)
                 .filter(java.util.Objects::nonNull)
                 .collect(java.util.stream.Collectors.toSet()));
+        // Asked for the visible rows only: which languages a hidden repository is written in is as
+        // much its own as its findings.
+        Map<Long, Set<Language>> languages = scans.detectedLanguages(visible.stream().map(RepositoryEntity::getId).toList());
         return visible.stream()
                 .map(repository -> new Listed(
                         RepositoryView.of(repository),
                         Optional.ofNullable(latest.get(repository.getId())),
                         open.getOrDefault(repository.getId(), 0L),
-                        repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId())))
+                        repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId()),
+                        Optional.ofNullable(languages.get(repository.getId()))))
                 .toList();
     }
 

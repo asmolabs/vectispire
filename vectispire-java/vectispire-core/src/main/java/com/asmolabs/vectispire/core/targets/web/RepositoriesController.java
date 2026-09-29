@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
@@ -72,7 +73,12 @@ public class RepositoriesController {
             // The project it is filed in (decision 0023), null for "no project". Changed through
             // `PUT /api/v1/projects/{id}/repositories/{repositoryId}`, not through this resource.
             Long projectId,
-            String projectName) {}
+            String projectName,
+            // The languages its newest completed scan found in the tree, sorted, in the vocabulary a
+            // plugin manifest declares. **Null — sent, not omitted — when unknown**: no completed scan
+            // yet, a scan from before the census was kept, or a census that stopped short. Never `[]`
+            // for that: `[]` is a whole census that saw no language (decision 0007).
+            List<Language> detectedLanguages) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
     public record RepositoryCreateRequest(
@@ -205,7 +211,8 @@ public class RepositoriesController {
                 listed.openIssues(),
                 repository.tier(),
                 repository.projectId(),
-                listed.projectName());
+                listed.projectName(),
+                listed.detectedLanguages().map(languages -> languages.stream().sorted().toList()).orElse(null));
     }
 
     private static Changes changesOf(RepositoryCreateRequest body) {

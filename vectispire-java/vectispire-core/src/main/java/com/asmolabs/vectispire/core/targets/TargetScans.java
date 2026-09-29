@@ -1,7 +1,10 @@
 package com.asmolabs.vectispire.core.targets;
 
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * What the target screens need from the scan queue: each target's latest scan, and a scan queued on
@@ -28,6 +31,15 @@ public interface TargetScans {
 
     /** The latest scan of every image that has one, keyed by image. */
     Map<Long, LatestScan> latestPerContainer();
+
+    /**
+     * The languages each of these repositories' newest completed scan found in its tree, in the
+     * plugin manifests' vocabulary ({@link Language}'s wire names). A repository missing from the answer
+     * is <b>unknown</b> — no completed scan, or a newest one that recorded no whole census — which a
+     * screen must never show as "no language"; an empty set is "counted, and none" (decision 0007).
+     * Batched by the implementation: the list is sized by the estate.
+     */
+    Map<Long, Set<Language>> detectedLanguages(Collection<Long> repositoryIds);
 
     /**
      * Queues a scan of the repository as it stands now — branch, sub-path and required label copied

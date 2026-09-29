@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -15,10 +16,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,12 +56,19 @@ public class SolutionQueryService {
     private final ProjectRepository projects;
     private final GitRepositoryRepository repositories;
     private final TargetBacklog backlog;
+    private final TargetScans scans;
 
-    public SolutionQueryService(SolutionRepository solutions, ProjectRepository projects, GitRepositoryRepository repositories, TargetBacklog backlog) {
+    public SolutionQueryService(
+            SolutionRepository solutions,
+            ProjectRepository projects,
+            GitRepositoryRepository repositories,
+            TargetBacklog backlog,
+            TargetScans scans) {
         this.solutions = solutions;
         this.projects = projects;
         this.repositories = repositories;
         this.backlog = backlog;
+        this.scans = scans;
     }
 
     /**
@@ -89,6 +99,13 @@ public class SolutionQueryService {
      * @param partial the project holds repositories this reader does not see; its figures and its
      *     list cover only those they do
      * @param repositoryCount the repositories listed, which are the visible ones
+     * @param detectedLanguages the union of the languages the listed repositories' newest completed
+     *     scans found, sorted — in the vocabulary a plugin manifest declares, so the plugin screen puts
+     *     the two side by side. Over the visible repositories only, like every figure of the node
+     * @param languagesUnknownFor the listed repositories whose languages are unknown — no completed
+     *     scan, or a newest one that recorded no whole census — by id. The union says nothing of them:
+     *     a project reading "Java" with a repository here may be Java and Go, and a screen says so
+     *     rather than presenting the union as the whole project (decision 0007)
      */
     public record ProjectNode(
             Long id,
@@ -99,7 +116,9 @@ public class SolutionQueryService {
             boolean partial,
             int repositoryCount,
             OpenIssues openIssues,
-            List<RepositoryRef> repositories) {}
+            List<RepositoryRef> repositories,
+            List<Language> detectedLanguages,
+            List<Long> languagesUnknownFor) {}
 
     /** @param partial a repository filed under this solution is hidden from this reader */
     public record SolutionNode(
@@ -174,6 +193,12 @@ public class SolutionQueryService {
                 .collect(Collectors.groupingBy(RepositoryEntity::getProjectId, Collectors.counting()));
 
         Map<Long, Map<Severity, Long>> open = openBySeverity(visible, everything);
+        // Of the repositories filed in a project and visible: an unfiled one belongs to no project's
+        // union, and a hidden one's languages are its own.
+        Map<Long, Set<Language>> languages = scans.detectedLanguages(visible.stream()
+                .filter(repository -> repository.getProjectId() != null)
+                .map(RepositoryEntity::getId)
+                .toList());
 
         List<ProjectEntity> allProjects = projects.findAll();
         List<ProjectEntity> shownProjects = allProjects.stream()
@@ -186,7 +211,8 @@ public class SolutionQueryService {
                         project,
                         visibleByProject.getOrDefault(project.getId(), List.of()),
                         filedByProject.getOrDefault(project.getId(), 0L),
-                        open))
+                        open,
+                        languages))
                 .sorted(Comparator.comparing(ProjectNode::name, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.groupingBy(ProjectNode::solutionId));
 
@@ -213,7 +239,22 @@ public class SolutionQueryService {
     }
 
     private static ProjectNode projectNode(
-            ProjectEntity project, List<RepositoryEntity> visible, long filed, Map<Long, Map<Severity, Long>> open) {
+            ProjectEntity project,
+            List<RepositoryEntity> visible,
+            long filed,
+            Map<Long, Map<Severity, Long>> open,
+            Map<Long, Set<Language>> languages) {
+        Set<Language> union = EnumSet.noneOf(Language.class);
+        List<Long> unknown = new ArrayList<>();
+        for (RepositoryEntity repository : visible) {
+            Set<Language> known = languages.get(repository.getId());
+            if (known == null) {
+                unknown.add(repository.getId());
+            } else {
+                union.addAll(known);
+            }
+        }
+        unknown.sort(Comparator.naturalOrder());
         return new ProjectNode(
                 project.getId(),
                 project.getSolutionId(),
@@ -223,7 +264,9 @@ public class SolutionQueryService {
                 visible.size() < filed,
                 visible.size(),
                 sum(visible, open),
-                refs(visible));
+                refs(visible),
+                List.copyOf(union),
+                List.copyOf(unknown));
     }
 
     private static SolutionNode solutionNode(SolutionEntity solution, List<ProjectNode> projects, long filed) {

@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.scanning.internal;
 
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -7,9 +9,11 @@ import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetScans;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,10 +23,12 @@ public class TargetScanFigures implements TargetScans {
 
     private final ScanRepository scans;
     private final ScanTriggerService trigger;
+    private final ScanCatalog catalog;
 
-    public TargetScanFigures(ScanRepository scans, ScanTriggerService trigger) {
+    public TargetScanFigures(ScanRepository scans, ScanTriggerService trigger, ScanCatalog catalog) {
         this.scans = scans;
         this.trigger = trigger;
+        this.catalog = catalog;
     }
 
     @Override
@@ -35,6 +41,11 @@ public class TargetScanFigures implements TargetScans {
     @Transactional(readOnly = true)
     public Map<Long, LatestScan> latestPerContainer() {
         return byTarget(scans.findLatestPerContainer());
+    }
+
+    @Override
+    public Map<Long, Set<Language>> detectedLanguages(Collection<Long> repositoryIds) {
+        return catalog.newestDetectedLanguages(repositoryIds);
     }
 
     @Override
