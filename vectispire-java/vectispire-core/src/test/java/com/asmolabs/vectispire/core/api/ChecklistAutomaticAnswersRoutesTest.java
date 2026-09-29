@@ -78,6 +78,13 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
              "duration":"PT1S"}
             """;
 
+    private static final String TWO_IAC_FINDINGS = """
+            {"secrets":[],
+             "iac":[{"checkId":"CKV_AWS_20","checkName":"S3 not public","file":"main.tf","line":4},
+                    {"checkId":"CKV_AWS_21","checkName":"S3 versioned","file":"main.tf","line":9}],
+             "duration":"PT1S"}
+            """;
+
     @Autowired
     private SettingsService settings;
 
@@ -178,6 +185,46 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
             assertThat(answers.count()).isEqualTo(rows);
             assertThat(edition(1)).as("the edition does not move under the people filling it").isEqualTo(edition);
             assertThat(entries("CHECKLIST_ANSWERED")).hasSize((int) audited);
+        }
+
+        @Test
+        @DisplayName("a new scan measuring the same thing writes nothing: same value, same figures, same edition")
+        void aNewScanMeasuringTheSame() throws Exception {
+            publish("release", List.of(SECRETS, IAC, COVERAGE), false);
+            open(developer, "release", null);
+            completeScan(IAC_FINDING);
+            int edition = edition(1);
+            long rows = answers.count();
+            long audited = entries("CHECKLIST_ANSWERED").size();
+
+            // Another scan, another id and date — another evidence digest — finding the same.
+            completeScan(IAC_FINDING);
+
+            assertThat(answers.count()).isEqualTo(rows);
+            assertThat(edition(1)).as("no 409 waiting for a person mid-edit").isEqualTo(edition);
+            assertThat(entries("CHECKLIST_ANSWERED")).hasSize((int) audited);
+        }
+
+        @Test
+        @DisplayName("changed figures replace the no with a new one, its comment carrying the new count")
+        void changedFiguresReplaceTheComment() throws Exception {
+            publish("release", List.of(SECRETS, IAC, COVERAGE), false);
+            open(developer, "release", null);
+            completeScan(IAC_FINDING);
+            long iacLine = itemIds(read(developer, 1)).get(1);
+            String before = read(developer, 1).at("/lines/1/answer/comment").asText();
+            int edition = edition(1);
+
+            completeScan(TWO_IAC_FINDINGS);
+
+            JsonNode now = read(developer, 1);
+            assertThat(now.at("/lines/1/answer/value").asText()).isEqualTo("no");
+            assertThat(now.at("/lines/1/answer/comment").asText()).isNotEqualTo(before).contains("2 open");
+            assertThat(now.at("/checklist/edition").asInt()).isEqualTo(edition + 1);
+            assertThat(history(1, iacLine).at("/answers")).hasSize(2);
+            assertThat(now.at("/lines/0/answer/value").asText()).as("the yes states the same, and stays one row")
+                    .isEqualTo("yes");
+            assertThat(history(1, itemIds(now).get(0)).at("/answers")).hasSize(1);
         }
 
         @Test
@@ -353,6 +400,34 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
         assertThat(moved.at("/checklist/revision").asInt()).isEqualTo(2);
         assertThat(moved.at("/lines/0/answer/answeredByKind").asText()).isEqualTo("system");
         assertThat(moved.at("/lines/0/answer/value").asText()).isEqualTo("yes");
+    }
+
+    @Test
+    @DisplayName("an automatic answer carried onto a new version is written again once, resting on this revision's measurement")
+    void aCarriedAutomaticAnswer() throws Exception {
+        publish("release", List.of(SECRETS, IAC, COVERAGE), false);
+        scan(Instant.now().minusSeconds(60), "secret,iac");
+        int edition = read(open(developer, "release", null)).at("/checklist/edition").asInt();
+        JsonNode derived = read(mvc.perform(authenticated(post(TEMPLATES + "/release/versions/1/derive"), asAdmin()))
+                .andExpect(status().isCreated()));
+        mvc.perform(authenticated(post(TEMPLATES + "/release/versions/2/publish"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"revision\":" + derived.at("/version/revision").asInt() + "}"))
+                .andExpect(status().isOk());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("template", "release");
+        body.put("version", 2);
+        body.put("edition", edition);
+        JsonNode moved = read(send(developer, base(), body).andExpect(status().isCreated()));
+
+        JsonNode answer = moved.at("/lines/0/answer");
+        assertThat(answer.at("/answeredByKind").asText()).isEqualTo("system");
+        assertThat(answer.at("/carriedFromId").isNull()).as("written again, not the carried copy").isTrue();
+        assertThat(answer.at("/measurementId").isNull()).isFalse();
+        assertThat(history(2, moved.at("/lines/0/itemId").asLong()).at("/answers")).as("the carried copy, then its own")
+                .hasSize(2);
+        assertThat(service.answerFromEvidence(repository)).as("and then nothing").isZero();
     }
 
     // ------------------------------------------------------------------ the setting

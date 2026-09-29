@@ -149,7 +149,8 @@ import org.springframework.util.unit.DataSize;
  * under a platform setting on by default: when a scan or an import completes on one of the project's
  * repositories, and when a revision is opened, moved or reopened. Such an answer names its author's kind,
  * {@code system}, and no account; it rests on the measurement that produced it, is replaced by the
- * system only when that measurement's evidence changes, and never replaces a person's. Submitting and
+ * system only when what it states changes — its value, or the generated comment carrying the figures —
+ * and never replaces a person's. Submitting and
  * signing off stay people's acts, the submission's rules unchanged: a "no" carries the measurement as its
  * comment, and a "yes" on a line asking for a file still needs the file. The system is none of a
  * revision's authors for four-eyes.
@@ -700,11 +701,12 @@ public class ProjectChecklistService {
      * <ul>
      *   <li><b>A person's answer is never replaced</b> — any current answer whose author is a person, a
      *       carried one awaiting confirmation included. Decided by the author's kind, never by the name.
-     *   <li><b>Vectispire's own answer is replaced only when its measurement changed</b> — the evidence's
-     *       digest is not the one it rests on. The same evidence writes nothing: run twice, the act writes
-     *       nothing the second time, and a revision's edition does not move under the people filling it.
-     *       A carried answer rests on no measurement of this revision (measurements are never carried) and
-     *       is measured again once.
+     *   <li><b>Vectispire's own answer is replaced only when what it states changes</b> — its value, or
+     *       its generated comment, which carries the figures ({@link #statesTheSame}). A new scan that
+     *       measures the same thing writes nothing, and a revision's edition does not move under the people
+     *       filling it; the answer keeps resting on the measurement it was written from, and the sign-off
+     *       measures again anyway. A carried answer rests on no measurement of this revision (measurements
+     *       are never carried) and is written again once.
      *   <li>{@code PASS} answers yes; {@code FAIL} answers no, with the measurement as its comment — what
      *       was measured, in the product's words, never presented as a person's; {@code NO_DATA} answers
      *       nothing, and <b>withdraws</b> an answer of Vectispire's that rested on data it no longer has: a
@@ -765,9 +767,6 @@ public class ProjectChecklistService {
     /** What the act writes on each line, from what the rules found and the lines' current answers. */
     private List<Automatic> plan(long checklistId, List<ChecklistMeasurer.LineMeasurement> measured, AnswerWords words) {
         Map<Long, ChecklistAnswerEntity> current = currentAnswers(checklistId);
-        Map<Long, ChecklistMeasurementEntity> rested = new HashMap<>();
-        measurements.findByChecklistIdAndPurposeOrderByIdAsc(checklistId, MeasurementPurpose.ANSWER.wireName())
-                .forEach(row -> rested.put(row.getId(), row));
         List<Automatic> planned = new ArrayList<>();
         for (ChecklistMeasurer.LineMeasurement line : measured) {
             ChecklistAnswerEntity answer = current.get(line.item().getId());
@@ -775,31 +774,37 @@ public class ProjectChecklistService {
                 continue;
             }
             Measurement found = line.measurement();
-            if (answer != null && !answer.isNeedsConfirmation()) {
-                ChecklistMeasurementEntity restingOn = answer.getMeasurementId() == null
-                        ? null
-                        : rested.get(answer.getMeasurementId());
-                if (restingOn != null && restingOn.getEvidenceDigest().equals(found.evidenceDigest())) {
-                    continue;
-                }
-            }
-            switch (found.outcome()) {
-                case PASS -> planned.add(new Automatic(line, GivenAnswer.of(ChecklistAnswer.YES, null, words).value(),
-                        null, false));
+            Automatic automatic = switch (found.outcome()) {
+                case PASS -> new Automatic(line, GivenAnswer.of(ChecklistAnswer.YES, null, words).value(), null, false);
                 case FAIL -> {
                     GivenAnswer no = GivenAnswer.of(ChecklistAnswer.NO, generatedComment(line), words);
-                    planned.add(new Automatic(line, no.value(), no.comment().orElseThrow(), false));
+                    yield new Automatic(line, no.value(), no.comment().orElseThrow(), false);
                 }
-                case NO_DATA -> {
-                    if (answer != null) {
-                        planned.add(new Automatic(line, ChecklistAnswer.parse(answer.getValue()),
-                                BoundedText.clip("Withdrawn by Vectispire: the measurement this answer rested on has no "
-                                        + "data any more — " + found.summary(), MAX_REASON), true));
-                    }
-                }
+                case NO_DATA -> answer == null ? null : new Automatic(line, ChecklistAnswer.parse(answer.getValue()),
+                        BoundedText.clip("Withdrawn by Vectispire: the measurement this answer rested on has no data any "
+                                + "more — " + found.summary(), MAX_REASON), true);
+            };
+            if (automatic != null && (answer == null || !statesTheSame(answer, automatic))) {
+                planned.add(automatic);
             }
         }
         return planned;
+    }
+
+    /**
+     * Whether Vectispire's current answer already states what it would write now: the same value and the
+     * same generated comment — which carries the figures, so "5 open" becoming "3 open" is a new answer —
+     * written in this revision. Not the evidence's digest: it names the scan and its date, so every scan
+     * measuring the same thing wrote a new row and moved the edition under the people filling the
+     * checklist, refusing their next transition as changed. An answer carried from another revision is
+     * written again once, resting on a measurement of this one, and so is one awaiting confirmation.
+     * A withdrawal never states the same as an answer: its comment says it withdraws.
+     */
+    private static boolean statesTheSame(ChecklistAnswerEntity answer, Automatic automatic) {
+        return answer.getCarriedFromId() == null
+                && !answer.isNeedsConfirmation()
+                && answer.getValue().equals(automatic.value().wireName())
+                && java.util.Objects.equals(answer.getComment(), automatic.comment());
     }
 
     /**
