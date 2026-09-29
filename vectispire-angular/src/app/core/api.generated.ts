@@ -4206,6 +4206,8 @@ export interface components {
             /** Format: date-time */
             answeredAt?: string;
             answeredBy?: string;
+            /** @enum {string} */
+            answeredByKind?: "person" | "system";
             /** Format: date-time */
             carriedAt?: string;
             carriedBy?: string;
@@ -4223,6 +4225,7 @@ export interface components {
             needsConfirmation: boolean;
             /** @enum {string} */
             value?: "yes" | "no" | "not_applicable";
+            withdrawn: boolean;
         };
         ChecklistAsMeasuredRequest: {
             /** Format: int32 */

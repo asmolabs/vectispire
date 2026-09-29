@@ -346,12 +346,14 @@ const answer = (itemId: number, extra: Partial<ChecklistAnswer> = {}): Checklist
         value: 'yes',
         comment: null,
         answeredBy: 'carol',
+        answeredByKind: 'person',
         answeredAt: '2026-09-11T08:00:00Z',
         measurementId: null,
         carriedFromId: null,
         carriedBy: null,
         carriedAt: null,
         needsConfirmation: false,
+        withdrawn: false,
         edition: 2,
         ...extra
     });
