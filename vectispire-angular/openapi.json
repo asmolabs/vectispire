@@ -5929,9 +5929,23 @@
           "description" : {
             "type" : "string"
           },
+          "detectedLanguages" : {
+            "items" : {
+              "enum" : [ "apex", "bash", "c", "clojure", "csharp", "dockerfile", "elixir", "go", "html", "java", "javascript", "json", "kotlin", "ocaml", "php", "python", "ruby", "rust", "scala", "solidity", "swift", "terraform", "typescript", "yaml" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "id" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "languagesUnknownFor" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
           },
           "name" : {
             "type" : "string"
@@ -6578,6 +6592,13 @@
           "branch" : {
             "type" : "string"
           },
+          "detectedLanguages" : {
+            "items" : {
+              "enum" : [ "apex", "bash", "c", "clojure", "csharp", "dockerfile", "elixir", "go", "html", "java", "javascript", "json", "kotlin", "ocaml", "php", "python", "ruby", "rust", "scala", "solidity", "swift", "terraform", "typescript", "yaml" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "displayName" : {
             "type" : "string"
           },
@@ -7222,6 +7243,13 @@
               "$ref" : "#/components/schemas/IacFinding"
             },
             "type" : "array"
+          },
+          "languages" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array",
+            "uniqueItems" : true
           },
           "plugins" : {
             "items" : {
@@ -13177,7 +13205,7 @@
         "tags" : [ "Solutions" ]
       },
       "patch" : {
-        "description" : "A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404; a name the target solution already holds answers 409 with the type urn:vectispire:problem:project-name-taken; a rename within the solution to a name it holds answers 400.",
+        "description" : "A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.",
         "operationId" : "update_5",
         "parameters" : [ {
           "in" : "path",
@@ -16086,6 +16114,7 @@
         "tags" : [ "Solutions" ]
       },
       "post" : {
+        "description" : "A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.",
         "operationId" : "create_3",
         "requestBody" : {
           "content" : {
@@ -16135,6 +16164,7 @@
         "tags" : [ "Solutions" ]
       },
       "patch" : {
+        "description" : "A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.",
         "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
@@ -16173,6 +16203,7 @@
     },
     "/api/v1/solutions/{id}/projects" : {
       "post" : {
+        "description" : "404 when the solution does not exist. A name the solution already holds, case aside, answers 409 with the type urn:vectispire:problem:project-name-taken.",
         "operationId" : "createProject",
         "parameters" : [ {
           "in" : "path",

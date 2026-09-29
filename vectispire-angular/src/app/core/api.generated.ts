@@ -2029,7 +2029,7 @@ export interface paths {
         head?: never;
         /**
          * Rename, describe or move project
-         * @description A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404; a name the target solution already holds answers 409 with the type urn:vectispire:problem:project-name-taken; a rename within the solution to a name it holds answers 400.
+         * @description A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.
          */
         patch: operations["update_5"];
         trace?: never;
@@ -3283,7 +3283,10 @@ export interface paths {
          */
         get: operations["list_4"];
         put?: never;
-        /** Create solution */
+        /**
+         * Create solution
+         * @description A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.
+         */
         post: operations["create_3"];
         delete?: never;
         options?: never;
@@ -3308,7 +3311,10 @@ export interface paths {
         delete: operations["remove_2"];
         options?: never;
         head?: never;
-        /** Rename or describe solution */
+        /**
+         * Rename or describe solution
+         * @description A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.
+         */
         patch: operations["update_3"];
         trace?: never;
     };
@@ -3321,7 +3327,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create project in solution */
+        /**
+         * Create project in solution
+         * @description 404 when the solution does not exist. A name the solution already holds, case aside, answers 409 with the type urn:vectispire:problem:project-name-taken.
+         */
         post: operations["createProject"];
         delete?: never;
         options?: never;
@@ -5967,8 +5976,10 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
             description?: string;
+            detectedLanguages?: ("apex" | "bash" | "c" | "clojure" | "csharp" | "dockerfile" | "elixir" | "go" | "html" | "java" | "javascript" | "json" | "kotlin" | "ocaml" | "php" | "python" | "ruby" | "rust" | "scala" | "solidity" | "swift" | "terraform" | "typescript" | "yaml")[];
             /** Format: int64 */
             id?: number;
+            languagesUnknownFor?: number[];
             name?: string;
             openIssues?: components["schemas"]["OpenIssues"];
             partial: boolean;
@@ -6218,6 +6229,7 @@ export interface components {
         };
         RepositorySummary: {
             branch?: string;
+            detectedLanguages?: ("apex" | "bash" | "c" | "clojure" | "csharp" | "dockerfile" | "elixir" | "go" | "html" | "java" | "javascript" | "json" | "kotlin" | "ocaml" | "php" | "python" | "ruby" | "rust" | "scala" | "solidity" | "swift" | "terraform" | "typescript" | "yaml")[];
             displayName?: string;
             /** Format: uuid */
             httpsTokenId?: string;
@@ -6458,6 +6470,7 @@ export interface components {
             duration?: string;
             failures?: components["schemas"]["Failure"][];
             iac?: components["schemas"]["IacFinding"][];
+            languages?: string[];
             plugins?: (components["schemas"]["Absent"] | components["schemas"]["NotApplicable"] | components["schemas"]["Produced"])[];
             project?: components["schemas"]["Project"];
             sast?: components["schemas"]["SastFinding"][];
