@@ -908,6 +908,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Bind rules to checklist template lines
+         * @description Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed or component_versions, maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a rule the kind refuses — a missing maximum age, a parameter another kind takes, a scope nothing examines, a threshold that checks nothing; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.
+         */
+        put: operations["bindRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/compliance/evidence-bundle.zip": {
         parameters: {
             query?: never;
@@ -2170,7 +2190,7 @@ export interface paths {
         put?: never;
         /**
          * Answer checklist line
-         * @description On a draft: a new answer, the caller its author. no and not_applicable need a comment. edition is the one read. 400 for no edition, an answer that is none, a negative one without its comment, not_applicable on a version that does not offer it; 409 checklist-not-draft, checklist-line-changed, checklist-changed.
+         * @description On a draft: a new answer, the caller its author. no and not_applicable need a comment. measurementDigest, the evidenceDigest of the line's measurement as read, rests the answer on that measurement, applied again and stored with it. edition is the one read. 400 for no edition, an answer that is none, a negative one without its comment, not_applicable on a version that does not offer it, a measurement named on a line bound to no rule; 409 checklist-not-draft, checklist-line-changed, checklist-changed, checklist-measurement-changed (the measurement is not the one read).
          */
         post: operations["answer"];
         delete?: never;
@@ -2259,6 +2279,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/checklists/{revision}/measurements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read checklist measurements
+         * @description The lines bound to a rule, each with what the rule finds — outcome pass, fail or no_data with its reason, the instant it is as of, the evidence per repository (the scan or import read, its date and digest) and the figures — beside the line's answer and their reconciliation. For a draft or a submitted revision the measurements are computed for this read and stored nowhere (id null); a submitted one also carries those of its submission; a signed-off one's are those frozen by the sign-off. 404 for a project the caller does not see whole or a revision it does not have.
+         */
+        get: operations["measurements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/checklists/{revision}/reopen": {
         parameters: {
             query?: never;
@@ -2310,7 +2350,7 @@ export interface paths {
         put?: never;
         /**
          * Sign off project checklist
-         * @description An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission; its lines in the problem's lines member).
+         * @description An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. The lines bound to a rule are measured again, and the sign-off is refused when one's outcome or reason is not what the submission stored; accepted, the measurements are frozen with it. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission), checklist-measurement-changed (a measurement changed since the submission) — their lines in the problem's lines member.
          */
         post: operations["signOff"];
         delete?: never;
@@ -2330,7 +2370,7 @@ export interface paths {
         put?: never;
         /**
          * Submit project checklist
-         * @description A draft, at the edition read, for sign-off: every line answered, every negative answer commented, every proof a yes needs attached and in date, no carried answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete — whose problem names the lines in its lines member as well as in its detail: each line's itemId, position and problems, the tokens a line's view carries.
+         * @description A draft, at the edition read, for sign-off: every line answered, every negative answer commented, every proof a yes needs attached and in date, no carried answer awaiting confirmation. The lines bound to a rule are measured again and reconciled: a yes where the measurement fails is refused, a yes where it has no data needs a comment and a proof in date; the measurements are stored with the submission. 409 checklist-not-draft, checklist-changed, checklist-incomplete — whose problem names the lines in its lines member as well as in its detail: each line's itemId, position and problems, the tokens a line's view carries — and checklist-measurement-contradicted, its lines in the same member.
          */
         post: operations["submit"];
         delete?: never;
@@ -4091,6 +4131,7 @@ export interface components {
             comment?: string;
             /** Format: int32 */
             edition?: number;
+            measurementDigest?: string;
             value?: string;
         };
         ChecklistAnswerView: {
@@ -4162,6 +4203,10 @@ export interface components {
             added?: string;
             removed?: string;
         };
+        ChecklistItemRule: {
+            itemKey?: string;
+            rule?: components["schemas"]["ChecklistRuleForm"];
+        };
         ChecklistItemView: {
             boundRule?: string;
             contact?: string;
@@ -4226,12 +4271,49 @@ export interface components {
             /** Format: int32 */
             position?: number;
             problems?: string[];
+            rule?: components["schemas"]["ChecklistRuleForm"];
         };
         ChecklistLinkRequest: {
             /** Format: int32 */
             edition?: number;
             link?: string;
             performedOn?: string;
+        };
+        ChecklistMeasurementView: {
+            /** Format: int64 */
+            answerId?: number;
+            answerValue?: string;
+            /** Format: date-time */
+            asOf?: string;
+            boundRule?: string;
+            /** Format: int64 */
+            checklistId?: number;
+            /** Format: date-time */
+            computedAt?: string;
+            computedBy?: string;
+            evidence?: components["schemas"]["MeasurementEvidence"];
+            evidenceDigest?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            itemId?: number;
+            outcome?: string;
+            purpose?: string;
+            reason?: string;
+            reconciliation?: string;
+            ruleDigest?: string;
+            ruleKind?: string;
+        };
+        ChecklistMeasurementsView: {
+            /** Format: date-time */
+            computedAt?: string;
+            lines?: components["schemas"]["MeasuredLineView"][];
+            live: boolean;
+            /** Format: int64 */
+            projectId: number;
+            /** Format: int32 */
+            revision: number;
+            status?: string;
         };
         ChecklistOfferedVersion: {
             /** Format: int64 */
@@ -4306,6 +4388,26 @@ export interface components {
             versionLabel?: string;
             /** Format: int32 */
             versionOrdinal: number;
+        };
+        ChecklistRuleForm: {
+            aggregation?: string;
+            components?: components["schemas"]["ComponentForm"][];
+            kind?: string;
+            /** Format: int32 */
+            maxAgeDays?: number;
+            metric?: string;
+            minimumRatio?: number;
+            /** Format: int32 */
+            minimumTests?: number;
+            requireSchedule?: boolean;
+            scopes?: string[];
+            suitePattern?: string;
+            thresholds?: {
+                [key: string]: components["schemas"]["ThresholdForm"];
+            };
+        };
+        ChecklistRulesRequest: {
+            items?: components["schemas"]["ChecklistItemRule"][];
         };
         ChecklistTemplatePreview: {
             cells?: components["schemas"]["PreviewCell"][];
@@ -4465,6 +4567,10 @@ export interface components {
             oldVersion?: string;
             purl?: string;
             type?: string;
+        };
+        ComponentForm: {
+            purlPrefix?: string;
+            versions?: string[];
         };
         ContainerCreateRequest: {
             image_name?: string;
@@ -5314,6 +5420,36 @@ export interface components {
             token?: string;
             user?: components["schemas"]["UserSummary"];
         };
+        MeasuredFigure: {
+            detail?: string;
+            met?: boolean;
+            /** Format: int64 */
+            open: number;
+            /** Format: int64 */
+            resolved: number;
+            scope?: string;
+            severity?: string;
+        };
+        MeasuredLineView: {
+            answer?: string;
+            /** Format: int64 */
+            answerId?: number;
+            atSubmission?: components["schemas"]["ChecklistMeasurementView"];
+            /** Format: int64 */
+            itemId: number;
+            itemKey?: string;
+            measurement?: components["schemas"]["ChecklistMeasurementView"];
+            /** Format: int32 */
+            position: number;
+            problems?: string[];
+            reconciliation?: string;
+            rule?: components["schemas"]["ChecklistRuleForm"];
+        };
+        MeasurementEvidence: {
+            figures?: components["schemas"]["MeasuredFigure"][];
+            repositories?: components["schemas"]["RepositoryLook"][];
+            summary?: string;
+        };
         Member: {
             display?: string;
             ref?: string;
@@ -5905,6 +6041,20 @@ export interface components {
             tier?: string;
             url?: string;
         };
+        RepositoryLook: {
+            /** Format: date-time */
+            at?: string;
+            detail?: string;
+            digest?: string;
+            met?: boolean;
+            /** Format: int64 */
+            repositoryId: number;
+            scope?: string;
+            source?: string;
+            /** Format: int64 */
+            sourceId?: number;
+            status?: string;
+        };
         RepositoryRef: {
             /** Format: int64 */
             id?: number;
@@ -6060,6 +6210,7 @@ export interface components {
             /** Format: int64 */
             sourceId?: number;
             sourceSlug?: string;
+            toolKeys?: string;
             tools?: string;
         };
         SarifLog: {
@@ -6699,6 +6850,11 @@ export interface components {
             totalCves: number;
             /** Format: int64 */
             totalKev: number;
+        };
+        ThresholdForm: {
+            /** Format: int32 */
+            maxOpen?: number;
+            minResolvedRatio?: number;
         };
         TokenRequest: {
             token?: string;
@@ -8191,6 +8347,35 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    bindRules: {
+        parameters: {
+            query?: {
+                revision?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistRulesRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -10204,6 +10389,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistLineHistory"];
+                };
+            };
+        };
+    };
+    measurements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistMeasurementsView"];
                 };
             };
         };
