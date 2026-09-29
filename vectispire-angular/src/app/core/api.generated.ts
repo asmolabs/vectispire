@@ -9548,6 +9548,8 @@ export interface operations {
                 triage_status?: string;
                 repository_id?: number;
                 container_id?: number;
+                project_id?: number;
+                solution_id?: number;
                 only_direct?: boolean;
                 is_kev?: boolean;
                 overdue?: boolean;
