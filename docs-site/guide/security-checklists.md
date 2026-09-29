@@ -234,6 +234,43 @@ like any refused sign-off; return the revision, and submit it again. An accepted
 measurements: a signed-off revision reads its measurements as they were signed, whatever the
 backlog does next.
 
+## The document
+
+`GET /api/v1/projects/{id}/checklists/{revision}/document` returns the revision as a document to hand
+over: a zip, always served as a download.
+
+| Entry | What it is |
+|---|---|
+| `checklist.xlsx` | **Your template's own workbook, filled in.** Every part of the file is the template's, byte for byte, except the cells written: each line's answer — in the template's own word — and comment, and the header's product, author and date. The validation lists, extensions, comments and styles are untouched. The date is a **value, the sign-off instant** — a formula such as `TODAY()` is replaced, since it would date every copy to the day it was last opened. One sheet is added, **Evidence**: one row per line with its answer, who gave it and when, the measurement's outcome, the instant it is as of, the summary and SHA-256 of its evidence, what the answer and the measurement say together (*declared, not measured* for a yes without data), the proofs' links and file digests; then who submitted, who signed off, and whether four-eyes applied. Instants are UTC. |
+| `checklist.json` | The same statement, machine-readable: project, revision, template slug, version and source SHA-256, every line with its current answer and history, its measurement (rule and evidence as the exact texts their digests cover) and its proofs — files named by SHA-256, never included — the submitter, the signer and the Vectispire version. |
+| `checklist.xlsx.sig`, `checklist.json.sig` | Detached signatures by the platform's signing key — **a signed-off revision only**. |
+
+**A signed-off revision's document is produced and signed with its sign-off** and stored: every
+download returns those same bytes, whatever changed since. A draft, a submitted or a superseded
+revision is rendered for the request, **unsigned**, its measured lines measured for it, its date cell
+left empty and its Evidence sheet opening with *Draft — not signed off*.
+
+Anybody who may read the checklist may download it; so may an [integration key](../administration/api-keys.md)
+with the `export` scope — though a key restricted to one repository never sees a whole project, and is
+answered as if the project did not exist.
+
+**Verify it against a key you obtained separately**, never one handed to you with the document:
+
+```bash
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o checklist.zip \
+  "$VECTISPIRE_URL/api/v1/projects/12/checklists/3/document"
+curl -fsS -o vectispire.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
+unzip checklist.zip
+cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true \
+  --signature checklist.xlsx.sig checklist.xlsx
+cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true \
+  --signature checklist.json.sig checklist.json
+```
+
+`--insecure-ignore-tlog=true` says only that the signature was never published to Sigstore's public
+transparency log — Vectispire signs with its own key and publishes nothing — and it is required, or
+cosign looks for an entry that does not exist. The key is what is checked.
+
 ## Earlier revisions
 
 **Revisions** lists every revision of the project's checklist, newest first, with its status, its
@@ -261,7 +298,7 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 
 Opening, moving, reopening, every answer and confirmation, every proof attached or withdrawn, the
 submission, the return, the sign-off and a refused sign-off are written to the
-[audit log](../administration/audit-log.md). A sign-off is signalled to the SIEM as `VECTI-SEC-025`; a
+[audit log](../administration/audit-log.md), and so is each download of the document, with its SHA-256. A sign-off is signalled to the SIEM as `VECTI-SEC-025`; a
 refused sign-off and a return as `VECTI-SEC-026`.
 
 ## Related

@@ -243,6 +243,43 @@ attesté non plus). Le refus est consigné et signalé comme toute approbation r
 révision, et soumettez-la à nouveau. Une approbation acceptée conserve ses mesures : une révision
 approuvée lit ses mesures telles qu'elles ont été signées, quoi que fasse le passif ensuite.
 
+## Le document
+
+`GET /api/v1/projects/{id}/checklists/{revision}/document` renvoie la révision comme un document à
+remettre : un zip, toujours servi en téléchargement.
+
+| Entrée | Ce que c'est |
+|---|---|
+| `checklist.xlsx` | **Le classeur de votre propre modèle, rempli.** Chaque partie du fichier est celle du modèle, octet pour octet, sauf les cellules écrites : la réponse de chaque ligne — dans le mot du modèle — et son commentaire, et, dans l'en-tête, le produit, l'auteur et la date. Les listes de validation, les extensions, les commentaires et les styles sont intacts. La date est une **valeur, l'instant de l'approbation** — une formule comme `AUJOURDHUI()` est remplacée, puisqu'elle daterait chaque copie du jour de sa dernière ouverture. Une feuille est ajoutée, **Evidence** : une ligne par ligne de la checklist avec sa réponse, qui l'a donnée et quand, le résultat de la mesure, l'instant dont elle date, le résumé et le SHA-256 de ses preuves, ce que disent ensemble la réponse et la mesure (*declared, not measured* pour un oui sans données), les liens et les empreintes des fichiers de preuve ; puis qui a soumis, qui a approuvé, et si la double validation s'appliquait. Les instants sont en UTC. |
+| `checklist.json` | La même déclaration, lisible par une machine : projet, révision, identifiant du modèle, version et SHA-256 du fichier source, chaque ligne avec sa réponse courante et son historique, sa mesure (la règle et les preuves en textes exacts, ceux que couvrent leurs empreintes) et ses preuves — les fichiers nommés par leur SHA-256, jamais inclus —, l'auteur de la soumission, l'approbateur et la version de Vectispire. |
+| `checklist.xlsx.sig`, `checklist.json.sig` | Signatures détachées par la clé de signature de la plateforme — **seulement pour une révision approuvée**. |
+
+**Le document d'une révision approuvée est produit et signé avec son approbation**, puis conservé :
+chaque téléchargement renvoie ces mêmes octets, quoi qui ait changé depuis. Un brouillon, une révision
+soumise ou remplacée est rendu pour la requête, **sans signature**, ses lignes mesurées mesurées pour
+lui, sa cellule de date laissée vide et sa feuille Evidence ouverte par *Draft — not signed off*.
+
+Quiconque peut lire la checklist peut la télécharger ; une [clé d'intégration](../administration/api-keys.fr.md)
+ayant la portée `export` aussi — mais une clé restreinte à un dépôt ne voit jamais un projet en entier,
+et reçoit la réponse d'un projet qui n'existe pas.
+
+**Vérifiez-le avec une clé obtenue séparément**, jamais une clé remise avec le document :
+
+```bash
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o checklist.zip \
+  "$VECTISPIRE_URL/api/v1/projects/12/checklists/3/document"
+curl -fsS -o vectispire.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
+unzip checklist.zip
+cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true \
+  --signature checklist.xlsx.sig checklist.xlsx
+cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true \
+  --signature checklist.json.sig checklist.json
+```
+
+`--insecure-ignore-tlog=true` dit seulement que la signature n'a jamais été publiée dans le journal
+de transparence public de Sigstore — Vectispire signe avec sa propre clé et ne publie rien — et il est
+nécessaire, sans quoi cosign cherche une entrée qui n'existe pas. C'est la clé qui est vérifiée.
+
 ## Révisions antérieures
 
 **Révisions** liste chaque révision de la checklist du projet, de la plus récente à la plus ancienne,
@@ -270,7 +307,8 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 
 L'ouverture, le passage de version, la réouverture, chaque réponse et chaque confirmation, chaque
 preuve jointe ou retirée, la soumission, le renvoi, l'approbation et une approbation refusée sont
-inscrits au [journal d'audit](../administration/audit-log.fr.md). Une approbation est signalée au SIEM
+inscrits au [journal d'audit](../administration/audit-log.fr.md), de même que chaque téléchargement
+du document, avec son SHA-256. Une approbation est signalée au SIEM
 comme `VECTI-SEC-025` ; une approbation refusée et un renvoi comme `VECTI-SEC-026`.
 
 ## À lire aussi
