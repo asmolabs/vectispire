@@ -294,7 +294,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   never answers: an answer may rest on a measurement the person read, and stays theirs. **A
   repository's scans from before V49, and a source's SARIF imports from before V53, read as
   `examination_unrecorded`** — nothing recorded whether they looked — until its next scan or upload.
-  The screens come with the interface's next lot —
+  On the template screen a security lead binds a draft's line to its rule, the line's KPI text
+  beside the parameters and the rule in words beside both, a *secrets at zero* preset included, and
+  saves the lines changed together; the auditor and a published version read each line's rule. On a
+  project's checklist each bound line shows its measurement — met, not met, or no data with its
+  reason in words — as of when, its figures and each repository's evidence on demand; a met or not-met
+  line offers to answer as measured in one click, resting on the measurement read. The page says
+  whether the measurements are live or frozen by the sign-off, and **Submit** stays greyed out, with
+  the lines named, while a measurement keeps the revision back — a *yes* contradicted, or a *yes*
+  without data missing its comment or proof —
   [Security checklists](../guide/security-checklists.md#measured-lines).
 - **What proof a checklist line asks for is set on the template's draft**
   (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, on the `revision` read): for

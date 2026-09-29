@@ -128,11 +128,25 @@ enough, coverage, an architecture suite that passed, internal libraries at maint
 **bound to a rule** on the draft, and each project's checklist then shows the rule's measurement
 beside the answer. Vectispire never answers: it measures, and people answer.
 
-The template screen gains the binding form in the next release; until then a rule is bound through
-the API, on the draft and the **revision** you read, like a proof requirement:
-`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`, each line named by its `itemKey`
-with its `rule`, or `null` to unbind it. Only a platform governor, an administrator or a CISO binds
-rules, and whoever does becomes one of the draft's authors.
+On a draft whose layout is confirmed, the items table has a **Measured by** column. Choose **Bind a
+rule** (or **Change the rule**) on a row: the form opens with the line's control and **its KPI, as the
+template writes it, beside the parameters**, and under them *what the rule measures* in words. The KPI
+is never read into a threshold; compare the two before keeping the rule — "no critical, at most two
+high" against a rule that allows five is the disagreement this layout is there to show. Choose the
+kind, state its parameters, and **Keep this rule**; **Preset: secrets at zero** fills the rule
+decision 0032 names (the secret step, critical and high at zero open, evidence at most seven days
+old). A findings rule's built-in steps are ticked; a plugin (`plugin:<id>`) or a tool a SARIF source
+declares (`import:<source>/<tool>`) is typed, and the field suggests the plugins registered and the
+tools of the SARIF sources declared. The form refuses, in words and before sending, what the server
+would refuse. Choosing **No rule** and **Measure by no rule** unbinds the line.
+
+Rules kept stay on screen, marked *Not saved*, until **Save the rules**: only the lines whose rule
+changed are sent, on the draft's **revision** shown — one edited meanwhile is refused and the page
+offers to reload. Only a platform governor, an administrator or a CISO binds rules, and whoever does
+becomes one of the draft's authors; everyone else, the auditor included, and every published version,
+shows each line's rule in words and nothing to change. A script does the same with
+`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules?revision=…`, each line named by its
+`itemKey` with its `rule`, or `null` to unbind it.
 
 | Kind | What it reads | A line passes when, on every repository of the project |
 |---|---|---|

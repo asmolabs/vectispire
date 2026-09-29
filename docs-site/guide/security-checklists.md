@@ -166,11 +166,18 @@ A line the template binds to a rule — see
 backlog recorded for every repository of the project, and says what it found beside the answer.
 **Vectispire never answers**: the measurement is evidence, and the answer stays a person's.
 
-The page shows the measurements from the next release; the server already takes them, and a script
-reads them at `GET /api/v1/projects/{id}/checklists/{revision}/measurements`. A measurement is
-**pass**, **fail** or **no data** — never a pass by default — with the instant it is **as of** (its
-oldest evidence), and for each repository the scan or import it read, its date and the digest of
-the document an import accepted, and the figures.
+Each bound line shows, under its words, **Measured by** and the rule in words, then its measurement:
+**Met**, **Not met** or **No data** — never a pass by default — with the reason in a sentence when
+there is no data, the instant it is **as of** (its oldest evidence), the figures per scope and
+severity, and **Show the evidence**: for each repository the scan (linked to its page) or the import
+it read, its date, the digest of the document an import accepted, whether it met, and the server's
+detail. A script reads the same at `GET /api/v1/projects/{id}/checklists/{revision}/measurements`.
+
+The page says which measurements it shows. A draft's and a submitted revision's are **live**:
+computed for your read, stored nowhere, read again after every change you make, and computed again
+by the submission and by the sign-off. A signed-off revision's are the ones **frozen by its
+sign-off**. Badges beside the outcome say what the answer and the measurement say together, and what
+the measurement still keeps from a submission.
 
 **No data says why.** One repository without data makes the line *no data*, and a threshold is never
 judged on part of a project's backlog:
@@ -203,6 +210,20 @@ An answer may **rest on the measurement** the person read: the answer names that
 `evidenceDigest` (`measurementDigest`), the rule is applied again, and the answer is stored pointing
 at the measurement stored with it. A measurement that moved since — a new scan, a new finding — is
 refused rather than accepted unseen.
+
+On the page that is **one click**: on a line measured *met*, **Answer yes, as measured** sends your
+yes resting on the measurement shown; on a line *not met*, **Answer no, as measured** opens the form on
+a no, which needs its comment. A line without data offers nothing to rest on: answer it yourself, and
+a yes there then needs a comment and a proof. Choosing another answer than the measured one sends it
+resting on none. If the measurement changed between your read and your click, the page reads it again
+and says so on the line: read it, then answer.
+
+**Submit** is offered only once the measurements are read and none keeps the revision back — a yes
+contradicted, or a yes without data missing its comment or its proof — which each line's own state
+does not know; the page names the lines. A submitted revision whose measurement is no longer the
+submission's greys out the **sign-off**, with the reason. Should the server refuse all the same
+(`checklist-measurement-contradicted`, `checklist-measurement-changed`), the lines it names are
+highlighted with the answer, what is measured now and, at a sign-off, what the submission found.
 
 **Freshness is judged again at every step.** The submission measures every bound line again and
 stores what it found, each with the answer it was reconciled with. The sign-off measures again, and

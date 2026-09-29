@@ -136,11 +136,27 @@ versions maintenues — est **liée à une règle** sur le brouillon, et la chec
 montre alors la mesure de la règle à côté de la réponse. Vectispire ne répond jamais : il mesure, et
 des personnes répondent.
 
-L'écran des modèles recevra le formulaire de liaison dans la prochaine version ; d'ici là, une règle
-se lie par l'API, sur le brouillon et la **révision** lue, comme une exigence de preuve :
-`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`, chaque ligne nommée par son
-`itemKey` avec sa `rule`, ou `null` pour la délier. Seuls un gouverneur de la plateforme, un
-administrateur ou un CISO lient des règles, et qui le fait devient l'un des auteurs du brouillon.
+Sur un brouillon dont la disposition est confirmée, le tableau des éléments a une colonne **Mesurée
+par**. Choisissez **Lier une règle** (ou **Changer la règle**) sur une ligne : le formulaire s'ouvre
+avec le contrôle de la ligne et **son indicateur, tel que le modèle l'écrit, à côté des paramètres**,
+et en dessous *ce que la règle mesure* en mots. L'indicateur n'est jamais lu comme un seuil ; comparez
+les deux avant de garder la règle — « aucun critique, au plus deux élevés » face à une règle qui en
+permet cinq est le désaccord que cette disposition doit montrer. Choisissez le type, indiquez ses
+paramètres, puis **Garder cette règle** ; **Préréglage : secrets à zéro** remplit la règle que nomme la
+décision 0032 (l'étape secrets, critique et élevée à zéro ouvert, preuves d'au plus sept jours). Les
+étapes intégrées d'une règle de constats se cochent ; un plugin (`plugin:<id>`) ou un outil que
+déclare une source SARIF (`import:<source>/<outil>`) se saisit, et le champ suggère les plugins
+enregistrés et les outils des sources SARIF déclarées. Le formulaire refuse, en mots et avant l'envoi,
+ce que le serveur refuserait. Choisir **Aucune règle** puis **Mesurer sans règle** délie la ligne.
+
+Les règles gardées restent à l'écran, marquées *Non enregistrée*, jusqu'à **Enregistrer les règles** :
+seules les lignes dont la règle a changé sont envoyées, sur la **révision** du brouillon affichée — un
+brouillon modifié entre-temps est refusé et la page propose de le relire. Seuls un gouverneur de la
+plateforme, un administrateur ou un CISO lient des règles, et qui le fait devient l'un des auteurs du
+brouillon ; tous les autres, l'auditeur compris, et toute version publiée, montrent la règle de chaque
+ligne en mots et rien à changer. Un script fait de même avec
+`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules?revision=…`, chaque ligne nommée par
+son `itemKey` avec sa `rule`, ou `null` pour la délier.
 
 | Type | Ce qu'il lit | Une ligne est satisfaite quand, sur chaque dépôt du projet |
 |---|---|---|

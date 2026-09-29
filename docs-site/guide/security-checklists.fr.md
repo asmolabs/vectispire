@@ -173,11 +173,19 @@ Une ligne que le modèle lie à une règle — voir
 passif ont enregistré pour chaque dépôt du projet, et dit ce qu'il a trouvé à côté de la réponse.
 **Vectispire ne répond jamais** : la mesure est une preuve, et la réponse reste celle d'une personne.
 
-La page montre les mesures à partir de la prochaine version ; le serveur les prend déjà, et un script
-les lit à `GET /api/v1/projects/{id}/checklists/{revision}/measurements`. Une mesure est **pass**,
-**fail** ou **no data** — jamais un succès par défaut — avec l'instant auquel elle vaut (sa preuve la
-plus ancienne), et pour chaque dépôt l'analyse ou l'import lu, sa date et l'empreinte du document
-qu'un import a accepté, et les chiffres.
+Chaque ligne liée montre, sous ses mots, **Mesurée par** et la règle en mots, puis sa mesure :
+**Atteint**, **Non atteint** ou **Pas de données** — jamais un succès par défaut — avec la raison en une
+phrase quand il n'y a pas de données, l'instant auquel elle vaut (sa preuve la plus ancienne), les
+chiffres par périmètre et sévérité, et **Afficher les preuves** : pour chaque dépôt l'analyse (liée à
+sa page) ou l'import lu, sa date, l'empreinte du document qu'un import a accepté, s'il est atteint, et
+le détail du serveur. Un script lit la même chose à
+`GET /api/v1/projects/{id}/checklists/{revision}/measurements`.
+
+La page dit quelles mesures elle montre. Celles d'un brouillon et d'une révision soumise sont **en
+direct** : calculées pour votre lecture, conservées nulle part, relues après chaque changement que vous
+faites, et calculées à nouveau par la soumission et par la validation. Celles d'une révision validée
+sont **figées par sa validation**. Des badges à côté du résultat disent ce que la réponse et la mesure
+disent ensemble, et ce que la mesure retient encore d'une soumission.
 
 **L'absence de données dit pourquoi.** Un seul dépôt sans données rend la ligne *no data*, et un
 seuil n'est jamais jugé sur une partie du passif d'un projet :
@@ -210,6 +218,21 @@ Une réponse peut **reposer sur la mesure** que la personne a lue : la réponse 
 de cette mesure (`measurementDigest`), la règle est appliquée à nouveau, et la réponse est conservée
 en désignant la mesure conservée avec elle. Une mesure qui a bougé depuis — une nouvelle analyse, un
 nouveau constat — est refusée plutôt qu'acceptée sans avoir été vue.
+
+À l'écran, c'est **un clic** : sur une ligne mesurée *atteint*, **Répondre oui, comme mesuré** envoie
+votre oui reposant sur la mesure affichée ; sur une ligne *non atteint*, **Répondre non, comme mesuré**
+ouvre le formulaire sur un non, qui demande son commentaire. Une ligne sans données n'offre rien sur
+quoi reposer : répondez vous-même, et un oui y demande alors un commentaire et une preuve. Choisir une
+autre réponse que celle mesurée l'envoie sans mesure. Si la mesure a changé entre votre lecture et
+votre clic, la page la relit et le dit sur la ligne : lisez-la, puis répondez.
+
+**Soumettre** n'est proposé qu'une fois les mesures lues et quand aucune ne retient la révision — un oui
+contredit, ou un oui sans données auquel manque son commentaire ou sa preuve — ce que l'état de chaque
+ligne seul ne sait pas ; la page nomme les lignes. Une révision soumise dont une mesure n'est plus
+celle de la soumission grise la **validation** avec la raison. Si le serveur refuse quand même
+(`checklist-measurement-contradicted`, `checklist-measurement-changed`), les lignes qu'il nomme sont
+mises en évidence avec la réponse, ce qui est mesuré maintenant et, à la validation, ce que la
+soumission avait trouvé.
 
 **La fraîcheur est rejugée à chaque étape.** La soumission mesure à nouveau chaque ligne liée et
 conserve ce qu'elle a trouvé, chacune avec la réponse à laquelle elle a été rapprochée. L'approbation

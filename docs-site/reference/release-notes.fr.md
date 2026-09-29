@@ -327,7 +327,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   Vectispire ne répond jamais : une réponse peut reposer sur une mesure que la personne a lue, et reste
   la sienne. **Les analyses d'un dépôt antérieures à V49, et les imports SARIF d'une source antérieurs à
   V53, se lisent `examination_unrecorded`** — rien n'a enregistré s'ils ont regardé — jusqu'à sa
-  prochaine analyse ou son prochain envoi. Les écrans viennent avec le prochain lot de l'interface —
+  prochaine analyse ou son prochain envoi. Sur l'écran des modèles, un responsable sécurité lie une
+  ligne du brouillon à sa règle, le texte de l'indicateur de la ligne à côté des paramètres et la règle
+  en mots à côté des deux, un préréglage *secrets à zéro* compris, et enregistre ensemble les lignes
+  modifiées ; l'auditeur et une version publiée lisent la règle de chaque ligne. Sur la checklist d'un
+  projet, chaque ligne liée montre sa mesure — atteint, non atteint, ou pas de données avec sa raison en
+  mots — à quelle date, ses chiffres et, à la demande, les preuves de chaque dépôt ; une ligne atteinte
+  ou non atteinte propose de répondre comme mesuré en un clic, en reposant sur la mesure lue. La page dit
+  si les mesures sont en direct ou figées par la validation, et **Soumettre** reste grisé, les lignes
+  nommées, tant qu'une mesure retient la révision — un *oui* contredit, ou un *oui* sans données auquel
+  manque son commentaire ou sa preuve —
   [Checklists de sécurité](../guide/security-checklists.fr.md#lignes-mesurees).
 - **La preuve qu'une ligne de checklist demande se définit sur le brouillon du modèle**
   (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, sur la `revision` lue) : pour
