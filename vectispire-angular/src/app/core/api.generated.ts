@@ -2139,6 +2139,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/checklists/{revision}/answers/as-measured": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer measured checklist lines as measured
+         * @description On a draft, in one act: every line bound to a rule is measured now, and each unanswered line whose measurement passes is answered yes by the caller, resting on that measurement, stored with it — the one click of the answer route, given for each line at once. Left alone, each named in skipped with its reason: a line already answered (already_answered — any current answer, one awaiting confirmation or one equal to the measurement included), a measurement with no data (no_data), a failing one (needs_comment — its no needs the comment the person writes, one line at a time). edition is the one read; anything written since refuses the act. One transaction, one edition; nothing to answer writes nothing and leaves the edition. Each answer is audited as a single one. 400 for no edition; 409 checklist-not-draft, checklist-changed.
+         */
+        post: operations["answerAsMeasured"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/checklists/{revision}/document": {
         parameters: {
             query?: never;
@@ -3881,6 +3901,33 @@ export interface components {
         ArtifactLocation: {
             uri?: string;
         };
+        AsMeasuredAnswer: {
+            /** Format: int64 */
+            answerId: number;
+            evidenceDigest?: string;
+            /** Format: int64 */
+            itemId: number;
+            /** Format: int64 */
+            measurementId: number;
+            /** Format: int32 */
+            position: number;
+            /** @enum {string} */
+            value?: "yes";
+        };
+        AsMeasuredSkip: {
+            /** @enum {string} */
+            answer?: "yes" | "no" | "not_applicable";
+            /** Format: int64 */
+            itemId: number;
+            /** @enum {string} */
+            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "examination_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            /** @enum {string} */
+            outcome?: "pass" | "fail" | "no_data";
+            /** Format: int32 */
+            position: number;
+            /** @enum {string} */
+            reason?: "already_answered" | "no_data" | "needs_comment";
+        };
         Assessment: {
             ecosystemsInEstate?: string[];
             languagesWithRules?: string[];
@@ -4175,6 +4222,11 @@ export interface components {
             needsConfirmation: boolean;
             /** @enum {string} */
             value?: "yes" | "no" | "not_applicable";
+        };
+        ChecklistAsMeasuredView: {
+            answered?: components["schemas"]["AsMeasuredAnswer"][];
+            checklist?: components["schemas"]["ChecklistView"];
+            skipped?: components["schemas"]["AsMeasuredSkip"][];
         };
         ChecklistDeriveRequest: {
             label?: string;
@@ -10288,6 +10340,33 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    answerAsMeasured: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEditionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistAsMeasuredView"];
                 };
             };
         };
