@@ -23,6 +23,11 @@ plugins { id("vectispire.java-conventions") }
  */
 dependencies {
     implementation(platform(libs.spring.boot.bom))
+    // `api`: the floor has to reach the agent and the control plane, which receive Jackson from
+    // here. Declared on `implementation`, it would raise this module's classpath and leave the
+    // agent on the advised version — which is where it was, unseen, because the pipeline's
+    // vulnerability gate reads only the control plane's SBOM.
+    api(platform(libs.jackson2.bom))
     // `api`, not `implementation`: `ScanArtifacts` hands out a `JsonNode`, so Jackson is part
     // of this module's surface whether or not it is declared as such. Hiding it only means
     // every consumer has to redeclare it and discover why by a compile error.

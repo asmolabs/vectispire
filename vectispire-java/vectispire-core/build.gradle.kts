@@ -85,6 +85,9 @@ dependencies {
     implementation(project(":vectispire-common"))
     implementation(platform(libs.spring.boot.bom))
     testImplementation(platform(libs.spring.boot.bom))
+    // Jackson 3 is Spring Boot's, and only the control plane has it; the catalogue names the
+    // advisories. Jackson 2 is raised in `vectispire-common`, whose `api` carries it here.
+    implementation(platform(libs.jackson3.bom))
 
     /*
      * **Tomcat, une version devant ce que Spring Boot gère — et c'est temporaire par construction.**
