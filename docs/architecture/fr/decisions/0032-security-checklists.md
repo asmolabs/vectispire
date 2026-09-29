@@ -646,3 +646,28 @@ de la même façon — une exigence suit la clé de son item : confirmer à nouv
 brouillon garde l'exigence de chaque item, et l'item d'un nouveau classeur prend l'exigence de l'item
 de même clé de la version précédente. Lues comme le dit le classeur, les deux perdraient chaque
 exigence, et la seconde marquerait modifié chacun de ces items.
+
+## Amendement (2026-09-29) — ce que le §10 laissait ouvert, tel que le rendu l'a tranché
+
+La construction du lot L8 a rencontré quatre cas que le §10 ne tranche pas. Chacun est réglé dans le
+code ; cet amendement les consigne pour que la décision et le module disent la même chose.
+
+- **La date d'un rendu non signé est vide.** Le §2 et le §10 disent qu'un document est daté par
+  l'instant de la signature, jamais par « maintenant ». Une révision en brouillon ou soumise n'a pas de
+  signature, et garder la formule du modèle (`NOW()` dans le premier modèle réel) voudrait dire
+  exactement « maintenant ». La cellule garde son style et ne contient rien ; `checklist.json` porte
+  `header.date` à `null`.
+- **Une révision signée avant l'existence des documents signés** n'a pas de paquet enregistré. Son
+  téléchargement est un rendu non signé dont la feuille `Evidence` s'ouvre par *« Signed off by … at …
+  — but no signed document was produced then: this rendering is not signed »*, et le zip ne contient
+  aucun `.sig`. La signer maintenant attesterait, sous la clé et la lecture d'aujourd'hui, une signature
+  donnée sans document.
+- **La feuille `Evidence` est rédigée en anglais**, quelle que soit la langue du modèle, et ses instants
+  en texte ISO-8601 UTC. Les feuilles de l'organisation gardent leurs mots ; la feuille ajoutée est la
+  déclaration de Vectispire, lue par les auditeurs et par les plugins de rapport qui recevront
+  `checklist.json`.
+- **Une signature peut désormais échouer sur le rendu ou la signature, et s'annule en entier.** Une
+  installation sans `ENCRYPTION_KEY` ni `vectispire.signing.key` répond 412 à la signature, comme tout
+  autre export signé. Un modèle dont une cellule écrite est le maître d'une formule partagée ne peut pas
+  être rendu, donc aucune de ses révisions ne peut être signée ; le vérifier par un rendu d'essai à la
+  publication de la version est une étape ultérieure.

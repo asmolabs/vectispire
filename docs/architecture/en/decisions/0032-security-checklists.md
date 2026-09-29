@@ -596,3 +596,25 @@ decided the same way — a requirement follows its item's key: confirming a draf
 each item's requirement, and a new workbook's item takes the requirement of the previous version's
 item with the same key. Read as the workbook says, both would drop every requirement, and the second
 would mark every such item changed.
+
+## Amendment (2026-09-29) — what §10 left open, as the renderer settled it
+
+Building lot L8 met four cases §10 does not decide. Each is settled in the code; this records them so
+the record and the module agree.
+
+- **The date of an unsigned rendering is empty.** §2 and §10 say a document is dated by the sign-off
+  instant, never "now". A draft or submitted revision has no sign-off, and leaving the template's own
+  formula (`NOW()` in the first real template) would mean exactly "now". The cell keeps its style and
+  holds nothing; `checklist.json` carries `header.date` as `null`.
+- **A revision signed off before signed documents existed** has no stored package. Its download is an
+  unsigned rendering whose `Evidence` sheet opens with *"Signed off by … at … — but no signed document
+  was produced then: this rendering is not signed"*, and the zip carries no `.sig`. Signing it now would
+  attest, under today's key and reading, to a sign-off made without one.
+- **The `Evidence` sheet is written in English** whatever the template's language, and its instants as
+  UTC ISO-8601 text. The organisation's own sheets keep their words; the added sheet is Vectispire's
+  statement, read by auditors and by the report plugins that will receive `checklist.json`.
+- **A sign-off can now fail on rendering or signing, and rolls back whole.** An installation with
+  neither `ENCRYPTION_KEY` nor `vectispire.signing.key` answers 412 at sign-off, as every other signed
+  export already does. A template whose written cells include the master of a shared formula cannot be
+  rendered, so none of its revisions can be signed off; checking this with a trial rendering when the
+  version is published is a later step.
