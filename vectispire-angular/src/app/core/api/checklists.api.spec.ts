@@ -3,14 +3,18 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+    BOUND_VERSION,
     CHECKLIST,
     CONFIRMED_PREVIEW,
     CONTEXT,
     DRAFT_REVISION,
     LAYOUT,
     LINE_HISTORY,
+    MEASURED_CHECKLIST,
     OFFERED,
+    PASS_MEASUREMENT,
     PROJECT_ID,
+    SECRETS_RULE,
     TEMPLATE,
     VERSION
 } from '../testing/checklists.fixtures';
@@ -119,6 +123,20 @@ describe('the checklist template client', () => {
         request.flush(VERSION);
     });
 
+    it('binds the rules of the lines named, a null rule unbinding one, on the revision shown', () => {
+        const items = [
+            { itemKey: 'text:a', rule: SECRETS_RULE },
+            { itemKey: 'text:b', rule: null }
+        ];
+        api.bindChecklistRules('release', 2, 7, items).subscribe();
+        const request = http.expectOne(
+            (call) => call.method === 'PUT' && call.url === '/api/v1/checklist-templates/release/versions/2/rules'
+        );
+        expect(request.request.params.get('revision')).toBe('7');
+        expect(asSchema('ChecklistRulesRequest', request.request.body)).toEqual({ items });
+        request.flush(BOUND_VERSION);
+    });
+
     it('derives, with the label only when there is one', () => {
         api.deriveChecklistVersion('release', 1, ' 2027 ').subscribe();
         const labelled = http.expectOne({
@@ -214,6 +232,22 @@ describe('the project checklist client', () => {
         const bare = http.expectOne({ method: 'POST', url: `${BASE}/2/items/101/answers` });
         expect(asSchema('ChecklistAnswerRequest', bare.request.body)).toEqual({ value: 'yes', edition: 6 });
         bare.flush(CHECKLIST, { status: 201, statusText: 'Created' });
+    });
+
+    it('rests an answer on the measurement read by naming its evidence digest, and on none without one', () => {
+        api.answerChecklistLine(PROJECT_ID, 2, 101, 'yes', null, 5, PASS_MEASUREMENT.evidenceDigest).subscribe();
+        const resting = http.expectOne({ method: 'POST', url: `${BASE}/2/items/101/answers` });
+        expect(asSchema('ChecklistAnswerRequest', resting.request.body)).toEqual({
+            value: 'yes',
+            edition: 5,
+            measurementDigest: '1'.repeat(64)
+        });
+        resting.flush(MEASURED_CHECKLIST, { status: 201, statusText: 'Created' });
+
+        api.answerChecklistLine(PROJECT_ID, 2, 101, 'yes', null, 6, null).subscribe();
+        const plain = http.expectOne({ method: 'POST', url: `${BASE}/2/items/101/answers` });
+        expect(plain.request.body).toEqual({ value: 'yes', edition: 6 });
+        plain.flush(MEASURED_CHECKLIST, { status: 201, statusText: 'Created' });
     });
 
     it('confirms, withdraws and moves the revision through its life naming the edition', () => {

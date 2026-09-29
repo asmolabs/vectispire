@@ -1,0 +1,440 @@
+<div
+    class="mt-3 p-3 rounded-md border bg-surface-50 dark:bg-surface-800"
+    style="border-color: var(--surface-border)"
+    data-testid="rule-editor"
+>
+    <h4 class="text-base font-semibold mt-0 mb-3">
+        {{ 'checklist_templates.rule_editor_title' | translate: { row: item().sheetRow } }}
+    </h4>
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">
+        <!-- The template's own words, beside the parameters: the KPI is never parsed into a threshold. -->
+        <div class="flex flex-col gap-3 text-sm" data-testid="rule-beside">
+            <div>
+                <div class="font-medium">{{ 'checklist_templates.rule_control' | translate }}</div>
+                <div>{{ item().control }}</div>
+            </div>
+            <div>
+                <div class="font-medium">{{ 'checklist_templates.rule_kpi' | translate }}</div>
+                @if (item().kpi) {
+                    <div class="whitespace-pre-line" data-testid="rule-kpi">{{ item().kpi }}</div>
+                } @else {
+                    <div class="text-muted-color" data-testid="rule-kpi">
+                        {{ 'checklist_templates.rule_no_kpi' | translate }}
+                    </div>
+                }
+                <small class="text-muted-color">{{ 'checklist_templates.rule_kpi_hint' | translate }}</small>
+            </div>
+            <div>
+                <div class="font-medium">{{ 'checklist_templates.rule_measures' | translate }}</div>
+                @if (!draft().kind) {
+                    <div class="text-muted-color" data-testid="rule-described">
+                        {{ 'checklist_templates.rule_unbound_explain' | translate }}
+                    </div>
+                } @else if (described(); as lines) {
+                    <ul class="m-0 pl-5" data-testid="rule-described">
+                        <li class="font-medium">{{ kindLabel(draft().kind!) }}</li>
+                        @for (line of lines; track $index) {
+                            <li>{{ line }}</li>
+                        }
+                    </ul>
+                } @else {
+                    <div class="text-muted-color" data-testid="rule-described">
+                        {{ 'checklist_templates.rule_incomplete' | translate }}
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="flex flex-col gap-1">
+                    <label for="rule-kind" class="font-medium">{{
+                        'checklist_templates.rule_field_kind' | translate
+                    }}</label>
+                    <select
+                        id="rule-kind"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                        [ngModel]="draft().kind"
+                        (ngModelChange)="setKind($event)"
+                    >
+                        <option [ngValue]="null">{{ 'checklist_templates.rule_select_none' | translate }}</option>
+                        @for (kind of kinds; track kind) {
+                            <option [ngValue]="kind">{{ kindLabel(kind) }}</option>
+                        }
+                    </select>
+                </div>
+                <p-button
+                    id="rule-preset-secrets"
+                    icon="pi pi-key"
+                    size="small"
+                    [outlined]="true"
+                    [label]="'checklist_templates.rule_preset_secrets_btn' | translate"
+                    (onClick)="presetSecrets()"
+                />
+            </div>
+
+            @if (draft().kind; as kind) {
+                <div class="flex flex-col gap-1">
+                    <label for="rule-max-age" class="font-medium">{{
+                        'checklist_templates.rule_field_max_age' | translate
+                    }}</label>
+                    <input
+                        pInputText
+                        id="rule-max-age"
+                        type="number"
+                        class="w-32"
+                        step="1"
+                        [min]="bounds.minAgeDays"
+                        [max]="bounds.maxAgeDays"
+                        [ngModel]="draft().maxAgeDays"
+                        (ngModelChange)="patch({ maxAgeDays: $event })"
+                    />
+                    <small class="text-muted-color">{{
+                        'checklist_templates.rule_max_age_hint'
+                            | translate: { min: bounds.minAgeDays, max: bounds.maxAgeDays }
+                    }}</small>
+                </div>
+
+                @if (kind === 'dependency_analysis') {
+                    <fieldset class="border-0 p-0 m-0 flex flex-col gap-1">
+                        <legend class="font-medium mb-1">
+                            {{ 'checklist_templates.rule_schedule_legend' | translate }}
+                        </legend>
+                        <label class="flex items-center gap-2" for="rule-schedule-yes">
+                            <input
+                                type="radio"
+                                id="rule-schedule-yes"
+                                name="rule-schedule"
+                                [checked]="draft().requireSchedule === true"
+                                (change)="patch({ requireSchedule: true })"
+                            />
+                            {{ 'checklist_templates.rule_schedule_yes' | translate }}
+                        </label>
+                        <label class="flex items-center gap-2" for="rule-schedule-no">
+                            <input
+                                type="radio"
+                                id="rule-schedule-no"
+                                name="rule-schedule"
+                                [checked]="draft().requireSchedule === false"
+                                (change)="patch({ requireSchedule: false })"
+                            />
+                            {{ 'checklist_templates.rule_schedule_no' | translate }}
+                        </label>
+                    </fieldset>
+                }
+
+                @if (kind === 'findings_threshold') {
+                    <fieldset class="border-0 p-0 m-0 flex flex-col gap-2" data-testid="rule-scopes">
+                        <legend class="font-medium mb-1">
+                            {{ 'checklist_templates.rule_scopes_legend' | translate }}
+                        </legend>
+                        <div class="flex flex-wrap gap-x-4 gap-y-1">
+                            @for (scope of builtIns; track scope) {
+                                <label class="flex items-center gap-2" [for]="'rule-scope-' + scope.slice(8)">
+                                    <input
+                                        type="checkbox"
+                                        [id]="'rule-scope-' + scope.slice(8)"
+                                        [checked]="hasScope(scope)"
+                                        (change)="toggleScope(scope, $any($event.target).checked)"
+                                    />
+                                    {{ scopeLabel(scope) }}
+                                </label>
+                            }
+                        </div>
+                        @for (scope of otherScopes(); track scope) {
+                            <div class="flex items-center gap-2 text-sm" [attr.data-testid]="'rule-other-' + scope">
+                                <span class="font-mono">{{ scope }}</span>
+                                <p-button
+                                    icon="pi pi-times"
+                                    size="small"
+                                    severity="danger"
+                                    [text]="true"
+                                    [ariaLabel]="'checklist_templates.aria_remove_scope' | translate: { scope }"
+                                    (onClick)="removeScope(scope)"
+                                />
+                            </div>
+                        }
+                        <div class="flex flex-wrap items-end gap-2">
+                            <div class="flex flex-col gap-1">
+                                <label for="rule-scope-other" class="text-sm">{{
+                                    'checklist_templates.rule_scope_other' | translate
+                                }}</label>
+                                <input
+                                    pInputText
+                                    id="rule-scope-other"
+                                    class="w-80"
+                                    maxlength="200"
+                                    list="rule-scope-suggestions"
+                                    [placeholder]="'checklist_templates.rule_scope_other_placeholder' | translate"
+                                    [ngModel]="otherScope()"
+                                    (ngModelChange)="otherScope.set($event)"
+                                    (keydown.enter)="addOtherScope()"
+                                />
+                                <datalist id="rule-scope-suggestions">
+                                    @for (suggestion of suggestions(); track suggestion) {
+                                        <option [value]="suggestion"></option>
+                                    }
+                                </datalist>
+                            </div>
+                            <p-button
+                                id="rule-scope-add"
+                                icon="pi pi-plus"
+                                size="small"
+                                [outlined]="true"
+                                [label]="'checklist_templates.rule_scope_add_btn' | translate"
+                                [disabled]="!otherScope().trim()"
+                                (onClick)="addOtherScope()"
+                            />
+                        </div>
+                        <small class="text-muted-color">{{ 'checklist_templates.rule_scope_hint' | translate }}</small>
+                    </fieldset>
+                }
+
+                @if (kind === 'dependency_analysis' || kind === 'findings_threshold') {
+                    <fieldset class="border-0 p-0 m-0" data-testid="rule-thresholds">
+                        <legend class="font-medium mb-1">
+                            {{ 'checklist_templates.rule_thresholds_legend' | translate }}
+                        </legend>
+                        <small class="text-muted-color block mb-2">{{
+                            kind === 'dependency_analysis'
+                                ? ('checklist_templates.rule_thresholds_optional' | translate)
+                                : ('checklist_templates.rule_thresholds_required' | translate)
+                        }}</small>
+                        <table class="text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="text-left pr-3">
+                                        {{ 'checklist_templates.rule_col_severity' | translate }}
+                                    </th>
+                                    <th class="text-left pr-3">
+                                        {{ 'checklist_templates.rule_col_max_open' | translate }}
+                                    </th>
+                                    <th class="text-left">
+                                        {{ 'checklist_templates.rule_col_min_resolved' | translate }}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (severity of severities; track severity) {
+                                    <tr>
+                                        <td class="pr-3">{{ severityLabel(severity) }}</td>
+                                        <td class="pr-3">
+                                            <input
+                                                pInputText
+                                                type="number"
+                                                class="w-28"
+                                                step="1"
+                                                min="0"
+                                                [max]="bounds.maxOpen"
+                                                [id]="'rule-max-open-' + severity"
+                                                [attr.aria-label]="
+                                                    'checklist_templates.aria_max_open'
+                                                        | translate: { severity: severityLabel(severity) }
+                                                "
+                                                [ngModel]="draft().thresholds[severity].maxOpen"
+                                                (ngModelChange)="setThreshold(severity, { maxOpen: $event })"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                pInputText
+                                                type="number"
+                                                class="w-28"
+                                                step="0.01"
+                                                min="0"
+                                                max="1"
+                                                [id]="'rule-min-resolved-' + severity"
+                                                [attr.aria-label]="
+                                                    'checklist_templates.aria_min_resolved'
+                                                        | translate: { severity: severityLabel(severity) }
+                                                "
+                                                [ngModel]="draft().thresholds[severity].minResolvedRatio"
+                                                (ngModelChange)="setThreshold(severity, { minResolvedRatio: $event })"
+                                            />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </fieldset>
+                }
+
+                @if (kind === 'coverage_threshold') {
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-metric" class="font-medium">{{
+                                'checklist_templates.rule_field_metric' | translate
+                            }}</label>
+                            <select
+                                id="rule-metric"
+                                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                [ngModel]="draft().metric"
+                                (ngModelChange)="patch({ metric: $event })"
+                            >
+                                <option [ngValue]="null">—</option>
+                                @for (metric of metrics; track metric) {
+                                    <option [ngValue]="metric">{{ metricLabel(metric) }}</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-minimum-ratio" class="font-medium">{{
+                                'checklist_templates.rule_field_minimum_ratio' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-minimum-ratio"
+                                type="number"
+                                class="w-32"
+                                step="0.01"
+                                min="0"
+                                max="1"
+                                [ngModel]="draft().minimumRatio"
+                                (ngModelChange)="patch({ minimumRatio: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-aggregation" class="font-medium">{{
+                                'checklist_templates.rule_field_aggregation' | translate
+                            }}</label>
+                            <select
+                                id="rule-aggregation"
+                                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                [ngModel]="draft().aggregation"
+                                (ngModelChange)="patch({ aggregation: $event })"
+                            >
+                                <option [ngValue]="null">—</option>
+                                @for (aggregation of aggregations; track aggregation) {
+                                    <option [ngValue]="aggregation">{{ aggregationLabel(aggregation) }}</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                }
+
+                @if (kind === 'test_suite_passed') {
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-pattern" class="font-medium">{{
+                                'checklist_templates.rule_field_pattern' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-pattern"
+                                class="w-80"
+                                [maxlength]="bounds.maxPattern"
+                                [ngModel]="draft().suitePattern"
+                                (ngModelChange)="patch({ suitePattern: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-minimum-tests" class="font-medium">{{
+                                'checklist_templates.rule_field_minimum_tests' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-minimum-tests"
+                                type="number"
+                                class="w-32"
+                                step="1"
+                                min="1"
+                                [max]="bounds.maxTests"
+                                [ngModel]="draft().minimumTests"
+                                (ngModelChange)="patch({ minimumTests: $event })"
+                            />
+                        </div>
+                    </div>
+                    <small class="text-muted-color">{{ 'checklist_templates.rule_pattern_hint' | translate }}</small>
+                }
+
+                @if (kind === 'component_versions') {
+                    <fieldset class="border-0 p-0 m-0 flex flex-col gap-2" data-testid="rule-components">
+                        <legend class="font-medium mb-1">
+                            {{ 'checklist_templates.rule_components_legend' | translate }}
+                        </legend>
+                        @for (component of draft().components; track $index) {
+                            <div class="flex flex-wrap items-center gap-2">
+                                <input
+                                    pInputText
+                                    class="w-80 font-mono"
+                                    [id]="'rule-purl-' + $index"
+                                    [maxlength]="bounds.maxPrefix"
+                                    [attr.aria-label]="
+                                        'checklist_templates.aria_purl' | translate: { index: $index + 1 }
+                                    "
+                                    [placeholder]="'checklist_templates.rule_col_purl' | translate"
+                                    [ngModel]="component.purlPrefix"
+                                    (ngModelChange)="setComponent($index, { purlPrefix: $event })"
+                                />
+                                <input
+                                    pInputText
+                                    class="w-64 font-mono"
+                                    [id]="'rule-versions-' + $index"
+                                    [attr.aria-label]="
+                                        'checklist_templates.aria_versions' | translate: { index: $index + 1 }
+                                    "
+                                    [placeholder]="'checklist_templates.rule_col_versions' | translate"
+                                    [ngModel]="component.versions"
+                                    (ngModelChange)="setComponent($index, { versions: $event })"
+                                />
+                                <p-button
+                                    icon="pi pi-times"
+                                    size="small"
+                                    severity="danger"
+                                    [text]="true"
+                                    [ariaLabel]="
+                                        'checklist_templates.aria_remove_component' | translate: { index: $index + 1 }
+                                    "
+                                    (onClick)="removeComponent($index)"
+                                />
+                            </div>
+                        }
+                        <div>
+                            <p-button
+                                id="rule-component-add"
+                                icon="pi pi-plus"
+                                size="small"
+                                [outlined]="true"
+                                [label]="'checklist_templates.rule_component_add_btn' | translate"
+                                [disabled]="draft().components.length >= bounds.maxComponents"
+                                (onClick)="addComponent()"
+                            />
+                        </div>
+                        <small class="text-muted-color">{{
+                            'checklist_templates.rule_components_hint' | translate
+                        }}</small>
+                    </fieldset>
+                }
+            }
+
+            @if (error(); as message) {
+                <p-message severity="error" [closable]="false" styleClass="w-full" data-testid="rule-error">
+                    {{ message }}
+                </p-message>
+            }
+            <div class="flex flex-wrap gap-2">
+                @if (draft().kind) {
+                    <p-button
+                        id="rule-keep"
+                        icon="pi pi-check"
+                        [label]="'checklist_templates.rule_keep_btn' | translate"
+                        (onClick)="keep()"
+                    />
+                } @else {
+                    <p-button
+                        id="rule-unbind"
+                        icon="pi pi-check"
+                        [label]="'checklist_templates.rule_unbind_btn' | translate"
+                        (onClick)="unbind()"
+                    />
+                }
+                <p-button
+                    id="rule-cancel"
+                    [text]="true"
+                    [label]="'common.cancel' | translate"
+                    (onClick)="cancelled.emit()"
+                />
+            </div>
+        </div>
+    </div>
+</div>

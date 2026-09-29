@@ -5,14 +5,19 @@ import type {
     ChecklistLayout,
     ChecklistLine,
     ChecklistLineHistory,
+    ChecklistMeasurement,
+    ChecklistMeasurements,
     ChecklistOfferedVersion,
     ChecklistPreview,
     ChecklistProjectContext,
     ChecklistRevisionSummary,
+    ChecklistRule,
     ChecklistTemplate,
     ChecklistVersion,
     ChecklistVersionSummary,
-    ChecklistView
+    ChecklistView,
+    MeasuredLine,
+    RepositoryLook
 } from '../api.models';
 import { asSchema } from './contract';
 
@@ -232,6 +237,44 @@ export const VERSION: ChecklistVersion = asSchema('ChecklistVersionView', {
     pairs: []
 });
 
+// ---------------------------------------------------------------------- measured lines (decision 0032 §6)
+
+/** "No plaintext secret in configuration", the preset: the secret step, critical and high at zero, a week. */
+export const SECRETS_RULE: ChecklistRule = asSchema('ChecklistRuleForm', {
+    kind: 'findings_threshold',
+    maxAgeDays: 7,
+    scopes: ['builtin:secret'],
+    thresholds: { critical: { maxOpen: 0 }, high: { maxOpen: 0 } }
+});
+
+/** The same rule as an item stores it: `ChecklistRule.canonical()`, keys sorted, no whitespace. */
+export const SECRETS_CANONICAL =
+    '{"kind":"findings_threshold","maxAgeDays":7,"scopes":["builtin:secret"],' +
+    '"thresholds":{"critical":{"maxOpen":0},"high":{"maxOpen":0}}}';
+
+/** Line coverage of at least 80 % on every repository, a fortnight old at most. */
+export const COVERAGE_RULE: ChecklistRule = asSchema('ChecklistRuleForm', {
+    kind: 'coverage_threshold',
+    maxAgeDays: 14,
+    metric: 'line',
+    minimumRatio: 0.8,
+    aggregation: 'per_repository'
+});
+
+export const COVERAGE_CANONICAL =
+    '{"aggregation":"per_repository","kind":"coverage_threshold","maxAgeDays":14,"metric":"line","minimumRatio":0.8}';
+
+/** Version 2 with line 3 measured by the secrets rule and line 1 by coverage, as the rules route answers. */
+export const BOUND_VERSION: ChecklistVersion = asSchema('ChecklistVersionView', {
+    ...VERSION,
+    version: { ...DRAFT, revision: 5 },
+    items: [
+        { ...VERSION.items[0], boundRule: COVERAGE_CANONICAL },
+        VERSION.items[1],
+        { ...VERSION.items[2], boundRule: SECRETS_CANONICAL }
+    ]
+});
+
 // ---------------------------------------------------------------------- a project's checklist
 
 /**
@@ -360,6 +403,7 @@ const line = (position: number, control: string, extra: Partial<ChecklistLine> =
         kpi: null,
         evidenceKind: 'none',
         evidenceValidityMonths: null,
+        rule: null,
         answer: null,
         evidence: [],
         edition: 0,
@@ -480,4 +524,148 @@ export const LINE_HISTORY: ChecklistLineHistory = asSchema('ChecklistLineHistory
         answer(102, { id: 611, answeredBy: 'dave', answeredAt: '2026-09-22T08:00:00Z', edition: 3 })
     ],
     evidence: [{ ...LINK_PROOF, withdrawnBy: 'dave', withdrawnAt: '2026-09-22T09:00:00Z', inDate: false }]
+});
+
+// ---------------------------------------------------------------------- a revision's measurements (decision 0032 §6)
+
+/**
+ * Gateway's revision 2 with two lines measured: line 1 (answered yes, with its file) by coverage, which
+ * passes on the one repository; line 3 (unanswered) by the secrets preset, which has no data — the
+ * repository was never examined for secrets, the product saying it did not look.
+ */
+export const MEASURED_READY_LINE: ChecklistLine = asSchema('ChecklistLineView', { ...READY_LINE, rule: COVERAGE_RULE });
+export const MEASURED_OPEN_LINE: ChecklistLine = asSchema('ChecklistLineView', { ...OPEN_LINE, rule: SECRETS_RULE });
+
+export const MEASURED_CHECKLIST: ChecklistView = asSchema('ChecklistView', {
+    ...CHECKLIST,
+    lines: [MEASURED_READY_LINE, CARRIED_LINE, MEASURED_OPEN_LINE]
+});
+
+const COMPUTED_AT = '2026-09-28T10:00:00Z';
+
+const look = (extra: Partial<RepositoryLook> = {}): RepositoryLook =>
+    asSchema('RepositoryLook', {
+        repositoryId: 31,
+        scope: null,
+        status: 'examined',
+        source: null,
+        sourceId: null,
+        at: null,
+        digest: null,
+        met: null,
+        detail: null,
+        ...extra
+    });
+
+/** One live measurement — computed for the read, stored nowhere, so its id is null. */
+export const measurement = (itemId: number, extra: Partial<ChecklistMeasurement> = {}): ChecklistMeasurement =>
+    asSchema('ChecklistMeasurementView', {
+        id: null,
+        checklistId: 40,
+        itemId,
+        purpose: 'read',
+        ruleKind: 'findings_threshold',
+        ruleDigest: 'd'.repeat(64),
+        boundRule: SECRETS_CANONICAL,
+        outcome: 'no_data',
+        reason: 'never_examined',
+        asOf: null,
+        computedAt: COMPUTED_AT,
+        computedBy: 'carol',
+        answerId: null,
+        answerValue: null,
+        reconciliation: 'unanswered',
+        evidenceDigest: 'e'.repeat(64),
+        evidence: { summary: SUMMARY, repositories: [], figures: [] },
+        ...extra
+    });
+/** The server's English sentence for the audit and the document, which no screen shows. */
+const SUMMARY = 'summary';
+
+/** Coverage met on repository 31, from its newest coverage import. */
+export const PASS_MEASUREMENT = measurement(101, {
+    ruleKind: 'coverage_threshold',
+    boundRule: COVERAGE_CANONICAL,
+    outcome: 'pass',
+    reason: null,
+    asOf: '2026-09-27T09:00:00Z',
+    answerId: 601,
+    answerValue: 'yes',
+    reconciliation: 'consistent',
+    evidenceDigest: '1'.repeat(64),
+    evidence: {
+        summary: SUMMARY,
+        repositories: [
+            look({
+                source: 'coverage_import',
+                sourceId: 77,
+                at: '2026-09-27T09:00:00Z',
+                digest: 'f'.repeat(64),
+                met: true,
+                detail: 'line coverage 0.86, at least 0.8'
+            })
+        ],
+        figures: []
+    }
+});
+
+/** No secret scan ever produced on repository 31: never examined, the thresholds unjudged. */
+export const NO_DATA_MEASUREMENT = measurement(103, {
+    evidenceDigest: '2'.repeat(64),
+    evidence: {
+        summary: SUMMARY,
+        repositories: [look({ scope: 'builtin:secret', status: 'never_examined' })],
+        figures: [
+            { scope: 'all', severity: 'critical', open: 0, resolved: 0, met: null, detail: null },
+            { scope: 'all', severity: 'high', open: 0, resolved: 0, met: null, detail: null }
+        ]
+    }
+});
+
+/** The same line once a scan looked, and found two open criticals: not met. */
+export const FAIL_MEASUREMENT = measurement(103, {
+    outcome: 'fail',
+    reason: null,
+    asOf: '2026-09-27T12:00:00Z',
+    evidenceDigest: '3'.repeat(64),
+    evidence: {
+        summary: SUMMARY,
+        repositories: [
+            look({ scope: 'builtin:secret', source: 'scan', sourceId: 501, at: '2026-09-27T12:00:00Z', met: true })
+        ],
+        figures: [
+            { scope: 'builtin:secret', severity: 'critical', open: 2, resolved: 1, met: null, detail: null },
+            { scope: 'all', severity: 'critical', open: 2, resolved: 1, met: false, detail: '2 open, more than 0' },
+            { scope: 'all', severity: 'high', open: 0, resolved: 0, met: true, detail: null }
+        ]
+    }
+});
+
+export const measuredLine = (
+    line: ChecklistLine,
+    found: ChecklistMeasurement | null,
+    extra: Partial<MeasuredLine> = {}
+): MeasuredLine =>
+    asSchema('MeasuredLineView', {
+        itemId: line.itemId,
+        position: line.position,
+        itemKey: line.itemKey,
+        rule: line.rule!,
+        answer: line.answer?.value ?? null,
+        answerId: line.answer?.id ?? null,
+        measurement: found,
+        atSubmission: null,
+        reconciliation: found ? found.reconciliation : 'not_measured_here',
+        problems: [],
+        ...extra
+    });
+
+/** Revision 2's measurements, live: coverage met and consistent with its yes, secrets without data. */
+export const MEASUREMENTS: ChecklistMeasurements = asSchema('ChecklistMeasurementsView', {
+    projectId: PROJECT_ID,
+    revision: 2,
+    status: 'draft',
+    live: true,
+    computedAt: COMPUTED_AT,
+    lines: [measuredLine(MEASURED_READY_LINE, PASS_MEASUREMENT), measuredLine(MEASURED_OPEN_LINE, NO_DATA_MEASUREMENT)]
 });

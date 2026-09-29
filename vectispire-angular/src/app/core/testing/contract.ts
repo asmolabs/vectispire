@@ -118,6 +118,39 @@ const CHECKLIST_STATUSES = ['draft', 'submitted', 'signed_off', 'superseded']; /
 const CHECKLIST_ANSWERS = ['yes', 'no', 'not_applicable']; // ChecklistAnswer
 const CHECKLIST_EVIDENCE_KINDS = ['none', 'link_or_file', 'file']; // EvidenceRequirement.Kind
 const CHECKLIST_PROOF_KINDS = ['link', 'file']; // t_checklist_evidence.kind
+const RULE_KINDS = [
+    'dependency_analysis',
+    'findings_threshold',
+    'coverage_threshold',
+    'test_suite_passed',
+    'component_versions'
+]; // ChecklistRule.Kind
+const COVERAGE_METRICS = ['line', 'branch']; // ChecklistRule.Metric
+const COVERAGE_AGGREGATIONS = ['per_repository', 'project_weighted']; // ChecklistRule.Aggregation
+const MEASUREMENT_OUTCOMES = ['pass', 'fail', 'no_data']; // MeasurementOutcome
+const NO_DATA_REASONS = [
+    'no_repository',
+    'never_examined',
+    'step_absent',
+    'examination_unrecorded',
+    'stale',
+    'not_applicable_anywhere',
+    'suite_not_found',
+    'no_test_ran'
+]; // NoDataReason
+const RECONCILIATIONS = [
+    'consistent',
+    'contradicted',
+    'declared_not_measured',
+    'understated',
+    'excluded',
+    'not_measured_here',
+    'unanswered'
+]; // Reconciliation
+const MEASUREMENT_PURPOSES = ['read', 'answer', 'submission', 'sign_off']; // MeasurementPurpose
+const EVIDENCE_SOURCES = ['scan', 'sarif_import', 'coverage_import', 'test_report_import']; // MeasurementFacts.Source
+/** A repository's status in a measurement: examined, not applicable, or the reason it has no data. */
+const LOOK_STATUSES = ['examined', 'not_applicable', ...NO_DATA_REASONS]; // Measurement.RepositoryEvidence
 
 const ISSUE = { state: ISSUE_STATES, severity: ISSUE_SEVERITIES, type: FINDING_TYPES, triageStatus: TRIAGE_STATUSES };
 
@@ -147,7 +180,20 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     ChecklistLineView: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
     ChecklistItemView: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
     ChecklistItemEvidence: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
-    ChecklistEvidenceView: { kind: CHECKLIST_PROOF_KINDS }
+    ChecklistEvidenceView: { kind: CHECKLIST_PROOF_KINDS },
+    ChecklistRuleForm: { kind: RULE_KINDS, metric: COVERAGE_METRICS, aggregation: COVERAGE_AGGREGATIONS },
+    ChecklistMeasurementView: {
+        purpose: MEASUREMENT_PURPOSES,
+        ruleKind: RULE_KINDS,
+        outcome: MEASUREMENT_OUTCOMES,
+        reason: NO_DATA_REASONS,
+        answerValue: CHECKLIST_ANSWERS,
+        reconciliation: RECONCILIATIONS
+    },
+    MeasuredLineView: { answer: CHECKLIST_ANSWERS, reconciliation: RECONCILIATIONS },
+    ChecklistMeasurementsView: { status: CHECKLIST_STATUSES },
+    RepositoryLook: { status: LOOK_STATUSES, source: EVIDENCE_SOURCES },
+    MeasuredFigure: { severity: [...ISSUE_SEVERITIES] }
 };
 
 function check(schemaName: string, value: unknown, path: string): string[] {

@@ -5,6 +5,7 @@ import type {
     ChecklistAnswerValue,
     ChecklistItemEvidence,
     ChecklistItemPair,
+    ChecklistItemRule,
     ChecklistLayout,
     ChecklistLineHistory,
     ChecklistOfferedVersion,
@@ -147,6 +148,24 @@ export class ChecklistsApi {
         );
     }
 
+    /**
+     * Binds the rule each line named is measured by, or unbinds it with a null rule, on a draft with a
+     * confirmed layout — **a partial update**, like the evidence route: a line not listed keeps its
+     * binding, and the screen sends only the lines it changed. `revision` is the one on screen.
+     */
+    bindChecklistRules(
+        slug: string,
+        ordinal: number,
+        revision: number,
+        items: ChecklistItemRule[]
+    ): Observable<ChecklistVersion> {
+        return this.http.put<ChecklistVersion>(
+            `${versionPath(slug, ordinal)}/rules`,
+            { items },
+            { params: new HttpParams().set('revision', revision) }
+        );
+    }
+
     /** A new draft from a published version: same workbook, layout and items. */
     deriveChecklistVersion(slug: string, ordinal: number, label?: string | null): Observable<ChecklistVersion> {
         const trimmed = label?.trim();
@@ -218,18 +237,25 @@ export class ChecklistsApi {
         return this.http.get<ChecklistLineHistory>(`${linePath(projectId, revision, itemId)}/history`);
     }
 
-    /** A new answer on a draft's line. `no` and `not_applicable` need a comment; a blank one is left out. */
+    /**
+     * A new answer on a draft's line. `no` and `not_applicable` need a comment; a blank one is left out.
+     * `measurementDigest` — the `evidenceDigest` of the measurement the person read — rests the answer
+     * on it: the server applies the rule again and refuses (409) evidence other than what was read.
+     * Left out for an answer resting on none.
+     */
     answerChecklistLine(
         projectId: number,
         revision: number,
         itemId: number,
         value: ChecklistAnswerValue,
         comment: string | null,
-        edition: number
+        edition: number,
+        measurementDigest: string | null = null
     ): Observable<ChecklistView> {
         const body: Schema<'ChecklistAnswerRequest'> = { value, edition };
         const trimmed = comment?.trim();
         if (trimmed) body.comment = trimmed;
+        if (measurementDigest) body.measurementDigest = measurementDigest;
         return this.http.post<ChecklistView>(`${linePath(projectId, revision, itemId)}/answers`, body);
     }
 

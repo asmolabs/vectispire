@@ -12,6 +12,8 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ChecklistsApi, MAX_WORKBOOK_BYTES } from '../../core/api/checklists.api';
+import { PluginsApi } from '../../core/api/plugins.api';
+import { SarifApi } from '../../core/api/sarif.api';
 import type {
     ChecklistChange,
     ChecklistColumn,
@@ -20,10 +22,12 @@ import type {
     ChecklistItem,
     ChecklistItemEvidence,
     ChecklistItemPair,
+    ChecklistItemRule,
     ChecklistLayout,
     ChecklistPairingChange,
     ChecklistPreview,
     ChecklistPreviewCell,
+    ChecklistRule,
     ChecklistTemplate,
     ChecklistVersion,
     ChecklistVersionStatus
@@ -32,6 +36,8 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
+import { canonicalRule, describeRule, parseBoundRule, ruleKindLabel, sameRule } from '../../shared/checklist-rules';
+import { ChecklistRuleEditor } from './rule-editor';
 
 /** In the order the form lists them: the sheet's reading order, left to right, as a template usually runs. */
 export const COLUMNS: readonly ChecklistColumn[] = [
@@ -220,13 +226,16 @@ export interface Grid {
         SelectModule,
         TableModule,
         TagModule,
-        TranslatePipe
+        TranslatePipe,
+        ChecklistRuleEditor
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './checklist-templates.html'
 })
 export class ChecklistTemplates {
     private readonly api = inject(ChecklistsApi);
+    private readonly pluginsApi = inject(PluginsApi);
+    private readonly sarifApi = inject(SarifApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
     // Two streams: switching sheets must not cancel the items, and an older preview must not land
@@ -274,6 +283,17 @@ export class ChecklistTemplates {
     /** The requirements changed on screen and not sent yet, by item key. */
     readonly evidenceEdits = signal<Record<string, EvidenceEdit>>({});
     readonly evidenceError = signal<string | null>(null);
+    /** The rules kept on screen and not sent yet, by item key; `null` unbinds the line. */
+    readonly ruleEdits = signal<Record<string, ChecklistRule | null>>({});
+    /** The line whose rule the editor is open on, by key. */
+    readonly editingRule = signal<string | null>(null);
+    readonly rulesError = signal<string | null>(null);
+    /**
+     * The scopes a findings rule may name beyond the built-in steps: the registered plugins, and each
+     * SARIF source's declared tools — read once, when an editor first opens, and suggestions only: a
+     * scope is typed as well, since a plugin registered tomorrow is a rule a lead may bind today.
+     */
+    readonly scopeSuggestions = signal<string[] | null>(null);
 
     readonly evidenceKinds = EVIDENCE_KINDS;
     readonly minValidity = MIN_VALIDITY_MONTHS;
@@ -286,6 +306,14 @@ export class ChecklistTemplates {
     readonly evidenceEditable = computed(() => this.editable() && !!this.shown()?.layoutConfirmed);
     /** The lines whose requirement the form changed, as the route reads them: only those are sent. */
     readonly evidenceChanges = computed(() => evidenceChangesOf(this.version()?.items ?? [], this.evidenceEdits()));
+    /** The same route conditions as the evidence requirements: a lead, a draft, a confirmed layout. */
+    readonly rulesEditable = this.evidenceEditable;
+    /** The lines whose rule the form changed, as the route reads them: only those are sent. */
+    readonly ruleChanges = computed(() => ruleChangesOf(this.version()?.items ?? [], this.ruleEdits()));
+    /** The line the editor is open on, as a list of one or none: the template tracks it by key. */
+    readonly editingItems = computed(() =>
+        (this.version()?.items ?? []).filter((item) => item.itemKey === this.editingRule())
+    );
     readonly grid = computed(() => gridOf(this.preview()?.cells ?? []));
     readonly sheetOptions = computed(() =>
         (this.preview()?.sheets ?? []).map((sheet) => ({ label: sheet, value: sheet }))
@@ -482,6 +510,9 @@ export class ChecklistTemplates {
         this.pairRemoved.set(null);
         this.evidenceEdits.set({});
         this.evidenceError.set(null);
+        this.ruleEdits.set({});
+        this.editingRule.set(null);
+        this.rulesError.set(null);
         this.loadPreview(null, true);
         this.loadVersion();
     }
@@ -751,6 +782,103 @@ export class ChecklistTemplates {
         });
     }
 
+    // ------------------------------------------------------------------ what each line is measured by
+
+    /** The line's rule as the form shows it: the one kept on screen, else the version's. */
+    ruleOf(item: ChecklistItem): ChecklistRule | null {
+        const edits = this.ruleEdits();
+        return item.itemKey in edits ? edits[item.itemKey] : parseBoundRule(item.boundRule);
+    }
+
+    /** Whether the line's rule on screen is not the version's yet. */
+    rulePending(item: ChecklistItem): boolean {
+        const edits = this.ruleEdits();
+        return item.itemKey in edits && !sameRule(edits[item.itemKey], parseBoundRule(item.boundRule));
+    }
+
+    ruleWords(rule: ChecklistRule): string[] {
+        return describeRule(this.i18n, rule);
+    }
+
+    ruleKindLabel(kind: string): string {
+        return ruleKindLabel(this.i18n, kind);
+    }
+
+    editRule(item: ChecklistItem): void {
+        this.rulesError.set(null);
+        this.editingRule.set(item.itemKey);
+        this.loadScopeSuggestions();
+    }
+
+    /** A rule kept by the editor — or none — held on screen until the lines changed are saved together. */
+    keepRule(item: ChecklistItem, rule: ChecklistRule | null): void {
+        this.ruleEdits.update((edits) => ({ ...edits, [item.itemKey]: rule }));
+        this.editingRule.set(null);
+    }
+
+    /** The line's rule back to the version's: nothing of it is sent. */
+    undoRule(item: ChecklistItem): void {
+        this.ruleEdits.update((edits) => {
+            const rest = { ...edits };
+            delete rest[item.itemKey];
+            return rest;
+        });
+    }
+
+    /**
+     * Sends the lines whose rule changed, and only those — the route is a partial update, and a line
+     * sent unchanged would make its sender one of the draft's authors for nothing — on the revision on
+     * screen, like a layout. The version answered replaces the one shown.
+     */
+    saveRules(): void {
+        const selected = this.selected();
+        const shown = this.shown();
+        const changes = this.ruleChanges();
+        if (!selected || !shown || changes.length === 0) return;
+        this.busy.set(true);
+        this.rulesError.set(null);
+        this.refusal.set(null);
+        this.api.bindChecklistRules(selected.slug, selected.ordinal, shown.revision, changes).subscribe({
+            next: (version) => {
+                this.busy.set(false);
+                this.notice.set(this.i18n.t('checklist_templates.rules_saved', { count: changes.length }));
+                this.afterWrite(version);
+            },
+            error: (failure) => {
+                this.busy.set(false);
+                if (!this.refuse(failure, 'edit', shown.revision)) {
+                    this.rulesError.set(messageOf(failure, this.i18n.t('checklist_templates.error_rules')));
+                }
+            }
+        });
+    }
+
+    /**
+     * The plugins' ids and the SARIF sources' tools, as scopes. Either list failing leaves the other:
+     * they are suggestions, and a lead who cannot read one still types the scope.
+     */
+    private loadScopeSuggestions(): void {
+        if (this.scopeSuggestions() !== null) return;
+        this.scopeSuggestions.set([]);
+        const add = (scopes: string[]) =>
+            this.scopeSuggestions.update((known) => [...new Set([...(known ?? []), ...scopes])].sort());
+        this.pluginsApi.plugins().subscribe({
+            next: (plugins) => add(plugins.map((plugin) => `plugin:${plugin.id}`)),
+            error: () => undefined
+        });
+        this.sarifApi.sarifSources().subscribe({
+            next: (sources) =>
+                add(
+                    sources
+                        .filter((source) => source.kinds.length === 0 || source.kinds.includes('sarif'))
+                        .flatMap((source) =>
+                            source.tools.map((tool) => `import:${source.slug}/${tool.trim().toLowerCase()}`)
+                        )
+                ),
+            error: () => undefined
+        });
+    }
+
     // ------------------------------------------------------------------ derive, publish, retire
 
     derive(): void {
@@ -855,6 +983,8 @@ export class ChecklistTemplates {
         // The summary the write answered is the one the next write names, before the preview lands.
         this.preview.update((preview) => (preview ? { ...preview, version: version.version } : preview));
         this.evidenceEdits.set({});
+        this.ruleEdits.set({});
+        this.editingRule.set(null);
         this.loadPreview(this.layoutDraft()?.sheet ?? null, true);
         this.loadVersion();
         this.refreshTemplate();
@@ -995,6 +1125,25 @@ export function evidenceChangesOf(
         const months = edit.kind === 'none' ? null : edit.months;
         if (edit.kind === item.evidenceKind && months === item.evidenceValidityMonths) continue;
         changes.push({ itemKey: item.itemKey, evidenceKind: edit.kind, evidenceValidityMonths: months });
+    }
+    return changes;
+}
+
+/**
+ * The lines whose rule the form changed, in the version's order, as the route reads them. A line edited
+ * back to the rule it has is not sent: the comparison is on the canonical form, keys sorted, so a rule
+ * reopened and kept as it was is no change.
+ */
+export function ruleChangesOf(
+    items: ChecklistItem[],
+    edits: Record<string, ChecklistRule | null>
+): ChecklistItemRule[] {
+    const changes: ChecklistItemRule[] = [];
+    for (const item of items) {
+        if (!(item.itemKey in edits)) continue;
+        const rule = edits[item.itemKey];
+        if (canonicalRule(rule) === canonicalRule(parseBoundRule(item.boundRule))) continue;
+        changes.push({ itemKey: item.itemKey, rule });
     }
     return changes;
 }
