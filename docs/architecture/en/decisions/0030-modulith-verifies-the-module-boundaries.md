@@ -104,6 +104,10 @@ the inventory's backfill selects scans by the absence of component rows from ins
 the one to move — into `inventory`, over its own table, asking `ScanCatalog` for the scans that hold
 an SBOM.
 
+*Amended 2026-09-30.* The component and review rows now carry their scan's target (and a component its
+scan's creation instant), copied when written (V61, V62): those six entries left the list, which keeps
+the orphan sweeps alone, each with its reason — see [05](../05-modularity.md).
+
 ### Dependencies
 
 Production code uses Modulith's annotations and nothing else — `@Modulithic`, `@ApplicationModule`,

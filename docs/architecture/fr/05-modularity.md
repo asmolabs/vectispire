@@ -95,13 +95,21 @@ module, ne peut exprimer : `ArchitectureTest.accessForRoutesOnly` en tient leurs
 **Les couplages que ni Modulith ni ArchUnit ne peuvent compter sont des chaînes** : des requêtes JPQL qui
 nomment l'entité d'un autre module. `CrossModuleQueriesTest` lit chaque requête de dépôt, rattache les
 entités, tables et classes qu'elle nomme à leur module, et échoue sur une référence que sa liste ne porte
-pas. Il en trouve dix — les balayages d'orphelins d'`IssueRepository` et de `ScanRepository` (les tables de `targets`),
-les cinq jointures de l'inventaire aux scans qui ont vu chaque composant, et
-`AiReviewResultRepository.latestForRepository` (les scans). Chacune est une instruction sur deux tables,
-moins chère que deux requêtes et une différence d'ensembles, et chacune lit un module sous le sien. La
-onzième, `ScanRepository.findWithSbomButNoComponents`, lisait `inventory` depuis `scanning`, à contresens
-des modules, et a été déplacée : le rattrapage de l'inventaire demande à `ScanCatalog` les scans qui
-portent un SBOM, une page d'identifiants à la fois, et à sa propre table lesquels il a déjà indexés.
+pas. Il en trouve quatre, toutes d'une même sorte : les balayages d'orphelins d'`IssueRepository` et de
+`ScanRepository`, qui nomment chacun les tables de dépôts et d'images de `targets`. Elles restent, leur
+raison écrite à côté d'elles dans la liste : les lignes cherchées sont celles dont la cible a *disparu*,
+une absence qu'aucune colonne copiée ne peut porter, et passer par `TargetCatalog` lirait chaque
+identifiant de cible du parc, à chaque passage de maintenance, pour ne rien trouver sur une installation
+dont les clés étrangères empêchent les orphelins de se former. `targets` est sous les deux, le sens est
+tenu. Sept autres sont parties. `ScanRepository.findWithSbomButNoComponents` lisait `inventory` depuis
+`scanning`, à contresens des modules : le rattrapage de l'inventaire demande à `ScanCatalog` les scans
+qui portent un SBOM, une page d'identifiants à la fois, et à sa propre table lesquels il a déjà indexés.
+Les cinq jointures de l'inventaire aux scans et `AiReviewResultRepository.latestForRepository` sont
+parties le 2026-09-30 : une ligne de composant porte la cible et l'instant de création de son scan, une
+ligne de revue le dépôt de son scan, copiés à l'écriture (V61, V62) — des faits qu'un scan ne change
+jamais, sur des lignes que sa clé étrangère supprime avec lui, si bien que la copie ne peut contredire la
+jointure qu'elle remplace — et la recherche de composants demande à `ScanCatalog.labelsOf` la branche et
+la version de projet des scans de sa page, mille identifiants par instruction.
 
 ## Ce qui a changé avant cette observation (étape 1)
 

@@ -90,13 +90,21 @@ foundation module's list to what it uses. And six modules use `access` for their
 
 **The couplings neither Modulith nor ArchUnit can count are strings**: JPQL queries that name another
 module's entity. `CrossModuleQueriesTest` reads every repository query, resolves the entities, tables and
-classes it names to their module, and fails on one its list does not carry. It finds ten — the orphan
-sweeps of `IssueRepository` and `ScanRepository` (`targets`' tables), the inventory's five joins to the scans that saw each
-component, and `AiReviewResultRepository.latestForRepository` (the scans). Each is one statement over two
-tables, cheaper than two queries and a set difference, and each reads a module below its own. The
-eleventh, `ScanRepository.findWithSbomButNoComponents`, read `inventory` from `scanning`, against the
-modules' direction, and has moved: the inventory's backfill asks `ScanCatalog` for the scans holding an
-SBOM, a page of identifiers at a time, and its own table for which of them it has indexed.
+classes it names to their module, and fails on one its list does not carry. It finds four, all of one
+statement kind: the orphan sweeps of `IssueRepository` and `ScanRepository`, each naming `targets`'
+repository and image tables. They stay, with their reason beside them in the list: the rows they look
+for are those whose target is *gone*, an absence no copied column can carry, and asking `TargetCatalog`
+instead would read every target identifier of the estate, at every maintenance tick, to find nothing on
+an installation whose foreign keys have kept orphans from forming. `targets` sits below both, so the
+direction holds. Seven others have gone. `ScanRepository.findWithSbomButNoComponents` read `inventory`
+from `scanning`, against the modules' direction: the inventory's backfill asks `ScanCatalog` for the
+scans holding an SBOM, a page of identifiers at a time, and its own table for which of them it has
+indexed. The inventory's five joins to the scans and `AiReviewResultRepository.latestForRepository`
+went on 2026-09-30: a component row carries its scan's target and creation instant, a review row its
+scan's repository, copied when the row is written (V61, V62) — facts a scan never changes, on rows its
+foreign key deletes with it, so the copy cannot disagree with the join it replaces — and the component
+search asks `ScanCatalog.labelsOf` for the branch and project version of the scans on its page, a
+thousand identifiers per statement.
 
 ## What changed before this observation (step 1)
 

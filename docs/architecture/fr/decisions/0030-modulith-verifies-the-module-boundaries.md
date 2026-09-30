@@ -111,6 +111,11 @@ dernière le dit : le rattrapage de l'inventaire choisit des scans par l'absence
 composants depuis `scanning`. C'est celle à déplacer — dans `inventory`, sur sa propre table, en
 demandant à `ScanCatalog` les scans qui portent un SBOM.
 
+*Amendé le 2026-09-30.* Les lignes de composants et de revues portent désormais la cible de leur scan (et
+un composant l'instant de création du sien), copiées à l'écriture (V61, V62) : ces six entrées ont quitté
+la liste, qui ne garde que les balayages d'orphelins, chacun avec sa raison — voir
+[05](../05-modularity.md).
+
 ### Dépendances
 
 Le code de production n'utilise de Modulith que ses annotations — `@Modulithic`, `@ApplicationModule`,
