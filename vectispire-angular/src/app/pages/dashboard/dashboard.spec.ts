@@ -321,8 +321,8 @@ describe('the maturity ranking', () => {
         }).compileComponents();
 
         TestBed.inject(I18nService).translations.set({
+            repositories: { grade_tag: 'Grade {{grade}}' },
             dashboard: {
-                grade_tag: 'Grade {{grade}}',
                 chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
             },
             soa: { measured: { NO_DATA: 'No data' } }
@@ -391,5 +391,12 @@ describe('the maturity ranking', () => {
         expect(fixture.componentInstance.gradeSeverity('A_PLUS')).toBe('success');
         expect(tr.querySelector('.p-tag-danger')).toBeNull();
         expect(tr.querySelector('.p-tag-success')).not.toBeNull();
+    });
+
+    // The grade used to be printed as its constant: "Grade A_PLUS" at the top of the board.
+    it('reads the best grade as A+, not as the name of its constant', () => {
+        const tr = rowOf('clean-repo');
+        expect(tr.querySelector('.p-tag')?.textContent.trim()).toBe('Grade A+');
+        expect(tr.textContent).not.toContain('A_PLUS');
     });
 });

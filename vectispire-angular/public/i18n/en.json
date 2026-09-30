@@ -831,8 +831,7 @@
     "kind_container": "Container",
     "rule_kev": "KEV",
     "rule_severity": "Severity",
-    "more_violations": "+ {{count}} more",
-    "grade_tag": "Grade {{grade}}"
+    "more_violations": "+ {{count}} more"
   },
   "delays": {
     "title": "Time to fix",

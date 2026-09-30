@@ -831,8 +831,7 @@
     "kind_container": "Conteneur",
     "rule_kev": "KEV",
     "rule_severity": "Gravité",
-    "more_violations": "+ {{count}} de plus",
-    "grade_tag": "Note {{grade}}"
+    "more_violations": "+ {{count}} de plus"
   },
   "delays": {
     "title": "Délais de correction",

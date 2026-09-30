@@ -359,11 +359,11 @@
                                 <p-tag
                                     severity="secondary"
                                     data-testid="maturity-no-data"
-                                    [value]="'soa.measured.NO_DATA' | translate"
+                                    [value]="'NO_DATA' | gradeLabel"
                                 />
                             } @else {
                                 <p-tag
-                                    [value]="'dashboard.grade_tag' | translate: { grade: target.maturityGrade }"
+                                    [value]="target.maturityGrade | gradeLabel"
                                     [severity]="gradeSeverity(target.maturityGrade)"
                                 />
                             }

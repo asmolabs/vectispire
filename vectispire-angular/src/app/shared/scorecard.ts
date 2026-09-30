@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { GradeLabelPipe } from './grade-label';
 import type { SecurityScorecard } from '../core/api.models';
 
 export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | 'secondary' {
@@ -33,7 +34,7 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
 @Component({
     selector: 'app-scorecard',
     standalone: true,
-    imports: [TagModule, TranslatePipe],
+    imports: [TagModule, TranslatePipe, GradeLabelPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <div class="flex flex-col gap-4" data-testid="scorecard">
@@ -52,7 +53,7 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
                         <p-tag
                             severity="secondary"
                             data-testid="scorecard-grade"
-                            [value]="'soa.measured.NO_DATA' | translate"
+                            [value]="'NO_DATA' | gradeLabel"
                             styleClass="text-lg font-bold px-3 py-1"
                         />
                     } @else {
@@ -62,7 +63,7 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
                         <p-tag
                             data-testid="scorecard-grade"
                             [severity]="severityOf(card().grade)"
-                            [value]="'repositories.grade_tag' | translate: { grade: card().grade }"
+                            [value]="card().grade | gradeLabel"
                             styleClass="text-lg font-bold px-3 py-1"
                         />
                     }

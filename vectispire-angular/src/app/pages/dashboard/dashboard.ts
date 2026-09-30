@@ -12,6 +12,7 @@ import { DashboardApi } from '../../core/api/dashboard.api';
 import { RemediationApi } from '../../core/api/remediation.api';
 import type { DashboardOverview, Trends, PostureTrendAnalytics, SecurityDebtReport } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
+import { GradeLabelPipe } from '../../shared/grade-label';
 import { gradeSeverity } from '../../shared/scorecard';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
@@ -59,7 +60,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         TableModule,
         TagModule,
         LastScanTag,
-        TranslatePipe
+        TranslatePipe,
+        GradeLabelPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './dashboard.html'
