@@ -367,7 +367,8 @@ public final class ComplianceEngine {
         String details = secrets == 0 ? "Zero exposed plaintext credentials or tokens detected." : secrets + " plaintext secret(s) or API key(s) detected in source code.";
         String guidance = secrets == 0 ? "Maintain automated Gitleaks pre-commit and pipeline verification." : "Rotate all leaked secrets immediately and purge from Git history.";
 
-        return new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance);
+        return withCoverage(
+                new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance), input);
     }
 
     private static ComplianceEvaluation.ControlAssessment evaluateSecureCoding(ComplianceControl control, PostureInput input) {
@@ -377,7 +378,8 @@ public final class ComplianceEngine {
         String details = sast == 0 ? "No high-severity static analysis (SAST) flaws identified." : sast + " code quality / SAST finding(s) detected by Semgrep.";
         String guidance = sast == 0 ? "Continue enforcing automated Semgrep rules in development pipelines." : "Remediate static analysis findings in custom application code.";
 
-        return new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance);
+        return withCoverage(
+                new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance), input);
     }
 
     private static ComplianceEvaluation.ControlAssessment evaluateIaC(ComplianceControl control, PostureInput input) {
@@ -387,7 +389,8 @@ public final class ComplianceEngine {
         String details = iac == 0 ? "Infrastructure-as-Code manifests conform to security baselines." : iac + " IaC security misconfiguration(s) detected by Checkov.";
         String guidance = iac == 0 ? "Keep IaC configurations locked to CIS security baselines." : "Remediate Terraform / Kubernetes / Dockerfile misconfigurations.";
 
-        return new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance);
+        return withCoverage(
+                new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance), input);
     }
 
     private static ComplianceEvaluation.ControlAssessment evaluateGovernance(ComplianceControl control, PostureInput input) {
@@ -423,6 +426,21 @@ public final class ComplianceEngine {
      * those are different sentences to put in front of an auditor. So a verdict resting on
      * incomplete observation cannot read {@code COMPLIANT} however good the numbers are, and the
      * detail says which part of the estate the verdict does not cover.
+     *
+     * <p><b>Four categories carry it: vulnerabilities, secrets, secure coding and IaC</b> — every
+     * control scored on an absence of findings, in every framework that maps one. For a while only
+     * vulnerability management did: an estate of ten targets with one scanned clean read ISO 27001
+     * A.8.28, A.8.9 and A.5.15 (and NIS 2, DORA, PCI DSS and SOC 2's controls of the same categories)
+     * compliant on the silence of nine targets nobody looked at, beside an A.8.8 that said so.
+     *
+     * <p><b>It counts targets scanned, not targets whose step examined the type.</b> The sharper
+     * count exists — a scan records the built-in types whose step produced ({@code examined_types}) —
+     * and was weighed and left: the engine does not receive it, it is recorded for repositories only
+     * while containers sit in this denominator and never carry a code, IaC or secrets step, and every
+     * scan older than the record would read as unexamined, so an estate scanned last week would drop
+     * on the day of an upgrade for a reason the upgrade invented. The cost accepted: a repository whose
+     * IaC or SAST step was absent in an otherwise completed scan still counts as covered here. The
+     * security checklists measure per step, and are the place that question is answered.
      *
      * <p>Nothing is capped when the whole estate was observed inside the window, which is the
      * case the control is written for.

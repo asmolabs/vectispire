@@ -136,6 +136,62 @@ class ComplianceEngineTest {
         assertThat(assessed.details()).contains("more than 30 days ago");
     }
 
+    /** The controls scored on an absence of findings: the ones a silence could pass for clean. */
+    private static final List<ComplianceControl.Category> SCORED_ON_ABSENCE = List.of(
+            ComplianceControl.Category.VULNERABILITY_MANAGEMENT,
+            ComplianceControl.Category.SECURE_CODING,
+            ComplianceControl.Category.INFRASTRUCTURE_AS_CODE,
+            ComplianceControl.Category.SECRETS_MANAGEMENT);
+
+    @Test
+    @DisplayName("caps secure coding, IaC and secrets by coverage, as it caps vulnerabilities, in every framework")
+    void aPartlyScannedEstateCapsEveryControlScoredOnAbsence() {
+        // Ten targets, one scanned and clean. A.8.28, A.8.9 and A.5.15 used to read compliant here —
+        // zero findings, nine of them because nobody looked — beside an A.8.8 that said so.
+        ComplianceEngine.PostureInput oneOfTen = new ComplianceEngine.PostureInput(
+                10, 1, 1, 30, 1,
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+                1,
+                true);
+
+        List<ComplianceEvaluation.ControlAssessment> capped = ComplianceEngine
+                .evaluateAll(oneOfTen, ComplianceEngine.PlatformPosture.FULLY_ENABLED).stream()
+                .flatMap(evaluation -> evaluation.controls().stream())
+                .filter(assessment -> SCORED_ON_ABSENCE.contains(assessment.control().category()))
+                .toList();
+
+        assertThat(capped).extracting(assessment -> assessment.control().category())
+                .as("every category is present somewhere, or the loop below proves nothing of it")
+                .containsAll(SCORED_ON_ABSENCE);
+        assertThat(capped.stream().map(assessment -> assessment.control().id()))
+                .as("ISO 27001 is the framework the defect was reported on")
+                .contains("ISO-A.8.8", "ISO-A.8.28", "ISO-A.8.9", "ISO-A.5.15");
+        for (ComplianceEvaluation.ControlAssessment assessment : capped) {
+            assertThat(assessment.status()).as(assessment.control().id())
+                    .isEqualTo(ComplianceControl.Status.NON_COMPLIANT);
+            assertThat(assessment.scorePercentage()).as(assessment.control().id()).isEqualTo(10);
+            assertThat(assessment.details()).as("%s: the same reason as A.8.8's", assessment.control().id())
+                    .contains("Assessment covers 1/10 target(s) observed within 30 days — "
+                            + "9 target(s) have never been scanned.");
+        }
+    }
+
+    @Test
+    @DisplayName("leaves secure coding, IaC and secrets compliant on a fully observed clean estate")
+    void aFullyObservedEstateKeepsEveryControlScoredOnAbsence() {
+        List<ComplianceEvaluation.ControlAssessment> assessed = ComplianceEngine
+                .evaluateAll(CLEAN, ComplianceEngine.PlatformPosture.FULLY_ENABLED).stream()
+                .flatMap(evaluation -> evaluation.controls().stream())
+                .filter(assessment -> SCORED_ON_ABSENCE.contains(assessment.control().category()))
+                .toList();
+
+        assertThat(assessed).isNotEmpty().allSatisfy(assessment -> {
+            assertThat(assessment.status()).isEqualTo(ComplianceControl.Status.COMPLIANT);
+            assertThat(assessment.scorePercentage()).isEqualTo(100);
+            assertThat(assessment.details()).doesNotContain("Assessment covers");
+        });
+    }
+
     @Test
     @DisplayName("leaves a fully observed estate exactly as it was scored")
     void afullyObservedEstateIsUntouched() {

@@ -158,6 +158,27 @@ seul, il présenterait la politique de connexion de la plateforme comme la postu
 déclaration d'applicabilité confronte une déclaration prouvée ici à un `NO_DATA` comme `UNEVIDENCED`,
 jamais `CONSISTENT`.
 
+### Plafond de couverture
+Quatre catégories sont notées sur l'absence de constats — ① vulnérabilités, ③ secrets, ④ développement
+sécurisé et ⑤ IaC — et une cible que personne n'a regardée n'a pas de constat. Dès qu'une partie du parc
+est observée, chacun de leurs contrôles, dans chaque référentiel qui en porte un (ISO 27001 A.8.8,
+A.5.15, A.8.28 et A.8.9, et les contrôles de mêmes catégories de NIS 2, DORA, PCI DSS, CRA et SOC 2), est
+plafonné par la couverture :
+
+- **une cible jamais analysée** rend le contrôle **`NON_COMPLIANT`** ;
+- **une cible analysée pour la dernière fois hors de la fenêtre de fraîcheur**
+  (le réglage `compliance_freshness_days`, 0 pour la désactiver) le limite à **`PARTIAL`** ;
+- le score vaut au plus la part des cibles observées dans la fenêtre, et le détail le dit dans les mêmes
+  mots pour chaque contrôle plafonné : *« Assessment covers 1/10 target(s) observed within 30 days — 9
+  target(s) have never been scanned. »*
+
+Un plafond, pas une pénalité : une cible non observée n'est pas évaluée, elle n'est pas moins conforme.
+« Observée » signifie que la cible a une analyse réussie, non qu'une étape donnée y a produit — le
+relevé par étape (`examined_types`) n'est tenu que pour les dépôts et manque à toute analyse qui lui est
+antérieure, si bien que compter sur lui lirait les conteneurs et les analyses anciennes comme non
+examinés. Les checklists de sécurité mesurent par étape. ② et ⑥ sont des ratios sur toutes les cibles :
+une cible jamais analysée y compte déjà contre le score.
+
 ### Score Global du Référentiel
 $$\text{Score Global} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score}(\text{Contrôle}_i)\right)$$
 

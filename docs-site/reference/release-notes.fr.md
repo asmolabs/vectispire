@@ -188,6 +188,22 @@ couvrant ses langages (Jeux de règles, *importer depuis le catalogue*) et relan
 qui passait avant parce que ses règles ne trouvaient rien dans du code qu'elles ne savaient pas lire ne
 mesurait rien. Voir [Checklists de sécurité](../guide/security-checklists.md#lignes-mesurees).
 
+**Développement sécurisé, IaC et secrets lisent désormais la couverture, comme les vulnérabilités —
+les scores baissent sur un parc analysé en partie.** ISO 27001 A.8.28, A.8.9 et A.5.15, et les contrôles
+de mêmes catégories de NIS 2, DORA, PCI DSS et SOC 2, étaient notés sur le seul zéro de constats : dix
+cibles dont une analysée sans constat les lisaient *conformes*, à côté d'un A.8.8 *non conforme* sur le
+même parc. Ils portent maintenant le plafond de couverture d'A.8.8 — une cible jamais analysée rend le
+contrôle non conforme, une cible analysée hors de la fenêtre de fraîcheur le limite à partiel, le score
+vaut au plus la part des cibles observées, et le détail le dit. **Un parc entièrement analysé dans la
+fenêtre se lit comme avant.** Sur un parc analysé en partie, ces contrôles et le score de leurs
+référentiels baissent dès le premier affichage après la mise à jour, et une déclaration qui dit un tel
+contrôle en place se lit *contredite* dans la déclaration d'applicabilité. La progression de conformité
+réécrit le point du mois en cours à sa prochaine capture et montre la baisse comme *même parc, mêmes
+règles, N points de moins* : rien n'a changé dans le parc — l'ancien score comptait comme propres des
+cibles que personne n'avait regardées, et les mois déjà capturés gardent ce score. Analysez le reste du
+parc, ou prévenez ceux qui lisent la courbe avant qu'ils ne la lisent. Voir
+[Conformité](../guide/compliance.md#sans-donnee-nest-pas-conforme).
+
 **Les migrations V32 à V58 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 

@@ -43,6 +43,12 @@ contrôle déclaré prouvé ici est **pas encore étayé** plutôt que *cohéren
 d'audit, dans les référentiels qui en ont, lisent la chaîne de cette instance et sont mesurés dès le
 départ.
 
+Dès qu'une partie du parc est analysée, la mesure est plafonnée par la couverture, et ce qu'elle
+confirme aussi. Un contrôle noté sur l'absence de constats — A.8.8, A.5.15, A.8.28, A.8.9 — mesure
+*non conforme* tant qu'une cible n'a jamais été analysée, si bien qu'une déclaration « en place » se lit
+**contredite** jusqu'à ce que le reste du parc le soit : le document revendique un contrôle sur des
+cibles que rien n'a regardées. Voir [Conformité](compliance.md#sans-donnee-nest-pas-conforme).
+
 ## Les preuves qui vivent ailleurs
 
 `evidence_source` est le champ qui empêche cet écran de mentir. Vectispire mesure une tranche de

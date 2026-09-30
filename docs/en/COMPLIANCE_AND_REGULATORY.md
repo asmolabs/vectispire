@@ -165,6 +165,25 @@ any `NO_DATA` control reads `NO_DATA` itself, score 0: scored on ⑦ alone it wo
 platform's sign-in policy as the estate's posture. The statement of applicability sets a declaration
 evidenced here against `NO_DATA` as `UNEVIDENCED`, never `CONSISTENT`.
 
+### Coverage cap
+Four categories are scored on the absence of findings — ① vulnerabilities, ③ secrets, ④ secure coding
+and ⑤ IaC — and a target nobody looked at has no findings. Once part of the estate is observed, each of
+their controls, in every framework that maps one (ISO 27001 A.8.8, A.5.15, A.8.28 and A.8.9, and the
+controls of the same categories in NIS 2, DORA, PCI DSS, CRA and SOC 2), is capped by coverage:
+
+- **a target never scanned** makes the control **`NON_COMPLIANT`**;
+- **a target last scanned outside the freshness window** (the `compliance_freshness_days` setting, 0
+  to switch it off) makes it at best **`PARTIAL`**;
+- the score is at most the share of targets observed inside the window, and the detail says so in the
+  same words for every capped control: *"Assessment covers 1/10 target(s) observed within 30 days — 9
+  target(s) have never been scanned."*
+
+A cap, not a penalty: an unobserved target is unassessed, not less compliant. "Observed" means the
+target has a successful scan, not that a given step produced in it — the per-step record
+(`examined_types`) is kept for repositories only and is absent from every scan older than it, so
+counting on it would read containers and older scans as unexamined. The security checklists measure
+per step. ② and ⑥ are ratios over every target, so a never-scanned one already counts against them.
+
 ### Framework Overall Score
 $$\text{Overall Score} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score}(\text{Control}_i)\right)$$
 

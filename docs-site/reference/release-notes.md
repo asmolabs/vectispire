@@ -172,6 +172,21 @@ install a rule set covering its languages (Rule sets, *import from the catalogue
 line that passed before because its rules found nothing in code they could not read was not measuring
 anything. See [Security checklists](../guide/security-checklists.md#measured-lines).
 
+**Secure coding, IaC and secrets now read coverage, as vulnerabilities did — scores drop on an estate
+scanned in part.** ISO 27001 A.8.28, A.8.9 and A.5.15, and the controls of the same categories in NIS 2,
+DORA, PCI DSS and SOC 2, were scored on zero findings alone: ten targets with one scanned clean read
+them *compliant*, beside an A.8.8 that read *non-compliant* on the same estate. They now carry A.8.8's
+coverage cap — a target never scanned makes the control non-compliant, one scanned outside the
+freshness window makes it partial at best, the score is at most the share of targets observed, and the
+detail says so. **An estate fully scanned inside the window reads as before.** On one scanned in part,
+these controls and their frameworks' scores fall at the first page load after the upgrade, and a
+declaration that such a control is implemented reads *contradicted* in the statement of applicability.
+The compliance progression rewrites the running month's point on its next capture and shows the fall
+as *same estate, same rules, N points down*: nothing in the estate changed — the old score counted
+targets nobody looked at as clean, and the months already captured keep that score. Scan the rest of
+the estate, or tell whoever reads the chart before they do. See
+[Compliance](../guide/compliance.md#no-data-is-not-compliant).
+
 **Schema migrations V32 to V58 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 

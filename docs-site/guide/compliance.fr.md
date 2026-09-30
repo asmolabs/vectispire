@@ -28,8 +28,16 @@ qu'aucune cible n'a été analysée avec succès, chaque contrôle qui lit le pa
 chaque référentiel aussi — le contrôle de la piste d'audit, qui lit la chaîne de cette instance, reste
 mesuré et affiché. Le score d'un `NO_DATA` vaut zéro et n'est pas une mesure : les écrans affichent un
 tiret, la matrice laisse vide la colonne du référentiel, le PDF indique *NO DATA*, et la progression
-mensuelle n'enregistre aucun mois pour un référentiel sans rien de mesuré. Dès qu'une partie du parc
-est observée, les cibles jamais analysées plafonnent comme avant les contrôles qui lisent les constats.
+mensuelle n'enregistre aucun mois pour un référentiel sans rien de mesuré.
+
+Dès qu'une partie du parc est observée, la couverture plafonne chaque contrôle noté sur l'absence de
+constats — vulnérabilités, secrets, développement sécurisé et IaC (ISO 27001 A.8.8, A.5.15, A.8.28,
+A.8.9, et leurs équivalents dans les autres référentiels) : une cible jamais analysée rend le contrôle
+*non conforme*, une cible analysée hors de la fenêtre de fraîcheur le limite à *partiel*, et le détail
+dit combien de cibles l'évaluation couvre. Dix cibles dont une analysée sans constat ne font pas un parc
+propre ; elles font une cible propre et neuf que personne n'a regardées. Une cible compte comme observée
+dès qu'elle a une analyse réussie — quelles que soient les étapes qui y ont produit ; les checklists de
+sécurité sont le lieu où une étape se mesure pour elle-même.
 
 ## Le coffre de preuves
 

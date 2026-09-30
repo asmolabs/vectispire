@@ -27,8 +27,15 @@ has been scanned successfully, every control that reads the estate is **`NO_DATA
 framework — the audit trail's control, which reads this instance's own chain, is still measured and
 shown. A `NO_DATA` score is zero and is no measurement: the screens show a dash, the matrix leaves the
 framework's column empty, the PDF reads *NO DATA*, and the monthly progression records no month for a
-framework with nothing measured. Once part of the estate is observed, the never-scanned targets cap
-the controls that read findings, as before.
+framework with nothing measured.
+
+Once part of the estate is observed, coverage caps every control scored on the absence of findings —
+vulnerabilities, secrets, secure coding and IaC (ISO 27001 A.8.8, A.5.15, A.8.28, A.8.9, and their
+counterparts in the other frameworks): a target never scanned makes the control *non-compliant*, one
+scanned outside the freshness window makes it *partial* at best, and the detail says how many targets
+the assessment covers. Ten targets with one scanned clean is not a clean estate; it is one clean target
+and nine nobody looked at. A target counts as observed once it has a successful scan — whichever steps
+produced in it; the security checklists are where a step is measured on its own.
 
 ## The Evidence Vault
 

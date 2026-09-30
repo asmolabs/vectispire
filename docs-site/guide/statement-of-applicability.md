@@ -42,6 +42,12 @@ declared as evidenced here reads **not yet evidenced** rather than *consistent*.
 controls, in the frameworks that have them, read this instance's own chain and are measured from the
 start.
 
+Once part of the estate is scanned, the measurement is capped by coverage, and so is what it
+confirms. A control scored on the absence of findings — A.8.8, A.5.15, A.8.28, A.8.9 — measures
+*non-compliant* while a target has never been scanned, so a declaration that it is implemented reads
+**contradicted** until the rest of the estate is: the document claims a control over targets nothing
+has looked at. See [Compliance](compliance.md#no-data-is-not-compliant).
+
 ## Evidence that lives somewhere else
 
 `evidence_source` is the field that stops this screen lying. Vectispire measures a slice of each
