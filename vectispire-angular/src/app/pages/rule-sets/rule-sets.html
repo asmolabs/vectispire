@@ -254,7 +254,7 @@
                 [label]="'rule_sets.deactivate_btn' | translate"
                 severity="secondary"
                 [text]="true"
-                (onClick)="deactivate()"
+                (onClick)="reviewDeactivation()"
             />
         </div>
     }
@@ -265,10 +265,16 @@
     reason this screen has two steps is that the number below is invisible in the
     data and permanent in its effect.
 -->
-@if (candidate(); as set) {
+@if (change(); as change) {
     @if (impact(); as cost) {
         <p-card styleClass="mt-4">
-            <ng-template #title>{{ 'rule_sets.activate_title' | translate: { name: set.name } }}</ng-template>
+            <ng-template #title>
+                @if (change.kind === 'activate') {
+                    {{ 'rule_sets.activate_title' | translate: { name: change.set.name } }}
+                } @else {
+                    {{ 'rule_sets.deactivate_title' | translate }}
+                }
+            </ng-template>
 
             <div class="flex flex-col gap-4">
                 <div class="flex gap-8">
@@ -281,6 +287,17 @@
                         <div class="text-xl font-semibold">{{ cost.removedRules }}</div>
                     </div>
                 </div>
+
+                <!--
+                    The server refused the confirmation: findings arrived since the preview and the
+                    count it re-read is not the one accepted. Its number is below, and the button
+                    now accepts that one — the operator confirms again, nothing retries for them.
+                -->
+                @if (backlogChanged()) {
+                    <p-message severity="error" [closable]="false" styleClass="w-full" data-testid="backlog-changed">
+                        {{ 'rule_sets.backlog_changed' | translate: { count: cost.affectedIssues } }}
+                    </p-message>
+                }
 
                 @if (cost.affectedIssues > 0) {
                     <p-message severity="warn" [closable]="false" styleClass="w-full">
@@ -312,17 +329,26 @@
                 }
 
                 <div class="flex gap-2">
-                    <p-button
-                        [label]="'rule_sets.activate_btn' | translate"
-                        icon="pi pi-check"
-                        [loading]="activating()"
-                        (onClick)="activate(set, cost)"
-                    />
+                    @if (change.kind === 'activate') {
+                        <p-button
+                            [label]="'rule_sets.activate_btn' | translate"
+                            icon="pi pi-check"
+                            [loading]="activating()"
+                            (onClick)="confirm(change, cost)"
+                        />
+                    } @else {
+                        <p-button
+                            [label]="'rule_sets.deactivate_confirm_btn' | translate"
+                            icon="pi pi-check"
+                            [loading]="activating()"
+                            (onClick)="confirm(change, cost)"
+                        />
+                    }
                     <p-button
                         [label]="'common.cancel' | translate"
                         severity="secondary"
                         [text]="true"
-                        (onClick)="candidate.set(null)"
+                        (onClick)="cancel()"
                     />
                 </div>
             </div>

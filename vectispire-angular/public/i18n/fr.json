@@ -1785,7 +1785,7 @@
     "col_uploaded": "Téléversé le",
     "deactivate_btn": "Désactiver, retour à la règle intégrée",
     "fetch_btn": "Récupérer comme jeu de règles",
-    "impact_explain": "Leurs règles ne sont pas dans ce jeu : le scanner cessera de les trouver. Leurs décisions de triage — justifications, dates de revue, qui a décidé — partent avec elles, et cela ne s'annule pas en reversant l'ancien jeu : les constats reviennent comme neufs.",
+    "impact_explain": "Leurs règles quittent le jeu actif : le scanner cessera de les trouver. Leurs décisions de triage — justifications, dates de revue, qui a décidé — partent avec elles, et cela ne s'annule pas en reversant l'ancien jeu : les constats reviennent comme neufs.",
     "impact_losing": "Règles perdant des constats :",
     "impact_more": "et {{count}} de plus.",
     "impact_none": "Aucun constat ouvert ne dépend d'une règle abandonnée par ce jeu. Rien n'est perdu dans le backlog.",
@@ -1828,7 +1828,11 @@
     "error_activate": "L'activation a échoué.",
     "deactivated_notice": "Retour à la règle embarquée. Les analyses trouveront moins de résultats dès la prochaine exécution.",
     "error_deactivate": "La désactivation a échoué.",
-    "error_load": "Les jeux de règles stockés n'ont pas pu être chargés."
+    "error_load": "Les jeux de règles stockés n'ont pas pu être chargés.",
+    "deactivate_title": "Revenir à la règle intégrée ?",
+    "deactivate_confirm_btn": "Désactiver",
+    "backlog_changed": "Le backlog a changé depuis votre aperçu : {{count}} constat(s) ouvert(s) seraient désormais résolus. Rien n'a été modifié — confirmez à nouveau pour accepter ce nombre.",
+    "error_deactivate_impact": "L'impact de cette désactivation n'a pas pu être calculé ; rien n'a été désactivé."
   },
   "scans": {
     "artifacts": "Artefacts d'analyse",

@@ -1053,6 +1053,12 @@ export type RuleSetSummary = Refine<
 
 export type RuleSetImpact = Refine<Schema<'TriageImpact'>, { losingIssues: string[] }>;
 
+/**
+ * The 409 a rule-set change answers when it would resolve open issues and `acceptLosing` is not
+ * their current number: `affectedIssues` is that number, read at the refusal — the one to confirm.
+ */
+export type RuleSetLosesIssuesProblem = Schema<'RuleSetLosesIssuesProblem'>;
+
 export type CataloguePreview = Refine<
     Schema<'CataloguePreview'>,
     {

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { CheckboxModule } from '@openng/optimus-ui/checkbox';
@@ -11,7 +12,8 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { RuleSetsApi } from '../../core/api/rule-sets.api';
 import { I18nService } from '../../core/i18n/i18n.service';
-import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core/api.models';
+import { LatestRequest } from '../../core/latest-request';
+import type { CataloguePreview, RuleSetImpact, RuleSetLosesIssuesProblem, RuleSetSummary } from '../../core/api.models';
 
 /**
  * Uploading Semgrep rule sets, and choosing which one is active.
@@ -34,6 +36,21 @@ import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
+
+/** A change of active set under review: activating a stored set, or returning to the bundled rules. */
+export type RuleSetChange = { kind: 'activate'; set: RuleSetSummary } | { kind: 'deactivate' };
+
+const LOSES_ISSUES = 'urn:vectispire:problem:rule-set-activation-loses-issues';
+
+/** The refusal's members when it is the "this change loses issues" one, `null` for any other. */
+function losesIssues(failure: unknown): RuleSetLosesIssuesProblem | null {
+    const body = (failure as { error?: unknown } | null)?.error;
+    if (!body || typeof body !== 'object') return null;
+    const problem = body as Partial<RuleSetLosesIssuesProblem>;
+    return problem.type === LOSES_ISSUES && typeof problem.affectedIssues === 'number'
+        ? (problem as RuleSetLosesIssuesProblem)
+        : null;
+}
 
 @Component({
     selector: 'app-rule-sets',
@@ -63,8 +80,15 @@ export class RuleSets {
 
     /** How many files in the selection were not YAML. Shown, never merely dropped. */
     readonly ignored = signal(0);
-    readonly candidate = signal<RuleSetSummary | null>(null);
+    readonly change = signal<RuleSetChange | null>(null);
     readonly impact = signal<RuleSetImpact | null>(null);
+    /**
+     * Set when the server refused the confirmation because the count moved since the preview: the
+     * panel then shows the server's number, and the next click accepts that one — never retried
+     * on the operator's behalf, since the whole point is that they read it.
+     */
+    readonly backlogChanged = signal(false);
+    private readonly preview = new LatestRequest();
     /** The upstream catalogue: what came back, and what was chosen from it. */
     licenceAccepted = false;
     readonly catalogue = signal<CataloguePreview | null>(null);
@@ -223,45 +247,97 @@ export class RuleSets {
     }
 
     review(set: RuleSetSummary): void {
-        this.candidate.set(set);
+        this.open({ kind: 'activate', set }, this.ruleSetsApi.ruleSetImpact(set.id), () =>
+            this.i18n.t('rule_sets.error_impact')
+        );
+    }
+
+    /** Returning to the bundled rules drops the active set's rules, so it is previewed the same way. */
+    reviewDeactivation(): void {
+        this.open({ kind: 'deactivate' }, this.ruleSetsApi.deactivationImpact(), () =>
+            this.i18n.t('rule_sets.error_deactivate_impact')
+        );
+    }
+
+    cancel(): void {
+        this.preview.cancel();
+        this.change.set(null);
         this.impact.set(null);
-        this.ruleSetsApi.ruleSetImpact(set.id).subscribe({
-            next: (cost) => this.impact.set(cost),
+        this.backlogChanged.set(false);
+    }
+
+    private open(change: RuleSetChange, cost: Observable<RuleSetImpact>, failure: () => string): void {
+        this.change.set(change);
+        this.impact.set(null);
+        this.backlogChanged.set(false);
+        this.error.set(null);
+        this.preview.run(cost, {
+            next: (impact) => this.impact.set(impact),
             error: () => {
-                this.candidate.set(null);
-                this.error.set(this.i18n.t('rule_sets.error_impact'));
+                this.change.set(null);
+                this.error.set(failure());
             }
         });
     }
 
-    activate(set: RuleSetSummary, cost: RuleSetImpact): void {
+    /**
+     * Carries out the reviewed change, stating the loss the operator saw.
+     *
+     * **`acceptLosing` is the number on the screen, not a flag.** The server re-reads the count
+     * in the transaction that activates and refuses unless they are equal, so a preview taken
+     * before new findings arrived authorises the loss it displayed and no more. Omitted at zero:
+     * a change that loses nothing needs no acceptance.
+     */
+    confirm(change: RuleSetChange, cost: RuleSetImpact): void {
         this.activating.set(true);
-        // The warning the operator had in front of them travels with the activation and is
-        // kept on the row: "why did four hundred issues close that afternoon" stays
-        // answerable months later.
-        const note = `${cost.addedRules} rules added, ${cost.removedRules} removed, ${cost.affectedIssues} open issues affected.`;
+        this.error.set(null);
+        const acceptLosing = cost.affectedIssues > 0 ? cost.affectedIssues : undefined;
+        const request: Observable<unknown> =
+            change.kind === 'activate'
+                ? // The warning the operator had in front of them travels with the activation and
+                  // is kept on the row: "why did four hundred issues close that afternoon" stays
+                  // answerable months later.
+                  this.ruleSetsApi.activateRuleSet(
+                      change.set.id,
+                      `${cost.addedRules} rules added, ${cost.removedRules} removed, ${cost.affectedIssues} open issues affected.`,
+                      acceptLosing
+                  )
+                : this.ruleSetsApi.deactivateRuleSets(acceptLosing);
 
-        this.ruleSetsApi.activateRuleSet(set.id, note).subscribe({
+        request.subscribe({
             next: () => {
                 this.activating.set(false);
-                this.candidate.set(null);
-                this.notice.set(this.i18n.t('rule_sets.activated_notice', { name: set.name }));
+                this.cancel();
+                this.notice.set(
+                    change.kind === 'activate'
+                        ? this.i18n.t('rule_sets.activated_notice', { name: change.set.name })
+                        : this.i18n.t('rule_sets.deactivated_notice')
+                );
                 this.reload();
             },
-            error: (response) => {
+            error: (response: unknown) => {
                 this.activating.set(false);
-                this.error.set(messageOf(response, this.i18n.t('rule_sets.error_activate')));
+                const moved = losesIssues(response);
+                if (moved) {
+                    // The server's count replaces the preview's, rules included, and the panel
+                    // stays open for a second confirmation with that number.
+                    this.impact.set({
+                        ...cost,
+                        affectedIssues: moved.affectedIssues,
+                        losingIssues: moved.losingIssues ?? []
+                    });
+                    this.backlogChanged.set(true);
+                    return;
+                }
+                this.error.set(
+                    messageOf(
+                        response,
+                        change.kind === 'activate'
+                            ? this.i18n.t('rule_sets.error_activate')
+                            : this.i18n.t('rule_sets.error_deactivate')
+                    )
+                );
             }
-        });
-    }
-
-    deactivate(): void {
-        this.ruleSetsApi.deactivateRuleSets().subscribe({
-            next: () => {
-                this.notice.set(this.i18n.t('rule_sets.deactivated_notice'));
-                this.reload();
-            },
-            error: () => this.error.set(this.i18n.t('rule_sets.error_deactivate'))
         });
     }
 

@@ -48,12 +48,28 @@ export class RuleSetsApi {
         return this.http.get<RuleSetImpact>(`/api/v1/rule-sets/${id}/impact`);
     }
 
-    activateRuleSet(id: number, note: string | null) {
-        return this.http.post<{ id: number; contentHash: string }>(`/api/v1/rule-sets/${id}/activate`, { note });
+    /** What returning to the bundled rules would cost: the rules the active set takes with it. */
+    deactivationImpact() {
+        return this.http.get<RuleSetImpact>('/api/v1/rule-sets/deactivate/impact');
     }
 
-    deactivateRuleSets() {
-        return this.http.post<{ active: null }>('/api/v1/rule-sets/deactivate', {});
+    /**
+     * `acceptLosing` is the number of open issues the operator saw would resolve. The server
+     * refuses a change that loses issues unless it equals the count it reads again when it
+     * activates (409 `rule-set-activation-loses-issues`); absent when the preview lost nothing.
+     */
+    activateRuleSet(id: number, note: string | null, acceptLosing?: number) {
+        return this.http.post<{ id: number; contentHash: string }>(`/api/v1/rule-sets/${id}/activate`, {
+            note,
+            ...(acceptLosing === undefined ? {} : { acceptLosing })
+        });
+    }
+
+    deactivateRuleSets(acceptLosing?: number) {
+        return this.http.post<{ active: null }>(
+            '/api/v1/rule-sets/deactivate',
+            acceptLosing === undefined ? {} : { acceptLosing }
+        );
     }
 
     ruleCoverage(): Observable<RuleCoverageAssessment> {

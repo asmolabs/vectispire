@@ -1785,7 +1785,7 @@
     "col_uploaded": "Uploaded",
     "deactivate_btn": "Deactivate, back to the bundled rule",
     "fetch_btn": "Fetch as a rule set",
-    "impact_explain": "Their rules are not in this set, so the scanner will stop finding them. Their triage decisions — justifications, review dates, who decided — go with them, and this cannot be undone by re-uploading the old set: the issues come back as new.",
+    "impact_explain": "Their rules leave the active set, so the scanner will stop finding them. Their triage decisions — justifications, review dates, who decided — go with them, and this cannot be undone by re-uploading the old set: the issues come back as new.",
     "impact_losing": "Rules losing issues:",
     "impact_more": "and {{count}} more.",
     "impact_none": "No open issue depends on a rule this set drops. Nothing in the backlog is lost.",
@@ -1828,7 +1828,11 @@
     "error_activate": "The activation failed.",
     "deactivated_notice": "Back to the bundled rule. Scans will find less from the next run on.",
     "error_deactivate": "The deactivation failed.",
-    "error_load": "The stored rule sets could not be loaded."
+    "error_load": "The stored rule sets could not be loaded.",
+    "deactivate_title": "Return to the bundled rule?",
+    "deactivate_confirm_btn": "Deactivate",
+    "backlog_changed": "The backlog changed since your preview: {{count}} open issue(s) would now resolve. Nothing was changed — confirm again to accept this number.",
+    "error_deactivate_impact": "The impact of this deactivation could not be computed; nothing has been deactivated."
   },
   "scans": {
     "artifacts": "Scan Artifacts",
