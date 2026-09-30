@@ -118,6 +118,36 @@ class OwaspReportTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("the latest report of a repository is its own, however recent another repository's")
+        void theLatestIsTheRepositorysOwn() {
+            long scanId = seedScan("1.17.6");
+            Mockito.when(models.reviewCode(Mockito.anyString(), Mockito.anyString())).thenReturn("## A01");
+            AiReviewResultEntity own = service.run(repository);
+
+            RepositoryEntity entity = new RepositoryEntity();
+            entity.setUrl("ssh://git@example.com/art/other.git");
+            entity.setName("Other");
+            entity.setBranch("main");
+            var other = com.asmolabs.vectispire.core.targets.RepositoryView.of(repositories.save(entity));
+            ScanEntity scan = new ScanEntity();
+            scan.setRepoId(other.id());
+            scan.setBranch("main");
+            scan.setStatus(ScanStatus.COMPLETED.wireName());
+            scan.setCreatedAt(NOW);
+            scans.save(scan);
+            AiReviewResultEntity newer = service.run(other);
+
+            // The repository is the row's copy of its scan's (V62): written with the review, and what
+            // the latest is looked up by — the same instant for both, so only the repository tells them apart.
+            assertThat(own.getRepoId()).isEqualTo(repository.id());
+            assertThat(own.getScanId()).isEqualTo(scanId);
+            assertThat(service.latest(repository.id())).get().extracting(AiReviewResultEntity::getId)
+                    .isEqualTo(own.getId());
+            assertThat(service.latest(other.id())).get().extracting(AiReviewResultEntity::getId)
+                    .isEqualTo(newer.getId());
+        }
+
+        @Test
         @DisplayName("records the failure instead of losing the attempt")
         void aFailedModelCallIsRecorded() {
             seedScan("1.17.6");
@@ -214,6 +244,7 @@ class OwaspReportTest extends ApiTestBase {
         private AiReviewResultEntity running(long scanId, Instant deadline) {
             AiReviewResultEntity row = new AiReviewResultEntity();
             row.setScanId(scanId);
+            row.setRepoId(repository.id());
             row.setModel("gemma4:e4b");
             row.setPrompt("p");
             row.setStatus("running");
@@ -288,6 +319,7 @@ class OwaspReportTest extends ApiTestBase {
         long scanId = seedScan("1.17.6");
         AiReviewResultEntity stored = new AiReviewResultEntity();
         stored.setScanId(scanId);
+        stored.setRepoId(repository.id());
         stored.setModel("gemma4:e4b");
         stored.setPrompt("p");
         stored.setResponse("## A03 — Injection\n\nA finding worth reporting.");

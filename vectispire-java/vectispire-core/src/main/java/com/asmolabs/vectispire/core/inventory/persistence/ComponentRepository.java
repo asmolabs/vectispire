@@ -11,13 +11,17 @@ import org.springframework.transaction.annotation.Transactional;
 public interface ComponentRepository extends JpaRepository<ComponentEntity, Long> {
 
     /**
-     * Where a component was seen, and in which version of which project.
+     * Where a component was seen, newest scan first: the rows, each with its scan's target and
+     * creation instant (V61); the scan's branch and project version are {@code ScanCatalog}'s, asked
+     * for the few scans the page holds.
      *
-     * <p><b>The join to the scan is the answer, not a detail.</b> "Do we ship log4j 2.14.1" is
-     * only half a question: what the person asking needs is the release it went out in, so they
-     * can say which of their deliveries is affected. The scan carries that — its target and the
-     * project version read from the manifest — so the component alone would answer "yes,
-     * somewhere, once".
+     * <p><b>The scan is the answer, not a detail.</b> "Do we ship log4j 2.14.1" is only half a
+     * question: what the person asking needs is the release it went out in, so they can say which of
+     * their deliveries is affected. The scan carries that — its target and the project version read
+     * from the manifest — so the component alone would answer "yes, somewhere, once".
+     *
+     * <p>Ordered by the copied instant, which is the scan's own {@code createdAt}: the order the join to
+     * the scans gave, without naming their table.
      *
      * <p>The version filter is optional and matched exactly: a search for {@code 2.14.1} must not
      * return {@code 2.14.10}, which is a different release with a different verdict. The name is
@@ -25,13 +29,11 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
      * {@code org.apache.logging.log4j:log4j-core}.
      */
     @Query("""
-            select c, s.id, s.repoId, s.containerId, s.branch, s.version, s.createdAt
-              from ComponentEntity c, ScanEntity s
-             where c.scanId = s.id
-               and (lower(c.name) like :name or lower(c.purl) like :name)
+            select c from ComponentEntity c
+             where (lower(c.name) like :name or lower(c.purl) like :name)
                and (:version is null or c.version = :version)
-             order by s.createdAt desc, c.name asc""")
-    List<Object[]> search(@Param("name") String name, @Param("version") String version, Limit limit);
+             order by c.scanCreatedAt desc, c.name asc""")
+    List<ComponentEntity> search(@Param("name") String name, @Param("version") String version, Limit limit);
 
     /**
      * Every version of one component, <b>with the target it was catalogued on</b>, for the filter
@@ -43,12 +45,11 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
      * here run log4j 2.14.1" and be told. Its sibling {@code search}, four lines above, had
      * filtered from the day it was written; this one had not, and nothing said so because the
      * authorization rule is stated per controller and this controller does resolve a
-     * {@code Visibility} — for the other route.
+     * {@code Visibility} — for the other route. The target is the row's own copy of its scan's (V61).
      */
     @Query("""
-            select distinct c.version, s.repoId, s.containerId from ComponentEntity c, ScanEntity s
-             where c.scanId = s.id
-               and (lower(c.name) like :name or lower(c.purl) like :name)
+            select distinct c.version, c.repoId, c.containerId from ComponentEntity c
+             where (lower(c.name) like :name or lower(c.purl) like :name)
              order by c.version desc""")
     List<Object[]> versionsOf(@Param("name") String name, Limit limit);
 
@@ -89,18 +90,19 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
      * projection and are never purged, which is what makes "this target has an inventory" a
      * durable fact rather than a property of how recently it was scanned.
      *
+     * <p>The target is the row's copy of its scan's (V61): a component goes with its scan, so a target
+     * with a component row is one a scan produced an inventory of, as the join to the scans said.
+     *
      * <p>Two queries rather than one union: the two id spaces are unrelated, and a union would
      * have to carry a discriminator column that every engine spells differently.
      */
     @Query("""
-            select distinct s.repoId from ComponentEntity c, ScanEntity s
-             where c.scanId = s.id and s.repoId is not null""")
+            select distinct c.repoId from ComponentEntity c where c.repoId is not null""")
     List<Long> distinctRepositoriesWithComponents();
 
     /** @see #distinctRepositoriesWithComponents() */
     @Query("""
-            select distinct s.containerId from ComponentEntity c, ScanEntity s
-             where c.scanId = s.id and s.containerId is not null""")
+            select distinct c.containerId from ComponentEntity c where c.containerId is not null""")
     List<Long> distinctContainersWithComponents();
 
     /**
@@ -116,7 +118,7 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
      * the discriminator a union would have had to invent a column for.
      */
     @Query("""
-            select distinct s.repoId, s.containerId, c.purl from ComponentEntity c, ScanEntity s
-             where c.scanId = s.id and c.purl is not null""")
+            select distinct c.repoId, c.containerId, c.purl from ComponentEntity c
+             where c.purl is not null""")
     List<Object[]> distinctPurlsByTarget();
 }

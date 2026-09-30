@@ -51,6 +51,11 @@ class SbomDiffRoutesTest extends ApiTestBase {
 
         ComponentEntity c1 = new ComponentEntity();
         c1.setScanId(scan1.getId());
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfC1 = scans.findById(scan1.getId()).orElseThrow();
+        c1.setRepoId(scanOfC1.getRepoId());
+        c1.setContainerId(scanOfC1.getContainerId());
+        c1.setScanCreatedAt(scanOfC1.getCreatedAt());
         c1.setName("jackson-databind");
         c1.setVersion("2.13.0");
         c1.setType("npm");
@@ -79,6 +84,11 @@ class SbomDiffRoutesTest extends ApiTestBase {
 
         ComponentEntity c2 = new ComponentEntity();
         c2.setScanId(scan2.getId());
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfC2 = scans.findById(scan2.getId()).orElseThrow();
+        c2.setRepoId(scanOfC2.getRepoId());
+        c2.setContainerId(scanOfC2.getContainerId());
+        c2.setScanCreatedAt(scanOfC2.getCreatedAt());
         c2.setName("jackson-databind");
         c2.setVersion("2.14.0");
         c2.setType("npm");
@@ -86,6 +96,11 @@ class SbomDiffRoutesTest extends ApiTestBase {
 
         ComponentEntity c3 = new ComponentEntity();
         c3.setScanId(scan2.getId());
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfC3 = scans.findById(scan2.getId()).orElseThrow();
+        c3.setRepoId(scanOfC3.getRepoId());
+        c3.setContainerId(scanOfC3.getContainerId());
+        c3.setScanCreatedAt(scanOfC3.getCreatedAt());
         c3.setName("commons-io");
         c3.setVersion("2.11.0");
         c3.setType("npm");

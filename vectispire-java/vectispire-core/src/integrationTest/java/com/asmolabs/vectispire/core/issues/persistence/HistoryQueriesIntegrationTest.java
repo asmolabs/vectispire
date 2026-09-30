@@ -3,12 +3,14 @@ package com.asmolabs.vectispire.core.issues.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
@@ -84,6 +86,9 @@ class HistoryQueriesIntegrationTest {
     @Autowired
     private ComponentRepository components;
 
+    @Autowired
+    private InventoryQueryService inventory;
+
     private long repositoryId;
     private long scanId;
     private long issueId;
@@ -149,21 +154,24 @@ class HistoryQueriesIntegrationTest {
     }
 
     @Test
-    @DisplayName("joins a component to the scan that saw it, and to the project version it shipped in")
-    void theInventoryJoinRuns() {
+    @DisplayName("finds a component with its scan's target and date, and the project version it shipped in")
+    void theInventorySearchRuns() {
         components.save(component("log4j-core", "2.14.1"));
 
-        List<Object[]> rows = components.search("%log4j%", null, Limit.of(10));
+        InventoryQueryService.Results results = inventory.search("log4j", null, Visibility.everything());
 
-        assertThat(rows).hasSize(1);
-        assertThat(((ComponentEntity) rows.getFirst()[0]).getVersion()).isEqualTo("2.14.1");
-        // The half of the answer that makes it actionable: our release, not the library's. The scan
-        // comes back as its columns, not as a row of another module's table — `inventory` reads
-        // scans through `ScanCatalog` and names no scanning entity (decision 0029); the casts are
-        // the ones `InventoryQueryService` makes, which is what an engine returning another numeric
-        // type would break.
-        assertThat((Long) rows.getFirst()[1]).isEqualTo(scanId);
-        assertThat((String) rows.getFirst()[5]).isEqualTo("1.17.6");
+        assertThat(results.occurrences()).hasSize(1);
+        InventoryQueryService.Occurrence found = results.occurrences().getFirst();
+        assertThat(found.componentVersion()).isEqualTo("2.14.1");
+        // The half of the answer that makes it actionable: our release, not the library's. The target
+        // and the instant are the row's copies of its scan's (V61); the branch and the version come
+        // from `ScanCatalog` — `inventory` names no scanning entity in a query (decision 0029).
+        assertThat(found.scanId()).isEqualTo(scanId);
+        assertThat(found.targetKind()).isEqualTo("repository");
+        assertThat(found.targetId()).isEqualTo(repositoryId);
+        assertThat(found.scannedAt()).isEqualTo(WHEN);
+        assertThat(found.branch()).isEqualTo("master");
+        assertThat(found.projectVersion()).isEqualTo("1.17.6");
     }
 
     @Test
@@ -216,6 +224,11 @@ class HistoryQueriesIntegrationTest {
     private ComponentEntity component(String name, String version) {
         ComponentEntity component = new ComponentEntity();
         component.setScanId(scanId);
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfComponent = scans.findById(scanId).orElseThrow();
+        component.setRepoId(scanOfComponent.getRepoId());
+        component.setContainerId(scanOfComponent.getContainerId());
+        component.setScanCreatedAt(scanOfComponent.getCreatedAt());
         component.setName(name);
         component.setVersion(version);
         component.setPurl("pkg:maven/org.apache.logging.log4j/" + name + "@" + version);

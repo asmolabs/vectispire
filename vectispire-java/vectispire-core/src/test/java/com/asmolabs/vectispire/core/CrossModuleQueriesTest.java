@@ -33,8 +33,8 @@ import org.springframework.modulith.ApplicationModule;
  * A query string naming another module's table — the coupling neither Modulith nor ArchUnit can see.
  *
  * <p><b>Why a test of its own.</b> Both read the classes the compiler produced, and a JPQL query is a
- * string in an annotation: {@code select … from ComponentEntity c, ScanEntity s} in {@code inventory}
- * names {@code scanning}'s entity, and no import says so. After step 5 every read of another module's
+ * string in an annotation: {@code … not in (select r.id from RepositoryEntity r)} in {@code scanning}
+ * names {@code targets}' entity, and no import says so. After step 5 every read of another module's
  * rows went through the owner's API but these, which decision 0029 listed as what was left — and a list
  * in a document is true the day it is written. This reads every {@code @Query} and {@code @NativeQuery}
  * of every repository, resolves each entity name (JPQL), table name (native SQL) and class name (a
@@ -72,35 +72,33 @@ class CrossModuleQueriesTest {
      */
     private record Known(Reference reference, boolean againstTheDirection, String reason) {}
 
-    private static final String SCAN_OF_A_COMPONENT = "A component row carries its scan's id, and the target it "
-            + "was seen on is the scan's: one join over the whole inventory. Through ScanCatalog it would be "
-            + "every scan id of the estate as an in-list, or a scan column copied into t_component.";
-
-    private static final String ORPHAN_SWEEP = "The orphan sweep (OrphanedTargetRows): rows whose target is gone "
-            + "are an absence in another module's table, which one `not in (select …)` states; asking "
-            + "TargetCatalog for every id and diffing in memory is what the statement avoids. `targets` is "
-            + "below, so the direction holds.";
+    /**
+     * Kept, and not for want of an alternative: each alternative reads the whole estate to find what, on
+     * a healthy installation, is nothing.
+     */
+    private static final String ORPHAN_SWEEP = "The orphan sweep (OrphanedTargetRows, at startup and on every "
+            + "maintenance tick): the rows whose target no longer exists. The fact is an absence in targets' "
+            + "table, so no copied column can carry it, and asking TargetCatalog means reading every "
+            + "repository and image id into memory, or handing it every distinct target id this table holds, "
+            + "a thousand per statement, to learn that all of them exist: a read of the whole estate per tick "
+            + "where one `not in (select …)` per table binds no parameter and "
+            + "probes the owner's primary key. The foreign keys keep orphans from forming (MySQL since V19, "
+            + "SQLite since the pragma), so the statement exists for the rows left before them, and costs one "
+            + "anti-join per table to find none. `targets` is below scanning "
+            + "and issues, and both list it, so the direction holds.";
 
     /**
      * The cross-module statements as step 6 found them — the ones decision 0029 listed, and no other —
-     * less the one that went. {@code ScanRepository.findWithSbomButNoComponents} read {@code
-     * inventory}'s table from {@code scanning}, against the direction; the backfill now asks {@code
-     * ScanCatalog} for the scans holding an SBOM and its own table for which of them it has indexed.
-     * None left points against the direction.
+     * less those that went. {@code ScanRepository.findWithSbomButNoComponents} read {@code inventory}'s
+     * table from {@code scanning}, against the direction; the backfill now asks {@code ScanCatalog} for
+     * the scans holding an SBOM and its own table for which of them it has indexed. The inventory's five
+     * joins to the scans and the latest model review's went on 2026-09-30: a component row and a review
+     * row carry their scan's target, and a component its scan's creation instant, copied when written
+     * (V61, V62) — facts a scan never changes, on rows its foreign key deletes with it — and the search
+     * asks {@code ScanCatalog} for the branch and version of the page's scans. What is left is the
+     * orphan sweep, which has to name the table whose rows are missing.
      */
     private static final List<Known> KNOWN = List.of(
-            new Known(new Reference("AiReviewResultRepository.latestForRepository", "scanning", "ScanEntity"), false,
-                    "A review row carries its scan's id, not its repository's: the latest review of a repository "
-                            + "is a join to the scans. Through ScanCatalog it would be all the repository's scan "
-                            + "ids as an in-list."),
-            new Known(new Reference("ComponentRepository.search", "scanning", "ScanEntity"), false, SCAN_OF_A_COMPONENT),
-            new Known(new Reference("ComponentRepository.versionsOf", "scanning", "ScanEntity"), false, SCAN_OF_A_COMPONENT),
-            new Known(new Reference("ComponentRepository.distinctRepositoriesWithComponents", "scanning", "ScanEntity"), false,
-                    SCAN_OF_A_COMPONENT),
-            new Known(new Reference("ComponentRepository.distinctContainersWithComponents", "scanning", "ScanEntity"), false,
-                    SCAN_OF_A_COMPONENT),
-            new Known(new Reference("ComponentRepository.distinctPurlsByTarget", "scanning", "ScanEntity"), false,
-                    SCAN_OF_A_COMPONENT),
             new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
             new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
             new Known(new Reference("ScanRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),

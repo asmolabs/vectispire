@@ -479,6 +479,22 @@ class ScanIngestorTest {
     }
 
     @Test
+    @DisplayName("hands the SBOM to the inventory with its scan's target and creation instant")
+    void handsTheScansFactsWithTheSbom() {
+        ScanEntity s = scan();
+        s.setCreatedAt(NOW.minusSeconds(60));
+
+        ingestor.ingest(s, ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
+
+        // The inventory keeps both beside each component row (V61) and reads them in place of a join
+        // to the scans: a target lost here is a component no search, filter or figure finds again.
+        org.mockito.Mockito.verify(components).components(
+                org.mockito.ArgumentMatchers.eq(new ScanOrigin(7L, 3L, null, NOW.minusSeconds(60))),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("hands API endpoints and contracts to the inventory")
     void recordsApiInventory() {
         ScanIngestor customIngestor = ingestor;

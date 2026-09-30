@@ -148,8 +148,11 @@ public class ScanIngestor {
      * the half alone (decision 0007).
      */
     public interface InventorySink {
-        /** The SBOM's components for this scan, with their directness from the same document. */
-        void components(long scanId, JsonNode sbom, DependencyGraph graph);
+        /**
+         * The SBOM's components for this scan, with their directness from the same document. The scan
+         * comes with its target and creation instant, which the inventory keeps beside each row.
+         */
+        void components(ScanOrigin scan, JsonNode sbom, DependencyGraph graph);
 
         /** The API surface, each half only if its analyzer ran. Never called with both absent. */
         void apis(long scanId, Long repositoryId, Optional<List<ApiEndpoint>> endpoints,
@@ -260,7 +263,7 @@ public class ScanIngestor {
         // the cataloguer did not run — and absent means the previous scan's inventory is left
         // alone rather than replaced by nothing, exactly as an absent finding list leaves the
         // backlog alone.
-        artifacts.sbom().ifPresent(sbom -> inventory.components(scan.getId(), sbom, graph));
+        artifacts.sbom().ifPresent(sbom -> inventory.components(ScanOrigin.of(scan), sbom, graph));
 
         // **The two Optionals travel intact, and that is the fix.** They used to be flattened
         // with `orElse(List.of())` here, which handed the inventory "the cataloguer found no

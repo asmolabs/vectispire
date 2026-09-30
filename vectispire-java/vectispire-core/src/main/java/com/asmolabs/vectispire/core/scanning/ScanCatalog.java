@@ -338,6 +338,24 @@ public class ScanCatalog {
     public record ScanLanguages(Optional<java.util.Set<com.asmolabs.vectispire.common.domain.plugins.Language>> detected,
             Optional<java.util.Set<com.asmolabs.vectispire.common.domain.plugins.Language>> sastRules) {}
 
+    /** @param version the project's version, from its manifest; null where the scan read none */
+    public record ScanLabel(String branch, String version) {}
+
+    /**
+     * Each of these scans' branch and project version, by scan id — what the component search shows
+     * beside each occurrence, for the scans of the page it answers. A scan that does not exist is
+     * absent. A thousand identifiers per statement, as every lookup here: the list is the caller's.
+     */
+    public Map<Long, ScanLabel> labelsOf(Collection<Long> scanIds) {
+        Map<Long, ScanLabel> labels = new java.util.HashMap<>();
+        for (List<Long> batch : batches(scanIds)) {
+            for (Object[] row : scans.findLabelsOf(batch)) {
+                labels.put(((Number) row[0]).longValue(), new ScanLabel((String) row[1], (String) row[2]));
+            }
+        }
+        return Map.copyOf(labels);
+    }
+
     /**
      * Each of these scans' languages, by scan id — what a checklist compares, on the very scan a
      * measurement rests on, to tell a tree its static analysis read from one it did not (decision

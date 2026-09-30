@@ -174,6 +174,7 @@ public class OwaspReviewService {
         Instant now = clock.instant();
         AiReviewResultEntity result = new AiReviewResultEntity();
         result.setScanId(scan.id());
+        result.setRepoId(scan.repoId());
         result.setModel(models.selectedModel());
         result.setPrompt(OwaspReview.PROMPT);
         // **Kept, because a report nobody can trace to its input is not evidence of anything.**

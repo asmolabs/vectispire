@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.inventory;
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
+import com.asmolabs.vectispire.core.scanning.ScanOrigin;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,15 +34,18 @@ public class ComponentInventory {
      * <p><b>Replaced, never merged.</b> A scan re-run after a failure must not leave the
      * components of its first attempt beside the second's: the inventory of a scan is what that
      * scan saw, and two overlapping answers to that are worse than none.
+     *
+     * <p>Each row carries the scan's target and creation instant, which every read of the inventory
+     * filters or orders by: with them here, none of those reads names {@code scanning}'s table.
      */
     @Transactional(propagation = Propagation.REQUIRED)
-    public int record(long scanId, JsonNode sbom, DependencyGraph graph) {
+    public int record(ScanOrigin scan, JsonNode sbom, DependencyGraph graph) {
         JsonNode artifacts = sbom == null ? null : sbom.path("artifacts");
         if (artifacts == null || !artifacts.isArray()) {
             return 0;
         }
 
-        components.deleteByScanId(scanId);
+        components.deleteByScanId(scan.id());
 
         List<ComponentEntity> rows = new ArrayList<>();
         for (JsonNode artifact : artifacts) {
@@ -53,7 +57,10 @@ public class ComponentInventory {
             String purl = text(artifact.path("purl"));
 
             ComponentEntity row = new ComponentEntity();
-            row.setScanId(scanId);
+            row.setScanId(scan.id());
+            row.setRepoId(scan.repoId());
+            row.setContainerId(scan.containerId());
+            row.setScanCreatedAt(scan.createdAt());
             row.setName(trim(name, 255));
             row.setVersion(trim(version, 255));
             row.setPurl(trim(purl, 500));

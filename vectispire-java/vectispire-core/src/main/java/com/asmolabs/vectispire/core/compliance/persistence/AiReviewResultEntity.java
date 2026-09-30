@@ -29,6 +29,14 @@ public class AiReviewResultEntity {
     @Column(name = "scan_id", nullable = false)
     private Long scanId;
 
+    /**
+     * The repository the scan was of, copied from it when the review is requested (V62) so that the
+     * latest review of a repository is read without joining {@code scanning}'s table. A scan never
+     * changes target, and the review goes with its scan, so the copy cannot disagree with it.
+     */
+    @Column(name = "repo_id")
+    private Long repoId;
+
     @Column(name = "model", length = 255, nullable = false)
     private String model;
 
@@ -81,6 +89,14 @@ public class AiReviewResultEntity {
 
     public void setScanId(Long scanId) {
         this.scanId = scanId;
+    }
+
+    public Long getRepoId() {
+        return repoId;
+    }
+
+    public void setRepoId(Long repoId) {
+        this.repoId = repoId;
     }
 
     public String getModel() {

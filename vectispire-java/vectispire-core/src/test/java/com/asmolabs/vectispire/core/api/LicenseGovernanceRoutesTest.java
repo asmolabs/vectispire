@@ -66,6 +66,11 @@ class LicenseGovernanceRoutesTest extends ApiTestBase {
         // And one component nothing declares a licence for.
         ComponentEntity undeclared = new ComponentEntity();
         undeclared.setScanId(scan.getId());
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfUndeclared = scansRepo.findById(scan.getId()).orElseThrow();
+        undeclared.setRepoId(scanOfUndeclared.getRepoId());
+        undeclared.setContainerId(scanOfUndeclared.getContainerId());
+        undeclared.setScanCreatedAt(scanOfUndeclared.getCreatedAt());
         undeclared.setName("com.example:mystery-lib");
         undeclared.setVersion("1.0.0");
         undeclared.setPurl("pkg:maven/com.example/mystery-lib@1.0.0");

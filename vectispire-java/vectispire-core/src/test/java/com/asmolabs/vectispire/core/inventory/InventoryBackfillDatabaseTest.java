@@ -9,6 +9,10 @@ import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +34,11 @@ class InventoryBackfillDatabaseTest extends VectispireContextTest {
 
     private static final String SBOM = "{\"artifacts\":[{\"name\":\"log4j-core\",\"version\":\"2.14.1\"}]}";
 
+    private static final String PURL = "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1";
+
+    private static final String WITH_PURL = "{\"artifacts\":[{\"name\":\"log4j-core\",\"version\":\"2.14.1\","
+            + "\"purl\":\"" + PURL + "\"}]}";
+
     @Autowired
     private ScanRepository scanRows;
 
@@ -44,6 +53,12 @@ class InventoryBackfillDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private ObjectMapper json;
+
+    @Autowired
+    private GitRepositoryRepository repositories;
+
+    @Autowired
+    private ContainerRepository containers;
 
     @Test
     @DisplayName("indexes the scans with an SBOM and no components, past pages already indexed")
@@ -66,15 +81,63 @@ class InventoryBackfillDatabaseTest extends VectispireContextTest {
         assertThat(backfill().runOnce()).as("converged").isZero();
     }
 
+    @Test
+    @DisplayName("each row carries its scan's target and creation instant, which every read of the inventory uses")
+    void theRowsCarryTheirScansFacts() {
+        Instant at = Instant.parse("2026-09-01T10:00:00.123Z");
+        repository("ssh://git@example.invalid/unscanned.git");
+        long repositoryId = repository("ssh://git@example.invalid/facts.git");
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName("registry.invalid/facts");
+        container.setTag("1.0");
+        long containerId = containers.save(container).getId();
+        // Two id spaces that could coincide: were they equal, a read of the wrong column would pass.
+        assertThat(repositoryId).isNotEqualTo(containerId);
+        long ofRepository = scan(WITH_PURL, repositoryId, null, at);
+        long ofImage = scan(WITH_PURL, null, containerId, at.plusSeconds(60));
+
+        backfill().runOnce();
+
+        // Copied by ComponentInventory from the scan it was handed (V61): without them the search, the
+        // version filter, the supply-chain figures and rule coverage would lose the row's target.
+        assertThat(components.findByScanId(ofRepository)).singleElement().satisfies(row -> {
+            assertThat(row.getRepoId()).isEqualTo(repositoryId);
+            assertThat(row.getContainerId()).isNull();
+            assertThat(row.getScanCreatedAt()).isEqualTo(at);
+        });
+        assertThat(components.findByScanId(ofImage)).singleElement().satisfies(row -> {
+            assertThat(row.getRepoId()).isNull();
+            assertThat(row.getContainerId()).isEqualTo(containerId);
+            assertThat(row.getScanCreatedAt()).isEqualTo(at.plusSeconds(60));
+        });
+        assertThat(components.distinctRepositoriesWithComponents()).containsExactly(repositoryId);
+        assertThat(components.distinctContainersWithComponents()).containsExactly(containerId);
+        assertThat(components.distinctPurlsByTarget()).containsExactlyInAnyOrder(
+                new Object[] {repositoryId, null, PURL}, new Object[] {null, containerId, PURL});
+    }
+
+    private long repository(String url) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl(url);
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+
     private InventoryBackfill backfill() {
         return new InventoryBackfill(scans, components, inventory, json, 2);
     }
 
     private long scan(String sbom) {
+        return scan(sbom, null, null, Instant.now());
+    }
+
+    private long scan(String sbom, Long repositoryId, Long containerId, Instant createdAt) {
         ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repositoryId);
+        scan.setContainerId(containerId);
         scan.setBranch("main");
         scan.setStatus(ScanStatus.COMPLETED.wireName());
-        scan.setCreatedAt(Instant.now());
+        scan.setCreatedAt(createdAt);
         scan.setSbom(sbom);
         return scanRows.save(scan).getId();
     }
@@ -82,6 +145,11 @@ class InventoryBackfillDatabaseTest extends VectispireContextTest {
     private long indexed(long scanId) {
         ComponentEntity row = new ComponentEntity();
         row.setScanId(scanId);
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfRow = scanRows.findById(scanId).orElseThrow();
+        row.setRepoId(scanOfRow.getRepoId());
+        row.setContainerId(scanOfRow.getContainerId());
+        row.setScanCreatedAt(scanOfRow.getCreatedAt());
         row.setName("already-there");
         components.saveAll(List.of(row));
         return scanId;

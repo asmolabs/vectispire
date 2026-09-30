@@ -109,6 +109,28 @@ class InventoryTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the newest scan first, by the scan's creation and not its identifier, then by name")
+    void newestScanFirst() throws Exception {
+        long repositoryId = seedRepository("Arm");
+        // The newer scan is written first, so its identifier is the lower: an order by id would invert them.
+        long newer = seedScan(repositoryId, "2.0.0", SCANNED.plusSeconds(3600));
+        long older = seedScan(repositoryId, "1.0.0", SCANNED);
+        seedComponent(older, "log4j-core", "2.14.1", null, true);
+        seedComponent(newer, "log4j-core", "2.17.1", null, true);
+        seedComponent(newer, "log4j-api", "2.17.1", null, true);
+
+        mvc.perform(authenticated(get("/api/v1/inventory/search?name=log4j"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.occurrences.length()").value(3))
+                .andExpect(jsonPath("$.occurrences[0].component").value("log4j-api"))
+                .andExpect(jsonPath("$.occurrences[0].projectVersion").value("2.0.0"))
+                .andExpect(jsonPath("$.occurrences[1].component").value("log4j-core"))
+                .andExpect(jsonPath("$.occurrences[1].projectVersion").value("2.0.0"))
+                .andExpect(jsonPath("$.occurrences[2].projectVersion").value("1.0.0"))
+                .andExpect(jsonPath("$.occurrences[2].branch").value("master"));
+    }
+
+    @Test
     @DisplayName("a directness nobody established stays unknown rather than becoming transitive")
     void unknownDirectnessIsNotFalse() throws Exception {
         long scanId = seedScan(seedRepository("Arm"), "1.17.6");
@@ -128,11 +150,15 @@ class InventoryTest extends ApiTestBase {
     }
 
     private long seedScan(long repositoryId, String projectVersion) {
+        return seedScan(repositoryId, projectVersion, SCANNED);
+    }
+
+    private long seedScan(long repositoryId, String projectVersion, Instant createdAt) {
         ScanEntity scan = new ScanEntity();
         scan.setRepoId(repositoryId);
         scan.setBranch("master");
         scan.setStatus(ScanStatus.COMPLETED.wireName());
-        scan.setCreatedAt(SCANNED);
+        scan.setCreatedAt(createdAt);
         scan.setVersion(projectVersion);
         scan.setProjectType("maven");
         return scans.save(scan).getId();
@@ -166,6 +192,27 @@ class InventoryTest extends ApiTestBase {
                 .andExpect(jsonPath("$.length()").value(2));
     }
 
+    @Test
+    @DisplayName("the search answers for the caller's targets, by the target each row carries")
+    void searchIsScopedToTheCaller() throws Exception {
+        restrict();
+        long ours = seedRepository("Ours");
+        long theirs = seedRepository("Theirs");
+        seedComponent(seedScan(ours, "1.0.0"), "log4j-core", "2.14.1", "pkg:maven/log4j@2.14.1", true);
+        seedComponent(seedScan(theirs, "9.9.9"), "log4j-core", "2.17.2", "pkg:maven/log4j@2.17.2", true);
+
+        String reader = asReader();
+        assignDirectly(readerId(), ours);
+
+        // The row's own copy of its scan's target (V61) is what the filter reads: another account's
+        // release must not come back, nor be counted.
+        mvc.perform(authenticated(get("/api/v1/inventory/search?name=log4j"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.occurrences.length()").value(1))
+                .andExpect(jsonPath("$.occurrences[0].projectVersion").value("1.0.0"))
+                .andExpect(jsonPath("$.total").value(1));
+    }
+
     private void restrict() {
         settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
     }
@@ -194,6 +241,11 @@ class InventoryTest extends ApiTestBase {
     private void seedComponent(long scanId, String name, String version, String purl, Boolean direct) {
         ComponentEntity component = new ComponentEntity();
         component.setScanId(scanId);
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfComponent = scans.findById(scanId).orElseThrow();
+        component.setRepoId(scanOfComponent.getRepoId());
+        component.setContainerId(scanOfComponent.getContainerId());
+        component.setScanCreatedAt(scanOfComponent.getCreatedAt());
         component.setName(name);
         component.setVersion(version);
         component.setPurl(purl);

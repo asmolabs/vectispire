@@ -130,6 +130,11 @@ class SupplyChainCoverageTest extends VectispireContextTest {
     private void component(long scanId, String purl) {
         ComponentEntity component = new ComponentEntity();
         component.setScanId(scanId);
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfComponent = scans.findById(scanId).orElseThrow();
+        component.setRepoId(scanOfComponent.getRepoId());
+        component.setContainerId(scanOfComponent.getContainerId());
+        component.setScanCreatedAt(scanOfComponent.getCreatedAt());
         component.setPurl(purl);
         component.setName(purl);
         components.save(component);

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.inventory;
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanOrigin;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +83,7 @@ public class InventoryBackfill {
         for (ScanView scan : pending) {
             try {
                 JsonNode sbom = json.readTree(scan.sbom());
-                inventory.record(scan.id(), sbom, new DependencyGraph(sbom));
+                inventory.record(ScanOrigin.of(scan), sbom, new DependencyGraph(sbom));
                 indexed++;
             } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException unreadable) {
                 // A stored payload that cannot be parsed is not worth failing the tick for, and

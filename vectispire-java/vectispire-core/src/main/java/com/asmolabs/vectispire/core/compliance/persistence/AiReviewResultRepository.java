@@ -13,14 +13,14 @@ public interface AiReviewResultRepository extends JpaRepository<AiReviewResultEn
     /**
      * The most recent report about one repository, whichever scan it was built from.
      *
-     * <p>Keyed through the scan rather than stored against the repository: a report is a
-     * statement about a moment, and the scan is what dates it and names the version. Asking for
-     * "the latest" is then a question about scans, which is the only ordering that means
-     * anything here.
+     * <p>A report is a statement about a moment, and its scan is what dates it and names the version,
+     * so the row is keyed by the scan. The repository beside it is that scan's, copied when the
+     * review is requested (V62): the question "which repository" is answered without joining the
+     * scans' table, and cannot answer otherwise than the join did, since a scan never changes target.
      */
     @Query("""
-            select r from AiReviewResultEntity r, ScanEntity s
-             where r.scanId = s.id and s.repoId = :repoId
+            select r from AiReviewResultEntity r
+             where r.repoId = :repoId
              order by r.createdAt desc, r.id desc""")
     List<AiReviewResultEntity> latestForRepository(@Param("repoId") long repoId, Limit limit);
 

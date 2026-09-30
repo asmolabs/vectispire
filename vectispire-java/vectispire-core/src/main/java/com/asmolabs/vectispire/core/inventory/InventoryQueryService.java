@@ -5,10 +5,12 @@ import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
+import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -30,10 +32,12 @@ public class InventoryQueryService {
 
     private final ComponentRepository components;
     private final TargetNaming naming;
+    private final ScanCatalog scans;
 
-    public InventoryQueryService(ComponentRepository components, TargetNaming naming) {
+    public InventoryQueryService(ComponentRepository components, TargetNaming naming, ScanCatalog scans) {
         this.components = components;
         this.naming = naming;
+        this.scans = scans;
     }
 
     /**
@@ -95,17 +99,26 @@ public class InventoryQueryService {
         TargetNaming.Names names = naming.all();
 
         // One over the cap, so "there are more" is known rather than guessed from a full page.
-        List<Object[]> rows = components.search(
+        List<ComponentEntity> rows = components.search(
                 "%" + name.trim().toLowerCase(Locale.ROOT) + "%",
                 version == null || version.isBlank() ? null : version.trim(),
                 Limit.of(MAX_ROWS + 1));
 
-        List<Occurrence> occurrences = rows.stream()
-                .map(row -> occurrenceOf((ComponentEntity) row[0], row, names))
-                // Filtered after the query for the same reason the scan history is: the
-                // restriction is a set of targets, and expressing it in SQL would duplicate a
-                // predicate that already exists — and getting it wrong here leaks an inventory.
-                .filter(occurrence -> allowed.permits(targetOf(occurrence)))
+        // Filtered after the query for the same reason the scan history is: the restriction is a set
+        // of targets, and expressing it in SQL would duplicate a predicate that already exists — and
+        // getting it wrong here leaks an inventory.
+        List<ComponentEntity> visible = rows.stream()
+                .filter(row -> allowed.permits(targetOf(row.getRepoId(), row.getContainerId())))
+                .toList();
+
+        // The branch and the project version are the scan's, asked for the page's scans only: at most
+        // the cap and one, so well under a statement's bind limit, and batched by the catalogue anyway.
+        // A scan gone between the two statements takes its rows with it, as the join did.
+        Map<Long, ScanCatalog.ScanLabel> labels = scans.labelsOf(
+                visible.stream().map(ComponentEntity::getScanId).distinct().toList());
+        List<Occurrence> occurrences = visible.stream()
+                .filter(row -> labels.containsKey(row.getScanId()))
+                .map(row -> occurrenceOf(row, labels.get(row.getScanId()), names))
                 .toList();
 
         boolean truncated = occurrences.size() > MAX_ROWS;
@@ -129,40 +142,26 @@ public class InventoryQueryService {
         // here would drop versions the caller may see, which reads as "we do not run it".
         return components.versionsOf("%" + name.trim().toLowerCase(Locale.ROOT) + "%", Limit.of(MAX_ROWS))
                 .stream()
-                .filter(row -> allowed.permits(targetOf(row)))
+                .filter(row -> allowed.permits(targetOf((Long) row[1], (Long) row[2])))
                 .map(row -> (String) row[0])
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
     }
 
-    /** The target a {@code (version, repoId, containerId)} row was catalogued on. */
-    private static ScanTarget targetOf(Object[] row) {
-        Long repoId = (Long) row[1];
-        Long containerId = (Long) row[2];
+    /** The target a row was catalogued on: its repository if it has one, else its image. */
+    private static ScanTarget targetOf(Long repoId, Long containerId) {
         if (repoId != null) {
             return new ScanTarget.Repository(repoId);
         }
         return containerId == null ? null : new ScanTarget.Container(containerId);
     }
 
-    private static ScanTarget targetOf(Occurrence occurrence) {
-        if (occurrence.targetId() == null) {
-            return null;
-        }
-        return "repository".equals(occurrence.targetKind())
-                ? new ScanTarget.Repository(occurrence.targetId())
-                : new ScanTarget.Container(occurrence.targetId());
-    }
-
-    /**
-     * @param row the component, then the scan's identifier, repository, container, branch, version and
-     *     creation instant — the scan's columns rather than the scan entity, which is {@code scanning}'s
-     */
-    private static Occurrence occurrenceOf(ComponentEntity component, Object[] row, TargetNaming.Names names) {
-        Long scanId = (Long) row[1];
-        Long repoId = (Long) row[2];
-        Long containerId = (Long) row[3];
+    /** @param label the scan's branch and project version, which the row does not carry */
+    private static Occurrence occurrenceOf(
+            ComponentEntity component, ScanCatalog.ScanLabel label, TargetNaming.Names names) {
+        Long repoId = component.getRepoId();
+        Long containerId = component.getContainerId();
         boolean isRepository = repoId != null;
         Long targetId = isRepository ? repoId : containerId;
 
@@ -175,9 +174,9 @@ public class InventoryQueryService {
                 isRepository ? "repository" : "container",
                 targetId,
                 names.of(repoId, containerId),
-                (String) row[4],
-                (String) row[5],
-                scanId,
-                (java.time.Instant) row[6]);
+                label.branch(),
+                label.version(),
+                component.getScanId(),
+                component.getScanCreatedAt());
     }
 }

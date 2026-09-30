@@ -432,6 +432,14 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("pattern") String pattern);
 
     /**
+     * Each of these scans' id, branch and project version. A scan that does not exist is absent.
+     *
+     * <p>{@code ids} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("select s.id, s.branch, s.version from ScanEntity s where s.id in :ids")
+    List<Object[]> findLabelsOf(@Param("ids") Collection<Long> ids);
+
+    /**
      * Each of these scans' id, the languages its census found and the languages its Semgrep rules
      * read, each null where the scan recorded none. A scan that does not exist is absent.
      *

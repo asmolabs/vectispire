@@ -195,12 +195,16 @@ final class TargetRowsFixture {
 
         ComponentEntity component = new ComponentEntity();
         component.setScanId(scanId);
+        component.setRepoId(repoId);
+        component.setContainerId(containerId);
+        component.setScanCreatedAt(AT);
         component.setName("log4j-core");
         component.setVersion("2.14.1");
         beans.getBean(ComponentRepository.class).save(component);
 
         AiReviewResultEntity review = new AiReviewResultEntity();
         review.setScanId(scanId);
+        review.setRepoId(repoId);
         review.setModel("model");
         review.setPrompt("prompt");
         review.setStatus("completed");

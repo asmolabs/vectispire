@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
 
 /**
  * One component a scan catalogued.
@@ -27,6 +28,20 @@ public class ComponentEntity {
 
     @Column(name = "scan_id", nullable = false)
     private Long scanId;
+
+    /**
+     * The scan's target and creation instant, copied from it when the row is written (V61) so that no
+     * read of the inventory joins {@code scanning}'s table. Both are facts a scan never changes, and the
+     * row goes with its scan, so the copy cannot disagree with it.
+     */
+    @Column(name = "repo_id")
+    private Long repoId;
+
+    @Column(name = "container_id")
+    private Long containerId;
+
+    @Column(name = "scan_created_at")
+    private Instant scanCreatedAt;
 
     @Column(name = "name", length = 255, nullable = false)
     private String name;
@@ -58,6 +73,30 @@ public class ComponentEntity {
 
     public void setScanId(Long scanId) {
         this.scanId = scanId;
+    }
+
+    public Long getRepoId() {
+        return repoId;
+    }
+
+    public void setRepoId(Long repoId) {
+        this.repoId = repoId;
+    }
+
+    public Long getContainerId() {
+        return containerId;
+    }
+
+    public void setContainerId(Long containerId) {
+        this.containerId = containerId;
+    }
+
+    public Instant getScanCreatedAt() {
+        return scanCreatedAt;
+    }
+
+    public void setScanCreatedAt(Instant scanCreatedAt) {
+        this.scanCreatedAt = scanCreatedAt;
     }
 
     public String getName() {

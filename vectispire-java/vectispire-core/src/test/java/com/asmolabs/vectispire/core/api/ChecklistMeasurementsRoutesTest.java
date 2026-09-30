@@ -1163,6 +1163,11 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
     private void component(long scanId, String name, String version, String purl) {
         ComponentEntity component = new ComponentEntity();
         component.setScanId(scanId);
+        // The scan's target and instant, as ComponentInventory copies them (V61).
+        ScanEntity scanOfComponent = scans.findById(scanId).orElseThrow();
+        component.setRepoId(scanOfComponent.getRepoId());
+        component.setContainerId(scanOfComponent.getContainerId());
+        component.setScanCreatedAt(scanOfComponent.getCreatedAt());
         component.setName(name);
         component.setVersion(version);
         component.setPurl(purl);

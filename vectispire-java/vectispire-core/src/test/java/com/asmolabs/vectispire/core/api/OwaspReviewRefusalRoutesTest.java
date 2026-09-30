@@ -67,6 +67,7 @@ class OwaspReviewRefusalRoutesTest extends ApiTestBase {
         long repository = repository();
         AiReviewResultEntity failed = new AiReviewResultEntity();
         failed.setScanId(scan(repository));
+        failed.setRepoId(repository);
         failed.setModel("gemma4:12b-it-qat");
         failed.setPrompt("-");
         failed.setStatus("failed");
