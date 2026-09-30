@@ -139,6 +139,7 @@ const NO_DATA_REASONS = [
     'language_not_analysed',
     'examination_unrecorded',
     'languages_unrecorded',
+    'version_unrecorded',
     'stale',
     'not_applicable_anywhere',
     'suite_not_found',
