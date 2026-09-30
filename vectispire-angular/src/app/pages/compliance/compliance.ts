@@ -56,6 +56,15 @@ export class Compliance {
     readonly summary = signal<ComplianceSummary | null>(null);
 
     readonly selectedTarget = signal<string>('ALL');
+    /**
+     * The target a request is scoped to — none for the estate. `'ALL'` is the selector's value, not an
+     * identifier: sent as `?targetId=ALL`, the server happened to read it as the estate, but audited
+     * the export as made "for ALL" and the file was saved as `vectispire-compliance-ALL.pdf`.
+     */
+    private readonly scopedTargetId = computed(() => {
+        const sel = this.selectedTarget();
+        return sel === 'ALL' ? undefined : sel;
+    });
     readonly targetsList = signal<{ targetId: string; name: string; type: string }[]>([]);
     readonly loading = signal<boolean>(true);
     readonly exporting = signal<boolean>(false);
@@ -118,10 +127,7 @@ export class Compliance {
     loadSummary(): void {
         this.loading.set(true);
         this.error.set(null);
-        const sel = this.selectedTarget();
-        const tid = sel && sel !== 'ALL' && sel !== 'null' && sel !== 'undefined' ? sel : undefined;
-
-        this.summaryRequest.run(this.complianceApi.complianceSummary(tid), {
+        this.summaryRequest.run(this.complianceApi.complianceSummary(this.scopedTargetId()), {
             next: (data) => {
                 this.summary.set(data);
                 if (data.targets && data.targets.length > 0) {
@@ -147,7 +153,7 @@ export class Compliance {
 
     exportPdf(): void {
         this.exporting.set(true);
-        const tid = this.selectedTarget() ?? undefined;
+        const tid = this.scopedTargetId();
         this.complianceApi.exportCompliancePdf(tid).subscribe({
             next: (response) => {
                 saveDocument(

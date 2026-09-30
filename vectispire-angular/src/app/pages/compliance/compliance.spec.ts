@@ -108,6 +108,53 @@ describe('Compliance Page', () => {
     });
 
     /**
+     * The PDF export asks for the scope the page shows. The global view's selector value is `'ALL'`,
+     * and it was sent as `?targetId=ALL`: the server read it as the estate only because it tolerates
+     * that word, audited the export as made "for ALL", and the file was saved under that name.
+     */
+    describe('PDF export', () => {
+        const saved: string[] = [];
+        beforeEach(() => {
+            saved.length = 0;
+            // happy-dom's anchor click navigates the window; the download name is what matters here.
+            vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+                saved.push(this.download);
+            });
+        });
+
+        const clickExport = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')]
+                .find((b) => b.querySelector('.pi-file-pdf'))!
+                .click();
+
+        it('asks for the estate, not a target named ALL, from the global view', () => {
+            fixture.detectChanges();
+            http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+            fixture.detectChanges();
+
+            clickExport();
+            http.expectOne('/api/v1/compliance/export.pdf').flush(new Blob(['%PDF']));
+
+            http.verify();
+            expect(saved).toEqual(['vectispire-compliance-report.pdf']);
+        });
+
+        it('asks for the selected target by its id', () => {
+            fixture.detectChanges();
+            http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+            component.onTargetChange('REPOSITORY:3');
+            http.expectOne('/api/v1/compliance/summary?targetId=REPOSITORY:3').flush(MOCK_SUMMARY);
+            fixture.detectChanges();
+
+            clickExport();
+            http.expectOne('/api/v1/compliance/export.pdf?targetId=REPOSITORY%3A3').flush(new Blob(['%PDF']));
+
+            http.verify();
+            expect(saved).toEqual(['vectispire-compliance-REPOSITORY-3.pdf']);
+        });
+    });
+
+    /**
      * A file picked in the import dialog enables Import — **without a `detectChanges` from the test.**
      *
      * The file is read in `FileReader.onload`, a callback no template event wraps. While the text
