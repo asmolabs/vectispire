@@ -21,6 +21,10 @@
       },
       "ActivateRequest" : {
         "properties" : {
+          "acceptLosing" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "note" : {
             "type" : "string"
           }
@@ -2859,6 +2863,15 @@
           }
         },
         "required" : [ "qualityTotal" ],
+        "type" : "object"
+      },
+      "DeactivateRequest" : {
+        "properties" : {
+          "acceptLosing" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
         "type" : "object"
       },
       "Decision" : {
@@ -6792,6 +6805,39 @@
             "type" : "array"
           }
         },
+        "type" : "object"
+      },
+      "RuleSetLosesIssuesProblem" : {
+        "description" : "A rule-set-activation-loses-issues refusal: an RFC 9457 problem whose affectedIssues member is the number of open issues the change would resolve at the next scan, read at the refusal — the value to send back as acceptLosing — and whose losingIssues member names the rule identifiers leaving with them.",
+        "properties" : {
+          "affectedIssues" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string"
+          },
+          "losingIssues" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "affectedIssues", "status" ],
         "type" : "object"
       },
       "RuleSetResponse" : {
@@ -15157,14 +15203,53 @@
     },
     "/api/v1/rule-sets/deactivate" : {
       "post" : {
+        "description" : "Returns to the bundled rules alone. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.",
         "operationId" : "deactivate_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeactivateRequest"
+              }
+            }
+          }
+        },
         "responses" : {
           "200" : {
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : { },
+                  "additionalProperties" : true,
                   "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleSetLosesIssuesProblem"
+                }
+              }
+            },
+            "description" : "Returning to the bundled rules would resolve open issues and acceptLosing is not their number"
+          }
+        },
+        "summary" : "Deactivate rule sets",
+        "tags" : [ "rule-sets-controller" ]
+      }
+    },
+    "/api/v1/rule-sets/deactivate/impact" : {
+      "get" : {
+        "operationId" : "deactivationImpact",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TriageImpact"
                 }
               }
             },
@@ -15176,6 +15261,7 @@
     },
     "/api/v1/rule-sets/{id}/activate" : {
       "post" : {
+        "description" : "Makes this set the active one, beside the bundled rules. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.",
         "operationId" : "activate_1",
         "parameters" : [ {
           "in" : "path",
@@ -15200,14 +15286,25 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : { },
+                  "additionalProperties" : true,
                   "type" : "object"
                 }
               }
             },
             "description" : "OK"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleSetLosesIssuesProblem"
+                }
+              }
+            },
+            "description" : "The activation would resolve open issues and acceptLosing is not their number"
           }
         },
+        "summary" : "Activate rule set",
         "tags" : [ "rule-sets-controller" ]
       }
     },

@@ -2831,7 +2831,27 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Deactivate rule sets
+         * @description Returns to the bundled rules alone. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.
+         */
         post: operations["deactivate_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-sets/deactivate/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["deactivationImpact"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2847,6 +2867,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Activate rule set
+         * @description Makes this set the active one, beside the bundled rules. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.
+         */
         post: operations["activate_1"];
         delete?: never;
         options?: never;
@@ -3754,6 +3778,8 @@ export interface components {
             reason?: string;
         });
         ActivateRequest: {
+            /** Format: int64 */
+            acceptLosing?: number;
             note?: string;
         };
         Affects: {
@@ -4825,6 +4851,10 @@ export interface components {
             /** Format: int64 */
             qualityTotal: number;
             recentScans?: components["schemas"]["RecentScan"][];
+        };
+        DeactivateRequest: {
+            /** Format: int64 */
+            acceptLosing?: number;
         };
         Decision: {
             actor?: string;
@@ -6303,6 +6333,18 @@ export interface components {
         };
         RuleSetListing: {
             ruleSets?: components["schemas"]["RuleSetSummary"][];
+        };
+        /** @description A rule-set-activation-loses-issues refusal: an RFC 9457 problem whose affectedIssues member is the number of open issues the change would resolve at the next scan, read at the refusal — the value to send back as acceptLosing — and whose losingIssues member names the rule identifiers leaving with them. */
+        RuleSetLosesIssuesProblem: {
+            /** Format: int64 */
+            affectedIssues: number;
+            detail?: string;
+            instance?: string;
+            losingIssues?: string[];
+            /** Format: int32 */
+            status: number;
+            title?: string;
+            type?: string;
         };
         RuleSetResponse: {
             contentHash?: string;
@@ -11467,7 +11509,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeactivateRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -11478,6 +11524,35 @@ export interface operations {
                     "*/*": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Returning to the bundled rules would resolve open issues and acceptLosing is not their number */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RuleSetLosesIssuesProblem"];
+                };
+            };
+        };
+    };
+    deactivationImpact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TriageImpact"];
                 };
             };
         };
@@ -11506,6 +11581,15 @@ export interface operations {
                     "*/*": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description The activation would resolve open issues and acceptLosing is not their number */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RuleSetLosesIssuesProblem"];
                 };
             };
         };
