@@ -48,6 +48,13 @@ public enum NoDataReason {
      * longer known): whether it read the tree is unknown.
      */
     LANGUAGES_UNRECORDED,
+    /**
+     * A declared package is in the SBOM, and the SBOM states no version for any of its occurrences —
+     * Syft writes {@code UNKNOWN} where a Maven version comes from a parent or a BOM it does not
+     * resolve. The package is there; which version it is, nobody recorded. Not "not an allowed
+     * version", which would answer "no" for a module that is present.
+     */
+    VERSION_UNRECORDED,
     /** The newest scan or import in which the scope produced is older than the maximum age. */
     STALE,
     /** A plugin was not applicable on every repository: a line passed by a tool that looked at nothing is refused. */

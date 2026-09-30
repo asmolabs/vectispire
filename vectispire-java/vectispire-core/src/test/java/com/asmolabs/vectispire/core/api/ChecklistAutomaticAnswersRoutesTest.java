@@ -72,6 +72,20 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
     private static final Map<String, Object> SAST = Map.of("kind", "findings_threshold", "maxAgeDays", 7,
             "scopes", List.of("builtin:sast"), "thresholds", Map.of("critical", Map.of("maxOpen", 0)));
 
+    /** A line on a package: ledger-core present, at 3.2.1 only — judged on the SBOM of the newest scan. */
+    private static final Map<String, Object> COMPONENTS = Map.of("kind", "component_versions", "maxAgeDays", 7,
+            "components", List.of(Map.of("purlPrefix", "pkg:maven/com.example/ledger-core", "versions",
+                    List.of("3.2.1"))));
+
+    /** A clean scan whose SBOM lists ledger-core at {@code version}, as Syft writes it — its purl without one when unknown. */
+    private static String sbomOf(String version) {
+        String purl = "pkg:maven/com.example/ledger-core" + ("UNKNOWN".equals(version) ? "" : "@" + version);
+        return """
+                {"secrets":[], "dependencies":[], "duration":"PT1S",
+                 "sbom":{"artifacts":[{"name":"ledger-core","version":"%s","purl":"%s","type":"java-archive"}]}}
+                """.formatted(version, purl);
+    }
+
     private static final String CLEAN = """
             {"secrets":[], "iac":[], "duration":"PT1S"}
             """;
@@ -301,6 +315,30 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
             assertThat(read(developer, 1).at("/lines/0/answer/value").asText()).as("the secrets line stands")
                     .isEqualTo("yes");
             JsonNode history = history(1, sastLine).at("/answers");
+            assertThat(history).extracting(row -> row.at("/withdrawn").asBoolean()).containsExactly(false, true);
+        }
+
+        @Test
+        @DisplayName("a no resting on a package's version is withdrawn once the SBOM no longer states that version")
+        void anUnstatedVersionWithdrawsTheNo() throws Exception {
+            // cpt-boncommande: the version inherited from a parent BOM Syft does not resolve, written UNKNOWN.
+            // Read as a version, the line failed and Vectispire answered "no" for a module that is present.
+            publish("release", List.of(SECRETS, COMPONENTS), false);
+            open(developer, "release", null);
+            completeScan(sbomOf("2.0.0"));
+            long componentLine = itemIds(read(developer, 1)).get(1);
+            assertThat(read(developer, 1).at("/lines/1/answer/value").asText()).as("a stated disallowed version")
+                    .isEqualTo("no");
+
+            completeScan(sbomOf("UNKNOWN"));
+            JsonNode measurement = read(mvc.perform(authenticated(get(base() + "/1/measurements"), developer.token()))
+                    .andExpect(status().isOk())).at("/lines/1/measurement");
+            assertThat(measurement.at("/outcome").asText()).isEqualTo("no_data");
+            assertThat(measurement.at("/reason").asText()).isEqualTo("version_unrecorded");
+            assertThat(measurement.at("/evidence/summary").asText())
+                    .contains("pkg:maven/com.example/ledger-core is in its SBOM with no version stated");
+            assertThat(read(developer, 1).at("/lines/1/answer").isNull()).as("withdrawn: no current answer").isTrue();
+            JsonNode history = history(1, componentLine).at("/answers");
             assertThat(history).extracting(row -> row.at("/withdrawn").asBoolean()).containsExactly(false, true);
         }
 

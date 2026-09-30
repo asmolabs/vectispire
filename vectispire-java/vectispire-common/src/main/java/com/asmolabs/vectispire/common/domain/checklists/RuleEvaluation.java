@@ -444,6 +444,7 @@ public final class RuleEvaluation {
             List<MeasurementFacts.Component> listed = facts.components().getOrDefault(repository, List.of());
             List<String> unmet = new ArrayList<>();
             List<String> found = new ArrayList<>();
+            List<String> unrecorded = new ArrayList<>();
             for (AllowedComponent allowed : rule.components()) {
                 List<MeasurementFacts.Component> occurrences = listed.stream()
                         .filter(component -> allowed.names(component.purl())).toList();
@@ -454,16 +455,41 @@ public final class RuleEvaluation {
                             : allowed.purlPrefix() + " is not in its SBOM");
                     continue;
                 }
-                Set<String> versions = occurrences.stream()
-                        .map(component -> component.version() == null ? "(no version)" : component.version())
-                        .collect(Collectors.toCollection(java.util.TreeSet::new));
-                found.add(allowed.purlPrefix() + " at " + String.join(", ", versions));
+                // A version the SBOM does not state is not a version (decision 0007): Syft writes
+                // UNKNOWN for a Maven dependency whose version a parent BOM manages, and read as a
+                // version it made the line FAIL — and the automatic answer "no" — for a module present.
+                Set<String> versions = occurrences.stream().map(MeasurementFacts.Component::statedVersion)
+                        .flatMap(Optional::stream).collect(Collectors.toCollection(java.util.TreeSet::new));
+                long unstated = occurrences.stream().filter(component -> component.statedVersion().isEmpty()).count();
+                if (versions.isEmpty()) {
+                    unrecorded.add(allowed.purlPrefix() + " is in its SBOM with no version stated ("
+                            + occurrences(unstated) + ")");
+                    continue;
+                }
+                // Some occurrences state a version and others do not: the stated ones judge, and the
+                // rest are named beside them. A disallowed stated version fails whatever the others
+                // are; all stated ones allowed is the package present at an allowed version, which is
+                // what the line asks. Holding the line at NO_DATA instead would keep it unanswerable
+                // for every multi-module Maven tree whose child poms leave the version to the parent,
+                // Syft reading the same dependency once resolved and once not — and the reviewer who
+                // takes the line sees the unstated occurrences in its evidence.
+                found.add(allowed.purlPrefix() + " at " + String.join(", ", versions)
+                        + (unstated > 0 ? ", and " + occurrences(unstated) + " with no version stated" : ""));
                 Set<String> refused = versions.stream().filter(version -> !allowed.versions().contains(version))
                         .collect(Collectors.toCollection(java.util.TreeSet::new));
                 if (!refused.isEmpty()) {
                     unmet.add(allowed.purlPrefix() + " at " + String.join(", ", refused) + ", not an allowed version");
                 }
             }
+            if (unmet.isEmpty() && !unrecorded.isEmpty()) {
+                List<String> details = new ArrayList<>(unrecorded);
+                details.addAll(found);
+                collector.missing(repository, Optional.empty(), NoDataReason.VERSION_UNRECORDED,
+                        Optional.of(examined.look()), String.join("; ", details));
+                continue;
+            }
+            // A failure stated by the SBOM stands on its own: the unrecorded packages go beside it.
+            found.addAll(unrecorded);
             collector.examined(repository, Optional.empty(), examined.look(), unmet, String.join("; ", found));
         }
         return collector.outcome(List.of(), List.of(), rule.components().size()
@@ -606,7 +632,8 @@ public final class RuleEvaluation {
          * record is missing — the first repository's own sentence, so the line's summary names them.
          */
         private String firstReason(NoDataReason headline) {
-            if (headline != NoDataReason.LANGUAGE_NOT_ANALYSED && headline != NoDataReason.LANGUAGES_UNRECORDED) {
+            if (headline != NoDataReason.LANGUAGE_NOT_ANALYSED && headline != NoDataReason.LANGUAGES_UNRECORDED
+                    && headline != NoDataReason.VERSION_UNRECORDED) {
                 return "";
             }
             return evidence.stream()
@@ -654,6 +681,10 @@ public final class RuleEvaluation {
 
     private static String describe(List<ToolScope> scopes) {
         return scopes.stream().map(ToolScope::key).collect(Collectors.joining(", "));
+    }
+
+    private static String occurrences(long count) {
+        return count + (count == 1 ? " occurrence" : " occurrences");
     }
 
     private static String days(int days) {

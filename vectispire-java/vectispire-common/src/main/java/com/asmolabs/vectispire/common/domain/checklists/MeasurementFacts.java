@@ -201,5 +201,27 @@ public record MeasurementFacts(
     public record Suite(String name, int tests, int failures, int errors, int skipped) {}
 
     /** A component as the SBOM listed it; the version is the one the inventory stored. */
-    public record Component(String name, String version, String purl) {}
+    public record Component(String name, String version, String purl) {
+
+        /**
+         * The literal Syft writes where it could not tell a package's version — a Maven dependency
+         * whose version is inherited from a parent or a BOM it does not resolve, or a property it
+         * cannot expand. Checked on the pinned image: such a dependency comes out as
+         * {@code "version": "UNKNOWN"} with a purl that carries no version at all.
+         */
+        private static final String SYFT_UNKNOWN = "UNKNOWN";
+
+        /**
+         * The version the SBOM states, or absent where it states none — no version, a blank one, or
+         * Syft's {@code UNKNOWN}. Absent is not a version (decision 0007): read as one, a package
+         * present in the tree was judged "not an allowed version" and the automatic answer wrote
+         * "no" for a module that is there.
+         */
+        public Optional<String> statedVersion() {
+            if (version == null || version.isBlank() || version.strip().equalsIgnoreCase(SYFT_UNKNOWN)) {
+                return Optional.empty();
+            }
+            return Optional.of(version);
+        }
+    }
 }

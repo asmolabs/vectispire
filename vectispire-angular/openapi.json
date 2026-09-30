@@ -511,7 +511,7 @@
             "type" : "integer"
           },
           "noDataReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "outcome" : {
@@ -1772,7 +1772,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
@@ -4927,7 +4927,7 @@
             "type" : "integer"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "submittedOutcome" : {
@@ -4935,7 +4935,7 @@
             "type" : "string"
           },
           "submittedReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -6836,7 +6836,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },

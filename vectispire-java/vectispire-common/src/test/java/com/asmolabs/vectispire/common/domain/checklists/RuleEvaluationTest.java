@@ -326,6 +326,57 @@ class RuleEvaluationTest {
         }
 
         @Test
+        @DisplayName("components: a package whose version the SBOM does not state is no data, never a failure")
+        void aVersionTheSbomDoesNotStateIsNoData() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/be.civadis.arm.tools/arm-spring-application\",\"versions\":[\"1.17.7\"]}]}");
+            Builder facts = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
+            // What Syft wrote for cpt-boncommande: the version inherited from a parent BOM it does not
+            // resolve, "UNKNOWN", and a purl with no version. A null and a blank say the same.
+            for (String unstated : java.util.Arrays.asList("UNKNOWN", null, " ")) {
+                Measurement measured = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(new Component(
+                        "arm-spring-application", unstated, "pkg:maven/be.civadis.arm.tools/arm-spring-application")))
+                        .build(), NOW);
+                assertThat(measured.outcome()).as("version %s", unstated).isEqualTo(MeasurementOutcome.NO_DATA);
+                assertThat(measured.reason()).contains(NoDataReason.VERSION_UNRECORDED);
+                assertThat(measured.summary()).contains("arm-spring-application is in its SBOM with no version stated");
+                assertThat(measured.evidenceJson()).contains("version_unrecorded")
+                        .doesNotContain("not an allowed version").doesNotContain("UNKNOWN");
+            }
+        }
+
+        @Test
+        @DisplayName("components: the occurrences stating a version judge, the others are named beside them")
+        void theStatedOccurrencesJudge() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/com.example/ledger-core\",\"versions\":[\"3.2.1\"]},"
+                    + "{\"purlPrefix\":\"pkg:maven/com.example/audit\",\"versions\":[\"1.0\"]}]}");
+            Builder facts = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
+            Component unknownLedger = new Component("ledger-core", "UNKNOWN", "pkg:maven/com.example/ledger-core");
+            Component audit = new Component("audit", "1.0", "pkg:maven/com.example/audit@1.0");
+
+            Measurement mixed = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(unknownLedger, audit,
+                    new Component("ledger-core", "3.2.1", "pkg:maven/com.example/ledger-core@3.2.1"))).build(), NOW);
+            assertThat(mixed.outcome()).isEqualTo(MeasurementOutcome.PASS);
+            assertThat(mixed.evidenceJson()).contains("ledger-core at 3.2.1, and 1 occurrence with no version stated");
+
+            Measurement refused = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(unknownLedger, audit,
+                    new Component("ledger-core", "2.0.0", "pkg:maven/com.example/ledger-core@2.0.0"))).build(), NOW);
+            assertThat(refused.outcome()).as("a stated disallowed version fails whatever the others")
+                    .isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(refused.summary()).contains("ledger-core at 2.0.0, not an allowed version");
+
+            Measurement absentBeside = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(unknownLedger))
+                    .build(), NOW);
+            assertThat(absentBeside.outcome()).as("a package absent from the SBOM still fails, the unstated one beside it")
+                    .isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(absentBeside.summary()).contains("pkg:maven/com.example/audit is not in its SBOM");
+            assertThat(absentBeside.evidenceJson()).contains("ledger-core is in its SBOM with no version stated");
+        }
+
+        @Test
         @DisplayName("components: a stored prefix ending on its separator says why it matched nothing")
         void aStoredPrefixEndingOnItsSeparator() {
             ChecklistRule rule = ChecklistRule.fromCanonical("{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example/\","
