@@ -353,21 +353,36 @@
                             <div class="text-xs text-muted-color">{{ target.targetKind }}</div>
                         </td>
                         <td>
-                            <p-tag
-                                [value]="'dashboard.grade_tag' | translate: { grade: target.maturityGrade }"
-                                [severity]="gradeSeverity(target.maturityGrade)"
-                            />
+                            <!-- A target nobody scanned has no grade and no score: "/100" and an empty
+                                 bar would read as a measured zero, the worst mark on the board. -->
+                            @if (target.maturityGrade === 'NO_DATA' || target.securityScore === null) {
+                                <p-tag
+                                    severity="secondary"
+                                    data-testid="maturity-no-data"
+                                    [value]="'soa.measured.NO_DATA' | translate"
+                                />
+                            } @else {
+                                <p-tag
+                                    [value]="'dashboard.grade_tag' | translate: { grade: target.maturityGrade }"
+                                    [severity]="gradeSeverity(target.maturityGrade)"
+                                />
+                            }
                         </td>
                         <td>
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold font-mono text-sm">{{ target.securityScore }}/100</span>
-                                <div class="w-16 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
+                            @if (target.securityScore !== null && target.maturityGrade !== 'NO_DATA') {
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold font-mono text-sm">{{ target.securityScore }}/100</span>
                                     <div
-                                        class="h-full bg-purple-600 rounded-full"
-                                        [style.width.%]="target.securityScore"
-                                    ></div>
+                                        class="w-16 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden"
+                                    >
+                                        <div
+                                            class="h-full bg-purple-600 rounded-full"
+                                            data-testid="maturity-score-bar"
+                                            [style.width.%]="target.securityScore"
+                                        ></div>
+                                    </div>
                                 </div>
-                            </div>
+                            }
                         </td>
                         <td class="text-center">
                             @if (target.openCritical > 0) {

@@ -130,8 +130,11 @@ export class Dashboard {
         });
     }
 
-    gradeSeverity(grade: string): 'success' | 'info' | 'warn' | 'danger' {
+    gradeSeverity(grade: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
         switch (grade) {
+            // No grade at all: falling to the default would paint an unscanned target as failing.
+            case 'NO_DATA':
+                return 'secondary';
             case 'A':
                 return 'success';
             case 'B':

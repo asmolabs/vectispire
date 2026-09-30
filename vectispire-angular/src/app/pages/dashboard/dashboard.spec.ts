@@ -271,3 +271,110 @@ describe('the failing targets table', () => {
         expect(text).toContain('known exploited');
     });
 });
+
+/**
+ * A target nobody scanned, on the maturity ranking.
+ *
+ * <p>The server ranks it last with `NO_DATA` and a null score. Rendered like the others it read
+ * "Grade NO_DATA", "/100" and an empty bar — a measured zero, the worst mark on the board, for a
+ * target that was never measured. Asserted through the DOM, since that is where the lie was.
+ */
+describe('the maturity ranking', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const row = (targetId: number, targetName: string, maturityGrade: string, securityScore: number | null) => ({
+        targetId,
+        targetKind: 'repository',
+        targetName,
+        maturityGrade,
+        securityScore,
+        targetMttrDays: null,
+        openCritical: 2,
+        openHigh: 0,
+        openMedium: 0,
+        openLow: 0,
+        totalResolved: 0
+    });
+
+    const ANALYTICS = asSchema('PostureTrendAnalytics', {
+        mttrBySeverity: {},
+        dailySeries: [],
+        overallMttrDays: null,
+        netResolutionRatePercentage: 0,
+        totalOpenedInWindow: 0,
+        totalResolvedInWindow: 0,
+        windowDays: 90,
+        targetScoreboard: [row(1, 'graded-repo', 'B', 72), row(2, 'unscanned-repo', 'NO_DATA', null)]
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        TestBed.inject(I18nService).translations.set({
+            dashboard: {
+                grade_tag: 'Grade {{grade}}',
+                chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
+            },
+            soa: { measured: { NO_DATA: 'No data' } }
+        });
+
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        // The ranking sits inside the overview's block: without an overview it is not rendered.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 2,
+                    kevCount: 0,
+                    neverScannedCount: 1,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/dashboard/posture-analytics').flush(ANALYTICS);
+        fixture.detectChanges();
+    }, 20_000);
+
+    function rowOf(name: string): HTMLTableRowElement {
+        const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLTableRowElement>('tr'));
+        const found = rows.find((tr) => tr.textContent.includes(name));
+        expect(found).toBeDefined();
+        return found!;
+    }
+
+    it('shows no data, and neither a score nor a bar, for a target nobody scanned', () => {
+        const tr = rowOf('unscanned-repo');
+        expect(tr.querySelector('[data-testid="maturity-no-data"]')?.textContent).toContain('No data');
+        expect(tr.textContent).not.toContain('/100');
+        expect(tr.textContent).not.toContain('NO_DATA');
+        expect(tr.querySelector('[data-testid="maturity-score-bar"]')).toBeNull();
+        // The counts are not the score: they stay.
+        expect(tr.textContent).toContain('2');
+    });
+
+    it('keeps the grade, the score and the bar of a graded target', () => {
+        const tr = rowOf('graded-repo');
+        expect(tr.textContent).toContain('Grade B');
+        expect(tr.textContent).toContain('72/100');
+        expect(tr.querySelector<HTMLElement>('[data-testid="maturity-score-bar"]')?.style.width).toBe('72%');
+        expect(tr.querySelector('[data-testid="maturity-no-data"]')).toBeNull();
+    });
+
+    it('paints no grade as neutral, not as failing', () => {
+        expect(fixture.componentInstance.gradeSeverity('NO_DATA')).toBe('secondary');
+        expect(fixture.componentInstance.gradeSeverity('F')).toBe('danger');
+    });
+});
