@@ -9,6 +9,11 @@ The provider answers exactly one question: *who is this?*
 Vectispire still issues its own session. The visibility rules, the audit trail, the session
 lifetimes and the API keys all keep working unchanged, because none of them were delegated.
 
+A page opened while signed out survives the round trip: the sign-in screen hands it to
+`/oauth2/authorization/oidc?returnUrl=…`, Vectispire keeps it in the sign-on's own server session —
+never reading it back from the provider's callback — and accepts only a path of this application;
+anything else, a `//host` or an encoded one included, lands on the dashboard.
+
 ## No account is created on sign-on
 
 This is the part worth reading twice.

@@ -10,6 +10,12 @@ Vectispire émet toujours sa propre session. Les règles de visibilité, la pist
 durées de session et les clés d'API continuent de fonctionner sans changement, parce
 qu'aucune d'elles n'a été déléguée.
 
+Une page ouverte sans être connecté survit à l'aller-retour : l'écran de connexion la transmet à
+`/oauth2/authorization/oidc?returnUrl=…`, Vectispire la garde dans la session serveur propre à
+l'authentification — sans jamais la relire dans le retour du fournisseur — et n'accepte qu'un chemin
+de cette application ; toute autre valeur, un `//hôte` ou sa forme encodée compris, mène au tableau de
+bord.
+
 ## Aucun compte n'est créé à la connexion
 
 C'est la partie qui mérite deux lectures.
