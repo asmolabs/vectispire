@@ -155,11 +155,13 @@
     }
 
     <!--
-        **Each plugin's end, in one of three states (decision 0017).** Not applicable and absent both
+        **Each plugin's end, in one of its states (decision 0017).** Not applicable and absent both
         leave the plugin's issues as they were, and are told apart because only one of them is
         somebody's problem: a Java plugin on a Python tree is not a failure, a plugin whose report
         never came back is. They must not look alike, or every scan would carry a red row nobody
-        reads, and the real failure would be one of them.
+        reads, and the real failure would be one of them. **Refused (§9.1) is a failure too, named by
+        its reason** — "unsigned" read as "crashed" is how a requirement nobody can see gets switched
+        off — and a plugin that ran unsigned under the governor's waiver says so on its row.
     -->
     @if (detail.plugins.length > 0) {
         <p-card styleClass="mb-4" data-testid="scan-plugins">
@@ -188,6 +190,18 @@
                                     [value]="'scans.plugin_state.not_applicable' | translate"
                                 />
                             }
+                            @case ('refused') {
+                                <p-tag
+                                    severity="danger"
+                                    icon="pi pi-ban"
+                                    [value]="
+                                        (outcome.refusal
+                                            ? 'scans.plugin_refusal.' + outcome.refusal
+                                            : 'scans.plugin_state.refused'
+                                        ) | translate
+                                    "
+                                />
+                            }
                             @default {
                                 <p-tag
                                     severity="danger"
@@ -206,6 +220,25 @@
                             @switch (outcome.state) {
                                 @case ('produced') {
                                     {{ 'scans.plugin_findings' | translate: { count: outcome.findings ?? 0 } }}
+                                    @if (outcome.signature === 'waived') {
+                                        <p-tag
+                                            styleClass="ml-2"
+                                            severity="warn"
+                                            icon="pi pi-exclamation-triangle"
+                                            data-testid="plugin-waived"
+                                            [title]="'scans.plugin_waived_title' | translate"
+                                            [value]="'scans.plugin_waived' | translate"
+                                        />
+                                    } @else if (outcome.signature === 'not_required') {
+                                        <span class="ml-2 text-muted-color" data-testid="plugin-not-required">{{
+                                            'scans.plugin_not_required' | translate
+                                        }}</span>
+                                    }
+                                }
+                                @case ('refused') {
+                                    <span class="text-red-600 dark:text-red-400">{{
+                                        outcome.reason ?? ('scans.plugin_refused_no_reason' | translate)
+                                    }}</span>
                                 }
                                 @case ('not_applicable') {
                                     {{

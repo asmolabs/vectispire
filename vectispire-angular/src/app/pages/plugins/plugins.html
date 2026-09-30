@@ -169,6 +169,65 @@
                 }
             </dd>
 
+            <!--
+                **Whether it runs at all, said where the signer is** (decision 0017 §9.1). Every executor
+                requires a signer by default, so a plugin declaring none runs nowhere unless the
+                governor waived the requirement for it — and that waiver, with its justification, is
+                shown to everybody who reads the plugin, not only to the one who granted it.
+            -->
+            <dt class="text-muted-color">{{ 'plugins.field_signature_requirement' | translate }}</dt>
+            <dd class="m-0" data-testid="plugin-signature-requirement">
+                @if (plugin.unsignedWaiver; as waiver) {
+                    <p-tag
+                        severity="warn"
+                        icon="pi pi-exclamation-triangle"
+                        data-testid="waiver-badge"
+                        [value]="'plugins.waiver_badge' | translate"
+                    />
+                    <div class="mt-1 whitespace-pre-wrap" data-testid="waiver-justification">
+                        {{ waiver.justification }}
+                    </div>
+                    <div class="text-muted-color text-xs mt-1" data-testid="waiver-by">
+                        {{ 'plugins.waiver_by' | translate: { who: waiver.waivedBy ?? '—' } }} ·
+                        {{ waiver.waivedAt | date: 'dd/MM/yyyy HH:mm' }}
+                    </div>
+                    @if (plugin.manifest.signature) {
+                        <div class="text-xs mt-1">{{ 'plugins.waiver_with_signer' | translate }}</div>
+                    }
+                    @if (governs()) {
+                        <p-button
+                            styleClass="mt-2"
+                            icon="pi pi-lock"
+                            size="small"
+                            [outlined]="true"
+                            data-testid="revoke-waiver"
+                            [label]="'plugins.revoke_waiver' | translate"
+                            [loading]="busy() === plugin.id"
+                            (onClick)="revokeWaiver(plugin)"
+                        />
+                    }
+                } @else if (plugin.manifest.signature) {
+                    {{ 'plugins.requirement_verified' | translate }}
+                } @else {
+                    <span class="text-red-600 dark:text-red-400" data-testid="requirement-refused">{{
+                        'plugins.requirement_refused' | translate
+                    }}</span>
+                    @if (governs()) {
+                        <div class="mt-2">
+                            <p-button
+                                icon="pi pi-unlock"
+                                size="small"
+                                severity="warn"
+                                [outlined]="true"
+                                data-testid="open-waiver"
+                                [label]="'plugins.waive' | translate"
+                                (onClick)="openWaiver(plugin)"
+                            />
+                        </div>
+                    }
+                }
+            </dd>
+
             <dt class="text-muted-color">{{ 'plugins.field_timeout' | translate }}</dt>
             <dd class="m-0">
                 @if (plugin.manifest.timeout_seconds) {
@@ -427,6 +486,46 @@
             [loading]="saving()"
             [disabled]="!draft.id.trim() || !draft.name.trim() || !draft.image.trim() || draft.languages.length === 0"
             (onClick)="save()"
+        />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'plugins.waive_title' | translate: { id: waiverFor()?.id ?? '' }"
+    [visible]="waiverFor() !== null"
+    (visibleChange)="$event || closeWaiver()"
+    [modal]="true"
+    [style]="{ width: '36rem', maxWidth: '95vw' }"
+>
+    <div class="flex flex-col gap-3">
+        <p class="m-0 text-sm">{{ 'plugins.waive_explain' | translate }}</p>
+        <label for="plugin-waiver-justification" class="font-medium">{{
+            'plugins.waive_justification' | translate
+        }}</label>
+        <textarea
+            pTextarea
+            id="plugin-waiver-justification"
+            name="plugin-waiver-justification"
+            rows="4"
+            [maxlength]="justificationMax"
+            [(ngModel)]="waiverJustification"
+        ></textarea>
+        <small class="text-muted-color">{{
+            'plugins.waive_justification_hint' | translate: { min: justificationMin, max: justificationMax }
+        }}</small>
+        @if (waiverError(); as message) {
+            <p-message severity="error" [closable]="false" data-testid="waiver-error">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeWaiver()" />
+        <p-button
+            data-testid="confirm-waiver"
+            severity="warn"
+            [label]="'plugins.waive_confirm' | translate"
+            [loading]="waiving()"
+            [disabled]="waiverJustification.trim().length < justificationMin"
+            (onClick)="saveWaiver()"
         />
     </ng-template>
 </p-dialog>

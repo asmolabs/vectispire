@@ -29,7 +29,18 @@ export const PLUGIN: Plugin = asSchema('PluginView', {
     createdAt: '2026-09-27T08:00:00Z',
     createdBy: 'admin',
     updatedAt: null,
-    updatedBy: null
+    updatedBy: null,
+    unsignedWaiver: null
+});
+
+/** The same plugin, which the governor let run unsigned (decision 0017 §9.1). */
+export const WAIVED_PLUGIN: Plugin = asSchema('PluginView', {
+    ...PLUGIN,
+    unsignedWaiver: {
+        justification: 'Built by our own CI; signing lands with the Q4 release pipeline.',
+        waivedBy: 'governor',
+        waivedAt: '2026-09-30T10:00:00Z'
+    }
 });
 
 export const ACTIVATION: PluginActivation = asSchema('PluginActivationView', {

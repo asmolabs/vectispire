@@ -2197,7 +2197,15 @@ export type Plugin = Refine<
         createdBy: string | null;
         updatedAt: string | null;
         updatedBy: string | null;
+        /** The governor's waiver of the signature requirement; null for none. */
+        unsignedWaiver: PluginUnsignedWaiver | null;
     }
+>;
+
+/** Running a plugin although its manifest declares no signer, decided in writing by the governor. */
+export type PluginUnsignedWaiver = Refine<
+    Schema<'UnsignedWaiver'>,
+    { justification: string; waivedBy: string | null; waivedAt: string | null }
 >;
 
 /**
@@ -2219,11 +2227,19 @@ export type PluginActivation = Refine<
 >;
 
 /**
- * The three ends of a plugin's step (`PluginOutcome.State`), enumerated by the document.
+ * The ends of a plugin's step (`PluginOutcome.State`), enumerated by the document.
  * **`not_applicable` is not a failure and `absent` is** — the screens must not blur the two, because
- * one of them is somebody's problem and the other would be noise on every scan.
+ * one of them is somebody's problem and the other would be noise on every scan. **`refused` is a
+ * failure too, of another kind**: the executor would not start the plugin for want of a verified
+ * signer (decision 0017 §9.1), and the remedy is its provenance, not its code.
  */
 export type PluginState = NonNullable<Schema<'PluginOutcome'>['state']>;
+
+/** Why an executor would not start a plugin: `unsigned` or `signature_unverified`. */
+export type PluginRefusal = NonNullable<Schema<'PluginOutcome'>['refusal']>;
+
+/** The footing a produced plugin ran on: `verified`, `waived` or `not_required`. */
+export type PluginSignatureFooting = NonNullable<Schema<'PluginOutcome'>['signature']>;
 
 export type PluginOutcome = Refine<
     Schema<'PluginOutcome'>,
@@ -2235,8 +2251,12 @@ export type PluginOutcome = Refine<
         findings: number | null;
         /** Not applicable only: the languages it looked for and did not find. */
         languages: string[];
-        /** Absent only: why no usable report came back. */
+        /** Absent or refused: why no usable report came back, or why it was not started. */
         reason: string | null;
+        /** Refused only; null for a reason this version does not know — still a refusal. */
+        refusal: PluginRefusal | null;
+        /** Produced only; null for a scan from before the field. */
+        signature: PluginSignatureFooting | null;
     }
 >;
 

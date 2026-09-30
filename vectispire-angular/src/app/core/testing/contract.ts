@@ -110,7 +110,9 @@ const FINDING_TYPES = [
     'imported',
     'quality'
 ]; // FindingType
-const PLUGIN_STATES = ['produced', 'not_applicable', 'absent']; // PluginOutcome.State
+const PLUGIN_STATES = ['produced', 'not_applicable', 'absent', 'refused']; // PluginOutcome.State
+const PLUGIN_REFUSALS = ['unsigned', 'signature_unverified']; // PluginStep.Refusal
+const PLUGIN_SIGNATURES = ['verified', 'waived', 'not_required']; // PluginStep.Signature
 const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
 const CHECKLIST_VERSION_STATUSES = ['draft', 'published', 'retired']; // TemplateVersionStatus
 const CHECKLIST_CHANGES = ['unchanged', 'changed', 'added', 'removed']; // ChecklistTemplateService.change
@@ -132,6 +134,8 @@ const NO_DATA_REASONS = [
     'no_repository',
     'never_examined',
     'step_absent',
+    'plugin_unsigned',
+    'plugin_signature_unverified',
     'language_not_analysed',
     'examination_unrecorded',
     'languages_unrecorded',
@@ -171,7 +175,7 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     ObservedIssue: ISSUE,
     BacklogEntry: ISSUE,
     FindingView: { type: FINDING_TYPES },
-    PluginOutcome: { state: PLUGIN_STATES },
+    PluginOutcome: { state: PLUGIN_STATES, refusal: PLUGIN_REFUSALS, signature: PLUGIN_SIGNATURES },
     TriageRequest: { status: TRIAGE_STATUSES },
     BulkTriageRequest: { status: TRIAGE_STATUSES },
     ChecklistVersionSummary: { status: CHECKLIST_VERSION_STATUSES },

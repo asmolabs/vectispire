@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { asSchema, asSchemaList } from '../testing/contract';
-import { ACTIVATION, MANIFEST, PLUGIN } from '../testing/plugins.fixtures';
+import { ACTIVATION, MANIFEST, PLUGIN, WAIVED_PLUGIN } from '../testing/plugins.fixtures';
 import { PluginsApi } from './plugins.api';
 
 /**
@@ -34,6 +34,22 @@ describe('the plugins client', () => {
 
         api.plugin('acme-lint').subscribe();
         http.expectOne({ method: 'GET', url: '/api/v1/plugins/acme-lint' }).flush(PLUGIN);
+    });
+
+    it('waives the signature requirement with a PUT carrying the justification, and withdraws it with a DELETE', () => {
+        let waived: unknown;
+        api.waivePluginSignature('acme-lint', 'Built by our own CI; signing lands in Q4.').subscribe(
+            (plugin) => (waived = plugin)
+        );
+        const put = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint/unsigned-waiver' });
+        expect(put.request.body).toEqual(
+            asSchema('UnsignedWaiverRequest', { justification: 'Built by our own CI; signing lands in Q4.' })
+        );
+        put.flush(WAIVED_PLUGIN);
+        expect(waived).toEqual(WAIVED_PLUGIN);
+
+        api.revokePluginSignatureWaiver('acme-lint').subscribe();
+        http.expectOne({ method: 'DELETE', url: '/api/v1/plugins/acme-lint/unsigned-waiver' }).flush(PLUGIN);
     });
 
     it('registers with a POST and updates with a PUT on the id, the manifest as the body', () => {

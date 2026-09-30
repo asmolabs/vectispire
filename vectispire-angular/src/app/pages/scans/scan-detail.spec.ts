@@ -74,7 +74,9 @@ describe('the scan detail', () => {
             state: 'produced',
             findings: 4,
             languages: [],
-            reason: null
+            reason: null,
+            refusal: null,
+            signature: 'verified'
         }),
         asSchema('PluginOutcome', {
             pluginId: 'kotlin-rules',
@@ -82,7 +84,9 @@ describe('the scan detail', () => {
             state: 'not_applicable',
             findings: null,
             languages: ['kotlin'],
-            reason: null
+            reason: null,
+            refusal: null,
+            signature: null
         }),
         asSchema('PluginOutcome', {
             pluginId: 'house-secrets',
@@ -90,7 +94,43 @@ describe('the scan detail', () => {
             state: 'absent',
             findings: null,
             languages: [],
-            reason: 'exit code 2 is not a declared exit code'
+            reason: 'exit code 2 is not a declared exit code',
+            refusal: null,
+            signature: null
+        })
+    ];
+
+    /** The executor's refusals and a plugin run under the governor's waiver (decision 0017 §9.1). */
+    const SIGNATURE_OUTCOMES = [
+        asSchema('PluginOutcome', {
+            pluginId: 'unsigned-one',
+            manifestDigest: 'f'.repeat(64),
+            state: 'refused',
+            findings: null,
+            languages: [],
+            reason: 'its manifest declares no signer; it was not run',
+            refusal: 'unsigned',
+            signature: null
+        }),
+        asSchema('PluginOutcome', {
+            pluginId: 'impostor',
+            manifestDigest: 'f'.repeat(64),
+            state: 'refused',
+            findings: null,
+            languages: [],
+            reason: 'cosign: no matching signatures',
+            refusal: 'signature_unverified',
+            signature: null
+        }),
+        asSchema('PluginOutcome', {
+            pluginId: 'waived-one',
+            manifestDigest: 'f'.repeat(64),
+            state: 'produced',
+            findings: 0,
+            languages: [],
+            reason: null,
+            refusal: null,
+            signature: 'waived'
         })
     ];
 
@@ -257,6 +297,26 @@ describe('the scan detail', () => {
         expect(rows[2].querySelector('.p-tag-danger')).not.toBeNull();
         expect(rows[1].querySelector('.p-tag-danger')).toBeNull();
         expect(rows[0].querySelector('.p-tag-danger')).toBeNull();
+    });
+
+    it('names a refusal by its reason, as a failure, and marks a plugin that ran under a waiver', async () => {
+        await load({ ...DETAIL, plugins: [...PLUGINS, ...SIGNATURE_OUTCOMES] });
+
+        const rows = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="plugin-outcome"]')
+        );
+        const [produced, , , unsigned, impostor, waived] = rows;
+        expect(unsigned.getAttribute('data-state')).toBe('refused');
+        expect(unsigned.textContent).toContain('scans.plugin_refusal.unsigned');
+        expect(unsigned.textContent).toContain('declares no signer');
+        expect(unsigned.textContent).not.toContain('scans.plugin_state.absent');
+        expect(unsigned.querySelector('.p-tag-danger')).not.toBeNull();
+        expect(impostor.textContent).toContain('scans.plugin_refusal.signature_unverified');
+        expect(impostor.textContent).toContain('no matching signatures');
+
+        expect(waived.querySelector('[data-testid="plugin-waived"]')?.textContent).toContain('scans.plugin_waived');
+        expect(waived.querySelector('.p-tag-danger')).toBeNull();
+        expect(produced.querySelector('[data-testid="plugin-waived"]')).toBeNull();
     });
 
     it("links each plugin to the registry and shows the manifest's digest", async () => {

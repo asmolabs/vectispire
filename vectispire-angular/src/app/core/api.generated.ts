@@ -2030,6 +2030,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/{id}/unsigned-waiver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Waive the signature requirement for plugin
+         * @description Platform governor only. The plugin runs, from the next scan, although its manifest declares no signer, on every executor requiring one (the default). A declared signer is verified all the same. The justification is required, 20 to 500 characters; 400 without it. Audited, and signalled to the SIEM as VECTI-SEC-021.
+         */
+        put: operations["waiveSignature"];
+        post?: never;
+        /**
+         * Withdraw the signature waiver of plugin
+         * @description Platform governor only. From the next scan an executor requiring a signer refuses the plugin until its manifest declares one. 404 when the plugin has no waiver.
+         */
+        delete: operations["revokeSignatureWaiver"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}": {
         parameters: {
             query?: never;
@@ -4067,7 +4091,7 @@ export interface components {
             /** Format: int64 */
             itemId: number;
             /** @enum {string} */
-            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             outcome?: "pass" | "fail" | "no_data";
             /** Format: int32 */
@@ -4554,7 +4578,7 @@ export interface components {
             /** @enum {string} */
             purpose?: "read" | "answer" | "submission" | "sign_off";
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             ruleDigest?: string;
@@ -5745,11 +5769,11 @@ export interface components {
             /** Format: int32 */
             position: number;
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             submittedOutcome?: "pass" | "fail" | "no_data";
             /** @enum {string} */
-            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         MeasuredLineView: {
             /** @enum {string} */
@@ -6018,7 +6042,11 @@ export interface components {
             pluginId?: string;
             reason?: string;
             /** @enum {string} */
-            state?: "produced" | "not_applicable" | "absent";
+            refusal?: "unsigned" | "signature_unverified";
+            /** @enum {string} */
+            signature?: "verified" | "waived" | "not_required";
+            /** @enum {string} */
+            state?: "produced" | "not_applicable" | "absent" | "refused";
         };
         PluginSignature: {
             identity?: string;
@@ -6037,6 +6065,7 @@ export interface components {
             manifest?: components["schemas"]["PluginManifest"];
             manifestDigest?: string;
             name?: string;
+            unsignedWaiver?: components["schemas"]["UnsignedWaiver"];
             /** Format: date-time */
             updatedAt?: string;
             updatedBy?: string;
@@ -6116,6 +6145,8 @@ export interface components {
             findings?: components["schemas"]["SarifFinding"][];
             manifestDigest?: string;
             pluginId?: string;
+            /** @enum {string} */
+            signature?: "verified" | "waived" | "not_required";
             toolName?: string;
             toolVersion?: string;
         });
@@ -6288,6 +6319,15 @@ export interface components {
             targetKind?: string;
             targetName?: string;
         };
+        Refused: {
+            state: "Refused";
+        } & (Omit<components["schemas"]["PluginStep"], "state"> & {
+            manifestDigest?: string;
+            pluginId?: string;
+            reason?: string;
+            /** @enum {string} */
+            refusal?: "unsigned" | "signature_unverified";
+        });
         Region: {
             /** Format: int32 */
             startLine: number;
@@ -6426,7 +6466,7 @@ export interface components {
             /** Format: int64 */
             sourceId?: number;
             /** @enum {string} */
-            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         RepositoryRef: {
             /** Format: int64 */
@@ -6689,7 +6729,7 @@ export interface components {
             failures?: components["schemas"]["Failure"][];
             iac?: components["schemas"]["IacFinding"][];
             languages?: string[];
-            plugins?: (components["schemas"]["Absent"] | components["schemas"]["NotApplicable"] | components["schemas"]["Produced"])[];
+            plugins?: (components["schemas"]["Absent"] | components["schemas"]["NotApplicable"] | components["schemas"]["Produced"] | components["schemas"]["Refused"])[];
             project?: components["schemas"]["Project"];
             sast?: components["schemas"]["SastFinding"][];
             sbom?: components["schemas"]["JsonNode"];
@@ -7369,6 +7409,15 @@ export interface components {
             labels?: string[];
             /** Format: int64 */
             scans: number;
+        };
+        UnsignedWaiver: {
+            justification?: string;
+            /** Format: date-time */
+            waivedAt?: string;
+            waivedBy?: string;
+        };
+        UnsignedWaiverRequest: {
+            justification?: string;
         };
         UploadRequest: {
             files?: components["schemas"]["UploadedFile"][];
@@ -10448,6 +10497,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginActivationView"][];
+                };
+            };
+        };
+    };
+    waiveSignature: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UnsignedWaiverRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
+                };
+            };
+        };
+    };
+    revokeSignatureWaiver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
                 };
             };
         };

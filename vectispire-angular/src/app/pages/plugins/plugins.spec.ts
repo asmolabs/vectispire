@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
-import { ACTIVATION, MANIFEST, PLUGIN } from '@/app/core/testing/plugins.fixtures';
+import { ACTIVATION, MANIFEST, PLUGIN, WAIVED_PLUGIN } from '@/app/core/testing/plugins.fixtures';
 import { Plugins, parseExitCodes } from './plugins';
 
 /**
@@ -96,7 +96,7 @@ describe('the plugin registry', () => {
         expect(detail).toContain('600 s');
         expect(detail).toContain('Pulls rules from rules.acme.internal daily.');
         expect(dom().querySelector('[data-testid="plugin-signer"]')?.textContent).toContain(
-            'trusted by its digest alone'
+            'refused wherever a signer is required'
         );
         expect(dom().querySelector('[data-testid="manifest-digest"]')?.textContent).toContain(PLUGIN.manifestDigest);
         // An ordinary account is not answered which projects a plugin reads, and is not made to ask.
@@ -123,6 +123,100 @@ describe('the plugin registry', () => {
         expect(items[1]).toMatch(/^#99 ·/);
         // The whole solution tree used to be loaded for these names.
         http.expectNone('/api/v1/solutions');
+    });
+
+    describe('the signature requirement', () => {
+        const detail = (testid: string) => dom().querySelector(`[data-testid="${testid}"]`);
+
+        async function opened(role: string, plugin = PLUGIN): Promise<void> {
+            await start(role);
+            fixture.componentInstance.open(plugin.id);
+            http.expectOne('/api/v1/plugins/acme-lint').flush(plugin);
+            if (fixture.componentInstance.readsGovernance()) {
+                http.expectOne('/api/v1/plugins/acme-lint/projects').flush([]);
+            }
+            fixture.detectChanges();
+        }
+
+        it('says an unsigned plugin runs nowhere, and offers the waiver to the governor alone', async () => {
+            await opened('USER');
+            expect(detail('requirement-refused')?.textContent).toContain('refuses this plugin');
+            expect(detail('open-waiver')).toBeNull();
+            expect(detail('waiver-badge')).toBeNull();
+        });
+
+        it('does not offer the waiver to an administrator, whom the server refuses it', async () => {
+            await opened('ADMIN');
+            expect(detail('open-waiver')).toBeNull();
+        });
+
+        it('says a signed plugin is verified, and offers no waiver it would not need', async () => {
+            await opened('SUPERUSER', {
+                ...PLUGIN,
+                manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } }
+            });
+            expect(detail('plugin-signature-requirement')?.textContent).toContain('verified with cosign');
+            expect(detail('requirement-refused')).toBeNull();
+            expect(detail('open-waiver')).toBeNull();
+        });
+
+        it('records the governor’s waiver with the justification as typed, trimmed, and shows it on the plugin', async () => {
+            await opened('SUPERUSER');
+            (detail('open-waiver')?.querySelector('button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            expect(fixture.componentInstance.waiverFor()?.id).toBe('acme-lint');
+
+            fixture.componentInstance.waiverJustification =
+                '  Built by our own CI; signing lands with the Q4 release pipeline.  ';
+            fixture.componentInstance.saveWaiver();
+            const request = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint/unsigned-waiver' });
+            expect(request.request.body).toEqual({
+                justification: 'Built by our own CI; signing lands with the Q4 release pipeline.'
+            });
+            request.flush(WAIVED_PLUGIN);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.waiverFor()).toBeNull();
+            expect(detail('waiver-badge')?.textContent).toContain('Runs unsigned (waiver)');
+            expect(detail('waiver-justification')?.textContent).toContain('Q4 release pipeline');
+            expect(detail('waiver-by')?.textContent).toContain('governor');
+            expect(detail('requirement-refused')).toBeNull();
+            expect(dom().textContent).toContain('acme-lint runs unsigned from the next scan');
+        });
+
+        it('keeps the server’s refusal of a short justification in the dialog', async () => {
+            await opened('SUPERUSER');
+            fixture.componentInstance.openWaiver(PLUGIN);
+            fixture.componentInstance.waiverJustification = 'a sentence of twenty characters';
+            fixture.componentInstance.saveWaiver();
+            http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint/unsigned-waiver' }).flush(
+                { detail: 'Running a plugin unsigned needs its justification, written: 20 to 500 characters.' },
+                { status: 400, statusText: 'Bad Request' }
+            );
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.waiverFor()?.id).toBe('acme-lint');
+            expect(document.querySelector('[data-testid="waiver-error"]')?.textContent).toContain('20 to 500');
+            expect(detail('waiver-badge')).toBeNull();
+        });
+
+        it('shows a waiver and its justification to every reader, and lets the governor alone withdraw it', async () => {
+            await opened('USER', WAIVED_PLUGIN);
+            expect(detail('waiver-badge')).not.toBeNull();
+            expect(detail('waiver-justification')?.textContent).toContain('Q4 release pipeline');
+            expect(detail('revoke-waiver')).toBeNull();
+        });
+
+        it('withdraws the waiver with a DELETE, and the plugin reads as refused again', async () => {
+            await opened('SUPERUSER', WAIVED_PLUGIN);
+            (detail('revoke-waiver')?.querySelector('button') as HTMLButtonElement).click();
+            http.expectOne({ method: 'DELETE', url: '/api/v1/plugins/acme-lint/unsigned-waiver' }).flush(PLUGIN);
+            fixture.detectChanges();
+
+            expect(detail('waiver-badge')).toBeNull();
+            expect(detail('requirement-refused')).not.toBeNull();
+            expect(dom().textContent).toContain('no longer runs unsigned');
+        });
     });
 
     it('says an unknown id is unknown, rather than a failure to retry', async () => {

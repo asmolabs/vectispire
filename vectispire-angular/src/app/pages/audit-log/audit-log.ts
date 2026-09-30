@@ -71,6 +71,8 @@ const OPERATION_KEYS: Record<string, string> = {
     PLUGIN_ENABLED_CHANGED: 'audit_log.operations.plugin_enabled_changed',
     PLUGIN_ACTIVATED: 'audit_log.operations.plugin_activated',
     PLUGIN_DEACTIVATED: 'audit_log.operations.plugin_deactivated',
+    PLUGIN_SIGNATURE_WAIVED: 'audit_log.operations.plugin_signature_waived',
+    PLUGIN_SIGNATURE_WAIVER_REVOKED: 'audit_log.operations.plugin_signature_waiver_revoked',
     SARIF_SOURCE_CHANGED: 'audit_log.operations.sarif_source_changed',
     SARIF_IMPORTED: 'audit_log.operations.sarif_imported',
     SARIF_IMPORT_REFUSED: 'audit_log.operations.sarif_import_refused',

@@ -140,6 +140,12 @@ export class Plugins {
     readonly selectedError = signal<string | null>(null);
     readonly projects = signal<PluginActivation[] | null>(null);
 
+    /** The plugin whose signature requirement is being waived, while the dialog is open. */
+    readonly waiverFor = signal<Plugin | null>(null);
+    readonly waiving = signal(false);
+    readonly waiverError = signal<string | null>(null);
+    waiverJustification = '';
+
     readonly formVisible = signal(false);
     readonly editing = signal<Plugin | null>(null);
     readonly saving = signal(false);
@@ -281,6 +287,63 @@ export class Plugins {
                 this.formError.set(messageOf(failure, this.i18n.t('plugins.error_save')));
             }
         });
+    }
+
+    // --- The signature waiver (decision 0017 §9.1) ------------------------------------------------
+
+    openWaiver(plugin: Plugin): void {
+        this.waiverJustification = '';
+        this.waiverError.set(null);
+        this.waiverFor.set(plugin);
+    }
+
+    closeWaiver(): void {
+        this.waiverFor.set(null);
+    }
+
+    /**
+     * Sent as typed, trimmed: the server bounds it and says why when it refuses, and that sentence
+     * stays in the dialog, where the justification can still be fixed.
+     */
+    saveWaiver(): void {
+        const plugin = this.waiverFor();
+        if (!plugin) return;
+        this.waiving.set(true);
+        this.waiverError.set(null);
+        this.api.waivePluginSignature(plugin.id, this.waiverJustification.trim()).subscribe({
+            next: (updated) => {
+                this.waiving.set(false);
+                this.waiverFor.set(null);
+                this.replace(updated);
+                this.notice.set(this.i18n.t('plugins.waived_notice', { id: updated.id }));
+            },
+            error: (failure) => {
+                this.waiving.set(false);
+                this.waiverError.set(messageOf(failure, this.i18n.t('plugins.error_waive')));
+            }
+        });
+    }
+
+    /** From the next scan it is refused again until its manifest declares a signer. */
+    revokeWaiver(plugin: Plugin): void {
+        this.busy.set(plugin.id);
+        this.error.set(null);
+        this.api.revokePluginSignatureWaiver(plugin.id).subscribe({
+            next: (updated) => {
+                this.busy.set(null);
+                this.replace(updated);
+                this.notice.set(this.i18n.t('plugins.waiver_revoked_notice', { id: updated.id }));
+            },
+            error: (failure) => {
+                this.busy.set(null);
+                this.error.set(messageOf(failure, this.i18n.t('plugins.error_revoke_waiver')));
+            }
+        });
+    }
+
+    private replace(updated: Plugin): void {
+        this.plugins.update((plugins) => plugins.map((one) => (one.id === updated.id ? updated : one)));
+        if (this.selected()?.id === updated.id) this.selected.set(updated);
     }
 
     /** Off everywhere from the next scan; its activations are kept, so switching back restores them. */

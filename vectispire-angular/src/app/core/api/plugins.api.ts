@@ -51,6 +51,20 @@ export class PluginsApi {
         return this.http.put<Plugin>(`/api/v1/plugins/${encodeURIComponent(id)}/enabled`, { enabled });
     }
 
+    /**
+     * Lets the plugin run although its manifest declares no signer (decision 0017 §9.1) — the
+     * governor's, audited. **400 without a justification of 20 to 500 characters**; the server is
+     * the judge, the form only shapes the input.
+     */
+    waivePluginSignature(id: string, justification: string): Observable<Plugin> {
+        return this.http.put<Plugin>(`/api/v1/plugins/${encodeURIComponent(id)}/unsigned-waiver`, { justification });
+    }
+
+    /** From the next scan it is refused until it declares a signer. 404 when there was no waiver. */
+    revokePluginSignatureWaiver(id: string): Observable<Plugin> {
+        return this.http.delete<Plugin>(`/api/v1/plugins/${encodeURIComponent(id)}/unsigned-waiver`);
+    }
+
     /** The projects a plugin reads — governance, since it names parts of the estate. */
     pluginProjects(id: string): Observable<PluginActivation[]> {
         return this.http.get<PluginActivation[]>(`/api/v1/plugins/${encodeURIComponent(id)}/projects`);
