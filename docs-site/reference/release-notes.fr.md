@@ -204,11 +204,31 @@ cibles que personne n'avait regardées, et les mois déjà capturés gardent ce 
 parc, ou prévenez ceux qui lisent la courbe avant qu'ils ne la lisent. Voir
 [Conformité](../guide/compliance.md#sans-donnee-nest-pas-conforme).
 
+**Une cible jamais analysée n'a plus de note de sécurité, et un portefeuille, un projet ou une
+solution analysés en partie voient leur score plafonné — des notes baissent, et des pastilles publiées
+peuvent afficher *no data*.** La fiche de score retranche de cent ce qu'elle trouve : un dépôt
+enregistré et jamais analysé lisait 100, A+, sur sa fiche et sur la pastille de son README, et un
+projet dont la seule cible n'avait jamais été analysée lisait de même. Une telle fiche porte maintenant
+la note `NO_DATA`, sans score, et la pastille affiche *no data* en gris. Là où une partie seulement des
+cibles est analysée — la fiche globale, celle d'un projet, d'une solution — le score est plafonné à la
+part analysée : dix cibles dont une analysée propre valent 10, F, là où elles lisaient A+. Un dépôt ou
+une image qui a un scan terminé garde sa note. Rien n'est enregistré, le changement se voit donc à la
+première lecture ; analysez les cibles que nomme la nouvelle recommandation. Voir
+[Comment la note du scorecard est calculée](../guide/repositories.md#comment-la-note-du-scorecard-est-calculee).
+
 **Les migrations V32 à V59 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
 
+- **Une fiche de score peut porter la note `NO_DATA`, avec un score `null`, et porte `totalTargets` et
+  `observedTargets`.** `GET /api/v1/scorecards/repositories/{id}`, `/containers/{id}`, `/global` et le
+  `scorecard` de `GET /api/v1/projects/{id}/compliance` et `/solutions/{id}/compliance` répondent la note
+  `NO_DATA` et `score: null` quand aucune des cibles de la fiche n'a de scan terminé — ils répondaient
+  100 et `A_PLUS`. `score` n'est plus toujours présent comme nombre : un client qui le lit comme tel doit
+  tester `grade` d'abord. `observedTargets` inférieur à `totalTargets` signifie que le score est
+  plafonné à cette part. `SecurityGrade` gagne `NO_DATA` ; un client qui associe les notes qu'il connaît
+  doit traiter une note inconnue comme une absence de note.
 - **Les chiffres et les filtres d'un projet incluent les images de conteneur qui y sont rangées.** Dès
   qu'une image est rangée dans un projet, `GET /api/v1/issues?project_id=…` et `?solution_id=…`
   répondent ses issues à côté de celles des dépôts, et les `openIssues` de `GET /api/v1/solutions` les

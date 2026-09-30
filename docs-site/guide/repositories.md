@@ -185,6 +185,21 @@ cost nothing. The result is held between 0 and 100.
 For example, a scanned repository with two criticals, one high, one actively exploited medium and
 one disallowed licence scores 100 − 8 − 8 − 4 − 25 − 5 + 5 = **55, grade C**.
 
+**No scan, no grade.** A repository or image with no completed scan has nothing to grade: its
+scorecard reads grade **`NO_DATA`** with no score (`score` is `null`), and its badge reads *no data*
+in grey. It used to read 100, A+ — the score subtracts what it finds from a hundred, and nobody had
+looked. The counts stay, being true of what was read; a SARIF import alone does not make a target
+scanned. A scan in progress, or one that failed after a completed one, does not take the grade away:
+the backlog graded is the one the last completed scan left.
+
+**A portfolio, a project or a solution** — the global scorecard and the one under [a project's compliance](compliance.md#per-project-and-per-solution) — is computed the
+same way over the targets you see, with two rules of its own. None of them scanned is `NO_DATA`. Some
+of them scanned caps the score at the scanned share, rounded, and adds the recommendation *Scan the N
+target(s) never scanned*: ten targets with one scanned clean score 10, not 100 — the compliance
+controls' coverage cap, read over the same targets. `totalTargets` and `observedTargets` say what the
+card covers. The compliance freshness window does not cap it: that window is a setting of each
+deployment, and a grade must not differ between two installations holding the same estate.
+
 **What does not move the grade.** Issues past their remediation deadline are counted on the
 scorecard and produce a recommendation, but cost no points: deadlines are a setting of each
 deployment (see [Remediation times](remediation-delays.md#where-the-deadlines-come-from)), and a badge must not

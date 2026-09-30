@@ -65,9 +65,9 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **Compliance** | `GET` | `/api/v1/compliance/frameworks/{fw}` | Account | Detailed evaluation for a specific compliance standard. |
 | **Compliance** | `GET` | `/api/v1/compliance/export.pdf` | Account | Download executive regulatory compliance report in PDF format. |
 | **Compliance** | `GET` | `/api/v1/compliance/evidence-bundle.zip` | Account | Export cryptographically sealed audit evidence bundle with SHA-256 proofs. |
-| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Account | Repository security posture scorecard and letter grade. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Account | Repository security posture scorecard and letter grade — `NO_DATA` with a `null` score for a repository with no completed scan. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/containers/{id}` | Account | Container image security scorecard and grade. |
-| **Scorecards** | `GET` | `/api/v1/scorecards/global` | Account | Organization-wide aggregate posture scorecard. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/global` | Account | Organization-wide aggregate posture scorecard over the targets the caller sees: `NO_DATA` when none holds a completed scan, the score capped at the scanned share (`observedTargets`/`totalTargets`) otherwise. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}/badge` | Account | Whether a public badge is published for this repository, and its URL. |
 | **Scorecards** | `POST` | `/api/v1/scorecards/repositories/{id}/badge` | Write | Publish the badge. Its grade then becomes readable by anyone holding the URL. |
 | **Scorecards** | `DELETE` | `/api/v1/scorecards/repositories/{id}/badge` | Write | Revoke it. Every README carrying the old URL starts answering 404. |

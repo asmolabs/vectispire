@@ -205,8 +205,9 @@ La page d'un projet — son nom dans l'arbre, ou `/projects/{id}` — réunit ce
   page de conformité du parc, dessinés par le même composant. Au-dessus, *Calculé sur N cible(s)*, et
   sur un projet partiel un avertissement que les chiffres ne couvrent que ce que vous voyez. **Un projet
   dont aucune cible n'a jamais été analysée se lit *Aucune donnée*** — un tiret pour chaque référentiel
-  et pour le score, pas une note : la fiche part de cent et retranche ce qu'elle trouve, si bien que sur
-  rien d'observé elle lirait *A*.
+  et pour le score, pas une note : la fiche répond `NO_DATA` sans score, là où elle partait de cent,
+  retranchait ce qu'elle trouvait et lisait *A+* sur rien d'observé. Un projet analysé en partie voit son
+  score plafonné à la part analysée.
 - **Composants** : la liste consolidée, filtrable par nom ou par package URL, chaque composant avec les
   cibles qui le portent ; au-dessus, **Inventaire par cible** donne à chaque dépôt et à chaque image son
   état — *N composant(s)*, *Aucun composant dans son SBOM*, *Pas de SBOM* ou *Jamais analysée*, avec la

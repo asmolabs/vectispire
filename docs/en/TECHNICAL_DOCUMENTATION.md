@@ -530,7 +530,7 @@ Two rules the harness enforces on itself:
   - Pure Java calendar-day calculation of Mean Time to Remediate (MTTR) broken down by severity echelon (Critical, High, Medium, Low).
   - Net burndown resolution velocity KPI tracking resolution speed against discovery rate.
   - Target Maturity Scoreboard ranking repositories and containers with Grades (`A` to `F`) and 0-100 posture scores: 100 minus 25 per unresolved critical, 10 per high, 3 per medium, 1 otherwise (a missing severity counts as medium; settled triage — `not_affected`, `fixed` — excluded); A ≥ 90, B ≥ 75, C ≥ 50, D ≥ 30.
-  - **Distinct from the security scorecard** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), which grades A+ to F on open issues whose triage is not settled — KEV −25, critical −8, high −4, disallowed licence −5, completed scan +5 — and feeds the public README badge. The user guide's repository page gives the full rule.
+  - **Distinct from the security scorecard** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), which grades A+ to F on open issues whose triage is not settled — KEV −25, critical −8, high −4, disallowed licence −5, completed scan +5 — and feeds the public README badge. Nothing holding a completed scan is `NO_DATA`, no score; a portfolio, project or solution scanned in part is capped at the scanned share. The user guide's repository page gives the full rule.
 - **REST Endpoints**:
   - `GET /api/v1/dashboard/posture-analytics?days=30`: Aggregated MTTR by severity, net burndown rate, daily time series, and target maturity rankings.
 

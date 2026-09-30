@@ -54,8 +54,12 @@ solution), et sur rien d'autre : mêmes contrôles, mêmes plafonds de couvertur
 une matrice par cible qui ne contient qu'elles. Un projet propre dans un parc plein de critiques se lit
 conforme ; le parc, non. La réponse porte la forme du résumé du parc sous `compliance` et, sous
 `scorecard`, la fiche de score du portefeuille calculée sur les mêmes cibles — pas de seconde formule
-pour l'une ni pour l'autre. Les contrôles propres à la plateforme (chiffrement, miroir d'audit,
-quatre-yeux, politique de connexion) sont ceux du déploiement et se lisent de même dans chaque périmètre.
+pour l'une ni pour l'autre. La fiche suit la même absence : note `NO_DATA` et score `null` quand aucune
+des cibles n'a de scan terminé, score plafonné à la part analysée quand certaines seulement en ont un,
+avec `totalTargets` et `observedTargets` à côté
+([calcul de la fiche](repositories.fr.md#comment-la-note-du-scorecard-est-calculee)). Les contrôles
+propres à la plateforme (chiffrement, miroir d'audit, quatre-yeux, politique de connexion) sont ceux du
+déploiement et se lisent de même dans chaque périmètre.
 
 **Un projet que vous ne voyez qu'en partie est évalué sur la partie que vous voyez**, et la réponse le
 dit : `partial` vaut vrai et `targetCount` indique combien de cibles ont été comptées. Le verdict parle
@@ -69,8 +73,9 @@ ouvre ceux de la solution : la fiche de score, puis les chiffres, la matrice, le
 contrôles de la page du parc, dessinés par le même composant, avec *Calculé sur N cible(s)* au-dessus et,
 sur un périmètre partiel, un avertissement qu'ils ne couvrent que ce que vous voyez. Un périmètre dont
 aucune cible n'a été analysée se lit *Aucune donnée* de bout en bout — les référentiels comme le score
-affichent un tiret, puisque la fiche de score, qui part de cent et retranche ce qu'elle trouve, noterait
-sinon un périmètre que personne n'a regardé.
+affichent un tiret. Le tiret du score est le `NO_DATA` de la fiche elle-même : elle part de cent et
+retranche ce qu'elle trouve, et répondait 100, A+, pour un périmètre que personne n'avait regardé, jusqu'à
+ce qu'elle sache dire qu'elle n'avait rien à noter.
 
 ## Le coffre de preuves
 

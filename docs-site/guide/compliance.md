@@ -51,7 +51,10 @@ projects), and over nothing else: the same controls, the same coverage and fresh
 when none of those targets was scanned** — however scanned the rest of the estate is — and a
 per-target matrix holding only them. A clean project in an estate full of criticals reads compliant;
 the estate does not. The response carries the estate summary's shape under `compliance` and, under
-`scorecard`, the portfolio scorecard computed over the same targets — no second formula for either.
+`scorecard`, the portfolio scorecard computed over the same targets — no second formula for either. The
+scorecard follows the same absence: grade `NO_DATA` and a `null` score when none of the targets holds a
+completed scan, and a score capped at the scanned share when only some do, with `totalTargets` and
+`observedTargets` beside it ([how the scorecard is computed](repositories.md#how-the-scorecard-grade-is-computed)).
 The platform's own controls (encryption, the audit mirror, four-eyes, the sign-in policy) are the
 deployment's and read the same in every scope.
 
@@ -66,8 +69,9 @@ solution of the [Solutions & projects](../administration/solutions-and-projects.
 tree opens the solution's: the scorecard, then the figures, matrix, frameworks and controls of the
 estate page, drawn by the same component, with *Computed over N target(s)* above them and, on a
 partial scope, a notice that they cover only what you see. A scope none of whose targets was scanned
-reads *No data* throughout — the frameworks and the score alike show a dash, since the scorecard,
-which starts at a hundred and subtracts what it finds, would otherwise grade a scope nobody looked at.
+reads *No data* throughout — the frameworks and the score alike show a dash. The score's dash is the
+scorecard's own `NO_DATA`: the scorecard starts at a hundred and subtracts what it finds, and answered
+100, A+, for a scope nobody had looked at until it learned to say it had nothing to grade.
 
 ## The Evidence Vault
 

@@ -65,9 +65,9 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Conformité** | `GET` | `/api/v1/compliance/frameworks/{fw}` | Compte | Évaluation détaillée des exigences pour un référentiel réglementaire. |
 | **Conformité** | `GET` | `/api/v1/compliance/export.pdf` | Compte | Téléchargement du rapport exécutif de conformité au format PDF. |
 | **Conformité** | `GET` | `/api/v1/compliance/evidence-bundle.zip` | Compte | Export du bundle d'audit scellé (preuves cryptographiques SHA-256). |
-| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Compte | Scorecard et note de posture de sécurité d'un dépôt. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Compte | Scorecard et note de posture de sécurité d'un dépôt — `NO_DATA` avec un score `null` pour un dépôt sans scan terminé. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/containers/{id}` | Compte | Scorecard et note de sécurité d'une image conteneur. |
-| **Scorecards** | `GET` | `/api/v1/scorecards/global` | Compte | Scorecard global consolidé pour l'ensemble de l'organisation. |
+| **Scorecards** | `GET` | `/api/v1/scorecards/global` | Compte | Scorecard global consolidé sur les cibles que l'appelant voit : `NO_DATA` quand aucune n'a de scan terminé, sinon score plafonné à la part analysée (`observedTargets`/`totalTargets`). |
 | **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}/badge` | Compte | Un badge public est-il publié pour ce dépôt, et à quelle URL. |
 | **Scorecards** | `POST` | `/api/v1/scorecards/repositories/{id}/badge` | Écriture | Publie le badge. Sa note devient alors lisible par quiconque détient l'URL. |
 | **Scorecards** | `DELETE` | `/api/v1/scorecards/repositories/{id}/badge` | Écriture | Le révoque. Tout README portant l'ancienne URL répond désormais 404. |

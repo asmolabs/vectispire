@@ -198,8 +198,9 @@ A project's page — its name in the tree, or `/projects/{id}` — gathers these
   controls, drawn by the same component. Above them, *Computed over N target(s)*, and on a partial
   project a notice that the figures cover only what you see. **A project none of whose targets was
   ever scanned reads *No data*** — a dash for every framework and for the score, not a grade: the
-  scorecard starts at a hundred and subtracts what it finds, so over nothing observed it would read
-  *A*.
+  scorecard answers `NO_DATA` with no score, where it used to start at a hundred, subtract what it
+  found and read *A+* over nothing observed. A project scanned in part has its score capped at the
+  scanned share.
 - **Components**: the consolidated list, filtered by name or package URL, each component with the
   targets carrying it; above it, **Inventory by target** gives each repository and image its state —
   *N component(s)*, *No component in its SBOM*, *No SBOM* or *Never scanned*, with the date of the

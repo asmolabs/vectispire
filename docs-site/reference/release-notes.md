@@ -187,11 +187,30 @@ targets nobody looked at as clean, and the months already captured keep that sco
 the estate, or tell whoever reads the chart before they do. See
 [Compliance](../guide/compliance.md#no-data-is-not-compliant).
 
+**A target never scanned has no security grade any more, and a portfolio, project or solution scanned
+in part has its score capped — grades fall, and published badges can read *no data*.** The scorecard
+subtracts what it finds from a hundred, so a repository registered and never scanned read 100, A+, on
+its card and on its README badge, and a project whose only target was never scanned read the same.
+Such a card now grades `NO_DATA`, with no score, and the badge reads *no data* in grey. Where only some
+of the targets are scanned — the global scorecard, a project's, a solution's — the score is capped at
+the scanned share: ten targets with one scanned clean score 10, F, where they read A+. A repository or
+image with a completed scan keeps its grade. Nothing is stored, so the change shows at the first read;
+scan the targets the new recommendation names. See
+[How the scorecard grade is computed](../guide/repositories.md#how-the-scorecard-grade-is-computed).
+
 **Schema migrations V32 to V59 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
 
+- **A scorecard can grade `NO_DATA`, with a `null` score, and carries `totalTargets` and
+  `observedTargets`.** `GET /api/v1/scorecards/repositories/{id}`, `/containers/{id}`, `/global` and
+  the `scorecard` of `GET /api/v1/projects/{id}/compliance` and `/solutions/{id}/compliance` answer
+  grade `NO_DATA` and `score: null` when none of the card's targets holds a completed scan — they
+  answered 100 and `A_PLUS`. `score` is no longer always present as a number: a client reading it as
+  one must test `grade` first. `observedTargets` below `totalTargets` means the score is capped at
+  that share. `SecurityGrade` gains `NO_DATA`; a client mapping the grades it knows should treat an
+  unknown one as no grade.
 - **A project's figures and filters include the container images filed in it.** Once an image is
   filed in a project, `GET /api/v1/issues?project_id=…` and `?solution_id=…` answer its issues beside
   the repositories', and the `openIssues` of `GET /api/v1/solutions` count them; each project node,

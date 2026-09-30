@@ -190,6 +190,23 @@ sévérités moyenne et basse ne coûtent rien. Le résultat est borné entre 0 
 Par exemple, un dépôt scanné avec deux critiques, une haute, une moyenne activement exploitée et
 une licence non autorisée obtient 100 − 8 − 8 − 4 − 25 − 5 + 5 = **55, note C**.
 
+**Pas de scan, pas de note.** Un dépôt ou une image sans scan terminé n'a rien à noter : sa fiche
+porte la note **`NO_DATA`** sans score (`score` vaut `null`), et sa pastille affiche *no data* en gris.
+Elle affichait 100, A+ — le score retranche de cent ce qu'il trouve, et personne n'avait regardé. Les
+compteurs restent, puisqu'ils sont vrais de ce qui a été lu ; un import SARIF seul ne fait pas d'une
+cible une cible analysée. Un scan en cours, ou un scan échoué après un scan terminé, n'enlève pas la
+note : le backlog noté est celui qu'a laissé le dernier scan terminé.
+
+**Un portefeuille, un projet ou une solution** — la fiche globale et celle qui accompagne
+[la conformité d'un projet](compliance.fr.md#par-projet-et-par-solution) — se calcule de même sur les
+cibles que vous voyez, avec deux règles propres. Aucune analysée, c'est `NO_DATA`. Une partie analysée
+plafonne le score à la part analysée, arrondie, et ajoute la recommandation *Scan the N target(s) never
+scanned* : dix cibles dont une analysée propre valent 10, pas 100 — le plafond de couverture des
+contrôles de conformité, lu sur les mêmes cibles. `totalTargets` et `observedTargets` disent ce que la
+fiche couvre. La fenêtre de fraîcheur de la conformité ne la plafonne pas : cette fenêtre est un
+réglage de chaque installation, et une note ne doit pas différer entre deux installations qui tiennent
+le même parc.
+
 **Ce qui ne change pas la note.** Les problèmes en retard sur leur délai de remédiation sont
 comptés sur la fiche et produisent une recommandation, mais ne coûtent aucun point : les délais
 sont un réglage propre à chaque installation (voir [Délais de correction](remediation-delays.md#dou-viennent-les-delais)),
