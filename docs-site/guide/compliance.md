@@ -37,6 +37,30 @@ the assessment covers. Ten targets with one scanned clean is not a clean estate;
 and nine nobody looked at. A target counts as observed once it has a successful scan — whichever steps
 produced in it; the security checklists are where a step is measured on its own.
 
+## Per project and per solution
+
+The same evaluation answers for one project or one [solution](../administration/solutions-and-projects.md):
+
+```
+GET /api/v1/projects/{id}/compliance
+GET /api/v1/solutions/{id}/compliance
+```
+
+It is the estate's evaluation run over the targets filed in the project (or in the solution's
+projects), and over nothing else: the same controls, the same coverage and freshness caps, **`NO_DATA`
+when none of those targets was scanned** — however scanned the rest of the estate is — and a
+per-target matrix holding only them. A clean project in an estate full of criticals reads compliant;
+the estate does not. The response carries the estate summary's shape under `compliance` and, under
+`scorecard`, the portfolio scorecard computed over the same targets — no second formula for either.
+The platform's own controls (encryption, the audit mirror, four-eyes, the sign-in policy) are the
+deployment's and read the same in every scope.
+
+**A project you see only in part is evaluated over the part you see**, and the response says so:
+`partial` is true and `targetCount` says how many targets were counted. The verdict speaks for those
+targets, never for the project as a whole. A project or solution you see nothing of is answered as one
+that does not exist (`404`). Nothing of this is stored: it is computed for the read, like the estate's
+summary, and the monthly progression stays the estate's.
+
 ## The Evidence Vault
 
 One click exports a **cryptographically signed evidence bundle**:

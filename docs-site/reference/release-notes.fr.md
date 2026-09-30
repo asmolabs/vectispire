@@ -413,6 +413,20 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Nouveautés
 
+- **Un projet seul : sa lecture, sa conformité et son score, son SBOM consolidé.**
+  `GET /api/v1/projects/{id}` lit un projet tel que le décrit son nœud dans l'arbre, sa solution
+  nommée. `GET /api/v1/projects/{id}/compliance` et `GET /api/v1/solutions/{id}/compliance` exécutent
+  l'évaluation du parc sur les seules cibles du périmètre — mêmes contrôles, mêmes plafonds, `NO_DATA`
+  quand aucune n'a été analysée — avec la fiche de score du portefeuille calculée de même. `GET
+  /api/v1/projects/{id}/components` fusionne les composants de la dernière analyse terminée de chaque
+  dépôt et de chaque image par package URL et version, en nommant les cibles qui portent chacun et ce
+  qui a été lu de chaque cible (`listed`, `empty`, `absent`, `never_scanned`, et `complete`), et `GET
+  /api/v1/cyclonedx/projects/{id}/cyclonedx-vex.json` le rend en CycloneDX 1.5 avec le VEX du projet,
+  `compositions` disant s'il est complet. Les trois premières acceptent une clé `read`, le document une
+  clé `export`. Chacune suit la règle de l'arbre : un projet vu en partie est calculé sur cette partie
+  et le dit par `partial` ; un projet que l'on ne voit pas du tout répond `404` comme un projet
+  inexistant — [Solutions et projets](../administration/solutions-and-projects.fr.md#un-projet-seul-ses-chiffres-sa-conformite-et-ses-composants).
+
 - **Les images de conteneur peuvent être rangées dans des projets** (V59 ajoute
   `t_container.project_id`), comme les dépôts : un projet au plus chacune, rangée, déplacée et retirée
   par un administrateur via `PUT` / `DELETE /api/v1/projects/{id}/containers/{containerId}`,

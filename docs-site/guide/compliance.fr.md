@@ -39,6 +39,30 @@ propre ; elles font une cible propre et neuf que personne n'a regardées. Une ci
 dès qu'elle a une analyse réussie — quelles que soient les étapes qui y ont produit ; les checklists de
 sécurité sont le lieu où une étape se mesure pour elle-même.
 
+## Par projet et par solution
+
+La même évaluation répond pour un projet ou une [solution](../administration/solutions-and-projects.fr.md) :
+
+```
+GET /api/v1/projects/{id}/compliance
+GET /api/v1/solutions/{id}/compliance
+```
+
+C'est l'évaluation du parc exécutée sur les cibles rangées dans le projet (ou dans les projets de la
+solution), et sur rien d'autre : mêmes contrôles, mêmes plafonds de couverture et de fraîcheur,
+**`NO_DATA` quand aucune de ces cibles n'a été analysée** — quel que soit l'état du reste du parc — et
+une matrice par cible qui ne contient qu'elles. Un projet propre dans un parc plein de critiques se lit
+conforme ; le parc, non. La réponse porte la forme du résumé du parc sous `compliance` et, sous
+`scorecard`, la fiche de score du portefeuille calculée sur les mêmes cibles — pas de seconde formule
+pour l'une ni pour l'autre. Les contrôles propres à la plateforme (chiffrement, miroir d'audit,
+quatre-yeux, politique de connexion) sont ceux du déploiement et se lisent de même dans chaque périmètre.
+
+**Un projet que vous ne voyez qu'en partie est évalué sur la partie que vous voyez**, et la réponse le
+dit : `partial` vaut vrai et `targetCount` indique combien de cibles ont été comptées. Le verdict parle
+pour ces cibles, jamais pour le projet entier. Un projet ou une solution dont vous ne voyez rien reçoit la
+réponse d'un projet inexistant (`404`). Rien de tout cela n'est enregistré : c'est calculé pour la
+lecture, comme le résumé du parc, et la progression mensuelle reste celle du parc.
+
 ## Le coffre de preuves
 
 Un clic exporte un **paquet de preuves signé cryptographiquement** :

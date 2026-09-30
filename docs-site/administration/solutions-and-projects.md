@@ -149,6 +149,39 @@ repositories have been counted shows the union of their languages as small tags 
 the tree — or "—" when it is in none. **Containers** shows the same on each image —
 **Project:** and a link to the project in the tree — or **no project**, a link to that group.
 
+## One project on its own: its figures, compliance and components
+
+Four reads answer for one project — or, for compliance, one solution — rather than the whole tree, for
+a screen or a reporting plugin that reports on one product. Each follows the tree's rule: you get the
+project when you see everything, hold the project as such, or see at least one of its repositories or
+images; a project you see nothing of is answered exactly as one that does not exist, `404` *Project
+not found.* (*Solution not found.* for a solution).
+
+- **The project read** is the project's node in the tree — its solution named, its repositories and
+  images, open issues by severity, **partial**, whether its checklists are open to you, the languages
+  detected — computed by the same code, so the two never disagree.
+- **Compliance per project and per solution** is the estate's evaluation run over the project's
+  targets only: the same controls, the same coverage and freshness caps, `NO_DATA` when none of its
+  targets was scanned — however scanned the rest of the estate is — and the portfolio **scorecard**
+  (score, grade, recommendations) computed the same way. A clean project in a dirty estate reads
+  compliant. See [Compliance](../guide/compliance.md#per-project-and-per-solution).
+- **The consolidated SBOM** merges the components of the newest completed scan of each repository and
+  image, by package URL and version, and names the targets carrying each. Every target is listed with
+  what was read of it: *listed*, *empty* (its SBOM listed nothing), *absent* (its newest completed scan
+  holds no SBOM) or *never scanned*. An older scan's inventory never stands in for a newest one without
+  an SBOM, and the result says it is **not complete** while one target is absent or never scanned — a
+  merge that skipped them silently would read "we do not ship this library" of a tree nobody looked at.
+- **The CycloneDX document** of the same merge, with the project's CVE issues as VEX. Each component
+  names its carriers (property `vectispire:target`); `compositions` says `complete` only when every
+  target of the project was seen and read, `incomplete` otherwise, and the metadata names each target
+  whose inventory is unknown. It is not signed, like the other exports.
+
+**A project you see in part is computed over the part you see, and says so** (`partial`), like the
+tree's figures and the issues list: every input is narrowed to the targets you see, so nothing of the
+hidden ones reaches you beyond the fact that they exist. The security checklists are the exception:
+their lines speak in words for every repository of the project, so they are refused to a partial
+reader instead.
+
 ## Through the API
 
 The same operations, for scripts:
@@ -166,6 +199,10 @@ The same operations, for scripts:
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrator | back to "no project" |
 | `PUT /api/v1/projects/{id}/containers/{containerId}` | administrator | file or move a container image |
 | `DELETE /api/v1/projects/{id}/containers/{containerId}` | administrator | back to "no project" |
+| `GET /api/v1/projects/{id}` | any account, read key | one project as its tree node describes it, with its `solution` (`id`, `name`) |
+| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | any account, read key | its compliance (`compliance`, the estate summary's shape) and `scorecard`, over the targets the caller sees; `partial`, `targetCount` |
+| `GET /api/v1/projects/{id}/components` | any account, read key | the consolidated SBOM: `components` (each with the `targets` carrying it), `targets` (each with its `inventory`), `complete`, `partial` |
+| `GET /api/v1/cyclonedx/projects/{id}/cyclonedx-vex.json` | any account, export key | the same as a CycloneDX 1.5 document with the project's VEX |
 
 `GET /api/v1/repositories` and `GET /api/v1/containers` also say which project each repository or
 image is in (`projectId`, `projectName`). In the tree, each project and the "no project" group list

@@ -18,9 +18,9 @@ A key then passes only on the routes that accept a key, and only with a scope it
 
 | Scope | Allows |
 |---|---|
-| `read` | listing and reading repositories, containers, scans, issues, gate verdicts and the compliance summary |
+| `read` | listing and reading repositories, containers, scans, issues, gate verdicts and the compliance summary; a project read on its own, its components, and a project's or a solution's compliance |
 | `scan` | triggering a scan of a repository or container, and asking the [CI gate](../integrations/ci-gate.md) for a verdict |
-| `export` | SBOM, VEX, CSAF and CycloneDX documents, compliance PDF and evidence bundle, exports |
+| `export` | SBOM, VEX, CSAF and CycloneDX documents — a project's consolidated CycloneDX among them — compliance PDF and evidence bundle, exports |
 | `sarif_import` | depositing an internal tool's SARIF report into a repository — **only once the platform governor has declared the key as a SARIF source**, see [Plugins and SARIF imports](plugins.md). Never granted by default |
 | `report_import` | depositing an internal pipeline's coverage or JUnit test report for a repository — **only once the platform governor has declared the key as a source delivering `coverage` or `test_report`**, see [Importing coverage and test reports](plugins.md#importing-coverage-and-test-reports). It deposits no finding. Never granted by default |
 

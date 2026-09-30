@@ -153,6 +153,42 @@ La liste des dépôts indique sur chaque dépôt le projet où il est rangé —
 l'arbre — ou « — » s'il n'est dans aucun. **Conteneurs** indique de même, sur chaque image,
 **Projet :** et un lien vers ce projet dans l'arbre — ou **sans projet**, un lien vers ce groupe.
 
+## Un projet seul : ses chiffres, sa conformité et ses composants
+
+Quatre lectures répondent pour un projet — ou, pour la conformité, une solution — plutôt que pour
+l'arbre entier, à l'usage d'un écran ou d'un plugin de rapport qui rend compte d'un produit. Chacune
+suit la règle de l'arbre : vous obtenez le projet si vous voyez tout, détenez le projet en tant que tel
+ou voyez au moins un de ses dépôts ou de ses images ; un projet dont vous ne voyez rien reçoit
+exactement la réponse d'un projet inexistant, `404` *Project not found.* (*Solution not found.* pour une
+solution).
+
+- **La lecture du projet** est son nœud dans l'arbre — sa solution nommée, ses dépôts et ses images,
+  ses problèmes ouverts par gravité, **partiel**, si ses checklists vous sont ouvertes, les langages
+  détectés — calculé par le même code, si bien que les deux ne divergent jamais.
+- **La conformité par projet et par solution** est l'évaluation du parc exécutée sur les seules cibles
+  du projet : mêmes contrôles, mêmes plafonds de couverture et de fraîcheur, `NO_DATA` quand aucune de
+  ses cibles n'a été analysée — quel que soit l'état du reste du parc — et la **fiche de score** du
+  portefeuille (score, note, recommandations) calculée de la même manière. Un projet propre dans un parc
+  sale se lit conforme. Voir [Conformité](../guide/compliance.fr.md#par-projet-et-par-solution).
+- **Le SBOM consolidé** fusionne les composants de la dernière analyse terminée de chaque dépôt et de
+  chaque image, par package URL et version, et nomme les cibles qui portent chacun. Chaque cible est
+  listée avec ce qui en a été lu : *listed* (listée), *empty* (son SBOM ne listait rien), *absent* (sa
+  dernière analyse terminée ne garde pas de SBOM) ou *never_scanned* (jamais analysée). L'inventaire
+  d'une analyse plus ancienne ne remplace jamais celui d'une dernière analyse sans SBOM, et le résultat
+  se dit **incomplet** tant qu'une cible est absente ou jamais analysée — une fusion qui les aurait
+  sautées en silence affirmerait « nous n'embarquons pas cette bibliothèque » d'une arborescence que
+  personne n'a regardée.
+- **Le document CycloneDX** de la même fusion, avec les problèmes CVE du projet en VEX. Chaque composant
+  nomme ses porteurs (propriété `vectispire:target`) ; `compositions` vaut `complete` seulement quand
+  toutes les cibles du projet ont été vues et lues, `incomplete` sinon, et les métadonnées nomment chaque
+  cible dont l'inventaire est inconnu. Il n'est pas signé, comme les autres exports.
+
+**Un projet vu en partie est calculé sur la partie vue, et le dit** (`partial`), comme les chiffres de
+l'arbre et la liste des problèmes : chaque entrée est restreinte aux cibles que vous voyez, rien des
+cibles masquées ne vous parvient hormis le fait qu'elles existent. Les checklists de sécurité sont
+l'exception : leurs lignes parlent en mots pour chaque dépôt du projet, elles sont donc refusées à un
+lecteur partiel.
+
 ## Par l'API
 
 Les mêmes opérations, pour les scripts :
@@ -170,6 +206,10 @@ Les mêmes opérations, pour les scripts :
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | retour à « sans projet » |
 | `PUT /api/v1/projects/{id}/containers/{containerId}` | administrateur | ranger ou déplacer une image de conteneur |
 | `DELETE /api/v1/projects/{id}/containers/{containerId}` | administrateur | retour à « sans projet » |
+| `GET /api/v1/projects/{id}` | tout compte, clé de lecture | un projet tel que le décrit son nœud dans l'arbre, avec sa `solution` (`id`, `name`) |
+| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | tout compte, clé de lecture | sa conformité (`compliance`, la forme du résumé du parc) et sa `scorecard`, sur les cibles que voit l'appelant ; `partial`, `targetCount` |
+| `GET /api/v1/projects/{id}/components` | tout compte, clé de lecture | le SBOM consolidé : `components` (chacun avec les `targets` qui le portent), `targets` (chacune avec son `inventory`), `complete`, `partial` |
+| `GET /api/v1/cyclonedx/projects/{id}/cyclonedx-vex.json` | tout compte, clé d'export | le même en document CycloneDX 1.5 avec le VEX du projet |
 
 `GET /api/v1/repositories` et `GET /api/v1/containers` indiquent aussi dans quel projet se trouve
 chaque dépôt ou image (`projectId`, `projectName`). Dans l'arbre, chaque projet et le groupe « sans

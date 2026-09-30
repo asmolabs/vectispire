@@ -370,6 +370,20 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **One project on its own: its read, its compliance and score, its consolidated SBOM.**
+  `GET /api/v1/projects/{id}` reads one project as its node in the tree describes it, its solution
+  named. `GET /api/v1/projects/{id}/compliance` and `GET /api/v1/solutions/{id}/compliance` run the
+  estate's evaluation over the scope's targets only — same controls, same caps, `NO_DATA` when none of
+  them was scanned — with the portfolio scorecard computed the same way. `GET
+  /api/v1/projects/{id}/components` merges the components of the newest completed scan of each
+  repository and image by package URL and version, naming the targets carrying each and what was read
+  of every target (`listed`, `empty`, `absent`, `never_scanned`, and `complete`), and `GET
+  /api/v1/cyclonedx/projects/{id}/cyclonedx-vex.json` renders it as CycloneDX 1.5 with the project's
+  VEX, `compositions` saying whether it is complete. The first three accept a `read` key, the document
+  an `export` key. Each follows the tree's rule: a project seen in part is computed over that part and
+  says `partial`; one seen not at all answers `404` like one that does not exist —
+  [Solutions and projects](../administration/solutions-and-projects.md#one-project-on-its-own-its-figures-compliance-and-components).
+
 - **Container images can be filed in projects** (V59 adds `t_container.project_id`), like
   repositories: at most one project each, filed, moved and taken out by an administrator through
   `PUT` / `DELETE /api/v1/projects/{id}/containers/{containerId}`, audited as
