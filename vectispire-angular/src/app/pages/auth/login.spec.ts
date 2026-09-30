@@ -238,4 +238,39 @@ describe('the sign-in screen', () => {
     it('sends a provisioned account to change its password even when it was going elsewhere', () => {
         expect(signInReturningTo('/issues', { ...USER, mustChangePassword: true })).toBe('/change-password');
     });
+    /** Opens `/login` with `search`, clicks through to the provider, and returns where the browser was sent. */
+    function providerTargetFrom(search: string): string {
+        window.history.replaceState({}, '', '/login' + search);
+        // Assigning the real `location.href` would navigate the test DOM away; a stand-in records it.
+        const sent = { href: '' };
+        try {
+            const page = TestBed.createComponent(Login);
+            page.detectChanges();
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({ configured: true, password: true });
+            vi.spyOn(window, 'location', 'get').mockReturnValue(sent as Location);
+            page.componentInstance.signInWithProvider();
+            return sent.href;
+        } finally {
+            vi.restoreAllMocks();
+            window.history.replaceState({}, '', '/');
+        }
+    }
+
+    it('carries the page asked for through single sign-on, encoded', () => {
+        expect(providerTargetFrom('?returnUrl=' + encodeURIComponent('/issues?is_kev=true&page=2'))).toBe(
+            '/oauth2/authorization/oidc?returnUrl=' + encodeURIComponent('/issues?is_kev=true&page=2')
+        );
+    });
+
+    it('starts single sign-on on the bare path when no page was asked for', () => {
+        expect(providerTargetFrom('')).toBe('/oauth2/authorization/oidc');
+    });
+
+    it('never forwards to the provider a return address it would itself refuse', () => {
+        for (const elsewhere of ['//evil.example', '/\\evil.example', 'https://evil.example']) {
+            expect(providerTargetFrom('?returnUrl=' + encodeURIComponent(elsewhere)), elsewhere).toBe(
+                '/oauth2/authorization/oidc'
+            );
+        }
+    });
 });

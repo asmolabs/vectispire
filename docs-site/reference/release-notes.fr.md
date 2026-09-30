@@ -560,6 +560,10 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   l'horloge a été remise en arrière ou une clé soupçonnée d'avoir fui.
 - L'authentification unique enregistre le second facteur du fournisseur et peut l'exiger
   (`VECTISPIRE_OIDC_REQUIRE_MFA`) ; Vault Transit peut détenir la clé de chiffrement.
+- **Se connecter par l'authentification unique ramène à la page demandée**, filtre compris, au
+  lieu du tableau de bord — et seulement à une page de cette application : l'écran de connexion ne
+  transmet qu'une adresse de retour qu'il suivrait lui-même, et le plan de contrôle la vérifie à
+  nouveau avant de la garder.
 - **Les écrans n'affichent plus l'atteignabilité**, que rien ne calcule : la liste des problèmes
   perd ses étiquettes atteignable / non atteignable, le détail d'un problème son encadré
   d'atteignabilité, la page EPSS sa carte « appelables et armées » et sa colonne, le rayon d'impact

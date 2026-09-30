@@ -506,6 +506,9 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   or a key suspected of having leaked.
 - Single sign-on records the provider's second factor and may require it
   (`VECTISPIRE_OIDC_REQUIRE_MFA`); Vault Transit may hold the encryption key.
+- **Signing in through single sign-on returns to the page asked for**, filter included, instead of
+  the dashboard — and only to a page of this application: the sign-in screen forwards a return
+  address it would follow itself, and the control plane checks it again before keeping it.
 - **The screens no longer show reachability**, which nothing computes: the issues list loses its
   reachable / unreachable tags, the issue detail its reachability panel, the EPSS page its
   "reachable and weaponised" card and its column, the blast radius its column. The scorecard

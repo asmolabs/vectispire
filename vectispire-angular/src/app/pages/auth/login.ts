@@ -152,9 +152,15 @@ export class Login {
      * <p>A real navigation, and the one place one is right: this is not a request for data, it is
      * handing the browser to another origin so it can come back with an authorization code. The
      * session that results is fetched afterwards by the exchange.
+     *
+     * <p>The page asked for travels with it, or the round trip to the provider would drop every
+     * user on the dashboard. Only the value `safeReturnUrl` already accepted is forwarded: the
+     * server checks it again, but the client should never hand on an address it would itself
+     * refuse to follow.
      */
     signInWithProvider(): void {
-        window.location.href = '/oauth2/authorization/oidc';
+        const start = '/oauth2/authorization/oidc';
+        window.location.href = this.returnUrl ? start + '?returnUrl=' + encodeURIComponent(this.returnUrl) : start;
     }
 
     cancelMfa(): void {
