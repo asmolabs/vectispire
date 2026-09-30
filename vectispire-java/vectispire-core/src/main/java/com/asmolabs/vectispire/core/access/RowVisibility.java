@@ -114,6 +114,25 @@ public final class RowVisibility {
     }
 
     /**
+     * Whether the caller sees an existing project <b>whole</b>, in the sense {@link
+     * #requireWhollyVisibleProject} refuses by — the one predicate, so that the solutions tree's {@code
+     * checklistsVisible}, which decides whether a screen offers the checklist link, cannot promise a page
+     * the guard would then answer with a 404, nor hide one it would open. Images play no part: the
+     * checklists speak for the project's repositories (decision 0023, amendment of 2026-09-30).
+     *
+     * @param repositoryIds every repository filed in the project, visible or not
+     */
+    public static boolean seesWholeProject(
+            long projectId, Collection<Long> repositoryIds, VisibilityService.Allowance allowance) {
+        return switch (allowance.visibility()) {
+            case Visibility.Everything ignored -> true;
+            case Visibility.Only only -> allowance.grantedProjects().contains(projectId)
+                    || (!repositoryIds.isEmpty()
+                            && repositoryIds.stream().allMatch(id -> only.permits(new ScanTarget.Repository(id))));
+        };
+    }
+
+    /**
      * A project the caller sees <b>whole</b>, or "Project not found." — for a project that does not
      * exist, one the caller sees nothing of, and one it sees only part of, alike (decision 0032 §8,
      * open question 5).
@@ -135,13 +154,7 @@ public final class RowVisibility {
      */
     public static VisibleProject requireWhollyVisibleProject(
             long projectId, Optional<String> name, Collection<Long> repositoryIds, VisibilityService.Allowance allowance) {
-        boolean whole = name.isPresent() && switch (allowance.visibility()) {
-            case Visibility.Everything ignored -> true;
-            case Visibility.Only only -> allowance.grantedProjects().contains(projectId)
-                    || (!repositoryIds.isEmpty()
-                            && repositoryIds.stream().allMatch(id -> only.permits(new ScanTarget.Repository(id))));
-        };
-        if (!whole) {
+        if (name.isEmpty() || !seesWholeProject(projectId, repositoryIds, allowance)) {
             throw new NotFoundException(PROJECT_NOT_FOUND);
         }
         return new VisibleProject(projectId, name.get());

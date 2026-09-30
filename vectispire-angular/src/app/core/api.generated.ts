@@ -6035,6 +6035,7 @@ export interface components {
             solutionId?: number;
         };
         ProjectNode: {
+            checklistsVisible: boolean;
             /** Format: int32 */
             containerCount: number;
             containers?: components["schemas"]["ContainerRef"][];

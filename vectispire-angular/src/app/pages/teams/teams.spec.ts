@@ -81,6 +81,7 @@ describe('the teams screen', () => {
                         description: null,
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
+                        checklistsVisible: true,
                         repositoryCount: 0,
                         containerCount: 0,
                         openIssues,

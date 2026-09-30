@@ -5954,6 +5954,9 @@
       },
       "ProjectNode" : {
         "properties" : {
+          "checklistsVisible" : {
+            "type" : "boolean"
+          },
           "containerCount" : {
             "format" : "int32",
             "type" : "integer"
@@ -6013,7 +6016,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "containerCount", "partial", "repositoryCount" ],
+        "required" : [ "checklistsVisible", "containerCount", "partial", "repositoryCount" ],
         "type" : "object"
       },
       "ProjectRequest" : {

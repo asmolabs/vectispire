@@ -43,6 +43,7 @@ async function stubTree(page: Page): Promise<void> {
                                 description: null,
                                 createdAt: '2026-09-01T00:00:00Z',
                                 partial: false,
+                                checklistsVisible: true,
                                 repositoryCount: 1,
                                 openIssues: THREE_HIGH,
                                 repositories: [

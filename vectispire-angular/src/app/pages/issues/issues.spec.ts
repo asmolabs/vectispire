@@ -602,6 +602,7 @@ describe('the backlog narrowed to a project or a solution', () => {
                         description: null,
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
+                        checklistsVisible: true,
                         repositoryCount: 1,
                         containerCount: 0,
                         openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },

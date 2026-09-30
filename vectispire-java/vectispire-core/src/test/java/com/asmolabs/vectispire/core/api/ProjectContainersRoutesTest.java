@@ -283,6 +283,66 @@ class ProjectContainersRoutesTest extends ApiTestBase {
         assertThat(solutionNode(tree, solution).path("partial").asBoolean()).isTrue();
     }
 
+    @Test
+    @DisplayName("checklistsVisible says what the checklists' guard answers, images aside: never offered where it 404s, never hidden where it opens")
+    void checklistsVisibleAgreesWithTheGuard() throws Exception {
+        restrict();
+        long solution = solution(unique("guard"));
+        long mixed = project(solution, "Mixed");
+        long first = repository();
+        long second = repository();
+        long image = container(unique("guard"));
+        file("repositories", mixed, first);
+        file("repositories", mixed, second);
+        file("containers", mixed, image);
+        long imagesOnly = project(solution, "Images only");
+        long lone = container(unique("lone"));
+        file("containers", imagesOnly, lone);
+
+        // Every target seen.
+        Reader all = reader();
+        grantAll(all.id(), new Grant("repository", first), new Grant("repository", second), new Grant("container", image));
+        assertAgreement(all.token(), mixed, false, true);
+        // A repository hidden: partial, and the guard refuses.
+        Reader oneRepository = reader();
+        grantAll(oneRepository.id(), new Grant("repository", first), new Grant("container", image));
+        assertAgreement(oneRepository.token(), mixed, true, false);
+        // Only an image hidden: partial, and the guard still opens — the case the flag exists for.
+        Reader repositoriesOnly = reader();
+        grantAll(repositoriesOnly.id(), new Grant("repository", first), new Grant("repository", second));
+        assertAgreement(repositoriesOnly.token(), mixed, true, true);
+        // No repository at all: "every one of none" opens nothing to a reader holding only the image...
+        Reader imageReader = reader();
+        grantAll(imageReader.id(), new Grant("container", lone));
+        assertAgreement(imageReader.token(), imagesOnly, false, false);
+        // ...and it opens to whoever holds the project as such, and to whoever sees everything.
+        Reader grantee = reader();
+        grantAll(grantee.id(), new Grant("project", imagesOnly));
+        assertAgreement(grantee.token(), imagesOnly, false, true);
+        assertAgreement(asAdmin(), imagesOnly, false, true);
+    }
+
+    private void assertAgreement(String token, long project, boolean partial, boolean checklistsVisible) throws Exception {
+        JsonNode node = projectNode(tree(token), project);
+        assertThat(node.path("partial").asBoolean()).as("partial").isEqualTo(partial);
+        assertThat(node.path("checklistsVisible").isBoolean()).as("checklistsVisible is on the wire").isTrue();
+        assertThat(node.path("checklistsVisible").asBoolean()).as("checklistsVisible").isEqualTo(checklistsVisible);
+        mvc.perform(authenticated(get("/api/v1/projects/" + project + "/checklists"), token))
+                .andExpect(checklistsVisible ? status().isOk() : status().isNotFound());
+    }
+
+    private record Grant(String kind, long id) {}
+
+    private void grantAll(long userId, Grant... targets) throws Exception {
+        List<Map<String, Object>> body = java.util.Arrays.stream(targets)
+                .map(target -> Map.<String, Object>of("kind", target.kind(), "id", target.id()))
+                .toList();
+        mvc.perform(authenticated(put("/api/v1/users/" + userId + "/targets"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(body)))
+                .andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------------------------ filters
 
     @Test

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
@@ -109,6 +110,13 @@ public class SolutionQueryService {
     /**
      * @param partial the project holds repositories or images this reader does not see; its figures
      *     and its lists cover only those they do
+     * @param checklistsVisible the project's checklists are open to this reader — exactly the verdict of
+     *     their whole-project guard ({@code RowVisibility.seesWholeProject}): true when the reader sees
+     *     everything, or holds the project granted as such, or sees every one of its repositories and it
+     *     has at least one. Images play no part, so a project whose only hidden target is an image is
+     *     {@code partial} and still {@code checklistsVisible}; a project with no repository is
+     *     {@code checklistsVisible} only to a reader who sees everything or holds its grant, since "every
+     *     one of none" would open an empty project to anybody
      * @param repositoryCount the repositories listed, which are the visible ones
      * @param openIssues over the listed repositories <b>and</b> the listed images
      * @param detectedLanguages the union of the languages the listed repositories' newest completed
@@ -129,6 +137,7 @@ public class SolutionQueryService {
             String description,
             Instant createdAt,
             boolean partial,
+            boolean checklistsVisible,
             int repositoryCount,
             OpenIssues openIssues,
             List<RepositoryRef> repositories,
@@ -240,6 +249,11 @@ public class SolutionQueryService {
                 byProject(visibleContainers, ContainerEntity::getProjectId);
         // Every filed target, visible or not, per project: what "partial" is measured against.
         Map<Long, Long> filedByProject = new HashMap<>();
+        // Every filed repository, visible or not, per project: what the checklists' guard compares.
+        Map<Long, List<Long>> repositoryIdsByProject = allRepositories.stream()
+                .filter(repository -> repository.getProjectId() != null)
+                .collect(Collectors.groupingBy(RepositoryEntity::getProjectId,
+                        Collectors.mapping(RepositoryEntity::getId, Collectors.toList())));
         Stream.concat(allRepositories.stream().map(RepositoryEntity::getProjectId),
                         allContainers.stream().map(ContainerEntity::getProjectId))
                 .filter(java.util.Objects::nonNull)
@@ -266,6 +280,8 @@ public class SolutionQueryService {
                         visibleByProject.getOrDefault(project.getId(), List.of()),
                         visibleContainersByProject.getOrDefault(project.getId(), List.of()),
                         filedByProject.getOrDefault(project.getId(), 0L),
+                        RowVisibility.seesWholeProject(project.getId(),
+                                repositoryIdsByProject.getOrDefault(project.getId(), List.of()), allowance),
                         open,
                         languages))
                 .sorted(Comparator.comparing(ProjectNode::name, String.CASE_INSENSITIVE_ORDER))
@@ -304,6 +320,7 @@ public class SolutionQueryService {
             List<RepositoryEntity> visible,
             List<ContainerEntity> visibleContainers,
             long filed,
+            boolean checklistsVisible,
             Map<ScanTarget, Map<Severity, Long>> open,
             Map<Long, Set<Language>> languages) {
         Set<Language> union = EnumSet.noneOf(Language.class);
@@ -324,6 +341,7 @@ public class SolutionQueryService {
                 project.getDescription(),
                 project.getCreatedAt(),
                 visible.size() + visibleContainers.size() < filed,
+                checklistsVisible,
                 visible.size(),
                 sum(visible, visibleContainers, open),
                 refs(visible),
