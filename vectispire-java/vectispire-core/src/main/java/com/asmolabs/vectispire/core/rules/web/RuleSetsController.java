@@ -12,9 +12,12 @@ import com.asmolabs.vectispire.core.rules.RuleCatalogueFetcher;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.rules.RuleSetAdministrationService;
 import com.asmolabs.vectispire.core.rules.RuleSetAdministrationService.RuleSetListing;
+import com.asmolabs.vectispire.core.rules.RuleSetLosesIssuesException;
 import com.asmolabs.vectispire.core.rules.RuleSetView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -36,7 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
  * <p><b>Upload and activation are two calls, deliberately.</b> Activation is the destructive
  * one: a rule that is not in the new set stops being found, and the next scan resolves its open
  * issues along with their triage. The impact route exists so the screen can say how many, by
- * name, before anybody clicks — and the number it showed is recorded on the activation.
+ * name, before anybody clicks — and the activation is refused unless it carries that number back
+ * ({@code acceptLosing}), which the audit entry records.
  */
 @RestController
 @RequestMapping("/api/v1/rule-sets")
@@ -60,7 +64,21 @@ public class RuleSetsController {
 
     public record Uploaded(Long id, String contentHash, int ruleCount, int fileCount) {}
 
-    public record ActivateRequest(String note) {}
+    /**
+     * @param note what the operator was shown when they confirmed
+     * @param acceptLosing the number of open issues the caller accepts to see resolved — the impact's
+     *     {@code affectedIssues}, or the refusal's; needed only when the activation resolves some
+     */
+    public record ActivateRequest(String note, Long acceptLosing) {}
+
+    /** @param acceptLosing as on an activation: needed only when the active set's rules hold open issues */
+    public record DeactivateRequest(Long acceptLosing) {}
+
+    private static final String LOSS_RULE = " A change that would resolve open issues at the next scan — their "
+            + "rules leave the active set — answers 409 with the type urn:vectispire:problem:"
+            + RuleSetLosesIssuesException.CAUSE + ", its affectedIssues and losingIssues members read at the "
+            + "refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with "
+            + "the current one. A change that resolves nothing needs no acceptLosing.";
 
     /**
      * @param languages how many rule files each holds, so a choice is made on a number rather
@@ -200,7 +218,19 @@ public class RuleSetsController {
      *
      * <p>{@code note} is what the operator was shown when they confirmed. Recording it is what
      * makes "why did four hundred issues close that afternoon" answerable six months later.
+     * {@code acceptLosing} is what makes the loss a decision: without it an activation that
+     * resolves open issues is refused, and the refusal says how many.
      */
+    @Operation(summary = "Activate rule set", description = "Makes this set the active one, beside the bundled "
+            + "rules." + LOSS_RULE)
+    // Declaring the 409 drops the 200 springdoc would infer, so it is declared too, as it was inferred.
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "*/*", schema = @Schema(type = "object",
+                    additionalProperties = Schema.AdditionalPropertiesValue.TRUE)))
+    @ApiResponse(responseCode = "409", description = "The activation would resolve open issues and acceptLosing "
+            + "is not their number",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = RuleSetRefusals.LosesIssues.class)))
     @RequiresSecurityLead
     @PostMapping("/{id}/activate")
     public Map<String, Object> activate(
@@ -210,17 +240,33 @@ public class RuleSetsController {
             HttpServletRequest request) {
 
         String note = body == null || body.note() == null || body.note().isBlank() ? null : body.note().trim();
-        RuleSetView activated = administration.activate(id, note, RequestActors.of(principal, request));
+        Long acceptLosing = body == null ? null : body.acceptLosing();
+        RuleSetView activated = administration.activate(id, note, acceptLosing, RequestActors.of(principal, request));
         return Map.of("id", activated.id(), "contentHash", activated.contentHash());
     }
 
+    /** What returning to the bundled rules alone would cost, as {@link #impact} says it for a set. */
+    @GetMapping("/deactivate/impact")
+    public TriageImpact deactivationImpact() {
+        return administration.deactivationImpact();
+    }
+
     /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */
+    @Operation(summary = "Deactivate rule sets", description = "Returns to the bundled rules alone." + LOSS_RULE)
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "*/*", schema = @Schema(type = "object",
+                    additionalProperties = Schema.AdditionalPropertiesValue.TRUE)))
+    @ApiResponse(responseCode = "409", description = "Returning to the bundled rules would resolve open issues and "
+            + "acceptLosing is not their number",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = RuleSetRefusals.LosesIssues.class)))
     @RequiresSecurityLead
     @PostMapping("/deactivate")
     public Map<String, Object> deactivate(
+            @RequestBody(required = false) DeactivateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal, HttpServletRequest request) {
 
-        administration.deactivate(RequestActors.of(principal, request));
+        administration.deactivate(body == null ? null : body.acceptLosing(), RequestActors.of(principal, request));
         return java.util.Collections.singletonMap("active", null);
     }
 }

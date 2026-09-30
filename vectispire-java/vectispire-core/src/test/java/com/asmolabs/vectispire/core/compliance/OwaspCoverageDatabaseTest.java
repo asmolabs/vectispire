@@ -73,7 +73,7 @@ class OwaspCoverageDatabaseTest extends VectispireContextTest {
         repositories.deleteAll();
 
         settings.set(Setting.SAST_ENABLED, "true");
-        ruleSets.deactivateAll();
+        ruleSets.deactivateAll(null);
 
         alpha = repository("ssh://git@example.com/team/alpha.git", "alpha");
         beta = repository("ssh://git@example.com/team/beta.git", "beta");
@@ -204,7 +204,7 @@ class OwaspCoverageDatabaseTest extends VectispireContextTest {
 
         ruleSets.activate(ruleSets.store(
                 List.of(new RuleSet.UploadedFile("java/injection.yaml", rule)), "team rules", "tester").getId(),
-                "installed by a test");
+                "installed by a test", null);
     }
 
     private static OwaspCoverage.CoverageLine line(OwaspCoverage.Grid grid, String id) {

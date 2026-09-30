@@ -119,29 +119,56 @@ public class RuleSetAdministrationService {
         return RuleSetView.of(stored);
     }
 
+    /** What returning to the bundled rules alone would cost: the active set's rules leave. */
+    public TriageImpact deactivationImpact() {
+        return ruleSets.deactivationImpact();
+    }
+
     /**
-     * Activates a set, recording the impact the operator was shown.
+     * Activates a set, recording the impact the operator was shown and the loss they accepted.
      *
      * @param note what the screen showed when they confirmed — what makes "why did four hundred
      *     issues close that afternoon" answerable six months later
+     * @param acceptLosing the open issues the caller accepts to see resolved; the activation is
+     *     refused ({@link RuleSetLosesIssuesException}) when it resolves some and this is not their
+     *     number
      */
-    public RuleSetView activate(long id, String note, RequestActor actor) {
-        SemgrepRuleSetEntity activated = ruleSets.activate(id, note);
+    public RuleSetView activate(long id, String note, Long acceptLosing, RequestActor actor) {
+        RuleSetService.Activation activation = ruleSets.activate(id, note, acceptLosing);
+        SemgrepRuleSetEntity activated = activation.activated();
 
         audit.record(actor.entry(
                 AuditOperation.RULE_SET_ACTIVATED,
                 String.valueOf(activated.getId()),
-                "Rule set \"" + activated.getName() + "\" activated. "
+                "Rule set \"" + activated.getName() + "\" activated. " + acceptedLoss(activation.accepted()) + " "
                         + (activated.getActivationNote() == null ? "No impact recorded." : activated.getActivationNote())));
         return RuleSetView.of(activated);
     }
 
-    /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */
-    public void deactivate(RequestActor actor) {
-        ruleSets.deactivateAll();
+    /**
+     * Returns to the bundled rules alone. Audited like an activation, and refused like one when the
+     * active set's rules leave open issues behind.
+     */
+    public void deactivate(Long acceptLosing, RequestActor actor) {
+        TriageImpact accepted = ruleSets.deactivateAll(acceptLosing);
         audit.record(actor.entry(
                 AuditOperation.RULE_SET_DEACTIVATED,
                 "all",
-                "Uploaded rule sets deactivated; scans fall back to the bundled rules."));
+                "Uploaded rule sets deactivated; scans fall back to the bundled rules. " + acceptedLoss(accepted)));
+    }
+
+    /**
+     * The loss the caller accepted, in the entry, written by the server from its own count — the
+     * note beside it is the client's words, and a client that sent none would otherwise leave the
+     * entry saying nothing of four hundred issues closing. Before the note and the rule ids after
+     * the count: the description is cut at 255 characters, and the number is the part that must
+     * survive the cut (the note is kept whole on the set's row).
+     */
+    private static String acceptedLoss(TriageImpact accepted) {
+        if (accepted.affectedIssues() == 0) {
+            return "No open issue resolves.";
+        }
+        return "Accepted loss: " + accepted.affectedIssues() + " open issue(s), " + accepted.losingIssues().size()
+                + " rule(s): " + String.join(", ", accepted.losingIssues()) + ".";
     }
 }

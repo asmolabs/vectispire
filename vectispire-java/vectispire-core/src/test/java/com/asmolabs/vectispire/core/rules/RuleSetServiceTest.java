@@ -124,6 +124,22 @@ class RuleSetServiceTest {
     }
 
     @Test
+    @DisplayName("the bundled rules run beside every set, so their issues are never counted as lost")
+    void impactLeavesTheBundledRulesOut() {
+        when(ruleSets.findByIsActiveTrue()).thenReturn(Optional.of(set("rules:\n  - id: xxe\n")));
+        when(issues.countOpenByIdentifier(anyString(), anyString()))
+                .thenReturn(List.of(new Object[] {"vectispire.python.eval-on-input", 3L}, new Object[] {"xxe", 2L}));
+
+        TriageImpact impact = service.impactOf(set("rules:\n  - id: ssrf\n"));
+
+        // Counted, they made every activation announce — and now demand the acceptance of — a
+        // resolution that never happens.
+        assertThat(impact.losingIssues()).containsExactly("xxe");
+        assertThat(impact.affectedIssues()).isEqualTo(2);
+        assertThat(service.deactivationImpact().losingIssues()).containsExactly("xxe");
+    }
+
+    @Test
     @DisplayName("activation deactivates first, then activates, and re-reads")
     void activationIsOrderedAndRefreshed() {
         SemgrepRuleSetEntity target = set("rules:\n  - id: ssrf\n");
@@ -137,7 +153,7 @@ class RuleSetServiceTest {
         when(ruleSets.findById(3L))
                 .thenAnswer(call -> Optional.of(reads.getAndIncrement() == 0 ? target : activated));
 
-        assertThat(service.activate(3L, "approved by security").getIsActive()).isTrue();
+        assertThat(service.activate(3L, "approved by security", null).activated().getIsActive()).isTrue();
 
         // The order is the guarantee: activating first would collide with the unique index,
         // and the retry would leave no set active at all — the bundled rule, silently.
@@ -151,7 +167,7 @@ class RuleSetServiceTest {
         when(ruleSets.findById(99L)).thenReturn(Optional.empty());
 
         // Absent, answered 404 by the handler — not a malformed request.
-        assertThatThrownBy(() -> service.activate(99L, null)).isInstanceOf(java.util.NoSuchElementException.class);
+        assertThatThrownBy(() -> service.activate(99L, null, null)).isInstanceOf(java.util.NoSuchElementException.class);
     }
 
     /**

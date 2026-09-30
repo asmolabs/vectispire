@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.scanning.BundledRules;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetRepository;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
@@ -18,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -155,13 +157,46 @@ public class RuleSetService {
      *
      * <p>Counted from the open SAST issues that exist right now rather than from the previously
      * uploaded set, because the backlog is the authority on what has something to lose: rules
-     * also arrive from the bundled tree and from {@code VECTISPIRE_SEMGREP_RULES_DIR}.
+     * also arrive from the bundled tree and from {@code VECTISPIRE_SEMGREP_RULES_DIR}. The bundled
+     * rules run beside whichever set is active, so their issues lose nothing and are left out:
+     * counted, they made an activation announce the resolution of issues it never resolves — and,
+     * since activation refuses an announced loss, demand that it be accepted. The operator's
+     * directory cannot be read from here and stays counted: an overstatement the operator accepts
+     * with its number, never a loss nobody was told about.
      */
     @Transactional(readOnly = true)
     public TriageImpact impactOf(SemgrepRuleSetEntity candidate) {
-        Set<String> current = active().map(row -> RuleSet.ruleIdsOf(filesOf(row))).orElseGet(Set::of);
-        return RuleSet.impact(current, RuleSet.ruleIdsOf(filesOf(candidate)), openSastIssuesByRule());
+        return impactOfReplacingWith(RuleSet.ruleIdsOf(filesOf(candidate)));
     }
+
+    /** What returning to the bundled rules alone would do to the backlog: the active set's rules leave. */
+    @Transactional(readOnly = true)
+    public TriageImpact deactivationImpact() {
+        return impactOfReplacingWith(Set.of());
+    }
+
+    private TriageImpact impactOfReplacingWith(Set<String> uploaded) {
+        Set<String> bundled = bundledRuleIds();
+        Set<String> current = new LinkedHashSet<>(bundled);
+        active().ifPresent(row -> current.addAll(RuleSet.ruleIdsOf(filesOf(row))));
+        Set<String> next = new LinkedHashSet<>(bundled);
+        next.addAll(uploaded);
+        return RuleSet.impact(current, next, openSastIssuesByRule());
+    }
+
+    private static Set<String> bundledRuleIds() {
+        Set<String> ids = new LinkedHashSet<>();
+        BundledRules.expected().stream()
+                .filter(path -> path.startsWith("semgrep/"))
+                .forEach(path -> ids.addAll(RuleSet.ruleIdsIn(BundledRules.contentOf(path))));
+        return ids;
+    }
+
+    /**
+     * An activation, and the loss it was allowed to cause — none, or exactly the count the caller
+     * accepted.
+     */
+    public record Activation(SemgrepRuleSetEntity activated, TriageImpact accepted) {}
 
     /**
      * Activates a set, and records what the operator was told it would cost.
@@ -169,9 +204,18 @@ public class RuleSetService {
      * <p>In one transaction with the deactivation: the unique index makes two active rows
      * impossible, so a half-applied change would leave <em>none</em> active — silently falling
      * back to the bundled rule, which is precisely the outcome this feature exists to prevent.
+     *
+     * <p><b>An activation that resolves open issues is refused unless the caller names their
+     * number</b> ({@link RuleSetLosesIssuesException}). The preview route said how many, and the
+     * button went ahead whatever the preview said, or whether anybody read it. The number is read
+     * again here, in the transaction that activates, and must equal what the caller accepted: a
+     * preview taken before new findings arrived authorises the loss it showed, never more.
+     *
+     * @param acceptLosing the number of open issues the caller accepts to see resolved; ignored when
+     *     the activation resolves none
      */
     @Transactional
-    public SemgrepRuleSetEntity activate(long id, String note) {
+    public Activation activate(long id, String note, Long acceptLosing) {
         // 404, not 400: the path names a set that is not there, which is the answer the impact
         // route beside it already gives for the same id. An invalid-rule-set refusal said the
         // request was malformed, and a client retried it with a different body.
@@ -185,18 +229,32 @@ public class RuleSetService {
             throw new InvalidRuleSetException("The activation note is longer than " + BoundedText.TEXT_MAX + " characters.");
         }
 
+        TriageImpact impact = impactOf(target);
+        RuleSetLosesIssuesException.refuseUnlessAccepted(impact, acceptLosing, "Activating this rule set");
+
         ruleSets.deactivateAll();
         ruleSets.activate(target.getId(), note);
 
         // Re-read rather than mutating the object in hand: the two statements above bypass the
         // persistence context, so the entity loaded before them still says what it said.
-        return ruleSets.findById(id).orElseThrow(() -> new NotFoundException("No rule set with id " + id + "."));
+        return new Activation(
+                ruleSets.findById(id).orElseThrow(() -> new NotFoundException("No rule set with id " + id + ".")),
+                impact);
     }
 
-    /** Returns to the bundled rules alone. */
+    /**
+     * Returns to the bundled rules alone, refused like an activation when the active set's rules
+     * leave open issues behind: the bundled rules are a set too, and a narrower one than any
+     * uploaded.
+     *
+     * @return the loss accepted — none, or exactly {@code acceptLosing}
+     */
     @Transactional
-    public void deactivateAll() {
+    public TriageImpact deactivateAll(Long acceptLosing) {
+        TriageImpact impact = deactivationImpact();
+        RuleSetLosesIssuesException.refuseUnlessAccepted(impact, acceptLosing, "Returning to the bundled rules");
         ruleSets.deactivateAll();
+        return impact;
     }
 
     /**
