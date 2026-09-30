@@ -45,15 +45,16 @@ erDiagram
 
 Un dépôt appartient à **un projet au plus**, par une colonne `t_repository.project_id` nullable
 plutôt qu'une table de liaison, pour qu'un chiffre s'additionne à un seul projet sans double
-comptage ([0023](decisions/0023-solutions-projects-and-repositories.md)). Les dépôts existants
-démarrent sans projet ; rien n'est déduit. Supprimer un projet ramène ses dépôts à « sans projet »
+comptage ([0023](decisions/0023-solutions-projects-and-repositories.md)) ; une image de conteneur
+aussi, par `t_container.project_id` (V59, l'amendement du 2026-09-30). Les cibles existantes démarrent
+sans projet ; rien n'est déduit. Supprimer un projet ramène ses dépôts et ses images à « sans projet »
 et révoque ses attributions ; une solution n'est supprimée que lorsqu'elle ne contient plus aucun
 projet.
 
 Les attributions vivent dans `t_user_target` et `t_team_target` sous la forme
 `(target_kind, target_id)`, et le type peut être `repository`, `container` ou `project` — jamais une
 solution. Une attribution de projet n'est pas recopiée en attributions de dépôts :
-`VisibilityService` la résout en dépôts du projet **à chaque requête**, si bien que la `Visibility`
+`VisibilityService` la résout en dépôts et images du projet **à chaque requête**, si bien que la `Visibility`
 reçue par chaque requête reste un ensemble de cibles.
 
 ## L'empreinte (Fingerprint)

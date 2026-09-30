@@ -12,10 +12,10 @@ there for six scans, what has gone away. A report says what exists today; a back
 changed, which is the only information anyone acts on.
 
 Targets are scanned one by one, but organisations read them by product: a **solution** holds
-**projects**, and a project references the repositories that make it up — each repository in at
-most one project, and "no project" treated as a group of its own
+**projects**, and a project references the repositories and container images that make it up — each
+in at most one project, and "no project" treated as a group of its own
 ([0023](decisions/0023-solutions-projects-and-repositories.md)). A grant may name a project, and
-per-project figures are computed over the repositories the reader may see.
+per-project figures are computed over the repositories and images the reader may see.
 
 The second use is the **compliance verdict**: `POST /api/v1/gate` tells a build pipeline whether a
 target passes, according to an explicit policy. This is where Vectispire stops being a dashboard and

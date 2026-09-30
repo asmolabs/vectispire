@@ -43,14 +43,15 @@ erDiagram
 
 A repository belongs to **at most one** project, through a nullable `t_repository.project_id`
 rather than a link table, so that a figure adds up to one project without double counting
-([0023](decisions/0023-solutions-projects-and-repositories.md)). Existing repositories start with
-no project; nothing is inferred. Deleting a project sets its repositories back to no project and
+([0023](decisions/0023-solutions-projects-and-repositories.md)); so does a container image, through
+`t_container.project_id` (V59, the amendment of 2026-09-30). Existing targets start with no project;
+nothing is inferred. Deleting a project sets its repositories and images back to no project and
 revokes its grants; a solution is deleted only when it holds no project.
 
 Grants live in `t_user_target` and `t_team_target` as `(target_kind, target_id)`, and the kind may
 be `repository`, `container` or `project` — never a solution. A project grant is not copied into
-repository grants: `VisibilityService` resolves it into the project's repositories **at each
-request**, so the `Visibility` every query receives is still a set of targets.
+repository grants: `VisibilityService` resolves it into the project's repositories and images **at
+each request**, so the `Visibility` every query receives is still a set of targets.
 
 ## The fingerprint
 
