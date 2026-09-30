@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { ProjectView, Schema, SolutionTree, SolutionView } from '../api.models';
 
 /**
- * Solutions, the projects they hold and the repositories filed in them (decision 0023).
+ * Solutions, the projects they hold and the repositories and images filed in them (decision 0023).
  *
  * One stateless client per domain, named `*.api.ts` / `*Api` so that it is never mistaken for a
  * `*.service.ts` or a store holding state, and so that `scripts/check-dead-api-methods.mjs` knows
@@ -45,7 +45,7 @@ export class SolutionsApi {
         return this.http.patch<ProjectView>(`/api/v1/projects/${id}`, changes);
     }
 
-    /** Its repositories return to "no project" and every grant naming it is revoked. */
+    /** Its repositories and images return to "no project" and every grant naming it is revoked. */
     deleteProject(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/projects/${id}`);
     }
@@ -61,5 +61,18 @@ export class SolutionsApi {
     /** Back to "no project". */
     unfileRepository(projectId: number, repositoryId: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/projects/${projectId}/repositories/${repositoryId}`);
+    }
+
+    /**
+     * Files a container image into a project, moving it like a repository — and, like one, an access
+     * change: a project grant covers the images the project holds too (decision 0023, amendment).
+     */
+    fileContainer(projectId: number, containerId: number): Observable<void> {
+        return this.http.put<void>(`/api/v1/projects/${projectId}/containers/${containerId}`, null);
+    }
+
+    /** Back to "no project"; 404 when the image is not in that project. */
+    unfileContainer(projectId: number, containerId: number): Observable<void> {
+        return this.http.delete<void>(`/api/v1/projects/${projectId}/containers/${containerId}`);
     }
 }

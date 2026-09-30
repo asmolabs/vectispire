@@ -422,7 +422,8 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   chaque projet et celles qui ne sont rangées nulle part ; le déplacement d'un projet les emporte ; la
   suppression d'un projet les ramène à « sans projet » ; une équipe titulaire d'un projet est notifiée
   des analyses de ses images. `GET /api/v1/containers` nomme le projet de chaque image (`projectId`,
-  `projectName`). Les checklists ne mesurent toujours que les dépôts d'un projet —
+  `projectName`), et **Conteneurs** l'affiche avec un lien vers l'arbre, où les images se rangent par
+  les mêmes fenêtres que les dépôts. Les checklists ne mesurent toujours que les dépôts d'un projet —
   [Solutions et projets](../administration/solutions-and-projects.fr.md#ce-qui-reste-propre-aux-depots).
 
 - **Les langages détectés dans un dépôt sont conservés.** Chaque scan de dépôt recense les langages

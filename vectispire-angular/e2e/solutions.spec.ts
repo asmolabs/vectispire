@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { goTo, signInAs } from './support/session';
+import { BOOTSTRAP_PASSWORD, E2E_PASSWORD, goTo, signInAs } from './support/session';
 import { resetLoginThrottle } from './support/fixture';
 
 /**
@@ -7,7 +7,7 @@ import { resetLoginThrottle } from './support/fixture';
  *
  * <p>The unit spec pins the screen against fixtures; this pins it against the routes: that an
  * ordinary account reaches the tree through the sidebar and is offered no change, and that an
- * administrator's create, move, delete and their confirmations go through. Names carry a suffix and are
+ * administrator's create, move, delete, the filing of an image and their confirmations go through. Names carry a suffix and are
  * deleted at the end, because the campaign's SQLite file survives a local re-run and names are
  * unique.
  */
@@ -59,6 +59,18 @@ async function stubTree(page: Page): Promise<void> {
             })
         })
     );
+}
+
+/** A bearer token for `page.request`: the session lives in memory, where no request can read it. */
+async function adminToken(page: Page): Promise<string> {
+    for (const password of [E2E_PASSWORD, BOOTSTRAP_PASSWORD]) {
+        const response = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password } });
+        if (response.ok()) {
+            const token = ((await response.json()) as { token?: string }).token;
+            if (token) return token;
+        }
+    }
+    throw new Error('no token for admin');
 }
 
 test.describe('Solutions and projects', () => {
@@ -147,6 +159,77 @@ test.describe('Solutions and projects', () => {
         await target.getByRole('button', { name: `Delete ${to}` }).click();
         await page.getByRole('button', { name: 'Confirm' }).click();
         await expect(page.getByRole('heading', { name: to, level: 2 })).toHaveCount(0, { timeout: 15_000 });
+    });
+
+    /**
+     * An image filed into a project and taken out again, through the select and the confirmation a
+     * user drives. The image and the project are created through the API — the screens that create
+     * them have suites of their own — and the containers page is read in between, because the
+     * project it shows comes from another route than the tree's.
+     */
+    test('an administrator files an image into a project, sees it on the image list, and removes it', async ({
+        page
+    }) => {
+        const suffix = Date.now().toString(36);
+        await signInAs(page, 'ADMIN');
+        const headers = { Authorization: `Bearer ${await adminToken(page)}` };
+        const solution = await page.request.post('/api/v1/solutions', {
+            headers,
+            data: { name: `E2E images ${suffix}` }
+        });
+        expect(solution.ok(), await solution.text()).toBe(true);
+        const solutionId = ((await solution.json()) as { id: number }).id;
+        const project = await page.request.post(`/api/v1/solutions/${solutionId}/projects`, {
+            headers,
+            data: { name: `Runtime ${suffix}` }
+        });
+        expect(project.ok(), await project.text()).toBe(true);
+        const projectId = ((await project.json()) as { id: number }).id;
+        const container = await page.request.post('/api/v1/containers', {
+            headers,
+            data: { image_name: `e2e/image-${suffix}`, tag: '1.0' }
+        });
+        expect(container.ok(), await container.text()).toBe(true);
+        const containerId = ((await container.json()) as { id: number }).id;
+
+        try {
+            await goTo(page, '/solutions');
+            const unfiled = page.getByTestId('unfiled');
+            const row = unfiled.getByTestId('unfiled-image').filter({ hasText: `image-${suffix}` });
+            await expect(row).toBeVisible({ timeout: 15_000 });
+            const name = (await row.getByRole('link').innerText()).trim();
+
+            await page.getByRole('button', { name: `File ${name} into a project` }).click();
+            await page.locator('p-select', { has: page.locator('#target-project') }).click();
+            await page.getByRole('option', { name: `Runtime ${suffix}`, exact: true }).click();
+            await expect(page.getByTestId('file-consequence')).toContainText(
+                `Filing ${name} into E2E images ${suffix} / Runtime ${suffix} is an access change`
+            );
+            const put = page.waitForRequest((request) => request.method() === 'PUT');
+            await page.getByRole('dialog').getByRole('button', { name: 'File into project' }).click();
+            expect(new URL((await put).url()).pathname).toBe(`/api/v1/projects/${projectId}/containers/${containerId}`);
+
+            const filed = page.getByTestId(`project-${projectId}`);
+            await expect(filed.getByTestId('project-image')).toContainText(name, { timeout: 15_000 });
+            await expect(filed.getByTestId('container-count')).toContainText('Images: 1');
+            await expect(row).toHaveCount(0);
+
+            await goTo(page, '/containers');
+            const link = page.getByRole('link', { name: `E2E images ${suffix} / Runtime ${suffix}` });
+            await expect(link).toBeVisible({ timeout: 15_000 });
+            await expect(link).toHaveAttribute('href', `/solutions#project-${projectId}`);
+
+            await goTo(page, '/solutions');
+            await filed.getByRole('button', { name: `Remove ${name} from its project` }).click();
+            await expect(page.getByTestId('confirm-text')).toContainText(`Return ${name} to “no project”?`);
+            await page.getByRole('button', { name: 'Confirm' }).click();
+            await expect(filed.getByTestId('project-image')).toHaveCount(0, { timeout: 15_000 });
+            await expect(row).toBeVisible();
+        } finally {
+            await page.request.delete(`/api/v1/containers/${containerId}`, { headers });
+            await page.request.delete(`/api/v1/projects/${projectId}`, { headers });
+            await page.request.delete(`/api/v1/solutions/${solutionId}`, { headers });
+        }
     });
 
     /**

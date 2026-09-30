@@ -88,12 +88,21 @@
                                 severity="secondary"
                                 [value]="'solutions.repository_count' | translate: { count: solution.repositoryCount }"
                             />
+                            <p-tag
+                                severity="secondary"
+                                data-testid="container-count"
+                                [value]="'solutions.container_count' | translate: { count: solution.containerCount }"
+                            />
                             @if (solution.partial) {
                                 <p-tag
                                     severity="warn"
                                     icon="pi pi-eye-slash"
                                     data-testid="partial"
-                                    [value]="'solutions.partial' | translate: { count: solution.repositoryCount }"
+                                    [value]="
+                                        'solutions.partial'
+                                            | translate
+                                                : { count: solution.repositoryCount, images: solution.containerCount }
+                                    "
                                 />
                             }
                             <ng-container
@@ -166,13 +175,26 @@
                                                     | translate: { count: project.repositoryCount }
                                             "
                                         />
+                                        <p-tag
+                                            severity="secondary"
+                                            data-testid="container-count"
+                                            [value]="
+                                                'solutions.container_count'
+                                                    | translate: { count: project.containerCount }
+                                            "
+                                        />
                                         @if (project.partial) {
                                             <p-tag
                                                 severity="warn"
                                                 icon="pi pi-eye-slash"
                                                 data-testid="partial"
                                                 [value]="
-                                                    'solutions.partial' | translate: { count: project.repositoryCount }
+                                                    'solutions.partial'
+                                                        | translate
+                                                            : {
+                                                                  count: project.repositoryCount,
+                                                                  images: project.containerCount
+                                                              }
                                                 "
                                             />
                                         }
@@ -258,7 +280,7 @@
                                 }
                             </div>
 
-                            @if ((project.repositories ?? []).length === 0) {
+                            @if ((project.repositories ?? []).length === 0 && (project.containers ?? []).length === 0) {
                                 <p class="text-muted-color text-sm mt-2 mb-0">
                                     {{ 'solutions.no_repositories' | translate }}
                                 </p>
@@ -284,7 +306,12 @@
                                                     [ariaLabel]="
                                                         'solutions.aria_move' | translate: { name: repository.name }
                                                     "
-                                                    (onClick)="openFile(repository, { solution, project })"
+                                                    (onClick)="
+                                                        openFile(
+                                                            { kind: 'repository', ref: repository },
+                                                            { solution, project }
+                                                        )
+                                                    "
                                                 />
                                                 <p-button
                                                     icon="pi pi-times"
@@ -295,7 +322,66 @@
                                                     [ariaLabel]="
                                                         'solutions.aria_unfile' | translate: { name: repository.name }
                                                     "
-                                                    (onClick)="askUnfile(repository, solution, project)"
+                                                    (onClick)="
+                                                        askUnfile(
+                                                            { kind: 'repository', ref: repository },
+                                                            solution,
+                                                            project
+                                                        )
+                                                    "
+                                                />
+                                            </span>
+                                        }
+                                    </li>
+                                }
+                                <!-- Images after the repositories, told apart by their icon (the one the
+                                     menu gives the image list) and opening the backlog by container_id. -->
+                                @for (container of project.containers ?? []; track container.id) {
+                                    <li
+                                        class="flex items-center justify-between gap-2 py-1"
+                                        data-testid="project-image"
+                                    >
+                                        <a
+                                            [routerLink]="['/issues']"
+                                            [queryParams]="{ container_id: container.id }"
+                                            class="flex items-center gap-2"
+                                        >
+                                            <i class="pi pi-box text-muted-color" aria-hidden="true"></i>
+                                            {{ container.name }}
+                                        </a>
+                                        @if (isAdmin()) {
+                                            <span class="whitespace-nowrap">
+                                                <p-button
+                                                    icon="pi pi-arrow-right-arrow-left"
+                                                    [text]="true"
+                                                    [rounded]="true"
+                                                    size="small"
+                                                    [ariaLabel]="
+                                                        'solutions.aria_move' | translate: { name: container.name }
+                                                    "
+                                                    (onClick)="
+                                                        openFile(
+                                                            { kind: 'container', ref: container },
+                                                            { solution, project }
+                                                        )
+                                                    "
+                                                />
+                                                <p-button
+                                                    icon="pi pi-times"
+                                                    severity="danger"
+                                                    [text]="true"
+                                                    [rounded]="true"
+                                                    size="small"
+                                                    [ariaLabel]="
+                                                        'solutions.aria_unfile' | translate: { name: container.name }
+                                                    "
+                                                    (onClick)="
+                                                        askUnfile(
+                                                            { kind: 'container', ref: container },
+                                                            solution,
+                                                            project
+                                                        )
+                                                    "
                                                 />
                                             </span>
                                         }
@@ -315,7 +401,7 @@
         exactly when the tree failed to say anything.
     -->
     <p-card>
-        <section data-testid="unfiled">
+        <section id="unfiled" data-testid="unfiled">
             <h2 class="text-xl font-semibold m-0 flex items-center gap-2">
                 <i class="pi pi-folder-open text-muted-color" aria-hidden="true"></i>
                 {{ 'solutions.unfiled' | translate }}
@@ -326,9 +412,14 @@
                     severity="secondary"
                     [value]="'solutions.repository_count' | translate: { count: unfiled()?.repositoryCount ?? 0 }"
                 />
+                <p-tag
+                    severity="secondary"
+                    data-testid="container-count"
+                    [value]="'solutions.container_count' | translate: { count: unfiled()?.containerCount ?? 0 }"
+                />
                 <ng-container *ngTemplateOutlet="badges; context: { $implicit: unfiled()?.openIssues }" />
             </div>
-            @if ((unfiled()?.repositories ?? []).length === 0) {
+            @if ((unfiled()?.repositories ?? []).length === 0 && (unfiled()?.containers ?? []).length === 0) {
                 <p class="text-muted-color text-sm mt-2 mb-0">{{ 'solutions.unfiled_empty' | translate }}</p>
             }
             <ul class="list-none p-0 m-0 mt-2">
@@ -350,7 +441,30 @@
                                 [label]="'solutions.file' | translate"
                                 [ariaLabel]="'solutions.aria_file' | translate: { name: repository.name }"
                                 [disabled]="!hasProjects()"
-                                (onClick)="openFile(repository)"
+                                (onClick)="openFile({ kind: 'repository', ref: repository })"
+                            />
+                        }
+                    </li>
+                }
+                @for (container of unfiled()?.containers ?? []; track container.id) {
+                    <li class="flex items-center justify-between gap-2 py-1" data-testid="unfiled-image">
+                        <a
+                            [routerLink]="['/issues']"
+                            [queryParams]="{ container_id: container.id }"
+                            class="flex items-center gap-2"
+                        >
+                            <i class="pi pi-box text-muted-color" aria-hidden="true"></i>
+                            {{ container.name }}
+                        </a>
+                        @if (isAdmin()) {
+                            <p-button
+                                icon="pi pi-folder-open"
+                                [text]="true"
+                                size="small"
+                                [label]="'solutions.file' | translate"
+                                [ariaLabel]="'solutions.aria_file' | translate: { name: container.name }"
+                                [disabled]="!hasProjects()"
+                                (onClick)="openFile({ kind: 'container', ref: container })"
                             />
                         }
                     </li>
@@ -515,7 +629,7 @@
 </p-dialog>
 
 <p-dialog
-    [header]="'solutions.header_file' | translate: { name: filing()?.repository?.name ?? '' }"
+    [header]="'solutions.header_file' | translate: { name: filing()?.target?.ref?.name ?? '' }"
     [(visible)]="fileVisible"
     [modal]="true"
     [style]="{ width: '34rem' }"

@@ -24,6 +24,13 @@ garantie que rien ne sera corrigé pour le *prochain*.
 La couverture y est délibérément limitée aux produits — langages, exécutions, cadriciels,
 distributions — plutôt qu'à chaque bibliothèque du catalogue.
 
+## Projet {#project}
+
+Chaque image indique le projet où elle est rangée, avec un lien vers ce projet dans
+[Solutions et projets](../administration/solutions-and-projects.md), ou **sans projet**, avec un lien
+vers ce groupe. Le rangement se fait depuis cet écran, par un administrateur, comme pour un dépôt —
+et il change des accès : une attribution sur un projet couvre les images qui y sont rangées.
+
 ## Identifiants de registre
 
 Les registres privés demandent des identifiants. Ils sont stockés chiffrés avec la même

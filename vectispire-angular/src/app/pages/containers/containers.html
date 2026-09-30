@@ -70,6 +70,25 @@
                                 <span>{{ 'containers.nothing_outstanding' | translate }}</span>
                             }
                             · <span>{{ scheduleLabel(container) }}</span>
+                            <!--
+                                The project, linking to its place in the tree as the repository list
+                                does. "No project" is said in words and links to that group: an image
+                                in none is outside every project grant, a state an administrator
+                                has to act on rather than an absence of data.
+                            -->
+                            ·
+                            <span data-testid="container-project"
+                                >{{ 'containers.project' | translate }}
+                                @if (container.projectId != null) {
+                                    <a [routerLink]="['/solutions']" [fragment]="'project-' + container.projectId">{{
+                                        container.projectName
+                                    }}</a>
+                                } @else {
+                                    <a [routerLink]="['/solutions']" fragment="unfiled">{{
+                                        'containers.no_project' | translate
+                                    }}</a>
+                                }
+                            </span>
                         </div>
                     </div>
 

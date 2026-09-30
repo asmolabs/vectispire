@@ -16,6 +16,7 @@ import { messageOf } from '../../core/api-error';
 import { PluginsApi } from '../../core/api/plugins.api';
 import { SolutionsApi } from '../../core/api/solutions.api';
 import type {
+    ContainerRef,
     OpenIssues,
     Plugin,
     PluginActivation,
@@ -61,20 +62,27 @@ type Editing =
     | { kind: 'solution'; solution: SolutionNode | null }
     | { kind: 'project'; solution: SolutionNode; project: ProjectNode | null };
 
+/**
+ * What a project holds: a repository or a container image. The kind travels with the reference
+ * because the two have separate routes and separate numbering — repository 42 and image 42 are two
+ * targets, and filing one through the other's route would move the wrong thing.
+ */
+export type Filed = { kind: 'repository'; ref: RepositoryRef } | { kind: 'container'; ref: ContainerRef };
+
 /** The three changes that take something away from somebody, and so are confirmed first. */
 type Pending =
     | { kind: 'delete-solution'; solution: SolutionNode }
     | { kind: 'delete-project'; solution: SolutionNode; project: ProjectNode }
-    | { kind: 'unfile'; repository: RepositoryRef; solution: SolutionNode; project: ProjectNode };
+    | { kind: 'unfile'; target: Filed; solution: SolutionNode; project: ProjectNode };
 
-/** The repository being filed, and the project it is in today, if any. */
+/** The repository or image being filed, and the project it is in today, if any. */
 interface Filing {
-    repository: RepositoryRef;
+    target: Filed;
     from: { solution: SolutionNode; project: ProjectNode } | null;
 }
 
 /**
- * Solutions → projects → repositories (decision 0023).
+ * Solutions → projects → repositories and container images (decision 0023 and its amendment).
  *
  * **Every account reads it, and reads only what it may see.** The server builds the tree over the
  * reader's visibility, so a project seen through one granted repository out of three is marked
@@ -201,11 +209,12 @@ export class Solutions {
             case 'delete-project':
                 return this.i18n.t('solutions.delete_project_consequence', {
                     name: pathOf(pending.solution, pending.project),
-                    count: pending.project.repositoryCount
+                    count: pending.project.repositoryCount,
+                    images: pending.project.containerCount
                 });
             case 'unfile':
                 return this.i18n.t('solutions.unfile_consequence', {
-                    repository: pending.repository.name,
+                    target: pending.target.ref.name,
                     project: pathOf(pending.solution, pending.project)
                 });
         }
@@ -231,7 +240,7 @@ export class Solutions {
     readonly fileVisible = signal(false);
     readonly targetProjectId = signal<number | null>(null);
 
-    /** Every project the repository could move to, grouped by solution; the one it is in is left out. */
+    /** Every project the repository or image could move to, grouped by solution; the one it is in is left out. */
     readonly projectChoices = computed(() => {
         const current = this.filing()?.from?.project.id ?? null;
         return this.solutions()
@@ -245,7 +254,7 @@ export class Solutions {
     });
 
     /**
-     * Who gains and who loses sight of the repository. Said before the click: a move reads as
+     * Who gains and who loses sight of the repository or image. Said before the click: a move reads as
      * housekeeping and is, in fact, a change of access for everybody holding either project.
      */
     readonly filingConsequence = computed(() => {
@@ -255,11 +264,11 @@ export class Solutions {
         if (!filing || !target) return null;
         return filing.from
             ? this.i18n.t('solutions.move_consequence', {
-                  repository: filing.repository.name,
+                  target: filing.target.ref.name,
                   from: pathOf(filing.from.solution, filing.from.project),
                   to: target
               })
-            : this.i18n.t('solutions.file_consequence', { repository: filing.repository.name, to: target });
+            : this.i18n.t('solutions.file_consequence', { target: filing.target.ref.name, to: target });
     });
 
     // --- Moving a project ---------------------------------------------------------------------------
@@ -537,8 +546,8 @@ export class Solutions {
         this.ask({ kind: 'delete-project', solution, project });
     }
 
-    askUnfile(repository: RepositoryRef, solution: SolutionNode, project: ProjectNode): void {
-        this.ask({ kind: 'unfile', repository, solution, project });
+    askUnfile(target: Filed, solution: SolutionNode, project: ProjectNode): void {
+        this.ask({ kind: 'unfile', target, solution, project });
     }
 
     private ask(pending: Pending): void {
@@ -554,7 +563,9 @@ export class Solutions {
                 ? this.api.deleteSolution(pending.solution.id)
                 : pending.kind === 'delete-project'
                   ? this.api.deleteProject(pending.project.id)
-                  : this.api.unfileRepository(pending.project.id, pending.repository.id);
+                  : pending.target.kind === 'container'
+                    ? this.api.unfileContainer(pending.project.id, pending.target.ref.id)
+                    : this.api.unfileRepository(pending.project.id, pending.target.ref.id);
 
         this.saving.set(true);
         request.subscribe({
@@ -576,8 +587,8 @@ export class Solutions {
 
     // --- File, move -----------------------------------------------------------------------------
 
-    openFile(repository: RepositoryRef, from: { solution: SolutionNode; project: ProjectNode } | null = null): void {
-        this.filing.set({ repository, from });
+    openFile(target: Filed, from: { solution: SolutionNode; project: ProjectNode } | null = null): void {
+        this.filing.set({ target, from });
         this.targetProjectId.set(null);
         this.formError.set(null);
         this.fileVisible.set(true);
@@ -590,7 +601,12 @@ export class Solutions {
 
         this.saving.set(true);
         this.formError.set(null);
-        this.api.fileRepository(projectId, filing.repository.id).subscribe({
+        const { target } = filing;
+        const request =
+            target.kind === 'container'
+                ? this.api.fileContainer(projectId, target.ref.id)
+                : this.api.fileRepository(projectId, target.ref.id);
+        request.subscribe({
             next: () => {
                 this.saving.set(false);
                 this.fileVisible.set(false);

@@ -23,6 +23,13 @@ you can point to; it has the guarantee that nothing will be fixed for the *next*
 Coverage there is deliberately scoped to products — languages, runtimes, frameworks,
 distributions — rather than every library on the catalogue.
 
+## Project
+
+Each image shows the project it is filed in, linking to that project in
+[Solutions and projects](../administration/solutions-and-projects.md), or **no project**, linking
+to that group. Filing is done from that screen, by an administrator, as for a repository — and it is
+an access change: a grant on a project covers the images filed in it.
+
 ## Registry credentials
 
 Private registries need credentials. They are stored encrypted with the same

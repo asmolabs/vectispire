@@ -378,7 +378,8 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   visible through that grant the moment it leaves. The tree lists each project's images and the
   unfiled ones; a project's move carries them; deleting a project returns them to no project; a team
   granted a project is notified of its images' scans. `GET /api/v1/containers` names each image's
-  project (`projectId`, `projectName`). Checklists still measure a project's repositories only —
+  project (`projectId`, `projectName`), and **Containers** shows it with a link into the tree, where
+  images are filed with the same dialogs as repositories. Checklists still measure a project's repositories only —
   [Solutions and projects](../administration/solutions-and-projects.md#what-stays-repository-only).
 
 - **The languages detected in a repository are kept.** Every repository scan counts its tree's

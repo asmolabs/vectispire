@@ -71,6 +71,24 @@ describe('the container list', () => {
         expect(link.getAttribute('href')).toContain('container_id=3');
     });
 
+    it("shows the image's project, linking to its place in the solutions tree", () => {
+        load({ ...CONTAINER, projectId: 12, projectName: 'Payments / Ledger' });
+
+        const project = fixture.nativeElement.querySelector('[data-testid="container-project"]') as HTMLElement;
+        expect(project.textContent).toContain('Project:');
+        const link = project.querySelector('a');
+        expect(link?.textContent?.trim()).toBe('Payments / Ledger');
+        expect(link?.getAttribute('href')).toBe('/solutions#project-12');
+    });
+
+    it('says "no project" of an image in none, and links to that group', () => {
+        load({ ...CONTAINER, projectId: null, projectName: null });
+
+        const link = fixture.nativeElement.querySelector('[data-testid="container-project"] a') as HTMLElement;
+        expect(link.textContent?.trim()).toBe('no project');
+        expect(link.getAttribute('href')).toBe('/solutions#unfiled');
+    });
+
     it('says "nothing outstanding" rather than showing a bare zero', () => {
         load({ ...CONTAINER, openIssues: 0 });
         expect(fixture.nativeElement.textContent).toContain('nothing outstanding');

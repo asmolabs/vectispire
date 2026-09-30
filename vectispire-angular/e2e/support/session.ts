@@ -135,6 +135,7 @@ const LINKS: Record<string, string> = {
     '/attestation': 'Attestation',
     '/remediation': 'Remediation',
     '/solutions': 'Solutions & projects',
+    '/containers': 'Containers',
 
     // **The six evidence screens, reached through the sidebar like any other.** That is
     // deliberately a reader's path: a page whose route answers but that no menu entry mentions is

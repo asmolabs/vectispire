@@ -42,7 +42,7 @@ describe('the solutions tree', () => {
                 createdAt: '2026-09-01T00:00:00Z',
                 partial: true,
                 repositoryCount: 2,
-                containerCount: 0,
+                containerCount: 1,
                 openIssues: issues(2, 1),
                 projects: [
                     {
@@ -67,9 +67,12 @@ describe('the solutions tree', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         repositoryCount: 1,
-                        containerCount: 0,
+                        containerCount: 1,
                         openIssues: issues(0, 1),
                         repositories: [{ id: 10, name: 'ledger-core' }],
+                        // Numbered like api-gateway on purpose: repository 9 and image 9 are two
+                        // targets, and only the route tells them apart.
+                        containers: [{ id: 9, name: 'ghcr.io/acme/ledger:1.4' }],
                         detectedLanguages: [],
                         languagesUnknownFor: []
                     }
@@ -104,9 +107,10 @@ describe('the solutions tree', () => {
         ],
         unfiled: {
             repositoryCount: 1,
-            containerCount: 0,
+            containerCount: 1,
             openIssues: issues(0, 0, 4),
-            repositories: [{ id: 30, name: 'legacy-batch' }]
+            repositories: [{ id: 30, name: 'legacy-batch' }],
+            containers: [{ id: 31, name: 'nginx:1.27' }]
         }
     });
 
@@ -221,10 +225,12 @@ describe('the solutions tree', () => {
 
         // Half a project presented as the whole of it is a wrong figure that looks right.
         expect(text('[data-testid="project-11"] [data-testid="partial"]')).toContain(
-            'Partially visible: 1 repositories you can see'
+            'Partially visible: 1 repositories and 0 images you can see'
         );
         expect(document.querySelector('[data-testid="project-12"] [data-testid="partial"]')).toBeNull();
-        expect(text('[data-testid="solution-1"]')).toContain('Partially visible: 2 repositories you can see');
+        expect(text('[data-testid="solution-1"]')).toContain(
+            'Partially visible: 2 repositories and 1 images you can see'
+        );
     });
 
     it('shows "no project" last, with its repositories and figures', async () => {
@@ -247,7 +253,9 @@ describe('the solutions tree', () => {
 
         // A group that vanished when empty would read as "everything is filed" exactly when the
         // tree said nothing.
-        expect(text('[data-testid="unfiled"]')).toContain('Every repository you can see is filed in a project.');
+        expect(text('[data-testid="unfiled"]')).toContain(
+            'Every repository and image you can see is filed in a project.'
+        );
         expect(text('[data-testid="no-solutions"]')).toContain('No solution is visible to you yet.');
     });
 
@@ -367,6 +375,137 @@ describe('the solutions tree', () => {
             null
         );
         http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
+    });
+
+    describe('container images', () => {
+        const images = (selector: string) =>
+            [...page().querySelectorAll(`${selector} li`)]
+                .filter((row) => row.querySelector('i.pi-box'))
+                .map((row) => ({
+                    name: row.textContent?.trim().split(/\s+/)[0],
+                    href: row.querySelector('a')?.getAttribute('href')
+                }));
+
+        it('lists a project\'s images beside its repositories, and the unfiled ones under "no project"', async () => {
+            await mount('USER');
+
+            // The image icon is what tells an image row from a repository row, and the link opens
+            // the backlog by container, not by repository — the two share the number 9 here.
+            expect(images('[data-testid="project-12"]')).toEqual([
+                { name: 'ghcr.io/acme/ledger:1.4', href: '/issues?container_id=9' }
+            ]);
+            expect(images('[data-testid="project-11"]')).toEqual([]);
+            expect(images('[data-testid="unfiled"]')).toEqual([
+                { name: 'nginx:1.27', href: '/issues?container_id=31' }
+            ]);
+
+            expect(text('[data-testid="project-12"] [data-testid="container-count"]')).toContain('Images: 1');
+            expect(text('[data-testid="solution-1"] > div [data-testid="container-count"]')).toContain('Images: 1');
+            expect(text('[data-testid="unfiled"] [data-testid="container-count"]')).toContain('Images: 1');
+            expect(text('[data-testid="project-21"]')).toContain('No repository or image filed in this project.');
+        });
+
+        it('does not call a project holding only an image empty', async () => {
+            const tree = structuredClone(TREE);
+            const ledger = tree.solutions[0].projects[1];
+            ledger.repositories = [];
+            ledger.repositoryCount = 0;
+            await mount('USER', tree);
+
+            expect(text('[data-testid="project-12"]')).toContain('ghcr.io/acme/ledger:1.4');
+            expect(text('[data-testid="project-12"]')).not.toContain('No repository or image filed');
+        });
+
+        it('offers a reader no action on an image', async () => {
+            await mount('USER');
+
+            expect(button('File nginx:1.27 into a project')).toBeUndefined();
+            expect(button('Move ghcr.io/acme/ledger:1.4 to another project')).toBeUndefined();
+            expect(button('Remove ghcr.io/acme/ledger:1.4 from its project')).toBeUndefined();
+        });
+
+        it('files an unfiled image through the containers route, saying it is an access change', async () => {
+            await mount('ADMIN');
+
+            button('File nginx:1.27 into a project')!.click();
+            await fixture.whenStable();
+            fixture.componentInstance.targetProjectId.set(11);
+            await fixture.whenStable();
+
+            expect(text('[data-testid="file-consequence"]')).toContain(
+                'Filing nginx:1.27 into Payments / Gateway is an access change'
+            );
+
+            fixture.componentInstance.saveFile();
+            http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/projects/11/containers/31').flush(
+                null
+            );
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
+            expect(fixture.componentInstance.fileVisible()).toBe(false);
+        });
+
+        it('moves an image by its own number, never the repository sharing it', async () => {
+            await mount('ADMIN');
+
+            button('Move ghcr.io/acme/ledger:1.4 to another project')!.click();
+            await fixture.whenStable();
+            const offered = fixture.componentInstance
+                .projectChoices()
+                .flatMap((group) => group.items.map((i) => i.value));
+            expect(offered).toEqual([11, 21]);
+
+            fixture.componentInstance.targetProjectId.set(11);
+            await fixture.whenStable();
+            expect(text('[data-testid="file-consequence"]')).toContain(
+                'Moving ghcr.io/acme/ledger:1.4 changes who can see it'
+            );
+
+            fixture.componentInstance.saveFile();
+            http.expectNone('/api/v1/projects/11/repositories/9');
+            http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/projects/11/containers/9').flush(
+                null
+            );
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
+        });
+
+        it('removes an image from the project it is in, after saying who stops seeing it', async () => {
+            await mount('ADMIN');
+
+            button('Remove ghcr.io/acme/ledger:1.4 from its project')!.click();
+            await fixture.whenStable();
+            expect(text('[data-testid="confirm-text"]')).toContain(
+                'Return ghcr.io/acme/ledger:1.4 to “no project”? Accounts and teams that see it only through a grant on Payments / Ledger'
+            );
+
+            fixture.componentInstance.confirm();
+            http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/projects/12/containers/9').flush(
+                null
+            );
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
+        });
+
+        it("shows the server's refusal of a removal in its own words", async () => {
+            await mount('ADMIN');
+
+            button('Remove ghcr.io/acme/ledger:1.4 from its project')!.click();
+            await fixture.whenStable();
+            fixture.componentInstance.confirm();
+            http.expectOne((call) => call.method === 'DELETE' && call.url === '/api/v1/projects/12/containers/9').flush(
+                { detail: 'This image is not in that project.' },
+                { status: 404, statusText: 'Not Found' }
+            );
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
+
+            await vi.waitFor(() => expect(page().textContent).toContain('This image is not in that project.'));
+        });
+
+        it('says, before deleting a project, that its images return to "no project" too', async () => {
+            await mount('ADMIN');
+
+            button('Delete Ledger')!.click();
+            await fixture.whenStable();
+            expect(text('[data-testid="confirm-text"]')).toContain('Its 1 repositories and 1 images return');
+        });
     });
 
     it('holds a name and a description to the server limits as they are typed', async () => {

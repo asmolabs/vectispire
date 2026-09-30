@@ -100,11 +100,15 @@ corrigé), comme tout autre chiffre de risque.
 ## L'écran
 
 **Solutions et projets**, dans le menu à côté des dépôts, dessine l'arbre pour tout compte : chaque
-solution, ses projets, les dépôts rangés dans chacun, puis **Sans projet** en dernier — affiché même
-vide. Chaque solution, chaque projet et le groupe « sans projet » portent leur nombre de dépôts et une
-étiquette par sévérité qui a des constats ouverts (« 2 Critique », « 1 Élevée »), ou « Aucun constat
-ouvert ». Un nœud que vous ne voyez qu'en partie porte **Visible en partie : N dépôts que vous
-pouvez voir**. Le nom d'un dépôt ouvre les constats de ce dépôt.
+solution, ses projets, les dépôts et les images de conteneur rangés dans chacun, puis **Sans projet**
+en dernier — affiché même vide. Dans chaque projet et sous « Sans projet », les dépôts viennent
+d'abord, puis les images, distingués par leur icône : une arborescence pour un dépôt, une boîte pour
+une image — celle que le menu donne à **Conteneurs**. Chaque solution, chaque projet et le groupe
+« sans projet » portent deux comptes, **Dépôts : N** et **Images : N**, et une étiquette par sévérité
+qui a des constats ouverts (« 2 Critique », « 1 Élevée »), ou « Aucun constat ouvert » — comptés sur
+les dépôts comme sur les images. Un nœud que vous ne voyez qu'en partie porte **Visible en partie :
+N dépôts et M images que vous pouvez voir**. Le nom d'un dépôt ouvre les constats de ce dépôt, celui
+d'une image ceux de cette image.
 
 Sur une solution ou un projet, **chaque étiquette de sévérité est un lien** vers la
 [liste des constats](../guide/issues.md) restreinte à cette solution ou à ce projet, à cette sévérité,
@@ -120,10 +124,16 @@ Les administrateurs disposent en plus de :
 | **Nouveau projet** | sur une solution | — |
 | Renommer ou décrire (crayon) | sur une solution ou un projet | — |
 | **Déplacer vers…** | sur un projet | que tout ce que contient le projet le suit et que personne ne gagne ni ne perd la vue sur quoi que ce soit ; la solution se choisit parmi les autres, avec un nouveau nom facultatif |
-| Supprimer (corbeille) | sur une solution ou un projet | pour un projet : ses dépôts reviennent à « sans projet » et toute attribution qui le nomme est révoquée ; pour une solution : refusé tant qu'elle contient des projets, avec la raison donnée par le serveur |
-| **Ranger dans un projet** | sur un dépôt de « Sans projet » | qui le voit désormais : tout compte et toute équipe titulaires d'une attribution sur le projet |
-| Déplacer (deux flèches) | sur un dépôt rangé | qui cesse de le voir et qui le voit désormais |
-| Retirer du projet (croix) | sur un dépôt rangé | qui cesse de le voir |
+| Supprimer (corbeille) | sur une solution ou un projet | pour un projet : ses dépôts et ses images reviennent à « sans projet » et toute attribution qui le nomme est révoquée ; pour une solution : refusé tant qu'elle contient des projets, avec la raison donnée par le serveur |
+| **Ranger dans un projet** | sur un dépôt ou une image de « Sans projet » | qui le voit désormais : tout compte et toute équipe titulaires d'une attribution sur le projet |
+| Déplacer (deux flèches) | sur un dépôt ou une image rangés | qui cesse de le voir et qui le voit désormais |
+| Retirer du projet (croix) | sur un dépôt ou une image rangés | qui cesse de le voir |
+
+Une image se range, se déplace et se retire exactement comme un dépôt, par les mêmes fenêtres ;
+chaque bouton porte, pour un lecteur d'écran, le nom du dépôt ou de l'image sur lequel il agit
+(« Retirer nginx:1.27 de son projet »). Un refus — une image supprimée entre-temps répond « Target not
+found. », une image déjà retirée de ce projet « This image is not in that project. » — s'affiche dans
+les mots du serveur, au-dessus de l'arbre.
 
 Quand un projet est déplacé vers une solution qui contient déjà un projet du même nom, la fenêtre de
 déplacement reste ouverte, le dit, et accepte un nouveau nom dans la même fenêtre ; une fois le
@@ -140,7 +150,8 @@ auditeur, les langages de chaque plugin confrontés à ceux du projet (voir
 ont été recensés montre l'union de leurs langages en petites étiquettes à côté de ses chiffres.
 
 La liste des dépôts indique sur chaque dépôt le projet où il est rangé — un lien vers ce projet dans
-l'arbre — ou « — » s'il n'est dans aucun.
+l'arbre — ou « — » s'il n'est dans aucun. **Conteneurs** indique de même, sur chaque image,
+**Projet :** et un lien vers ce projet dans l'arbre — ou **sans projet**, un lien vers ce groupe.
 
 ## Par l'API
 

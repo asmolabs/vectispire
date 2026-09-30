@@ -569,6 +569,9 @@ export type MonitoredContainer = Refine<
         requiredAgentLabel: string | null;
         lastScan: LastScan | null;
         tier?: AssetTier;
+        /** Null when the image is in no project; `projectName` is then null too ("Solution / Project" otherwise). */
+        projectId?: number | null;
+        projectName?: string | null;
     }
 >;
 
@@ -722,6 +725,9 @@ export type OpenIssues = Schema<'OpenIssues'>;
 
 export type RepositoryRef = Refine<Schema<'RepositoryRef'>, { id: number; name: string }>;
 
+/** A container image in the tree, named as every other screen names a target (`TargetNaming`). */
+export type ContainerRef = Refine<Schema<'ContainerRef'>, { id: number; name: string }>;
+
 /** A project in the tree. `partial` says the reader sees only some of its repositories. */
 export type ProjectNode = Refine<
     Schema<'ProjectNode'>,
@@ -732,6 +738,8 @@ export type ProjectNode = Refine<
         description: string | null;
         openIssues: OpenIssues;
         repositories: RepositoryRef[];
+        /** Optional: a control plane from before images were filed sends none, which is "none". */
+        containers?: ContainerRef[];
         /** The union over the repositories the reader sees; it speaks only for those not in `languagesUnknownFor`. */
         detectedLanguages: DetectedLanguage[];
         /** The visible repositories whose languages are unknown. */
@@ -744,8 +752,11 @@ export type SolutionNode = Refine<
     { id: number; name: string; description: string | null; openIssues: OpenIssues; projects: ProjectNode[] }
 >;
 
-/** The repositories in no project: a group of its own, never left out of the tree. */
-export type Unfiled = Refine<Schema<'Unfiled'>, { openIssues: OpenIssues; repositories: RepositoryRef[] }>;
+/** The repositories and images in no project: a group of its own, never left out of the tree. */
+export type Unfiled = Refine<
+    Schema<'Unfiled'>,
+    { openIssues: OpenIssues; repositories: RepositoryRef[]; containers?: ContainerRef[] }
+>;
 
 /** `GET /api/v1/solutions` — decision 0023. */
 export type SolutionTree = Refine<Schema<'SolutionTree'>, { solutions: SolutionNode[]; unfiled: Unfiled }>;

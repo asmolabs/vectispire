@@ -98,11 +98,15 @@ fixed), like every other figure of risk.
 ## The screen
 
 **Solutions & projects**, in the sidebar next to **Repositories**, draws the tree for every account:
-each solution, its projects, the repositories filed in each, then **No project** last — shown even
-when it is empty. Every solution, project and the "no project" group carries its repository count
-and one tag per severity that has open issues ("2 Critical", "1 High"), or "No open issues". A node
-you see only in part carries **Partially visible: N repositories you can see**. A repository name
-opens the issues of that repository.
+each solution, its projects, the repositories and container images filed in each, then **No
+project** last — shown even when it is empty. In each project and under "No project", the
+repositories come first, then the images, told apart by their icon: a branching tree for a
+repository, a box for an image — the one the sidebar gives **Containers**. Every solution,
+project and the "no project" group carries two counts, **Repositories: N** and **Images: N**, and one
+tag per severity that has open issues ("2 Critical", "1 High"), or "No open issues" — counted over
+the repositories and the images alike. A node you see only in part carries **Partially visible: N
+repositories and M images you can see**. A repository name opens the issues of that repository, an
+image name those of that image.
 
 On a solution or a project, **each severity tag is a link** to the [issues list](../guide/issues.md)
 narrowed to that solution or project, that severity, and **Hide settled triage** — the clause the tag
@@ -117,10 +121,16 @@ Administrators also get:
 | **New project** | on a solution | — |
 | Rename or describe (pencil) | on a solution or a project | — |
 | **Move to…** | on a project | that everything the project holds goes with it and nobody gains or loses sight of anything; the solution is chosen among the others, with an optional new name |
-| Delete (bin) | on a solution or a project | for a project: its repositories return to "no project" and every grant naming it is revoked; for a solution: refused while it holds projects, with the server's reason shown |
-| **File into project** | on a repository under "No project" | who gains sight of it: every account and team granted the project |
-| Move (two arrows) | on a filed repository | who loses and who gains sight of it |
-| Remove from project (cross) | on a filed repository | who loses sight of it |
+| Delete (bin) | on a solution or a project | for a project: its repositories and images return to "no project" and every grant naming it is revoked; for a solution: refused while it holds projects, with the server's reason shown |
+| **File into project** | on a repository or an image under "No project" | who gains sight of it: every account and team granted the project |
+| Move (two arrows) | on a filed repository or image | who loses and who gains sight of it |
+| Remove from project (cross) | on a filed repository or image | who loses sight of it |
+
+An image is filed, moved and removed exactly as a repository is, through the same dialogs; each
+button is named after the repository or image it acts on for a screen reader ("Remove
+nginx:1.27 from its project"). A refusal — an image deleted in the meantime answers "Target not
+found.", one already taken out of that project "This image is not in that project." — is shown in
+the server's words, above the tree.
 
 When a project is moved to a solution already holding a project of the same name, the move dialog
 stays open, says so, and takes a new name in the same dialog; once moved, the tree is redrawn and a
@@ -136,7 +146,8 @@ live for administrators, the CISO and the governor, read-only for an auditor, ea
 repositories have been counted shows the union of their languages as small tags beside its figures.
 
 **Repositories** shows, on each repository, the project it is filed in — a link to that project in
-the tree — or "—" when it is in none.
+the tree — or "—" when it is in none. **Containers** shows the same on each image —
+**Project:** and a link to the project in the tree — or **no project**, a link to that group.
 
 ## Through the API
 
