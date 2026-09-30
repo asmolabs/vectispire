@@ -251,6 +251,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   cible sans scan terminé — ses constats viennent d'un seul import SARIF — est classée en dernier comme
   `NO_DATA` ; elle pouvait lire 100, A, en tête du classement. Ses comptes restent. Une cible jamais
   analysée ne porte aucune issue et n'est pas listée, comme avant.
+- **Une ligne `component_versions` lit `no_data` (`version_unrecorded`) quand le SBOM n'indique
+  aucune version d'un paquet déclaré.** Syft écrit `UNKNOWN` pour une dépendance Maven dont la version
+  est gérée par un parent ou un BOM qu'il ne résout pas ; c'était jugé « pas une version admise », la
+  ligne lisait `fail`, et la réponse automatique de Vectispire écrivait *non* pour un module présent.
+  Désormais un paquet dont aucune occurrence n'indique de version met son dépôt en *pas de données*,
+  le paquet nommé dans la preuve, et un *non* automatique qui en dépendait est retiré. Quand certaines
+  occurrences indiquent une version, ce sont elles qui jugent, les autres nommées à côté ; une version
+  indiquée non admise et un paquet absent du SBOM échouent toujours. `NoDataReason` gagne
+  `version_unrecorded` : un client qui traduit les raisons qu'il connaît doit lire une raison inconnue
+  comme une absence de données.
 - **`GET /api/v1/solutions` accepte une clé d'API `read`**, comme les listes de dépôts et d'images
   qu'il regroupe le faisaient déjà — il répondait 403. Une clé restreinte à un dépôt ou à une image lit
   les projets qui le contiennent, partiels, et aucun projet par les attributions de son compte.

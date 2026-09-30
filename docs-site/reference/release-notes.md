@@ -231,6 +231,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   its findings came from a SARIF import alone — ranks last as `NO_DATA`; it could read 100, A, at the
   head of the ranking. Its counts stay. A target never scanned carries no issue and is not listed, as
   before.
+- **A `component_versions` line reads `no_data` (`version_unrecorded`) where the SBOM states no
+  version for a declared package.** Syft writes `UNKNOWN` for a Maven dependency whose version a
+  parent or a BOM manages and it does not resolve; that was judged "not an allowed version", the line
+  read `fail`, and Vectispire's automatic answer wrote *no* for a module that is present. Now a package
+  none of whose occurrences states a version makes its repository *no data*, the package named in the
+  evidence, and an automatic *no* resting on it is withdrawn. Where some occurrences state a version,
+  those judge and the others are named beside them; a stated disallowed version and a package absent
+  from the SBOM still fail. `NoDataReason` gains `version_unrecorded`: a client mapping the reasons
+  it knows should treat an unknown one as no data.
 - **`GET /api/v1/solutions` accepts a `read` API key**, as the repository and image lists it regroups
   already did — it answered 403. A key restricted to one repository or image reads the projects
   holding it, partial, and no project through its account's grants.
