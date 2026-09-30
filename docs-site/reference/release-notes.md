@@ -187,10 +187,17 @@ targets nobody looked at as clean, and the months already captured keep that sco
 the estate, or tell whoever reads the chart before they do. See
 [Compliance](../guide/compliance.md#no-data-is-not-compliant).
 
-**Schema migrations V32 to V58 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V59 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
+
+- **A project's figures and filters include the container images filed in it.** Once an image is
+  filed in a project, `GET /api/v1/issues?project_id=…` and `?solution_id=…` answer its issues beside
+  the repositories', and the `openIssues` of `GET /api/v1/solutions` count them; each project node,
+  solution node and the `unfiled` group gain `containerCount` (and projects and `unfiled` a
+  `containers` list), `repositoryCount` staying a count of repositories. Nothing changes until an
+  administrator files an image: every existing image starts in no project.
 
 - **A rule-set change that would resolve open issues answers 409 unless their number is accepted.**
   `POST /api/v1/rule-sets/{id}/activate` and `POST /api/v1/rule-sets/deactivate` refuse, with the type
@@ -362,6 +369,17 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   findings.
 
 ### New
+
+- **Container images can be filed in projects** (V59 adds `t_container.project_id`), like
+  repositories: at most one project each, filed, moved and taken out by an administrator through
+  `PUT` / `DELETE /api/v1/projects/{id}/containers/{containerId}`, audited as
+  `PROJECT_CONTAINERS_CHANGED`. **A grant on a project now covers its images too**, resolved at each
+  request: an image filed in the project is visible to the project's holders at once, and stops being
+  visible through that grant the moment it leaves. The tree lists each project's images and the
+  unfiled ones; a project's move carries them; deleting a project returns them to no project; a team
+  granted a project is notified of its images' scans. `GET /api/v1/containers` names each image's
+  project (`projectId`, `projectName`). Checklists still measure a project's repositories only —
+  [Solutions and projects](../administration/solutions-and-projects.md#what-stays-repository-only).
 
 - **The languages detected in a repository are kept.** Every repository scan counts its tree's
   languages and keeps them; `GET /api/v1/repositories` gives each repository `detectedLanguages` from

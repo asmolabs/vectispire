@@ -204,10 +204,18 @@ cibles que personne n'avait regardées, et les mois déjà capturés gardent ce 
 parc, ou prévenez ceux qui lisent la courbe avant qu'ils ne la lisent. Voir
 [Conformité](../guide/compliance.md#sans-donnee-nest-pas-conforme).
 
-**Les migrations V32 à V58 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V59 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
+
+- **Les chiffres et les filtres d'un projet incluent les images de conteneur qui y sont rangées.** Dès
+  qu'une image est rangée dans un projet, `GET /api/v1/issues?project_id=…` et `?solution_id=…`
+  répondent ses issues à côté de celles des dépôts, et les `openIssues` de `GET /api/v1/solutions` les
+  comptent ; chaque nœud de projet, de solution et le groupe `unfiled` gagnent `containerCount` (et les
+  projets et `unfiled` une liste `containers`), `repositoryCount` restant un compte de dépôts. Rien ne
+  change tant qu'aucun administrateur n'a rangé d'image : toutes les images existantes démarrent sans
+  projet.
 
 - **Un changement de jeu de règles qui résoudrait des issues ouvertes répond 409 tant que leur nombre
   n'est pas accepté.** `POST /api/v1/rule-sets/{id}/activate` et `POST /api/v1/rule-sets/deactivate`
@@ -404,6 +412,18 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   de couverture ne dépose jamais de constats.
 
 ### Nouveautés
+
+- **Les images de conteneur peuvent être rangées dans des projets** (V59 ajoute
+  `t_container.project_id`), comme les dépôts : un projet au plus chacune, rangée, déplacée et retirée
+  par un administrateur via `PUT` / `DELETE /api/v1/projects/{id}/containers/{containerId}`,
+  journalisé sous `PROJECT_CONTAINERS_CHANGED`. **Une attribution de projet couvre désormais aussi ses
+  images**, résolue à chaque requête : une image rangée dans le projet est visible de ses titulaires
+  aussitôt, et cesse de l'être par cette attribution dès qu'elle en sort. L'arbre liste les images de
+  chaque projet et celles qui ne sont rangées nulle part ; le déplacement d'un projet les emporte ; la
+  suppression d'un projet les ramène à « sans projet » ; une équipe titulaire d'un projet est notifiée
+  des analyses de ses images. `GET /api/v1/containers` nomme le projet de chaque image (`projectId`,
+  `projectName`). Les checklists ne mesurent toujours que les dépôts d'un projet —
+  [Solutions et projets](../administration/solutions-and-projects.fr.md#ce-qui-reste-propre-aux-depots).
 
 - **Les langages détectés dans un dépôt sont conservés.** Chaque scan de dépôt recense les langages
   de son arbre et les garde ; `GET /api/v1/repositories` donne à chaque dépôt `detectedLanguages`

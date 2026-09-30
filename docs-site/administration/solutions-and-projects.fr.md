@@ -7,11 +7,11 @@ sont la façon de dire à Vectispire quels sont les produits.
 ## Le modèle
 
 - Une **solution** contient des **projets** — une gamme, une plateforme, une offre client.
-- Un **projet** appartient à une seule solution et référence les **dépôts** qui le composent.
-- Un dépôt est dans **un projet au plus**. C'est voulu : un chiffre ou un rapport doit s'additionner
-  à un seul projet sans rien compter deux fois, et « dans quel projet est-il » doit avoir une seule
-  réponse.
-- Les images de conteneur ne sont pas encore rattachées aux projets.
+- Un **projet** appartient à une seule solution et référence les **dépôts** et les **images de
+  conteneur** qui le composent.
+- Un dépôt ou une image est dans **un projet au plus**. C'est voulu : un chiffre ou un rapport doit
+  s'additionner à un seul projet sans rien compter deux fois, et « dans quel projet est-il » doit avoir
+  une seule réponse.
 
 Les noms sont uniques sans égard à la casse : celui d'une solution dans toute l'installation, celui
 d'un projet dans sa solution. Deux solutions peuvent chacune contenir une « API ». Un nom déjà pris est
@@ -22,26 +22,27 @@ disant quel nom est pris.
 
 ## « Sans projet »
 
-Les dépôts qui existaient avant la création du premier projet démarrent **sans projet**. Rien n'est
-déduit de leur nom ni de leur URL — un administrateur les range.
+Les dépôts et les images qui existaient avant la création du premier projet démarrent **sans
+projet**. Rien n'est déduit de leur nom, de leur URL ni de leur registre — un administrateur les range.
 
 « Sans projet » est un groupe à part entière partout où il apparaît, jamais masqué : l'arbre y liste
-ces dépôts, avec leurs constats ouverts, pour qu'un rangement inachevé se voie inachevé.
+ces dépôts et ces images, avec leurs constats ouverts, pour qu'un rangement inachevé se voie inachevé.
 
-## Ranger, déplacer et retirer un dépôt
+## Ranger, déplacer et retirer un dépôt ou une image
 
-Seuls les administrateurs modifient l'arbre. Ranger un dépôt dans un projet le sort du projet où il
-se trouvait ; le retirer le ramène à « sans projet ».
+Seuls les administrateurs modifient l'arbre. Ranger un dépôt ou une image dans un projet le sort du
+projet où il se trouvait ; le retirer le ramène à « sans projet ».
 
-**Ranger un dépôt change des accès.** Une attribution de projet couvre les dépôts du projet *au
-moment de chaque requête* (voir plus bas) : déplacer un dépôt d'un projet à un autre le retire aux
+**Ranger change des accès.** Une attribution de projet couvre les dépôts et les images du projet *au
+moment de chaque requête* (voir plus bas) : déplacer l'un d'eux d'un projet à un autre le retire aux
 titulaires du premier et le donne à ceux du second, immédiatement. Le journal d'audit enregistre
-chaque déplacement en ces termes, sous `PROJECT_REPOSITORIES_CHANGED`.
+chaque déplacement en ces termes, sous `PROJECT_REPOSITORIES_CHANGED` pour un dépôt et
+`PROJECT_CONTAINERS_CHANGED` pour une image.
 
 ## Déplacer un projet vers une autre solution
 
 Un administrateur peut déplacer un projet vers une autre solution. **Tout ce que le projet contient
-le suit** : ses dépôts restent rangés dans le projet, et ses attributions, ses checklists, les plugins
+le suit** : ses dépôts et ses images restent rangés dans le projet, et ses attributions, ses checklists, les plugins
 activés pour lui et les sources SARIF qui le visent nomment le projet, pas la solution — aucun d'eux ne
 change. **Personne ne gagne ni ne perd la vue sur quoi que ce soit** : il n'existe pas d'attribution
 sur une solution, un déplacement ne change donc que l'endroit où le projet est dessiné dans l'arbre —
@@ -57,9 +58,10 @@ déplacement sous `PROJECT_UPDATED`, en nommant les deux solutions.
 Dans [Utilisateurs et équipes](users-and-teams.md#ce-quune-attribution-nomme), un compte ou une
 équipe peut se voir attribuer un projet, à côté de dépôts et d'images individuels :
 
-- L'attribution couvre **tous les dépôts du projet au moment de chaque requête**. Un dépôt rangé
-  dans le projet le mois prochain est visible de ses titulaires dès qu'il y est rangé, sans rien
-  réattribuer.
+- L'attribution couvre **tous les dépôts et toutes les images du projet au moment de chaque
+  requête**. Un dépôt ou une image rangé dans le projet le mois prochain est visible de ses titulaires
+  dès qu'il y est rangé, sans rien réattribuer — et celui qu'on en retire cesse aussitôt de leur être
+  visible par cette attribution.
 - Les attributions **s'additionnent** : ce qu'une personne voit est l'union de ses attributions de
   dépôts, d'images et de projets, directes et par ses équipes.
 - Il n'y a **pas d'attribution sur une solution**. Un seul niveau d'héritage est ce qu'un auditeur
@@ -72,25 +74,26 @@ Dans [Utilisateurs et équipes](users-and-teams.md#ce-quune-attribution-nomme), 
 L'arbre des solutions est lisible par tout compte, et ne montre que ce que ce compte peut voir :
 
 - Un **projet apparaît** quand le lecteur a une attribution sur lui ou voit au moins un de ses
-  dépôts. Il ne liste que les dépôts que le lecteur peut voir.
-- Un projet que le lecteur ne voit qu'en partie — un dépôt attribué sur trois, par exemple — est
+  dépôts ou de ses images. Il ne liste que les dépôts et les images que le lecteur peut voir.
+- Un projet que le lecteur ne voit qu'en partie — un dépôt attribué sur trois, ou ses dépôts sans son
+  image, par exemple — est
   marqué **partiel**, et ses chiffres ne portent que sur ce que le lecteur voit. Une attribution
   partielle voit un projet partiel, et le dit, plutôt que de présenter la moitié d'un projet comme
   s'il était entier.
 - Une **solution apparaît** quand l'un de ses projets apparaît, et elle est partielle dès qu'un dépôt
-  rangé sous elle est caché au lecteur.
+  ou une image rangé sous elle est caché au lecteur.
 - Les administrateurs, RSSI et auditeurs voient toutes les solutions et tous les projets, vides
   compris.
 
 Chaque projet, chaque solution et le groupe « sans projet » portent leurs **constats ouverts par
-sévérité**, comptés sur les dépôts que le lecteur peut voir et sans le triage réglé (non affecté,
+sévérité**, comptés sur les dépôts et les images que le lecteur peut voir et sans le triage réglé (non affecté,
 corrigé), comme tout autre chiffre de risque.
 
 ## Supprimer
 
-- **Supprimer un projet** ramène ses dépôts à « sans projet » et révoque toute attribution qui le
-  nomme. Cela ne supprime **aucun dépôt ni aucun constat**. L'entrée d'audit indique combien de
-  dépôts ont été détachés et combien d'attributions révoquées.
+- **Supprimer un projet** ramène ses dépôts et ses images à « sans projet » et révoque toute
+  attribution qui le nomme. Cela ne supprime **aucun dépôt, aucune image ni aucun constat**. L'entrée
+  d'audit indique combien de dépôts et d'images ont été détachés et combien d'attributions révoquées.
 - **Supprimer une solution** est refusé tant qu'elle contient un projet : déplacez ses projets vers
   une autre solution ou supprimez-les d'abord, chacun étant une décision auditée à part.
 
@@ -154,9 +157,20 @@ Les mêmes opérations, pour les scripts :
 | `DELETE /api/v1/projects/{id}` | administrateur | supprimer un projet, comme décrit plus haut |
 | `PUT /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | ranger ou déplacer un dépôt |
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | retour à « sans projet » |
+| `PUT /api/v1/projects/{id}/containers/{containerId}` | administrateur | ranger ou déplacer une image de conteneur |
+| `DELETE /api/v1/projects/{id}/containers/{containerId}` | administrateur | retour à « sans projet » |
 
-`GET /api/v1/repositories` indique aussi dans quel projet se trouve chaque dépôt (`projectId`,
-`projectName`).
+`GET /api/v1/repositories` et `GET /api/v1/containers` indiquent aussi dans quel projet se trouve
+chaque dépôt ou image (`projectId`, `projectName`). Dans l'arbre, chaque projet et le groupe « sans
+projet » listent leurs images sous `containers` et les comptent dans `containerCount`, à côté de
+`repositories` et `repositoryCount`.
+
+## Ce qui reste propre aux dépôts
+
+La **checklist de sécurité** d'un projet mesure toujours ses seuls dépôts, et n'est toujours montrée
+qu'à qui les voit tous : les images n'entrent pas dans les mesures d'une checklist, si bien qu'une
+checklist signée dit exactement ce qu'elle disait. Les langages détectés d'un projet et les plugins
+activés pour lui portent sur des arborescences de sources : ils concernent eux aussi ses dépôts.
 
 ## Voir aussi
 

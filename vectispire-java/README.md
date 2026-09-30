@@ -161,7 +161,7 @@ same name; decision records written before that date keep the names they had.
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | Password sign-in cannot be closed when it is the only way in | `SignInMethodPolicyTest` |
 | A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |
-| A project grant covers the project's repositories as they are at each request, and no project grant asks nothing | `VisibilityServiceTest`, `SolutionsRoutesTest` |
+| A project grant covers the project's repositories and images as they are at each request — an image leaving the project or moving to another leaves its grantees at once — and no project grant asks nothing; the granted projects are looked up a thousand at a time | `VisibilityServiceTest`, `SolutionsRoutesTest`, `ProjectContainersRoutesTest`, `ProjectBacklogIntegrationTest` |
 | A partial grant sees a partial project and says so; no grant, no project | `SolutionsRoutesTest` |
 | A new installation starts partitioned, an upgrade does not, and neither undoes a choice | `FirstInstallDefaultsTest`, `FirstInstallDefaultsDatabaseTest`, `BootstrapServiceTest` |
 | A remediation deadline counts from the first sighting, and a rescan cannot reset it | `RemediationSlaTest` |
