@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.P
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.PackageWeight;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.ResolvedDuration;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.SeverityTypeCount;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetGradingCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetResolutions;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetSeverityCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TypePackaging;
@@ -78,6 +79,13 @@ public interface IssueAggregateQueries {
      * counting is what a database is for.
      */
     List<TargetSeverityCount> countOpenByTargetAndSeverity(Specification<IssueEntity> filter);
+
+    /**
+     * What every target's scorecard is graded on, as a {@code group by}: the per-target card reads
+     * it for one target, the portfolio sums it, and the maturity ranking reads it for every target
+     * the caller may see — so the three grade the same rows the same way.
+     */
+    List<TargetGradingCount> countForGradingByTarget(Specification<IssueEntity> filter);
 
     /** The closed half of the scoreboard, counted and averaged by the database. */
     List<TargetResolutions> countResolvedByTarget(Specification<IssueEntity> filter);

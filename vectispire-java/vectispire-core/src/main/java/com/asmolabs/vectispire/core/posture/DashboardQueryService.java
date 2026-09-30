@@ -5,7 +5,6 @@ import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
-import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
@@ -28,9 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 
@@ -62,17 +59,25 @@ public class DashboardQueryService {
     private final ScanCatalog scans;
     private final TargetNaming naming;
     private final SlaService sla;
+    private final SecurityScorecardService scorecards;
 
     /** Injected rather than {@code Instant.now()}, so a test can pin what "today" means. */
     private final Clock clock;
 
     public DashboardQueryService(
-            GateService gate, IssueCatalog issues, ScanCatalog scans, TargetNaming naming, SlaService sla, Clock clock) {
+            GateService gate,
+            IssueCatalog issues,
+            ScanCatalog scans,
+            TargetNaming naming,
+            SlaService sla,
+            SecurityScorecardService scorecards,
+            Clock clock) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
         this.naming = naming;
         this.sla = sla;
+        this.scorecards = scorecards;
         this.clock = clock;
     }
 
@@ -186,8 +191,8 @@ public class DashboardQueryService {
         //
         // The scoreboard is about all time and cannot be windowed at all: it reports what a
         // target has resolved since it was added. That half is counted by the database instead
-        // — `group by` for the open backlog, and the closed issues narrowed to the two instants
-        // an average needs.
+        // — `group by` for the open backlog the scorecards grade, and for the closed issues and
+        // the average of their resolution times.
         IssueFilters visible =
                 new IssueFilters(null, null, null, null, null, null, false, false, null, allowed);
 
@@ -197,20 +202,25 @@ public class DashboardQueryService {
         List<IssueRows.Observation> touching = issues.rows(
                 visible.touching(windowStart), IssueRows.Observation.class);
 
-        // **The open backlog leaves settled triage out; the curve and the resolved half do not.**
-        // The ranking used to count every unresolved row, so a target whose team had argued each
-        // finding not affected kept the grade of one that had looked at nothing — and disagreed
-        // with the scorecard and the gate about the same rows. `not_affected` and `fixed` go, as
-        // they do there; `pending_approval` and any status this version does not know stay. The
-        // curve is a record of what appeared and closed, which a triage decision does not rewrite.
-        List<IssueAggregates.TargetSeverityCount> openCounts = issues.countOpenByTargetAndSeverity(
-                new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed));
+        // **The ranking is the scorecards', graded by their service** (`gradeEach`): each target's
+        // score and grade are those of its card and its badge, settled triage left out as there.
+        // The resolved half stays this page's — what a target closed and how fast — and the curve
+        // is a record of what appeared and closed, which a triage decision does not rewrite.
+        Map<ScanTarget, SecurityScorecardService.TargetGrade> grades = scorecards.gradeEach(allowed);
         List<IssueAggregates.TargetResolutions> resolved = issues.countResolvedByTarget(visible);
+        List<ScanTarget> ranked = PostureScoreboards.listed(grades, resolved);
 
         // Named once for both halves: the curve needs no names at all, but the scoreboard does,
         // and resolving them twice would be two queries for one answer.
         TargetNaming.Names names = naming.forIds(
-                repositoryIds(touching, openCounts, resolved), containerIds(touching, openCounts, resolved));
+                Stream.concat(
+                                touching.stream().map(IssueRows.Observation::repoId),
+                                ranked.stream().map(target -> target instanceof ScanTarget.Repository r ? r.id() : null))
+                        .filter(Objects::nonNull).distinct().toList(),
+                Stream.concat(
+                                touching.stream().map(IssueRows.Observation::containerId),
+                                ranked.stream().map(target -> target instanceof ScanTarget.Container c ? c.id() : null))
+                        .filter(Objects::nonNull).distinct().toList());
 
         List<PostureTrendAnalytics.IssueObservation> observations = touching.stream()
                 .map(i -> new PostureTrendAnalytics.IssueObservation(
@@ -222,15 +232,8 @@ public class DashboardQueryService {
                         i.resolvedAt()))
                 .toList();
 
-        // Observed as the scorecard reads it (decision 0007): a completed scan. A target ranked on an
-        // import alone, clean, read 100, A, at the head of the ranking beside a card saying no data.
-        Set<ScanTarget> observed = scans.targetsWithStatus(ScanStatus.COMPLETED.wireName()).stream()
-                .map(ScanCatalog.ScanOfTarget::target)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
         return PostureTrendAnalytics.calculate(
-                window, now, observations, PostureScoreboards.from(openCounts, resolved, names, observed));
+                window, now, observations, PostureScoreboards.from(grades, resolved, names));
     }
 
     /**
@@ -327,35 +330,5 @@ public class DashboardQueryService {
                 scan.findingsCount(),
                 scan.error(),
                 scan.createdAt());
-    }
-
-    private static List<Long> repositoryIds(
-            List<IssueRows.Observation> touching,
-            List<IssueAggregates.TargetSeverityCount> openCounts,
-            List<IssueAggregates.TargetResolutions> resolved) {
-
-        return Stream.of(
-                        touching.stream().map(IssueRows.Observation::repoId),
-                        openCounts.stream().map(IssueAggregates.TargetSeverityCount::repoId),
-                        resolved.stream().map(IssueAggregates.TargetResolutions::repoId))
-                .flatMap(ids -> ids)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-    }
-
-    private static List<Long> containerIds(
-            List<IssueRows.Observation> touching,
-            List<IssueAggregates.TargetSeverityCount> openCounts,
-            List<IssueAggregates.TargetResolutions> resolved) {
-
-        return Stream.of(
-                        touching.stream().map(IssueRows.Observation::containerId),
-                        openCounts.stream().map(IssueAggregates.TargetSeverityCount::containerId),
-                        resolved.stream().map(IssueAggregates.TargetResolutions::containerId))
-                .flatMap(ids -> ids)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
     }
 }

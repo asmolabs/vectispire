@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,6 +19,7 @@ import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -140,12 +142,13 @@ class TrendsRoutesTest extends ApiTestBase {
         triaged(target, "CVE-T-5", "untriaged");
         scanned(target, "completed");
 
-        // Three highs at ten points each: 70, grade C. Counting the settled two made it 50.
+        // The scorecard's weights: three highs at four points each, and five for the completed
+        // scan — 93, A. Counting the settled two made it 85.
         mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.targetScoreboard[0].openHigh").value(3))
-                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(70))
-                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("C"));
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(93))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A"));
     }
 
     @Test
@@ -155,8 +158,8 @@ class TrendsRoutesTest extends ApiTestBase {
         issue(scanned, "CVE-S-1", Duration.ofDays(3), null);
         scanned(scanned, "completed");
         // Its only findings came from somewhere else than a completed scan — an import, say — and
-        // are all closed: the formula read 100, A, above a scanned target at 90. A failed scan
-        // observes nothing either.
+        // are all closed: the formula read 100, A, above a scanned target. A failed scan observes
+        // nothing either.
         long unscanned = repository("https://example.invalid/unscanned.git");
         issue(unscanned, "CVE-U-1", Duration.ofDays(3), Duration.ofDays(1));
         scanned(unscanned, "failed");
@@ -165,13 +168,110 @@ class TrendsRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.targetScoreboard.length()").value(2))
                 .andExpect(jsonPath("$.targetScoreboard[0].targetId").value(scanned))
-                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(90))
-                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A"))
+                // One high, four points, and five for the scan: the card's 100, A+.
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(100))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A_PLUS"))
                 .andExpect(jsonPath("$.targetScoreboard[1].targetId").value(unscanned))
                 .andExpect(jsonPath("$.targetScoreboard[1].maturityGrade").value("NO_DATA"))
                 .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(nullValue()))
                 // The counts stay, being true of what was read.
                 .andExpect(jsonPath("$.targetScoreboard[1].totalResolved").value(1));
+    }
+
+    @Test
+    @DisplayName("the ranking grades each target as its scorecard does, a clean scanned one at A+, the unscanned last")
+    void theRankingIsTheScorecard() throws Exception {
+        long clean = repository("https://example.invalid/clean.git");
+        scanned(clean, "completed");
+        long mixed = repository("https://example.invalid/mixed.git");
+        issueOf(mixed, "CVE-M-1", Severity.CRITICAL, true);
+        issueOf(mixed, "CVE-M-2", Severity.HIGH, false);
+        issueOf(mixed, "CVE-M-3", Severity.MEDIUM, false);
+        scanned(mixed, "completed");
+        // Both read 0, F, on the old ranking — a hundred less ten points a high — beside cards of
+        // 65 and 25: the heavy backlogs are where the two disagreed most.
+        long tenHighs = repository("https://example.invalid/ten-highs.git");
+        long twentyHighs = repository("https://example.invalid/twenty-highs.git");
+        for (int i = 0; i < 20; i++) {
+            if (i < 10) {
+                issueOf(tenHighs, "CVE-10-" + i, Severity.HIGH, false);
+            }
+            issueOf(twentyHighs, "CVE-20-" + i, Severity.HIGH, false);
+        }
+        scanned(tenHighs, "completed");
+        scanned(twentyHighs, "completed");
+        long unscanned = repository("https://example.invalid/imported-only.git");
+        issueOf(unscanned, "CVE-I-1", Severity.CRITICAL, false);
+
+        mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetScoreboard.length()").value(5))
+                // A clean scanned target is ranked: it used to be left out, having no issue.
+                .andExpect(jsonPath("$.targetScoreboard[0].targetId").value(clean))
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(100))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A_PLUS"))
+                .andExpect(jsonPath("$.targetScoreboard[0].openHigh").value(0))
+                // 100 - 25 (KEV) - 8 (critical) - 4 (high) + 5; the medium weighs nothing on a card.
+                .andExpect(jsonPath("$.targetScoreboard[1].targetId").value(mixed))
+                .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(68))
+                .andExpect(jsonPath("$.targetScoreboard[1].maturityGrade").value("C"))
+                .andExpect(jsonPath("$.targetScoreboard[1].openMedium").value(1))
+                .andExpect(jsonPath("$.targetScoreboard[2].targetId").value(tenHighs))
+                .andExpect(jsonPath("$.targetScoreboard[2].securityScore").value(65))
+                .andExpect(jsonPath("$.targetScoreboard[3].targetId").value(twentyHighs))
+                .andExpect(jsonPath("$.targetScoreboard[3].securityScore").value(25))
+                .andExpect(jsonPath("$.targetScoreboard[3].maturityGrade").value("F"))
+                .andExpect(jsonPath("$.targetScoreboard[4].targetId").value(unscanned))
+                .andExpect(jsonPath("$.targetScoreboard[4].maturityGrade").value("NO_DATA"))
+                .andExpect(jsonPath("$.targetScoreboard[4].securityScore").value(nullValue()))
+                .andExpect(jsonPath("$.targetScoreboard[4].openCritical").value(1));
+
+        // **The claim itself: one target, one grade.** Each row against the card the repository
+        // dialog and the public badge are drawn from, through its own route.
+        JsonNode ranking = json.readTree(mvc.perform(
+                        authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                .andReturn().getResponse().getContentAsString()).path("targetScoreboard");
+        for (JsonNode row : ranking) {
+            JsonNode card = json.readTree(mvc.perform(authenticated(
+                            get("/api/v1/scorecards/repositories/" + row.path("targetId").asLong()), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString());
+            assertThat(row.path("securityScore")).as("score of %s", row.path("targetId")).isEqualTo(card.path("score"));
+            assertThat(row.path("maturityGrade").asText()).isEqualTo(card.path("grade").asText());
+            assertThat(row.path("openCritical").asLong()).isEqualTo(card.path("openCriticalCount").asLong());
+            assertThat(row.path("openHigh").asLong()).isEqualTo(card.path("openHighCount").asLong());
+        }
+    }
+
+    @Test
+    @DisplayName("a clean scanned target the reader was not given is not ranked for them")
+    void theRankingListsOnlyVisibleCleanTargets() throws Exception {
+        settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+        try {
+            long theirs = repository("https://example.invalid/someone-elses-clean.git");
+            scanned(theirs, "completed");
+
+            mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                    .andExpect(jsonPath("$.targetScoreboard.length()").value(1));
+            // Listing a clean target is disclosing it: the completed scans are the estate's, and
+            // the ranking narrows them to the allowance before it grades any.
+            mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asReader()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.targetScoreboard.length()").value(0));
+        } finally {
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.EVERYONE.wireName());
+        }
+    }
+
+    private void issueOf(long repoId, String identifier, Severity severity, boolean kev) {
+        issue(repoId, identifier, Duration.ofDays(3), null);
+        IssueEntity issue = issues.findAll().stream()
+                .filter(i -> identifier.equals(i.getIdentifier()))
+                .findFirst()
+                .orElseThrow();
+        issue.setSeverity(severity.wireName());
+        issue.setKev(kev);
+        issues.save(issue);
     }
 
     private void scanned(long repoId, String status) {

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class PostureTrendAnalyticsTest {
 
     @Test
-    @DisplayName("calculates multi-echelon MTTR and target scoreboard correctly")
+    @DisplayName("calculates multi-echelon MTTR correctly")
     void calculatesAnalytics() {
         Instant now = Instant.now();
         Instant seen3dAgo = now.minus(Duration.ofDays(3));
@@ -28,7 +28,7 @@ class PostureTrendAnalyticsTest {
                 new PostureTrendAnalytics.IssueObservation(2L, "REPOSITORY", "repo-beta", "CRITICAL", seen3dAgo, null),
                 new PostureTrendAnalytics.IssueObservation(2L, "REPOSITORY", "repo-beta", "MEDIUM", seen10dAgo, null));
 
-        PostureTrendAnalytics analytics = PostureTrendAnalytics.calculate(30, now, observations);
+        PostureTrendAnalytics analytics = PostureTrendAnalytics.calculate(30, now, observations, List.of());
 
         assertThat(analytics.windowDays()).isEqualTo(30);
         assertThat(analytics.totalResolvedInWindow()).isEqualTo(2);
@@ -36,16 +36,5 @@ class PostureTrendAnalyticsTest {
         assertThat(analytics.mttrBySeverity()).containsKey("CRITICAL");
         assertThat(analytics.mttrBySeverity().get("CRITICAL")).isEqualTo(1.0);
         assertThat(analytics.mttrBySeverity().get("HIGH")).isEqualTo(5.0);
-
-        assertThat(analytics.targetScoreboard()).hasSize(2);
-        PostureTrendAnalytics.TargetMaturityScore topTarget = analytics.targetScoreboard().get(0);
-        assertThat(topTarget.targetName()).isEqualTo("repo-alpha");
-        assertThat(topTarget.securityScore()).isEqualTo(100);
-        assertThat(topTarget.maturityGrade()).isEqualTo("A");
-
-        PostureTrendAnalytics.TargetMaturityScore lowerTarget = analytics.targetScoreboard().get(1);
-        assertThat(lowerTarget.targetName()).isEqualTo("repo-beta");
-        assertThat(lowerTarget.openCritical()).isEqualTo(1);
-        assertThat(lowerTarget.securityScore()).isLessThan(100);
     }
 }

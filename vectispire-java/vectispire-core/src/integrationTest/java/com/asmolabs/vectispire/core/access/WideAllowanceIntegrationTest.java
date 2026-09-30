@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
@@ -25,6 +26,7 @@ import com.asmolabs.vectispire.core.posture.AttackPathService;
 import com.asmolabs.vectispire.core.posture.DashboardQueryService;
 import com.asmolabs.vectispire.core.posture.QualityQueryService;
 import com.asmolabs.vectispire.core.posture.SecurityDebtService;
+import com.asmolabs.vectispire.core.posture.SecurityScorecardService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
@@ -120,6 +122,9 @@ class WideAllowanceIntegrationTest {
     private DashboardQueryService dashboard;
 
     @Autowired
+    private SecurityScorecardService scorecards;
+
+    @Autowired
     private QualityQueryService quality;
 
     @Autowired
@@ -189,14 +194,25 @@ class WideAllowanceIntegrationTest {
     }
 
     @Test
-    @DisplayName("the home page: the granted repository's scan among the recent ones, its quality issue counted")
+    @DisplayName("the home page: the granted repository's scan among the recent ones, its quality issue counted, the ranking narrowed")
     void theHomePage() {
         DashboardQueryService.Overview overview = dashboard.overview(allowed);
 
         assertThat(overview.recentScans()).extracting(DashboardQueryService.RecentScan::id)
                 .containsExactly(estate.grantedScan());
         assertThat(overview.qualityTotal()).isEqualTo(1);
-        assertThat(dashboard.postureAnalytics(30, allowed)).isNotNull();
+
+        // The maturity ranking grades through the scorecards' reads — the grading counts with the
+        // allowance written into the statement, the completed scans narrowed in Java — and lists
+        // the granted targets, the scanned one graded, and never the hidden one, scanned as it is.
+        List<PostureTrendAnalytics.TargetMaturityScore> ranking = dashboard.postureAnalytics(30, allowed).targetScoreboard();
+        assertThat(ranking).extracting(row -> row.targetKind() + ":" + row.targetId())
+                .contains("REPOSITORY:" + estate.granted(), "CONTAINER:" + estate.grantedImage())
+                .doesNotContain("REPOSITORY:" + estate.hidden());
+        assertThat(ranking).filteredOn(row -> row.targetId() == estate.granted() && "REPOSITORY".equals(row.targetKind()))
+                .singleElement()
+                .satisfies(row -> assertThat(row.securityScore()).isEqualTo(
+                        scorecards.getRepositoryScorecard(estate.granted(), allowed).orElseThrow().score()));
     }
 
     @Test

@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.within;
 
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.DailyPosturePoint;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.IssueObservation;
-import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetMaturityScore;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,32 +27,28 @@ import org.junit.jupiter.api.Test;
  * that the two implementations could disagree about. It is written against the behaviour as it
  * <em>is</em>, not as it arguably should be, which is the point of a characterisation test.
  *
- * <h2>Three behaviours pinned here that look like defects</h2>
+ * <h2>Two behaviours pinned here that look like defects</h2>
  *
  * <p>They are pinned rather than fixed, because a rewrite that changes numbers on a customer's
  * dashboard while claiming to be a refactoring is the failure this test exists to prevent. Each
  * is worth deciding on separately, afterwards.
  *
  * <ol>
- *   <li><b>An issue resolved in the same instant it was first seen counts as resolved for its
- *       target, but never for the window.</b> {@code incrementResolved} runs for it;
+ *   <li><b>An issue resolved in the same instant it was first seen never counts for the
+ *       window</b>, though the ranking counts it among its target's resolutions:
  *       {@code totalResolvedInWindow} requires {@code resolvedAt} to be strictly after
  *       {@code firstSeen}, so it is excluded there and contributes no MTTR. A scan that finds
  *       and closes an issue in one pass is therefore invisible to the velocity figure.
- *   <li><b>A null severity is scored as LOW.</b> {@code incrementOpen} falls through to
- *       {@code low++}, so an unknown severity is penalised one point rather than being reported
- *       as unknown.
  *   <li><b>The comment on {@code netResolutionRatePercentage} does not describe the code.</b> It
  *       says {@code (resolved / (opened + 1)) * 100}; the code divides by {@code opened} and
  *       special-cases zero. The code is what is pinned.
  * </ol>
  *
- * <h2>What is deliberately not asserted</h2>
+ * <h2>What is no longer here</h2>
  *
- * <p>The order of two targets with the <em>same</em> security score. The scoreboard is sorted on
- * the score alone, out of a {@link java.util.HashMap}'s values, so ties resolve in whatever order
- * the map iterates — not stable across JVMs, and not something a test may pretend is defined.
- * The fixture gives every target a distinct score so the ordering assertions mean something.
+ * <p>The target scoreboard. It was graded by this engine, a hundred less the open backlog, and
+ * pinned here; the ranking is now each target's scorecard, graded by the scorecard's service and
+ * tested over HTTP beside the card it has to agree with ({@code TrendsRoutesTest}).
  */
 @DisplayName("the posture trend engine, as it behaves today")
 class PostureTrendCharacterisationTest {
@@ -67,7 +62,7 @@ class PostureTrendCharacterisationTest {
     private static final Instant WINDOW_START = Instant.parse("2026-02-19T00:00:00Z");
 
     private static PostureTrendAnalytics analytics() {
-        return PostureTrendAnalytics.calculate(WINDOW_DAYS, NOW, fixture());
+        return PostureTrendAnalytics.calculate(WINDOW_DAYS, NOW, fixture(), List.of());
     }
 
     /**
@@ -226,82 +221,6 @@ class PostureTrendCharacterisationTest {
                     .filter(point -> point.date().equals(date))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("no point for " + date));
-        }
-    }
-
-    @Nested
-    @DisplayName("the target scoreboard")
-    class Scoreboard {
-
-        @Test
-        @DisplayName("holds one row per target, best score first")
-        void one_row_per_target_best_first() {
-            assertThat(analytics().targetScoreboard())
-                    .hasSize(3)
-                    .extracting(TargetMaturityScore::securityScore)
-                    .containsExactly(99, 97, 50);
-        }
-
-        @Test
-        @DisplayName("names a target that has no name after its id")
-        void unnamed_target_falls_back_to_its_id() {
-            assertThat(scoreOf(2L).targetName()).isEqualTo("target-2");
-        }
-
-        @Test
-        @DisplayName("scores an unknown severity as if it were low")
-        void unknown_severity_is_scored_low() {
-            assertThat(scoreOf(2L).openLow()).isEqualTo(1);
-            assertThat(scoreOf(2L).openCritical()).isZero();
-            assertThat(scoreOf(2L).securityScore()).isEqualTo(99);
-            assertThat(scoreOf(2L).maturityGrade()).isEqualTo("A");
-        }
-
-        @Test
-        @DisplayName("counts resolutions over all time, not over the window")
-        void resolutions_are_counted_over_all_time() {
-            // **The reason the window filter is not free.** repo-alpha's second issue was resolved
-            // in January, seven weeks before the window opens, and it still counts here.
-            assertThat(scoreOf(1L).totalResolved()).isEqualTo(2);
-        }
-
-        @Test
-        @DisplayName("averages target MTTR over all time too, window or not")
-        void target_mttr_is_all_time() {
-            // (2 days + 5 days) / 2. The five-day one is outside the window; the window MTTR above
-            // is 2.0 and this is 3.5, and both are correct for what they measure.
-            assertThat(scoreOf(1L).targetMttrDays()).isEqualTo(3.5);
-        }
-
-        @Test
-        @DisplayName("counts a same-instant resolution for the target, though the window ignored it")
-        void same_instant_resolution_counts_for_the_target() {
-            assertThat(scoreOf(2L).totalResolved()).isEqualTo(2);
-            assertThat(scoreOf(2L).targetMttrDays())
-                    .as("neither of the two produced a duration, so there is nothing to average")
-                    .isNull();
-        }
-
-        @Test
-        @DisplayName("penalises open criticals hardest, and grades on the result")
-        void grades_on_the_penalty() {
-            assertThat(scoreOf(3L).openCritical()).isEqualTo(2);
-            assertThat(scoreOf(3L).securityScore()).isEqualTo(50);
-            assertThat(scoreOf(3L).maturityGrade()).isEqualTo("C");
-        }
-
-        @Test
-        @DisplayName("keeps a target's kind, because two targets may share an id")
-        void keeps_the_kind() {
-            assertThat(scoreOf(1L).targetKind()).isEqualTo("REPOSITORY");
-            assertThat(scoreOf(2L).targetKind()).isEqualTo("CONTAINER");
-        }
-
-        private TargetMaturityScore scoreOf(long id) {
-            return analytics().targetScoreboard().stream()
-                    .filter(score -> score.targetId().equals(id))
-                    .findFirst()
-                    .orElseThrow(() -> new AssertionError("no score for target " + id));
         }
     }
 }

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.posture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
@@ -25,6 +26,7 @@ import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -336,6 +338,67 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     void unknownTarget() {
         assertThat(scorecards.getRepositoryScorecard(repository.getId() + 1000, Visibility.everything())).isEmpty();
         assertThat(scorecards.getContainerScorecard(424242L, Visibility.everything())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the ranking's grade of each target is its own card's, licences, KEV and images included")
+    void eachTargetIsGradedAsItsCard() {
+        // The weights case: every term of the card, the licence one among them.
+        completedScan();
+        markedReachable(issue("critical", false, "open"));
+        issue("critical", false, "open");
+        issue("high", false, "open");
+        issue("medium", true, "open");
+        triaged(issue("critical", true, "open"), "not_affected");
+        issue("critical", true, "resolved");
+        LicenseEntry violation = licence(repository.getId(), "repository", false);
+        when(licences.getInventory(checked(new ScanTarget.Repository(repository.getId()))))
+                .thenReturn(List.of(violation, licence(repository.getId(), "repository", true)));
+        // The ranking reads the portfolio's inventory once, rather than one per target.
+        when(licences.getInventory(any(Visibility.class), isNull(), isNull()))
+                .thenReturn(List.of(violation, licence(repository.getId(), "repository", true)));
+
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName("registry.example.invalid/shop");
+        container.setTag("1.4.2");
+        container = containers.save(container);
+        scan(null, container.getId(), "completed");
+        IssueEntity onTheImage = issue("high", false, "open");
+        onTheImage.setRepoId(null);
+        onTheImage.setContainerId(container.getId());
+        issues.save(onTheImage);
+
+        RepositoryEntity clean = anotherRepository("corp/clean");
+        scan(clean.getId(), null, "completed");
+        RepositoryEntity unscanned = anotherRepository("corp/unscanned");
+        IssueEntity imported = issue("critical", false, "open");
+        imported.setRepoId(unscanned.getId());
+        issues.save(imported);
+
+        Map<ScanTarget, SecurityScorecardService.TargetGrade> grades = scorecards.gradeEach(Visibility.everything());
+
+        assertThat(grades).containsOnlyKeys(
+                new ScanTarget.Repository(repository.getId()),
+                new ScanTarget.Container(container.getId()),
+                new ScanTarget.Repository(clean.getId()),
+                new ScanTarget.Repository(unscanned.getId()));
+        assertAgrees(grades.get(new ScanTarget.Repository(repository.getId())), scorecard());
+        assertThat(grades.get(new ScanTarget.Repository(repository.getId())).score()).isEqualTo(55);
+        assertAgrees(grades.get(new ScanTarget.Container(container.getId())),
+                scorecards.getContainerScorecard(container.getId(), Visibility.everything()).orElseThrow());
+        assertAgrees(grades.get(new ScanTarget.Repository(clean.getId())),
+                scorecards.getRepositoryScorecard(clean.getId(), Visibility.everything()).orElseThrow());
+        assertThat(grades.get(new ScanTarget.Repository(clean.getId())).grade()).isEqualTo(SecurityGrade.A_PLUS);
+        assertAgrees(grades.get(new ScanTarget.Repository(unscanned.getId())),
+                scorecards.getRepositoryScorecard(unscanned.getId(), Visibility.everything()).orElseThrow());
+        assertThat(grades.get(new ScanTarget.Repository(unscanned.getId())).grade()).isEqualTo(SecurityGrade.NO_DATA);
+    }
+
+    private static void assertAgrees(SecurityScorecardService.TargetGrade ranked, SecurityScorecard card) {
+        assertThat(ranked.score()).as("score of %s", card.targetName()).isEqualTo(card.score());
+        assertThat(ranked.grade()).as("grade of %s", card.targetName()).isEqualTo(card.grade());
+        assertThat(ranked.critical()).isEqualTo(card.openCriticalCount());
+        assertThat(ranked.high()).isEqualTo(card.openHighCount());
     }
 
     private SecurityScorecard scorecard() {

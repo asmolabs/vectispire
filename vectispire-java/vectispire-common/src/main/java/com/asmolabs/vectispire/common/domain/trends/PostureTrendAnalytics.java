@@ -1,17 +1,15 @@
 package com.asmolabs.vectispire.common.domain.trends;
 
+import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Predicate;
 
 /**
  * Enterprise security posture analytics, multi-echelon MTTR trends,
@@ -42,6 +40,22 @@ public record PostureTrendAnalytics(
             long newlyResolved,
             Double rollingMttrDays) {}
 
+    /**
+     * One target of the maturity ranking: <b>its scorecard's score and grade</b>, and the counts
+     * beside them.
+     *
+     * <p>The score was a hundred less the open backlog, weighted by rules of this class's own and
+     * saturating at zero — a target with fifty issues and one with five hundred both read 0, F —
+     * while the card and the public badge of the same target showed another number and another
+     * letter. It is now the card's, computed by the scorecard's service; this record only carries it.
+     *
+     * @param openCritical the counts the card grades on, among the others it does not weigh: open
+     *     means neither closed nor resolved, settled triage left out, as on the card
+     * @param totalResolved all time, like {@code targetMttrDays}; neither enters the score
+     * @param securityScore 0 to 100; null exactly when {@code maturityGrade} is
+     *     {@link SecurityGrade#NO_DATA} — the target holds no completed scan (decision 0007), and it
+     *     ranks after every graded target
+     */
     public record TargetMaturityScore(
             Long targetId,
             String targetKind,
@@ -52,20 +66,8 @@ public record PostureTrendAnalytics(
             long openLow,
             long totalResolved,
             Double targetMttrDays,
-            Integer securityScore, // 0 - 100; null with NO_DATA
-            String maturityGrade) {} // A, B, C, D, F, or NO_DATA
-
-    /**
-     * The ranking's word for a target that holds no completed scan — not a grade (decision 0007).
-     *
-     * <p>The score is a hundred less the open backlog, so a target whose findings came from a SARIF
-     * import alone, and whose import came back clean, read 100, A, at the head of the ranking, while
-     * its scorecard said "no data" for the same target. The scorecard's rule is the ranking's: a
-     * target is observed when it holds a completed scan, and an import speaks for one tool, not
-     * for the target. Its counts stay, being true of what was read; its score is null, never a
-     * number that reads as a measurement, and it ranks after every graded target.
-     */
-    public static final String NO_DATA = "NO_DATA";
+            Integer securityScore,
+            SecurityGrade maturityGrade) {}
 
     /**
      * The instant the window opens. Public because a caller filtering in SQL has to compute the
@@ -101,33 +103,13 @@ public record PostureTrendAnalytics(
     }
 
     /**
-     * The whole estate in memory, which is what a caller holding every issue already has.
-     *
-     * <p>Kept so that the characterisation suite goes on measuring the arithmetic rather than
-     * the plumbing: it feeds this, the dashboard feeds the four-argument form below, and a
-     * divergence between them is a test failure rather than a wrong number on a screen.
-     */
-    public static PostureTrendAnalytics calculate(
-            int windowDays,
-            Instant now,
-            List<IssueObservation> issues) {
-
-        Instant start = windowStart(windowDays, now);
-        return calculate(
-                windowDays,
-                now,
-                issues.stream().filter(obs -> touchesWindow(obs, start)).toList(),
-                scoreboardOf(issues));
-    }
-
-    /**
      * The window's numbers from the issues that touch it, and a scoreboard computed elsewhere.
      *
      * @param windowIssues everything satisfying {@link #touchesWindow}. Passing more is harmless
      *     and passing less is not: an issue still open since last year belongs here, because it
      *     is in every day's backlog
-     * @param scoreboard all-time per-target totals, which no window can produce — see
-     *     {@link #score(TargetTotals)}
+     * @param scoreboard the maturity ranking, graded by the scorecard's service and ranked by its
+     *     caller: all-time per-target figures, which no window can produce
      */
     public static PostureTrendAnalytics calculate(
             int windowDays,
@@ -223,136 +205,14 @@ public record PostureTrendAnalytics(
     }
 
     /**
-     * What a target contributes to the scoreboard, and all of it is all-time.
-     *
-     * <p><b>The shape a database can produce.</b> The four open counts and the resolved count
-     * are {@code group by} and nothing else, so they never leave the engine as rows. The average
-     * resolution time is the one field that is not: it needs the difference between two
-     * timestamps, and no query in this codebase does date arithmetic — the three dialects spell
-     * it three ways and only one of them can be tested without a daemon. So it stays a number
-     * the caller computes, and {@link #averageDays} is what it must use to get the same rounding.
-     *
-     * <p>The durable answer is to write the resolution's length beside the resolution, at the
-     * moment it happens: an {@code avg} over a plain number is portable, and the migration that
-     * adds the column is the honest place for that decision.
-     *
-     * @param mttrDays null when the target has resolved nothing that lived measurably
-     */
-    public record TargetTotals(
-            Long targetId,
-            String targetKind,
-            String targetName,
-            long openCritical,
-            long openHigh,
-            long openMedium,
-            long openLow,
-            long totalResolved,
-            Double mttrDays) {}
-
-    /**
-     * The penalty, the score and the grade — the part that is a rule rather than a count.
-     *
-     * <p>An open critical costs twenty-five points, a high ten, a medium three and anything else
-     * one. <b>Anything else, including a severity nobody recognises</b>: an unknown value is
-     * scored as low rather than reported as unknown, which is the behaviour as it stands and is
-     * pinned by the characterisation suite.
-     */
-    public static TargetMaturityScore score(TargetTotals totals) {
-        int penalty = (int) (totals.openCritical() * 25
-                + totals.openHigh() * 10
-                + totals.openMedium() * 3
-                + totals.openLow());
-        int score = Math.max(0, Math.min(100, 100 - penalty));
-        String grade = score >= 90 ? "A" : (score >= 75 ? "B" : (score >= 50 ? "C" : (score >= 30 ? "D" : "F")));
-
-        return new TargetMaturityScore(
-                totals.targetId(),
-                totals.targetKind(),
-                totals.targetName() != null ? totals.targetName() : "target-" + totals.targetId(),
-                totals.openCritical(),
-                totals.openHigh(),
-                totals.openMedium(),
-                totals.openLow(),
-                totals.totalResolved(),
-                totals.mttrDays(),
-                score,
-                grade);
-    }
-
-    /** Best score first. Ties keep the order they arrived in, which is the caller's to decide. */
-    public static List<TargetMaturityScore> scoreboard(List<TargetTotals> totals) {
-        return scoreboard(totals, target -> true);
-    }
-
-    /**
-     * Best score first, and after them the targets {@code observed} refuses, as {@link #NO_DATA}.
-     * Ties, and the order among the unobserved, keep the order they arrived in.
-     */
-    public static List<TargetMaturityScore> scoreboard(List<TargetTotals> totals, Predicate<TargetTotals> observed) {
-        List<TargetMaturityScore> scores = new ArrayList<>(totals.stream()
-                .map(target -> observed.test(target) ? score(target) : unobserved(target))
-                .toList());
-        scores.sort(Comparator.comparing(
-                TargetMaturityScore::securityScore, Comparator.nullsLast(Comparator.<Integer>reverseOrder())));
-        return scores;
-    }
-
-    private static TargetMaturityScore unobserved(TargetTotals totals) {
-        TargetMaturityScore counted = score(totals);
-        return new TargetMaturityScore(
-                counted.targetId(),
-                counted.targetKind(),
-                counted.targetName(),
-                counted.openCritical(),
-                counted.openHigh(),
-                counted.openMedium(),
-                counted.openLow(),
-                counted.totalResolved(),
-                counted.targetMttrDays(),
-                null,
-                NO_DATA);
-    }
-
-    /**
-     * The rounding the scoreboard has always used, exposed so a caller averaging elsewhere
-     * produces the same number rather than one that differs in the first decimal.
-     */
-    public static Double averageDays(List<Double> days) {
-        return average(days);
-    }
-
-    /**
-     * One decimal place, the same way {@link #averageDays} gets there.
+     * One decimal place, the rounding every average of this class uses.
      *
      * <p>For a caller whose average was computed by the database: {@code avg(resolution_seconds)}
-     * divided by a day is the same quantity, and it has to be rounded identically or a scoreboard
-     * read from aggregates disagrees in the first decimal with one read from rows.
+     * divided by a day is the same quantity, and it has to be rounded identically or a target's
+     * figure disagrees in the first decimal with the window's about the same resolutions.
      */
     public static Double roundDays(double days) {
         return Math.round(days * 10.0) / 10.0;
-    }
-
-    /** The scoreboard from raw observations — the in-memory path, and what the aggregates replace. */
-    private static List<TargetMaturityScore> scoreboardOf(List<IssueObservation> issues) {
-        Map<String, TargetAggregator> aggregators = new HashMap<>();
-        for (IssueObservation obs : issues) {
-            TargetAggregator agg = aggregators.computeIfAbsent(
-                    obs.targetKind() + "-" + obs.targetId(),
-                    key -> new TargetAggregator(obs.targetId(), obs.targetKind(), obs.targetName()));
-
-            if (obs.resolvedAt() == null) {
-                agg.incrementOpen(obs.severity());
-            } else {
-                agg.incrementResolved();
-                if (obs.firstSeen() != null && obs.resolvedAt().isAfter(obs.firstSeen())) {
-                    agg.addDuration(Duration.between(obs.firstSeen(), obs.resolvedAt()).toSeconds() / 86400.0);
-                }
-            }
-        }
-
-        return scoreboard(aggregators.values().stream()
-                .map(TargetAggregator::totals)
-                .toList());
     }
 
     private static Double average(List<Double> list) {
@@ -360,42 +220,5 @@ public record PostureTrendAnalytics(
         double sum = 0.0;
         for (double val : list) sum += val;
         return roundDays(sum / list.size());
-    }
-
-    private static final class TargetAggregator {
-        private final Long id;
-        private final String kind;
-        private final String name;
-        private long critical = 0;
-        private long high = 0;
-        private long medium = 0;
-        private long low = 0;
-        private long resolved = 0;
-        private final List<Double> durations = new ArrayList<>();
-
-        TargetAggregator(Long id, String kind, String name) {
-            this.id = id;
-            this.kind = kind;
-            this.name = name != null ? name : "target-" + id;
-        }
-
-        void incrementOpen(String severity) {
-            if ("CRITICAL".equalsIgnoreCase(severity)) critical++;
-            else if ("HIGH".equalsIgnoreCase(severity)) high++;
-            else if ("MEDIUM".equalsIgnoreCase(severity)) medium++;
-            else low++;
-        }
-
-        void incrementResolved() {
-            resolved++;
-        }
-
-        void addDuration(double days) {
-            durations.add(days);
-        }
-
-        TargetTotals totals() {
-            return new TargetTotals(id, kind, name, critical, high, medium, low, resolved, average(durations));
-        }
     }
 }

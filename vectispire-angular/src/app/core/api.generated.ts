@@ -7177,7 +7177,8 @@ export interface components {
             scannedAt?: string;
         };
         TargetMaturityScore: {
-            maturityGrade?: string;
+            /** @enum {string} */
+            maturityGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
             /** Format: int64 */
             openCritical: number;
             /** Format: int64 */

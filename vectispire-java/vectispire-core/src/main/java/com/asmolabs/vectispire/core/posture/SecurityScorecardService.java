@@ -12,11 +12,14 @@ import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.SlaService;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
-import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,11 +67,8 @@ public class SecurityScorecardService {
         return targets.repository(repoId).map(repo -> {
             // This narrows the *read*, which used to be the whole table filtered down to one
             // repository afterwards.
-            List<IssueRows.Posture> openIssues = issuesRepo
-                    .rows(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))), IssueRows.Posture.class)
-                    .stream()
-                    .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
-                    .toList();
+            Terms open = Terms.of(issuesRepo.countForGradingByTarget(
+                    openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId))))));
 
             // **The filter was passed to the stream and not to the query.** The unfiltered call
             // parsed every SBOM in the deployment to keep one repository's rows.
@@ -79,8 +79,8 @@ public class SecurityScorecardService {
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Repository(repoId), "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Repository(repoId))));
 
-            return computeScorecard(repoId, "repository", repo.name(), openIssues, licenses, hasAttestation, overdue,
-                    Coverage.ofOne(hasAttestation));
+            return computeScorecard(repoId, "repository", repo.name(), open, violations(licenses), hasAttestation,
+                    overdue, Coverage.ofOne(hasAttestation));
         });
     }
 
@@ -90,11 +90,8 @@ public class SecurityScorecardService {
         return targets.container(containerId).map(container -> {
             // The repository form was narrowed and this one was not, in the same change — which
             // is what a sweep is for and what reading the diff was not enough to catch.
-            List<IssueRows.Posture> openIssues = issuesRepo
-                    .rows(openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId)))), IssueRows.Posture.class)
-                    .stream()
-                    .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
-                    .toList();
+            Terms open = Terms.of(issuesRepo.countForGradingByTarget(
+                    openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId))))));
 
             List<LicenseEntry> licenses = licenseService.getInventory(checked).stream()
                     .filter(l -> Long.valueOf(containerId).equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
@@ -103,8 +100,8 @@ public class SecurityScorecardService {
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Container(containerId), "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Container(containerId))));
 
-            return computeScorecard(containerId, "container", container.imageName() + ":" + container.tag(), openIssues,
-                    licenses, hasAttestation, overdue, Coverage.ofOne(hasAttestation));
+            return computeScorecard(containerId, "container", container.imageName() + ":" + container.tag(), open,
+                    violations(licenses), hasAttestation, overdue, Coverage.ofOne(hasAttestation));
         });
     }
 
@@ -151,13 +148,145 @@ public class SecurityScorecardService {
         return portfolio(allowed, scope.targets(), licenses, scope.id(), scope.kind().wireName(), scope.name());
     }
 
+    /**
+     * A target's score and grade as its own scorecard gives them, and the open counts a ranking
+     * prints beside them.
+     *
+     * @param score null exactly when {@code grade} is {@link SecurityGrade#NO_DATA}
+     * @param medium an issue with no severity is counted here, as the ranking always counted it; it
+     *     weighs nothing on the score, which charges criticals, highs and KEV only
+     */
+    public record TargetGrade(
+            Integer score, SecurityGrade grade, long critical, long high, long medium, long low) {
+
+        /** A target listed for what it closed, holding no completed scan and nothing open. */
+        public static final TargetGrade UNOBSERVED = new TargetGrade(null, SecurityGrade.NO_DATA, 0, 0, 0, 0);
+    }
+
+    /**
+     * Every target the caller may see that holds an open issue or a completed scan, graded
+     * <b>by the computation its own card runs</b> — {@link #getRepositoryScorecard} and
+     * {@link #getContainerScorecard} give the same score and grade for each.
+     *
+     * <p><b>Why the dashboard's ranking reads this.</b> It graded a target a hundred less its open
+     * backlog, with weights of its own, and saturated at zero: fifty issues and five hundred both
+     * read 0, F, while the card and the public badge of the same repository showed another number
+     * and another letter. One target, one grade, on every screen.
+     *
+     * <p>The same three reads as the portfolio's, each once for the whole allowance and none bound
+     * per target: the grading counts grouped by target (the allowance written into the statement,
+     * {@code IssueSpecifications.visible}), the completed scans' targets narrowed in Java, and the
+     * licence inventory — the portfolio's, which parses every SBOM the caller may see. That last
+     * one is the price of the licence term: without it a target's rank would disagree with its card
+     * by five points a violation.
+     *
+     * <p>A target holding neither an open issue nor a completed scan is absent from the map; a caller
+     * listing one anyway — for what it closed — grades it {@link TargetGrade#UNOBSERVED}.
+     */
+    public Map<ScanTarget, TargetGrade> gradeEach(Visibility allowed) {
+        Map<ScanTarget, List<IssueAggregates.TargetGradingCount>> rows = new LinkedHashMap<>();
+        for (IssueAggregates.TargetGradingCount row : issuesRepo.countForGradingByTarget(openWithin(allowed))) {
+            ScanTarget target = targetOf(row.repoId(), row.containerId());
+            if (target != null && Terms.isOpen(row.state())) {
+                rows.computeIfAbsent(target, key -> new ArrayList<>()).add(row);
+            }
+        }
+
+        // Narrowed here, since the scans' targets are the estate's: listing a clean target is
+        // listing it, and a reader must not learn of one they were not given.
+        Set<ScanTarget> observed = new HashSet<>();
+        scansRepo.targetsWithStatus("completed").forEach(row -> {
+            if (row.target() != null && allowed.permits(row.target())) {
+                observed.add(row.target());
+            }
+        });
+
+        Map<ScanTarget, Long> violations = new HashMap<>();
+        for (LicenseEntry entry : licenseService.getInventory(allowed, null, null)) {
+            ScanTarget target = targetOf(entry);
+            if (target != null && !entry.compliant()) {
+                violations.merge(target, 1L, Long::sum);
+            }
+        }
+
+        Set<ScanTarget> graded = new LinkedHashSet<>(rows.keySet());
+        graded.addAll(observed);
+
+        Map<ScanTarget, TargetGrade> grades = new LinkedHashMap<>();
+        for (ScanTarget target : graded) {
+            Terms open = Terms.of(rows.getOrDefault(target, List.of()));
+            boolean scanned = observed.contains(target);
+            // The card's own computation, not a copy of its arithmetic: the name and the overdue
+            // figure enter the recommendations only, which the ranking does not show.
+            SecurityScorecard card = computeScorecard(null, null, null, open, violations.getOrDefault(target, 0L),
+                    scanned, 0, Coverage.ofOne(scanned));
+            grades.put(target, new TargetGrade(
+                    card.score(), card.grade(), open.critical(), open.high(), open.medium(), open.low()));
+        }
+        return grades;
+    }
+
+    /** How many entries of an inventory the policy refuses: five points each on the score. */
+    private static long violations(List<LicenseEntry> licenses) {
+        return licenses.stream().filter(l -> !l.compliant()).count();
+    }
+
+    /** An inventory entry's target; {@code general} — a scan attached to neither — has none. */
+    private static ScanTarget targetOf(LicenseEntry entry) {
+        if (entry.targetId() == null) {
+            return null;
+        }
+        return switch (entry.targetKind()) {
+            case "repository" -> new ScanTarget.Repository(entry.targetId());
+            case "container" -> new ScanTarget.Container(entry.targetId());
+            default -> null;
+        };
+    }
+
+    /**
+     * The open backlog's terms, counted as the card has always counted its rows.
+     *
+     * <p>An issue is open when its state is neither {@code closed} nor {@code resolved}, ignoring
+     * case — a null state included; its severity is upper-cased, and only {@code CRITICAL} and
+     * {@code HIGH} weigh. KEV is counted whatever the severity, on top of it.
+     */
+    private record Terms(long critical, long high, long medium, long low, long kev) {
+
+        static boolean isOpen(String state) {
+            return !"closed".equalsIgnoreCase(state) && !"resolved".equalsIgnoreCase(state);
+        }
+
+        static Terms of(List<IssueAggregates.TargetGradingCount> rows) {
+            long critical = 0;
+            long high = 0;
+            long medium = 0;
+            long low = 0;
+            long kev = 0;
+            for (IssueAggregates.TargetGradingCount row : rows) {
+                if (!isOpen(row.state())) {
+                    continue;
+                }
+                if (row.kev()) {
+                    kev += row.count();
+                }
+                String severity = row.severity() == null ? null : row.severity().toUpperCase(Locale.ROOT);
+                if ("CRITICAL".equals(severity)) {
+                    critical += row.count();
+                } else if ("HIGH".equals(severity)) {
+                    high += row.count();
+                } else if (severity == null || "MEDIUM".equals(severity)) {
+                    medium += row.count();
+                } else {
+                    low += row.count();
+                }
+            }
+            return new Terms(critical, high, medium, low, kev);
+        }
+    }
+
     private SecurityScorecard portfolio(
             Visibility allowed, List<ScanTarget> visible, List<LicenseEntry> licenses, Long id, String kind, String name) {
-        List<IssueRows.Posture> openIssues = issuesRepo
-                .rows(openWithin(allowed), IssueRows.Posture.class)
-                .stream()
-                .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
-                .toList();
+        Terms open = Terms.of(issuesRepo.countForGradingByTarget(openWithin(allowed)));
 
         // The targets in scope holding a completed scan — which is also what the attestation flag
         // asked, over the same allowance, so the two cannot disagree.
@@ -171,7 +300,7 @@ public class SecurityScorecardService {
 
         long overdue = sla.countOverdue(allowed);
 
-        return computeScorecard(id, kind, name, openIssues, licenses, !observed.isEmpty(), overdue,
+        return computeScorecard(id, kind, name, open, violations(licenses), !observed.isEmpty(), overdue,
                 new Coverage(inScope.size(), observed.size()));
     }
 
@@ -198,45 +327,30 @@ public class SecurityScorecardService {
             Long targetId,
             String targetKind,
             String targetName,
-            List<IssueRows.Posture> issues,
-            List<LicenseEntry> licenses,
+            Terms open,
+            long licenseViolations,
             boolean hasAttestation,
             long overdueCount,
             Coverage coverage) {
 
-        int score = 100;
+        // A long until it is clamped: the terms are counts the estate sizes, summed before the clamp
+        // rather than subtracted issue by issue, and an int would wrap long before a long does.
+        long score = 100;
         List<String> recommendations = new ArrayList<>();
 
-        long criticalCount = 0;
-        long highCount = 0;
-        long kevCount = 0;
+        long criticalCount = open.critical();
+        long highCount = open.high();
+        long kevCount = open.kev();
 
-        for (IssueRows.Posture issue : issues) {
-            String sev = issue.severity() != null ? issue.severity().toUpperCase(Locale.ROOT) : "UNKNOWN";
-            boolean isKev = Boolean.TRUE.equals(issue.isKev());
+        score -= kevCount * 25 + criticalCount * 8 + highCount * 4;
+        // **One weight for every critical, since nothing measures reachability.** A reachable
+        // critical cost 15 and any other 8, read off a column no analysis writes: every issue reads
+        // UNKNOWN, so the 15 was never charged and the term only promised a distinction the grade
+        // could not make. Were it charged — a row edited by hand, an import that one day sets the
+        // column — it would move a public badge on a claim nobody established.
 
-            if (isKev) {
-                kevCount++;
-                score -= 25;
-            }
-            if ("CRITICAL".equals(sev)) {
-                criticalCount++;
-                // **One weight for every critical, since nothing measures reachability.** A
-                // reachable critical cost 15 and any other 8, read off a column no analysis
-                // writes: every issue reads UNKNOWN, so the 15 was never charged and the term only
-                // promised a distinction the grade could not make. Were it charged — a row edited
-                // by hand, an import that one day sets the column — it would move a public badge
-                // on a claim nobody established.
-                score -= 8;
-            } else if ("HIGH".equals(sev)) {
-                highCount++;
-                score -= 4;
-            }
-        }
-
-        long licenseViolations = licenses.stream().filter(l -> !l.compliant()).count();
         if (licenseViolations > 0) {
-            score -= (int) (licenseViolations * 5);
+            score -= licenseViolations * 5;
             recommendations.add("Remediate " + licenseViolations + " disallowed open source license violation(s).");
         }
 
@@ -283,21 +397,21 @@ public class SecurityScorecardService {
             recommendations.add("Maintain current posture with continuous automated scanning.");
         }
 
-        score = Math.max(0, Math.min(100, score));
+        int clamped = (int) Math.max(0, Math.min(100, score));
         if (never > 0) {
-            score = Math.min(score, Math.round(((float) coverage.observed() / coverage.total()) * 100));
+            clamped = Math.min(clamped, Math.round(((float) coverage.observed() / coverage.total()) * 100));
         }
         // **Nothing observed is no grade at all** (decision 0007), not the hundred the formula gives
         // an empty backlog: a scope whose only target was never scanned read 100/100, A+, on its card
         // and on the badge. The counts stay, being true of what was read.
         boolean noData = coverage.observed() == 0;
-        SecurityGrade grade = noData ? SecurityGrade.NO_DATA : SecurityGrade.fromScore(score);
+        SecurityGrade grade = noData ? SecurityGrade.NO_DATA : SecurityGrade.fromScore(clamped);
 
         return new SecurityScorecard(
                 targetId,
                 targetKind,
                 targetName,
-                noData ? null : score,
+                noData ? null : clamped,
                 grade,
                 coverage.total(),
                 coverage.observed(),
@@ -328,8 +442,8 @@ public class SecurityScorecardService {
 
 
     /**
-     * A scan attached to neither target is unclassifiable, and a restriction does not pass it.
-     * Read from a {@code [.., repoId, containerId]} projection row.
+     * A row attached to neither target is unclassifiable, and ranks nowhere: there is no card to
+     * agree with.
      */
     private static ScanTarget targetOf(Object repoId, Object containerId) {
         if (repoId != null) {

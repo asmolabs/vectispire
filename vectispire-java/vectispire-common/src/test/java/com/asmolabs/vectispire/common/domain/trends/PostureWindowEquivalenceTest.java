@@ -47,18 +47,15 @@ class PostureWindowEquivalenceTest {
                     .filter(obs -> PostureTrendAnalytics.touchesWindow(obs, start))
                     .toList();
 
-            // **Both sides go through the four-argument engine, and only the input differs.**
-            // Comparing against the three-argument facade would prove nothing: the facade filters
-            // with the very predicate under test, so a broken predicate would break both sides
-            // identically and the assertion would pass. That mistake was made here first, and it
-            // survived deleting a clause from `touchesWindow`.
-            List<PostureTrendAnalytics.TargetMaturityScore> scoreboard =
-                    PostureTrendAnalytics.calculate(windowDays, NOW, everything).targetScoreboard();
-
+            // **Both sides go through the same engine, and only the input differs.** Comparing
+            // against a facade that filters would prove nothing: it filters with the very
+            // predicate under test, so a broken predicate would break both sides identically and
+            // the assertion would pass. That mistake was made here first, and it survived deleting
+            // a clause from `touchesWindow`. The ranking is the scorecards', computed elsewhere.
             PostureTrendAnalytics unfiltered =
-                    PostureTrendAnalytics.calculate(windowDays, NOW, everything, scoreboard);
+                    PostureTrendAnalytics.calculate(windowDays, NOW, everything, List.of());
             PostureTrendAnalytics windowed =
-                    PostureTrendAnalytics.calculate(windowDays, NOW, touching, scoreboard);
+                    PostureTrendAnalytics.calculate(windowDays, NOW, touching, List.of());
 
             assertThat(touching)
                     .as("the filter has to actually drop something, or this proves nothing")
@@ -83,7 +80,7 @@ class PostureWindowEquivalenceTest {
         assertThat(PostureTrendAnalytics.touchesWindow(backwards, start)).isTrue();
 
         List<IssueObservation> estate = List.of(backwards);
-        assertThat(PostureTrendAnalytics.calculate(10, NOW, estate).totalOpenedInWindow())
+        assertThat(PostureTrendAnalytics.calculate(10, NOW, estate, List.of()).totalOpenedInWindow())
                 .as("dropping it would silently lower the count of issues opened in the window")
                 .isEqualTo(1);
     }
@@ -105,9 +102,8 @@ class PostureWindowEquivalenceTest {
         IssueObservation live = new IssueObservation(
                 1L, "REPOSITORY", "repo", "HIGH", start.plusSeconds(DAY), null);
 
-        PostureTrendAnalytics withAncient = PostureTrendAnalytics.calculate(10, NOW, List.of(ancient, live));
-        PostureTrendAnalytics withoutIt = PostureTrendAnalytics.calculate(
-                10, NOW, List.of(live), withAncient.targetScoreboard());
+        PostureTrendAnalytics withAncient = PostureTrendAnalytics.calculate(10, NOW, List.of(ancient, live), List.of());
+        PostureTrendAnalytics withoutIt = PostureTrendAnalytics.calculate(10, NOW, List.of(live), List.of());
 
         assertThat(withoutIt).isEqualTo(withAncient);
     }

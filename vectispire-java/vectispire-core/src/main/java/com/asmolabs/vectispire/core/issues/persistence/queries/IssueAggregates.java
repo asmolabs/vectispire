@@ -42,6 +42,21 @@ public final class IssueAggregates {
     public record TargetSeverityCount(Long repoId, Long containerId, String severity, long count) {}
 
     /**
+     * The terms a scorecard is graded on, one target at a time: how many of its issues share a
+     * {@code (severity, KEV, state)} triple.
+     *
+     * <p><b>The state is a column of the row, not a clause of the query.</b> The scorecard has
+     * always kept an issue whose state is neither {@code closed} nor {@code resolved}, ignoring
+     * case, and a null state with it — a test written in Java. Grouping on the state and leaving
+     * that test to the reader keeps it one test, read by the card and by the maturity ranking
+     * alike, instead of a Java one and a SQL one that could come to disagree about a row.
+     *
+     * @param severity as stored: the reader upper-cases it, as the scorecard always did
+     */
+    public record TargetGradingCount(
+            Long repoId, Long containerId, String severity, boolean kev, String state, long count) {}
+
+    /**
      * What one target has closed, and how long those took on average.
      *
      * <p><b>An aggregate, since {@code V24}.</b> This was a row per closed issue, because the

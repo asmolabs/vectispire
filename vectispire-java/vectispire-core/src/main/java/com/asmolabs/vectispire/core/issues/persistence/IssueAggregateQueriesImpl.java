@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.P
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.PackageWeight;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.ResolvedDuration;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.SeverityTypeCount;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetGradingCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetResolutions;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetSeverityCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TypePackaging;
@@ -113,6 +114,40 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
         return entityManager.createQuery(query).getResultList().stream()
                 .map(row -> new TargetSeverityCount(
                         (Long) row[0], (Long) row[1], (String) row[2], count(row[3])))
+                .toList();
+    }
+
+    @Override
+    public List<TargetGradingCount> countForGradingByTarget(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        // No clause of its own on the state: see `TargetGradingCount` — the open test is the
+        // reader's, in Java, exactly as the scorecard has always written it.
+        query.select(builder.array(
+                        issue.get("repoId"),
+                        issue.get("containerId"),
+                        issue.get("severity"),
+                        issue.get("isKev"),
+                        issue.get("state"),
+                        builder.count(issue.get("id"))))
+                .groupBy(
+                        issue.get("repoId"),
+                        issue.get("containerId"),
+                        issue.get("severity"),
+                        issue.get("isKev"),
+                        issue.get("state"));
+        restrict(query, filter, issue, builder);
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new TargetGradingCount(
+                        (Long) row[0],
+                        (Long) row[1],
+                        (String) row[2],
+                        Boolean.TRUE.equals(row[3]),
+                        (String) row[4],
+                        count(row[5])))
                 .toList();
     }
 

@@ -119,6 +119,10 @@ public class IssueCatalog {
         return issues.countOpenByTargetAndSeverity(IssueSpecifications.of(filters));
     }
 
+    public List<IssueAggregates.TargetGradingCount> countForGradingByTarget(IssueFilters filters) {
+        return issues.countForGradingByTarget(IssueSpecifications.of(filters));
+    }
+
     public List<IssueAggregates.TargetResolutions> countResolvedByTarget(IssueFilters filters) {
         return issues.countResolvedByTarget(IssueSpecifications.of(filters));
     }

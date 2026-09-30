@@ -1702,8 +1702,9 @@ export type CompatibilityCell = Refine<
 export type DailyPosturePoint = Refine<Schema<'DailyPosturePoint'>, { date: string; rollingMttrDays: number | null }>;
 
 /**
- * One target on the maturity scoreboard, with the score the server computes. A target holding no
- * completed scan carries maturityGrade 'NO_DATA' and a null securityScore, and ranks last.
+ * One target on the maturity scoreboard: the score and grade of its scorecard, the ones its card and
+ * its badge show. A target holding no completed scan carries maturityGrade 'NO_DATA' and a null
+ * securityScore, and ranks last.
  */
 export type TargetMaturityScore = Refine<
     Schema<'TargetMaturityScore'>,
@@ -1711,7 +1712,7 @@ export type TargetMaturityScore = Refine<
         targetId: number;
         targetKind: string;
         targetName: string;
-        maturityGrade: string;
+        maturityGrade: SecurityGrade;
         securityScore: number | null;
         targetMttrDays: number | null;
     }

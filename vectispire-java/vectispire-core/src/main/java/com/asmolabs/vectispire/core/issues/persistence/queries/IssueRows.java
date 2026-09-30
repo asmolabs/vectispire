@@ -97,18 +97,6 @@ public final class IssueRows {
             Long id, String identifier, Boolean isKev, String packageName, Long repoId, Long containerId) {}
 
     /**
-     * The three columns a security grade is computed from.
-     *
-     * <p>A scorecard subtracts on severity and on whether the issue is actively exploited, and
-     * reports counts. It never names an issue, which is why nothing identifying is here — and why
-     * the portfolio grade was materialising 624 managed rows to read four fields off each.
-     *
-     * <p>{@code state} rides along because the three callers narrow {@code closed} and
-     * {@code resolved} in Java after the specification has run, rather than in it.
-     */
-    public record Posture(String state, String severity, Boolean isKev) {}
-
-    /**
      * What an attack graph draws a node from.
      *
      * <p>The widest shape here, because a graph node is genuinely labelled, badged and annotated:
