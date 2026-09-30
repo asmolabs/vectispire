@@ -54,3 +54,16 @@ fonctionnalité que tout le monde ignore.
 sont des règles dont les constats ouverts se résolvent au prochain scan, et leurs justifications,
 dates de revue et décideur partent avec elles. Reverser l'ancien jeu ne les ramène pas : les
 constats reviennent comme neufs.
+
+**Et elle ne se fait que sur ce nombre.** Quand le changement résoudrait au moins un constat
+ouvert, le bouton **Activer** — et **Désactiver, retour à la règle intégrée**, qui abandonne de la même façon
+les règles du jeu actif — est refusé tant que vous n'avez pas confirmé le nombre que l'aperçu
+affiche. Ce nombre est relu à la confirmation : si des constats sont arrivés depuis l'aperçu, le
+nouveau nombre vous est montré et la question reposée, si bien qu'un aperçu pris plus tôt n'autorise
+jamais plus de perte qu'il n'en affichait. Un changement qui ne résout rien s'active aussitôt. Le
+journal d'audit enregistre la perte acceptée, en nombre et par règle. Les règles fournies tournent à
+côté de tout jeu : leurs constats ne sont jamais comptés comme perdus.
+
+Pour un script : envoyez `acceptLosing` avec l'`affectedIssues` de l'aperçu ; un `409` de type
+`urn:vectispire:problem:rule-set-activation-loses-issues` porte l'`affectedIssues` et les
+`losingIssues` courants. Voir la [référence de l'API](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md).

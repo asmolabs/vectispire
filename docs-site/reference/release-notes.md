@@ -192,6 +192,17 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### Changes an integration can see
 
+- **A rule-set change that would resolve open issues answers 409 unless their number is accepted.**
+  `POST /api/v1/rule-sets/{id}/activate` and `POST /api/v1/rule-sets/deactivate` refuse, with the type
+  `urn:vectispire:problem:rule-set-activation-loses-issues` and the members `affectedIssues` and
+  `losingIssues`, a change whose rules leave behind open issues the next scan would resolve with their
+  triage — unless the body carries `acceptLosing` equal to `affectedIssues`, read again at the request;
+  a stale, lower or higher number is refused with the current one. A change that resolves nothing
+  needs no field. `GET /api/v1/rule-sets/deactivate/impact` previews a deactivation as
+  `/{id}/impact` previews an activation, and neither counts the bundled rules' issues any more, which
+  never resolve. Rule sets did not exist in 0.9.0, so no integration built against that release calls
+  these routes; one written against a development build since does, and must now send the number —
+  [Rule sets](../administration/rule-sets.md).
 - **Two new reasons for a measurement without data**, `language_not_analysed` and
   `languages_unrecorded`, in a measurement's `reason` and a repository's `status` in its evidence — a
   script matching the reasons it knows should treat an unknown one as no data, which it is.

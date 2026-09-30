@@ -48,3 +48,15 @@ one go produces a backlog nobody triages and a feature everybody ignores.
 **Activation says what it costs before it does it.** The rules a new set drops are rules whose
 open issues resolve on the next scan, and their justifications, review dates and decider go with
 them. Re-uploading the old set does not bring them back: the issues return as new ones.
+
+**And it goes ahead only on that number.** When the change would resolve at least one open issue,
+the **Activate** button — and **Deactivate, back to the bundled rule**, which drops the active set's rules
+the same way — is refused until you confirm the count the preview shows. The count is read again
+when you confirm: if findings arrived since the preview, you are shown the new number and asked
+again, so a preview taken earlier never authorises more loss than it displayed. A change that
+resolves nothing activates at once. The audit log records the loss you accepted, by number and by
+rule. The bundled rules run beside every set, so their issues are never counted as lost.
+
+For a script: send `acceptLosing` with the preview's `affectedIssues`; a `409` of type
+`urn:vectispire:problem:rule-set-activation-loses-issues` carries the current `affectedIssues` and
+`losingIssues`. See the [API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md).

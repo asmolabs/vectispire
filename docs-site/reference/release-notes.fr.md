@@ -209,6 +209,18 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Changements visibles d'une intégration
 
+- **Un changement de jeu de règles qui résoudrait des issues ouvertes répond 409 tant que leur nombre
+  n'est pas accepté.** `POST /api/v1/rule-sets/{id}/activate` et `POST /api/v1/rule-sets/deactivate`
+  refusent, avec le type `urn:vectispire:problem:rule-set-activation-loses-issues` et les membres
+  `affectedIssues` et `losingIssues`, un changement dont les règles laissent derrière elles des issues
+  ouvertes que la prochaine analyse résoudrait avec leur triage — sauf si le corps porte `acceptLosing`
+  égal à `affectedIssues`, relu à la requête ; un nombre périmé, inférieur ou supérieur est refusé avec
+  le nombre courant. Un changement qui ne résout rien n'a besoin d'aucun champ.
+  `GET /api/v1/rule-sets/deactivate/impact` prévisualise une désactivation comme `/{id}/impact` une
+  activation, et aucun des deux ne compte plus les issues des règles fournies, qui ne se résolvent
+  jamais. Les jeux de règles n'existaient pas en 0.9.0 : aucune intégration construite sur cette
+  version n'appelle ces routes ; une intégration écrite depuis contre une version de développement le
+  fait, et doit désormais envoyer le nombre — [Jeux de règles](../administration/rule-sets.md).
 - **Deux nouvelles raisons pour une mesure sans données**, `language_not_analysed` et
   `languages_unrecorded`, dans le `reason` d'une mesure et le `status` d'un dépôt dans ses preuves — un
   script qui compare les raisons qu'il connaît doit lire une raison inconnue comme une absence de
