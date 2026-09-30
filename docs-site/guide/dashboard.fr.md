@@ -42,21 +42,25 @@ La série est restreinte par votre visibilité, comme toutes les autres vues —
 
 ## Note de posture de sécurité
 
-Le classement de maturité donne à chaque dépôt et conteneur une note de A à F, à côté de son
-niveau de criticité métier. Le niveau est ce que vous posez à l'enregistrement du dépôt ; la
-note est calculée depuis le backlog. Un service de niveau 1 avec une mauvaise note est la
+Le classement de maturité donne à chaque dépôt et conteneur **la note de son scorecard**, de A+ à F,
+à côté de son niveau de criticité métier. Le niveau est ce que vous posez à l'enregistrement du
+dépôt ; la note est calculée depuis le backlog. Un service de niveau 1 avec une mauvaise note est la
 première ligne à lire sur cette page.
 
-La règle de ce classement lui est propre : à partir de 100, chaque problème **non résolu** coûte
-des points selon sa sévérité — critique 25, haute 10, moyenne 3, tout le reste 1, et un
-problème sans sévérité compte comme moyen. La note est A à partir de 90, B à partir de 75, C à
-partir de 50, D à partir de 30, F en dessous. Les problèmes triés **non affecté** ou
-**corrigé** sont écartés, comme sur le scorecard et à la barrière ; un problème dont
-l'exclusion est en attente d'approbation compte toujours.
-
-**Ce n'est pas la note du scorecard.** La fiche scorecard d'un dépôt, et la pastille README qui
-en est tirée, suivent une autre règle — vulnérabilités exploitées, critiques et hautes, licences —
-et une échelle de A+ à F, décrite dans
+**Une cible, une note.** Le score et la note d'une ligne sont ceux de la fiche scorecard de la cible et
+de sa pastille README, calculés par la même règle — vulnérabilités exploitées, critiques et hautes,
+licences non autorisées, et cinq points pour un scan terminé — décrite dans
 [Comment la note du scorecard est calculée](repositories.md#comment-la-note-du-scorecard-est-calculee).
-Le même dépôt peut donc afficher B ici et C sur sa pastille ; aucune des deux n'a tort, elles
-répondent à des questions différentes.
+Les problèmes triés **non affecté** ou **corrigé** sont écartés, comme sur le scorecard et à la
+barrière ; un problème dont l'exclusion est en attente d'approbation compte toujours. Les moyennes et
+les basses sont affichées dans leurs colonnes et ne pèsent pas sur le score, comme sur le scorecard.
+
+**Quelles cibles sont listées.** Toute cible que vous voyez qui porte un problème ouvert ou un scan
+terminé, et celles dont tous les problèmes sont clos. Une cible scannée sans constat est listée à 100,
+A+. Une cible sans scan terminé — ses constats viennent d'un seul import SARIF — est classée en dernier
+comme *Aucune donnée*, sans score ; ses comptes restent. Une cible enregistrée et jamais scannée, sans
+aucun problème, n'est pas listée.
+
+L'échelle sature par le bas, comme celle du scorecard : à partir de vingt-sept hautes ouvertes, ou de
+quatre critiques exploitées, une cible lit 0, F, quoi qu'elle porte d'autre. Lisez les
+compteurs à côté de la lettre.

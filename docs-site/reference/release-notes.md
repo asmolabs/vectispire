@@ -231,6 +231,19 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   its findings came from a SARIF import alone — ranks last as `NO_DATA`; it could read 100, A, at the
   head of the ranking. Its counts stay. A target never scanned carries no issue and is not listed, as
   before.
+- **The dashboard's maturity ranking grades each target as its scorecard does: its scores and grades
+  change.** In `targetScoreboard` of `GET /api/v1/dashboard/posture-analytics`, `securityScore` and
+  `maturityGrade` are now the target's scorecard `score` and `grade` — the ones
+  `GET /api/v1/scorecards/repositories/{id}` and `/containers/{id}` and the badge answer. The ranking
+  had a rule of its own (100 minus 25, 10, 3 and 1 per open critical, high, medium and other; A from 90,
+  B from 75, C from 50, D from 30), which read 0, F for ten open highs as for five hundred. The same
+  rows read other numbers now: ten highs on a scanned target read 65, C, where they read 0, F.
+  `maturityGrade` takes the scorecard's values, `A_PLUS`, `A`, `B`, `C`, `D`, `F`, `NO_DATA`, with the
+  scorecard's thresholds (A+ from 95, A from 85, B from 70, C from 55, D from 40); `A_PLUS` is new to
+  this field, and the document types it as that enum. A target scanned clean is now listed, at 100,
+  `A_PLUS`; it was left out, having no issue. The rows keep their shape; `openCritical` and `openHigh`
+  are the card's counts, `openMedium` and `openLow` are shown and not scored, and `totalResolved` and
+  `targetMttrDays` are unchanged.
 - **A `component_versions` line reads `no_data` (`version_unrecorded`) where the SBOM states no
   version for a declared package.** Syft writes `UNKNOWN` for a Maven dependency whose version a
   parent or a BOM manages and it does not resolve; that was judged "not an allowed version", the line

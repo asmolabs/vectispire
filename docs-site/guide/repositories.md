@@ -213,8 +213,8 @@ The penalties have no ceiling, so the scale saturates at the bottom: five exploi
 criticals already make an F, and five hundred make the same F. Read the counts on the
 scorecard, not only the letter.
 
-This grade is **not** the one in the dashboard's maturity ranking, which uses another rule —
-see [Dashboard](dashboard.md#security-posture-grade).
+This grade is also the one in the dashboard's maturity ranking: a target reads the same score and
+the same letter there — see [Dashboard](dashboard.md#security-posture-grade).
 
 ## Languages {#languages}
 

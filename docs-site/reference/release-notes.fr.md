@@ -251,6 +251,19 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   cible sans scan terminé — ses constats viennent d'un seul import SARIF — est classée en dernier comme
   `NO_DATA` ; elle pouvait lire 100, A, en tête du classement. Ses comptes restent. Une cible jamais
   analysée ne porte aucune issue et n'est pas listée, comme avant.
+- **Le classement de maturité du tableau de bord note chaque cible comme son scorecard : ses scores et
+  ses notes changent.** Dans `targetScoreboard` de `GET /api/v1/dashboard/posture-analytics`,
+  `securityScore` et `maturityGrade` sont désormais le `score` et la `grade` du scorecard de la cible —
+  ceux que répondent `GET /api/v1/scorecards/repositories/{id}` et `/containers/{id}` et la pastille. Le
+  classement avait sa propre règle (100 moins 25, 10, 3 et 1 par critique, haute, moyenne et autre
+  ouverte ; A dès 90, B dès 75, C dès 50, D dès 30), qui lisait 0, F pour dix hautes ouvertes comme pour
+  cinq cents. Les mêmes lignes lisent d'autres nombres : dix hautes sur une cible scannée lisent 65, C,
+  là où elles lisaient 0, F. `maturityGrade` prend les valeurs du scorecard, `A_PLUS`, `A`, `B`, `C`,
+  `D`, `F`, `NO_DATA`, avec ses seuils (A+ dès 95, A dès 85, B dès 70, C dès 55, D dès 40) ; `A_PLUS`
+  est nouveau dans ce champ, et le document le type comme cette énumération. Une cible scannée sans
+  constat est désormais listée, à 100, `A_PLUS` ; elle était omise, faute de problème. Les lignes gardent
+  leur forme ; `openCritical` et `openHigh` sont les comptes de la fiche, `openMedium` et `openLow` sont
+  affichés et non notés, et `totalResolved` et `targetMttrDays` sont inchangés.
 - **Une ligne `component_versions` lit `no_data` (`version_unrecorded`) quand le SBOM n'indique
   aucune version d'un paquet déclaré.** Syft écrit `UNKNOWN` pour une dépendance Maven dont la version
   est gérée par un parent ou un BOM qu'il ne résout pas ; c'était jugé « pas une version admise », la

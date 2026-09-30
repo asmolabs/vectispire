@@ -39,20 +39,24 @@ The series is narrowed by your visibility like every other view — see
 
 ## Security posture grade
 
-The maturity ranking gives each repository and container a grade from A to F, alongside its
-business criticality tier. The tier is what you set when registering the repository; the grade
-is computed from the backlog. A Tier 1 service at a poor grade is the first line to read on
+The maturity ranking gives each repository and container **its scorecard's grade**, from A+ to F,
+alongside its business criticality tier. The tier is what you set when registering the repository;
+the grade is computed from the backlog. A Tier 1 service at a poor grade is the first line to read on
 this page.
 
-The ranking's rule is its own: starting from 100, every **unresolved** issue costs points by
-severity — critical 25, high 10, medium 3, anything else 1, and an issue with no severity is
-counted as medium. The grade is A from 90, B from 75, C from 50, D from 30, F below. Issues
-triaged **not affected** or **fixed** are left out, as on the scorecard and at the gate; one
-whose dismissal is awaiting approval still counts.
+**One target, one grade.** The score and the grade of a row are those of the target's scorecard and of
+its README badge, computed by the same rule — exploited vulnerabilities, criticals and highs,
+disallowed licences, and five points for a completed scan — described in
+[How the scorecard grade is computed](repositories.md#how-the-scorecard-grade-is-computed). Issues
+triaged **not affected** or **fixed** are left out, as on the scorecard and at the gate; one whose
+dismissal is awaiting approval still counts. Mediums and lows are shown in their columns and weigh
+nothing on the score, as on the scorecard.
 
-**This is not the scorecard grade.** A repository's scorecard, and the README badge built from
-it, uses a different rule — exploited vulnerabilities, criticals and highs, licences — and a scale from
-A+ to F, described in
-[How the scorecard grade is computed](repositories.md#how-the-scorecard-grade-is-computed). The
-same repository can therefore read B here and C on its badge; neither is wrong, they answer
-different questions.
+**Which targets are listed.** Every target you see that holds an open issue or a completed scan, and
+those whose issues are all closed. A target scanned clean is listed at 100, A+. A target holding no
+completed scan — its findings came from a SARIF import alone — ranks last as *No data*, with no score;
+its counts stay. A target registered and never scanned, carrying no issue, is not listed.
+
+The scale saturates at the bottom, as the scorecard's does: from twenty-seven open highs, or four
+exploited criticals, a target reads 0, F, whatever else it carries. Read the counts beside
+the letter.

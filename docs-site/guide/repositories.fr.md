@@ -221,8 +221,8 @@ Les pénalités n'ont pas de plafond, l'échelle sature donc par le bas : cinq c
 exploités suffisent pour un F, et cinq cents donnent le même F. Lisez les
 compteurs de la fiche, pas seulement la lettre.
 
-Cette note n'est **pas** celle du classement de maturité du tableau de bord, qui suit une autre
-règle — voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
+Cette note est aussi celle du classement de maturité du tableau de bord : une cible y lit le même
+score et la même lettre — voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
 
 ## Langages {#languages}
 
