@@ -243,7 +243,7 @@ public class IssueCatalog {
         return IssueSpecifications.of(new IssueFilters(
                         state, null, type, null, null, null, false, false, null,
                         com.asmolabs.vectispire.common.domain.access.Visibility.everything())
-                .within(repoIds));
+                .within(repoIds.stream().map(ScanTarget.Repository::new).toList()));
     }
 
     /** Issues of one repository, severity and state in one scope — the rows a checklist's figures add up. */

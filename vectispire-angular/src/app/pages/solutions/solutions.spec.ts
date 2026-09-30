@@ -42,6 +42,7 @@ describe('the solutions tree', () => {
                 createdAt: '2026-09-01T00:00:00Z',
                 partial: true,
                 repositoryCount: 2,
+                containerCount: 0,
                 openIssues: issues(2, 1),
                 projects: [
                     {
@@ -52,6 +53,7 @@ describe('the solutions tree', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: true,
                         repositoryCount: 1,
+                        containerCount: 0,
                         openIssues: issues(2, 0),
                         repositories: [{ id: 9, name: 'api-gateway' }],
                         detectedLanguages: [],
@@ -65,6 +67,7 @@ describe('the solutions tree', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         repositoryCount: 1,
+                        containerCount: 0,
                         openIssues: issues(0, 1),
                         repositories: [{ id: 10, name: 'ledger-core' }],
                         detectedLanguages: [],
@@ -79,6 +82,7 @@ describe('the solutions tree', () => {
                 createdAt: '2026-09-02T00:00:00Z',
                 partial: false,
                 repositoryCount: 0,
+                containerCount: 0,
                 openIssues: issues(0, 0),
                 projects: [
                     {
@@ -89,6 +93,7 @@ describe('the solutions tree', () => {
                         createdAt: '2026-09-02T00:00:00Z',
                         partial: false,
                         repositoryCount: 0,
+                        containerCount: 0,
                         openIssues: issues(0, 0),
                         repositories: [],
                         detectedLanguages: [],
@@ -99,6 +104,7 @@ describe('the solutions tree', () => {
         ],
         unfiled: {
             repositoryCount: 1,
+            containerCount: 0,
             openIssues: issues(0, 0, 4),
             repositories: [{ id: 30, name: 'legacy-batch' }]
         }
@@ -106,7 +112,7 @@ describe('the solutions tree', () => {
 
     const EMPTY = asSchema('SolutionTree', {
         solutions: [],
-        unfiled: { repositoryCount: 0, openIssues: issues(0, 0), repositories: [] }
+        unfiled: { repositoryCount: 0, containerCount: 0, openIssues: issues(0, 0), repositories: [] }
     });
 
     function signIn(role: string): void {
@@ -633,6 +639,7 @@ describe('the solutions tree', () => {
                         ? {
                               ...project,
                               repositoryCount: 2,
+                              containerCount: 0,
                               repositories: [
                                   { id: 9, name: 'api-gateway' },
                                   { id: 13, name: 'gateway-ui' }

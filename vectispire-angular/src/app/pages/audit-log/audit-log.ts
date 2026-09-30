@@ -47,6 +47,7 @@ const OPERATION_KEYS: Record<string, string> = {
     SOLUTION_UPDATED: 'audit_log.operations.solution_updated',
     PROJECT_UPDATED: 'audit_log.operations.project_updated',
     PROJECT_REPOSITORIES_CHANGED: 'audit_log.operations.project_repositories_changed',
+    PROJECT_CONTAINERS_CHANGED: 'audit_log.operations.project_containers_changed',
     ACCESS_DENIED: 'audit_log.operations.access_denied',
     AGENT_CREDENTIAL_SENT: 'audit_log.operations.agent_credential_sent',
     SCAN_ATTEMPTS_REPAIRED: 'audit_log.operations.scan_attempts_repaired',

@@ -53,6 +53,7 @@ describe('the accounts screen', () => {
                 createdAt: '2026-09-01T00:00:00Z',
                 partial: false,
                 repositoryCount: 1,
+                containerCount: 0,
                 openIssues,
                 projects: [
                     {
@@ -63,13 +64,14 @@ describe('the accounts screen', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         repositoryCount: 1,
+                        containerCount: 0,
                         openIssues,
                         repositories: [{ id: 7, name: 'helios-portal' }]
                     }
                 ]
             }
         ],
-        unfiled: { repositoryCount: 0, openIssues, repositories: [] }
+        unfiled: { repositoryCount: 0, containerCount: 0, openIssues, repositories: [] }
     });
 
     /** Restricted mode, which is a fresh installation's default. */

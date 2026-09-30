@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.issues.internal;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.OpenIssueCount;
@@ -40,18 +41,22 @@ public class TargetBacklogFigures implements TargetBacklog {
 
     /**
      * Through the scoreboard's own grouped count, so the tree and the scoreboard agree on what "open"
-     * leaves out; a row attributed to no repository is an image's, and no image is in a project.
+     * leaves out. A row is a repository's or an image's by the column it fills; one filling neither is
+     * nobody's and is not counted.
      */
     @Override
     @Transactional(readOnly = true)
-    public Map<Long, Map<Severity, Long>> openBySeverityPerRepository(Visibility narrowed) {
-        Map<Long, Map<Severity, Long>> counts = new HashMap<>();
+    public Map<ScanTarget, Map<Severity, Long>> openBySeverityPerTarget(Visibility narrowed) {
+        Map<ScanTarget, Map<Severity, Long>> counts = new HashMap<>();
         for (IssueAggregates.TargetSeverityCount row : issues.countOpenByTargetAndSeverity(
                 IssueSpecifications.of(new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), narrowed)))) {
-            if (row.repoId() == null) {
+            ScanTarget target = row.repoId() != null
+                    ? new ScanTarget.Repository(row.repoId())
+                    : row.containerId() != null ? new ScanTarget.Container(row.containerId()) : null;
+            if (target == null) {
                 continue;
             }
-            counts.computeIfAbsent(row.repoId(), id -> new EnumMap<>(Severity.class))
+            counts.computeIfAbsent(target, key -> new EnumMap<>(Severity.class))
                     .merge(Severity.of(row.severity()), row.count(), Long::sum);
         }
         return counts;

@@ -72,7 +72,7 @@ public class IssueQueryService {
     /**
      * What a backlog request can ask for, as the query string spells it.
      *
-     * @param projectId the issues of the repositories filed in this project now — see {@link #page}
+     * @param projectId the issues of the repositories and images filed in this project now — see {@link #page}
      *     for what a reader who sees part of it, or none, is answered
      * @param solutionId the same over every project of the solution; with {@code projectId}, both hold
      */
@@ -121,7 +121,7 @@ public class IssueQueryService {
      * request supplies is a filter the request can omit.
      *
      * <p><b>A project or a solution narrows like a repository does: intersected with the visibility,
-     * never refused.</b> Its repositories are asked of {@code targets}, which owns the membership, at
+     * never refused.</b> Its repositories and images are asked of {@code targets}, which owns the membership, at
      * the moment of asking, and the query keeps those of them the caller sees. A reader who sees part
      * of the project gets the issues of that part — what the tree shows them of it, and what the
      * unfiltered list already showed. One who sees none of it, and one naming a project that does not
@@ -151,11 +151,11 @@ public class IssueQueryService {
                 allowed);
         if (query.projectId() != null) {
             filters = filters.within(solutions.members(query.projectId())
-                    .map(SolutionQueryService.ProjectMembers::repositoryIds)
+                    .map(SolutionQueryService.ProjectMembers::targets)
                     .orElse(List.of()));
         }
         if (query.solutionId() != null) {
-            filters = filters.within(solutions.repositoriesOfSolution(query.solutionId()));
+            filters = filters.within(solutions.targetsOfSolution(query.solutionId()));
         }
 
         var page = issues.findAll(

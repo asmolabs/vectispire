@@ -5,6 +5,8 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
@@ -22,7 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +37,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>A project appears</b> when the reader holds a grant on it, or sees at least one of its
- *       repositories. With only the repositories they may see — and {@code partial} set when the
- *       project holds others: a partial grant sees a partial project, and says so, because a
+ *       repositories or images. With only the targets they may see — and {@code partial} set when
+ *       the project holds others: a partial grant sees a partial project, and says so, because a
  *       figure that silently covers half a project reads as the whole of it.
  *   <li><b>A solution appears</b> when one of its projects does, and is {@code partial} when any
- *       repository filed under it is hidden from the reader.
- *   <li><b>"No project" is a group of its own</b>, never omitted: every repository an
- *       administrator has not filed yet is listed there, so filing is visibly unfinished rather
+ *       repository or image filed under it is hidden from the reader.
+ *   <li><b>"No project" is a group of its own</b>, never omitted: every repository and every image
+ *       an administrator has not filed yet is listed there, so filing is visibly unfinished rather
  *       than invisibly so.
  *   <li>A reader whose visibility is everything — an administrator, a global role, or anyone
  *       while the deployment is open — sees every solution and project, empty ones included.
@@ -47,7 +51,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>The figures leave settled triage out</b>, like every figure of risk: a backlog whose team
  * argued each finding not affected is not a backlog. They are counted over the visible member
- * repositories only, in one grouped query for the whole tree.
+ * repositories and images only, in one grouped query for the whole tree — an image's findings are
+ * part of its project's backlog since images can be filed (amendment of 2026-09-30 to decision 0023).
  */
 @Service
 public class SolutionQueryService {
@@ -55,6 +60,7 @@ public class SolutionQueryService {
     private final SolutionRepository solutions;
     private final ProjectRepository projects;
     private final GitRepositoryRepository repositories;
+    private final ContainerRepository containers;
     private final TargetBacklog backlog;
     private final TargetScans scans;
 
@@ -62,11 +68,13 @@ public class SolutionQueryService {
             SolutionRepository solutions,
             ProjectRepository projects,
             GitRepositoryRepository repositories,
+            ContainerRepository containers,
             TargetBacklog backlog,
             TargetScans scans) {
         this.solutions = solutions;
         this.projects = projects;
         this.repositories = repositories;
+        this.containers = containers;
         this.backlog = backlog;
         this.scans = scans;
     }
@@ -95,17 +103,24 @@ public class SolutionQueryService {
     /** A repository as the tree lists it; the inventory holds the rest. */
     public record RepositoryRef(Long id, String name) {}
 
+    /** A container image as the tree lists it, {@code registry/name:tag}; the inventory holds the rest. */
+    public record ContainerRef(Long id, String name) {}
+
     /**
-     * @param partial the project holds repositories this reader does not see; its figures and its
-     *     list cover only those they do
+     * @param partial the project holds repositories or images this reader does not see; its figures
+     *     and its lists cover only those they do
      * @param repositoryCount the repositories listed, which are the visible ones
+     * @param openIssues over the listed repositories <b>and</b> the listed images
      * @param detectedLanguages the union of the languages the listed repositories' newest completed
      *     scans found, sorted — in the vocabulary a plugin manifest declares, so the plugin screen puts
      *     the two side by side. Over the visible repositories only, like every figure of the node
      * @param languagesUnknownFor the listed repositories whose languages are unknown — no completed
      *     scan, or a newest one that recorded no whole census — by id. The union says nothing of them:
      *     a project reading "Java" with a repository here may be Java and Go, and a screen says so
-     *     rather than presenting the union as the whole project (decision 0007)
+     *     rather than presenting the union as the whole project (decision 0007). Repositories only: an
+     *     image carries no language census, and is neither in the union nor among the unknown
+     * @param containerCount the images listed, which are the visible ones
+     * @param containers the images filed in the project that this reader sees
      */
     public record ProjectNode(
             Long id,
@@ -118,9 +133,14 @@ public class SolutionQueryService {
             OpenIssues openIssues,
             List<RepositoryRef> repositories,
             List<Language> detectedLanguages,
-            List<Long> languagesUnknownFor) {}
+            List<Long> languagesUnknownFor,
+            int containerCount,
+            List<ContainerRef> containers) {}
 
-    /** @param partial a repository filed under this solution is hidden from this reader */
+    /**
+     * @param partial a repository or an image filed under this solution is hidden from this reader
+     * @param containerCount the images its shown projects list
+     */
     public record SolutionNode(
             Long id,
             String name,
@@ -129,33 +149,54 @@ public class SolutionQueryService {
             boolean partial,
             int repositoryCount,
             OpenIssues openIssues,
-            List<ProjectNode> projects) {}
+            List<ProjectNode> projects,
+            int containerCount) {}
 
-    /** The repositories in no project that this reader may see, with their figures. */
-    public record Unfiled(int repositoryCount, OpenIssues openIssues, List<RepositoryRef> repositories) {}
+    /** The repositories and images in no project that this reader may see, with their figures. */
+    public record Unfiled(
+            int repositoryCount,
+            OpenIssues openIssues,
+            List<RepositoryRef> repositories,
+            int containerCount,
+            List<ContainerRef> containers) {}
 
     public record SolutionTree(List<SolutionNode> solutions, Unfiled unfiled) {}
 
     /**
-     * A project and the repositories filed in it now — what a module that answers for a whole project
-     * needs to decide whether its caller sees all of it ({@code RowVisibility.requireWhollyVisibleProject}).
+     * A project and the targets filed in it now — what a module that answers for a whole project
+     * needs to decide whether its caller sees all of it ({@code RowVisibility.requireWhollyVisibleProject}),
+     * and what the backlog narrows a project to.
      *
      * @param repositoryIds every repository filed in the project at the moment of asking, visible or not:
      *     the guard compares them with the caller's visibility, and a list narrowed first would let a
      *     partial reader pass for a whole one
+     * @param containerIds every image filed in the project at the moment of asking, visible or not. The
+     *     checklists read {@code repositoryIds} alone: their measurements and their guard speak for the
+     *     project's repositories, and images entering them is an open point of the amendment of
+     *     2026-09-30, not something a new component decides in passing
      */
-    public record ProjectMembers(long projectId, String name, List<Long> repositoryIds) {
+    public record ProjectMembers(long projectId, String name, List<Long> repositoryIds, List<Long> containerIds) {
 
         public ProjectMembers {
             repositoryIds = List.copyOf(repositoryIds);
+            containerIds = List.copyOf(containerIds);
+        }
+
+        /** Every target filed in the project, repositories then images. */
+        public List<ScanTarget> targets() {
+            return Stream.concat(
+                            repositoryIds.stream().<ScanTarget>map(ScanTarget.Repository::new),
+                            containerIds.stream().<ScanTarget>map(ScanTarget.Container::new))
+                    .toList();
         }
     }
 
-    /** The project and its repositories, or empty when there is no such project. */
+    /** The project and its targets, or empty when there is no such project. */
     @Transactional(readOnly = true)
     public Optional<ProjectMembers> members(long projectId) {
         return projects.findById(projectId).map(project -> new ProjectMembers(project.getId(), project.getName(),
-                repositories.findIdsByProjectIdIn(List.of(project.getId()))));
+                repositories.findIdsByProjectIdIn(List.of(project.getId())),
+                containers.findIdsByProjectIdIn(List.of(project.getId()))));
     }
 
     /**
@@ -169,13 +210,16 @@ public class SolutionQueryService {
     }
 
     /**
-     * The repositories filed in this solution's projects now, visible or not — empty when there is no
-     * such solution, or it holds none. The backlog narrows by them and applies its reader's visibility
-     * beside them, so the list carries no more than a lookup of the tree would.
+     * The repositories and images filed in this solution's projects now, visible or not — empty when
+     * there is no such solution, or it holds none. The backlog narrows by them and applies its reader's
+     * visibility beside them, so the list carries no more than a lookup of the tree would.
      */
     @Transactional(readOnly = true)
-    public List<Long> repositoriesOfSolution(long solutionId) {
-        return repositories.findIdsBySolutionId(solutionId);
+    public List<ScanTarget> targetsOfSolution(long solutionId) {
+        return Stream.concat(
+                        repositories.findIdsBySolutionId(solutionId).stream().<ScanTarget>map(ScanTarget.Repository::new),
+                        containers.findIdsBySolutionId(solutionId).stream().<ScanTarget>map(ScanTarget.Container::new))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -183,16 +227,25 @@ public class SolutionQueryService {
         Visibility visibility = allowance.visibility();
         boolean everything = visibility instanceof Visibility.Everything;
 
-        List<RepositoryEntity> all = repositories.findAll();
-        List<RepositoryEntity> visible = all.stream()
+        List<RepositoryEntity> allRepositories = repositories.findAll();
+        List<RepositoryEntity> visible = allRepositories.stream()
                 .filter(repository -> visibility.permits(new ScanTarget.Repository(repository.getId())))
                 .toList();
-        Map<Long, List<RepositoryEntity>> visibleByProject = byProject(visible);
-        Map<Long, Long> filedByProject = all.stream()
-                .filter(repository -> repository.getProjectId() != null)
-                .collect(Collectors.groupingBy(RepositoryEntity::getProjectId, Collectors.counting()));
+        List<ContainerEntity> allContainers = containers.findAll();
+        List<ContainerEntity> visibleContainers = allContainers.stream()
+                .filter(container -> visibility.permits(new ScanTarget.Container(container.getId())))
+                .toList();
+        Map<Long, List<RepositoryEntity>> visibleByProject = byProject(visible, RepositoryEntity::getProjectId);
+        Map<Long, List<ContainerEntity>> visibleContainersByProject =
+                byProject(visibleContainers, ContainerEntity::getProjectId);
+        // Every filed target, visible or not, per project: what "partial" is measured against.
+        Map<Long, Long> filedByProject = new HashMap<>();
+        Stream.concat(allRepositories.stream().map(RepositoryEntity::getProjectId),
+                        allContainers.stream().map(ContainerEntity::getProjectId))
+                .filter(java.util.Objects::nonNull)
+                .forEach(projectId -> filedByProject.merge(projectId, 1L, Long::sum));
 
-        Map<Long, Map<Severity, Long>> open = openBySeverity(visible, everything);
+        Map<ScanTarget, Map<Severity, Long>> open = openBySeverity(visible, visibleContainers, everything);
         // Of the repositories filed in a project and visible: an unfiled one belongs to no project's
         // union, and a hidden one's languages are its own.
         Map<Long, Set<Language>> languages = scans.detectedLanguages(visible.stream()
@@ -204,19 +257,21 @@ public class SolutionQueryService {
         List<ProjectEntity> shownProjects = allProjects.stream()
                 .filter(project -> everything
                         || allowance.grantedProjects().contains(project.getId())
-                        || visibleByProject.containsKey(project.getId()))
+                        || visibleByProject.containsKey(project.getId())
+                        || visibleContainersByProject.containsKey(project.getId()))
                 .toList();
         Map<Long, List<ProjectNode>> nodesBySolution = shownProjects.stream()
                 .map(project -> projectNode(
                         project,
                         visibleByProject.getOrDefault(project.getId(), List.of()),
+                        visibleContainersByProject.getOrDefault(project.getId(), List.of()),
                         filedByProject.getOrDefault(project.getId(), 0L),
                         open,
                         languages))
                 .sorted(Comparator.comparing(ProjectNode::name, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.groupingBy(ProjectNode::solutionId));
 
-        // Hidden repositories per solution, over every project of it and not only the shown ones:
+        // Hidden targets per solution, over every project of it and not only the shown ones:
         // a project the reader cannot see at all still makes the solution's figures partial.
         Map<Long, Long> solutionOfProject = allProjects.stream()
                 .collect(Collectors.toMap(ProjectEntity::getId, ProjectEntity::getSolutionId));
@@ -233,16 +288,23 @@ public class SolutionQueryService {
                 .toList();
 
         List<RepositoryEntity> unfiled = visibleByProject.getOrDefault(null, List.of());
+        List<ContainerEntity> unfiledContainers = visibleContainersByProject.getOrDefault(null, List.of());
         return new SolutionTree(
                 solutionNodes,
-                new Unfiled(unfiled.size(), sum(unfiled, open), refs(unfiled)));
+                new Unfiled(
+                        unfiled.size(),
+                        sum(unfiled, unfiledContainers, open),
+                        refs(unfiled),
+                        unfiledContainers.size(),
+                        containerRefs(unfiledContainers)));
     }
 
     private static ProjectNode projectNode(
             ProjectEntity project,
             List<RepositoryEntity> visible,
+            List<ContainerEntity> visibleContainers,
             long filed,
-            Map<Long, Map<Severity, Long>> open,
+            Map<ScanTarget, Map<Severity, Long>> open,
             Map<Long, Set<Language>> languages) {
         Set<Language> union = EnumSet.noneOf(Language.class);
         List<Long> unknown = new ArrayList<>();
@@ -261,53 +323,64 @@ public class SolutionQueryService {
                 project.getName(),
                 project.getDescription(),
                 project.getCreatedAt(),
-                visible.size() < filed,
+                visible.size() + visibleContainers.size() < filed,
                 visible.size(),
-                sum(visible, open),
+                sum(visible, visibleContainers, open),
                 refs(visible),
                 List.copyOf(union),
-                List.copyOf(unknown));
+                List.copyOf(unknown),
+                visibleContainers.size(),
+                containerRefs(visibleContainers));
     }
 
     private static SolutionNode solutionNode(SolutionEntity solution, List<ProjectNode> projects, long filed) {
-        int visible = projects.stream().mapToInt(ProjectNode::repositoryCount).sum();
+        int repositoriesShown = projects.stream().mapToInt(ProjectNode::repositoryCount).sum();
+        int containersShown = projects.stream().mapToInt(ProjectNode::containerCount).sum();
         return new SolutionNode(
                 solution.getId(),
                 solution.getName(),
                 solution.getDescription(),
                 solution.getCreatedAt(),
-                visible < filed,
-                visible,
+                repositoriesShown + containersShown < filed,
+                repositoriesShown,
                 add(projects.stream().map(ProjectNode::openIssues).toList()),
-                projects);
+                projects,
+                containersShown);
     }
 
     /**
-     * The open backlog per visible repository and severity, in one query.
+     * The open backlog per visible target and severity, in one query.
      *
      * <p>Through the scoreboard's own grouped count — asked of {@code issues}, which owns it —
-     * narrowed to the visible repositories: the reader's visibility with its containers dropped,
-     * since no container is in a project. An
-     * unrestricted reader is not narrowed at all: listing every repository in an {@code or} would
-     * say the same thing at the cost of a statement as long as the estate.
+     * narrowed to the visible repositories and images, which that predicate writes into the statement
+     * rather than binding one parameter each: the list is sized by the estate. An unrestricted reader
+     * is not narrowed at all: listing every target in an {@code or} would say the same thing at the
+     * cost of a statement as long as the estate.
      */
-    private Map<Long, Map<Severity, Long>> openBySeverity(List<RepositoryEntity> visible, boolean everything) {
-        if (!everything && visible.isEmpty()) {
+    private Map<ScanTarget, Map<Severity, Long>> openBySeverity(
+            List<RepositoryEntity> visible, List<ContainerEntity> visibleContainers, boolean everything) {
+        if (!everything && visible.isEmpty() && visibleContainers.isEmpty()) {
             return Map.of();
         }
         Visibility narrowed = everything
                 ? Visibility.everything()
-                : Visibility.only(visible.stream()
-                        .<ScanTarget>map(repository -> new ScanTarget.Repository(repository.getId()))
+                : Visibility.only(Stream.concat(
+                                visible.stream().<ScanTarget>map(repository -> new ScanTarget.Repository(repository.getId())),
+                                visibleContainers.stream().<ScanTarget>map(container -> new ScanTarget.Container(container.getId())))
                         .toList());
-        return backlog.openBySeverityPerRepository(narrowed);
+        return backlog.openBySeverityPerTarget(narrowed);
     }
 
-    private static OpenIssues sum(Collection<RepositoryEntity> repositories, Map<Long, Map<Severity, Long>> open) {
+    private static OpenIssues sum(
+            Collection<RepositoryEntity> repositories,
+            Collection<ContainerEntity> containers,
+            Map<ScanTarget, Map<Severity, Long>> open) {
         Map<Severity, Long> total = new EnumMap<>(Severity.class);
-        for (RepositoryEntity repository : repositories) {
-            open.getOrDefault(repository.getId(), Map.of()).forEach((severity, count) -> total.merge(severity, count, Long::sum));
-        }
+        Stream.concat(
+                        repositories.stream().<ScanTarget>map(repository -> new ScanTarget.Repository(repository.getId())),
+                        containers.stream().<ScanTarget>map(container -> new ScanTarget.Container(container.getId())))
+                .forEach(target -> open.getOrDefault(target, Map.of())
+                        .forEach((severity, count) -> total.merge(severity, count, Long::sum)));
         return total.isEmpty() ? OpenIssues.NONE : OpenIssues.of(total);
     }
 
@@ -323,10 +396,10 @@ public class SolutionQueryService {
     }
 
     /** Grouped by project, the unfiled ones under the {@code null} key. */
-    private static Map<Long, List<RepositoryEntity>> byProject(List<RepositoryEntity> repositories) {
-        Map<Long, List<RepositoryEntity>> grouped = new HashMap<>();
-        for (RepositoryEntity repository : repositories) {
-            grouped.computeIfAbsent(repository.getProjectId(), id -> new ArrayList<>()).add(repository);
+    private static <T> Map<Long, List<T>> byProject(List<T> targets, Function<T, Long> projectOf) {
+        Map<Long, List<T>> grouped = new HashMap<>();
+        for (T target : targets) {
+            grouped.computeIfAbsent(projectOf.apply(target), id -> new ArrayList<>()).add(target);
         }
         return grouped;
     }
@@ -336,6 +409,14 @@ public class SolutionQueryService {
                 .map(repository -> new RepositoryRef(repository.getId(), TargetNaming.of(repository)))
                 .sorted(Comparator.comparing(RepositoryRef::name, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(RepositoryRef::id))
+                .toList();
+    }
+
+    private static List<ContainerRef> containerRefs(List<ContainerEntity> containers) {
+        return containers.stream()
+                .map(container -> new ContainerRef(container.getId(), TargetNaming.of(container)))
+                .sorted(Comparator.comparing(ContainerRef::name, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(ContainerRef::id))
                 .toList();
     }
 }

@@ -19,6 +19,8 @@ import com.asmolabs.vectispire.core.notifications.internal.ScanDeltaNotifier;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
@@ -33,7 +35,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * A team granted a project is told about the project's repositories (decision 0023).
+ * A team granted a project is told about the project's repositories (decision 0023) and its images
+ * (the amendment of 2026-09-30).
  *
  * <p>Visibility resolves a project grant into the repositories filed in the project; routing has
  * to read ownership the same way, or the team sees findings on screen its channel was never sent.
@@ -66,6 +69,9 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
     private GitRepositoryRepository repositories;
 
     @Autowired
+    private ContainerRepository containers;
+
+    @Autowired
     private OutboxMessageRepository outbox;
 
     @Test
@@ -81,8 +87,26 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
         enqueue(filed);
         enqueue(unfiled);
 
-        assertThat(outbox.findAll().stream().map(OutboxMessageEntity::getTeamId).filter(java.util.Objects::nonNull))
+        assertThat(outbox.findAll().stream().map(OutboxMessageEntity::getTeamId).filter(Long.valueOf(team)::equals))
                 .as("one copy for the team, for the filed repository only")
+                .containsExactly(team);
+    }
+
+    @Test
+    @DisplayName("a scan of an image filed in the team's project is queued for the team's channel")
+    void aProjectGrantRoutesAnImagesDelta() {
+        long team = team("image-owners");
+        long project = project();
+        teamTargets.save(new TeamTargetEntity(team, "project", project));
+        long filed = container("routed");
+        containers.assignProject(filed, project);
+        long unfiled = container("elsewhere");
+
+        enqueueImage(filed);
+        enqueueImage(unfiled);
+
+        assertThat(outbox.findAll().stream().map(OutboxMessageEntity::getTeamId).filter(Long.valueOf(team)::equals))
+                .as("one copy for the team, for the filed image only")
                 .containsExactly(team);
     }
 
@@ -90,8 +114,20 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
         ScanEntity scan = new ScanEntity();
         scan.setId(repositoryId * 1000);
         scan.setRepoId(repositoryId);
+        send(scan, repositoryId * 1000);
+    }
+
+    private void enqueueImage(long containerId) {
+        ScanEntity scan = new ScanEntity();
+        // Kept apart from the repositories' scans, whose identifiers are their repository's times a thousand.
+        scan.setId(containerId * 1000 + 500);
+        scan.setContainerId(containerId);
+        send(scan, containerId * 1000 + 500);
+    }
+
+    private void send(ScanEntity scan, long issueId) {
         IssueEntity issue = new IssueEntity();
-        issue.setId(repositoryId * 1000);
+        issue.setId(issueId);
         issue.setIdentifier("CVE-2021-44228");
         issue.setType(FindingType.VULNERABILITY.wireName());
         issue.setSeverity(Severity.CRITICAL.wireName());
@@ -118,6 +154,13 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
         project.setName("project");
         project.setCreatedAt(Instant.now());
         return projects.save(project).getId();
+    }
+
+    private long container(String name) {
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName(name + "-" + System.nanoTime());
+        container.setTag("1.0");
+        return containers.save(container).getId();
     }
 
     private long repository(String url) {

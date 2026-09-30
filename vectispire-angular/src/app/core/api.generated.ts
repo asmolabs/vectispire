@@ -2022,16 +2022,40 @@ export interface paths {
         post?: never;
         /**
          * Delete project
-         * @description Its repositories return to no project and its grants are revoked; no repository and no finding is deleted.
+         * @description Its repositories and images return to no project and its grants are revoked; no repository, no image and no finding is deleted.
          */
         delete: operations["remove_4"];
         options?: never;
         head?: never;
         /**
          * Rename, describe or move project
-         * @description A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.
+         * @description A solutionId moves the project to that solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.
          */
         patch: operations["update_5"];
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/containers/{containerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * File container image into project
+         * @description Moves it out of the project it was in, if any; the project's grantees see it from then on. An image the caller cannot see answers 404, as one that does not exist.
+         */
+        put: operations["fileContainer"];
+        post?: never;
+        /**
+         * Remove container image from project
+         * @description Back to no project. 404 when the image is not in this project.
+         */
+        delete: operations["unfileContainer"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/projects/{id}/repositories/{repositoryId}": {
@@ -3303,7 +3327,7 @@ export interface paths {
         };
         /**
          * Solutions tree
-         * @description Solutions, their projects and the repositories filed in them, as far as the caller may see, with each project's open issues by severity and the repositories in no project as a group of their own.
+         * @description Solutions, their projects and the repositories and container images filed in them, as far as the caller may see, with each project's open issues by severity over both, and the repositories and images in no project as a group of their own.
          */
         get: operations["list_4"];
         put?: never;
@@ -4737,6 +4761,11 @@ export interface components {
             tag?: string;
             tier?: string;
         };
+        ContainerRef: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+        };
         ContainerSummary: {
             displayName?: string;
             /** Format: int64 */
@@ -4747,6 +4776,9 @@ export interface components {
             lastScheduledScanAt?: string;
             /** Format: int64 */
             openIssues: number;
+            /** Format: int64 */
+            projectId?: number;
+            projectName?: string;
             reference?: string;
             registry?: string;
             requiredAgentLabel?: string;
@@ -6003,6 +6035,9 @@ export interface components {
             solutionId?: number;
         };
         ProjectNode: {
+            /** Format: int32 */
+            containerCount: number;
+            containers?: components["schemas"]["ContainerRef"][];
             /** Format: date-time */
             createdAt?: string;
             description?: string;
@@ -6801,6 +6836,8 @@ export interface components {
             total: number;
         };
         SolutionNode: {
+            /** Format: int32 */
+            containerCount: number;
             /** Format: date-time */
             createdAt?: string;
             description?: string;
@@ -7139,6 +7176,9 @@ export interface components {
             status?: string;
         };
         Unfiled: {
+            /** Format: int32 */
+            containerCount: number;
+            containers?: components["schemas"]["ContainerRef"][];
             openIssues?: components["schemas"]["OpenIssues"];
             repositories?: components["schemas"]["RepositoryRef"][];
             /** Format: int32 */
@@ -10258,6 +10298,48 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["ProjectView"];
                 };
+            };
+        };
+    };
+    fileContainer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                containerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unfileContainer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                containerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

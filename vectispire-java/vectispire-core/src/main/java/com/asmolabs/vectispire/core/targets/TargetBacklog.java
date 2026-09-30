@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.Map;
 
 /**
@@ -21,9 +22,9 @@ public interface TargetBacklog {
     Map<Long, Long> openPerContainer();
 
     /**
-     * The open backlog per repository and severity, <b>settled triage left out</b> — the solutions
-     * tree's figures — for the repositories {@code narrowed} permits. Containers are not counted: no
-     * image is in a project.
+     * The open backlog per target and severity, <b>settled triage left out</b> — the solutions tree's
+     * figures — for the repositories and images {@code narrowed} permits. Images are counted since they
+     * can be filed in a project (amendment of 2026-09-30 to decision 0023).
      */
-    Map<Long, Map<Severity, Long>> openBySeverityPerRepository(Visibility narrowed);
+    Map<ScanTarget, Map<Severity, Long>> openBySeverityPerTarget(Visibility narrowed);
 }

@@ -6,12 +6,15 @@ import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.access.TargetGrants;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
@@ -32,16 +35,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Solutions, their projects, and which project a repository is filed in (decision 0023).
+ * Solutions, their projects, and which project a repository or an image is filed in (decision 0023,
+ * and its amendment of 2026-09-30 for images).
  *
  * <p><b>One service for both levels, and the read elsewhere.</b> The writes share their invariants
  * — a solution is deleted only when it holds no project, a project's name is unique within its
- * solution, a repository is in at most one project — and splitting solutions from projects would
+ * solution, a repository or an image is in at most one project — and splitting solutions from projects would
  * put each half of those rules in a different class. The tree is {@link SolutionQueryService}'s,
  * because it is decided by the reader's visibility and computes figures, which no write here does.
  *
- * <p><b>Filing a repository is an access change.</b> A project grant resolves at each request
- * into the project's repositories, so a move changes what the project's grantees see at once, in
+ * <p><b>Filing a repository or an image is an access change.</b> A project grant resolves at each
+ * request into the project's repositories and images, so a move changes what the project's grantees see at once, in
  * both directions, with no grant row touched. That is the whole point of the decision and also its
  * sharpest edge, so every move is audited in words that say it.
  *
@@ -63,6 +67,7 @@ public class SolutionAdministrationService {
     private final SolutionRepository solutions;
     private final ProjectRepository projects;
     private final GitRepositoryRepository repositories;
+    private final ContainerRepository containers;
     private final TargetGrants grants;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
@@ -73,6 +78,7 @@ public class SolutionAdministrationService {
             SolutionRepository solutions,
             ProjectRepository projects,
             GitRepositoryRepository repositories,
+            ContainerRepository containers,
             TargetGrants grants,
             AuditLogService audit,
             TransactionTemplate transactions,
@@ -81,6 +87,7 @@ public class SolutionAdministrationService {
         this.solutions = solutions;
         this.projects = projects;
         this.repositories = repositories;
+        this.containers = containers;
         this.grants = grants;
         this.audit = audit;
         this.transactions = transactions;
@@ -208,10 +215,10 @@ public class SolutionAdministrationService {
      *
      * <p><b>A move takes everything with it and changes nobody's access.</b> Every row naming a
      * project names it by its identifier — its repositories ({@code t_repository.project_id}), its
-     * grants, its checklists, its plugin activations, its SARIF sources — and nothing names a
+     * images ({@code t_container.project_id}), its grants, its checklists, its plugin activations, its SARIF sources — and nothing names a
      * solution but {@code t_project.solution_id}: no grant is written for a solution (decision 0023),
      * and the backlog's {@code solution_id} filter resolves the solution's repositories at each
-     * request. So the one column moves, and there is nothing to carry and nothing left behind.
+     * request, and its images with them. So the one column moves, and there is nothing to carry and nothing left behind.
      *
      * <p><b>The same solution is no move</b>, not a refusal: a PATCH that sends the value the project
      * already holds asks for the state it is in, and a screen that sends the whole form back must not
@@ -258,7 +265,7 @@ public class SolutionAdministrationService {
         String change = "Project " + previous + " updated" + (previous.equals(saved.getName()) ? "" : " → " + saved.getName());
         if (target != null) {
             change += "; moved from solution " + solutionName(previousSolutionId) + " to " + target.getName()
-                    + " (its repositories, grants and checklists follow it)";
+                    + " (its repositories, images, grants and checklists follow it)";
         }
         audit.record(actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id), change));
         return ProjectView.of(saved);
@@ -285,35 +292,37 @@ public class SolutionAdministrationService {
     }
 
     /**
-     * Deletes a project: its repositories return to "no project", its grants are revoked, and no
-     * repository and no finding is deleted.
+     * Deletes a project: its repositories and its images return to "no project", its grants are
+     * revoked, and no repository, no image and no finding is deleted.
      *
      * <p><b>The grants go explicitly.</b> A grant names its target as {@code (kind, id)}, which no
      * foreign key can follow into three tables, so nothing would cascade: the row would stay on the
      * grant screens naming a deleted project, and should an engine ever hand the identifier out
      * again, it would grant a project nobody chose.
      *
-     * <p><b>One transaction for the three writes</b>, opened here with a template because the
+     * <p><b>One transaction for the writes</b>, opened here with a template because the
      * boundary starts inside this class; the audit entry is written after it commits, since it
      * opens its own and on SQLite would wait on this one's file lock.
      */
     public void deleteProject(long id, RequestActor actor) {
         ProjectEntity project = requireProject(id);
-        record Removed(int detached, int grants) {}
+        record Removed(int detached, int detachedImages, int grants) {}
 
         Removed removed = transactions.execute(status -> {
             int detached = repositories.detachProject(id);
+            int detachedImages = containers.detachProject(id);
             int revoked = grants.revokeAll(TeamRules.KIND_PROJECT, id).grants();
             // Modules above that keep rows naming the project drop theirs here, in this transaction
             // (ProjectDeleted): the plugins activated for it, the SARIF sources scoped to it.
             events.publishEvent(new ProjectDeleted(id));
             projects.deleteById(id);
-            return new Removed(detached, revoked);
+            return new Removed(detached, detachedImages, revoked);
         });
 
         AuditLogService.Record deleted = actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id),
                 "Project deleted: " + project.getName() + " (" + removed.detached()
-                        + " repository(ies) returned to no project, " + removed.grants() + " grant(s) revoked)");
+                        + " repository(ies) and " + removed.detachedImages() + " image(s) returned to no project, "
+                        + removed.grants() + " grant(s) revoked)");
         audit.record(removed.grants() > 0 ? deleted.signalling(SecurityEventType.ACCESS_GRANT_CHANGED) : deleted);
     }
 
@@ -418,6 +427,55 @@ public class SolutionAdministrationService {
 
         audit.record(actor.entry(AuditOperation.PROJECT_REPOSITORIES_CHANGED, String.valueOf(repositoryId),
                 "Repository " + TargetNaming.of(repository) + " removed from project " + project.getName()
+                        + ": holders of that project's grant no longer see it through that grant"));
+    }
+
+    // ----------------------------------------------------------------------- filing an image
+
+    /**
+     * Files a container image into a project, or moves it there from another — the repository's rule
+     * (amendment of 2026-09-30): at most one project, a move moves its visibility for both projects'
+     * grantees, and filing it where it already is changes and records nothing.
+     *
+     * @param allowed the caller's visibility; an image it cannot see answers the 404 an absent one gets
+     */
+    public void fileContainer(long projectId, long containerId, Visibility allowed, RequestActor actor) {
+        ProjectEntity project = requireProject(projectId);
+        ContainerEntity container = RowVisibility.requireVisible(
+                containers.findById(containerId), new ScanTarget.Container(containerId), allowed);
+        Long previousId = container.getProjectId();
+        if (Objects.equals(previousId, projectId)) {
+            return;
+        }
+
+        containers.assignProject(containerId, projectId);
+
+        String name = TargetNaming.of(container);
+        String description = previousId == null
+                ? "Image " + name + " filed into project " + project.getName()
+                        + ": holders of that project's grant now see it"
+                : "Image " + name + " moved from project " + projectName(previousId) + " to " + project.getName()
+                        + ": visibility moves with it — holders of the first project's grant no longer see it through"
+                        + " that grant, holders of the second now do";
+        audit.record(actor.entry(AuditOperation.PROJECT_CONTAINERS_CHANGED, String.valueOf(containerId), description));
+    }
+
+    /**
+     * Takes an image out of a project, back to "no project"; one that is not in this project is a 404,
+     * as for a repository.
+     */
+    public void removeContainer(long projectId, long containerId, Visibility allowed, RequestActor actor) {
+        ProjectEntity project = requireProject(projectId);
+        ContainerEntity container = RowVisibility.requireVisible(
+                containers.findById(containerId), new ScanTarget.Container(containerId), allowed);
+        if (!Objects.equals(container.getProjectId(), projectId)) {
+            throw new NotFoundException("This image is not in that project.");
+        }
+
+        containers.assignProject(containerId, null);
+
+        audit.record(actor.entry(AuditOperation.PROJECT_CONTAINERS_CHANGED, String.valueOf(containerId),
+                "Image " + TargetNaming.of(container) + " removed from project " + project.getName()
                         + ": holders of that project's grant no longer see it through that grant"));
     }
 

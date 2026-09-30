@@ -60,7 +60,12 @@ public class ContainersController {
             Instant lastScheduledScanAt,
             LastScan lastScan,
             long openIssues,
-            String tier) {}
+            String tier,
+            // The project it is filed in (decision 0023, amendment of 2026-09-30), null for "no
+            // project", with its name as `Solution / Project`. Changed through
+            // `PUT /api/v1/projects/{id}/containers/{containerId}`, not through this resource.
+            Long projectId,
+            String projectName) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
     public record ContainerCreateRequest(
@@ -175,7 +180,9 @@ public class ContainersController {
                         .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
                         .orElse(null),
                 listed.openIssues(),
-                container.tier());
+                container.tier(),
+                container.projectId(),
+                listed.projectName());
     }
 
     private static Changes changesOf(ContainerCreateRequest body) {

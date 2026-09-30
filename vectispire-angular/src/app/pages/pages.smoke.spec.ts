@@ -161,6 +161,7 @@ describe('every screen', () => {
                 solutions: [],
                 unfiled: {
                     repositoryCount: 0,
+                    containerCount: 0,
                     openIssues: { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 },
                     repositories: []
                 }

@@ -142,6 +142,17 @@ public enum AuditOperation {
      */
     PROJECT_REPOSITORIES_CHANGED,
 
+    /**
+     * A container image was filed into a project, moved to another, or taken out of one (decision 0023,
+     * amendment of 2026-09-30).
+     *
+     * <p>An access change for the reason {@link #PROJECT_REPOSITORIES_CHANGED} is. <b>An operation of its
+     * own rather than that one reused</b>: the entry's target is the image's identifier, and a repository
+     * and an image may carry the same number — under the repositories' operation, "42" would name the
+     * wrong target to whoever filtered the log by it.
+     */
+    PROJECT_CONTAINERS_CHANGED,
+
     /** Without it, sweeping every endpoint leaves no trace at all. */
     ACCESS_DENIED,
 

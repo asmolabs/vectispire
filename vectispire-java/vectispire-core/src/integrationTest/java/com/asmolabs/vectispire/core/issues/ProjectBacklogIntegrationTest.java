@@ -13,7 +13,10 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
+import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
@@ -49,6 +52,10 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * client-side statements and the SQLite driver accepted the bound statement, so a green run on those
  * two says nothing of the binding — they check the rest, a subquery for the solution, an {@code or} of
  * {@code in} lists and a statement text of several hundred kilobytes, each read by the engine.
+ *
+ * <p>Images filed in a project (the amendment of 2026-09-30 to decision 0023) are narrowed by their own
+ * column in the same statement, and a project grant resolves into them through a lookup of the granted
+ * projects that binds a thousand at a time: both are driven past the limit here too.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the backlog of a project or a solution, on the engine")
@@ -61,6 +68,13 @@ class ProjectBacklogIntegrationTest {
 
     /** Seventy thousand identifiers no row carries — past the PostgreSQL driver's 65,535. */
     private static final List<Long> NOBODY = LongStream.rangeClosed(9_000_000, 9_070_000).boxed().toList();
+
+    /**
+     * Where the images' half of {@link #NOBODY} starts. Seventy thousand in all, still past the PostgreSQL
+     * driver's ceiling when bound, and not seventy thousand of each: SQLite refuses a statement text past
+     * a million bytes (SQLITE_TOOBIG), which a hundred and forty thousand literals exceed.
+     */
+    private static final int HALF = NOBODY.size() / 2;
 
     @BeforeAll
     static void start() {
@@ -87,6 +101,12 @@ class ProjectBacklogIntegrationTest {
     private GitRepositoryRepository repositories;
 
     @Autowired
+    private ContainerRepository containers;
+
+    @Autowired
+    private GrantableTargets grantable;
+
+    @Autowired
     private ProjectRepository projects;
 
     @Autowired
@@ -108,16 +128,45 @@ class ProjectBacklogIntegrationTest {
         issue(first, "CVE-FIRST");
         issue(last, "CVE-LAST");
         issue(repository(), "CVE-UNFILED");
+        long image = container();
+        containers.assignProject(image, project);
+        imageIssue(image, "CVE-IMAGE");
+        imageIssue(container(), "CVE-UNFILED-IMAGE");
 
         assertThat(identifiers(backlog.page(query(project, null), Visibility.everything())))
-                .containsExactlyInAnyOrder("CVE-FIRST", "CVE-LAST");
+                .containsExactlyInAnyOrder("CVE-FIRST", "CVE-LAST", "CVE-IMAGE");
         assertThat(identifiers(backlog.page(query(null, solution), Visibility.everything())))
-                .as("the solution's repositories through a subquery on its projects")
-                .containsExactlyInAnyOrder("CVE-FIRST", "CVE-LAST");
+                .as("the solution's repositories and images through a subquery on its projects")
+                .containsExactlyInAnyOrder("CVE-FIRST", "CVE-LAST", "CVE-IMAGE");
         assertThat(identifiers(backlog.page(query(project, null),
                         Visibility.only(List.of(new ScanTarget.Repository(last))))))
                 .as("intersected with what the reader sees")
                 .containsExactly("CVE-LAST");
+        assertThat(identifiers(backlog.page(query(project, null),
+                        Visibility.only(List.of(new ScanTarget.Container(image))))))
+                .as("an image the reader sees, and none of the repositories it does not")
+                .containsExactly("CVE-IMAGE");
+
+        assertThat(containers.detachProject(project)).isEqualTo(1);
+        assertThat(identifiers(backlog.page(query(project, null), Visibility.everything())))
+                .as("an image detached leaves the project's backlog")
+                .containsExactlyInAnyOrder("CVE-FIRST", "CVE-LAST");
+    }
+
+    @Test
+    @DisplayName("seventy thousand granted projects resolve into their repositories and images on the engine")
+    void aProjectGrantPastTheBindLimit() {
+        long project = project(solution());
+        long repository = repository();
+        repositories.assignProject(repository, project);
+        long image = container();
+        containers.assignProject(image, project);
+        container();
+
+        List<Long> granted = Stream.concat(NOBODY.stream(), Stream.of(project)).toList();
+
+        assertThat(grantable.targetsIn(granted))
+                .containsExactlyInAnyOrder(new ScanTarget.Repository(repository), new ScanTarget.Container(image));
     }
 
     @Test
@@ -126,11 +175,35 @@ class ProjectBacklogIntegrationTest {
         long repository = repository();
         issue(repository, "CVE-AMONG-MANY");
         IssueFilters filters = new IssueFilters(null, null, null, null, null, null, false, false, null,
-                Visibility.everything()).within(Stream.concat(NOBODY.stream(), Stream.of(repository)).toList());
+                Visibility.everything()).within(Stream.concat(NOBODY.stream(), Stream.of(repository))
+                .<ScanTarget>map(ScanTarget.Repository::new)
+                .toList());
 
         assertThat(issues.findAll(IssueSpecifications.of(filters), PageRequest.of(0, 50)).getContent())
                 .extracting(IssueEntity::getIdentifier)
                 .containsExactly("CVE-AMONG-MANY");
+        assertThat(issues.count(IssueSpecifications.of(filters))).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("seventy thousand identifiers in the narrowing, half repositories and half images: each by its own column")
+    void imagesPastTheBindLimit() {
+        long image = container();
+        imageIssue(image, "CVE-IMAGE-AMONG-MANY");
+        // A repository whose number is named as an image's, with an issue: were the narrowing to read the
+        // images' identifiers against the repositories' column, this would be answered too.
+        long repository = repository();
+        issue(repository, "CVE-NAMED-AS-AN-IMAGE");
+        IssueFilters filters = new IssueFilters(null, null, null, null, null, null, false, false, null,
+                Visibility.everything()).within(Stream.concat(
+                        NOBODY.subList(0, HALF).stream().<ScanTarget>map(ScanTarget.Repository::new),
+                        Stream.concat(NOBODY.subList(HALF, NOBODY.size()).stream(), Stream.of(image, repository))
+                                .<ScanTarget>map(ScanTarget.Container::new))
+                .toList());
+
+        assertThat(issues.findAll(IssueSpecifications.of(filters), PageRequest.of(0, 50)).getContent())
+                .extracting(IssueEntity::getIdentifier)
+                .containsExactly("CVE-IMAGE-AMONG-MANY");
         assertThat(issues.count(IssueSpecifications.of(filters))).isEqualTo(1);
     }
 
@@ -165,9 +238,25 @@ class ProjectBacklogIntegrationTest {
         return repositories.save(repository).getId();
     }
 
+    private long container() {
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName("large-" + System.nanoTime());
+        container.setTag("latest");
+        return containers.save(container).getId();
+    }
+
+    private void imageIssue(long container, String identifier) {
+        save(identifier, null, container);
+    }
+
     private void issue(long repository, String identifier) {
+        save(identifier, repository, null);
+    }
+
+    private void save(String identifier, Long repository, Long container) {
         IssueEntity issue = new IssueEntity();
         issue.setRepoId(repository);
+        issue.setContainerId(container);
         issue.setFingerprint("fp-" + System.nanoTime());
         issue.setType(FindingType.VULNERABILITY.wireName());
         issue.setIdentifier(identifier);

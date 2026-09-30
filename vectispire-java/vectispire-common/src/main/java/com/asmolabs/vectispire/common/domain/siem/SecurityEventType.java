@@ -202,9 +202,10 @@ public enum SecurityEventType {
         return switch (operation) {
             case USER_CREATED, USER_UPDATED, USER_DELETED, USER_PASSWORD_RESET, PASSWORD_CHANGED ->
                     Optional.of(ACCOUNT_CHANGED);
-            // Filing or moving a repository moves it in or out of every project grant at once
-            // (decision 0023): who may see it changes, with no grant row touched.
-            case TEAM_ACCESS_CHANGED, PROJECT_REPOSITORIES_CHANGED -> Optional.of(ACCESS_GRANT_CHANGED);
+            // Filing or moving a repository or an image moves it in or out of every project grant at
+            // once (decision 0023): who may see it changes, with no grant row touched.
+            case TEAM_ACCESS_CHANGED, PROJECT_REPOSITORIES_CHANGED, PROJECT_CONTAINERS_CHANGED ->
+                    Optional.of(ACCESS_GRANT_CHANGED);
             case API_KEY_CREATED -> Optional.of(API_KEY_ISSUED);
             case API_KEY_DELETED -> Optional.of(API_KEY_REVOKED);
             case AGENT_CREATED, AGENT_UPDATED, AGENT_DELETED, AGENT_SIGNING_KEY_PINNED, AGENT_SEALING_KEY_RESET ->

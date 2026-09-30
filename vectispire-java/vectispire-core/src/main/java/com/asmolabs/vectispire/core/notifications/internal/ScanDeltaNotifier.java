@@ -11,11 +11,13 @@ import com.asmolabs.vectispire.core.issues.ScanDelta;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
+import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -108,6 +110,7 @@ public class ScanDeltaNotifier implements ScanDelta.Sink {
      * a project sees the repositories filed in it; were it told only about the repositories it was
      * granted one by one, it would read findings on screen that its channel was never sent — and
      * nothing would say why. The project is read at the moment of the scan, as visibility reads it.
+     * An image filed in a project is owned through it the same way (amendment of 2026-09-30).
      */
     private List<Long> teamsToTell(Long repoId, Long containerId) {
         String kind = containerId == null ? TeamRules.KIND_REPOSITORY : TeamRules.KIND_CONTAINER;
@@ -117,11 +120,10 @@ public class ScanDeltaNotifier implements ScanDelta.Sink {
         }
 
         List<Long> claims = new ArrayList<>(teams.teamsGranted(kind, targetId));
-        if (TeamRules.KIND_REPOSITORY.equals(kind)) {
-            targets.repository(targetId)
-                    .map(RepositoryView::projectId)
-                    .ifPresent(projectId -> claims.addAll(teams.teamsGranted(TeamRules.KIND_PROJECT, projectId)));
-        }
+        Optional<Long> project = TeamRules.KIND_REPOSITORY.equals(kind)
+                ? targets.repository(targetId).map(RepositoryView::projectId)
+                : targets.container(targetId).map(ContainerView::projectId);
+        project.ifPresent(projectId -> claims.addAll(teams.teamsGranted(TeamRules.KIND_PROJECT, projectId)));
         List<Long> owners = claims.stream().distinct().toList();
         if (owners.isEmpty()) {
             return List.of();

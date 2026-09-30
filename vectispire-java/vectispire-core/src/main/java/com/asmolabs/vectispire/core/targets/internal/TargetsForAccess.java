@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,11 +35,26 @@ public class TargetsForAccess implements GrantableTargets {
         return naming.named(grants);
     }
 
+    /**
+     * Repositories first, then images, each looked up {@link #PROJECT_BATCH} projects at a time: the
+     * granted projects are sized by the grants, and one bind parameter per project fails past the
+     * PostgreSQL driver's 65,535.
+     */
     @Override
     @Transactional(readOnly = true)
-    public List<Long> repositoriesIn(Collection<Long> projectIds) {
-        return repositories.findIdsByProjectIdIn(projectIds);
+    public List<ScanTarget> targetsIn(Collection<Long> projectIds) {
+        List<Long> distinct = projectIds.stream().distinct().toList();
+        List<ScanTarget> targets = new ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += PROJECT_BATCH) {
+            List<Long> batch = distinct.subList(from, Math.min(from + PROJECT_BATCH, distinct.size()));
+            repositories.findIdsByProjectIdIn(batch).forEach(id -> targets.add(new ScanTarget.Repository(id)));
+            containers.findIdsByProjectIdIn(batch).forEach(id -> targets.add(new ScanTarget.Container(id)));
+        }
+        return targets;
     }
+
+    /** How many projects one lookup binds: far under every engine's limit. */
+    static final int PROJECT_BATCH = 1_000;
 
     @Override
     @Transactional(readOnly = true)

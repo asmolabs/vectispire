@@ -22,15 +22,16 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Changing a project, and filing repositories into it (decision 0023). Administrators only; a
+ * Changing a project, and filing repositories and container images into it (decision 0023, and its
+ * amendment of 2026-09-30 for images). Administrators only; a
  * project is created under its solution, {@code POST /api/v1/solutions/{id}/projects}, and read
  * in the tree.
  *
  * <p><b>Filing is an access change.</b> A grant on a project resolves at each request into the
- * repositories filed in it, so each of the two repository routes moves visibility for that
+ * repositories and images filed in it, so each of the four filing routes moves visibility for that
  * project's grantees at once. The service audits it in those words.
  */
-@Tag(name = "Solutions", description = "Solutions, their projects and the repositories filed in them")
+@Tag(name = "Solutions", description = "Solutions, their projects and the repositories and images filed in them")
 @RestController
 @RequestMapping("/api/v1/projects")
 @RequiresAdministrator
@@ -46,7 +47,7 @@ public class ProjectsController {
 
     /**
      * On a change, an absent field is left alone and an empty description clears it; a
-     * {@code solutionId} moves the project to that solution, with its repositories, grants and
+     * {@code solutionId} moves the project to that solution, with its repositories, images, grants and
      * checklists.
      *
      * <p>A move is a field of the change rather than a route of its own: the solution is already a
@@ -56,7 +57,7 @@ public class ProjectsController {
     public record ProjectChange(String name, String description, Long solutionId) {}
 
     @Operation(summary = "Rename, describe or move project", description = "A solutionId moves the project to that "
-            + "solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The "
+            + "solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The "
             + "solution it is already in changes nothing. A solution that does not exist answers 404. A name the "
             + "solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with "
             + "the type urn:vectispire:problem:" + SolutionAdministrationService.ProjectNameTakenException.CAUSE + ".")
@@ -75,8 +76,8 @@ public class ProjectsController {
                 RequestActors.of(principal, request));
     }
 
-    @Operation(summary = "Delete project", description = "Its repositories return to no project and its grants "
-            + "are revoked; no repository and no finding is deleted.")
+    @Operation(summary = "Delete project", description = "Its repositories and images return to no project and its "
+            + "grants are revoked; no repository, no image and no finding is deleted.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(
@@ -109,6 +110,32 @@ public class ProjectsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         administration.removeRepository(id, repositoryId, allowed(principal), RequestActors.of(principal, request));
+    }
+
+    /** Files the image here, moving it out of any other project. Repeating it changes nothing. */
+    @Operation(summary = "File container image into project", description = "Moves it out of the project it was "
+            + "in, if any; the project's grantees see it from then on. An image the caller cannot see answers 404, as "
+            + "one that does not exist.")
+    @PutMapping("/{id}/containers/{containerId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void fileContainer(
+            @PathVariable long id,
+            @PathVariable long containerId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        administration.fileContainer(id, containerId, allowed(principal), RequestActors.of(principal, request));
+    }
+
+    @Operation(summary = "Remove container image from project", description = "Back to no project. 404 when the "
+            + "image is not in this project.")
+    @DeleteMapping("/{id}/containers/{containerId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unfileContainer(
+            @PathVariable long id,
+            @PathVariable long containerId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        administration.removeContainer(id, containerId, allowed(principal), RequestActors.of(principal, request));
     }
 
     private Visibility allowed(VectispirePrincipal principal) {

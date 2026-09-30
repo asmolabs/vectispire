@@ -54,6 +54,18 @@ public class ContainerEntity {
     @Column(name = "in_certified_scope", nullable = false)
     private boolean inCertifiedScope;
 
+    /**
+     * The project this image is filed in, or null for "no project" (decision 0023, amendment of
+     * 2026-09-30).
+     *
+     * <p><b>Read-only to Hibernate</b>, for the reason {@code RepositoryEntity.projectId} gives: which
+     * project an image is in decides who sees it, so the column is written by the targeted updates in
+     * {@code ContainerRepository} and by nothing else — a save of the settings form must not write back
+     * the project the row held when it was read.
+     */
+    @Column(name = "project_id", insertable = false, updatable = false)
+    private Long projectId;
+
     public Long getId() {
         return id;
     }
@@ -132,5 +144,10 @@ public class ContainerEntity {
 
     public void setInCertifiedScope(boolean inCertifiedScope) {
         this.inCertifiedScope = inCertifiedScope;
+    }
+
+    /** No setter: see the field. */
+    public Long getProjectId() {
+        return projectId;
     }
 }

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.issues.persistence.queries;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
@@ -28,12 +29,15 @@ import java.util.stream.Collectors;
  * @param onlyKev restricts to actively exploited vulnerabilities, and like {@code onlyDirect}
  *     acts on {@code true} alone. The dashboard has always linked to this filter; nothing read
  *     it, so the most actionable figure on the screen opened the entire backlog
- * @param repoIdsWithin the repositories of a project or a solution, as their owner listed them at the
- *     moment of asking, or null for no such narrowing. <b>An empty set matches nothing</b>: a project
- *     holding no repository has no issue, and reading "none" as "no filter" would answer the whole
- *     backlog for it. It narrows and never authorises — the visibility is applied beside it — and the
- *     predicate built from it writes its identifiers into the statement rather than binding them, since
- *     a project is sized by the data ({@code IssueSpecifications})
+ * @param targetsWithin the repositories and images of a project or a solution, as their owner listed
+ *     them at the moment of asking, or null for no such narrowing. <b>An empty set matches nothing</b>:
+ *     a project holding no target has no issue, and reading "none" as "no filter" would answer the
+ *     whole backlog for it. It narrows and never authorises — the visibility is applied beside it — and
+ *     the predicate built from it writes its identifiers into the statement rather than binding them,
+ *     since a project is sized by the data ({@code IssueSpecifications}). Targets rather than
+ *     repository identifiers since an image can be filed in a project (amendment of 2026-09-30 to
+ *     decision 0023): a repository and an image may carry the same number, and each is matched by its
+ *     own column
  */
 public record IssueFilters(
         String state,
@@ -50,13 +54,13 @@ public record IssueFilters(
         Visibility visibility,
         Instant touchingSince,
         boolean cveOnly,
-        Set<Long> repoIdsWithin) {
+        Set<ScanTarget> targetsWithin) {
 
     public IssueFilters {
-        repoIdsWithin = repoIdsWithin == null ? null : Set.copyOf(repoIdsWithin);
+        targetsWithin = targetsWithin == null ? null : Set.copyOf(targetsWithin);
     }
 
-    /** Every criterion but the narrowing to a project's or a solution's repositories. */
+    /** Every criterion but the narrowing to a project's or a solution's targets. */
     public IssueFilters(
             String state,
             String severity,
@@ -139,7 +143,7 @@ public record IssueFilters(
      */
     public IssueFilters touching(Instant windowStart) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, repoIdsWithin);
+                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin);
     }
 
     /**
@@ -149,18 +153,19 @@ public record IssueFilters(
      */
     public IssueFilters onlyCves() {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, true, repoIdsWithin);
+                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin);
     }
 
     /**
-     * The issues of these repositories and no others — a project's or a solution's, listed by {@code
-     * targets}, which owns the membership. Narrows what is already narrowed: called twice, it keeps
-     * the repositories both lists name, so a project within a solution it is not in matches nothing.
+     * The issues of these targets and no others — a project's or a solution's repositories and images,
+     * listed by {@code targets}, which owns the membership. Narrows what is already narrowed: called
+     * twice, it keeps the targets both lists name, so a project within a solution it is not in matches
+     * nothing.
      */
-    public IssueFilters within(Collection<Long> repositoryIds) {
-        Set<Long> narrowed = Set.copyOf(repositoryIds);
-        if (repoIdsWithin != null) {
-            narrowed = narrowed.stream().filter(repoIdsWithin::contains).collect(Collectors.toUnmodifiableSet());
+    public IssueFilters within(Collection<? extends ScanTarget> targets) {
+        Set<ScanTarget> narrowed = Set.copyOf(targets);
+        if (targetsWithin != null) {
+            narrowed = narrowed.stream().filter(targetsWithin::contains).collect(Collectors.toUnmodifiableSet());
         }
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
                 excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed);

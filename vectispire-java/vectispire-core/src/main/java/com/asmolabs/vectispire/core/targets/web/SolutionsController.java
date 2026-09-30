@@ -29,10 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
  * Solutions and the projects they hold (decision 0023).
  *
  * <p>Reading the tree takes an account and shows what that account may see — a project it holds a
- * grant on or one of whose repositories it sees; changing it takes an administrator. The rules
+ * grant on or one of whose repositories or images it sees; changing it takes an administrator. The rules
  * live in {@link SolutionAdministrationService} and {@link SolutionQueryService}.
  */
-@Tag(name = "Solutions", description = "Solutions, their projects and the repositories filed in them")
+@Tag(name = "Solutions", description = "Solutions, their projects and the repositories and images filed in them")
 @RestController
 @RequestMapping("/api/v1/solutions")
 // The method's marker wins over the class's: every write below is an administrator's.
@@ -55,9 +55,9 @@ public class SolutionsController {
 
     public record ProjectRequest(String name, String description) {}
 
-    @Operation(summary = "Solutions tree", description = "Solutions, their projects and the repositories filed in "
-            + "them, as far as the caller may see, with each project's open issues by severity and the repositories "
-            + "in no project as a group of their own.")
+    @Operation(summary = "Solutions tree", description = "Solutions, their projects and the repositories and "
+            + "container images filed in them, as far as the caller may see, with each project's open issues by "
+            + "severity over both, and the repositories and images in no project as a group of their own.")
     @GetMapping
     public SolutionTree list(@AuthenticationPrincipal VectispirePrincipal principal) {
         return tree.tree(allowanceOf(principal));

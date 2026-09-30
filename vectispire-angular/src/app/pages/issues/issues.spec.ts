@@ -592,6 +592,7 @@ describe('the backlog narrowed to a project or a solution', () => {
                 createdAt: '2026-09-01T00:00:00Z',
                 partial: false,
                 repositoryCount: 1,
+                containerCount: 0,
                 openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
                 projects: [
                     {
@@ -602,6 +603,7 @@ describe('the backlog narrowed to a project or a solution', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         repositoryCount: 1,
+                        containerCount: 0,
                         openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
                         repositories: [{ id: 10, name: 'ledger-core' }]
                     }
@@ -610,6 +612,7 @@ describe('the backlog narrowed to a project or a solution', () => {
         ],
         unfiled: {
             repositoryCount: 0,
+            containerCount: 0,
             openIssues: { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 },
             repositories: []
         }

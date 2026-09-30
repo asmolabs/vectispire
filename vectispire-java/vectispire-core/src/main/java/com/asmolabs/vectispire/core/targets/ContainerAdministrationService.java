@@ -42,22 +42,30 @@ public class ContainerAdministrationService {
     private final TargetBacklog backlog;
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
+    private final TargetNaming naming;
 
     public ContainerAdministrationService(
             ContainerRepository containers,
             TargetScans scans,
             TargetBacklog backlog,
             TargetDeletionService targetDeletion,
-            AuditLogService audit) {
+            AuditLogService audit,
+            TargetNaming naming) {
         this.containers = containers;
         this.scans = scans;
         this.backlog = backlog;
         this.targetDeletion = targetDeletion;
         this.audit = audit;
+        this.naming = naming;
     }
 
-    /** An image as the inventory shows it: the row, its latest scan, and what waits on it. */
-    public record Listed(ContainerView container, Optional<LatestScan> latestScan, long openIssues) {}
+    /**
+     * An image as the inventory shows it: the row, its latest scan, what waits on it, and the project it
+     * is filed in.
+     *
+     * @param projectName {@code Solution / Project}, or null for an image in no project
+     */
+    public record Listed(ContainerView container, Optional<LatestScan> latestScan, long openIssues, String projectName) {}
 
     /** What an operator asked for; {@code null} is "leave alone" on update, as for repositories. */
     public record Changes(
@@ -75,12 +83,21 @@ public class ContainerAdministrationService {
         Map<Long, LatestScan> latest = scans.latestPerContainer();
         Map<Long, Long> open = backlog.openPerContainer();
 
-        return containers.findAll().stream()
+        List<ContainerEntity> visible = containers.findAll().stream()
                 .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
+                .toList();
+        // Named for the visible rows only, as the repository list does: a project's name is shown only
+        // beside an image the reader already sees.
+        Map<Long, String> projectNames = naming.projectNames(visible.stream()
+                .map(ContainerEntity::getProjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
+        return visible.stream()
                 .map(container -> new Listed(
                         ContainerView.of(container),
                         Optional.ofNullable(latest.get(container.getId())),
-                        open.getOrDefault(container.getId(), 0L)))
+                        open.getOrDefault(container.getId(), 0L),
+                        container.getProjectId() == null ? null : projectNames.get(container.getProjectId())))
                 .toList();
     }
 

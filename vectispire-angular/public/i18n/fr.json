@@ -357,6 +357,7 @@
       "solution_updated": "Solution modifiée",
       "project_updated": "Projet modifié",
       "project_repositories_changed": "Dépôts du projet modifiés",
+      "project_containers_changed": "Images du projet modifiées",
       "login_success": "Connexion réussie",
       "login_failure": "Échec de connexion",
       "login_blocked": "Connexion bloquée",

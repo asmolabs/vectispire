@@ -34,16 +34,27 @@ describe('the audit log operation labels', () => {
         http.expectOne((call) => call.url === '/api/v1/audit-log/operation-types').flush([
             'SOLUTION_UPDATED',
             'PROJECT_UPDATED',
-            'PROJECT_REPOSITORIES_CHANGED'
+            'PROJECT_REPOSITORIES_CHANGED',
+            'PROJECT_CONTAINERS_CHANGED'
         ]);
         return page.operationOptions().map((option) => option.label);
     }
 
     it('names the solution and project operations in English', () => {
-        expect(labels(english)).toEqual(['Solution changed', 'Project changed', 'Project repositories changed']);
+        expect(labels(english)).toEqual([
+            'Solution changed',
+            'Project changed',
+            'Project repositories changed',
+            'Project images changed'
+        ]);
     });
 
     it('names them in French', () => {
-        expect(labels(french)).toEqual(['Solution modifiée', 'Projet modifié', 'Dépôts du projet modifiés']);
+        expect(labels(french)).toEqual([
+            'Solution modifiée',
+            'Projet modifié',
+            'Dépôts du projet modifiés',
+            'Images du projet modifiées'
+        ]);
     });
 });

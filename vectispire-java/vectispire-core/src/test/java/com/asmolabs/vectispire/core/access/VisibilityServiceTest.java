@@ -58,27 +58,29 @@ class VisibilityServiceTest {
     }
 
     @Test
-    @DisplayName("a project granted directly and one granted through a team resolve in one query, unioned")
-    void projectGrantsResolveToTheirRepositories() {
+    @DisplayName("a project granted directly and one granted through a team resolve in one lookup, unioned, images included")
+    void projectGrantsResolveToTheirTargets() {
         when(assignments.findByUserId(USER)).thenReturn(List.of(
                 new UserTargetEntity(USER, "project", 10L),
                 new UserTargetEntity(USER, "repository", 1L)));
         when(memberships.findByUserId(USER)).thenReturn(List.of(new TeamMemberEntity(TEAM, USER)));
         when(teamTargets.findByTeamIdIn(List.of(TEAM)))
                 .thenReturn(List.of(new TeamTargetEntity(TEAM, "project", 20L)));
-        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of(100L, 200L));
+        when(repositories.targetsIn(anyCollection())).thenReturn(List.of(
+                new ScanTarget.Repository(100L), new ScanTarget.Repository(200L), new ScanTarget.Container(300L)));
 
         Visibility visibility = service.of(UserView.of(reader()));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Collection<Long>> asked = ArgumentCaptor.forClass(Collection.class);
-        verify(repositories).repositoriesIn(asked.capture());
+        verify(repositories).targetsIn(asked.capture());
         assertThat(asked.getValue()).containsExactlyInAnyOrder(10L, 20L);
 
         assertThat(visibility.asFilter()).contains(Set.of(
                 new ScanTarget.Repository(1L),
                 new ScanTarget.Repository(100L),
-                new ScanTarget.Repository(200L)));
+                new ScanTarget.Repository(200L),
+                new ScanTarget.Container(300L)));
     }
 
     @Test
@@ -88,20 +90,21 @@ class VisibilityServiceTest {
         when(memberships.findByUserId(USER)).thenReturn(List.of());
         // Were the guard gone, this is what an unguarded `in ()` would answer on the engines where
         // it matches everything: every repository filed anywhere.
-        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of(100L, 200L, 300L));
+        when(repositories.targetsIn(anyCollection())).thenReturn(List.of(
+                new ScanTarget.Repository(100L), new ScanTarget.Repository(200L), new ScanTarget.Container(300L)));
 
         Visibility visibility = service.of(UserView.of(reader()));
 
-        verify(repositories, never()).repositoriesIn(any());
+        verify(repositories, never()).targetsIn(any());
         assertThat(visibility.asFilter()).contains(Set.of(new ScanTarget.Repository(1L)));
     }
 
     @Test
-    @DisplayName("a project holding no repository grants nothing yet, and says which project was granted")
+    @DisplayName("a project holding no repository and no image grants nothing yet, and says which project was granted")
     void anEmptyProjectGrantsNothingButIsKnown() {
         when(assignments.findByUserId(USER)).thenReturn(List.of(new UserTargetEntity(USER, "project", 10L)));
         when(memberships.findByUserId(USER)).thenReturn(List.of());
-        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of());
+        when(repositories.targetsIn(anyCollection())).thenReturn(List.of());
 
         VisibilityService.Allowance allowance = service.allowance(UserView.of(reader()), Visibility.everything());
 
@@ -114,7 +117,8 @@ class VisibilityServiceTest {
     void aRestrictedCredentialStaysNarrow() {
         when(assignments.findByUserId(USER)).thenReturn(List.of(new UserTargetEntity(USER, "project", 10L)));
         when(memberships.findByUserId(USER)).thenReturn(List.of());
-        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of(100L, 200L));
+        when(repositories.targetsIn(anyCollection())).thenReturn(List.of(
+                new ScanTarget.Repository(100L), new ScanTarget.Repository(200L), new ScanTarget.Container(300L)));
 
         VisibilityService.Allowance allowance =
                 service.allowance(UserView.of(reader()), Visibility.only(List.of(new ScanTarget.Repository(100L))));

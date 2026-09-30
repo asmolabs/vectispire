@@ -357,6 +357,7 @@
       "solution_updated": "Solution changed",
       "project_updated": "Project changed",
       "project_repositories_changed": "Project repositories changed",
+      "project_containers_changed": "Project images changed",
       "login_success": "Sign-in succeeded",
       "login_failure": "Sign-in failed",
       "login_blocked": "Sign-in blocked",

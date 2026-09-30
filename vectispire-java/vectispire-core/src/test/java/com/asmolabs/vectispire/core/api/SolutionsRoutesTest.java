@@ -305,7 +305,7 @@ class SolutionsRoutesTest extends ApiTestBase {
         // The detach is explicit rather than left to the key's `set null`, which this fixture
         // enforces too — so the entry's count is what shows the service did it.
         assertThat(audit.recent(20)).anySatisfy(entry -> assertThat(entry.getDescription())
-                .contains("Project deleted: Doomed (1 repository(ies) returned to no project, 1 grant(s) revoked)"));
+                .contains("Project deleted: Doomed (1 repository(ies) and 0 image(s) returned to no project, 1 grant(s) revoked)"));
     }
 
     @Test

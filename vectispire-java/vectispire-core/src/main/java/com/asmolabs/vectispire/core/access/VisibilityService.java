@@ -50,10 +50,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h2>A grant on a project is resolved here, and nowhere else</h2>
  *
- * <p>A grant may name a project (decision 0023). It is turned into the project's repositories
- * <b>at each request</b>, before anything is queried, so what leaves this class is still a set of
- * {@link ScanTarget}s: every query that narrows by visibility narrows a project's repositories
- * without knowing projects exist, and a refusal is still a 404. The cost is one query per request
+ * <p>A grant may name a project (decision 0023). It is turned into the project's repositories and
+ * images <b>at each request</b>, before anything is queried, so what leaves this class is still a set of
+ * {@link ScanTarget}s: every query that narrows by visibility narrows a project's targets
+ * without knowing projects exist, and a refusal is still a 404. The cost is two queries per request
  * for an account holding a project grant — the alternative, copying the project's repositories
  * into repository grants when the grant is made, is a snapshot, and a repository filed into the
  * project afterwards would stay invisible to exactly the people the project was granted to.
@@ -180,12 +180,14 @@ public class VisibilityService {
 
         // The same guard, for the same reason, and it matters more here: `project_id in ()`
         // matching every row would hand an account with no project grant every repository that
-        // has been filed anywhere. One query for all the granted projects, whether they came
+        // has been filed anywhere. One lookup for all the granted projects, whether they came
         // directly or through teams — the union rule, applied before anything is read.
+        //
+        // The images filed in a granted project come with it, as its repositories do (the amendment of
+        // 2026-09-30): a grantee who was shown a project's repositories and not the image built from
+        // them would read half a product as the whole.
         if (!projects.isEmpty()) {
-            for (Long repositoryId : targets.repositoriesIn(projects)) {
-                visible.add(new ScanTarget.Repository(repositoryId));
-            }
+            visible.addAll(targets.targetsIn(projects));
         }
 
         return new Allowance(Visibility.only(new ArrayList<>(visible)), projects);

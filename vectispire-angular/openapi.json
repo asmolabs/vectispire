@@ -2542,6 +2542,18 @@
         },
         "type" : "object"
       },
+      "ContainerRef" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ContainerSummary" : {
         "properties" : {
           "displayName" : {
@@ -2564,6 +2576,13 @@
           "openIssues" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "projectName" : {
+            "type" : "string"
           },
           "reference" : {
             "type" : "string"
@@ -5935,6 +5954,16 @@
       },
       "ProjectNode" : {
         "properties" : {
+          "containerCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "containers" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ContainerRef"
+            },
+            "type" : "array"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -5984,7 +6013,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "partial", "repositoryCount" ],
+        "required" : [ "containerCount", "partial", "repositoryCount" ],
         "type" : "object"
       },
       "ProjectRequest" : {
@@ -8100,6 +8129,10 @@
       },
       "SolutionNode" : {
         "properties" : {
+          "containerCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -8131,7 +8164,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "partial", "repositoryCount" ],
+        "required" : [ "containerCount", "partial", "repositoryCount" ],
         "type" : "object"
       },
       "SolutionRequest" : {
@@ -8972,6 +9005,16 @@
       },
       "Unfiled" : {
         "properties" : {
+          "containerCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "containers" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ContainerRef"
+            },
+            "type" : "array"
+          },
           "openIssues" : {
             "$ref" : "#/components/schemas/OpenIssues"
           },
@@ -8986,7 +9029,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "repositoryCount" ],
+        "required" : [ "containerCount", "repositoryCount" ],
         "type" : "object"
       },
       "UnroutableLabel" : {
@@ -13231,7 +13274,7 @@
     },
     "/api/v1/projects/{id}" : {
       "delete" : {
-        "description" : "Its repositories return to no project and its grants are revoked; no repository and no finding is deleted.",
+        "description" : "Its repositories and images return to no project and its grants are revoked; no repository, no image and no finding is deleted.",
         "operationId" : "remove_4",
         "parameters" : [ {
           "in" : "path",
@@ -13251,7 +13294,7 @@
         "tags" : [ "Solutions" ]
       },
       "patch" : {
-        "description" : "A solutionId moves the project to that solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.",
+        "description" : "A solutionId moves the project to that solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.",
         "operationId" : "update_5",
         "parameters" : [ {
           "in" : "path",
@@ -13285,6 +13328,64 @@
           }
         },
         "summary" : "Rename, describe or move project",
+        "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/projects/{id}/containers/{containerId}" : {
+      "delete" : {
+        "description" : "Back to no project. 404 when the image is not in this project.",
+        "operationId" : "unfileContainer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "containerId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Remove container image from project",
+        "tags" : [ "Solutions" ]
+      },
+      "put" : {
+        "description" : "Moves it out of the project it was in, if any; the project's grantees see it from then on. An image the caller cannot see answers 404, as one that does not exist.",
+        "operationId" : "fileContainer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "containerId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "File container image into project",
         "tags" : [ "Solutions" ]
       }
     },
@@ -16193,7 +16294,7 @@
     },
     "/api/v1/solutions" : {
       "get" : {
-        "description" : "Solutions, their projects and the repositories filed in them, as far as the caller may see, with each project's open issues by severity and the repositories in no project as a group of their own.",
+        "description" : "Solutions, their projects and the repositories and container images filed in them, as far as the caller may see, with each project's open issues by severity over both, and the repositories and images in no project as a group of their own.",
         "operationId" : "list_4",
         "responses" : {
           "200" : {
@@ -17673,6 +17774,9 @@
     "description" : "User login, MFA, SSO and session management",
     "name" : "Authentication"
   }, {
+    "description" : "Solutions, their projects and the repositories and images filed in them",
+    "name" : "Solutions"
+  }, {
     "description" : "Security findings, triage workflow, risk assessment and remediation",
     "name" : "Issues & Vulnerabilities"
   }, {
@@ -17690,9 +17794,6 @@
   }, {
     "description" : "A project's security checklist, answered by people and, on its measured lines, automatically by Vectispire (answeredByKind system). A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, checklist-nothing-to-confirm, checklist-evidence-withdrawn, checklist-measurement-contradicted, checklist-measurement-changed.",
     "name" : "Project checklists"
-  }, {
-    "description" : "Solutions, their projects and the repositories filed in them",
-    "name" : "Solutions"
   }, {
     "description" : "Discovered API endpoints, declared contracts (OpenAPI/Swagger) and shadow APIs",
     "name" : "Attack Surface"

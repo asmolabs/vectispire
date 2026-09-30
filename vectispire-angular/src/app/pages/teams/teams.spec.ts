@@ -71,6 +71,7 @@ describe('the teams screen', () => {
                 createdAt: '2026-09-01T00:00:00Z',
                 partial: false,
                 repositoryCount: 0,
+                containerCount: 0,
                 openIssues,
                 projects: [
                     {
@@ -81,13 +82,14 @@ describe('the teams screen', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         repositoryCount: 0,
+                        containerCount: 0,
                         openIssues,
                         repositories: []
                     }
                 ]
             }
         ],
-        unfiled: { repositoryCount: 0, openIssues, repositories: [] }
+        unfiled: { repositoryCount: 0, containerCount: 0, openIssues, repositories: [] }
     });
 
     function settleBoot(accounts: object = ACCOUNTS): void {

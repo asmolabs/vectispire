@@ -7,10 +7,10 @@ import java.util.Map;
 
 /**
  * What {@code access} needs to know about the targets it grants: which exist, what they are called,
- * and which repositories a project holds today.
+ * and which repositories and images a project holds today.
  *
  * <p><b>A port, implemented by {@code targets}.</b> Visibility resolves a project grant into the
- * project's repositories at each request, a grant is validated against what exists, and the grant
+ * project's targets at each request, a grant is validated against what exists, and the grant
  * and key screens name what they list. {@code access} read the targets' tables for all of it while
  * {@code targets} filtered its lists through {@code access} — and every route of every module uses
  * {@code access}, so it has to stay below all of them. Declared here with the four questions it asks,
@@ -41,8 +41,13 @@ public interface GrantableTargets {
     /** The grants, in the order given, each with its target's name. */
     List<TargetGrant> named(List<? extends Grant> grants);
 
-    /** The repositories filed in these projects, as they are now. Never asked with an empty set. */
-    List<Long> repositoriesIn(Collection<Long> projectIds);
+    /**
+     * The repositories and the images filed in these projects, as they are now (decision 0023 and its
+     * amendment of 2026-09-30: an image filed in a project is seen by the project's grantees exactly as
+     * a repository is). Never asked with an empty set; any size is answered, the implementation binding
+     * a bounded number of projects per statement.
+     */
+    List<ScanTarget> targetsIn(Collection<Long> projectIds);
 
     boolean projectExists(long projectId);
 

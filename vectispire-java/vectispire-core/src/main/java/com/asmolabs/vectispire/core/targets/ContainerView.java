@@ -17,7 +17,8 @@ public record ContainerView(
         String requiredAgentLabel,
         Instant lastScheduledScanAt,
         String tier,
-        boolean inCertifiedScope) {
+        boolean inCertifiedScope,
+        Long projectId) {
 
     public static ContainerView of(ContainerEntity container) {
         return new ContainerView(
@@ -30,6 +31,7 @@ public record ContainerView(
                 container.getRequiredAgentLabel(),
                 container.getLastScheduledScanAt(),
                 container.getTier(),
-                container.isInCertifiedScope());
+                container.isInCertifiedScope(),
+                container.getProjectId());
     }
 }
