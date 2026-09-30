@@ -11,7 +11,6 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { DataViewModule } from '@openng/optimus-ui/dataview';
 import { SelectModule } from '@openng/optimus-ui/select';
-import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { TargetsApi } from '../../core/api/targets.api';
 import { ScansApi } from '../../core/api/scans.api';
@@ -25,6 +24,7 @@ import type {
 } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
+import { ScorecardView } from '../../shared/scorecard';
 import { DetectedLanguages } from '../../shared/detected-languages';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 import { ReportImports } from '../../shared/report-imports';
@@ -102,8 +102,8 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
         MessageModule,
         DataViewModule,
         SelectModule,
-        TagModule,
         LastScanTag,
+        ScorecardView,
         DetectedLanguages,
         ScheduleFields,
         TranslatePipe,
@@ -648,21 +648,5 @@ export VECTISPIRE_API_KEY="<YOUR_API_KEY>"
             this.copied.set(true);
             setTimeout(() => this.copied.set(false), 3000);
         });
-    }
-
-    gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | 'secondary' {
-        switch (grade) {
-            case 'A_PLUS':
-            case 'A':
-                return 'success';
-            case 'B':
-            case 'C':
-                return 'warn';
-            case 'D':
-            case 'F':
-                return 'danger';
-            default:
-                return 'secondary';
-        }
     }
 }

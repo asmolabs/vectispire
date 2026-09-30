@@ -69,53 +69,42 @@ describe('Compliance Page', () => {
         const req = http.expectOne('/api/v1/compliance/summary');
         expect(req.request.method).toBe('GET');
         req.flush(MOCK_SUMMARY);
-
-        expect(component.summary()).not.toBeNull();
-        expect(component.summary()?.evaluations.length).toBe(2);
-        expect(component.activeEvaluation()?.framework).toBe('NIS_2');
-        expect(component.activeEvaluation()?.scorePercentage).toBe(90);
-    });
-
-    it('switches active framework on selection', () => {
         fixture.detectChanges();
-        http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
 
-        component.selectFramework('DORA');
-        expect(component.selectedFramework()).toBe('DORA');
-        expect(component.activeEvaluation()?.framework).toBe('DORA');
+        expect(component.summary()?.evaluations.length).toBe(2);
+        const nis2 = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="framework-NIS_2"]');
+        expect(nis2?.textContent).toContain('90%');
     });
 
     /**
-     * Freshness, and the one green that should raise an alarm.
-     *
-     * A target never scanned presents no known vulnerability. On a table that counts findings it is
-     * green — and the server already sent what it takes to say so, `observedTargets` and
-     * `freshTargets`, which nothing read.
+     * The per-target matrix in the global view. It was guarded by `!selectedTarget()` while the global
+     * view is `'ALL'`, a truthy string: the matrix the server sent was never drawn.
      */
-    it('separates a stale observation from an absent one', () => {
-        http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+    it('draws the per-target matrix in the global view, each row offering to narrow the page to its target', () => {
         fixture.detectChanges();
-
-        // 3 fresh targets of 5 monitored, and 5 − 4 observed = 1 never looked at.
-        expect(fixture.componentInstance.freshnessRate()).toBe(60);
-        expect(fixture.componentInstance.neverObserved()).toBe(1);
-        expect(fixture.componentInstance.freshnessTone()).toBe('text-red-500');
-    });
-
-    it('does not shout on an empty estate: a hundred per cent, not zero', () => {
         http.expectOne('/api/v1/compliance/summary').flush({
             ...MOCK_SUMMARY,
-            totalMonitoredTargets: 0,
-            passingGateTargets: 0,
-            observedTargets: 0,
-            freshTargets: 0
+            targets: [
+                {
+                    targetId: 'REPOSITORY:3',
+                    name: 'billing',
+                    type: 'REPOSITORY',
+                    gateStatus: 'PASSED',
+                    openIssuesCount: 0,
+                    overdueCount: 0,
+                    overallStatus: 'COMPLIANT',
+                    overallScore: 95,
+                    frameworkScores: { NIS_2: 95 }
+                }
+            ]
         });
         fixture.detectChanges();
 
-        // Zero would read as an alarm where there is nothing to observe, and an alarm that fires
-        // on a fresh deployment teaches its reader to ignore the one that matters.
-        expect(fixture.componentInstance.freshnessRate()).toBe(100);
-        expect(fixture.componentInstance.neverObserved()).toBe(0);
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="matrix-row"]');
+        expect(row?.textContent).toContain('billing');
+        row?.querySelector('button')?.click();
+        expect(component.selectedTarget()).toBe('REPOSITORY:3');
+        http.expectOne('/api/v1/compliance/summary?targetId=REPOSITORY:3');
     });
 
     /**

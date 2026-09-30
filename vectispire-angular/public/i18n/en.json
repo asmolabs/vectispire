@@ -2163,6 +2163,8 @@
     "plugins_btn": "Plugins",
     "aria_plugins": "Plugins switched on for {{name}}",
     "checklist_btn": "Security checklist",
+    "compliance_btn": "Compliance & score",
+    "aria_compliance": "Compliance and score of {{name}}",
     "aria_checklist": "Security checklist of {{name}}",
     "plugins_header": "Plugins — {{project}}",
     "plugins_explain": "A plugin runs on this project's repositories from the next scan, where one of its languages is present. Switching it off leaves its open issues as they are. A repository filed in no project runs no plugin.",
@@ -2395,6 +2397,8 @@
     "plugins": "Plugins",
     "sarif_sources": "Declared sources",
     "checklist_templates": "Checklist templates",
+    "project": "Project",
+    "solution_compliance": "Solution compliance",
     "project_checklist": "Security checklist"
   },
   "topbar": {
@@ -2849,6 +2853,44 @@
     "rule_components_hint": "An explicit list: a version is allowed when it is written here, as the SBOM states it. Nothing is ordered.",
     "rule_keep_btn": "Keep this rule",
     "rule_unbind_btn": "Measure by no rule"
+  },
+  "project": {
+    "title": "Project",
+    "in_solution": "In the solution {{solution}}",
+    "back": "Back to solutions",
+    "not_found": "This project does not exist, or you see none of its repositories and images.",
+    "open_issues": "Open issues: {{count}}",
+    "compliance_title": "Compliance and score",
+    "components_title": "Components",
+    "download_cyclonedx": "Download CycloneDX",
+    "incomplete": "Incomplete list: {{count}} target(s) listed no components — never scanned, or scanned without an SBOM. What they carry is not below.",
+    "components_partial": "Only the repositories and images you can see are listed.",
+    "targets_title": "Inventory by target",
+    "filter_label": "Filter by name",
+    "component_count": "{{shown}} of {{total}}",
+    "col_name": "Component",
+    "col_version": "Version",
+    "col_type": "Type",
+    "col_carriers": "Carried by",
+    "no_components": "No component.",
+    "error_load": "The project could not be loaded.",
+    "error_compliance": "The project’s compliance could not be computed.",
+    "error_components": "The project’s components could not be loaded.",
+    "error_cyclonedx": "The CycloneDX document could not be downloaded.",
+    "inventory_listed": "{{count}} component(s)",
+    "inventory_empty": "No component in its SBOM",
+    "inventory_absent": "No SBOM",
+    "inventory_never_scanned": "Never scanned"
+  },
+  "scope_compliance": {
+    "target_count": "Computed over {{count}} target(s).",
+    "partial": "Partially visible: these figures cover only the repositories and images you can see."
+  },
+  "solution_compliance": {
+    "title": "Compliance and score",
+    "subtitle": "Over the repositories and images filed in the solution’s projects.",
+    "not_found": "This solution does not exist, or you see none of its repositories and images.",
+    "error_load": "The solution’s compliance could not be computed."
   },
   "project_checklist": {
     "title": "Security checklist",

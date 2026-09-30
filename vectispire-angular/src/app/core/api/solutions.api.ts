@@ -1,7 +1,16 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ProjectView, Schema, SolutionTree, SolutionView } from '../api.models';
+import {
+    ConsolidatedInventory,
+    ProjectDetail,
+    ProjectView,
+    Schema,
+    ScopeCompliance,
+    SolutionTree,
+    SolutionView
+} from '../api.models';
+import { DocumentsApi } from './documents.api';
 
 /**
  * Solutions, the projects they hold and the repositories and images filed in them (decision 0023).
@@ -18,6 +27,7 @@ import { ProjectView, Schema, SolutionTree, SolutionView } from '../api.models';
 @Injectable({ providedIn: 'root' })
 export class SolutionsApi {
     private readonly http = inject(HttpClient);
+    private readonly documents = inject(DocumentsApi);
 
     solutionTree(): Observable<SolutionTree> {
         return this.http.get<SolutionTree>('/api/v1/solutions');
@@ -35,6 +45,33 @@ export class SolutionsApi {
     /** 409 while the solution still holds a project — the server's sentence says so. */
     deleteSolution(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/solutions/${id}`);
+    }
+
+    /** The solution's compliance and score over its visible targets; 404 when the reader sees none of it. */
+    solutionCompliance(id: number): Observable<ScopeCompliance> {
+        return this.http.get<ScopeCompliance>(`/api/v1/solutions/${id}/compliance`);
+    }
+
+    /**
+     * One project, read on its own. 404 for a project that does not exist and for one the reader sees
+     * nothing of alike — a refusal indistinguishable from an absence.
+     */
+    project(id: number): Observable<ProjectDetail> {
+        return this.http.get<ProjectDetail>(`/api/v1/projects/${id}`);
+    }
+
+    projectCompliance(id: number): Observable<ScopeCompliance> {
+        return this.http.get<ScopeCompliance>(`/api/v1/projects/${id}/compliance`);
+    }
+
+    /** The components of the project's visible targets, merged, with the inventory state of each target. */
+    projectComponents(id: number): Observable<ConsolidatedInventory> {
+        return this.http.get<ConsolidatedInventory>(`/api/v1/projects/${id}/components`);
+    }
+
+    /** The same list as a CycloneDX 1.5 document with its VEX statements — a blob, for the interceptor's token. */
+    projectCycloneDx(id: number): Observable<HttpResponse<Blob>> {
+        return this.documents.downloadDocument(`/api/v1/cyclonedx/projects/${id}/cyclonedx-vex.json`);
     }
 
     createProject(solutionId: number, project: Schema<'ProjectRequest'>): Observable<ProjectView> {

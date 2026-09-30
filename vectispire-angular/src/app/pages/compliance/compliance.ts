@@ -4,10 +4,7 @@ import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@a
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from '@openng/optimus-ui/dialog';
 import { ButtonModule } from '@openng/optimus-ui/button';
-import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
-import { TableModule } from '@openng/optimus-ui/table';
-import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { SessionStore } from '@/app/core/session.store';
 import { ComplianceApi } from '../../core/api/compliance.api';
@@ -15,7 +12,8 @@ import { DocumentsApi } from '../../core/api/documents.api';
 import { saveDocument } from '../../core/download';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
-import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.models';
+import type { ComplianceSummary } from '../../core/api.models';
+import { ComplianceSummaryView } from '../../shared/compliance-summary';
 import { LatestRequest } from '@/app/core/latest-request';
 import { messageOf } from '@/app/core/api-error';
 
@@ -26,13 +24,11 @@ import { messageOf } from '@/app/core/api-error';
         CommonModule,
         FormsModule,
         DialogModule,
-        CardModule,
         ButtonModule,
         MessageModule,
-        TableModule,
-        TagModule,
         SelectModule,
-        TranslatePipe
+        TranslatePipe,
+        ComplianceSummaryView
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance.html'
@@ -56,45 +52,9 @@ export class Compliance {
     /** The evidence bundle is a read: importing VEX beside it is not. */
     readonly canReadGovernance = this.session.canReadGovernance;
     readonly i18n = inject(I18nService);
-    readonly Math = Math;
 
     readonly summary = signal<ComplianceSummary | null>(null);
 
-    /**
-     * The share of the estate observed inside the freshness window.
-     *
-     * **A hundred per cent on an empty estate, deliberately.** Zero would read as an alarm where
-     * there is nothing to observe, and an alarm that fires on a fresh deployment teaches its reader
-     * to ignore the one that matters.
-     */
-    readonly freshnessRate = computed(() => {
-        const data = this.summary();
-        if (!data || data.totalMonitoredTargets === 0) {
-            return 100;
-        }
-        return Math.round((data.freshTargets / data.totalMonitoredTargets) * 100);
-    });
-
-    /**
-     * Targets for which no observation exists — not "stale", **absent**.
-     *
-     * A stale observation is dated: you know what you do not know. A target never scanned presents
-     * no known vulnerability, which makes it green on any table that counts findings. This is the
-     * figure that separates "clean" from "never looked at".
-     */
-    readonly neverObserved = computed(() => {
-        const data = this.summary();
-        return data ? Math.max(0, data.totalMonitoredTargets - data.observedTargets) : 0;
-    });
-
-    /** Red as soon as one target has never been observed; orange below three quarters of the estate. */
-    readonly freshnessTone = computed(() => {
-        if (this.neverObserved() > 0) {
-            return 'text-red-500';
-        }
-        return this.freshnessRate() < 75 ? 'text-orange-500' : 'text-green-500';
-    });
-    readonly selectedFramework = signal<string>('NIS_2');
     readonly selectedTarget = signal<string>('ALL');
     readonly targetsList = signal<{ targetId: string; name: string; type: string }[]>([]);
     readonly loading = signal<boolean>(true);
@@ -151,68 +111,6 @@ export class Compliance {
     readonly importSuccess = signal<string | null>(null);
     readonly importError = signal<string | null>(null);
 
-    readonly frameworks = computed(() => {
-        this.i18n.translations();
-        return [
-            {
-                key: 'NIS_2',
-                label: this.i18n.t('compliance.frameworks.nis2'),
-                desc: this.i18n.t('compliance.frameworks.nis2_desc')
-            },
-            {
-                key: 'ISO_27001',
-                label: this.i18n.t('compliance.frameworks.iso27001'),
-                desc: this.i18n.t('compliance.frameworks.iso27001_desc')
-            },
-            {
-                key: 'EU_CRA',
-                label: this.i18n.t('compliance.frameworks.eu_cra'),
-                desc: this.i18n.t('compliance.frameworks.eu_cra_desc')
-            },
-            {
-                key: 'DORA',
-                label: this.i18n.t('compliance.frameworks.dora'),
-                desc: this.i18n.t('compliance.frameworks.dora_desc')
-            },
-            {
-                key: 'PCI_DSS',
-                label: this.i18n.t('compliance.frameworks.pci_dss'),
-                desc: this.i18n.t('compliance.frameworks.pci_dss_desc')
-            },
-            {
-                key: 'SOC_2',
-                label: this.i18n.t('compliance.frameworks.soc2'),
-                desc: this.i18n.t('compliance.frameworks.soc2_desc')
-            }
-        ];
-    });
-
-    frameworkLabel(key: string): string {
-        return this.frameworks().find((f) => f.key === key)?.label ?? key.replace('_', ' ');
-    }
-
-    frameworkDesc(key: string): string {
-        return this.frameworks().find((f) => f.key === key)?.desc ?? key;
-    }
-
-    readonly orderedEvaluations = computed<ComplianceEvaluation[]>(() => {
-        const s = this.summary();
-        if (!s) return [];
-        const desiredOrder = ['NIS_2', 'ISO_27001', 'EU_CRA', 'DORA', 'PCI_DSS', 'SOC_2'];
-        const orderMap = new Map(desiredOrder.map((key, i) => [key, i]));
-        return [...s.evaluations].sort((a, b) => {
-            const orderA = orderMap.get(a.framework) ?? 99;
-            const orderB = orderMap.get(b.framework) ?? 99;
-            return orderA - orderB;
-        });
-    });
-
-    readonly activeEvaluation = computed<ComplianceEvaluation | null>(() => {
-        const s = this.summary();
-        if (!s) return null;
-        return s.evaluations.find((e) => e.framework === this.selectedFramework()) ?? null;
-    });
-
     constructor() {
         this.loadSummary();
     }
@@ -245,10 +143,6 @@ export class Compliance {
             !targetId || targetId === 'ALL' || targetId === 'null' || targetId === 'undefined' ? 'ALL' : targetId;
         this.selectedTarget.set(tid);
         this.loadSummary();
-    }
-
-    selectFramework(key: string): void {
-        this.selectedFramework.set(key);
     }
 
     exportPdf(): void {
@@ -473,25 +367,5 @@ export class Compliance {
                     this.verifyError.set(messageOf(err, this.i18n.t('compliance.error_verify')));
                 }
             });
-    }
-
-    statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'secondary' {
-        if (status === 'COMPLIANT') return 'success';
-        if (status === 'PARTIAL') return 'warn';
-        // No data is no verdict: neither green nor red.
-        if (status === 'NO_DATA') return 'secondary';
-        return 'danger';
-    }
-
-    /** A score, or a dash where nothing was measured — its zero is no measurement. */
-    scoreOf(status: string, score: number): string {
-        return status === 'NO_DATA' ? '—' : score + '%';
-    }
-
-    gateStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {
-        if (status === 'PASSED') return 'success';
-        if (status === 'SCANNING' || status === 'IN_PROGRESS') return 'info';
-        if (status === 'NEVER_SCANNED') return 'warn';
-        return 'danger';
     }
 }

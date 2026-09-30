@@ -108,7 +108,9 @@ une image — celle que le menu donne à **Conteneurs**. Chaque solution, chaque
 qui a des constats ouverts (« 2 Critique », « 1 Élevée »), ou « Aucun constat ouvert » — comptés sur
 les dépôts comme sur les images. Un nœud que vous ne voyez qu'en partie porte **Visible en partie :
 N dépôts et M images que vous pouvez voir**. Le nom d'un dépôt ouvre les constats de ce dépôt, celui
-d'une image ceux de cette image.
+d'une image ceux de cette image. **Le nom d'un projet ouvre la page du projet** (plus bas), et chaque
+solution porte **Conformité et score**, qui ouvre la conformité et le score de la solution sur ce que
+vous en voyez — le même dessin que celui de la page du projet.
 
 Sur une solution ou un projet, **chaque étiquette de sévérité est un lien** vers la
 [liste des constats](../guide/issues.md) restreinte à cette solution ou à ce projet, à cette sévérité,
@@ -188,6 +190,33 @@ l'arbre et la liste des problèmes : chaque entrée est restreinte aux cibles qu
 cibles masquées ne vous parvient hormis le fait qu'elles existent. Les checklists de sécurité sont
 l'exception : leurs lignes parlent en mots pour chaque dépôt du projet, elles sont donc refusées à un
 lecteur partiel.
+
+### La page du projet
+
+La page d'un projet — son nom dans l'arbre, ou `/projects/{id}` — réunit ces lectures pour un produit :
+
+- **L'en-tête** : le nom du projet et sa solution, sa description, **Dépôts : N** et **Images : N**,
+  l'étiquette **Visible en partie** dans les mots de l'arbre quand vous n'en voyez qu'une partie, les
+  langages détectés, **Constats ouverts : N** — un lien vers la [liste des constats](../guide/issues.md)
+  restreinte au projet avec **Masquer le triage réglé**, la clause selon laquelle le chiffre compte — et
+  **Checklist de sécurité** quand la checklist s'ouvrirait pour vous.
+- **Conformité et score** : la fiche de score (score sur 100, note, les comptes dont elle est tirée,
+  ses recommandations), puis les chiffres, la matrice par cible, les référentiels et les contrôles de la
+  page de conformité du parc, dessinés par le même composant. Au-dessus, *Calculé sur N cible(s)*, et
+  sur un projet partiel un avertissement que les chiffres ne couvrent que ce que vous voyez. **Un projet
+  dont aucune cible n'a jamais été analysée se lit *Aucune donnée*** — un tiret pour chaque référentiel
+  et pour le score, pas une note : la fiche part de cent et retranche ce qu'elle trouve, si bien que sur
+  rien d'observé elle lirait *A*.
+- **Composants** : la liste consolidée, filtrable par nom ou par package URL, chaque composant avec les
+  cibles qui le portent ; au-dessus, **Inventaire par cible** donne à chaque dépôt et à chaque image son
+  état — *N composant(s)*, *Aucun composant dans son SBOM*, *Pas de SBOM* ou *Jamais analysée*, avec la
+  date de l'analyse lue. Tant qu'une cible est *Pas de SBOM* ou *Jamais analysée*, un bandeau **Liste
+  incomplète** dit pour combien de cibles la liste ne peut pas parler. **Télécharger le CycloneDX**
+  enregistre le document CycloneDX 1.5 avec son VEX.
+
+Un projet qui n'existe pas et un projet dont vous ne voyez rien affichent le même *Ce projet n'existe
+pas, ou vous ne voyez aucun de ses dépôts ni de ses images.* La page **Conformité et score** d'une
+solution (`/solutions/{id}/compliance`) dessine le périmètre de la solution de la même façon.
 
 ## Par l'API
 

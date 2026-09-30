@@ -61,6 +61,14 @@ targets, never for the project as a whole. A project or solution you see nothing
 that does not exist (`404`). Nothing of this is stored: it is computed for the read, like the estate's
 summary, and the monthly progression stays the estate's.
 
+**On screen**, a project's page shows its compliance and score, and **Compliance & score** on each
+solution of the [Solutions & projects](../administration/solutions-and-projects.md#the-project-page)
+tree opens the solution's: the scorecard, then the figures, matrix, frameworks and controls of the
+estate page, drawn by the same component, with *Computed over N target(s)* above them and, on a
+partial scope, a notice that they cover only what you see. A scope none of whose targets was scanned
+reads *No data* throughout — the frameworks and the score alike show a dash, since the scorecard,
+which starts at a hundred and subtracts what it finds, would otherwise grade a scope nobody looked at.
+
 ## The Evidence Vault
 
 One click exports a **cryptographically signed evidence bundle**:

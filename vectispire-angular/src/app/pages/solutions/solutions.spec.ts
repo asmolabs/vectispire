@@ -165,6 +165,24 @@ describe('the solutions tree', () => {
         expect(page().querySelector('[data-testid="project-11"] [data-testid="project-checklist"]')).toBeNull();
     });
 
+    it('links each project to its page and each solution to its compliance, beside the checklist', async () => {
+        await mount('USER');
+
+        expect(
+            page().querySelector('[data-testid="project-11"] [data-testid="project-link"]')?.getAttribute('href')
+        ).toBe('/projects/11');
+        expect(
+            page().querySelector('[data-testid="project-21"] [data-testid="project-link"]')?.getAttribute('href')
+        ).toBe('/projects/21');
+        // The checklist link stays where it was.
+        expect(
+            page().querySelector('[data-testid="project-12"] [data-testid="project-checklist"]')?.getAttribute('href')
+        ).toBe('/projects/12/checklist');
+        const compliance = page().querySelector('[data-testid="solution-1"] [data-testid="solution-compliance"]');
+        expect(compliance?.getAttribute('href')).toBe('/solutions/1/compliance');
+        expect(compliance?.getAttribute('aria-label')).toBe('Compliance and score of Payments');
+    });
+
     it('reads the checklist link from checklistsVisible, not from partial: a hidden image does not close the checklist', async () => {
         const tree = structuredClone(TREE);
         // Partial because of an image the reader cannot see, yet every repository is theirs:

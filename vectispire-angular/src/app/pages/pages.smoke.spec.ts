@@ -301,7 +301,10 @@ describe('every screen', () => {
         error: 'a static page with no server call',
         'issues/:id': 'takes its id from the route, like the scan detail',
         'projects/:projectId/checklist':
-            'takes its project from the route; its own spec mounts it, empty project included'
+            'takes its project from the route; its own spec mounts it, empty project included',
+        'projects/:projectId': 'takes its project from the route; its own spec mounts it, empty project included',
+        'solutions/:solutionId/compliance':
+            'takes its solution from the route; its own spec mounts it, a scope with nothing scanned included'
     };
 
     /**

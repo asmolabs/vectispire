@@ -365,56 +365,7 @@
     [style]="{ width: '38rem' }"
 >
     @if (selectedScorecard(); as card) {
-        <div class="flex flex-col gap-4">
-            <div
-                class="flex items-center justify-between p-4 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700"
-            >
-                <div>
-                    <div class="text-sm text-surface-500 font-medium uppercase">
-                        {{ 'repositories.posture_grade' | translate }}
-                    </div>
-                    <div class="text-2xl font-bold mt-1">{{ card.targetName }}</div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="text-3xl font-extrabold">
-                        {{ card.score }}<span class="text-lg text-surface-400 font-normal">/100</span>
-                    </div>
-                    <p-tag
-                        [severity]="gradeSeverity(card.grade)"
-                        [value]="'repositories.grade_tag' | translate: { grade: card.grade }"
-                        styleClass="text-lg font-bold px-3 py-1"
-                    />
-                </div>
-            </div>
-
-            <!-- Metrics Breakdown -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">
-                    <div class="text-xs text-surface-500 uppercase font-semibold">
-                        {{ 'repositories.kpi_kev' | translate }}
-                    </div>
-                    <div class="text-lg font-bold text-red-600">{{ card.openKevCount }}</div>
-                </div>
-                <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">
-                    <div class="text-xs text-surface-500 uppercase font-semibold">
-                        {{ 'repositories.kpi_critical' | translate }}
-                    </div>
-                    <div class="text-lg font-bold text-red-500">{{ card.openCriticalCount }}</div>
-                </div>
-                <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">
-                    <div class="text-xs text-surface-500 uppercase font-semibold">
-                        {{ 'repositories.kpi_high' | translate }}
-                    </div>
-                    <div class="text-lg font-bold text-amber-500">{{ card.openHighCount }}</div>
-                </div>
-                <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">
-                    <div class="text-xs text-surface-500 uppercase font-semibold">
-                        {{ 'repositories.kpi_licenses' | translate }}
-                    </div>
-                    <div class="text-lg font-bold text-purple-500">{{ card.licenseViolationCount }}</div>
-                </div>
-            </div>
-
+        <app-scorecard [card]="card">
             <!-- Dynamic Badge Preview & Copy Snippet -->
             @if (card.targetId) {
                 <div class="p-4 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-3">
@@ -462,19 +413,7 @@
                     }
                 </div>
             }
-
-            <!-- Actionable Recommendations -->
-            @if (card.recommendations.length > 0) {
-                <div class="flex flex-col gap-2">
-                    <span class="text-sm font-semibold">{{ 'repositories.recommendations' | translate }}</span>
-                    <ul class="m-0 pl-4 text-sm text-surface-600 dark:text-surface-400 space-y-1">
-                        @for (rec of card.recommendations; track rec) {
-                            <li>{{ rec }}</li>
-                        }
-                    </ul>
-                </div>
-            }
-        </div>
+        </app-scorecard>
     }
     <ng-template #footer>
         <p-button [label]="'common.close' | translate" [text]="true" (onClick)="scorecardVisible.set(false)" />

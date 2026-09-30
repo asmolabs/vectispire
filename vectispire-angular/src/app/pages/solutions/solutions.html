@@ -115,6 +115,15 @@
                                     }
                                 "
                             />
+                            <a
+                                [routerLink]="['/solutions', solution.id, 'compliance']"
+                                class="inline-flex items-center gap-1 text-sm px-2 py-1"
+                                [attr.aria-label]="'solutions.aria_compliance' | translate: { name: solution.name }"
+                                data-testid="solution-compliance"
+                            >
+                                <i class="pi pi-verified" aria-hidden="true"></i>
+                                {{ 'solutions.compliance_btn' | translate }}
+                            </a>
                         </div>
                     </div>
                     @if (isAdmin()) {
@@ -162,7 +171,9 @@
                                 <div class="min-w-0">
                                     <h3 class="text-lg font-medium m-0 flex items-center gap-2">
                                         <i class="pi pi-folder text-muted-color" aria-hidden="true"></i>
-                                        {{ project.name }}
+                                        <a [routerLink]="['/projects', project.id]" data-testid="project-link">{{
+                                            project.name
+                                        }}</a>
                                     </h3>
                                     @if (project.description) {
                                         <p class="text-muted-color text-sm mt-1 mb-0">{{ project.description }}</p>

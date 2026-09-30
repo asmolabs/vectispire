@@ -63,6 +63,15 @@ pour ces cibles, jamais pour le projet entier. Un projet ou une solution dont vo
 réponse d'un projet inexistant (`404`). Rien de tout cela n'est enregistré : c'est calculé pour la
 lecture, comme le résumé du parc, et la progression mensuelle reste celle du parc.
 
+**À l'écran**, la page d'un projet montre sa conformité et son score, et **Conformité et score** sur
+chaque solution de l'arbre [Solutions et projets](../administration/solutions-and-projects.fr.md#la-page-du-projet)
+ouvre ceux de la solution : la fiche de score, puis les chiffres, la matrice, les référentiels et les
+contrôles de la page du parc, dessinés par le même composant, avec *Calculé sur N cible(s)* au-dessus et,
+sur un périmètre partiel, un avertissement qu'ils ne couvrent que ce que vous voyez. Un périmètre dont
+aucune cible n'a été analysée se lit *Aucune donnée* de bout en bout — les référentiels comme le score
+affichent un tiret, puisque la fiche de score, qui part de cent et retranche ce qu'elle trouve, noterait
+sinon un périmètre que personne n'a regardé.
+
 ## Le coffre de preuves
 
 Un clic exporte un **paquet de preuves signé cryptographiquement** :

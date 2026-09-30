@@ -2281,6 +2281,8 @@
     "plugins_btn": "Plugins",
     "aria_plugins": "Plugins activés pour {{name}}",
     "checklist_btn": "Checklist de sécurité",
+    "compliance_btn": "Conformité et score",
+    "aria_compliance": "Conformité et score de {{name}}",
     "aria_checklist": "Checklist de sécurité de {{name}}",
     "plugins_header": "Plugins — {{project}}",
     "plugins_explain": "Un plugin s'exécute sur les dépôts de ce projet dès le prochain scan, là où l'un de ses langages est présent. Le désactiver laisse ses issues ouvertes en l'état. Un dépôt rangé dans aucun projet n'exécute aucun plugin.",
@@ -2513,6 +2515,8 @@
     "plugins": "Plugins",
     "sarif_sources": "Sources déclarées",
     "checklist_templates": "Modèles de checklists",
+    "project": "Projet",
+    "solution_compliance": "Conformité de la solution",
     "project_checklist": "Checklist de sécurité"
   },
   "topbar": {
@@ -2967,6 +2971,44 @@
     "rule_components_hint": "Une liste explicite : une version est autorisée lorsqu'elle est écrite ici, telle que le SBOM l'indique. Rien n'est ordonné.",
     "rule_keep_btn": "Garder cette règle",
     "rule_unbind_btn": "Mesurer sans règle"
+  },
+  "project": {
+    "title": "Projet",
+    "in_solution": "Dans la solution {{solution}}",
+    "back": "Retour aux solutions",
+    "not_found": "Ce projet n’existe pas, ou vous ne voyez aucun de ses dépôts ni de ses images.",
+    "open_issues": "Constats ouverts : {{count}}",
+    "compliance_title": "Conformité et score",
+    "components_title": "Composants",
+    "download_cyclonedx": "Télécharger le CycloneDX",
+    "incomplete": "Liste incomplète : {{count}} cible(s) n’ont listé aucun composant — jamais analysées, ou analysées sans SBOM. Ce qu’elles contiennent n’est pas ci-dessous.",
+    "components_partial": "Seuls les dépôts et images que vous voyez sont listés.",
+    "targets_title": "Inventaire par cible",
+    "filter_label": "Filtrer par nom",
+    "component_count": "{{shown}} sur {{total}}",
+    "col_name": "Composant",
+    "col_version": "Version",
+    "col_type": "Type",
+    "col_carriers": "Porté par",
+    "no_components": "Aucun composant.",
+    "error_load": "Le projet n’a pas pu être chargé.",
+    "error_compliance": "La conformité du projet n’a pas pu être calculée.",
+    "error_components": "Les composants du projet n’ont pas pu être chargés.",
+    "error_cyclonedx": "Le document CycloneDX n’a pas pu être téléchargé.",
+    "inventory_listed": "{{count}} composant(s)",
+    "inventory_empty": "Aucun composant dans son SBOM",
+    "inventory_absent": "Pas de SBOM",
+    "inventory_never_scanned": "Jamais analysée"
+  },
+  "scope_compliance": {
+    "target_count": "Calculé sur {{count}} cible(s).",
+    "partial": "Visibilité partielle : ces chiffres ne couvrent que les dépôts et images que vous voyez."
+  },
+  "solution_compliance": {
+    "title": "Conformité et score",
+    "subtitle": "Sur les dépôts et images classés dans les projets de la solution.",
+    "not_found": "Cette solution n’existe pas, ou vous ne voyez aucun de ses dépôts ni de ses images.",
+    "error_load": "La conformité de la solution n’a pas pu être calculée."
   },
   "project_checklist": {
     "title": "Checklist de sécurité",

@@ -52,6 +52,19 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/solutions/solutions').then((m) => m.Solutions)
             },
             {
+                // Readable by every account that sees part of the project: the server computes every
+                // figure over what the reader sees, says \`partial\`, and answers 404 to the others.
+                path: 'projects/:projectId',
+                title: 'titles.project',
+                loadComponent: () => import('./app/pages/project/project').then((m) => m.Project)
+            },
+            {
+                path: 'solutions/:solutionId/compliance',
+                title: 'titles.solution_compliance',
+                loadComponent: () =>
+                    import('./app/pages/solution-compliance/solution-compliance').then((m) => m.SolutionCompliance)
+            },
+            {
                 // Readable by every account that sees the whole project, and no role guard can say
                 // which those are: the server answers 404 to the others, and the page says so.
                 path: 'projects/:projectId/checklist',

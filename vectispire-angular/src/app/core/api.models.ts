@@ -761,6 +761,59 @@ export type Unfiled = Refine<
 /** `GET /api/v1/solutions` — decision 0023. */
 export type SolutionTree = Refine<Schema<'SolutionTree'>, { solutions: SolutionNode[]; unfiled: Unfiled }>;
 
+export type SolutionRef = Refine<Schema<'SolutionRef'>, { id: number; name: string }>;
+
+/** `GET /api/v1/projects/{id}` — the tree's node, read on its own, with the solution it is filed in. */
+export type ProjectDetail = Refine<
+    Schema<'ProjectDetail'>,
+    {
+        id: number;
+        solutionId: number;
+        name: string;
+        description: string | null;
+        openIssues: OpenIssues;
+        repositories: RepositoryRef[];
+        containers?: ContainerRef[];
+        detectedLanguages: DetectedLanguage[];
+        languagesUnknownFor: number[];
+        solution: SolutionRef;
+    }
+>;
+
+/**
+ * `GET /api/v1/{projects,solutions}/{id}/compliance` — the estate summary and the portfolio
+ * scorecard, computed over the scope's visible targets. `partial` says some are hidden from the
+ * reader; `targetCount` is how many were counted.
+ */
+export type ScopeCompliance = Refine<
+    Schema<'ScopeCompliance'>,
+    { kind: string; name: string; compliance: ComplianceSummary; scorecard: SecurityScorecard }
+>;
+
+/**
+ * What a target's last scan says of its inventory. `absent` (no SBOM produced) and `never_scanned`
+ * are not an empty list: a consolidated list missing them is incomplete, not clean (decision 0007).
+ */
+export type InventoryState = NonNullable<Schema<'TargetInventory'>['inventory']>;
+
+export type TargetInventory = Refine<
+    Schema<'TargetInventory'>,
+    { kind: string; name: string; inventory: InventoryState; scanId: number | null; scannedAt: string | null }
+>;
+
+export type ComponentTarget = Refine<Schema<'ComponentTarget'>, { kind: string; name: string }>;
+
+export type MergedComponent = Refine<
+    Schema<'MergedComponent'>,
+    { name: string; version: string | null; purl: string | null; type: string | null; targets: ComponentTarget[] }
+>;
+
+/** `GET /api/v1/projects/{id}/components` — `complete` is false while a visible target lists nothing. */
+export type ConsolidatedInventory = Refine<
+    Schema<'ConsolidatedInventory'>,
+    { kind: string; name: string; targets: TargetInventory[]; components: MergedComponent[] }
+>;
+
 export type SolutionView = Refine<Schema<'SolutionView'>, { id: number; name: string; description: string | null }>;
 
 export type ProjectView = Refine<

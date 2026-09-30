@@ -106,7 +106,9 @@ project and the "no project" group carries two counts, **Repositories: N** and *
 tag per severity that has open issues ("2 Critical", "1 High"), or "No open issues" — counted over
 the repositories and the images alike. A node you see only in part carries **Partially visible: N
 repositories and M images you can see**. A repository name opens the issues of that repository, an
-image name those of that image.
+image name those of that image. A **project name opens the project's page** (below), and each solution
+carries **Compliance & score**, which opens the solution's compliance and score over what you see of
+it — the same drawing as the project page's.
 
 On a solution or a project, **each severity tag is a link** to the [issues list](../guide/issues.md)
 narrowed to that solution or project, that severity, and **Hide settled triage** — the clause the tag
@@ -181,6 +183,33 @@ tree's figures and the issues list: every input is narrowed to the targets you s
 hidden ones reaches you beyond the fact that they exist. The security checklists are the exception:
 their lines speak in words for every repository of the project, so they are refused to a partial
 reader instead.
+
+### The project page
+
+A project's page — its name in the tree, or `/projects/{id}` — gathers these reads for one product:
+
+- **The header**: the project's name and solution, its description, **Repositories: N** and
+  **Images: N**, the **Partially visible** tag in the tree's words when you see only part of it, the
+  languages detected, **Open issues: N** — a link to the [issues list](../guide/issues.md) narrowed to
+  the project with **Hide settled triage**, the clause the figure counts by — and **Security
+  checklist** when the checklist would open for you.
+- **Compliance and score**: the scorecard (score out of 100, grade, the counts it is computed from,
+  its recommendations), then the estate compliance page's figures, per-target matrix, frameworks and
+  controls, drawn by the same component. Above them, *Computed over N target(s)*, and on a partial
+  project a notice that the figures cover only what you see. **A project none of whose targets was
+  ever scanned reads *No data*** — a dash for every framework and for the score, not a grade: the
+  scorecard starts at a hundred and subtracts what it finds, so over nothing observed it would read
+  *A*.
+- **Components**: the consolidated list, filtered by name or package URL, each component with the
+  targets carrying it; above it, **Inventory by target** gives each repository and image its state —
+  *N component(s)*, *No component in its SBOM*, *No SBOM* or *Never scanned*, with the date of the
+  scan read. While one target is *No SBOM* or *Never scanned*, an **Incomplete list** banner says how
+  many targets the list cannot speak for. **Download CycloneDX** saves the CycloneDX 1.5 document with
+  its VEX.
+
+A project that does not exist and one you see nothing of show the same *This project does not exist,
+or you see none of its repositories and images.* A solution's **Compliance & score** page
+(`/solutions/{id}/compliance`) draws the solution's scope the same way.
 
 ## Through the API
 
