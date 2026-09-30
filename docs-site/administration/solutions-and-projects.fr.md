@@ -180,7 +180,8 @@ projet » listent leurs images sous `containers` et les comptent dans `container
 
 La **checklist de sécurité** d'un projet mesure toujours ses seuls dépôts, et n'est toujours montrée
 qu'à qui les voit tous : les images n'entrent pas dans les mesures d'une checklist, si bien qu'une
-checklist signée dit exactement ce qu'elle disait. Les langages détectés d'un projet et les plugins
+checklist signée dit exactement ce qu'elle disait. Un projet partiel du seul fait d'une image que vous ne
+voyez pas vous laisse donc sa checklist ouverte. Les langages détectés d'un projet et les plugins
 activés pour lui portent sur des arborescences de sources : ils concernent eux aussi ses dépôts.
 
 ## Voir aussi

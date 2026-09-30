@@ -176,7 +176,8 @@ their images under `containers` and count them in `containerCount`, beside `repo
 
 A project's **security checklist** still measures the project's repositories only, and is still
 shown to whoever sees every one of them: images do not enter a checklist's measurements, so a signed
-checklist says exactly what it said before. The languages detected for a project and the plugins
+checklist says exactly what it said before. A project that is partial only because of an image you do
+not see therefore keeps its checklist open to you. The languages detected for a project and the plugins
 switched on for it are about source trees, so they concern its repositories too.
 
 ## Related
