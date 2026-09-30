@@ -77,8 +77,9 @@ every `web` package.
 | `domainIsPure`, `onlyRepositoriesReachTheDatabase` | kept | libraries, not modules |
 | `onlyTheOutboundDoorSpeaksHttpOutwards`, `onlySyslogSenderOpensSockets` | kept | one class allowed a library |
 | `everyRepositoryWriteIsTransactional`, `caseIsFoldedWithoutTheHostLocale` | kept | conventions on methods |
-| `findsSomethingToCheck`, `MODULES`, `OUTSIDE_MODULES = {config}` | kept | the kept rules read them; `ModularityTest.detectsModules` holds the same list against Modulith's model. A module's root must hold a class besides its `package-info`, which every root now has |
+| `findsSomethingToCheck`, `MODULES`, `OUTSIDE_MODULES = {config}` | kept | the kept rules read them; `ModularityTest` reads the same list (since 2026-09-30, a copy before) and `detectsModules` holds it against Modulith's model. A module's root must hold a class besides its `package-info`, which every root now has |
 | — | **new**: `accessForRoutesOnly` | the one line of the table a module's list cannot express |
+| — | **new** (2026-09-30): `callsBetweenModulesCarryNoPersistenceType` | a caller ignoring a return value depends on the method's owner alone, so another module's entity in the called signature is invisible to `verify()`; `OutboxService.enqueue` returned the relay's entity that way until be48b7ad |
 
 Every kept or moved rule was mutation-checked against a violation built for it, and each retired
 rule's violation — a reach into another module's `persistence` or `internal`, a cycle, a module a list
@@ -130,7 +131,7 @@ endpoint, `@ApplicationModuleTest`.
 - A cycle can no longer be recorded and kept: `verify()` has no `KNOWN_CYCLES`. The list had been
   empty since step 1; a cycle found in review is broken in that review, by a port or an event.
 - A new module is a package under `core`, a `package-info` with its list, and a line in
-  `ArchitectureTest.MODULES` and `ModularityTest.MODULES` (and `sharedModules` if it is foundation).
+  `ArchitectureTest.MODULES`, which `ModularityTest` reads (and `sharedModules` if it is foundation).
 - A new dependency between modules is a line in the origin's `package-info`, with its reason, in the
   review that needs it — the same discipline as a line of `MAY_USE`, next to the code it constrains.
   It can still be added by the commit that needs it; what changed is that it is one place to read.

@@ -52,17 +52,16 @@ class ModularityTest {
     private static final String CORE = "com.asmolabs.vectispire.core";
 
     /**
-     * The top-level packages that are no domain's: {@code config}, the datasource and the engines'
-     * setup. It declares no list either, and needs none — nothing lists it, so nothing may use it.
+     * The domains and the top-level packages that are no domain's ({@code config}): {@code
+     * ArchitectureTest}'s lists, read rather than copied. Two copies had to move together by hand; one
+     * list that both suites check keeps the property that mattered — a module missing from it fails
+     * {@link #detectsModules} here and {@code findsSomethingToCheck} there. Not derived from the Modulith
+     * model: a list read off what Modulith detected would agree with a misspelt package instead of
+     * failing on it.
      */
-    private static final Set<String> OUTSIDE_MODULES = Set.of("config");
+    private static final List<String> MODULES = ArchitectureTest.MODULES;
 
-    /** The domains — the same list as {@code ArchitectureTest.MODULES}. */
-    private static final List<String> MODULES = List.of(
-            "settings", "outbound", "crypto", "audit", "outbox", "reporting",
-            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
-            "inventory", "posture", "compliance", "access",
-            "targets", "scanning", "issues", "maintenance", "platform", "plugins", "checklists");
+    private static final Set<String> OUTSIDE_MODULES = ArchitectureTest.OUTSIDE_MODULES;
 
     /**
      * The one module that may use any other, and so the one that declares no list: the shell (decision
@@ -111,7 +110,7 @@ class ModularityTest {
     @DisplayName("detects every domain and config as modules, and nothing else")
     void detectsModules() {
         // A module Modulith does not see is a module nothing verifies: a misspelt package, or a new
-        // top-level package nobody placed. The list and ArchitectureTest's move together.
+        // top-level package nobody placed. The list is ArchitectureTest's, so the two suites agree on it.
         assertThat(modules.stream().map(module -> module.getIdentifier().toString()))
                 .containsAll(MODULES)
                 .containsAll(OUTSIDE_MODULES)

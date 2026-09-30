@@ -80,8 +80,11 @@ class ArchitectureTest {
      * left of the composition roots (step 5, decision 0029): {@code shared} was emptied, {@code
      * maintenance} is the port the periodic jobs are contributed through, and {@code platform} is the
      * shell — the settings screen, the foundation's routes and the API-wide web configuration.
+     *
+     * <p>The one list of them: {@code ModularityTest} reads it, and fails if Modulith detects a module it
+     * lacks. A new module is a line here.
      */
-    private static final List<String> MODULES = List.of(
+    static final List<String> MODULES = List.of(
             // Step 3: the foundation.
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
@@ -102,7 +105,7 @@ class ArchitectureTest {
      * domain owns. {@code api}, {@code services}, {@code repositories} and {@code persistence} were
      * emptied, and a class put back into one of them fails {@link #everyClassHasAPlace}.
      */
-    private static final Set<String> OUTSIDE_MODULES = Set.of("config");
+    static final Set<String> OUTSIDE_MODULES = Set.of("config");
 
     private static JavaClasses classes;
 
@@ -297,6 +300,59 @@ class ArchitectureTest {
                 .that().resideInAnyPackage(layer(".web.."))
                 .should().dependOnClassesThat().resideInAnyPackage(CORE + ".*.persistence..")
                 .check(classes);
+    }
+
+    @Test
+    @DisplayName("a call between modules carries no persistence type in the signature it calls")
+    void callsBetweenModulesCarryNoPersistenceType() {
+        // The blind spot of both tools: a caller that ignores a return value depends, in the class file,
+        // on the method's owner alone — the entity sits in the called method's descriptor, not among the
+        // caller's dependencies, so neither Modulith's `verify()` nor a `dependOnClassesThat` rule sees it.
+        // `OutboxService.enqueue` returned the relay's `OutboxMessageEntity` to siem and notifications that
+        // way until be48b7ad; the next caller to read the value would have been coupled to the outbox's
+        // table with no message anywhere. So the signature itself is read: what another module's method
+        // takes or answers, generics included, holds nothing of a `persistence` package but the `queries`
+        // a module publishes as a named interface.
+        ArchCondition<JavaClass> callCleanSignatures = new ArchCondition<>(
+                "call no method of another module whose signature names a persistence type") {
+            @Override
+            public void check(JavaClass origin, ConditionEvents events) {
+                String from = moduleOf(origin.getPackageName());
+                for (com.tngtech.archunit.core.domain.JavaAccess<?> access : origin.getAccessesFromSelf()) {
+                    String owner = access.getTargetOwner().getPackageName();
+                    if (!owner.startsWith(CORE + ".") || moduleOf(owner).equals(from)) {
+                        continue;
+                    }
+                    access.getTarget().resolveMember().ifPresent(member -> {
+                        Set<JavaClass> involved = new java.util.HashSet<>();
+                        if (member instanceof com.tngtech.archunit.core.domain.JavaCodeUnit unit) {
+                            involved.addAll(unit.getReturnType().getAllInvolvedRawTypes());
+                            unit.getParameterTypes().forEach(type -> involved.addAll(type.getAllInvolvedRawTypes()));
+                        } else if (member instanceof com.tngtech.archunit.core.domain.JavaField field) {
+                            involved.addAll(field.getType().getAllInvolvedRawTypes());
+                        }
+                        involved.stream()
+                                .filter(type -> type.getPackageName().matches(
+                                        java.util.regex.Pattern.quote(CORE) + "\\.[a-z]+\\.persistence(\\..*)?")
+                                        && !type.getPackageName().matches(".*\\.persistence\\.queries(\\..*)?"))
+                                .forEach(type -> events.add(SimpleConditionEvent.violated(origin,
+                                        access.getDescription() + " — the signature names " + type.getName())));
+                    });
+                }
+            }
+        };
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().resideOutsideOfPackage(CORE)
+                .should(callCleanSignatures)
+                .check(classes);
+    }
+
+    /** The module a package of {@code core} belongs to: its first segment below {@code core}. */
+    private static String moduleOf(String packageName) {
+        String rest = packageName.substring(CORE.length() + 1);
+        int dot = rest.indexOf('.');
+        return dot < 0 ? rest : rest.substring(0, dot);
     }
 
     @Test

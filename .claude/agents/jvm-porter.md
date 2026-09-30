@@ -103,7 +103,7 @@ before the first phase (`TargetGrants.revokeAll`).
 `config`) and writes the canvases and diagrams to `build/modulith-docs/`. A message is a reach you
 just added: answer it with the owner's API or a port, never by moving a class to wherever the message
 stops. A new module is a package under `core`, a `package-info` with its list, a line in
-`ArchitectureTest.MODULES` and `ModularityTest.MODULES` and, if it is foundation, in `sharedModules`;
+`ArchitectureTest.MODULES` (which `ModularityTest` reads) and, if it is foundation, in `sharedModules`;
 a new named interface is a `@NamedInterface` on a `package-info`, and a reason in it. Production
 depends on `spring-modulith-api` alone — the annotations; the verification, the documenter and
 ArchUnit are the test starter's — and `ModulithRuntimeInertTest` fails if more of Modulith reaches the
@@ -310,7 +310,11 @@ until step 3, and each would have gone quiet on the first controller that moved.
 `SessionView` and `AgentView`; a route that only needed a row to hand it back to a guard passes an
 id, and the service guards the row it reads (`ScanDocumentService.requireVisible`, called by the
 document services). A service that
-needs a secret — a password hash, a TOTP secret — reads the row by id itself.
+needs a secret — a password hash, a TOTP secret — reads the row by id itself. Nor does it cross
+into another module through a signature: a caller ignoring a return value depends on the owner alone,
+so an entity in the called method's descriptor is invisible to `verify()` —
+`ArchitectureTest.callsBetweenModulesCarryNoPersistenceType` reads the signature itself (only the
+published `queries` pass).
 
 **A credential that is not a session is confined, and the confinement is not the visibility.**
 An agent key passes only on `@RequiresAgentKey` routes, an integration key only on

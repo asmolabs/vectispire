@@ -82,8 +82,9 @@ paquetage `web`.
 | `domainIsPure`, `onlyRepositoriesReachTheDatabase` | gardées | des bibliothèques, pas des modules |
 | `onlyTheOutboundDoorSpeaksHttpOutwards`, `onlySyslogSenderOpensSockets` | gardées | une seule classe autorisée à une bibliothèque |
 | `everyRepositoryWriteIsTransactional`, `caseIsFoldedWithoutTheHostLocale` | gardées | conventions sur des méthodes |
-| `findsSomethingToCheck`, `MODULES`, `OUTSIDE_MODULES = {config}` | gardées | les règles gardées les lisent ; `ModularityTest.detectsModules` tient la même liste face au modèle de Modulith. La racine d'un module doit contenir une classe en plus de son `package-info`, que toute racine a désormais |
+| `findsSomethingToCheck`, `MODULES`, `OUTSIDE_MODULES = {config}` | gardées | les règles gardées les lisent ; `ModularityTest` lit la même liste (depuis le 2026-09-30, une copie avant) et `detectsModules` la tient face au modèle de Modulith. La racine d'un module doit contenir une classe en plus de son `package-info`, que toute racine a désormais |
 | — | **nouvelle** : `accessForRoutesOnly` | la seule ligne du tableau qu'une liste de module ne sait pas dire |
+| — | **nouvelle** (2026-09-30) : `callsBetweenModulesCarryNoPersistenceType` | un appelant qui ignore une valeur de retour ne dépend que du propriétaire de la méthode : l'entité d'un autre module dans la signature appelée échappe à `verify()` ; `OutboxService.enqueue` rendait ainsi l'entité du relais jusqu'à be48b7ad |
 
 Chaque règle gardée ou déplacée a été vérifiée par mutation contre une violation construite pour
 elle, et la violation de chaque règle retirée — un accès à la `persistence` ou à l'`internal` d'un
@@ -141,7 +142,7 @@ actuator, `@ApplicationModuleTest`.
   vide depuis l'étape 1 ; un cycle trouvé en revue est rompu dans cette revue, par un port ou un
   événement.
 - Un nouveau module, c'est un paquetage sous `core`, un `package-info` avec sa liste, et une ligne dans
-  `ArchitectureTest.MODULES` et `ModularityTest.MODULES` (et dans `sharedModules` s'il est du socle).
+  `ArchitectureTest.MODULES`, que `ModularityTest` lit (et dans `sharedModules` s'il est du socle).
 - Une nouvelle dépendance entre modules est une ligne dans le `package-info` de l'origine, avec sa
   raison, dans la revue qui en a besoin — la même discipline qu'une ligne de `MAY_USE`, à côté du code
   qu'elle contraint. Elle peut toujours être ajoutée par le commit qui en a besoin ; ce qui change,
