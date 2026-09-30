@@ -110,4 +110,46 @@ class PluginWireTest {
                         ScanTask.class).plugins())
                 .isEmpty();
     }
+    @Test
+    @DisplayName("a refusal crosses with its reason, a produced step with its signer's footing, and unknown tokens do not fail the result")
+    void refusalsAndSignatures() throws Exception {
+        ScanArtifacts written = ScanArtifacts.builder()
+                .plugin(new PluginStep.Refused("u", DIGEST, PluginStep.Refusal.UNSIGNED, "no signer declared"))
+                .plugin(new PluginStep.Refused("v", DIGEST, PluginStep.Refusal.SIGNATURE_UNVERIFIED, "cosign: no match"))
+                .plugin(new PluginStep.Produced("w", DIGEST, "acme", null, List.of(), PluginStep.Signature.WAIVED))
+                .build(Duration.ofSeconds(1));
+
+        String body = json.writeValueAsString(written);
+        JsonNode tree = json.readTree(body);
+
+        assertThat(tree.path("plugins")).extracting(node -> node.path("state").asText())
+                .containsExactly("refused", "refused", "produced");
+        assertThat(tree.path("plugins").path(0).path("refusal").asText()).isEqualTo("unsigned");
+        assertThat(tree.path("plugins").path(1).path("refusal").asText()).isEqualTo("signature_unverified");
+        assertThat(tree.path("plugins").path(2).path("signature").asText()).isEqualTo("waived");
+        assertThat(json.readValue(body, ScanArtifacts.class)).isEqualTo(written);
+
+        ScanArtifacts later = json.readValue("{\"plugins\":[{\"state\":\"refused\",\"pluginId\":\"x\",\"refusal\":"
+                + "\"quantum_unsafe\",\"reason\":\"r\"},{\"state\":\"produced\",\"pluginId\":\"y\",\"findings\":[],"
+                + "\"signature\":\"notarised\"}],\"failures\":[]}", ScanArtifacts.class);
+        assertThat(later.plugins().getFirst()).isInstanceOfSatisfying(PluginStep.Refused.class, refused ->
+                assertThat(refused.refusal()).as("a reason a newer executor names is still a refusal").isNull());
+        assertThat(later.plugins().get(1)).isInstanceOfSatisfying(PluginStep.Produced.class, produced ->
+                assertThat(produced.signature()).isNull());
+    }
+
+    @Test
+    @DisplayName("the task carries a plugin's waiver, and a task from before the field carries none")
+    void waiverOnTheTask() throws Exception {
+        ScanTask written = new ScanTask(new ScanTask.Target.Repository("https://host/p.git", "main", null, null), null,
+                Set.of(), List.of(new PluginRef("acme-lint", DIGEST, true)));
+
+        String body = json.writeValueAsString(written);
+
+        assertThat(json.readTree(body).path("plugins").path(0).path("runsUnsigned").asBoolean()).isTrue();
+        assertThat(json.readValue(body, ScanTask.class)).isEqualTo(written);
+        assertThat(json.readValue("{\"target\":{\"kind\":\"repository\",\"url\":\"u\",\"branch\":\"b\"},\"steps\":[],"
+                        + "\"plugins\":[{\"id\":\"a\",\"digest\":\"d\"}]}", ScanTask.class).plugins())
+                .containsExactly(new PluginRef("a", "d", false));
+    }
 }

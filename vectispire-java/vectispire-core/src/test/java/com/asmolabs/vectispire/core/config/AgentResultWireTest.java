@@ -33,6 +33,23 @@ class AgentResultWireTest {
             """;
 
     @Test
+    @DisplayName("a refused plugin arrives refused with its reason, and a waived one with its footing (decision 0017 §9.1)")
+    void refusalsSurviveTheWire() throws Exception {
+        ScanArtifacts read = json.readValue("""
+                {"plugins":[
+                  {"state":"refused","pluginId":"u","manifestDigest":"d","refusal":"unsigned","reason":"no signer"},
+                  {"state":"produced","pluginId":"w","manifestDigest":"d","findings":[],"signature":"waived"}],
+                 "failures":[],"duration":"PT1S"}
+                """, ScanArtifacts.class);
+
+        assertThat(read.plugins()).containsExactly(
+                new com.asmolabs.vectispire.common.scanning.PluginStep.Refused("u", "d",
+                        com.asmolabs.vectispire.common.scanning.PluginStep.Refusal.UNSIGNED, "no signer"),
+                new com.asmolabs.vectispire.common.scanning.PluginStep.Produced("w", "d", null, null, List.of(),
+                        com.asmolabs.vectispire.common.scanning.PluginStep.Signature.WAIVED));
+    }
+
+    @Test
     @DisplayName("empty stays \"ran, found nothing\" and null stays \"did not look\" (decision 0007)")
     void absentAndEmptySurviveTheWire() throws Exception {
         ScanArtifacts read = json.readValue(AGENT_BODY, ScanArtifacts.class);

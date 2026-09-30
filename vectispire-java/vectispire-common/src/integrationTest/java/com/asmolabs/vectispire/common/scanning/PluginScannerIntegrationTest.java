@@ -31,6 +31,14 @@ import org.junit.jupiter.api.Test;
 @DisplayName("a plugin, against a real daemon")
 class PluginScannerIntegrationTest {
 
+    /**
+     * These plugins declare no signer, and what they exercise is the run, not its admission: the
+     * executor's default now refuses them (decision 0017 §9.1), so they run on one whose operator
+     * switched the requirement off — the admission itself is {@code PluginSignatureIntegrationTest}'s.
+     */
+    private static final PluginScanner.Settings UNSIGNED_ALLOWED = new PluginScanner.Settings(null, false);
+
+
     /** Pinned by digest, like every image Vectispire runs, and a plugin's image must be. */
     private static final String BUSYBOX =
             "busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
@@ -102,7 +110,7 @@ class PluginScannerIntegrationTest {
                 // What a plugin must never see: the workspace root holds the secrets report in the clear.
                 Files.writeString(workspace.root().resolve("secrets-report.json"), "{\"secret\":\"hunter2\"}");
                 Path analysed = SourceFiles.within(workspace.source(), null);
-                List<PluginStep> steps = new PluginSteps(new PluginScanner(runner, PluginScanner.Settings.DEFAULT),
+                List<PluginStep> steps = new PluginSteps(new PluginScanner(runner, UNSIGNED_ALLOWED),
                                 reference -> manifest)
                         .run(List.of(new PluginRef(manifest.id(), manifest.digest())), workspace, analysed);
                 assertThat(sizeOf(workspace.root()))

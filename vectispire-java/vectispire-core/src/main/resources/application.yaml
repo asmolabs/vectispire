@@ -111,9 +111,12 @@ vectispire:
 
     # **Whether the built-in worker runs a plugin whose manifest declares no signer.** A declared
     # signer is verified whatever this says — cosign, pinned, before the image is pulled — and an image
-    # it does not verify is never run. Off by default; on, an unsigned plugin is absent with the reason.
-    # The agent has the same setting for its own host (decision 0017).
-    plugin-signature-required: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:false}
+    # it does not verify is never run (refused, signature_unverified). **On by default** since
+    # 2026-09-30: an unsigned plugin is refused (unsigned) unless the platform governor waived the
+    # requirement for it, in writing and audited, on the plugin itself — the documented way. False
+    # runs every unsigned plugin on this executor. The agent has the same setting for its own host
+    # (decision 0017 §9.1).
+    plugin-signature-required: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:true}
 
   threat-intel:
     # **Where the CISA KEV catalogue is read from**, every six hours and on a lead's demand. Blank

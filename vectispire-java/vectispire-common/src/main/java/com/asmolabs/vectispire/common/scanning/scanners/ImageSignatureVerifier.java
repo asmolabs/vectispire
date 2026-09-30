@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.common.scanning.scanners;
 import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.PluginRefusedException;
+import com.asmolabs.vectispire.common.scanning.PluginStep;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -29,12 +31,14 @@ import java.util.List;
  * target: no tree, no workspace, the public key alone when the manifest declares one. Keyless
  * verification also fetches Sigstore's trust root from its TUF repository; key verification needs the
  * registry and nothing else. Registry credentials are not given to it: an image the registry serves
- * only to an authenticated pull cannot be verified here, and fails — absent, loudly, never run
+ * only to an authenticated pull cannot be verified here, and is refused — loudly, never run
  * unverified.
  *
  * <p><b>Verified before the pull, and the verification is the gate.</b> Anything but cosign's exit 0
  * — no signature, another signer, a registry unreachable, a trust root that could not be fetched — is
- * a failure of the step, with cosign's own words as the reason.
+ * a refusal ({@link PluginRefusedException}, {@code signature_unverified}), with cosign's own words as
+ * the reason. A verifier that could not be started at all said nothing about the image: that one is
+ * a failure of the step, absent.
  */
 public final class ImageSignatureVerifier {
 
@@ -105,9 +109,12 @@ public final class ImageSignatureVerifier {
                     + failure.getMessage());
         }
         if (result.exitCode() != 0) {
+            // A refusal, not a crash: cosign ran and did not vouch for the image. Its words say which
+            // of "another signer", "no signature" or "the registry did not answer" it was.
             String said = result.stderr() == null ? "" : result.stderr().strip();
-            throw ScannerFailureException.of(label, "Its image's signature was not verified against the signer its "
-                    + "manifest declares, so it was not run. cosign: " + (said.length() <= 2000 ? said : said.substring(0, 2000)));
+            throw new PluginRefusedException(label, PluginStep.Refusal.SIGNATURE_UNVERIFIED, "Its image's signature was "
+                    + "not verified against the signer its manifest declares, so it was not run. cosign: "
+                    + (said.length() <= 2000 ? said : said.substring(0, 2000)));
         }
     }
 }

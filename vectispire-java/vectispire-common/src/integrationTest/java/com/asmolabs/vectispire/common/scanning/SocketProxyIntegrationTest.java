@@ -37,6 +37,14 @@ import org.junit.jupiter.api.Test;
 @DisplayName("a plugin, through the socket proxy")
 class SocketProxyIntegrationTest {
 
+    /**
+     * These plugins declare no signer, and what they exercise is the run, not its admission: the
+     * executor's default now refuses them (decision 0017 §9.1), so they run on one whose operator
+     * switched the requirement off — the admission itself is {@code PluginSignatureIntegrationTest}'s.
+     */
+    private static final PluginScanner.Settings UNSIGNED_ALLOWED = new PluginScanner.Settings(null, false);
+
+
     /** The composition's pin, the same digest. */
     private static final String PROXY =
             "tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2";
@@ -101,7 +109,7 @@ class SocketProxyIntegrationTest {
             try {
                 Files.createDirectories(workspace.source());
                 Files.writeString(workspace.source().resolve("a.py"), "print(1)");
-                List<PluginStep> steps = new PluginSteps(new PluginScanner(throughProxy, PluginScanner.Settings.DEFAULT),
+                List<PluginStep> steps = new PluginSteps(new PluginScanner(throughProxy, UNSIGNED_ALLOWED),
                                 reference -> manifest)
                         .run(List.of(new PluginRef(manifest.id(), manifest.digest())), workspace,
                                 SourceFiles.within(workspace.source(), null));

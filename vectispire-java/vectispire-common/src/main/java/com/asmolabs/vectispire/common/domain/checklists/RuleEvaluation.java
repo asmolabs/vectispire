@@ -139,11 +139,24 @@ public final class RuleEvaluation {
                 if (produced.isPresent()) {
                     yield new Examined(produced.get().scan());
                 }
-                // Absent once within the age and never produced: it should have run and did not. That
-                // outweighs a "not applicable" beside it — the tree it skipped is not the tree it failed on.
-                Optional<PluginRun> absent = within.stream().filter(run -> run.state() == PluginState.ABSENT).findFirst();
-                if (absent.isPresent()) {
-                    yield new Missing(NoDataReason.STEP_ABSENT, Optional.of(absent.get().scan()));
+                // Absent or refused once within the age and never produced: it should have run and did
+                // not. That outweighs a "not applicable" beside it — the tree it skipped is not the tree
+                // it failed on. The newest of them names the reason: a plugin refused as unsigned last
+                // week and crashing today is today's problem.
+                Optional<PluginRun> failed = within.stream()
+                        .filter(run -> run.state() != PluginState.NOT_APPLICABLE)
+                        .findFirst();
+                if (failed.isPresent()) {
+                    Optional<Look> scan = Optional.of(failed.get().scan());
+                    yield switch (failed.get().state()) {
+                        case REFUSED_UNSIGNED -> new Missing(NoDataReason.PLUGIN_UNSIGNED, scan, Optional.of("the executor"
+                                + " refused the plugin: its manifest declares no signer, a signer is required, and no"
+                                + " waiver covers it"));
+                        case REFUSED_SIGNATURE_UNVERIFIED -> new Missing(NoDataReason.PLUGIN_SIGNATURE_UNVERIFIED, scan,
+                                Optional.of("the executor refused the plugin: the signer its manifest declares did not"
+                                        + " verify its image"));
+                        default -> new Missing(NoDataReason.STEP_ABSENT, scan);
+                    };
                 }
                 if (!within.isEmpty()) {
                     yield new NotApplicable(within.getFirst().scan());

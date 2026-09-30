@@ -107,11 +107,18 @@ public record MeasurementFacts(
         }
     }
 
-    /** A plugin's state in one scan: decision 0017's three, kept apart. */
+    /**
+     * A plugin's state in one scan: decision 0017's three, kept apart, and the executor's refusal by its
+     * reason — the reason is what the line's measurement names.
+     */
     public enum PluginState {
         PRODUCED,
         NOT_APPLICABLE,
-        ABSENT
+        ABSENT,
+        /** Not started: no signer declared where one is required, and no waiver. */
+        REFUSED_UNSIGNED,
+        /** Not started: the declared signer did not verify the image. */
+        REFUSED_SIGNATURE_UNVERIFIED
     }
 
     /**

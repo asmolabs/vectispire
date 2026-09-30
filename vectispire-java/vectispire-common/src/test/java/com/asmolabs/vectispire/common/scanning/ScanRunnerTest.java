@@ -63,7 +63,7 @@ class ScanRunnerTest {
     }
 
     @Test
-    @DisplayName("a repository task's plugins reach the artifacts in their three states, and only the absent one is a failure")
+    @DisplayName("a repository task's plugins reach the artifacts in their states, and the absent and refused ones are failures")
     void pluginsAreRecorded(@org.junit.jupiter.api.io.TempDir Path root) throws java.io.IOException {
         Workspace workspace = new Workspace(root, root.resolve("source"), root.resolve("rules"));
         java.nio.file.Files.createDirectories(workspace.source());
@@ -76,12 +76,19 @@ class ScanRunnerTest {
         var javaOnly = new com.asmolabs.vectispire.common.domain.plugins.PluginManifest("java-only", "J", python.image(),
                 Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.JAVA), java.util.List.of(), null, null,
                 false, null, null);
+        var waived = new com.asmolabs.vectispire.common.domain.plugins.PluginManifest("acme-waived", "W", python.image(),
+                python.languages(), python.arguments(), python.output(), python.exitCodes(), false, null, null);
         ScanRunner runner = new ScanRunner(containers, ScannerImages.PINNED, Path.of("unused"), hash -> java.util.List.of(),
-                reference -> reference.id().equals("java-only") ? javaOnly : python, null,
+                reference -> switch (reference.id()) {
+                    case "java-only" -> javaOnly;
+                    case "acme-waived" -> waived;
+                    default -> python;
+                }, null,
                 new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE, FIXED, Path.of("database-unused"));
         ScanTask task = new ScanTask(new ScanTask.Target.Repository("https://host/p.git", "main", null, null), null,
                 Set.of(), java.util.List.of(
                         new com.asmolabs.vectispire.common.domain.plugins.PluginRef(python.id(), python.digest()),
+                        new com.asmolabs.vectispire.common.domain.plugins.PluginRef(waived.id(), waived.digest(), true),
                         new com.asmolabs.vectispire.common.domain.plugins.PluginRef(javaOnly.id(), javaOnly.digest())));
 
         ScanArtifacts.Builder builder = ScanArtifacts.builder();
@@ -89,11 +96,14 @@ class ScanRunnerTest {
         ScanArtifacts artifacts = builder.build(java.time.Duration.ZERO);
 
         assertThat(artifacts.plugins()).extracting(step -> step.getClass().getSimpleName())
-                .containsExactlyInAnyOrder("Absent", "NotApplicable");
+                .describedAs("no settings is the default executor, which requires a signer: the unsigned plugin is "
+                        + "refused, the waived one runs — and writes no report")
+                .containsExactlyInAnyOrder("Refused", "Absent", "NotApplicable");
         assertThat(artifacts.failures())
-                .describedAs("the plugin that wrote no report is a failure under its name; the inapplicable one is not")
+                .describedAs("the refused plugin and the one that wrote no report are failures under their names; "
+                        + "the inapplicable one is not")
                 .extracting(ScanArtifacts.Failure::step)
-                .containsExactly("plugin acme-lint");
+                .containsExactlyInAnyOrder("plugin acme-lint", "plugin acme-waived");
     }
 
     @Test

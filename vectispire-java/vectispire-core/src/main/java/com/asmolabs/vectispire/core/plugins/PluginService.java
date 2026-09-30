@@ -43,6 +43,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       the roles that {@code canWriteGovernance} and see the whole estate: the same decision as
  *       activating a rule set, scoped to one project. Nothing is on by default, and a repository in
  *       no project runs no plugin.
+ *   <li><b>Running a plugin unsigned is the governor's too, in writing</b> — a waiver with its
+ *       justification on the plugin, carried by every task that names it. Executors require a signer
+ *       by default (decision 0017 §9.1); the waiver is how one plugin is let off, rather than every
+ *       plugin of an executor whose operator switched the requirement off.
  * </ul>
  *
  * <p><b>Every change is audited after its transaction commits</b> — the audit log opens its own, and
@@ -183,6 +187,92 @@ public class PluginService {
         return view(result.plugin());
     }
 
+    // ------------------------------------------------------------------ the signature waiver
+
+    /** Bounds of a waiver's justification — a network exception's: a sentence, not a word, nor an essay. */
+    static final int MIN_WAIVER_JUSTIFICATION = 20;
+    static final int MAX_WAIVER_JUSTIFICATION = 500;
+
+    /**
+     * Lets a plugin run although its manifest declares no signer, on every executor that requires one
+     * (decision 0017 §9.1) — the documented way to run an unsigned plugin, rather than switching the
+     * requirement off for a whole executor. It lifts nothing else: a signer the manifest declares is
+     * verified all the same, now or after an update.
+     *
+     * <p>The same justification again changes nothing and records nothing; a new one replaces it, and
+     * is audited, since what the platform accepted has changed.
+     *
+     * @throws InvalidInputException without a justification of {@value #MIN_WAIVER_JUSTIFICATION} to
+     *     {@value #MAX_WAIVER_JUSTIFICATION} characters
+     */
+    public PluginView waiveSignature(String id, String justification, RequestActor actor) {
+        String reason = requireJustification(justification);
+        Instant now = clock.instant();
+        record Waived(PluginEntity plugin, boolean changed) {}
+        Waived result = transactions.execute(status -> {
+            PluginEntity plugin = require(id);
+            if (reason.equals(plugin.getUnsignedWaiver())) {
+                return new Waived(plugin, false);
+            }
+            plugin.setUnsignedWaiver(reason);
+            plugin.setUnsignedWaivedBy(actorName(actor));
+            plugin.setUnsignedWaivedAt(now);
+            plugin.setUpdatedAt(now);
+            plugin.setUpdatedBy(actorName(actor));
+            return new Waived(plugins.save(plugin), true);
+        });
+        if (result.changed()) {
+            PluginManifest manifest = manifests.findById(result.plugin().getManifestDigest()).map(this::parse).orElse(null);
+            audit.record(actor.entry(AuditOperation.PLUGIN_SIGNATURE_WAIVED, id,
+                    "Plugin \"" + id + "\" may run unsigned from the next scan (manifest "
+                            + shortDigest(result.plugin().getManifestDigest()) + ", "
+                            + (manifest != null && manifest.signature() != null
+                                    ? "which declares a signer, still verified"
+                                    : "no signer declared")
+                            + "), justified as: " + reason));
+        }
+        return view(result.plugin());
+    }
+
+    /**
+     * Withdraws the waiver: from the next scan the plugin runs only once its manifest declares a signer
+     * that verifies. 404 when there was none to withdraw, as for a plugin that does not exist.
+     */
+    public PluginView revokeSignatureWaiver(String id, RequestActor actor) {
+        PluginEntity saved = transactions.execute(status -> {
+            PluginEntity plugin = require(id);
+            if (plugin.getUnsignedWaiver() == null) {
+                throw new NotFoundException("Plugin \"" + id + "\" has no signature waiver.");
+            }
+            plugin.setUnsignedWaiver(null);
+            plugin.setUnsignedWaivedBy(null);
+            plugin.setUnsignedWaivedAt(null);
+            plugin.setUpdatedAt(clock.instant());
+            plugin.setUpdatedBy(actorName(actor));
+            return plugins.save(plugin);
+        });
+        audit.record(actor.entry(AuditOperation.PLUGIN_SIGNATURE_WAIVER_REVOKED, id,
+                "Plugin \"" + id + "\" no longer runs unsigned: from the next scan an executor requiring a signer "
+                        + "refuses it until its manifest declares one."));
+        return view(saved);
+    }
+
+    private static String requireJustification(String justification) {
+        String reason = justification == null ? "" : justification.strip();
+        if (reason.length() < MIN_WAIVER_JUSTIFICATION || reason.length() > MAX_WAIVER_JUSTIFICATION) {
+            throw new InvalidInputException("Running a plugin unsigned needs its justification, written: "
+                    + MIN_WAIVER_JUSTIFICATION + " to " + MAX_WAIVER_JUSTIFICATION + " characters saying why its "
+                    + "image cannot be signed, and by when it will be.");
+        }
+        for (int i = 0; i < reason.length(); i++) {
+            char c = reason.charAt(i);
+            if (c != '\n' && Character.isISOControl(c)) {
+                throw new InvalidInputException("A waiver's justification is text, with no control character but newlines.");
+            }
+        }
+        return reason;
+    }
+
     // ------------------------------------------------------------------ activations
 
     /** The plugins switched on for a project; 404 for a project that does not exist. */
@@ -255,7 +345,9 @@ public class PluginService {
             return List.of();
         }
         return plugins.enabledForProject(projectId).stream()
-                .map(plugin -> new PluginRef(plugin.getId(), plugin.getManifestDigest()))
+                // The waiver travels with the reference, to the built-in worker and to every agent alike:
+                // each executor decides with the same facts, and none has to ask for them.
+                .map(plugin -> new PluginRef(plugin.getId(), plugin.getManifestDigest(), plugin.getUnsignedWaiver() != null))
                 .toList();
     }
 
@@ -305,7 +397,11 @@ public class PluginService {
     private PluginView view(PluginEntity plugin) {
         PluginManifest manifest = manifests.findById(plugin.getManifestDigest()).map(this::parse).orElse(null);
         return new PluginView(plugin.getId(), plugin.getName(), manifest, plugin.getManifestDigest(), plugin.getEnabled(),
-                plugin.getCreatedAt(), plugin.getCreatedBy(), plugin.getUpdatedAt(), plugin.getUpdatedBy());
+                plugin.getCreatedAt(), plugin.getCreatedBy(), plugin.getUpdatedAt(), plugin.getUpdatedBy(),
+                plugin.getUnsignedWaiver() == null
+                        ? null
+                        : new PluginView.UnsignedWaiver(
+                                plugin.getUnsignedWaiver(), plugin.getUnsignedWaivedBy(), plugin.getUnsignedWaivedAt()));
     }
 
     private PluginEntity require(String id) {
@@ -341,7 +437,7 @@ public class PluginService {
     /** Who the image must be signed by, as the audit reads it — a key by its fingerprint, not its PEM. */
     private static String signer(PluginSignature signature) {
         if (signature == null) {
-            return "no signer declared (trusted by digest alone)";
+            return "no signer declared (refused where a signer is required, unless waived)";
         }
         return switch (signature.form()) {
             case KEYLESS -> "signed keyless by " + signature.identity() + " via " + signature.issuer();

@@ -16,6 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,9 @@ public class PluginsController {
 
     /** @param enabled false stops every activation of the plugin at the next scan; they are kept */
     public record PluginEnabled(boolean enabled) {}
+
+    /** @param justification why the plugin may run unsigned, 20 to 500 characters — required */
+    public record UnsignedWaiverRequest(String justification) {}
 
     @Operation(summary = "List plugins", description = "Every registered plugin, with the manifest it runs.")
     @GetMapping
@@ -103,6 +107,32 @@ public class PluginsController {
             throw new InvalidInputException("Say whether the plugin is enabled.");
         }
         return plugins.setEnabled(id, body.enabled(), RequestActors.of(principal, request));
+    }
+
+    @Operation(summary = "Waive the signature requirement for plugin", description = "Platform governor only. The "
+            + "plugin runs, from the next scan, although its manifest declares no signer, on every executor requiring "
+            + "one (the default). A declared signer is verified all the same. The justification is required, 20 to 500 "
+            + "characters; 400 without it. Audited, and signalled to the SIEM as VECTI-SEC-021.")
+    @PutMapping("/{id}/unsigned-waiver")
+    @RequiresPlatformGovernor
+    public PluginView waiveSignature(
+            @PathVariable String id,
+            @RequestBody(required = false) UnsignedWaiverRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return plugins.waiveSignature(id, body == null ? null : body.justification(), RequestActors.of(principal, request));
+    }
+
+    @Operation(summary = "Withdraw the signature waiver of plugin", description = "Platform governor only. From the "
+            + "next scan an executor requiring a signer refuses the plugin until its manifest declares one. 404 when "
+            + "the plugin has no waiver.")
+    @DeleteMapping("/{id}/unsigned-waiver")
+    @RequiresPlatformGovernor
+    public PluginView revokeSignatureWaiver(
+            @PathVariable String id,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return plugins.revokeSignatureWaiver(id, RequestActors.of(principal, request));
     }
 
     @Operation(summary = "List projects a plugin analyses")

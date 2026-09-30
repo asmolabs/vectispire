@@ -91,6 +91,10 @@ class SecurityEventTypeTest {
                 .contains(SecurityEventType.SECURITY_SETTING_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_REGISTERED)).contains(SecurityEventType.PLUGIN_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_ACTIVATED)).contains(SecurityEventType.PLUGIN_CHANGED);
+        // Running a plugin nobody vouched for is a change to what reads the source, like the others.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_SIGNATURE_WAIVED)).contains(SecurityEventType.PLUGIN_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_SIGNATURE_WAIVER_REVOKED))
+                .contains(SecurityEventType.PLUGIN_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_SOURCE_CHANGED))
                 .contains(SecurityEventType.SARIF_SOURCE_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORT_REFUSED))

@@ -89,8 +89,9 @@ public enum SecurityEventType {
             Outcome.FAILURE),
 
     /**
-     * A plugin was registered, changed, enabled, disabled, or switched on or off for a project:
-     * third-party code gained or lost read access to some of the estate's source.
+     * A plugin was registered, changed, enabled, disabled, switched on or off for a project, or let
+     * run unsigned — or no longer: third-party code gained or lost read access to some of the estate's
+     * source, or the platform's check on who built it was waived for it.
      */
     PLUGIN_CHANGED("VECTI-SEC-021", "Analysis plugin registered, changed or activated", 6, Outcome.SUCCESS),
 
@@ -213,8 +214,8 @@ public enum SecurityEventType {
             case AGENT_RESULT_REFUSED -> Optional.of(AGENT_RESULT_REFUSED);
             case AGENT_SEALING_KEY_REFUSED -> Optional.of(AGENT_SEALING_KEY_REFUSED);
             case GATE_POLICY_UPDATED -> Optional.of(SECURITY_SETTING_CHANGED);
-            case PLUGIN_REGISTERED, PLUGIN_UPDATED, PLUGIN_ENABLED_CHANGED, PLUGIN_ACTIVATED, PLUGIN_DEACTIVATED ->
-                    Optional.of(PLUGIN_CHANGED);
+            case PLUGIN_REGISTERED, PLUGIN_UPDATED, PLUGIN_ENABLED_CHANGED, PLUGIN_ACTIVATED, PLUGIN_DEACTIVATED,
+                    PLUGIN_SIGNATURE_WAIVED, PLUGIN_SIGNATURE_WAIVER_REVOKED -> Optional.of(PLUGIN_CHANGED);
             case SARIF_SOURCE_CHANGED -> Optional.of(SARIF_SOURCE_CHANGED);
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);

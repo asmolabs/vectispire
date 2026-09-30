@@ -42,12 +42,16 @@ class OpenApiRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a plugin's state is one of decision 0017's three, and an import's tools are a list of strings")
+    @DisplayName("a plugin's state is one of decision 0017's four, a refusal and a footing are closed, and an import's tools are a list of strings")
     void closesThePluginContract() throws Exception {
         mvc.perform(authenticated(get("/v3/api-docs"), asReader()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.state.enum",
-                        Matchers.contains("produced", "not_applicable", "absent")))
+                        Matchers.contains("produced", "not_applicable", "absent", "refused")))
+                .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.refusal.enum",
+                        Matchers.contains("unsigned", "signature_unverified")))
+                .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.signature.enum",
+                        Matchers.contains("verified", "waived", "not_required")))
                 .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.type").value("array"))
                 .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.items.type").value("string"))
                 .andExpect(jsonPath("$.components.schemas.SarifSourceView.properties.apiKeyName.type").value("string"))

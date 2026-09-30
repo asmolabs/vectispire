@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.sarif.SarifFinding;
 import com.asmolabs.vectispire.common.domain.sarif.SarifReport;
 import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
+import com.asmolabs.vectispire.common.scanning.PluginRefusedException;
+import com.asmolabs.vectispire.common.scanning.PluginStep;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.Workspace;
 import java.nio.file.Path;
@@ -36,8 +38,9 @@ import java.util.function.Function;
  *       from there, not from stdout: a plugin can log what it likes without corrupting its SARIF. A
  *       plugin that filled the directory had a write refused, and its report is not believed.
  *   <li><b>A declared signer is verified before the image is pulled</b>
- *       ({@link ImageSignatureVerifier}); an executor configured to require one runs no plugin
- *       whose manifest declares none.
+ *       ({@link ImageSignatureVerifier}); an executor requiring one — the default — runs no plugin
+ *       whose manifest declares none, unless the governor waived the requirement for that plugin.
+ *       Either refusal is {@link PluginRefusedException}, never a plain failure.
  *   <li><b>As the workspace's owner, never root</b> — the Grype lesson: what root writes into a mount
  *       is root's on the host, and the unprivileged process cannot delete it afterwards. A host that
  *       reports no owner cannot run a plugin at all, rather than run it as root — and neither can
@@ -79,14 +82,17 @@ public final class PluginScanner {
      *
      * @param registryMirror the internal registry plugin images are pulled from, or blank for their
      *     own — see {@link ImageDigest#relocate}
-     * @param signatureRequired run no plugin whose manifest declares no signer. <b>The executor's
-     *     setting, not the control plane's</b>: the host that runs the code is the one at stake, and an
-     *     agent's operator may refuse unsigned code whatever the governor registered
-     *     ({@code VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED})
+     * @param signatureRequired run no plugin whose manifest declares no signer unless the governor
+     *     waived the requirement for it ({@code PluginRef#runsUnsigned}) — <b>on by default</b> since
+     *     2026-09-30 (decision 0017 §9.1): a registry or a tag pushed by somebody else runs code over the
+     *     source of every project the plugin is on for, and no network does not stop code from lying
+     *     in its report. Off is the executor operator's explicit choice
+     *     ({@code VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=false}), for the whole executor
      */
     public record Settings(String registryMirror, boolean signatureRequired) {
 
-        public static final Settings DEFAULT = new Settings(null, false);
+        /** No mirror, and a signer required: the default an executor starts with. */
+        public static final Settings DEFAULT = new Settings(null, true);
 
         public Settings {
             registryMirror = registryMirror == null || registryMirror.isBlank()
@@ -99,11 +105,6 @@ public final class PluginScanner {
     private final Settings settings;
     private final ImageSignatureVerifier verifier;
     private final Function<Path, Optional<String>> owners;
-
-    /** A mirror, and signatures verified where declared but not required. */
-    public PluginScanner(ContainerRunner runner, String registryMirror) {
-        this(runner, new Settings(registryMirror, false));
-    }
 
     public PluginScanner(ContainerRunner runner, Settings settings) {
         this(runner, settings, ContainerRun::ownerOf);
@@ -124,21 +125,25 @@ public final class PluginScanner {
     /**
      * @param toolName the SARIF driver's name, for provenance
      * @param findings what the plugin reported, possibly none — which resolves its issues
+     * @param signature what was established about the image's signer before it ran
      */
-    public record PluginReport(String toolName, String toolVersion, List<SarifFinding> findings) {}
+    public record PluginReport(
+            String toolName, String toolVersion, List<SarifFinding> findings, PluginStep.Signature signature) {}
 
     /**
      * Runs the plugin over {@code analysedRoot}.
      *
      * @param analysedRoot the directory the scan is limited to, already proven to lie inside the
      *     clone ({@code SourceFiles.within}) and to exist
+     * @param runsUnsigned the governor waived the signature requirement for this plugin — the task's
+     *     word, {@code PluginRef#runsUnsigned}
+     * @throws PluginRefusedException when the executor will not start it: unsigned where a signer is
+     *     required, or a declared signer that did not verify
      */
-    public Optional<PluginReport> scan(Workspace workspace, Path analysedRoot, PluginManifest manifest) {
+    public Optional<PluginReport> scan(
+            Workspace workspace, Path analysedRoot, PluginManifest manifest, boolean runsUnsigned) {
         String label = "plugin " + manifest.id();
-        if (manifest.signature() == null && settings.signatureRequired()) {
-            throw ScannerFailureException.of(label, "This executor runs only plugins whose manifest declares who signed "
-                    + "their image (VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED), and this one declares nobody; it was not run.");
-        }
+        PluginStep.Signature signature = admit(manifest, runsUnsigned, label);
         String owner = owners.apply(workspace.root()).orElseThrow(() -> ScannerFailureException.of(label,
                 "This host reports no owner for the workspace, so the plugin cannot run as an unprivileged user; "
                         + "it is not run as root instead."));
@@ -207,7 +212,34 @@ public final class PluginScanner {
         } catch (InvalidSarifException refused) {
             throw ScannerFailureException.of(label, "The plugin's report was refused: " + refused.getMessage());
         }
-        return findings(report, label);
+        return findings(report, label).map(read -> new PluginReport(
+                read.toolName(), read.toolVersion(), read.findings(), signature));
+    }
+
+    /**
+     * Whether this executor starts the plugin, and on what footing — before anything else, so that an
+     * image it refuses is never fetched.
+     *
+     * <p>A declared signer is verified whatever the settings say or the governor waived: the waiver
+     * lifts the duty to declare one, and a signer somebody did declare is a claim to check. Only then
+     * does the executor's own setting speak, and the waiver only when the setting requires a signer.
+     * {@code VERIFIED} is the footing the run stands on once the verification below has passed — a
+     * verification that fails throws, and nothing is reported as verified.
+     */
+    private PluginStep.Signature admit(PluginManifest manifest, boolean runsUnsigned, String label) {
+        if (manifest.signature() != null) {
+            return PluginStep.Signature.VERIFIED;
+        }
+        if (!settings.signatureRequired()) {
+            return PluginStep.Signature.NOT_REQUIRED;
+        }
+        if (runsUnsigned) {
+            return PluginStep.Signature.WAIVED;
+        }
+        throw new PluginRefusedException(label, PluginStep.Refusal.UNSIGNED, "This executor runs only plugins whose "
+                + "image is signed (VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED), and this plugin's manifest declares no signer "
+                + "nor has the platform governor waived the requirement for it; it was not run. Declare who signs its "
+                + "image, or record a waiver with its justification on the plugin.");
     }
 
     /**
@@ -233,6 +265,6 @@ public final class PluginScanner {
             all.addAll(run.results().get());
         }
         SarifReport.Run first = report.runs().getFirst();
-        return Optional.of(new PluginReport(first.toolName(), first.toolVersion(), List.copyOf(all)));
+        return Optional.of(new PluginReport(first.toolName(), first.toolVersion(), List.copyOf(all), null));
     }
 }

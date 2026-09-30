@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.scanning;
 
+import com.asmolabs.vectispire.common.scanning.PluginStep;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import java.util.ArrayList;
@@ -27,8 +28,10 @@ class ScanVocabularies implements OpenApiCustomizer {
 
     /** Schema, property, the tokens it takes. */
     static Map<String, Map<String, List<String>>> vocabularies() {
-        return Map.of("PluginOutcome", Map.of("state",
-                Arrays.stream(PluginOutcome.State.values()).map(PluginOutcome.State::wireName).toList()));
+        return Map.of("PluginOutcome", Map.of(
+                "state", Arrays.stream(PluginOutcome.State.values()).map(PluginOutcome.State::wireName).toList(),
+                "refusal", Arrays.stream(PluginStep.Refusal.values()).map(PluginStep.Refusal::wireName).toList(),
+                "signature", Arrays.stream(PluginStep.Signature.values()).map(PluginStep.Signature::wireName).toList()));
     }
 
     @Override

@@ -27,8 +27,9 @@ import java.util.Set;
  *       executor will not run a plugin other than the one the control plane decided.
  *   <li><b>The census is taken once</b> — the runner's, of the whole tree, or here for the union of
  *       the languages the plugins declare.
- *   <li><b>Each plugin is not applicable, produced or absent.</b> A plugin whose languages the census
- *       proves absent is not run. Any failure of a plugin is its own: the next one still runs, and the
+ *   <li><b>Each plugin is not applicable, produced, refused or absent.</b> A plugin whose languages
+ *       the census proves absent is not run — nor checked for a signature: nothing is started. One
+ *       the executor will not start for want of a verified signer is refused, never absent. Any failure of a plugin is its own: the next one still runs, and the
  *       scanners' results are not touched.
  * </ol>
  */
@@ -92,11 +93,13 @@ public final class PluginSteps {
                 continue;
             }
             try {
-                steps.add(scanner.scan(workspace, analysedRoot, manifest)
-                        .<PluginStep>map(report -> new PluginStep.Produced(
-                                reference.id(), reference.digest(), report.toolName(), report.toolVersion(), report.findings()))
+                steps.add(scanner.scan(workspace, analysedRoot, manifest, reference.runsUnsigned())
+                        .<PluginStep>map(report -> new PluginStep.Produced(reference.id(), reference.digest(),
+                                report.toolName(), report.toolVersion(), report.findings(), report.signature()))
                         .orElseGet(() -> absent(reference,
                                 "the plugin's report says it computed no results, or carries no run")));
+            } catch (PluginRefusedException refused) {
+                steps.add(new PluginStep.Refused(reference.id(), reference.digest(), refused.refusal(), refused.getMessage()));
             } catch (RuntimeException failure) {
                 steps.add(absent(reference, failure.getMessage() == null ? failure.toString() : failure.getMessage()));
             }

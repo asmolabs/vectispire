@@ -24,7 +24,8 @@ import org.bouncycastle.util.io.pem.PemReader;
  * <p>The image's digest says <em>what</em> runs and nothing about who made it: a governor pasting a
  * digest from a pull request vouches for bytes nobody examined. A declared signer is checked by the
  * executor, with {@code cosign verify}, before the image is pulled; an image it does not verify is
- * never run, and the plugin is absent with cosign's own words as the reason.
+ * never run, and the plugin is refused ({@code signature_unverified}) with cosign's own words as the
+ * reason.
  *
  * <h2>Two forms, exactly one of them</h2>
  *

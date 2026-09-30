@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
+import com.asmolabs.vectispire.common.scanning.PluginStep;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
 import com.asmolabs.vectispire.core.inventory.ComponentCatalog;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
@@ -221,14 +222,22 @@ class ChecklistMeasurer {
     }
 
     /**
-     * A plugin's stored state, decision 0017's three. One this version does not know did not produce:
-     * read as absent — should have run, did not — never as produced nor as not applicable.
+     * A plugin's stored state, decision 0017's three and the refusal by its reason. One this version
+     * does not know did not produce: read as absent — should have run, did not — never as produced nor
+     * as not applicable; so is a refusal whose reason it does not know.
      */
     private static PluginState state(PluginOutcome outcome) {
         return PluginOutcome.State.fromWire(outcome.state()).map(state -> switch (state) {
             case PRODUCED -> PluginState.PRODUCED;
             case NOT_APPLICABLE -> PluginState.NOT_APPLICABLE;
             case ABSENT -> PluginState.ABSENT;
+            case REFUSED -> {
+                PluginStep.Refusal refusal = PluginStep.Refusal.fromWire(outcome.refusal());
+                yield refusal == null ? PluginState.ABSENT : switch (refusal) {
+                    case UNSIGNED -> PluginState.REFUSED_UNSIGNED;
+                    case SIGNATURE_UNVERIFIED -> PluginState.REFUSED_SIGNATURE_UNVERIFIED;
+                };
+            }
         }).orElse(PluginState.ABSENT);
     }
 

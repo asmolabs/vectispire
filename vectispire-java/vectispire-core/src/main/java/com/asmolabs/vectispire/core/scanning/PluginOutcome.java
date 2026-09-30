@@ -22,17 +22,35 @@ import java.util.Optional;
  *
  * <p>The findings themselves are the scan's findings rows; only their count is kept here.
  *
- * @param state {@code produced}, {@code not_applicable} or {@code absent} — {@link State} — the wire's
- *     discriminator
+ * <p><b>A refused plugin is kept as refused</b>, beside absent: the executor would not start it for
+ * want of a verified signer (decision 0017 §9.1). Both leave the backlog alone and are in the scan's
+ * failures; only the state tells "its image is not signed" from "it crashed", and the checklist's
+ * measurement names the one it was.
+ *
+ * @param state {@code produced}, {@code not_applicable}, {@code absent} or {@code refused} — {@link
+ *     State} — the wire's discriminator
  * @param findings for a produced plugin, how many results it reported; {@code null} otherwise
  * @param languages for a not-applicable plugin, the languages it declares and the tree lacked
- * @param reason for an absent plugin, what went wrong
+ * @param reason for an absent or refused plugin, what went wrong, in the executor's words
+ * @param refusal for a refused plugin, {@code unsigned} or {@code signature_unverified} — {@link
+ *     PluginStep.Refusal}; null otherwise, and for a reason this version does not know
+ * @param signature for a produced plugin, what the executor established about the image's signer:
+ *     {@code verified}, {@code waived} — it ran unsigned under the governor's waiver — or {@code
+ *     not_required}, the executor's operator having switched the requirement off; null for a scan
+ *     from before the field
  */
 public record PluginOutcome(
-        String pluginId, String manifestDigest, String state, Integer findings, List<String> languages, String reason) {
+        String pluginId,
+        String manifestDigest,
+        String state,
+        Integer findings,
+        List<String> languages,
+        String reason,
+        String refusal,
+        String signature) {
 
     /**
-     * Decision 0017's three states, as {@code state} spells them. The component stays a string, so a
+     * Decision 0017's three states and the refusal, as {@code state} spells them. The component stays a string, so a
      * state a later version writes is still read back — and read as absent by whoever decides on it —
      * rather than failing the whole scan's list; this type is what the code and the OpenAPI document
      * ({@link ScanVocabularies}) take the tokens from.
@@ -40,7 +58,8 @@ public record PluginOutcome(
     public enum State {
         PRODUCED("produced"),
         NOT_APPLICABLE("not_applicable"),
-        ABSENT("absent");
+        ABSENT("absent"),
+        REFUSED("refused");
 
         private final String wireName;
 
@@ -65,12 +84,16 @@ public record PluginOutcome(
         return switch (step) {
             case PluginStep.Produced produced -> new PluginOutcome(
                     produced.pluginId(), produced.manifestDigest(), State.PRODUCED.wireName(), produced.findings().size(),
-                    List.of(), null);
+                    List.of(), null, null, produced.signature() == null ? null : produced.signature().wireName());
             case PluginStep.NotApplicable skipped -> new PluginOutcome(
                     skipped.pluginId(), skipped.manifestDigest(), State.NOT_APPLICABLE.wireName(), null,
-                    skipped.languages().stream().map(Language::wireName).toList(), null);
+                    skipped.languages().stream().map(Language::wireName).toList(), null, null, null);
             case PluginStep.Absent absent -> new PluginOutcome(
-                    absent.pluginId(), absent.manifestDigest(), State.ABSENT.wireName(), null, List.of(), absent.reason());
+                    absent.pluginId(), absent.manifestDigest(), State.ABSENT.wireName(), null, List.of(), absent.reason(),
+                    null, null);
+            case PluginStep.Refused refused -> new PluginOutcome(
+                    refused.pluginId(), refused.manifestDigest(), State.REFUSED.wireName(), null, List.of(),
+                    refused.reason(), refused.refusal() == null ? null : refused.refusal().wireName(), null);
         };
     }
 

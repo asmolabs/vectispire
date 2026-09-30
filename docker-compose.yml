@@ -197,6 +197,9 @@ services:
       VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
       VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
+      # A plugin runs only if its image's signer verifies, or the platform governor waived the
+      # requirement for that plugin, in writing, on the plugin. false runs every unsigned plugin here.
+      VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:-true}
       # **Off here, although the application defaults to on.** "The host's own git access" is, in
       # this container, the `.ssh` of the home set below — which holds no identity unless you put a
       # dedicated one there. Each repository gets its key attached instead (SSH keys screen).
@@ -372,6 +375,8 @@ services:
       VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
       VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
+      # This agent's own decision about unsigned plugins, as the control plane's above.
+      VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:-true}
       # **Its own proxy, never the control plane's.** Sharing one put the agent on the network
       # where the control plane's daemon endpoint lives. On a real deployment the agent runs on
       # another machine and talks to that machine's daemon, which holds neither the database nor

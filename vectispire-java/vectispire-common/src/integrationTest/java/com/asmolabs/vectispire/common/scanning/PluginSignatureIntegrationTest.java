@@ -94,8 +94,10 @@ class PluginSignatureIntegrationTest {
     void keyless() {
         PluginStep step = run(plugin(SIGNED, DISTROLESS), PluginScanner.Settings.DEFAULT);
 
-        assertThat(step).isInstanceOfSatisfying(PluginStep.Produced.class, produced ->
-                assertThat(produced.findings()).isEmpty());
+        assertThat(step).isInstanceOfSatisfying(PluginStep.Produced.class, produced -> {
+            assertThat(produced.findings()).isEmpty();
+            assertThat(produced.signature()).isEqualTo(PluginStep.Signature.VERIFIED);
+        });
         PluginScannerIntegrationTest.assertNothingLeftBehind();
     }
 
@@ -109,8 +111,10 @@ class PluginSignatureIntegrationTest {
 
         PluginStep step = run(plugin(REFUSED, impostor), PluginScanner.Settings.DEFAULT);
 
-        assertThat(step).isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
-                assertThat(absent.reason()).contains("was not run").contains("keyless@distroless.iam.gserviceaccount.com"));
+        assertThat(step).isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+            assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.SIGNATURE_UNVERIFIED);
+            assertThat(refused.reason()).contains("was not run").contains("keyless@distroless.iam.gserviceaccount.com");
+        });
         assertThatThrownBy(() -> DOCKER.inspectImageCmd(REFUSED).exec())
                 .as("verified before the pull: an image nobody verified is not even fetched")
                 .isInstanceOf(NotFoundException.class);
@@ -124,20 +128,24 @@ class PluginSignatureIntegrationTest {
 
         PluginStep step = run(plugin(REFUSED, new PluginSignature(null, null, UNUSED_KEY)), PluginScanner.Settings.DEFAULT);
 
-        assertThat(step).isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
-                assertThat(absent.reason()).contains("was not run").containsAnyOf("no signatures found", "no matching signatures"));
+        assertThat(step).isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+            assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.SIGNATURE_UNVERIFIED);
+            assertThat(refused.reason()).contains("was not run").containsAnyOf("no signatures found", "no matching signatures");
+        });
         assertThatThrownBy(() -> DOCKER.inspectImageCmd(REFUSED).exec()).isInstanceOf(NotFoundException.class);
     }
 
     @Test
-    @DisplayName("an executor that requires a signer refuses an unsigned plugin before anything starts")
+    @DisplayName("the default executor refuses an unsigned plugin before anything starts")
     void required() {
         forget(REFUSED);
 
-        PluginStep step = run(plugin(REFUSED, null), new PluginScanner.Settings(null, true));
+        PluginStep step = run(plugin(REFUSED, null), PluginScanner.Settings.DEFAULT);
 
-        assertThat(step).isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
-                assertThat(absent.reason()).contains("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED"));
+        assertThat(step).isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+            assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.UNSIGNED);
+            assertThat(refused.reason()).contains("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED");
+        });
         assertThatThrownBy(() -> DOCKER.inspectImageCmd(REFUSED).exec()).isInstanceOf(NotFoundException.class);
     }
 

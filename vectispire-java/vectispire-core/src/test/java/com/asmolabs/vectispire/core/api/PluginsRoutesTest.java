@@ -222,6 +222,86 @@ class PluginsRoutesTest extends ApiTestBase {
     }
 
     @Nested
+    @DisplayName("waiving the signature requirement")
+    class Waiving {
+
+        private ResultActions waive(String token, String body) throws Exception {
+            return mvc.perform(authenticated(put("/api/v1/plugins/acme-lint/unsigned-waiver"), token)
+                    .contentType(MediaType.APPLICATION_JSON).content(body));
+        }
+
+        private static final String JUSTIFIED =
+                "{\"justification\":\"Built by our own CI; signing lands with the Q4 release pipeline.\"}";
+
+        @Test
+        @DisplayName("is the platform governor's alone: an administrator, a CISO and a reader are refused")
+        void governorOnly() throws Exception {
+            register(governor(), manifest("acme-lint", DIGEST)).andExpect(status().isCreated());
+
+            waive(asAdmin(), JUSTIFIED).andExpect(status().isForbidden());
+            waive(asCiso(), JUSTIFIED).andExpect(status().isForbidden());
+            waive(asReader(), JUSTIFIED).andExpect(status().isForbidden());
+            mvc.perform(authenticated(delete("/api/v1/plugins/acme-lint/unsigned-waiver"), asAdmin()))
+                    .andExpect(status().isForbidden());
+            assertThat(operations()).doesNotContain(AuditOperation.PLUGIN_SIGNATURE_WAIVED.wireName());
+        }
+
+        @Test
+        @DisplayName("needs a written justification: none, blank or a word is refused in words, and nothing is recorded")
+        void justificationRequired() throws Exception {
+            String governor = governor();
+            register(governor, manifest("acme-lint", DIGEST)).andExpect(status().isCreated());
+
+            for (String body : List.of("{}", "{\"justification\":\"   \"}", "{\"justification\":\"because\"}",
+                    "{\"justification\":\"" + "x".repeat(501) + "\"}")) {
+                waive(governor, body)
+                        .andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.detail").value(Matchers.containsString("justification")));
+            }
+            // No body at all.
+            mvc.perform(authenticated(put("/api/v1/plugins/acme-lint/unsigned-waiver"), governor))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(authenticated(get("/api/v1/plugins/acme-lint"), asReader()))
+                    .andExpect(jsonPath("$.unsignedWaiver").value(Matchers.nullValue()));
+            assertThat(operations()).doesNotContain(AuditOperation.PLUGIN_SIGNATURE_WAIVED.wireName());
+        }
+
+        @Test
+        @DisplayName("is shown on the plugin, audited with its justification, named by the principal, and withdrawn the same way")
+        void waiveAndRevoke() throws Exception {
+            String governor = governor();
+            register(governor, manifest("acme-lint", DIGEST)).andExpect(status().isCreated());
+
+            waive(governor, JUSTIFIED)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.unsignedWaiver.justification")
+                            .value("Built by our own CI; signing lands with the Q4 release pipeline."))
+                    .andExpect(jsonPath("$.unsignedWaiver.waivedBy").value(Matchers.startsWith("governor-")))
+                    .andExpect(jsonPath("$.unsignedWaiver.waivedAt").isNotEmpty());
+            mvc.perform(authenticated(get("/api/v1/plugins/acme-lint"), asReader()))
+                    .andExpect(jsonPath("$.unsignedWaiver.justification").value(Matchers.containsString("Q4")));
+            waive(governor, JUSTIFIED).andExpect(status().isOk());
+            assertThat(auditLog.findAll()).filteredOn(entry -> entry.getOperationType()
+                            .equals(AuditOperation.PLUGIN_SIGNATURE_WAIVED.wireName()))
+                    .as("the same justification again records nothing")
+                    .singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription())
+                            .contains("may run unsigned").contains("no signer declared").contains("Q4 release"));
+
+            mvc.perform(authenticated(delete("/api/v1/plugins/acme-lint/unsigned-waiver"), governor))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.unsignedWaiver").value(Matchers.nullValue()));
+            assertThat(operations()).containsOnlyOnce(AuditOperation.PLUGIN_SIGNATURE_WAIVER_REVOKED.wireName());
+            // Nothing left to withdraw.
+            mvc.perform(authenticated(delete("/api/v1/plugins/acme-lint/unsigned-waiver"), governor))
+                    .andExpect(status().isNotFound());
+            mvc.perform(authenticated(put("/api/v1/plugins/absent/unsigned-waiver"), governor)
+                            .contentType(MediaType.APPLICATION_JSON).content(JUSTIFIED))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Nested
     @DisplayName("activating per project")
     class Activating {
 
@@ -463,6 +543,82 @@ class PluginsRoutesTest extends ApiTestBase {
                     .andExpect(jsonPath("$.plugins[2].reason").value("exited with 2"))
                     .andExpect(jsonPath("$.findings[0].tool").value("plugin:acme-lint"))
                     .andExpect(jsonPath("$.findings[0].type").value("plugin"));
+        }
+
+        @Test
+        @DisplayName("the task carries the governor's waiver with the plugin it covers, and no waiver for the others")
+        void theTaskCarriesTheWaiver() throws Exception {
+            String governor = governor();
+            register(governor, manifest("acme-lint", DIGEST)).andExpect(status().isCreated());
+            register(governor, manifest("acme-sarif", DIGEST)).andExpect(status().isCreated());
+            long project = project();
+            for (String plugin : List.of("acme-lint", "acme-sarif")) {
+                mvc.perform(authenticated(put("/api/v1/projects/" + project + "/plugins/" + plugin), asAdmin()))
+                        .andExpect(status().isOk());
+            }
+            mvc.perform(authenticated(put("/api/v1/plugins/acme-lint/unsigned-waiver"), governor)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"justification\":\"Internal image, signing arrives with the next pipeline.\"}"))
+                    .andExpect(status().isOk());
+            queue(repositoryIn(project));
+            Enrolled agent = agent();
+
+            JsonNode plugins = claim(agent).path("task").path("plugins");
+
+            assertThat(plugins).hasSize(2);
+            assertThat(plugins.path(0).path("id").asText()).isEqualTo("acme-lint");
+            assertThat(plugins.path(0).path("runsUnsigned").asBoolean()).isTrue();
+            assertThat(plugins.path(1).path("id").asText()).isEqualTo("acme-sarif");
+            assertThat(plugins.path(1).path("runsUnsigned").asBoolean()).isFalse();
+
+            mvc.perform(authenticated(delete("/api/v1/plugins/acme-lint/unsigned-waiver"), governor))
+                    .andExpect(status().isOk());
+            queue(repositoryIn(project));
+            assertThat(claim(agent).path("task").path("plugins").path(0).path("runsUnsigned").asBoolean())
+                    .as("withdrawn: the next task carries none").isFalse();
+        }
+
+        @Test
+        @DisplayName("a refused plugin is kept as refused with its reason, is a failure of the scan, and a waived one says so")
+        void theScanKeepsARefusalAndAWaiver() throws Exception {
+            String governor = governor();
+            String digest = json.readTree(register(governor, manifest("acme-lint", DIGEST))
+                    .andReturn().getResponse().getContentAsString()).get("manifestDigest").asText();
+            long project = project();
+            mvc.perform(authenticated(put("/api/v1/projects/" + project + "/plugins/acme-lint"), asAdmin()))
+                    .andExpect(status().isOk());
+            queue(repositoryIn(project));
+            Enrolled agent = agent();
+            long scanId = claim(agent).path("scanId").asLong();
+
+            String result = """
+                    {"plugins":[
+                      {"state":"produced","pluginId":"acme-lint","manifestDigest":"%s","toolName":"acme","toolVersion":"4.2",
+                       "findings":[],"signature":"waived"},
+                      {"state":"refused","pluginId":"unsigned-one","manifestDigest":"%s","refusal":"unsigned",
+                       "reason":"its manifest declares no signer; it was not run"},
+                      {"state":"refused","pluginId":"impostor","manifestDigest":"%s","refusal":"signature_unverified",
+                       "reason":"cosign: no matching signatures"}],
+                     "failures":[{"step":"plugin unsigned-one","reason":"its manifest declares no signer; it was not run"},
+                                 {"step":"plugin impostor","reason":"cosign: no matching signatures"}],"duration":"PT3S"}
+                    """.formatted(digest, digest, digest);
+            mvc.perform(post("/api/v1/agent/jobs/" + scanId + "/result")
+                            .header("Authorization", "Bearer " + agent.token())
+                            .contentType(MediaType.APPLICATION_JSON).content(result))
+                    .andExpect(status().isOk());
+
+            mvc.perform(authenticated(get("/api/v1/scans/" + scanId), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.plugins[0].state").value("produced"))
+                    .andExpect(jsonPath("$.plugins[0].signature").value("waived"))
+                    .andExpect(jsonPath("$.plugins[0].refusal").value(Matchers.nullValue()))
+                    .andExpect(jsonPath("$.plugins[1].state").value("refused"))
+                    .andExpect(jsonPath("$.plugins[1].refusal").value("unsigned"))
+                    .andExpect(jsonPath("$.plugins[1].reason").value(Matchers.containsString("declares no signer")))
+                    .andExpect(jsonPath("$.plugins[2].state").value("refused"))
+                    .andExpect(jsonPath("$.plugins[2].refusal").value("signature_unverified"))
+                    .andExpect(jsonPath("$.scan.error").value(Matchers.allOf(
+                            Matchers.containsString("plugin unsigned-one"), Matchers.containsString("plugin impostor"))));
         }
 
         @Test

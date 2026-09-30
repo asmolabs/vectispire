@@ -28,8 +28,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     Hub. An agent that cannot name its registry cannot run at all there. {@code pluginRegistry}
  *     is the one plugin images are relocated to — the host swapped, the path and digest kept — so
  *     the mirror serves a plugin and cannot substitute another (decision 0017). {@code
- *     pluginSignatureRequired} refuses a plugin whose manifest declares no signer: the agent's host
- *     runs the code, and its operator may refuse unsigned code whatever the governor registered
+ *     pluginSignatureRequired}, on by default, refuses a plugin whose manifest declares no signer
+ *     unless the governor waived the requirement for it; off, this agent runs unsigned plugins — its
+ *     operator's explicit choice, for its own host
  * @param vulnerabilityDbDir where the matcher's database is downloaded once and shared, read-only, by
  *     every scan this agent runs; blank is a directory beside the workspaces
  */
@@ -53,7 +54,7 @@ public record AgentProperties(
             @DefaultValue("") String checkov,
             @DefaultValue("") String semgrep,
             @DefaultValue("") String pluginRegistry,
-            @DefaultValue("false") boolean pluginSignatureRequired) {}
+            @DefaultValue("true") boolean pluginSignatureRequired) {}
 
     /** The pinned scanner digests, for a caller with no opinion about the registry. */
     public AgentProperties(

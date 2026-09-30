@@ -511,7 +511,7 @@
             "type" : "integer"
           },
           "noDataReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "outcome" : {
@@ -1772,7 +1772,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
@@ -4927,7 +4927,7 @@
             "type" : "integer"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "submittedOutcome" : {
@@ -4935,7 +4935,7 @@
             "type" : "string"
           },
           "submittedReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -5686,8 +5686,16 @@
           "reason" : {
             "type" : "string"
           },
+          "refusal" : {
+            "enum" : [ "unsigned", "signature_unverified" ],
+            "type" : "string"
+          },
+          "signature" : {
+            "enum" : [ "verified", "waived", "not_required" ],
+            "type" : "string"
+          },
           "state" : {
-            "enum" : [ "produced", "not_applicable", "absent" ],
+            "enum" : [ "produced", "not_applicable", "absent", "refused" ],
             "type" : "string"
           }
         },
@@ -5741,6 +5749,9 @@
           },
           "name" : {
             "type" : "string"
+          },
+          "unsignedWaiver" : {
+            "$ref" : "#/components/schemas/UnsignedWaiver"
           },
           "updatedAt" : {
             "format" : "date-time",
@@ -5954,6 +5965,10 @@
               "type" : "string"
             },
             "pluginId" : {
+              "type" : "string"
+            },
+            "signature" : {
+              "enum" : [ "verified", "waived", "not_required" ],
               "type" : "string"
             },
             "toolName" : {
@@ -6436,6 +6451,28 @@
         "required" : [ "findingsCount" ],
         "type" : "object"
       },
+      "Refused" : {
+        "allOf" : [ {
+          "$ref" : "#/components/schemas/PluginStep"
+        }, {
+          "properties" : {
+            "manifestDigest" : {
+              "type" : "string"
+            },
+            "pluginId" : {
+              "type" : "string"
+            },
+            "reason" : {
+              "type" : "string"
+            },
+            "refusal" : {
+              "enum" : [ "unsigned", "signature_unverified" ],
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        } ]
+      },
       "Region" : {
         "properties" : {
           "startLine" : {
@@ -6799,7 +6836,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -7523,6 +7560,8 @@
                 "$ref" : "#/components/schemas/NotApplicable"
               }, {
                 "$ref" : "#/components/schemas/Produced"
+              }, {
+                "$ref" : "#/components/schemas/Refused"
               } ]
             },
             "type" : "array"
@@ -9335,6 +9374,29 @@
           }
         },
         "required" : [ "scans" ],
+        "type" : "object"
+      },
+      "UnsignedWaiver" : {
+        "properties" : {
+          "justification" : {
+            "type" : "string"
+          },
+          "waivedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "waivedBy" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UnsignedWaiverRequest" : {
+        "properties" : {
+          "justification" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "UploadRequest" : {
@@ -13568,6 +13630,69 @@
           }
         },
         "summary" : "List projects a plugin analyses",
+        "tags" : [ "Plugins" ]
+      }
+    },
+    "/api/v1/plugins/{id}/unsigned-waiver" : {
+      "delete" : {
+        "description" : "Platform governor only. From the next scan an executor requiring a signer refuses the plugin until its manifest declares one. 404 when the plugin has no waiver.",
+        "operationId" : "revokeSignatureWaiver",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Withdraw the signature waiver of plugin",
+        "tags" : [ "Plugins" ]
+      },
+      "put" : {
+        "description" : "Platform governor only. The plugin runs, from the next scan, although its manifest declares no signer, on every executor requiring one (the default). A declared signer is verified all the same. The justification is required, 20 to 500 characters; 400 without it. Audited, and signalled to the SIEM as VECTI-SEC-021.",
+        "operationId" : "waiveSignature",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UnsignedWaiverRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Waive the signature requirement for plugin",
         "tags" : [ "Plugins" ]
       }
     },

@@ -43,6 +43,19 @@ public class PluginEntity {
     @Column(name = "updated_by", length = 255, nullable = false)
     private String updatedBy;
 
+    /**
+     * The governor's justification for running this plugin although its manifest declares no signer,
+     * or null for no waiver (V60, decision 0017 §9.1).
+     */
+    @Column(name = "unsigned_waiver", length = 500)
+    private String unsignedWaiver;
+
+    @Column(name = "unsigned_waived_by", length = 255)
+    private String unsignedWaivedBy;
+
+    @Column(name = "unsigned_waived_at")
+    private Instant unsignedWaivedAt;
+
     public String getId() {
         return id;
     }
@@ -105,5 +118,29 @@ public class PluginEntity {
 
     public void setUpdatedBy(String updatedBy) {
         this.updatedBy = updatedBy;
+    }
+
+    public String getUnsignedWaiver() {
+        return unsignedWaiver;
+    }
+
+    public void setUnsignedWaiver(String unsignedWaiver) {
+        this.unsignedWaiver = unsignedWaiver;
+    }
+
+    public String getUnsignedWaivedBy() {
+        return unsignedWaivedBy;
+    }
+
+    public void setUnsignedWaivedBy(String unsignedWaivedBy) {
+        this.unsignedWaivedBy = unsignedWaivedBy;
+    }
+
+    public Instant getUnsignedWaivedAt() {
+        return unsignedWaivedAt;
+    }
+
+    public void setUnsignedWaivedAt(Instant unsignedWaivedAt) {
+        this.unsignedWaivedAt = unsignedWaivedAt;
     }
 }

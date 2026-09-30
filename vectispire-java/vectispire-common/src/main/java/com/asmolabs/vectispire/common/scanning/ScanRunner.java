@@ -257,8 +257,8 @@ public final class ScanRunner {
      *
      * <p><b>Each on its own.</b> A plugin's failure is its own step's: it is recorded as a failure of
      * the scan, under the plugin's name, and leaves that plugin's issues alone; no scanner above is
-     * touched. A plugin whose languages the tree does not contain is not run and <em>not</em> a
-     * failure — see {@link PluginStep} for why that third state exists. Package-private so the
+     * touched. A plugin the executor refused to start is a failure too, under the same name. A plugin
+     * whose languages the tree does not contain is not run and <em>not</em> a failure — see {@link PluginStep} for why that third state exists. Package-private so the
      * wiring is exercised without a clone.
      */
     void runPlugins(
@@ -268,8 +268,13 @@ public final class ScanRunner {
         }
         for (PluginStep step : plugins.run(task.plugins(), workspace, scanRoot, census)) {
             artifacts.plugin(step);
-            if (step instanceof PluginStep.Absent absent) {
-                artifacts.failed("plugin " + absent.pluginId(), absent.reason());
+            switch (step) {
+                case PluginStep.Absent absent -> artifacts.failed("plugin " + absent.pluginId(), absent.reason());
+                // Refused is a failure of the scan too — nothing was examined, and somebody has to act:
+                // sign the image, or have the governor waive the requirement in writing.
+                case PluginStep.Refused refused -> artifacts.failed("plugin " + refused.pluginId(), refused.reason());
+                case PluginStep.Produced produced -> { }
+                case PluginStep.NotApplicable skipped -> { }
             }
         }
     }

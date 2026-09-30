@@ -8,6 +8,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.ClassPathResource;
 
 /**
  * The agent's settings as Spring binds them, not as a test constructs them.
@@ -32,5 +36,26 @@ class AgentPropertiesBindingTest {
         assertThat(bound.token()).isEqualTo("t");
         assertThat(bound.claimWait()).isEqualTo(Duration.ofSeconds(30));
         assertThat(bound.images().syft()).isEqualTo("registry.internal/syft:1");
+        assertThat(bound.images().pluginSignatureRequired())
+                .as("an agent refuses unsigned plugins unless told otherwise (decision 0017 §9.1)")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("the shipped configuration requires a plugin's signer unless VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED says false")
+    void shippedConfigurationRequiresASigner() throws Exception {
+        var sources = new YamlPropertySourceLoader().load("agent", new ClassPathResource("application.yaml"));
+        var environment = new StandardEnvironment();
+        sources.forEach(environment.getPropertySources()::addLast);
+
+        assertThat(environment.getProperty("vectispire.agent.images.plugin-signature-required", Boolean.class))
+                .as("the default is the application's, not the operator's")
+                .isTrue();
+
+        environment.getPropertySources().addFirst(new MapPropertySource("operator",
+                Map.of("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED", "false")));
+        assertThat(environment.getProperty("vectispire.agent.images.plugin-signature-required", Boolean.class))
+                .as("the operator's explicit false is still honoured")
+                .isFalse();
     }
 }

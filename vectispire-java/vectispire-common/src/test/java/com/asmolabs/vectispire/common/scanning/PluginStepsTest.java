@@ -152,7 +152,8 @@ class PluginStepsTest {
             List<PluginStep> steps = run(manifest(Set.of(Language.PYTHON)));
 
             assertThat(steps).containsExactly(new PluginStep.Produced("acme-lint", manifest(Set.of(Language.PYTHON)).digest(),
-                    "acme-lint", "4.2.0", List.of(new SarifFinding("ACME001", Severity.HIGH, "app/a.py", 3, "eval() here"))));
+                    "acme-lint", "4.2.0", List.of(new SarifFinding("ACME001", Severity.HIGH, "app/a.py", 3, "eval() here")),
+                    PluginStep.Signature.NOT_REQUIRED));
         }
 
         @Test
@@ -279,20 +280,36 @@ class PluginStepsTest {
         }
 
         @Test
-        @DisplayName("an image cosign does not verify is never run, and the plugin is absent in cosign's words")
+        @DisplayName("an image cosign does not verify is never run, and the plugin is refused in cosign's words")
         void refused() {
             verification = new ContainerRunner.ContainerResult("", "Error: no matching signatures", 1);
             plugin(0, writing(REPORT));
 
             List<PluginStep> steps = run(keyless);
 
-            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
-                    assertThat(absent.reason()).contains("was not run").contains("no matching signatures"));
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+                assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.SIGNATURE_UNVERIFIED);
+                assertThat(refused.reason()).contains("was not run").contains("no matching signatures");
+            });
             assertThat(launched.get()).as("the plugin's container is never created").isNull();
         }
 
         @Test
-        @DisplayName("a verifier that could not run is a refusal too, never a pass")
+        @DisplayName("a waiver lifts the duty to declare a signer, never the verification of one declared")
+        void waiverDoesNotCoverADeclaredSigner() {
+            verification = new ContainerRunner.ContainerResult("", "Error: no matching signatures", 1);
+            plugin(0, writing(REPORT));
+
+            List<PluginStep> steps = new PluginSteps(scannerWith(PluginScanner.Settings.DEFAULT), reference -> keyless)
+                    .run(List.of(new PluginRef(keyless.id(), keyless.digest(), true)), workspace, workspace.source());
+
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Refused.class, refused ->
+                    assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.SIGNATURE_UNVERIFIED));
+            assertThat(launched.get()).isNull();
+        }
+
+        @Test
+        @DisplayName("a verifier that could not run is never a pass: absent, it said nothing of the image")
         void verifierFailed() {
             when(containers.run(any())).thenAnswer(invocation -> {
                 ContainerRun run = invocation.getArgument(0);
@@ -321,7 +338,7 @@ class PluginStepsTest {
         }
 
         @Test
-        @DisplayName("an executor that requires a signer runs no plugin that declares none, and starts no container")
+        @DisplayName("an executor that requires a signer refuses a plugin that declares none, and starts no container")
         void required() {
             plugin(0, writing(REPORT));
             PluginManifest unsigned = manifest(Set.of(Language.PYTHON));
@@ -329,9 +346,41 @@ class PluginStepsTest {
             List<PluginStep> steps = new PluginSteps(scannerWith(new PluginScanner.Settings(null, true)), reference -> unsigned)
                     .run(List.of(ref(unsigned)), workspace, workspace.source());
 
-            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
-                    assertThat(absent.reason()).contains("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED"));
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+                assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.UNSIGNED);
+                assertThat(refused.reason()).contains("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED").contains("waived");
+            });
             verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("the default executor requires a signer: an unsigned plugin is refused without a word of configuration")
+        void requiredByDefault() {
+            plugin(0, writing(REPORT));
+            PluginManifest unsigned = manifest(Set.of(Language.PYTHON));
+
+            List<PluginStep> steps = new PluginSteps(scannerWith(PluginScanner.Settings.DEFAULT), reference -> unsigned)
+                    .run(List.of(ref(unsigned)), workspace, workspace.source());
+
+            assertThat(steps).singleElement().isInstanceOf(PluginStep.Refused.class);
+            verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("a plugin the governor waived runs unsigned where a signer is required, and says it was waived")
+        void waived() {
+            plugin(0, writing(REPORT));
+            PluginManifest unsigned = manifest(Set.of(Language.PYTHON));
+
+            List<PluginStep> steps = new PluginSteps(scannerWith(PluginScanner.Settings.DEFAULT), reference -> unsigned)
+                    .run(List.of(new PluginRef(unsigned.id(), unsigned.digest(), true)), workspace, workspace.source());
+
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Produced.class, produced -> {
+                assertThat(produced.signature()).isEqualTo(PluginStep.Signature.WAIVED);
+                assertThat(produced.findings()).hasSize(1);
+            });
+            assertThat(verified.get()).as("nothing to verify: no signer was declared").isNull();
+            assertThat(launched.get()).isNotNull();
         }
 
         @Test
@@ -342,16 +391,19 @@ class PluginStepsTest {
             List<PluginStep> steps = new PluginSteps(scannerWith(new PluginScanner.Settings(null, true)), reference -> keyless)
                     .run(List.of(ref(keyless)), workspace, workspace.source());
 
-            assertThat(steps).singleElement().isInstanceOf(PluginStep.Produced.class);
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Produced.class, produced ->
+                    assertThat(produced.signature()).isEqualTo(PluginStep.Signature.VERIFIED));
             assertThat(verified.get()).isNotNull();
         }
 
         @Test
-        @DisplayName("without a declared signer and without the requirement, nothing is verified")
+        @DisplayName("without a declared signer and without the requirement, nothing is verified, and the step says so")
         void undeclared() {
             plugin(0, writing(REPORT));
 
-            assertThat(run(manifest(Set.of(Language.PYTHON)))).singleElement().isInstanceOf(PluginStep.Produced.class);
+            assertThat(run(manifest(Set.of(Language.PYTHON)))).singleElement()
+                    .isInstanceOfSatisfying(PluginStep.Produced.class, produced ->
+                            assertThat(produced.signature()).isEqualTo(PluginStep.Signature.NOT_REQUIRED));
             assertThat(verified.get()).isNull();
         }
     }

@@ -21,6 +21,18 @@ public enum NoDataReason {
      */
     STEP_ABSENT,
     /**
+     * The plugin was refused in the newest scan within the age where it did not produce, and produced in
+     * none: its manifest declares no signer, the executor requires one, and the governor waived nothing
+     * (decision 0017 §9.1). Not a tool that found nothing — a tool nobody started; the line says why, so
+     * that the answer is to sign the image or to record the waiver, not to wait for the next scan.
+     */
+    PLUGIN_UNSIGNED,
+    /**
+     * The same, refused because the signer its manifest declares did not verify the image — another
+     * signer, no signature, or a registry that did not answer cosign.
+     */
+    PLUGIN_SIGNATURE_UNVERIFIED,
+    /**
      * The analysis produced, on a tree none — or not all — of whose source languages it reads: the
      * built-in SAST or quality step whose Semgrep rules read none of some source language the scan's
      * census found ({@link SourceLanguages}), or a plugin that produced on a tree holding none of the

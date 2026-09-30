@@ -38,4 +38,17 @@ class ScanningDefaultsTest extends VectispireContextTest {
                         + "changing it means changing them in the same commit")
                 .isTrue();
     }
+
+    /** No default in the placeholder: the value read is the shipped configuration's. */
+    @Value("${vectispire.scanning.plugin-signature-required}")
+    private boolean pluginSignatureRequired;
+
+    @Test
+    @DisplayName("the built-in worker refuses a plugin whose manifest declares no signer, by default")
+    void pluginSignatureIsRequiredByDefault() {
+        assertThat(pluginSignatureRequired)
+                .as("decision 0017 §9.1 and the plugins page say an unsigned plugin is refused unless waived; "
+                        + "changing this means changing them in the same commit")
+                .isTrue();
+    }
 }

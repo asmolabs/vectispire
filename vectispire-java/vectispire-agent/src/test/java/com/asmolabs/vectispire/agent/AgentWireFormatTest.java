@@ -33,19 +33,28 @@ class AgentWireFormatTest {
                 .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.NotApplicable("b", digest,
                         java.util.Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.GO)))
                 .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Absent("c", digest, "exit 2"))
+                .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Refused("d", digest,
+                        com.asmolabs.vectispire.common.scanning.PluginStep.Refusal.UNSIGNED, "no signer declared"))
+                .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Produced("e", digest, "t", "1",
+                        java.util.List.of(), com.asmolabs.vectispire.common.scanning.PluginStep.Signature.WAIVED))
                 .build(Duration.ZERO)));
 
         assertThat(written.path("plugins")).extracting(node -> node.path("state").asText())
-                .containsExactly("produced", "not_applicable", "absent");
+                .containsExactly("produced", "not_applicable", "absent", "refused", "produced");
+        assertThat(written.path("plugins").path(3).path("refusal").asText()).isEqualTo("unsigned");
+        assertThat(written.path("plugins").path(4).path("signature").asText()).isEqualTo("waived");
         assertThat(written.path("plugins").path(0).path("findings").isArray())
                 .as("an empty list is written as one: it is the claim \"ran, found nothing\"")
                 .isTrue();
 
         com.asmolabs.vectispire.common.scanning.ScanTask task = json.readValue(
                 "{\"target\":{\"kind\":\"repository\",\"url\":\"https://h/p.git\",\"branch\":\"main\"},"
-                        + "\"steps\":[],\"plugins\":[{\"id\":\"a\",\"digest\":\"" + digest + "\"}]}",
+                        + "\"steps\":[],\"plugins\":[{\"id\":\"a\",\"digest\":\"" + digest + "\"},"
+                        + "{\"id\":\"b\",\"digest\":\"" + digest + "\",\"runsUnsigned\":true}]}",
                 com.asmolabs.vectispire.common.scanning.ScanTask.class);
-        assertThat(task.plugins()).containsExactly(new com.asmolabs.vectispire.common.domain.plugins.PluginRef("a", digest));
+        assertThat(task.plugins()).containsExactly(
+                new com.asmolabs.vectispire.common.domain.plugins.PluginRef("a", digest),
+                new com.asmolabs.vectispire.common.domain.plugins.PluginRef("b", digest, true));
     }
 
     @Test

@@ -217,6 +217,24 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a plugin the executors refused has no data, named by the refusal: unsigned, or a signer that did not verify")
+        void aRefusedPlugin() throws Exception {
+            publishWithRule(Map.of("kind", "findings_threshold", "maxAgeDays", 7, "scopes", List.of("plugin:java-arch"),
+                    "thresholds", Map.of("high", Map.of("maxOpen", 0))));
+            scan(first, hoursAgo(2), "secret", refused("java-arch", "unsigned"), true);
+            scan(second, hoursAgo(2), "secret", refused("java-arch", "signature_unverified"), true);
+            open(developer, project);
+
+            JsonNode measurement = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(measurement.at("/outcome").asText()).isEqualTo("no_data");
+            assertThat(measurement.at("/reason").asText())
+                    .as("the first reason in the declared order heads the line").isEqualTo("plugin_unsigned");
+            assertThat(statusOf(measurement, first)).isEqualTo("plugin_unsigned");
+            assertThat(statusOf(measurement, second)).isEqualTo("plugin_signature_unverified");
+            assertThat(repository(measurement, first).at("/detail").asText()).contains("no waiver");
+        }
+
+        @Test
         @DisplayName("an imported tool: the import carrying it is the look, one from before the record is unrecorded")
         void anImportedTool() throws Exception {
             publishWithRule(Map.of("kind", "findings_threshold", "maxAgeDays", 7,
@@ -1097,6 +1115,12 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
     private static String plugin(String id, String digest, String state) {
         return "[{\"pluginId\":\"" + id + "\",\"manifestDigest\":\"" + digest + "\",\"state\":\"" + state
                 + "\",\"findings\":" + (state.equals("produced") ? "0" : "null") + ",\"languages\":[],\"reason\":null}]";
+    }
+
+    /** A refused plugin's outcome, as the ingestor writes it: the state, the refusal, the executor's words. */
+    private static String refused(String id, String refusal) {
+        return "[{\"pluginId\":\"" + id + "\",\"manifestDigest\":\"sha256:" + "a".repeat(64) + "\",\"state\":\"refused\","
+                + "\"findings\":null,\"languages\":[],\"reason\":\"not run\",\"refusal\":\"" + refusal + "\",\"signature\":null}]";
     }
 
     /** A plugin registered through its route, reading Java and Kotlin; answers the digest a scan's task names. */

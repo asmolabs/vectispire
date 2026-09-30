@@ -82,9 +82,10 @@ public class ScanningConfiguration {
      *     from, read-only, by every scan of the built-in worker. Blank is a directory beside the
      *     workspaces, in the temporary directory; set it to a disk that survives a restart, and the
      *     first scan after one does not wait for a download
-     * @param pluginSignatureRequired run no plugin whose manifest declares no signer. Off by default:
-     *     a declared signer is always verified, and requiring one of every plugin is this executor's
-     *     operator's decision — the agent has the same setting, for its own host (decision 0017)
+     * @param pluginSignatureRequired run no plugin whose manifest declares no signer unless the
+     *     governor waived the requirement for it. On by default (decision 0017 §9.1): a declared signer
+     *     is always verified, and false — every unsigned plugin runs here — is this executor's
+     *     operator's explicit choice; the agent has the same setting, for its own host
      */
     @Bean
     ScanRunner scanRunner(
@@ -92,7 +93,7 @@ public class ScanningConfiguration {
             ScanPlugins plugins,
             Clock clock,
             @Value("${vectispire.scanning.plugin-registry:}") String pluginRegistry,
-            @Value("${vectispire.scanning.plugin-signature-required:false}") boolean pluginSignatureRequired,
+            @Value("${vectispire.scanning.plugin-signature-required:true}") boolean pluginSignatureRequired,
             @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
             @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh,
             @Value("${vectispire.scanning.vulnerability-db-dir:}") String vulnerabilityDbDir,

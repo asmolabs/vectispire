@@ -287,6 +287,17 @@ public enum AuditOperation {
     PLUGIN_DEACTIVATED,
 
     /**
+     * The platform governor let a plugin run although its manifest declares no signer, with a written
+     * justification the entry carries — the waiver of the signature requirement every executor applies
+     * by default (decision 0017 §9.1). Code nobody vouched for now reads the source of every project the
+     * plugin is on for, which is why it is a gesture of its own and not a setting.
+     */
+    PLUGIN_SIGNATURE_WAIVED,
+
+    /** The waiver was withdrawn: from the next scan the plugin runs only once a declared signer verifies. */
+    PLUGIN_SIGNATURE_WAIVER_REVOKED,
+
+    /**
      * An internal SARIF source was declared, changed or removed — which key may deposit findings, for
      * which project or repository, from which tools. A declaration is the platform saying "this
      * producer is inside the organisation", so it is the governor's and it is audited.

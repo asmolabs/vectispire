@@ -130,6 +130,41 @@ class RuleEvaluationTest {
         }
 
         @Test
+        @DisplayName("a plugin refused and never produced has no data, named by its refusal; the newest failure names it")
+        void pluginRefused() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"findings_threshold\",\"maxAgeDays\":7,"
+                    + "\"scopes\":[\"plugin:java-arch\"],\"thresholds\":{\"high\":{\"maxOpen\":0}}}");
+            PluginRuns unsigned = new PluginRuns(List.of(new PluginRun(look(FRESH), PluginState.NOT_APPLICABLE),
+                    new PluginRun(look(FRESH.minusSeconds(60)), PluginState.REFUSED_UNSIGNED)), 2, false);
+            Measurement measured = RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, unsigned)
+                    .build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(measured.reason()).contains(NoDataReason.PLUGIN_UNSIGNED);
+            assertThat(measured.repositories()).singleElement().satisfies(line -> {
+                assertThat(line.status()).isEqualTo("plugin_unsigned");
+                assertThat(line.detail()).hasValueSatisfying(detail -> assertThat(detail).contains("no waiver"));
+            });
+
+            PluginRuns unverified = new PluginRuns(List.of(
+                    new PluginRun(look(FRESH), PluginState.REFUSED_SIGNATURE_UNVERIFIED)), 1, false);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, unverified).build(), NOW)
+                    .reason()).contains(NoDataReason.PLUGIN_SIGNATURE_UNVERIFIED);
+
+            PluginRuns crashedSince = new PluginRuns(List.of(new PluginRun(look(FRESH), PluginState.ABSENT),
+                    new PluginRun(look(FRESH.minusSeconds(60)), PluginState.REFUSED_UNSIGNED)), 2, false);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, crashedSince).build(),
+                    NOW).reason()).as("signed since, and crashing now: today's problem").contains(NoDataReason.STEP_ABSENT);
+
+            PluginRuns signedSince = new PluginRuns(List.of(new PluginRun(look(FRESH), PluginState.PRODUCED,
+                    Optional.of(Set.of(Language.JAVA))), new PluginRun(look(FRESH.minusSeconds(60)), PluginState.REFUSED_UNSIGNED)),
+                    2, false);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, signedSince)
+                    .languages(look(FRESH), Set.of(Language.JAVA), Set.of()).build(), NOW).outcome())
+                    .as("produced within the age: examined, the older refusal notwithstanding")
+                    .isEqualTo(MeasurementOutcome.PASS);
+        }
+
+        @Test
         @DisplayName("an imported tool: the import is the look, one before the record is unrecorded")
         void imports() {
             ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"findings_threshold\",\"maxAgeDays\":7,"
