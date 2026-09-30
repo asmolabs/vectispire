@@ -225,7 +225,7 @@ class ProjectAggregatesRoutesTest extends ApiTestBase {
             assertThat(targetIds(scoped.path("compliance"))).containsExactly("repo:" + clean);
             assertThat(controlStatus(scoped.path("compliance"), VULNERABILITIES)).isEqualTo("COMPLIANT");
             assertThat(controlStatus(estate, VULNERABILITIES)).as("the estate carries the criticals").isNotEqualTo("COMPLIANT");
-            assertThat(scoped.at("/scorecard/criticalCount").asLong()).isZero();
+            assertThat(scoped.at("/scorecard/openCriticalCount").asLong(-1)).isZero();
             assertThat(scoped.at("/scorecard/targetKind").asText()).isEqualTo("project");
             assertThat(scoped.at("/scorecard/targetId").asLong()).isEqualTo(project);
             assertThat(scoped.at("/scorecard/score").asInt())
@@ -248,6 +248,10 @@ class ProjectAggregatesRoutesTest extends ApiTestBase {
             JsonNode scoped = read(get("/api/v1/projects/" + project + "/compliance"), asAdmin());
             assertThat(texts(scoped.at("/compliance/evaluations"), "overallStatus")).containsOnly("NO_DATA");
             assertThat(scoped.at("/compliance/observedTargets").asInt()).isZero();
+            // The score read 100/100, A+, beside those NO_DATA verdicts: the same absence, scored.
+            assertThat(scoped.at("/scorecard/grade").asText()).isEqualTo("NO_DATA");
+            assertThat(scoped.at("/scorecard/score").isNull()).as("a null score, not a number").isTrue();
+            assertThat(scoped.at("/scorecard/observedTargets").asInt(-1)).isZero();
             assertThat(texts(read(get("/api/v1/compliance/summary"), asAdmin()).path("evaluations"), "overallStatus"))
                     .as("the estate, scanned, is measured")
                     .doesNotContain("NO_DATA");
@@ -278,7 +282,7 @@ class ProjectAggregatesRoutesTest extends ApiTestBase {
             assertThat(controlStatus(scoped.path("compliance"), VULNERABILITIES))
                     .as("the hidden repository's critical is not in it")
                     .isEqualTo("COMPLIANT");
-            assertThat(scoped.at("/scorecard/criticalCount").asLong()).isZero();
+            assertThat(scoped.at("/scorecard/openCriticalCount").asLong(-1)).isZero();
             JsonNode ofSolution = read(get("/api/v1/solutions/" + solution + "/compliance"), partial.token());
             assertThat(ofSolution.path("partial").asBoolean()).isTrue();
             assertThat(targetIds(ofSolution.path("compliance"))).containsExactly("repo:" + seen);

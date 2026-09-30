@@ -6884,10 +6884,12 @@ export interface components {
         };
         SecurityScorecard: {
             /** @enum {string} */
-            grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F";
+            grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
             hasAttestation: boolean;
             /** Format: int64 */
             licenseViolationCount: number;
+            /** Format: int32 */
+            observedTargets: number;
             /** Format: int64 */
             openCriticalCount: number;
             /** Format: int64 */
@@ -6898,11 +6900,13 @@ export interface components {
             overdueCount: number;
             recommendations?: string[];
             /** Format: int32 */
-            score: number;
+            score?: number;
             /** Format: int64 */
             targetId?: number;
             targetKind?: string;
             targetName?: string;
+            /** Format: int32 */
+            totalTargets: number;
         };
         Series: {
             comparable: boolean;

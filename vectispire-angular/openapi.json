@@ -8063,7 +8063,7 @@
       "SecurityScorecard" : {
         "properties" : {
           "grade" : {
-            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F" ],
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
             "type" : "string"
           },
           "hasAttestation" : {
@@ -8071,6 +8071,10 @@
           },
           "licenseViolationCount" : {
             "format" : "int64",
+            "type" : "integer"
+          },
+          "observedTargets" : {
+            "format" : "int32",
             "type" : "integer"
           },
           "openCriticalCount" : {
@@ -8108,9 +8112,13 @@
           },
           "targetName" : {
             "type" : "string"
+          },
+          "totalTargets" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
-        "required" : [ "hasAttestation", "licenseViolationCount", "openCriticalCount", "openHighCount", "openKevCount", "overdueCount", "score" ],
+        "required" : [ "hasAttestation", "licenseViolationCount", "observedTargets", "openCriticalCount", "openHighCount", "openKevCount", "overdueCount", "totalTargets" ],
         "type" : "object"
       },
       "Series" : {

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
@@ -76,15 +77,109 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("an unscanned target with no issues loses nothing but is told to produce evidence")
-    void aCleanTarget() {
+    @DisplayName("a target never scanned has no grade and no score, rather than a perfect one, and is told to complete a scan")
+    void anUnscannedTarget() {
         SecurityScorecard card = scorecard();
 
-        assertThat(card.score()).isEqualTo(100);
+        // It read 100/100, A+ — on the card, and on the public badge of a repository registered and
+        // never scanned: the formula subtracts what it finds from a hundred, and nobody had looked.
+        assertThat(card.grade()).isEqualTo(SecurityGrade.NO_DATA);
+        assertThat(card.score()).isNull();
+        assertThat(card.totalTargets()).isEqualTo(1);
+        assertThat(card.observedTargets()).isZero();
         assertThat(card.hasAttestation()).isFalse();
         // The attestation is issued from a completed scan, so completing one is the advice —
         // not "generate attestations", a step this product does not have.
         assertThat(card.recommendations()).singleElement().asString().startsWith("Complete a scan");
+    }
+
+    @Test
+    @DisplayName("a target scanned clean scores a hundred, A+, observed")
+    void aScannedCleanTarget() {
+        completedScan();
+
+        SecurityScorecard card = scorecard();
+
+        assertThat(card.score()).isEqualTo(100);
+        assertThat(card.grade()).isEqualTo(SecurityGrade.A_PLUS);
+        assertThat(card.observedTargets()).isEqualTo(1);
+        assertThat(card.recommendations()).singleElement().asString().startsWith("Maintain current posture");
+    }
+
+    @Test
+    @DisplayName("a scan in flight or failed does not observe a target; a completed one before it still does")
+    void onlyACompletedScanObserves() {
+        scan(repository.getId(), null, "scanning");
+        scan(repository.getId(), null, "failed");
+        assertThat(scorecard().grade()).isEqualTo(SecurityGrade.NO_DATA);
+
+        completedScan();
+        scan(repository.getId(), null, "scanning");
+        assertThat(scorecard().grade()).isEqualTo(SecurityGrade.A_PLUS);
+    }
+
+    @Test
+    @DisplayName("a scope none of whose targets was scanned has no grade, however scanned the rest of the estate")
+    void anUnscannedScope() {
+        RepositoryEntity scanned = anotherRepository("corp/scanned");
+        scan(scanned.getId(), null, "completed");
+
+        SecurityScorecard card = scorecards.getScopeScorecard(scopeOf(new ScanTarget.Repository(repository.getId())));
+
+        assertThat(card.grade()).isEqualTo(SecurityGrade.NO_DATA);
+        assertThat(card.score()).isNull();
+        assertThat(card.targetKind()).isEqualTo("project");
+        assertThat(card.totalTargets()).isEqualTo(1);
+        assertThat(card.observedTargets()).isZero();
+    }
+
+    @Test
+    @DisplayName("a scope scanned in part is capped at its observed share and told which remain; scanned whole, it is not")
+    void aPartlyScannedScope() {
+        RepositoryEntity second = anotherRepository("corp/second");
+        RepositoryEntity third = anotherRepository("corp/third");
+        RepositoryEntity fourth = anotherRepository("corp/fourth");
+        completedScan();
+        VisibleScope scope = scopeOf(
+                new ScanTarget.Repository(repository.getId()), new ScanTarget.Repository(second.getId()),
+                new ScanTarget.Repository(third.getId()), new ScanTarget.Repository(fourth.getId()));
+
+        SecurityScorecard partly = scorecards.getScopeScorecard(scope);
+
+        // A hundred on the one scanned, clean; three nobody looked at weighed as clean too, A+.
+        assertThat(partly.score()).isEqualTo(25);
+        assertThat(partly.grade()).isEqualTo(SecurityGrade.F);
+        assertThat(partly.totalTargets()).isEqualTo(4);
+        assertThat(partly.observedTargets()).isEqualTo(1);
+        assertThat(partly.recommendations()).first().asString()
+                .startsWith("Scan the 3 target(s) never scanned: the score covers 1/4 target(s)");
+
+        scan(second.getId(), null, "completed");
+        scan(third.getId(), null, "completed");
+        scan(fourth.getId(), null, "completed");
+        SecurityScorecard whole = scorecards.getScopeScorecard(scope);
+
+        assertThat(whole.score()).isEqualTo(100);
+        assertThat(whole.grade()).isEqualTo(SecurityGrade.A_PLUS);
+        assertThat(whole.observedTargets()).isEqualTo(4);
+        assertThat(whole.recommendations()).noneSatisfy(line -> assertThat(line).startsWith("Scan the"));
+    }
+
+    @Test
+    @DisplayName("the portfolio counts the targets the caller sees, and is capped by the ones never scanned")
+    void thePortfolio() {
+        RepositoryEntity unscanned = anotherRepository("corp/unscanned");
+        completedScan();
+        Visibility both = Visibility.only(List.of(
+                new ScanTarget.Repository(repository.getId()), new ScanTarget.Repository(unscanned.getId())));
+
+        SecurityScorecard card = scorecards.getGlobalScorecard(both);
+
+        assertThat(card.totalTargets()).isEqualTo(2);
+        assertThat(card.observedTargets()).isEqualTo(1);
+        assertThat(card.score()).isEqualTo(50);
+        assertThat(scorecards.getGlobalScorecard(Visibility.only(List.of(new ScanTarget.Repository(unscanned.getId()))))
+                .grade()).isEqualTo(SecurityGrade.NO_DATA);
     }
 
     @Test
@@ -178,6 +273,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     @Test
     @DisplayName("another target's issues and licences do not weigh on this one")
     void scopedToTheTarget() {
+        completedScan();
         RepositoryEntity other = new RepositoryEntity();
         other.setName("corp/other");
         other.setUrl("https://example.invalid/corp/other.git");
@@ -199,6 +295,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     @Test
     @DisplayName("the score floors at zero rather than going negative")
     void theScoreFloors() {
+        completedScan();
         for (int i = 0; i < 5; i++) {
             issue("critical", true, "open");
         }
@@ -216,16 +313,21 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         container.setImageName("registry.example.invalid/shop");
         container.setTag("1.4.2");
         container = containers.save(container);
-        IssueEntity high = issue("high", false, "open");
-        high.setRepoId(null);
-        high.setContainerId(container.getId());
-        issues.save(high);
+        scan(null, container.getId(), "completed");
+        for (int i = 0; i < 2; i++) {
+            IssueEntity high = issue("high", false, "open");
+            high.setRepoId(null);
+            high.setContainerId(container.getId());
+            issues.save(high);
+        }
         issue("critical", false, "open"); // the repository's, not the container's
 
         SecurityScorecard card = scorecards.getContainerScorecard(container.getId(), Visibility.everything()).orElseThrow();
 
         assertThat(card.targetName()).isEqualTo("registry.example.invalid/shop:1.4.2");
-        assertThat(card.score()).isEqualTo(96);
+        // 100 - 4 - 4 + 5: scanned, so observed and attested.
+        assertThat(card.score()).isEqualTo(97);
+        assertThat(card.openHighCount()).isEqualTo(2);
         assertThat(card.openCriticalCount()).isZero();
     }
 
@@ -241,12 +343,29 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     }
 
     private void completedScan() {
+        scan(repository.getId(), null, "completed");
+    }
+
+    private void scan(Long repoId, Long containerId, String status) {
         ScanEntity scan = new ScanEntity();
-        scan.setRepoId(repository.getId());
+        scan.setRepoId(repoId);
+        scan.setContainerId(containerId);
         scan.setBranch("main");
-        scan.setStatus("completed");
+        scan.setStatus(status);
         scan.setCreatedAt(Instant.now());
         scans.save(scan);
+    }
+
+    private RepositoryEntity anotherRepository(String name) {
+        RepositoryEntity other = new RepositoryEntity();
+        other.setName(name);
+        other.setUrl("https://example.invalid/" + name + ".git");
+        other.setBranch("main");
+        return repositories.save(other);
+    }
+
+    private static VisibleScope scopeOf(ScanTarget... targets) {
+        return new VisibleScope(VisibleScope.Kind.PROJECT, 1L, "Payments", List.of(targets), false);
     }
 
     private int fingerprints;

@@ -16,10 +16,12 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 /**
@@ -77,7 +79,8 @@ public class SecurityScorecardService {
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Repository(repoId), "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Repository(repoId))));
 
-            return computeScorecard(repoId, "repository", repo.name(), openIssues, licenses, hasAttestation, overdue);
+            return computeScorecard(repoId, "repository", repo.name(), openIssues, licenses, hasAttestation, overdue,
+                    Coverage.ofOne(hasAttestation));
         });
     }
 
@@ -100,7 +103,8 @@ public class SecurityScorecardService {
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Container(containerId), "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Container(containerId))));
 
-            return computeScorecard(containerId, "container", container.imageName() + ":" + container.tag(), openIssues, licenses, hasAttestation, overdue);
+            return computeScorecard(containerId, "container", container.imageName() + ":" + container.tag(), openIssues,
+                    licenses, hasAttestation, overdue, Coverage.ofOne(hasAttestation));
         });
     }
 
@@ -118,7 +122,12 @@ public class SecurityScorecardService {
         // hidden, because a filter applied late is exactly the shape this service has been
         // corrected for twice. The narrowing is the licence service's own since it stopped
         // publishing the unfiltered estate: it used to be done here, on a list anyone could ask for.
-        return portfolio(allowed, licenseService.getInventory(allowed, null, null), null, "global", "Organization Portfolio");
+        List<ScanTarget> visible = new ArrayList<>();
+        targets.repositories().forEach(repository -> visible.add(new ScanTarget.Repository(repository.id())));
+        targets.containers().forEach(container -> visible.add(new ScanTarget.Container(container.id())));
+        visible.removeIf(target -> !allowed.permits(target));
+        return portfolio(allowed, visible, licenseService.getInventory(allowed, null, null), null, "global",
+                "Organization Portfolio");
     }
 
     /**
@@ -139,23 +148,50 @@ public class SecurityScorecardService {
         List<LicenseEntry> licenses = scope.targets().stream()
                 .flatMap(target -> licenseService.getInventory(RowVisibility.requireVisible(target, allowed)).stream())
                 .toList();
-        return portfolio(allowed, licenses, scope.id(), scope.kind().wireName(), scope.name());
+        return portfolio(allowed, scope.targets(), licenses, scope.id(), scope.kind().wireName(), scope.name());
     }
 
     private SecurityScorecard portfolio(
-            Visibility allowed, List<LicenseEntry> licenses, Long id, String kind, String name) {
+            Visibility allowed, List<ScanTarget> visible, List<LicenseEntry> licenses, Long id, String kind, String name) {
         List<IssueRows.Posture> openIssues = issuesRepo
                 .rows(openWithin(allowed), IssueRows.Posture.class)
                 .stream()
                 .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();
 
-        boolean hasAttestation = scansRepo.targetsWithStatus("completed").stream()
-                .anyMatch(row -> allowed.permits(row.target()));
+        // The targets in scope holding a completed scan — which is also what the attestation flag
+        // asked, over the same allowance, so the two cannot disagree.
+        Set<ScanTarget> inScope = new HashSet<>(visible);
+        Set<ScanTarget> observed = new HashSet<>();
+        scansRepo.targetsWithStatus("completed").forEach(row -> {
+            if (row.target() != null && inScope.contains(row.target())) {
+                observed.add(row.target());
+            }
+        });
 
         long overdue = sla.countOverdue(allowed);
 
-        return computeScorecard(id, kind, name, openIssues, licenses, hasAttestation, overdue);
+        return computeScorecard(id, kind, name, openIssues, licenses, !observed.isEmpty(), overdue,
+                new Coverage(inScope.size(), observed.size()));
+    }
+
+    /**
+     * How much of the scope the backlog being graded was read from.
+     *
+     * <p><b>Observed means holding a completed scan</b>, the scan that produced the backlog graded
+     * here — not the compliance summary's "the latest scan succeeded". A scan in flight or a later one
+     * that failed does not erase the backlog the last completed one left, and a published badge must
+     * not flip to "no data" every time a scan starts. A SARIF import alone does not make a target
+     * observed, as it does not for compliance: it speaks for one tool, not for the target.
+     *
+     * <p><b>Not the freshness window</b> compliance also caps by: that window is a deployment setting,
+     * and the grade is what a public badge carries — the reason the SLA deadlines are advised on here
+     * and not scored. Two installations holding the same estate grade it the same.
+     */
+    private record Coverage(int total, int observed) {
+        static Coverage ofOne(boolean observed) {
+            return new Coverage(1, observed ? 1 : 0);
+        }
     }
 
     private SecurityScorecard computeScorecard(
@@ -165,7 +201,8 @@ public class SecurityScorecardService {
             List<IssueRows.Posture> issues,
             List<LicenseEntry> licenses,
             boolean hasAttestation,
-            long overdueCount) {
+            long overdueCount,
+            Coverage coverage) {
 
         int score = 100;
         List<String> recommendations = new ArrayList<>();
@@ -232,19 +269,38 @@ public class SecurityScorecardService {
         if (overdueCount > 0) {
             recommendations.add("Resolve " + overdueCount + " issue(s) past their remediation deadline.");
         }
+        // **The coverage cap, the compliance controls' own (`ComplianceEngine.withCoverage`).** The
+        // score is a hundred less what was found, so a target nobody scanned weighs as a clean one:
+        // ten targets with one scanned clean read A+ for nine that nobody looked at. Capped at the
+        // observed share, in the compliance summary's rounding, so the card and the controls beside
+        // it on a project's page tell the same story about the same coverage.
+        int never = coverage.total() - coverage.observed();
+        if (coverage.observed() > 0 && never > 0) {
+            recommendations.add(0, "Scan the " + never + " target(s) never scanned: the score covers "
+                    + coverage.observed() + "/" + coverage.total() + " target(s), and is capped at that share.");
+        }
         if (recommendations.isEmpty()) {
             recommendations.add("Maintain current posture with continuous automated scanning.");
         }
 
         score = Math.max(0, Math.min(100, score));
-        SecurityGrade grade = SecurityGrade.fromScore(score);
+        if (never > 0) {
+            score = Math.min(score, Math.round(((float) coverage.observed() / coverage.total()) * 100));
+        }
+        // **Nothing observed is no grade at all** (decision 0007), not the hundred the formula gives
+        // an empty backlog: a scope whose only target was never scanned read 100/100, A+, on its card
+        // and on the badge. The counts stay, being true of what was read.
+        boolean noData = coverage.observed() == 0;
+        SecurityGrade grade = noData ? SecurityGrade.NO_DATA : SecurityGrade.fromScore(score);
 
         return new SecurityScorecard(
                 targetId,
                 targetKind,
                 targetName,
-                score,
+                noData ? null : score,
                 grade,
+                coverage.total(),
+                coverage.observed(),
                 criticalCount,
                 highCount,
                 kevCount,

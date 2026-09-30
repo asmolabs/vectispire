@@ -89,4 +89,38 @@ class ScorecardRoutesTest extends ApiTestBase {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("<svg")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("security grade")));
     }
+
+    /**
+     * The defect found on a real server: a repository registered and never scanned read 100/100, A+,
+     * on its card and on its published badge. The wire says no data in the grade and leaves the score
+     * out, so no client reads a number nobody measured.
+     */
+    @Test
+    @DisplayName("a repository never scanned reads NO_DATA with a null score, on the card and on its badge")
+    void aRepositoryNeverScanned() throws Exception {
+        String adminToken = asAdmin();
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName("corp/never-scanned");
+        repo.setUrl("https://github.com/corp/never-scanned.git");
+        repo.setBranch("main");
+        repo = repositoriesRepo.save(repo);
+
+        mvc.perform(authenticated(get("/api/v1/scorecards/repositories/" + repo.getId()), adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.grade").value("NO_DATA"))
+                .andExpect(jsonPath("$.score").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.totalTargets").value(1))
+                .andExpect(jsonPath("$.observedTargets").value(0));
+
+        String published = mvc.perform(
+                        authenticated(post("/api/v1/scorecards/repositories/" + repo.getId() + "/badge"), adminToken))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        mvc.perform(get(json.readTree(published).path("url").asText()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("no data")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("A+"))));
+    }
 }
