@@ -155,7 +155,7 @@ describe('the solutions tree', () => {
         useEnglish();
     }, 20_000);
 
-    it('links a project seen whole to its security checklist, and a partial one to nothing: it would answer 404', async () => {
+    it('links a project to its security checklist when the server would open it, and to nothing when it would answer 404', async () => {
         await mount('AUDITOR');
 
         const ledger = page().querySelector('[data-testid="project-12"] [data-testid="project-checklist"]');
@@ -163,6 +163,22 @@ describe('the solutions tree', () => {
         expect(ledger?.getAttribute('aria-label')).toBe('Security checklist of Ledger');
         expect(page().querySelector('[data-testid="project-21"] [data-testid="project-checklist"]')).not.toBeNull();
         expect(page().querySelector('[data-testid="project-11"] [data-testid="project-checklist"]')).toBeNull();
+    });
+
+    it('reads the checklist link from checklistsVisible, not from partial: a hidden image does not close the checklist', async () => {
+        const tree = structuredClone(TREE);
+        // Partial because of an image the reader cannot see, yet every repository is theirs:
+        // the checklist answers 200, and the link must stay.
+        tree.solutions[0].projects[0].checklistsVisible = true;
+        // Seen whole, but the server says the checklist would be refused: no link to a 404.
+        tree.solutions[0].projects[1].checklistsVisible = false;
+        await mount('AUDITOR', tree);
+
+        expect(page().querySelector('[data-testid="project-11"] [data-testid="partial"]')).not.toBeNull();
+        expect(
+            page().querySelector('[data-testid="project-11"] [data-testid="project-checklist"]')?.getAttribute('href')
+        ).toBe('/projects/11/checklist');
+        expect(page().querySelector('[data-testid="project-12"] [data-testid="project-checklist"]')).toBeNull();
     });
 
     it('draws solutions, their projects and their repositories, with counts and severities', async () => {
