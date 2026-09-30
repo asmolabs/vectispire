@@ -119,18 +119,24 @@ public class OidcConfiguration {
      */
     @Bean
     @Order(1)
-    SecurityFilterChain oidcSecurity(HttpSecurity http, AuthenticationFlowService flows) throws Exception {
+    SecurityFilterChain oidcSecurity(
+            HttpSecurity http, AuthenticationFlowService flows, ClientRegistrationRepository registrations)
+            throws Exception {
         return http.securityMatcher("/oauth2/**", "/login/oauth2/**")
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .oauth2Login(login -> login
+                        // The page the person asked for, remembered here and appended on the way
+                        // back — see SignOnReturn for why the callback's own parameter is ignored.
+                        .authorizationEndpoint(endpoint ->
+                                endpoint.authorizationRequestResolver(SignOnReturn.remembering(registrations)))
                         .successHandler(onSuccess(flows))
                         // A refusal goes back to the login screen with a reason, rather than to
                         // a white page whose only content is a stack trace.
                         .failureHandler((request, response, exception) -> {
                             log.warn("Single sign-on failed: {}", exception.getMessage());
-                            response.sendRedirect("/login?sso=failed");
+                            response.sendRedirect(SignOnReturn.loginRedirect(request, "sso=failed"));
                         }))
                 .build();
     }
@@ -147,7 +153,7 @@ public class OidcConfiguration {
     private AuthenticationSuccessHandler onSuccess(AuthenticationFlowService flows) {
         return (request, response, authentication) -> {
             if (!(authentication.getPrincipal() instanceof OidcUser oidc)) {
-                redirectRefused(response, ExternalIdentityService.Refusal.NO_IDENTITY);
+                redirectRefused(request, response, ExternalIdentityService.Refusal.NO_IDENTITY);
                 return;
             }
 
@@ -167,7 +173,7 @@ public class OidcConfiguration {
 
             switch (outcome) {
                 case AuthenticationFlowService.FederatedSignIn.Refused refused ->
-                    redirectRefused(response, refused.refusal());
+                    redirectRefused(request, response, refused.refusal());
                 case AuthenticationFlowService.FederatedSignIn.SignedIn signedIn -> {
                     // The clear token, straight from the mint into the one-time cookie: the row it
                     // belongs to holds only its hash, so this is the sole copy in existence.
@@ -180,7 +186,7 @@ public class OidcConfiguration {
                     // memory yet, so the first API call answers 401 and the interceptor sends it
                     // there. Naming the case turns a bounce into a step, and saves the application
                     // attempting an exchange on every visit to a page nobody signed on from.
-                    response.sendRedirect("/login?sso=complete");
+                    response.sendRedirect(SignOnReturn.loginRedirect(request, "sso=complete"));
                 }
             }
         };
@@ -203,8 +209,10 @@ public class OidcConfiguration {
 
     /** A code, never a sentence: the screen shows its own words — see SignInRefusedException. */
     private static void redirectRefused(
-            jakarta.servlet.http.HttpServletResponse response, ExternalIdentityService.Refusal refusal)
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response,
+            ExternalIdentityService.Refusal refusal)
             throws IOException {
-        response.sendRedirect("/login?sso=refused&reason=" + refusal.wireName());
+        response.sendRedirect(SignOnReturn.loginRedirect(request, "sso=refused&reason=" + refusal.wireName()));
     }
 }
