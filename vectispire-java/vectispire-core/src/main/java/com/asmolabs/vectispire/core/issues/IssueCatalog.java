@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.issues.persistence.IssueAggregateQueries;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
@@ -206,28 +207,43 @@ public class IssueCatalog {
     }
 
     public long countByStateAndTypeWithin(String state, String type, Collection<Long> repoIds) {
-        return issues.countByStateAndTypeWithin(state, type, repoIds);
+        return issues.count(within(state, type, repoIds));
     }
 
     public long countDistinctRulesWithin(String state, String type, Collection<Long> repoIds) {
-        return issues.countDistinctRulesWithin(state, type, repoIds);
+        return issues.countDistinct(within(state, type, repoIds), IssueAggregateQueries.Axis.RULE);
     }
 
     public long countDistinctFilesWithin(String state, String type, Collection<Long> repoIds) {
-        return issues.countDistinctFilesWithin(state, type, repoIds);
+        return issues.countDistinct(within(state, type, repoIds), IssueAggregateQueries.Axis.FILE);
     }
 
     public List<KeyCount> countOpenByRuleWithin(String state, String type, Collection<Long> repoIds, int limit) {
-        return keyed(issues.countOpenByRuleWithin(state, type, repoIds, Limit.of(limit)));
+        return keyed(issues.countGrouped(within(state, type, repoIds), IssueAggregateQueries.Axis.RULE, limit));
     }
 
     public List<KeyCount> countOpenByFileWithin(String state, String type, Collection<Long> repoIds, int limit) {
-        return keyed(issues.countOpenByFileWithin(state, type, repoIds, Limit.of(limit)));
+        return keyed(issues.countGrouped(within(state, type, repoIds), IssueAggregateQueries.Axis.FILE, limit));
     }
 
     public List<RepositoryCount> countOpenByTargetRepositoryWithin(
             String state, String type, Collection<Long> repoIds, int limit) {
-        return byRepository(issues.countOpenByTargetRepositoryWithin(state, type, repoIds, Limit.of(limit)));
+        return byRepository(issues.countGrouped(
+                within(state, type, repoIds), IssueAggregateQueries.Axis.REPOSITORY, limit));
+    }
+
+    /**
+     * One state and one type of these repositories' issues — the narrowing the quality overview asks
+     * with a reader's repositories, which are sized by the estate: through {@link IssueFilters#within},
+     * written into the statement rather than bound, never failing past the driver's parameter ceiling.
+     * An empty collection matches nothing.
+     */
+    private static org.springframework.data.jpa.domain.Specification<IssueEntity> within(
+            String state, String type, Collection<Long> repoIds) {
+        return IssueSpecifications.of(new IssueFilters(
+                        state, null, type, null, null, null, false, false, null,
+                        com.asmolabs.vectispire.common.domain.access.Visibility.everything())
+                .within(repoIds));
     }
 
     /** Issues of one repository, severity and state in one scope — the rows a checklist's figures add up. */
@@ -289,10 +305,20 @@ public class IssueCatalog {
         return issues.findUnsettledByRepositoryAndState(repoId, state, settled, shape);
     }
 
-    /** The same projection for several repositories at once, settled triage left out. */
+    /**
+     * The same projection for several repositories at once, settled triage left out — a thousand
+     * repositories per statement, since the attack-path overview hands every repository the
+     * reader may see, and one bind parameter each fails on PostgreSQL past 65,535.
+     */
     public <R> List<R> unsettledOfRepositories(
             String state, Collection<Long> repoIds, Collection<String> settled, Class<R> shape) {
-        return issues.findByStateAndRepoIdInAndTriageStatusNotIn(state, repoIds, settled, shape);
+        List<Long> distinct = List.copyOf(new java.util.LinkedHashSet<>(repoIds));
+        List<R> rows = new ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += FLAG_BATCH) {
+            rows.addAll(issues.findByStateAndRepoIdInAndTriageStatusNotIn(
+                    state, distinct.subList(from, Math.min(from + FLAG_BATCH, distinct.size())), settled, shape));
+        }
+        return rows;
     }
 
     /** The open issues of one target, as the gate weighs them. */

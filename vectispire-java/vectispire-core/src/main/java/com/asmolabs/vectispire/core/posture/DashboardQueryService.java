@@ -223,11 +223,6 @@ public class DashboardQueryService {
                 window, now, observations, PostureScoreboards.from(openCounts, resolved, names));
     }
 
-    /** An `in` list that matches nothing when there is nothing to match. */
-    private static List<Long> orNone(List<Long> ids) {
-        return ids.isEmpty() ? List.of(-1L) : ids;
-    }
-
     /**
      * The open backlog per severity, <b>within what the caller may see</b>.
      *
@@ -279,7 +274,7 @@ public class DashboardQueryService {
                         .map(t -> ((ScanTarget.Container) t).id()).toList();
                 yield repoIds.isEmpty() && containerIds.isEmpty()
                         ? List.of()
-                        : scans.recentWithin(orNone(repoIds), orNone(containerIds), RECENT_SCANS);
+                        : scans.recentWithin(repoIds, containerIds, RECENT_SCANS);
             }
         };
         TargetNaming.Names names = naming.forIds(

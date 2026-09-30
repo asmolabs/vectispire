@@ -152,6 +152,9 @@ public class LicenseGovernanceService {
         };
     }
 
+    /** Scans per component lookup: far under every engine's bind-parameter ceiling. */
+    private static final int SCAN_BATCH = 1_000;
+
     /**
      * The licence inventory, <b>read for the target asked about rather than for the estate</b>.
      *
@@ -249,8 +252,13 @@ public class LicenseGovernanceService {
         }
 
         // 2. Check components from CycloneDX/Component table for any scan not covered by full SBOM JSON
-        List<ComponentEntity> components =
-                scans.isEmpty() ? List.of() : componentsRepo.findByScanIdIn(scans.keySet());
+        // A thousand scans per statement: the portfolio's inventory reads every scan of the estate,
+        // and one bind parameter each is refused by the PostgreSQL driver past 65,535.
+        List<Long> scanIds = List.copyOf(scans.keySet());
+        List<ComponentEntity> components = new java.util.ArrayList<>();
+        for (int from = 0; from < scanIds.size(); from += SCAN_BATCH) {
+            components.addAll(componentsRepo.findByScanIdIn(scanIds.subList(from, Math.min(from + SCAN_BATCH, scanIds.size()))));
+        }
         for (ComponentEntity comp : components) {
             ScanView scan = comp.getScanId() != null ? scans.get(comp.getScanId()) : null;
             if (scan == null) continue;

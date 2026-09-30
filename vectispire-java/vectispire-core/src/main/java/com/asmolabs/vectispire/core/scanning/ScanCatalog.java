@@ -88,9 +88,37 @@ public class ScanCatalog {
         return scans.findHistory(repoId, containerId, Limit.of(limit)).stream().map(ScanView::of).toList();
     }
 
-    /** Newest first, of the targets named; each collection must hold at least one value. */
+    /**
+     * Newest first, of the targets named; either collection may be empty, and both empty is no scan.
+     *
+     * <p><b>In batches of {@link #LOOKUP_BATCH}, the newest of each kept.</b> The targets are a reader's
+     * allowance, sized by the estate: asked in one statement, one bind parameter each, the home page of a
+     * reader granted more than 65,535 targets failed on PostgreSQL. The newest {@code limit} scans of a
+     * union are among the newest {@code limit} of each of its parts, so asking every batch for its own
+     * and keeping the newest of those is the same answer in the same order — the query's, creation
+     * instant then identifier, both descending.
+     */
     public List<ScanView> recentWithin(Collection<Long> repoIds, Collection<Long> containerIds, int limit) {
-        return scans.findRecentWithin(repoIds, containerIds, Limit.of(limit)).stream().map(ScanView::of).toList();
+        // `in ()` is not valid everywhere, so the other column is asked for an identifier no identity
+        // column hands out.
+        List<Long> none = List.of(-1L);
+        List<ScanEntity> candidates = new java.util.ArrayList<>();
+        List<Long> repositories = List.copyOf(java.util.Set.copyOf(repoIds));
+        for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
+            candidates.addAll(scans.findRecentWithin(
+                    repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())), none, Limit.of(limit)));
+        }
+        List<Long> images = List.copyOf(java.util.Set.copyOf(containerIds));
+        for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
+            candidates.addAll(scans.findRecentWithin(
+                    none, images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())), Limit.of(limit)));
+        }
+        return candidates.stream()
+                .sorted(Comparator.comparing(ScanEntity::getCreatedAt, Comparator.reverseOrder())
+                        .thenComparing(ScanEntity::getId, Comparator.reverseOrder()))
+                .limit(limit)
+                .map(ScanView::of)
+                .toList();
     }
 
     /** The identifiers of a target's most recent scans, newest first. */
@@ -447,9 +475,19 @@ public class ScanCatalog {
                 .toList();
     }
 
-    /** The licence findings of these scans. */
+    /**
+     * The licence findings of these scans, {@link #LOOKUP_BATCH} scans per statement: the portfolio's
+     * licence inventory asks for every scan of the estate, and one bind parameter each is refused by the
+     * PostgreSQL driver past 65,535.
+     */
     public List<ScanFindingView> licenseFindings(Collection<Long> scanIds) {
-        return findings.findLicenseFindings(scanIds).stream().map(ScanFindingView::of).toList();
+        List<Long> distinct = List.copyOf(java.util.Set.copyOf(scanIds));
+        List<ScanFindingView> found = new java.util.ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            findings.findLicenseFindings(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+                    .forEach(row -> found.add(ScanFindingView.of(row)));
+        }
+        return found;
     }
 
     public long countFindings(long scanId, String severity) {

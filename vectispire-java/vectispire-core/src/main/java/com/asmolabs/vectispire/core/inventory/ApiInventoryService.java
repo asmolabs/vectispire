@@ -215,11 +215,11 @@ public class ApiInventoryService {
                 .distinct()
                 .toList();
 
-        Map<Long, List<ApiEndpointEntity>> endpointsByRepo = apiEndpoints.findByRepositoryIdIn(repositoryIds)
+        Map<Long, List<ApiEndpointEntity>> endpointsByRepo = endpointsOf(repositoryIds)
                 .stream()
                 .filter(e -> e.getRepositoryId() != null)
                 .collect(Collectors.groupingBy(ApiEndpointEntity::getRepositoryId));
-        Map<Long, List<ApiContractEntity>> contractsByRepo = apiContracts.findByRepositoryIdIn(repositoryIds)
+        Map<Long, List<ApiContractEntity>> contractsByRepo = contractsOf(repositoryIds)
                 .stream()
                 .filter(c -> c.getRepositoryId() != null)
                 .collect(Collectors.groupingBy(ApiContractEntity::getRepositoryId));
@@ -340,15 +340,15 @@ public class ApiInventoryService {
                         .toList())
                 .orElse(null);
 
-        // An allowance of no repository is not an absent filter: `findByRepositoryIdIn` with an
+        // An allowance of no repository is not an absent filter: `endpointsOf` with an
         // empty collection answers empty, which is the right answer and the opposite of what
         // falling back to `findAll()` would give.
         List<ApiEndpointEntity> rawAll = repositoryIds == null
                 ? apiEndpoints.findAll()
-                : apiEndpoints.findByRepositoryIdIn(repositoryIds);
+                : endpointsOf(repositoryIds);
         List<ApiContractEntity> allContracts = repositoryIds == null
                 ? apiContracts.findAll()
-                : apiContracts.findByRepositoryIdIn(repositoryIds);
+                : contractsOf(repositoryIds);
         List<String> frameworks = apiEndpoints.findDistinctFrameworks();
 
         // Deduplicate in memory by repositoryId + method + path (keep latest by ID)
@@ -591,4 +591,30 @@ public class ApiInventoryService {
         return views;
     }
 
+    /** Repositories per lookup: far under every engine's bind-parameter ceiling. */
+    private static final int LOOKUP_BATCH = 1_000;
+
+    /**
+     * The endpoints of these repositories, a thousand repositories per statement: the attack surface
+     * and the attack-path overview hand every repository the reader may see, and {@code
+     * findByRepositoryIdIn} binds one parameter each — refused by the PostgreSQL driver past 65,535.
+     */
+    private List<ApiEndpointEntity> endpointsOf(Collection<Long> repositoryIds) {
+        List<Long> distinct = List.copyOf(new HashSet<>(repositoryIds));
+        List<ApiEndpointEntity> found = new ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            found.addAll(apiEndpoints.findByRepositoryIdIn(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))));
+        }
+        return found;
+    }
+
+    /** The contracts of these repositories, batched as {@link #endpointsOf}. */
+    private List<ApiContractEntity> contractsOf(Collection<Long> repositoryIds) {
+        List<Long> distinct = List.copyOf(new HashSet<>(repositoryIds));
+        List<ApiContractEntity> found = new ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            found.addAll(apiContracts.findByRepositoryIdIn(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))));
+        }
+        return found;
+    }
 }

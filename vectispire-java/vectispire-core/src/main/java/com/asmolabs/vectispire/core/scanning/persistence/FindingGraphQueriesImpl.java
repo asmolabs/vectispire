@@ -180,24 +180,52 @@ public class FindingGraphQueriesImpl implements FindingGraphQueries {
      *
      * <p>Applied to the <b>scan</b> rather than to the finding, because that is where a finding's
      * target lives: a finding names a scan, and the scan names a repository or an image.
+     *
+     * <p><b>Identifiers written into the statement, a thousand to a list</b> — as {@code
+     * IssueSpecifications.visible} does, for the same reason: the allowance is sized by the estate, and
+     * the grouped read cannot be split. One bound {@code equal} per target failed on PostgreSQL for a
+     * reader granted more than 65,535 targets ({@code WideAllowanceIntegrationTest}). {@code Long}s
+     * only: a literal is rendered into the SQL.
      */
     private static java.util.Optional<Predicate> visible(
             Visibility allowed, Root<ScanEntity> scan, CriteriaBuilder builder) {
 
         return allowed.asFilter().map(targets -> {
-            List<Predicate> perTarget = new ArrayList<>();
+            List<Long> repositories = new ArrayList<>();
+            List<Long> containers = new ArrayList<>();
             for (ScanTarget target : targets) {
                 switch (target) {
-                    case ScanTarget.Repository repository ->
-                            perTarget.add(builder.equal(scan.get("repoId"), repository.id()));
-                    case ScanTarget.Container container ->
-                            perTarget.add(builder.equal(scan.get("containerId"), container.id()));
+                    case ScanTarget.Repository repository -> repositories.add(repository.id());
+                    case ScanTarget.Container container -> containers.add(container.id());
                 }
             }
+            List<Predicate> either = new ArrayList<>(2);
+            if (!repositories.isEmpty()) {
+                either.add(literalIn(builder, scan.<Long>get("repoId"), repositories));
+            }
+            if (!containers.isEmpty()) {
+                either.add(literalIn(builder, scan.<Long>get("containerId"), containers));
+            }
             // A false predicate rather than none: the two read alike and mean the opposite.
-            return perTarget.isEmpty()
+            return either.isEmpty()
                     ? builder.disjunction()
-                    : builder.or(perTarget.toArray(Predicate[]::new));
+                    : builder.or(either.toArray(Predicate[]::new));
         });
+    }
+
+    /** How many identifiers one {@code in} list carries. */
+    private static final int IN_LIST_BATCH = 1_000;
+
+    /** {@code column in (…)} over sorted literal identifiers, in or-ed lists; {@code ids} is not empty. */
+    private static Predicate literalIn(CriteriaBuilder builder, jakarta.persistence.criteria.Path<Long> column,
+            List<Long> ids) {
+        List<Long> sorted = ids.stream().distinct().sorted().toList();
+        List<Predicate> lists = new ArrayList<>();
+        for (int from = 0; from < sorted.size(); from += IN_LIST_BATCH) {
+            CriteriaBuilder.In<Long> list = builder.in(column);
+            sorted.subList(from, Math.min(from + IN_LIST_BATCH, sorted.size())).forEach(id -> list.value(builder.literal(id)));
+            lists.add(list);
+        }
+        return lists.size() == 1 ? lists.getFirst() : builder.or(lists.toArray(Predicate[]::new));
     }
 }

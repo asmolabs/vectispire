@@ -37,6 +37,37 @@ import org.springframework.data.jpa.domain.Specification;
  */
 public interface IssueAggregateQueries {
 
+    /**
+     * What a ranking of the backlog may be grouped by: an attribute of the entity, chosen from a
+     * closed set. A column name that arrived as a string would be a column name that can arrive from
+     * a request, and "the grouping axis is injectable" is how a filter becomes an injection point.
+     */
+    enum Axis {
+        RULE("identifier"),
+        FILE("filePath"),
+        REPOSITORY("repoId");
+
+        final String attribute;
+
+        Axis(String attribute) {
+            this.attribute = attribute;
+        }
+    }
+
+    /**
+     * The heaviest values of one axis, heaviest first: each row the value and its count.
+     *
+     * <p>These three and {@link #countDistinct} were {@code @Query} strings with {@code repoId in
+     * :repoIds}, one bind parameter per repository the reader may see; the quality overview of a
+     * reader granted more than 65,535 repositories failed on PostgreSQL. Here the narrowing is {@code
+     * IssueSpecifications}' own, identifiers written into the one statement — a ranking and a distinct
+     * count cannot be added up over batches.
+     */
+    List<Object[]> countGrouped(Specification<IssueEntity> filter, Axis axis, int limit);
+
+    /** How many distinct values of one axis the filtered issues carry. */
+    long countDistinct(Specification<IssueEntity> filter, Axis axis);
+
     List<SeverityTypeCount> countGroupedBySeverityAndType(Specification<IssueEntity> filter);
 
     /**

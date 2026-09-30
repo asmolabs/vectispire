@@ -125,14 +125,23 @@ public class TargetNaming {
      * <p>{@link #all()} suits a screen that shows every target anyway; this one suits a page of
      * fifty backlog rows on an estate of two thousand repositories, where loading them all to
      * name four is the wrong shape of query.
+     *
+     * <p><b>Asked {@value #LOOKUP_BATCH} at a time</b>, although a page needs one statement: the
+     * posture scoreboard names every target that has an open issue the reader may see, which is sized
+     * by the estate, and {@code findAllById} binds one parameter per identifier — refused by the
+     * PostgreSQL driver past 65,535.
      */
     @Transactional(readOnly = true)
     public Names forIds(java.util.Collection<Long> repositoryIds, java.util.Collection<Long> containerIds) {
-        Map<Long, String> byRepository = new HashMap<>();
-        repositories.findAllById(repositoryIds).forEach(row -> byRepository.put(row.getId(), of(row)));
+        Map<Long, String> byRepository = new HashMap<>(repositoryNames(
+                repositoryIds.stream().filter(java.util.Objects::nonNull).toList()));
 
         Map<Long, String> byContainer = new HashMap<>();
-        containers.findAllById(containerIds).forEach(row -> byContainer.put(row.getId(), of(row)));
+        List<Long> images = containerIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
+            containers.findAllById(images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())))
+                    .forEach(row -> byContainer.put(row.getId(), of(row)));
+        }
 
         return new Names(byRepository, byContainer);
     }
@@ -141,9 +150,9 @@ public class TargetNaming {
      * The names of these repositories, those that exist, keyed by identifier — asked {@value
      * #LOOKUP_BATCH} at a time.
      *
-     * <p>Batched where {@link #forIds} is not, because its caller sizes the list by an estate rather than
-     * by a page: a project's checklist names every repository its measurements looked at, and {@code
-     * findAllById} binds one parameter per identifier, which the PostgreSQL driver refuses past 65,535.
+     * <p>Batched because its callers size the list by an estate rather than by a page: a project's
+     * checklist names every repository its measurements looked at, and {@code findAllById} binds one
+     * parameter per identifier, which the PostgreSQL driver refuses past 65,535.
      */
     @Transactional(readOnly = true)
     public Map<Long, String> repositoryNames(Collection<Long> repositoryIds) {

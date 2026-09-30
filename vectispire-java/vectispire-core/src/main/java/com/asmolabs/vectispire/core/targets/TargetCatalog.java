@@ -62,10 +62,23 @@ public class TargetCatalog {
         return containers.findById(id).map(ContainerView::of);
     }
 
-    /** The repositories with these identifiers that exist — one query, whatever the count. */
+    /**
+     * The repositories with these identifiers that exist, a thousand identifiers per statement.
+     *
+     * <p>It was one query whatever the count, and the count is a reader's allowance or a backlog's
+     * targets, sized by the estate: {@code findAllById} binds one parameter per identifier, and the
+     * attack-path overview of a reader granted more than 65,535 repositories failed on PostgreSQL. See
+     * {@link #carryingCredentials} for the engines' ceilings.
+     */
     @Transactional(readOnly = true)
     public List<RepositoryView> repositories(Collection<Long> ids) {
-        return repositories.findAllById(ids).stream().map(RepositoryView::of).toList();
+        List<Long> distinct = ids.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        List<RepositoryView> found = new java.util.ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            repositories.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+                    .forEach(row -> found.add(RepositoryView.of(row)));
+        }
+        return List.copyOf(found);
     }
 
     /**
@@ -102,10 +115,16 @@ public class TargetCatalog {
     /** How many identifiers one lookup binds: far under every engine's limit. */
     static final int LOOKUP_BATCH = 1_000;
 
-    /** The images with these identifiers that exist — one query, whatever the count. */
+    /** The images with these identifiers that exist, a thousand identifiers per statement — as {@link #repositories}. */
     @Transactional(readOnly = true)
     public List<ContainerView> containers(Collection<Long> ids) {
-        return containers.findAllById(ids).stream().map(ContainerView::of).toList();
+        List<Long> distinct = ids.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        List<ContainerView> found = new java.util.ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            containers.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+                    .forEach(row -> found.add(ContainerView.of(row)));
+        }
+        return List.copyOf(found);
     }
 
     @Transactional(readOnly = true)

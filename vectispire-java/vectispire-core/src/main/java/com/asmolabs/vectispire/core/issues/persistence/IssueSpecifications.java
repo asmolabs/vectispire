@@ -111,22 +111,37 @@ public final class IssueSpecifications {
      * <p>An empty allowance yields {@code builder.disjunction()} — a predicate that is false —
      * rather than no predicate at all. The alternative reads the same in code and means the
      * opposite: an unassigned account would receive the whole backlog.
+     *
+     * <p><b>Written as literals, like {@link #within}, and for the same reason.</b> The allowance is
+     * the account's grants, its teams' and its projects' repositories, resolved in Java and intersected
+     * with the credential's restriction, so its size is the estate's; it narrows the one statement that
+     * pages, orders and counts, which cannot be split. It was one bound {@code equal} per target, and a
+     * reader granted more than 65,535 targets had every backlog read fail on PostgreSQL — the issues
+     * list, and every figure built on this predicate — which {@code WideAllowanceIntegrationTest}
+     * measured before this was written. A repository and an image are still told apart by their own
+     * column: one identifier may name both, and a grant on one is no grant on the other.
      */
     private static Predicate visible(
             jakarta.persistence.criteria.Root<IssueEntity> root,
             jakarta.persistence.criteria.CriteriaBuilder builder,
             java.util.Set<ScanTarget> allowed) {
 
-        List<Predicate> perTarget = new ArrayList<>();
+        List<Long> repositories = new ArrayList<>();
+        List<Long> containers = new ArrayList<>();
         for (ScanTarget target : allowed) {
             switch (target) {
-                case ScanTarget.Repository repository ->
-                        perTarget.add(builder.equal(root.get("repoId"), repository.id()));
-                case ScanTarget.Container container ->
-                        perTarget.add(builder.equal(root.get("containerId"), container.id()));
+                case ScanTarget.Repository repository -> repositories.add(repository.id());
+                case ScanTarget.Container container -> containers.add(container.id());
             }
         }
-        return perTarget.isEmpty() ? builder.disjunction() : builder.or(perTarget.toArray(Predicate[]::new));
+        List<Predicate> either = new ArrayList<>(2);
+        if (!repositories.isEmpty()) {
+            either.add(literalIn(builder, root.<Long>get("repoId"), repositories));
+        }
+        if (!containers.isEmpty()) {
+            either.add(literalIn(builder, root.<Long>get("containerId"), containers));
+        }
+        return either.isEmpty() ? builder.disjunction() : builder.or(either.toArray(Predicate[]::new));
     }
 
     /** How many identifiers one {@code in} list carries: the batch every id-list lookup here uses. */
@@ -156,10 +171,22 @@ public final class IssueSpecifications {
         if (repositoryIds.isEmpty()) {
             return builder.disjunction();
         }
-        List<Long> sorted = repositoryIds.stream().sorted().toList();
+        return literalIn(builder, root.<Long>get("repoId"), repositoryIds);
+    }
+
+    /**
+     * {@code column in (…)} over identifiers written into the statement, in sorted lists of {@link
+     * #IN_LIST_BATCH} or-ed together; {@code ids} must not be empty. {@code Long} and nothing else: a
+     * literal is rendered into the SQL, and a number is the one value that cannot carry a statement.
+     */
+    private static Predicate literalIn(
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            jakarta.persistence.criteria.Path<Long> column,
+            java.util.Collection<Long> ids) {
+        List<Long> sorted = ids.stream().distinct().sorted().toList();
         List<Predicate> lists = new ArrayList<>();
         for (int from = 0; from < sorted.size(); from += IN_LIST_BATCH) {
-            jakarta.persistence.criteria.CriteriaBuilder.In<Long> list = builder.in(root.get("repoId"));
+            jakarta.persistence.criteria.CriteriaBuilder.In<Long> list = builder.in(column);
             sorted.subList(from, Math.min(from + IN_LIST_BATCH, sorted.size())).forEach(id -> list.value(builder.literal(id)));
             lists.add(list);
         }

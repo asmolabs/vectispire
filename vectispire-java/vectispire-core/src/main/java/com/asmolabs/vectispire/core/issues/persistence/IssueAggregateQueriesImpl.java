@@ -45,6 +45,39 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
     private EntityManager entityManager;
 
     @Override
+    public List<Object[]> countGrouped(Specification<IssueEntity> filter, Axis axis, int limit) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        Expression<Long> total = builder.count(issue.get("id"));
+        query.select(builder.array(issue.get(axis.attribute), total))
+                .groupBy(issue.get(axis.attribute))
+                .orderBy(builder.desc(total));
+        // The repository axis leaves out the images' issues, as the query it replaced did: a null
+        // repository is not a repository to rank.
+        if (axis == Axis.REPOSITORY) {
+            restrict(query, filter, issue, builder, builder.isNotNull(issue.get(axis.attribute)));
+        } else {
+            restrict(query, filter, issue, builder);
+        }
+
+        return entityManager.createQuery(query).setMaxResults(limit).getResultList();
+    }
+
+    @Override
+    public long countDistinct(Specification<IssueEntity> filter, Axis axis) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Long> query = builder.createQuery(Long.class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        query.select(builder.countDistinct(issue.get(axis.attribute)));
+        restrict(query, filter, issue, builder);
+
+        return entityManager.createQuery(query).getSingleResult();
+    }
+
+    @Override
     public List<SeverityTypeCount> countGroupedBySeverityAndType(Specification<IssueEntity> filter) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);

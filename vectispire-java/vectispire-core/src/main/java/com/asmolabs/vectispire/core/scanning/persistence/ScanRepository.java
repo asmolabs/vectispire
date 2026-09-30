@@ -534,6 +534,9 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * {@link #findHistory}, a restricted reader would have been shown whatever share of the
      * deployment's last few scans happened to be theirs — often none. Neither list may be empty:
      * `in ()` is not valid everywhere, so the caller passes a sentinel.
+     *
+     * <p>Both lists bind one parameter per element: {@code ScanCatalog.recentWithin} hands at most a
+     * thousand and merges the batches' newest.
      */
     @Query("""
             select s from ScanEntity s
