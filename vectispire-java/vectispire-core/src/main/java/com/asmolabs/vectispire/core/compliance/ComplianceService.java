@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -234,14 +235,28 @@ public class ComplianceService {
     public ComplianceSummary getSummary(String targetId, Visibility allowed) {
         SecurityOverview.Overview posture = gate.overview(allowed);
 
-        if (targetId != null && !targetId.isBlank()
-                && !"ALL".equalsIgnoreCase(targetId)
-                && !"null".equalsIgnoreCase(targetId)
-                && !"undefined".equalsIgnoreCase(targetId)) {
-            return getSummaryForTarget(targetId, posture, allowed);
-        }
+        return namedTarget(targetId)
+                .map(target -> getSummaryForTarget(target, posture, allowed))
+                .orElseGet(() -> getGlobalSummary(posture, allowed));
+    }
 
-        return getGlobalSummary(posture, allowed);
+    /**
+     * The target a request's {@code targetId} names, or empty when it asks for the estate: absent,
+     * blank, {@code ALL}, or the {@code null} / {@code undefined} a client's template writes for
+     * nothing.
+     *
+     * <p>One reading for every consumer of the parameter. The PDF export audited "exported for ALL"
+     * while the summary it rendered was the estate's — the audit had its own test, {@code != null},
+     * and the log named a target nobody has.
+     */
+    public static Optional<String> namedTarget(String targetId) {
+        if (targetId == null || targetId.isBlank()
+                || "ALL".equalsIgnoreCase(targetId)
+                || "null".equalsIgnoreCase(targetId)
+                || "undefined".equalsIgnoreCase(targetId)) {
+            return Optional.empty();
+        }
+        return Optional.of(targetId);
     }
 
 
@@ -446,6 +461,10 @@ public class ComplianceService {
             repoId = targetNumber(targetId);
         } else if (targetId.startsWith("container:")) {
             containerId = targetNumber(targetId);
+        } else {
+            // Neither prefix left both ids null, and the target built from them below threw a
+            // NullPointerException: "42" or "foo" was a 500 quoting a correlation id.
+            throw new InvalidInputException("A target is written repository:<id> or container:<id>.");
         }
 
         final Long fRepoId = repoId;

@@ -51,7 +51,8 @@ public class ComplianceExportService {
         audit.record(actor.entry(
                 AuditOperation.REPORT_EXPORTED,
                 "compliance",
-                "Regulatory Compliance PDF report exported" + (targetId != null ? " for " + targetId : "")));
+                "Regulatory Compliance PDF report exported for "
+                        + ComplianceService.namedTarget(targetId).orElse("the whole estate")));
 
         return ComplianceReportPdf.render(
                 new ComplianceReportPdf.Subject(
