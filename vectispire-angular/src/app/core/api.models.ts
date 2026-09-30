@@ -219,7 +219,8 @@ export type LicenseSummary = Refine<
     { breakdownByRisk: Partial<Record<LicenseRiskCategory, number>> }
 >;
 
-export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F';
+/** `NO_DATA` is no grade: nothing in the card's scope holds a completed scan, and its score is null. */
+export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F' | 'NO_DATA';
 
 export type SecurityScorecard = Refine<
     Schema<'SecurityScorecard'>,
@@ -227,6 +228,7 @@ export type SecurityScorecard = Refine<
         targetKind: string;
         targetName: string;
         grade: SecurityGrade;
+        score: number | null;
         recommendations: string[];
         targetId: number | null;
     }

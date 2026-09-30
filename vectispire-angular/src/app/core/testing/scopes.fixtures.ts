@@ -109,6 +109,8 @@ export const SCORECARD = asSchema('SecurityScorecard', {
     targetName: 'Gateway',
     score: 64,
     grade: 'C' as const,
+    totalTargets: 2,
+    observedTargets: 2,
     openKevCount: 1,
     openCriticalCount: 2,
     openHighCount: 1,
@@ -116,6 +118,15 @@ export const SCORECARD = asSchema('SecurityScorecard', {
     overdueCount: 1,
     hasAttestation: true,
     recommendations: ['Fix the actively exploited vulnerability first.']
+});
+
+/** What the server answers for a scope none of whose targets holds a completed scan. */
+export const SCORECARD_NO_DATA = asSchema('SecurityScorecard', {
+    ...SCORECARD,
+    score: null,
+    grade: 'NO_DATA' as const,
+    observedTargets: 0,
+    hasAttestation: false
 });
 
 export const PROJECT_COMPLIANCE = asSchema('ScopeCompliance', {
@@ -140,8 +151,10 @@ export const SOLUTION_COMPLIANCE_NO_DATA = asSchema('ScopeCompliance', {
         targetId: 2,
         targetKind: 'solution',
         targetName: 'Mobile',
-        score: 90,
-        grade: 'A' as const
+        score: null,
+        grade: 'NO_DATA' as const,
+        totalTargets: 1,
+        observedTargets: 0
     }
 });
 

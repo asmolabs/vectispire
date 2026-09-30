@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import type { ScopeCompliance } from '../core/api.models';
@@ -27,14 +27,11 @@ import { ScorecardView } from './scorecard';
                     'scope_compliance.partial' | translate
                 }}</p-message>
             }
-            <app-scorecard [card]="scope().scorecard" [noData]="nothingObserved()" />
+            <app-scorecard [card]="scope().scorecard" />
             <app-compliance-summary [summary]="scope().compliance" />
         </div>
     `
 })
 export class ScopeComplianceView {
     readonly scope = input.required<ScopeCompliance>();
-
-    /** No target of the scope was ever scanned: the score has nothing under it. */
-    readonly nothingObserved = computed(() => this.scope().compliance.observedTargets === 0);
 }

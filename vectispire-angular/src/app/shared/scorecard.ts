@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import type { SecurityScorecard } from '../core/api.models';
@@ -24,10 +24,11 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
  * recommendations. Whatever a page adds about the card — a repository's badge — is projected between
  * the counts and the recommendations.
  *
- * **`noData` replaces the score, not the counts.** The scorecard starts at a hundred and subtracts
- * what it finds, so a scope where nothing was ever scanned scores high on nothing — the green that
- * should raise an alarm. Where the page knows nothing was observed, the score is a dash and says "No
- * data", as the compliance verdicts do; the zero counts stay, since they are true of what was read.
+ * **No data replaces the score, not the counts.** The server grades `NO_DATA`, with a null score,
+ * when nothing in the card's scope holds a completed scan — it used to answer 100/100, A+, for a
+ * scope nobody had scanned, and this page read the compliance summary's `observedTargets` to hide it.
+ * The flag is the card's own now, so the repository dialog and a project's page draw the same dash
+ * from the same answer, as the compliance verdicts do; the counts stay, being true of what was read.
  */
 @Component({
     selector: 'app-scorecard',
@@ -112,7 +113,7 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
 })
 export class ScorecardView {
     readonly card = input.required<SecurityScorecard>();
-    readonly noData = input(false);
+    readonly noData = computed(() => this.card().grade === 'NO_DATA' || this.card().score === null);
 
     readonly severityOf = gradeSeverity;
 }

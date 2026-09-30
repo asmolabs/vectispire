@@ -38,7 +38,7 @@ describe("a solution's compliance", () => {
 
         expect(text('[data-testid="solution-title"]')).toBe('Compliance and score — Mobile');
         expect(text('[data-testid="scope-target-count"]')).toBe('Computed over 1 target(s).');
-        // The portfolio scorecard starts at a hundred: over nothing observed, its 90 is no score.
+        // The server grades a scope nobody scanned NO_DATA with a null score; it used to answer 100, A+.
         expect(text('[data-testid="scorecard-score"]')).toBe('—');
         expect(text('[data-testid="scorecard-grade"]')).toBe('No data');
         expect(text('[data-testid="framework-NIS_2"]')).toContain('No data');

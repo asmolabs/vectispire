@@ -12,7 +12,8 @@ import {
     PROJECT_COMPLIANCE,
     PROJECT_COMPONENTS,
     PROJECT_DETAIL,
-    PROJECT_ID
+    PROJECT_ID,
+    SCORECARD_NO_DATA
 } from '@/app/core/testing/scopes.fixtures';
 
 /**
@@ -138,7 +139,9 @@ describe('the project page', () => {
     });
 
     it('draws a scope where nothing was scanned as no data — a dash, never a zero or a grade', async () => {
-        await open({ compliance: { ...PROJECT_COMPLIANCE, compliance: NO_DATA_SUMMARY } });
+        await open({
+            compliance: { ...PROJECT_COMPLIANCE, compliance: NO_DATA_SUMMARY, scorecard: SCORECARD_NO_DATA }
+        });
 
         const nis2 = text('[data-testid="framework-NIS_2"]');
         expect(nis2).toContain('—');
@@ -217,7 +220,8 @@ describe('the project page', () => {
                 ...PROJECT_COMPLIANCE,
                 partial: false,
                 targetCount: 0,
-                compliance: { ...NO_DATA_SUMMARY, totalMonitoredTargets: 0 }
+                compliance: { ...NO_DATA_SUMMARY, totalMonitoredTargets: 0 },
+                scorecard: { ...SCORECARD_NO_DATA, totalTargets: 0 }
             },
             components: { ...PROJECT_COMPONENTS, partial: false, complete: true, targets: [], components: [] }
         });
@@ -226,6 +230,16 @@ describe('the project page', () => {
         expect(has('[data-testid="incomplete"]')).toBe(false);
         expect(text('[data-testid="no-components"]')).toBe('No component.');
         expect(text('[data-testid="scorecard-score"]')).toBe('—');
+    });
+
+    it("reads no data off the scorecard's own grade, not off the compliance summary beside it", async () => {
+        // Measured compliance, a no-data card: the dash is the card's answer, which the repository
+        // dialog — with no compliance summary to lean on — reads the same way.
+        await open({ compliance: { ...PROJECT_COMPLIANCE, scorecard: SCORECARD_NO_DATA } });
+
+        expect(text('[data-testid="scorecard-score"]')).toBe('—');
+        expect(text('[data-testid="scorecard-grade"]')).toBe('No data');
+        expect(text('[data-testid="framework-NIS_2"]')).toContain('72%');
     });
 
     it('shows the not-found state for a project that does not exist or that the reader sees nothing of', async () => {
