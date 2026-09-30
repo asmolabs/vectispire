@@ -82,6 +82,9 @@ The solutions tree is readable by every account, and shows only what that accoun
 - A **solution appears** when one of its projects does, and is partial when any repository or image
   filed under it is hidden from the reader.
 - Administrators, CISOs and auditors see every solution and project, empty ones included.
+- A `read` [API key](api-keys.md) reads the tree as its account does. A key restricted to one
+  repository or image sees the projects holding it, partial, and nothing else — no project through
+  its account's grants, no other target in "no project".
 
 Each project, each solution and the "no project" group carries its **open issues by severity**,
 counted over the repositories and images the reader may see and leaving out settled triage (not affected,

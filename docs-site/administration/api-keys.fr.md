@@ -19,7 +19,7 @@ qu'elle détient :
 
 | Portée | Permet |
 |---|---|
-| `read` | lister et lire dépôts, conteneurs, scans, issues, verdicts de barrière et synthèse de conformité ; un projet lu seul, ses composants, et la conformité d'un projet ou d'une solution |
+| `read` | lister et lire dépôts, conteneurs, scans, issues, verdicts de barrière et synthèse de conformité ; l'arbre des solutions, un projet lu seul, ses composants, et la conformité d'un projet ou d'une solution |
 | `scan` | déclencher le scan d'un dépôt ou d'un conteneur, et demander un verdict à la [barrière CI](../integrations/ci-gate.md) |
 | `export` | documents SBOM, VEX, CSAF et CycloneDX — dont le CycloneDX consolidé d'un projet — PDF et dossier de preuves de conformité, exports |
 | `sarif_import` | déposer le rapport SARIF d'un outil interne dans un dépôt — **seulement une fois que le gouverneur de la plateforme a déclaré la clé comme source SARIF**, voir [Plugins et imports SARIF](plugins.md). Jamais accordée par défaut |

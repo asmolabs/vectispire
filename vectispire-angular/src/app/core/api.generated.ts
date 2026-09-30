@@ -3391,7 +3391,7 @@ export interface paths {
         };
         /**
          * Solutions tree
-         * @description Solutions, their projects and the repositories and container images filed in them, as far as the caller may see, with each project's open issues by severity over both, and the repositories and images in no project as a group of their own.
+         * @description Solutions, their projects and the repositories and container images filed in them, as far as the caller may see, with each project's open issues by severity over both, and the repositories and images in no project as a group of their own. A read key sees its account's tree; one narrowed to a repository or an image sees the projects holding it, partial, and no project through its account's grants.
          */
         get: operations["list_4"];
         put?: never;

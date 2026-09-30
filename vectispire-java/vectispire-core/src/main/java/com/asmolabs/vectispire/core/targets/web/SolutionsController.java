@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.targets.web;
 
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
@@ -57,7 +59,13 @@ public class SolutionsController {
 
     @Operation(summary = "Solutions tree", description = "Solutions, their projects and the repositories and "
             + "container images filed in them, as far as the caller may see, with each project's open issues by "
-            + "severity over both, and the repositories and images in no project as a group of their own.")
+            + "severity over both, and the repositories and images in no project as a group of their own. A read key "
+            + "sees its account's tree; one narrowed to a repository or an image sees the projects holding it, "
+            + "partial, and no project through its account's grants.")
+    // A read key's, like the repository and image lists this tree regroups: an integration reading the
+    // estate by project got 403 here and 200 on /repositories for the same rows. The key's restriction is
+    // intersected by the allowance, which also drops the account's project grants (VisibilityService).
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
     public SolutionTree list(@AuthenticationPrincipal VectispirePrincipal principal) {
         return tree.tree(allowanceOf(principal));

@@ -229,6 +229,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   tester `grade` d'abord. `observedTargets` inférieur à `totalTargets` signifie que le score est
   plafonné à cette part. `SecurityGrade` gagne `NO_DATA` ; un client qui associe les notes qu'il connaît
   doit traiter une note inconnue comme une absence de note.
+- **`GET /api/v1/solutions` accepte une clé d'API `read`**, comme les listes de dépôts et d'images
+  qu'il regroupe le faisaient déjà — il répondait 403. Une clé restreinte à un dépôt ou à une image lit
+  les projets qui le contiennent, partiels, et aucun projet par les attributions de son compte.
 - **Les chiffres et les filtres d'un projet incluent les images de conteneur qui y sont rangées.** Dès
   qu'une image est rangée dans un projet, `GET /api/v1/issues?project_id=…` et `?solution_id=…`
   répondent ses issues à côté de celles des dépôts, et les `openIssues` de `GET /api/v1/solutions` les

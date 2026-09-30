@@ -195,6 +195,43 @@ class ProjectAggregatesRoutesTest extends ApiTestBase {
         }
     }
 
+    @Nested
+    @DisplayName("GET /api/v1/solutions")
+    class Tree {
+
+        @Test
+        @DisplayName("a read key reads the tree, an export key does not, and one narrowed to a repository sees only what holds it")
+        void keys() throws Exception {
+            long solution = solution(unique("tree-keys"));
+            long project = project(solution, "Keyed");
+            long elsewhere = project(solution, "Elsewhere");
+            long repo = repository("keyed");
+            long sibling = repository("sibling");
+            long other = repository("other");
+            long unfiled = repository("unfiled");
+            file("repositories", project, repo);
+            file("repositories", project, sibling);
+            file("repositories", elsewhere, other);
+
+            JsonNode whole = read(get("/api/v1/solutions"), key(List.of("read"), null));
+            assertThat(ids(projectNode(whole, project), "repositories")).containsExactlyInAnyOrder(repo, sibling);
+            assertThat(ids(whole.path("unfiled"), "repositories")).contains(unfiled);
+            mvc.perform(authenticated(get("/api/v1/solutions"), key(List.of("export"), null)))
+                    .andExpect(status().isForbidden());
+
+            // An administrator's key, narrowed: the account sees everything, the key one repository.
+            JsonNode narrowed = read(get("/api/v1/solutions"), key(List.of("read"), repo));
+            JsonNode node = projectNode(narrowed, project);
+            assertThat(ids(node, "repositories")).containsExactly(repo);
+            assertThat(node.path("partial").asBoolean()).isTrue();
+            assertThat(StreamSupport.stream(narrowed.path("solutions").spliterator(), false)
+                            .flatMap(s -> StreamSupport.stream(s.path("projects").spliterator(), false))
+                            .map(p -> p.path("id").asLong()))
+                    .as("a project holding nothing the key sees").doesNotContain(elsewhere);
+            assertThat(ids(narrowed.path("unfiled"), "repositories")).isEmpty();
+        }
+    }
+
     // ------------------------------------------------------------------------------ compliance
 
     @Nested

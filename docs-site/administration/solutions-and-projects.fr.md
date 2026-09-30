@@ -84,6 +84,9 @@ L'arbre des solutions est lisible par tout compte, et ne montre que ce que ce co
   ou une image rangé sous elle est caché au lecteur.
 - Les administrateurs, RSSI et auditeurs voient toutes les solutions et tous les projets, vides
   compris.
+- Une [clé d'API](api-keys.fr.md) `read` lit l'arbre comme son compte. Une clé restreinte à un dépôt
+  ou à une image voit les projets qui le contiennent, partiels, et rien d'autre — aucun projet par les
+  attributions de son compte, aucune autre cible dans « sans projet ».
 
 Chaque projet, chaque solution et le groupe « sans projet » portent leurs **constats ouverts par
 sévérité**, comptés sur les dépôts et les images que le lecteur peut voir et sans le triage réglé (non affecté,

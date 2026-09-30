@@ -211,6 +211,9 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   one must test `grade` first. `observedTargets` below `totalTargets` means the score is capped at
   that share. `SecurityGrade` gains `NO_DATA`; a client mapping the grades it knows should treat an
   unknown one as no grade.
+- **`GET /api/v1/solutions` accepts a `read` API key**, as the repository and image lists it regroups
+  already did — it answered 403. A key restricted to one repository or image reads the projects
+  holding it, partial, and no project through its account's grants.
 - **A project's figures and filters include the container images filed in it.** Once an image is
   filed in a project, `GET /api/v1/issues?project_id=…` and `?solution_id=…` answer its issues beside
   the repositories', and the `openIssues` of `GET /api/v1/solutions` count them; each project node,
