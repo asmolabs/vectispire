@@ -211,6 +211,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   one must test `grade` first. `observedTargets` below `totalTargets` means the score is capped at
   that share. `SecurityGrade` gains `NO_DATA`; a client mapping the grades it knows should treat an
   unknown one as no grade.
+- **The dashboard's maturity ranking can grade `NO_DATA`, with a `null` `securityScore`.** In
+  `targetScoreboard` of `GET /api/v1/dashboard/posture-analytics`, a target holding no completed scan —
+  its findings came from a SARIF import alone — ranks last as `NO_DATA`; it could read 100, A, at the
+  head of the ranking. Its counts stay. A target never scanned carries no issue and is not listed, as
+  before.
 - **`GET /api/v1/solutions` accepts a `read` API key**, as the repository and image lists it regroups
   already did — it answered 403. A key restricted to one repository or image reads the projects
   holding it, partial, and no project through its account's grants.

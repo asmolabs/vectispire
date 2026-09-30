@@ -229,6 +229,11 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   tester `grade` d'abord. `observedTargets` inférieur à `totalTargets` signifie que le score est
   plafonné à cette part. `SecurityGrade` gagne `NO_DATA` ; un client qui associe les notes qu'il connaît
   doit traiter une note inconnue comme une absence de note.
+- **Le classement de maturité du tableau de bord peut porter la note `NO_DATA`, avec un
+  `securityScore` `null`.** Dans `targetScoreboard` de `GET /api/v1/dashboard/posture-analytics`, une
+  cible sans scan terminé — ses constats viennent d'un seul import SARIF — est classée en dernier comme
+  `NO_DATA` ; elle pouvait lire 100, A, en tête du classement. Ses comptes restent. Une cible jamais
+  analysée ne porte aucune issue et n'est pas listée, comme avant.
 - **`GET /api/v1/solutions` accepte une clé d'API `read`**, comme les listes de dépôts et d'images
   qu'il regroupe le faisaient déjà — il répondait 403. Une clé restreinte à un dépôt ou à une image lit
   les projets qui le contiennent, partiels, et aucun projet par les attributions de son compte.
