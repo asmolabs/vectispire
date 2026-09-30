@@ -7147,7 +7147,7 @@ export interface components {
             /** Format: int64 */
             openMedium: number;
             /** Format: int32 */
-            securityScore: number;
+            securityScore?: number;
             /** Format: int64 */
             targetId?: number;
             targetKind?: string;

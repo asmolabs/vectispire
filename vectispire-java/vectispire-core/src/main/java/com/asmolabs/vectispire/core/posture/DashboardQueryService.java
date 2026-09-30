@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
@@ -27,7 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 
@@ -219,8 +222,15 @@ public class DashboardQueryService {
                         i.resolvedAt()))
                 .toList();
 
+        // Observed as the scorecard reads it (decision 0007): a completed scan. A target ranked on an
+        // import alone, clean, read 100, A, at the head of the ranking beside a card saying no data.
+        Set<ScanTarget> observed = scans.targetsWithStatus(ScanStatus.COMPLETED.wireName()).stream()
+                .map(ScanCatalog.ScanOfTarget::target)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
         return PostureTrendAnalytics.calculate(
-                window, now, observations, PostureScoreboards.from(openCounts, resolved, names));
+                window, now, observations, PostureScoreboards.from(openCounts, resolved, names, observed));
     }
 
     /**

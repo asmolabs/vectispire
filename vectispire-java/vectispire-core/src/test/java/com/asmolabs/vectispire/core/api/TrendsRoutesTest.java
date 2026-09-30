@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,6 +13,8 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
@@ -41,6 +44,9 @@ class TrendsRoutesTest extends ApiTestBase {
 
     @Autowired
     private SettingsService settings;
+
+    @Autowired
+    private ScanRepository scans;
 
     @Test
     @DisplayName("the window is a day per point, and the series counts what is open")
@@ -132,6 +138,7 @@ class TrendsRoutesTest extends ApiTestBase {
         triaged(target, "CVE-T-4", TriageStatus.UNDER_REVIEW.wireName());
         // Written by nobody this version knows: still nobody's decision, so still counted.
         triaged(target, "CVE-T-5", "untriaged");
+        scanned(target, "completed");
 
         // Three highs at ten points each: 70, grade C. Counting the settled two made it 50.
         mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
@@ -139,6 +146,41 @@ class TrendsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.targetScoreboard[0].openHigh").value(3))
                 .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(70))
                 .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("C"));
+    }
+
+    @Test
+    @DisplayName("a target holding no completed scan ranks last as NO_DATA, with no score, never as the best")
+    void aTargetNobodyScannedHasNoGrade() throws Exception {
+        long scanned = repository("https://example.invalid/scanned.git");
+        issue(scanned, "CVE-S-1", Duration.ofDays(3), null);
+        scanned(scanned, "completed");
+        // Its only findings came from somewhere else than a completed scan — an import, say — and
+        // are all closed: the formula read 100, A, above a scanned target at 90. A failed scan
+        // observes nothing either.
+        long unscanned = repository("https://example.invalid/unscanned.git");
+        issue(unscanned, "CVE-U-1", Duration.ofDays(3), Duration.ofDays(1));
+        scanned(unscanned, "failed");
+
+        mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetScoreboard.length()").value(2))
+                .andExpect(jsonPath("$.targetScoreboard[0].targetId").value(scanned))
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(90))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A"))
+                .andExpect(jsonPath("$.targetScoreboard[1].targetId").value(unscanned))
+                .andExpect(jsonPath("$.targetScoreboard[1].maturityGrade").value("NO_DATA"))
+                .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(nullValue()))
+                // The counts stay, being true of what was read.
+                .andExpect(jsonPath("$.targetScoreboard[1].totalResolved").value(1));
+    }
+
+    private void scanned(long repoId, String status) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setBranch("main");
+        scan.setStatus(status);
+        scan.setCreatedAt(Instant.now());
+        scans.save(scan);
     }
 
     private void triaged(long repoId, String identifier, String triageStatus) {

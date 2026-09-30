@@ -3,11 +3,13 @@ package com.asmolabs.vectispire.core.posture.internal;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetMaturityScore;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetTotals;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The all-time half of the posture dashboard, assembled from database aggregates.
@@ -42,11 +44,15 @@ public final class PostureScoreboards {
      * @param openCounts one row per {@code (target, severity)} that still has unresolved issues
      * @param resolved one row per target: how many it has closed and how long they took
      * @param names resolved once by the caller, which already needs them for the curve
+     * @param observed the targets holding a completed scan; any other ranks as
+     *     {@link com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics#NO_DATA}, the
+     *     scorecard's rule — its findings came from an import alone, which speaks for one tool
      */
     public static List<TargetMaturityScore> from(
             List<IssueAggregates.TargetSeverityCount> openCounts,
             List<IssueAggregates.TargetResolutions> resolved,
-            TargetNaming.Names names) {
+            TargetNaming.Names names,
+            Set<ScanTarget> observed) {
 
         // Insertion-ordered, so two targets on the same score come out in a stable order rather
         // than in whatever order a hash map happened to iterate. The engine's sort is stable, so
@@ -71,7 +77,10 @@ public final class PostureScoreboards {
         }
 
         return PostureTrendAnalytics.scoreboard(
-                byTarget.values().stream().map(Accumulator::totals).toList());
+                byTarget.values().stream().map(Accumulator::totals).toList(),
+                totals -> observed.contains("REPOSITORY".equals(totals.targetKind())
+                        ? new ScanTarget.Repository(totals.targetId())
+                        : new ScanTarget.Container(totals.targetId())));
     }
 
     private static Accumulator accumulatorFor(

@@ -5,11 +5,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Enterprise security posture analytics, multi-echelon MTTR trends,
@@ -50,8 +52,20 @@ public record PostureTrendAnalytics(
             long openLow,
             long totalResolved,
             Double targetMttrDays,
-            int securityScore, // 0 - 100
-            String maturityGrade) {} // A, B, C, D, F
+            Integer securityScore, // 0 - 100; null with NO_DATA
+            String maturityGrade) {} // A, B, C, D, F, or NO_DATA
+
+    /**
+     * The ranking's word for a target that holds no completed scan — not a grade (decision 0007).
+     *
+     * <p>The score is a hundred less the open backlog, so a target whose findings came from a SARIF
+     * import alone, and whose import came back clean, read 100, A, at the head of the ranking, while
+     * its scorecard said "no data" for the same target. The scorecard's rule is the ranking's: a
+     * target is observed when it holds a completed scan, and an import speaks for one tool, not
+     * for the target. Its counts stay, being true of what was read; its score is null, never a
+     * number that reads as a measurement, and it ranks after every graded target.
+     */
+    public static final String NO_DATA = "NO_DATA";
 
     /**
      * The instant the window opens. Public because a caller filtering in SQL has to compute the
@@ -267,11 +281,36 @@ public record PostureTrendAnalytics(
 
     /** Best score first. Ties keep the order they arrived in, which is the caller's to decide. */
     public static List<TargetMaturityScore> scoreboard(List<TargetTotals> totals) {
+        return scoreboard(totals, target -> true);
+    }
+
+    /**
+     * Best score first, and after them the targets {@code observed} refuses, as {@link #NO_DATA}.
+     * Ties, and the order among the unobserved, keep the order they arrived in.
+     */
+    public static List<TargetMaturityScore> scoreboard(List<TargetTotals> totals, Predicate<TargetTotals> observed) {
         List<TargetMaturityScore> scores = new ArrayList<>(totals.stream()
-                .map(PostureTrendAnalytics::score)
+                .map(target -> observed.test(target) ? score(target) : unobserved(target))
                 .toList());
-        scores.sort((a, b) -> Integer.compare(b.securityScore(), a.securityScore()));
+        scores.sort(Comparator.comparing(
+                TargetMaturityScore::securityScore, Comparator.nullsLast(Comparator.<Integer>reverseOrder())));
         return scores;
+    }
+
+    private static TargetMaturityScore unobserved(TargetTotals totals) {
+        TargetMaturityScore counted = score(totals);
+        return new TargetMaturityScore(
+                counted.targetId(),
+                counted.targetKind(),
+                counted.targetName(),
+                counted.openCritical(),
+                counted.openHigh(),
+                counted.openMedium(),
+                counted.openLow(),
+                counted.totalResolved(),
+                counted.targetMttrDays(),
+                null,
+                NO_DATA);
     }
 
     /**
