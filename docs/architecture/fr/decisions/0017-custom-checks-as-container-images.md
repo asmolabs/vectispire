@@ -10,7 +10,9 @@
 amendée et acceptée le 2026-09-27, quand les plugins ont été construits. Ce qui a changé depuis la
 proposition est listé à la fin. Amendée de nouveau le 2026-09-27 par le §9 (le signataire de l'image,
 vérifié avant le pull) et le §10 (ce qu'écrit un plugin est borné), les deux suites que la première
-version laissait ouvertes.*
+version laissait ouvertes. Amendée le 2026-09-30 par le §9.1 : un signataire est **exigé par défaut**,
+un plugin non signé est **refusé** — un quatrième état — et le gouverneur de la plateforme peut lever
+l'exigence pour un plugin, par écrit.*
 
 ## Contexte
 
@@ -184,6 +186,7 @@ Chaque plugin d'une analyse finit dans exactement un de trois états, portés pa
 | `produced` | Il a tourné, est sorti sur un code déclaré, et son rapport a été lu : chaque run a réussi et porte un tableau `results`. | Ses constats deviennent des issues `plugin` ; **ses propres** issues ouvertes sur la cible qu'il n'a pas rapportées sont résolues — un rapport vide les résout toutes, et rien d'autre. |
 | `not_applicable` | Aucun de ses langages n'est dans l'arbre ; il n'a pas été lancé. | Ses issues restent telles quelles. **Pas un échec** : l'analyse dit « non applicable », pas « échoué ». |
 | `absent` | Il aurait dû tourner et n'a produit aucun rapport exploitable — définition non obtenue ou ne correspondant pas à son digest, code de sortie non déclaré, pas de rapport, rapport refusé (taille, lien, emplacement hors de l'arbre, mal formé), un run qui dit `executionSuccessful: false`, un run sans `results`, ou aucun run. | Ses issues restent telles quelles, **et la raison est un échec de l'analyse**, sous `plugin <id>`. |
+| `refused` *(§9.1, 2026-09-30)* | L'exécuteur ne l'a pas démarré faute de signataire vérifié : `unsigned` ou `signature_unverified`. | Comme absent — laissées telles quelles, un échec de l'analyse — distingué parce que le remède est la provenance de l'image, pas son code. |
 
 Absent et non applicable laissent le backlog en paix pour la même raison — rien n'a été examiné — et
 sont distingués parce qu'un seul des deux est le problème de quelqu'un. Rapporter un plugin Java sur un
@@ -229,7 +232,9 @@ ou d'un scanner. Elle est épinglée par valeur dans `ToolFingerprintTest`.
   (`Role.governsPlatform`, SUPERUSER seul). Décider que du code tiers qui lira le source du parc peut
   exister sur la plateforme est une règle que tous les autres suivent. Chaque changement est audité
   (`PLUGIN_REGISTERED`, `PLUGIN_UPDATED`, `PLUGIN_ENABLED_CHANGED`) avec le digest du manifeste,
-  l'image, les langages et l'exception réseau, et signalé au SIEM en `ZAN-SEC-021`.
+  l'image, les langages et l'exception réseau, et signalé au SIEM en `ZAN-SEC-021`. De même pour la
+  dérogation à l'exigence de signature (§9.1, `PLUGIN_SIGNATURE_WAIVED`,
+  `PLUGIN_SIGNATURE_WAIVER_REVOKED`), avec sa justification.
 - **Activer un plugin pour un projet exige `@RequiresSecurityLead`** — les rôles qui
   `canWriteGovernance` et voient tout le parc : la décision qu'est l'activation d'un jeu de règles,
   restreinte à un projet. `PLUGIN_ACTIVATED` / `PLUGIN_DEACTIVATED`, `ZAN-SEC-021` aussi.
@@ -347,18 +352,17 @@ formes :
   propre clé n'a pas à publier leurs noms dans un journal public, et la vérification n'a besoin que du
   registre, rien de Sigstore.
 
-**Facultatif par plugin ; exigible par exécuteur.** Un plugin qui déclare un signataire est vérifié
-partout où il tourne, quels que soient les réglages de l'exécuteur. Qu'un exécuteur lance ou non un
-plugin qui n'en déclare aucun relève de `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED`
+**Déclaré par plugin ; exigé par exécuteur, par défaut.** Un plugin qui déclare un signataire est
+vérifié partout où il tourne, quels que soient les réglages de l'exécuteur. Qu'un exécuteur lance ou non
+un plugin qui n'en déclare aucun relève de `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED`
 (`vectispire.scanning.plugin-signature-required` sur le worker intégré,
-`vectispire.agent.images.plugin-signature-required` sur un agent), **désactivé par défaut** ; activé,
-un plugin non signé est absent avec la raison et rien n'est démarré. Le réglage appartient à
-l'exécuteur plutôt qu'à la plateforme parce que c'est l'hôte de l'exécuteur qui lance le code :
-l'exploitant d'un agent peut refuser du code non signé quoi que le gouverneur ait enregistré, et un
-agent ne doit pas avoir besoin du plan de contrôle pour savoir ce qu'il a le droit d'exécuter — un
-réglage de plateforme qu'il irait chercher serait précisément l'autorité qu'il refuse de croire sur
-parole. *Désactivé par défaut est un choix du propriétaire et peut s'inverser : chaque plugin déjà
-enregistré serait alors absent jusqu'à ce qu'il déclare un signataire.*
+`vectispire.agent.images.plugin-signature-required` sur un agent), **activé par défaut depuis le
+2026-09-30** (§9.1) : un plugin non signé est refusé avec la raison et rien n'est démarré, sauf si le
+gouverneur a levé l'exigence pour lui. Le réglage appartient à l'exécuteur plutôt qu'à la plateforme
+parce que c'est l'hôte de l'exécuteur qui lance le code : l'exploitant d'un agent peut désactiver
+l'exigence pour son hôte — tout plugin non signé y tourne alors — sans l'aval du plan de contrôle.
+*La première version de cette section la désactivait par défaut et notait que le propriétaire pouvait
+l'inverser ; le §9.1 consigne qu'il l'a fait, et pourquoi.*
 
 **Où, et comment.** Les deux exécuteurs lancent des plugins, donc les deux vérifient, et l'agent n'a
 besoin de rien de ce que détient le plan de contrôle : le signataire est dans le manifeste qu'il
@@ -379,15 +383,16 @@ manifeste en déclare une. La vérification sans clé récupère la racine de co
 son dépôt TUF et vérifie l'inclusion dans le journal hors ligne, depuis le bundle de la signature ; la
 vérification par clé n'atteint que le registre — **la forme hors ligne**, pour ce qui est de Sigstore.
 Le vérificateur ne reçoit **aucun identifiant de registre** : une image qu'un registre ne sert qu'à un
-pull authentifié ne peut pas être vérifiée, et elle est absente. Un miroir réglé par
+pull authentifié ne peut pas être vérifiée, et elle est refusée. Un miroir réglé par
 `VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` le fait) : la référence
 vérifiée est celle qui est tirée.
 
 **Avant le pull, et la vérification est la barrière.** Le vérificateur tourne avant que le conteneur
 du plugin soit créé, donc avant que son image soit récupérée : une image que personne n'a vérifiée
 n'est même pas sur l'hôte. Toute réponse autre que la sortie 0 de cosign — aucune signature, un autre
-signataire, un registre ou une racine de confiance injoignable, le vérificateur lui-même incapable de
-démarrer — rend le plugin **absent**, avec les mots de cosign comme raison ; l'image ne tourne jamais.
+signataire, un registre ou une racine de confiance injoignable — rend le plugin **refusé**
+(`signature_unverified`, §9.1), avec les mots de cosign comme raison ; un vérificateur incapable de
+démarrer n'a rien dit de l'image et laisse le plugin absent. Dans les deux cas l'image ne tourne jamais.
 Rien n'est mis en cache : chaque analyse vérifie chaque plugin signé, un aller-retour au registre
 chacun, un coût accepté pour qu'une signature révoquée ou repoussée se voie à l'analyse suivante.
 
@@ -404,6 +409,67 @@ signataire : l'identité et l'émetteur, ou l'empreinte de la clé.
 **Ce que cela ne prouve pas.** Que le signataire est celui que croit le gouverneur : la déclaration est
 la sienne, auditée comme le reste du manifeste. Un signataire dont la CI est compromise signe ce qu'on
 lui donne ; l'épinglage par digest dit toujours de quels octets il s'agissait.
+
+### 9.1. Exigée par défaut, refusée visiblement, levée par écrit (2026-09-30)
+
+**La décision.** `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` vaut `true` par défaut sur les deux exécuteurs.
+Un plugin dont le manifeste ne déclare aucun signataire n'est pas démarré, pas plus que celui dont le
+signataire déclaré ne vérifie pas l'image. Les plugins n'existaient pas en 0.9.0 : aucune installation
+publiée ne perd un plugin à ce changement ; une version de développement, si, et ses notes de version
+le disent sous *Avant la mise à jour*.
+
+**Pourquoi le défaut change.** Désactivée par défaut, l'exigence faisait confiance au seul digest, et le
+digest est ce que le gouverneur a collé — depuis une merge request, depuis la page de tags d'un
+registre. Un registre, un miroir ou un tag compromis en amont de ce collage fait tourner le code de
+quelqu'un d'autre sur le source de chaque projet pour lequel le plugin est activé. La forme fermée
+(§1, §10) empêche ce code d'atteindre le réseau, l'espace de travail ou l'hôte ; **elle ne l'empêche pas
+de mentir**. Le produit d'un plugin est son rapport, et un rapport peut inventer des constats — du bruit,
+ou un leurre vers un « correctif » — ou taire ceux qui existent, ce qui les résout : un SARIF propre est
+le seul résultat qui ferme des issues (§4). Sans réseau n'est pas honnête. Ce qui rend un rapport digne
+d'être ingéré, c'est de savoir qui a construit l'outil qui l'a écrit, et un défaut qui ne demande rien à
+personne est le défaut que personne ne relit.
+
+**Refusé, un quatrième état, jamais confondu avec absent.** `PluginStep.Refused`, `state: "refused"` sur
+le fil, avec un `refusal` — `unsigned` (aucun signataire déclaré, un exigé, pas de dérogation) ou
+`signature_unverified` (cosign n'a pas vérifié le signataire déclaré) — et la phrase de l'exécuteur. Pour
+le backlog, c'est absent : rien n'a été examiné, rien n'est résolu, et c'est un échec de l'analyse sous
+`plugin <id>`. Il est distingué parce que le remède diffère — signer l'image ou enregistrer une
+dérogation, pas déboguer le plugin — et parce qu'un « non signé » rapporté comme « planté » est la façon
+dont une exigence que personne ne voit finit désactivée. Une ligne de checklist mesurée sur un tel
+plugin est sans données avec la raison `plugin_unsigned` ou `plugin_signature_unverified` plutôt que
+`step_absent` (l'ensemble fermé de la décision 0032 §6, deux de plus). Une étape produite consigne la
+base sur laquelle elle a tourné, `signature` : `verified`, `waived`, ou `not_required` — l'exploitant de
+son exécuteur a désactivé l'exigence — de sorte qu'un plugin qui a tourné sans signature le dise dans
+chaque analyse où il a tourné, pas seulement dans le registre.
+
+**La dérogation.** Le gouverneur de la plateforme — qui peut enregistrer un plugin,
+`@RequiresPlatformGovernor` — peut marquer un plugin enregistré « tourne sans signature », avec une
+justification de 20 à 500 caractères : `PUT /api/v1/plugins/{id}/unsigned-waiver`, retirée par `DELETE`.
+Conservée sur le plugin (V60, `t_plugin.unsigned_waiver`, `unsigned_waived_by`, `unsigned_waived_at`),
+montrée sur son détail, auditée (`PLUGIN_SIGNATURE_WAIVED`, `PLUGIN_SIGNATURE_WAIVER_REVOKED`, la
+justification dans l'entrée) et signalée en `VECTI-SEC-021` comme tout autre changement de plugin. Le
+répartiteur la pose sur la référence de chaque tâche (`PluginRef.runsUnsigned`), de sorte que les deux
+exécuteurs décident sur les mêmes faits et qu'aucun ne demande.
+
+- **Elle lève l'obligation de déclarer un signataire, rien d'autre.** Un signataire que déclare le
+  manifeste est vérifié tout de même ; celui qui ne vérifie pas est refusé quelle que soit la
+  dérogation. Une dérogation ne transforme pas « les mauvaises personnes ont signé ceci » en succès.
+- **Sur le plugin, pas dans le manifeste.** Un champ du manifeste ferait de chaque octroi et de chaque
+  retrait un nouveau digest — chaque tâche en attente nommant l'ancien — et cacherait une décision sur
+  la confiance de la plateforme dans un document sur l'image. La dérogation est un geste à part,
+  audité comme tel, et survit à une mise à jour d'image : un nouveau manifeste est lui-même l'acte
+  audité du gouverneur, et redemander à chaque digest n'apprendrait à personne qu'à coller deux fois la
+  justification.
+- **Un agent la respecte.** La première version soutenait qu'un agent ne doit pas croire le plan de
+  contrôle sur parole quant à ce qu'il peut exécuter. Il le croit déjà sur *quelle image* il exécute —
+  le manifeste, par id et digest. Ce contre quoi une signature protège, c'est un registre ou un tag
+  poussé par quelqu'un d'autre, pas le plan de contrôle : un gouverneur capable de lever l'exigence
+  pourrait tout aussi bien enregistrer un signataire de son choix. La dérogation a la même autorité que
+  le manifeste, et voyage de la même façon.
+- **L'interrupteur reste, et n'est pas la voie documentée.** L'exploitant d'un exécuteur peut toujours
+  positionner `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=false` ; tout plugin non signé y tourne alors,
+  consigné `not_required` et justifié nulle part. La dérogation nomme un plugin, dit pourquoi, et reste
+  au dossier — c'est pourquoi la documentation y renvoie.
 
 ### 10. Ce qu'écrit un plugin est borné
 
@@ -467,6 +533,10 @@ filtre de la composition (`SocketProxyIntegrationTest`).
   Pré-télécharger, ou pointer `VECTISPIRE_PLUGIN_REGISTRY` vers un registre que les agents atteignent —
   il doit alors porter `library/busybox` (le gardien de la sortie) et, pour les plugins signés,
   `sigstore/cosign/cosign` et les signatures.
+- **Une migration de plus, `V60`, écrite une fois dans `common`** : les trois colonnes nullables de la
+  dérogation sur `t_plugin` (§9.1).
+- **Un plugin non signé est refusé par défaut** (§9.1) : une organisation qui ne peut pas encore signer
+  une image enregistre une dérogation pour elle, ou désactive l'exigence sur un exécuteur.
 - **Un plugin signé a besoin du registre depuis l'exécuteur à chaque analyse**, la vérification sans
   clé du dépôt TUF de Sigstore aussi. Un registre qui exige une authentification pour la lecture ne peut
   pas encore être vérifié : le vérificateur ne détient aucun identifiant.
@@ -492,4 +562,5 @@ filtre de la composition (`SocketProxyIntegrationTest`).
 | Aucun modèle de langages | Langages déclarés, recensement borné, et un troisième état : non applicable. |
 | — | Import de SARIF depuis des sources internes déclarées. |
 | Vérification cosign en phase 3 | Construite (§9) : un signataire déclaré, sans clé ou par clé, vérifié par un cosign épinglé avant le pull ; un exécuteur peut en exiger un. |
+| Un exécuteur peut exiger un signataire (désactivé par défaut) | Exigé par défaut (§9.1, 2026-09-30) ; un plugin non signé est refusé, visiblement, sauf dérogation écrite du gouverneur. |
 | — | Ce qu'écrit un plugin est borné (§10) : un volume tmpfs tenu par un gardien, `fsize`, `nr_inodes`. |

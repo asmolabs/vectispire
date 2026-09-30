@@ -118,7 +118,7 @@ host directory mounted at the **same absolute path**, or every scanner receives 
 | Variable | Default | Notes |
 |---|---|---|
 | `VECTISPIRE_PLUGIN_REGISTRY` | *none* | The internal registry every [plugin](../administration/plugins.md) image is pulled from — `registry.corp.example:5000/mirror`. The image's registry host is replaced and its path and digest are kept, so the mirror can serve a plugin but cannot substitute another. No scheme, no credential. Set the same on each agent. |
-| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `false` | `true`: the built-in worker runs no plugin whose manifest declares no [signer](../administration/plugins.md#signing-the-image) — it is absent from the scan, and nothing of it is started. A declared signer is verified with cosign before the pull whatever this says. Set it on each agent too: it is each executor's own decision. |
+| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true` | The built-in worker runs no plugin whose manifest declares no [signer](../administration/plugins.md#signing-the-image), unless the platform governor [waived the requirement](../administration/plugins.md#running-an-unsigned-plugin) for that plugin: it is *refused* in the scan (`unsigned`), and nothing of it is started. A declared signer is verified with cosign before the pull whatever this says. `false` runs every unsigned plugin on this executor — prefer the per-plugin waiver. Each agent has its own. |
 
 ## Threat intelligence
 
@@ -191,7 +191,7 @@ Then `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_TOKEN` | An API key with the `agent` scope, shown once at creation. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | The internal registry plugin images are pulled from on this agent — host relocated, path and digest kept. Blank pulls each from its own registry, which an agent on a closed network cannot reach: the plugin is then absent from the scan and its issues stay as they were. |
-| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true`: this agent runs no plugin whose manifest declares no signer, whatever the control plane registered. Off by default; a declared signer is verified before the pull either way. |
+| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | On by default: this agent runs no plugin whose manifest declares no signer, unless the governor waived the requirement for that plugin — the task carries the waiver. `false` runs every unsigned plugin on this agent's host. A declared signer is verified before the pull either way. |
 | `VECTISPIRE_VULNERABILITY_DB_DIR` | Where this agent keeps the vulnerability matcher's database, downloaded once and shared read-only by its scans — as for the control plane above. Blank is a directory in the temporary directory. |
 
 How many scans an agent runs at once is **not** one of its variables: it is set on the agent's row

@@ -121,7 +121,7 @@ sans quoi chaque analyseur reçoit un répertoire vide.
 | Variable | Défaut | Notes |
 |---|---|---|
 | `VECTISPIRE_PLUGIN_REGISTRY` | *aucun* | Le registre interne depuis lequel chaque image de [plugin](../administration/plugins.md) est tirée — `registry.corp.example:5000/mirror`. L'hôte du registre de l'image est remplacé, son chemin et son digest conservés : le miroir peut servir un plugin mais pas en substituer un autre. Ni schéma, ni identifiant. Positionnez la même valeur sur chaque agent. |
-| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `false` | `true` : le worker intégré ne lance aucun plugin dont le manifeste ne déclare pas de [signataire](../administration/plugins.md#signer-limage) — il est absent du scan, et rien de lui n'est démarré. Un signataire déclaré est vérifié avec cosign avant le pull quoi que dise ce réglage. Positionnez-le aussi sur chaque agent : c'est la décision propre à chaque exécuteur. |
+| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true` | Le worker intégré ne lance aucun plugin dont le manifeste ne déclare pas de [signataire](../administration/plugins.md#signer-limage), sauf si le gouverneur de la plateforme a [levé l'exigence](../administration/plugins.md#faire-tourner-un-plugin-non-signe) pour ce plugin : il est *refusé* dans le scan (`unsigned`), et rien de lui n'est démarré. Un signataire déclaré est vérifié avec cosign avant le pull quoi que dise ce réglage. `false` lance tout plugin non signé sur cet exécuteur — préférez la dérogation par plugin. Chaque agent a le sien. |
 
 ## Threat intelligence
 
@@ -196,7 +196,7 @@ Puis `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_TOKEN` | Une clé d'API avec la portée `agent`, affichée une seule fois à la création. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | Le registre interne depuis lequel cet agent tire les images de plugins — hôte relogé, chemin et digest conservés. Vide, chacune est tirée de son propre registre, qu'un agent sur réseau fermé ne peut pas atteindre : le plugin est alors absent du scan et ses issues restent telles quelles. |
-| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true` : cet agent ne lance aucun plugin dont le manifeste ne déclare pas de signataire, quoi qu'ait enregistré le plan de contrôle. Désactivé par défaut ; un signataire déclaré est vérifié avant le pull dans tous les cas. |
+| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | Activé par défaut : cet agent ne lance aucun plugin dont le manifeste ne déclare pas de signataire, sauf dérogation du gouverneur pour ce plugin — la tâche la porte. `false` lance tout plugin non signé sur l'hôte de cet agent. Un signataire déclaré est vérifié avant le pull dans tous les cas. |
 | `VECTISPIRE_VULNERABILITY_DB_DIR` | Où cet agent garde la base du rapprocheur de vulnérabilités, téléchargée une fois et partagée en lecture seule par ses analyses — comme pour le plan de contrôle plus haut. Vide : un répertoire du répertoire temporaire. |
 
 Le nombre d'analyses qu'un agent mène en parallèle n'est **pas** l'une de ses variables : il se règle

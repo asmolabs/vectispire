@@ -2,7 +2,7 @@
 
 ## Next release (after 0.9.0)
 
-Not tagged yet. Read **Before you upgrade** first: four of its points stop something working
+Not tagged yet. Read **Before you upgrade** first: five of its points stop something working
 until an operator acts, on purpose.
 
 ### Before you upgrade
@@ -198,7 +198,22 @@ image with a completed scan keeps its grade. Nothing is stored, so the change sh
 scan the targets the new recommendation names. See
 [How the scorecard grade is computed](../guide/repositories.md#how-the-scorecard-grade-is-computed).
 
-**Schema migrations V32 to V59 run at start**, on MySQL and PostgreSQL. Back up the database
+**A plugin whose image is not signed no longer runs, unless the platform governor waives the
+requirement for it.** `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` now defaults to `true`, on the control
+plane's built-in worker and on every agent. Plugins did not exist in 0.9.0, so no released installation
+loses anything; a **development build** that registered a plugin without a `signature` in its manifest
+sees it **refused** from the first scan after the upgrade — the scan's **Plugins** card says *refused —
+unsigned*, the scan lists the failure under `plugin <id>`, its issues stay as they were, and a checklist
+line on it reads *no data* (`plugin_unsigned`). Before upgrading, declare the image's signer on each such
+plugin, or — while it cannot be signed — have the governor record a waiver with its justification on the
+plugin's page (`PUT /api/v1/plugins/{id}/unsigned-waiver`). Setting the variable to `false` still runs
+every unsigned plugin on that executor, with no trace of why; the waiver is the documented way. Why the
+default moved: a registry, mirror or tag compromised upstream runs code over the source of every project
+the plugin is on for, and having no network does not stop it from fabricating or hiding findings. See
+[Plugins](../administration/plugins.md#running-an-unsigned-plugin) and
+[decision 0017](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0017-custom-checks-as-container-images.md).
+
+**Schema migrations V32 to V60 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -390,7 +405,13 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   keys joined by commas — and stays `null`, never an empty list, for an import accepted before V53. On the same lists, a plugin activation names its
   project — `projectName`, `solutionId`, `solutionName` beside `projectId` — and a declared source its key,
   `apiKeyName` beside `apiKeyId` (`null` once the key is revoked); a scan's `plugins[].state` is enumerated
-  in the OpenAPI document: `produced`, `not_applicable`, `absent`.
+  in the OpenAPI document: `produced`, `not_applicable`, `absent`, `refused` — the last with `refusal`
+  (`unsigned`, `signature_unverified`); a produced one carries `signature` (`verified`, `waived`,
+  `not_required`). A plugin carries `unsignedWaiver` (`null` for none), set and withdrawn through
+  `PUT` / `DELETE /api/v1/plugins/{id}/unsigned-waiver`; a scan's task carries `runsUnsigned` with each
+  plugin. Two reasons join a checklist measurement's `no_data`: `plugin_unsigned`,
+  `plugin_signature_unverified`. Two audit operations, `PLUGIN_SIGNATURE_WAIVED` and
+  `PLUGIN_SIGNATURE_WAIVER_REVOKED`, both signalled as `VECTI-SEC-021`.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.
@@ -529,8 +550,9 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   [Solutions and projects](../administration/solutions-and-projects.md#moving-a-project-to-another-solution).
 - **Analysis plugins**: third-party analysers packaged as container images, registered by the
   platform governor, switched on per project, run confined like the built-in scanners, only when
-  a language they declare is present. An image may declare its signer; the signature is verified
-  before the pull, and `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` requires one for every plugin.
+  a language they declare is present. An image declares its signer; the signature is verified
+  before the pull, and a plugin that declares none is refused unless the governor waived the
+  requirement for it, in writing (V60) — `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED`, on by default.
 - **SARIF imports** from declared internal sources (a CI job, an on-premise SonarQube), each bound
   to one restricted key and one scope, with the provenance kept on every issue —
   [Plugins and SARIF imports](../administration/plugins.md). Gate policies count plugin and

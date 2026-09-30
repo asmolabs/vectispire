@@ -9,7 +9,9 @@
 *Proposed on 2026-08-29 as "custom checks as container images, not uploaded JARs"; amended and accepted
 on 2026-09-27, when the plugins were built. What changed from the proposal is listed at the end.
 Amended again on 2026-09-27 by §9 (the image's signer, verified before the pull) and §10 (what a
-plugin writes is bounded), the two follow-ups the first version left open.*
+plugin writes is bounded), the two follow-ups the first version left open. Amended on 2026-09-30 by
+§9.1: a signer is **required by default**, an unsigned plugin is **refused** — a fourth state — and the
+platform governor may waive the requirement for one plugin, in writing.*
 
 ## Context
 
@@ -179,6 +181,7 @@ sealed `PluginStep` with a discriminator on the wire:
 | `produced` | It ran, exited on a declared code, and its report was read: every run succeeded and carried a `results` array. | Its findings become `plugin` issues; **its own** open issues on the target that it did not report are resolved — an empty report resolves them all, and nothing else. |
 | `not_applicable` | None of its languages is in the tree; it was not started. | Its issues are left as they are. **Not a failure**: the scan says "not applicable", not "failed". |
 | `absent` | It should have run and produced no usable report — definition not obtained or not matching its digest, undeclared exit code, no report, report refused (size, link, location outside the tree, malformed), a run that says `executionSuccessful: false`, a run without `results`, or no run at all. | Its issues are left as they are, **and the reason is a failure of the scan**, under `plugin <id>`. |
+| `refused` *(§9.1, 2026-09-30)* | The executor would not start it for want of a verified signer: `unsigned` or `signature_unverified`. | As absent — left as they are, a failure of the scan — told apart because the fix is the image's provenance, not its code. |
 
 Absent and not-applicable leave the backlog alone for the same reason — nothing was examined — and
 are told apart because only one of them is somebody's problem. Reporting a Java plugin on a Python
@@ -222,7 +225,9 @@ scanner. It is pinned by value in `ToolFingerprintTest`.
   (`Role.governsPlatform`, SUPERUSER alone). Deciding that third-party code which will read the
   estate's source may exist on the platform is a rule everybody else plays by. Each change is
   audited (`PLUGIN_REGISTERED`, `PLUGIN_UPDATED`, `PLUGIN_ENABLED_CHANGED`) with the manifest's
-  digest, image, languages and network exception, and signalled to the SIEM as `ZAN-SEC-021`.
+  digest, image, languages and network exception, and signalled to the SIEM as `ZAN-SEC-021`. So is
+  the waiver of the signature requirement (§9.1, `PLUGIN_SIGNATURE_WAIVED`,
+  `PLUGIN_SIGNATURE_WAIVER_REVOKED`), with its justification.
 - **Switching a plugin on for a project requires `@RequiresSecurityLead`** — the roles that
   `canWriteGovernance` and see the whole estate: the decision activating a rule set is, scoped to
   one project. `PLUGIN_ACTIVATED` / `PLUGIN_DEACTIVATED`, `ZAN-SEC-021` too.
@@ -332,16 +337,16 @@ the digest serves whatever was pushed under it by whoever could push.
   (`--insecure-ignore-tlog`): an organisation signing its internal images with its own key need not
   publish their names to a public log, and verification needs the registry and nothing of Sigstore.
 
-**Optional per plugin; required per executor.** A plugin that declares a signer is verified wherever
-it runs, whatever the executor's settings. Whether an executor runs a plugin that declares none is
-`VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` (`vectispire.scanning.plugin-signature-required` on the built-in
-worker, `vectispire.agent.images.plugin-signature-required` on an agent), **off by default**; on, an
-unsigned plugin is absent with the reason and nothing is started. The setting belongs to the executor
-rather than to the platform because the executor's host is the one that runs the code: an agent's
-operator may refuse unsigned code whatever the governor registered, and an agent must not need the
-control plane to tell it what it may execute — a platform setting it fetched would be exactly the
-authority it is refusing to take on trust. *Off by default is the owner's call and can be turned
-around: every plugin already registered would then be absent until it declares a signer.*
+**Declared per plugin; required per executor, by default.** A plugin that declares a signer is verified
+wherever it runs, whatever the executor's settings. Whether an executor runs a plugin that declares none
+is `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` (`vectispire.scanning.plugin-signature-required` on the
+built-in worker, `vectispire.agent.images.plugin-signature-required` on an agent), **on by default since
+2026-09-30** (§9.1): an unsigned plugin is refused with the reason and nothing is started, unless the
+governor waived the requirement for it. The setting belongs to the executor rather than to the
+platform because the executor's host is the one that runs the code: an agent's operator may switch the
+requirement off for their host — every unsigned plugin then runs there — without the control plane's
+leave. *The first version of this section made it off by default and noted that the owner could turn
+it around; §9.1 records that he did, and why.*
 
 **Where it runs, and how.** Both executors run plugins, so both verify, and the agent needs nothing the
 control plane holds: the signer is in the manifest it already fetches by id and digest, and the
@@ -359,15 +364,16 @@ workspace; the public key alone, mounted read-only, when the manifest declares o
 verification fetches Sigstore's trust root from its TUF repository and checks the log's inclusion
 offline, from the signature's bundle; key verification reaches the registry and nothing else — **the
 offline form**, as far as Sigstore is concerned. The verifier is given **no registry credential**: an
-image a registry serves only to an authenticated pull cannot be verified, and is absent. A mirror set
+image a registry serves only to an authenticated pull cannot be verified, and is refused. A mirror set
 by `VECTISPIRE_PLUGIN_REGISTRY` must carry the signatures too (`cosign copy` does): the reference
 verified is the one pulled.
 
 **Before the pull, and the verification is the gate.** The verifier runs before the plugin's container
 is created, hence before its image is fetched: an image nobody verified is not even on the host. Any
-answer but cosign's exit 0 — no signature, another signer, a registry or a trust root unreachable, the
-verifier itself unable to start — makes the plugin **absent**, with cosign's own words as the reason;
-the image never runs. Nothing is cached: every scan verifies every signed plugin, one registry round
+answer but cosign's exit 0 — no signature, another signer, a registry or a trust root unreachable — makes
+the plugin **refused** (`signature_unverified`, §9.1), with cosign's own words as the reason; a verifier
+unable to start at all said nothing about the image and leaves the plugin absent. Either way the image
+never runs. Nothing is cached: every scan verifies every signed plugin, one registry round
 trip each, a cost accepted so that a revoked or re-pushed signature is seen at the next scan.
 
 **The digest, and the stored manifests.** The signer is in the manifest's digest — changing it is a new
@@ -382,6 +388,62 @@ identity and issuer, or the key's fingerprint.
 **What it does not prove.** That the signer is who the governor thinks: the declaration is the
 governor's, audited like the rest of the manifest. A signer whose CI is compromised signs what it is
 given; the digest pin still says which bytes those were.
+
+### 9.1. Required by default, refused visibly, waived in writing (2026-09-30)
+
+**The decision.** `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` defaults to `true` on both executors. A plugin
+whose manifest declares no signer is not started, and neither is one whose declared signer does not
+verify its image. Plugins did not exist in 0.9.0, so no released installation loses a plugin to the
+change; a development build does, and its release notes say so under *Before you upgrade*.
+
+**Why the default moved.** Off by default trusted the digest alone, and the digest is what the governor
+pasted — from a merge request, from a registry's tag page. A registry, a mirror or a tag compromised
+upstream of that paste runs code of somebody else's choosing over the source of every project the
+plugin is switched on for. The closed shape (§1, §10) keeps that code from reaching the network, the
+workspace or the host; **it does not keep it from lying**. A plugin's product is its report, and a
+report can fabricate findings — noise, or a lure towards a "fix" — or leave out the ones that exist,
+which resolves them: a clean SARIF is the one outcome that closes issues (§4). Network-less is not
+honest. What makes a report worth ingesting is knowing who built the tool that wrote it, and a default
+that asks nobody is the default nobody reviews.
+
+**Refused, a fourth state, never folded into absent.** `PluginStep.Refused`, `state: "refused"` on the
+wire, with a `refusal` — `unsigned` (no signer declared, one required, no waiver) or
+`signature_unverified` (cosign did not verify the declared signer) — and the executor's sentence. For
+the backlog it is absent: nothing was examined, nothing is resolved, and it is a failure of the scan
+under `plugin <id>`. It is told apart because the fix is different — sign the image or record a waiver,
+not debug the plugin — and because "unsigned" reported as "crashed" is how a requirement nobody can see
+gets switched off. A checklist line measured on such a plugin has no data with the reason
+`plugin_unsigned` or `plugin_signature_unverified` rather than `step_absent` (decision 0032 §6's closed
+set, two more). A produced step records the footing it ran on, `signature`: `verified`, `waived`, or
+`not_required` — its executor's operator switched the requirement off — so a plugin that ran unsigned
+says so in every scan it ran in, not only in the registry.
+
+**The waiver.** The platform governor — whoever may register a plugin, `@RequiresPlatformGovernor` —
+may mark one registered plugin "runs unsigned", with a justification of 20 to 500 characters:
+`PUT /api/v1/plugins/{id}/unsigned-waiver`, withdrawn by `DELETE`. Stored on the plugin (V60,
+`t_plugin.unsigned_waiver`, `unsigned_waived_by`, `unsigned_waived_at`), shown on its detail, audited
+(`PLUGIN_SIGNATURE_WAIVED`, `PLUGIN_SIGNATURE_WAIVER_REVOKED`, the justification in the entry) and
+signalled as `VECTI-SEC-021` like every other plugin change. The dispatcher puts it on each task's
+reference (`PluginRef.runsUnsigned`), so both executors decide on the same facts and neither asks.
+
+- **It lifts the duty to declare a signer, nothing else.** A signer the manifest declares is verified
+  all the same; one that does not verify is refused whatever the waiver. A waiver cannot turn "the
+  wrong people signed this" into a pass.
+- **On the plugin, not in the manifest.** A manifest field would make each grant and withdrawal a new
+  digest — every queued task naming the old one — and hide a decision about the platform's trust in
+  a document about the image. The waiver is a gesture of its own, audited as such, and survives an
+  image update: a new manifest is itself the governor's audited act, and asking again at each digest
+  would teach nobody anything but to paste the justification twice.
+- **An agent honours it.** The first version argued that an agent must not take the control plane's
+  word on what it may execute. It already takes the control plane's word on *which image* it
+  executes — the manifest, by id and digest. What a signature defends against is a registry or a tag
+  pushed by somebody else, not the control plane: a governor able to waive the requirement could as
+  well register a signer of their own choosing. The waiver is of the same authority as the manifest,
+  and travels the same way.
+- **The switch stays, and is not the documented way.** An executor's operator may still set
+  `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=false`; every unsigned plugin then runs there, recorded as
+  `not_required` and justified nowhere. The waiver names one plugin, says why, and is on the record —
+  which is why the documentation points to it.
 
 ### 10. What a plugin writes is bounded
 
@@ -442,6 +504,10 @@ through the pinned socket proxy with the composition's filter (`SocketProxyInteg
   intact. Pre-pull, or point `VECTISPIRE_PLUGIN_REGISTRY` at a registry the agents reach — it must then
   carry `library/busybox` (the output's holder) and, for signed plugins, `sigstore/cosign/cosign` and
   the signatures.
+- **One more migration, `V60`, written once in `common`**: the waiver's three nullable columns on
+  `t_plugin` (§9.1).
+- **An unsigned plugin is refused by default** (§9.1): an organisation that cannot sign an image yet
+  records a waiver for it, or switches the requirement off on an executor.
 - **A signed plugin needs the registry from the executor at every scan**, keyless verification
   Sigstore's TUF repository too. A registry that requires authentication to read cannot be verified
   yet: the verifier holds no credential.
@@ -466,4 +532,5 @@ through the pinned socket proxy with the composition's filter (`SocketProxyInteg
 | No language model | Declared languages, a bounded census, and a third state: not applicable. |
 | — | SARIF import from declared internal sources. |
 | Cosign verification in phase 3 | Built (§9): a declared signer, keyless or by key, verified by a pinned cosign before the pull; an executor may require one. |
+| An executor may require a signer (off by default) | Required by default (§9.1, 2026-09-30); an unsigned plugin is refused, visibly, unless the governor waived the requirement for it in writing. |
 | — | What a plugin writes is bounded (§10): a tmpfs volume kept by a holder, `fsize`, `nr_inodes`. |

@@ -188,6 +188,8 @@ judged on part of a project's backlog:
 | `no_repository` | The project has no repository: "every one of none passes" is not a pass. |
 | `never_examined` | A repository has no scan or import in which the scope produced. |
 | `step_absent` | Every scan within the age ran without the step or the plugin — did not look, not found nothing; also a coverage report that counted no branch, for a rule on branches. |
+| `plugin_unsigned` | The plugin was refused, and did not produce since within the age: its manifest declares no signer, the executor requires one, and the governor [waived](../administration/plugins.md#running-an-unsigned-plugin) nothing. Nobody started the tool — sign its image, or record the waiver. |
+| `plugin_signature_unverified` | The same, refused because the signer its manifest declares did not verify the image (another signer, no signature, or a registry cosign could not read). |
 | `language_not_analysed` | The static analysis produced on a tree it could not read: a source language of the repository that none of the SAST rules the scan ran with reads, or a plugin that produced on a tree holding none of its languages. The evidence names the languages. Install rules for them — a rule set from the catalogue — and scan again. |
 | `examination_unrecorded` | The scans within the age are from before Vectispire recorded which steps ran, or an import from before it recorded which tools it carried: rescan, or upload again. |
 | `languages_unrecorded` | The scan the analysis produced in did not record its tree's languages, or the languages its rules read: every scan from before this version, a tree too large to count whole, an agent older than the census. Rescan with an up-to-date executor. |

@@ -2,7 +2,7 @@
 
 ## Prochaine version (après 0.9.0)
 
-Pas encore étiquetée. Lisez d'abord **Avant la mise à jour** : quatre de ses points arrêtent
+Pas encore étiquetée. Lisez d'abord **Avant la mise à jour** : cinq de ses points arrêtent
 quelque chose tant qu'un opérateur n'a pas agi, et c'est voulu.
 
 ### Avant la mise à jour
@@ -216,7 +216,24 @@ une image qui a un scan terminé garde sa note. Rien n'est enregistré, le chang
 première lecture ; analysez les cibles que nomme la nouvelle recommandation. Voir
 [Comment la note du scorecard est calculée](../guide/repositories.md#comment-la-note-du-scorecard-est-calculee).
 
-**Les migrations V32 à V59 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Un plugin dont l'image n'est pas signée ne tourne plus, sauf dérogation du gouverneur de la
+plateforme.** `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` vaut désormais `true` par défaut, sur le worker
+intégré du plan de contrôle et sur chaque agent. Les plugins n'existaient pas en 0.9.0, aucune
+installation publiée ne perd donc rien ; une **version de développement** qui a enregistré un plugin
+sans `signature` dans son manifeste le voit **refusé** dès le premier scan après la mise à jour — la
+carte **Plugins** du scan dit *refusé — non signé*, le scan liste l'échec sous `plugin <id>`, ses issues
+restent telles quelles, et une ligne de checklist qui le mesure est *sans données* (`plugin_unsigned`).
+Avant la mise à jour, déclarez le signataire de l'image de chacun de ces plugins, ou — tant qu'elle ne
+peut pas être signée — faites enregistrer par le gouverneur une dérogation avec sa justification sur la
+page du plugin (`PUT /api/v1/plugins/{id}/unsigned-waiver`). Positionner la variable à `false` lance
+encore tout plugin non signé sur cet exécuteur, sans trace de pourquoi ; la dérogation est la voie
+documentée. Pourquoi le défaut change : un registre, un miroir ou un tag compromis en amont fait tourner
+du code sur le source de chaque projet pour lequel le plugin est activé, et l'absence de réseau ne
+l'empêche pas d'inventer ou de taire des constats. Voir
+[Plugins](../administration/plugins.md#faire-tourner-un-plugin-non-signe) et la
+[décision 0017](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0017-custom-checks-as-container-images.md).
+
+**Les migrations V32 à V60 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -434,7 +451,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   plugin nomme son projet — `projectName`, `solutionId`, `solutionName` à côté de `projectId` — et une
   source déclarée sa clé, `apiKeyName` à côté de `apiKeyId` (`null` une fois la clé révoquée) ; le
   `plugins[].state` d'une analyse est énuméré dans le document OpenAPI : `produced`, `not_applicable`,
-  `absent`.
+  `absent`, `refused` — ce dernier avec `refusal` (`unsigned`, `signature_unverified`) ; un plugin
+  produit porte `signature` (`verified`, `waived`, `not_required`). Un plugin porte `unsignedWaiver`
+  (`null` sans dérogation), posée et retirée par `PUT` / `DELETE /api/v1/plugins/{id}/unsigned-waiver` ;
+  la tâche d'un scan porte `runsUnsigned` avec chaque plugin. Deux raisons rejoignent le `no_data` d'une
+  mesure de checklist : `plugin_unsigned`, `plugin_signature_unverified`. Deux opérations d'audit,
+  `PLUGIN_SIGNATURE_WAIVED` et `PLUGIN_SIGNATURE_WAIVER_REVOKED`, signalées toutes deux en `VECTI-SEC-021`.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.
@@ -583,9 +605,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `project-name-taken` — [Solutions et projets](../administration/solutions-and-projects.md#deplacer-un-projet-vers-une-autre-solution).
 - **Plugins d'analyse** : des analyseurs tiers livrés en images de conteneur, enregistrés par le
   gouverneur de la plateforme, activés par projet, lancés confinés comme les scanners intégrés, et
-  seulement quand un langage qu'ils déclarent est présent. Une image peut déclarer son signataire ;
-  la signature est vérifiée avant le pull, et `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` en exige une
-  pour tout plugin.
+  seulement quand un langage qu'ils déclarent est présent. Une image déclare son signataire ; la
+  signature est vérifiée avant le pull, et un plugin qui n'en déclare aucun est refusé sauf dérogation
+  écrite du gouverneur (V60) — `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED`, activé par défaut.
 - **Imports SARIF** depuis des sources internes déclarées (un job de CI, un SonarQube sur site),
   chacune liée à une clé restreinte et à un périmètre, avec la provenance conservée sur chaque
   problème — [Plugins et imports SARIF](../administration/plugins.md). Les politiques de barrière

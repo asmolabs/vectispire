@@ -96,7 +96,14 @@ report: a tmpfs does not outlive the container.)
 
 The digest says **what** runs; a signature says **who built it**. Declare the signer in the manifest
 and every executor verifies the image with cosign **before pulling it**; an image that does not verify
-is never run, and the plugin is **absent** with cosign's reason.
+is never run, and the plugin is **refused** (`signature_unverified`) with cosign's reason.
+
+**A signer is required by default.** A plugin whose manifest declares none is **refused** (`unsigned`)
+on every executor, and nothing of it is started — unless the platform governor
+[waived the requirement](#running-an-unsigned-plugin) for that plugin. The digest pins the bytes, but
+not who pushed them: a registry, a mirror or a tag compromised upstream runs code over the source of
+every project the plugin is switched on for, and having no network does not stop that code from
+fabricating findings or hiding real ones in its report.
 
 - **Keyless** (Sigstore): `identity` is the signing certificate's identity — for a GitHub Actions
   workflow, `https://github.com/<owner>/<repo>/.github/workflows/<file>@refs/tags/<tag>` — and `issuer`
@@ -119,10 +126,29 @@ Changing the signer is a new manifest, audited like any other change. The verifi
 your registry: the signature must be readable without credentials. A mirror set with
 `VECTISPIRE_PLUGIN_REGISTRY` must carry the signatures as well (`cosign copy` copies both).
 
-**Requiring a signature.** Set `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=true` on the control plane (for its
-built-in worker) and on each agent that should refuse unsigned code: a plugin whose manifest declares no
-signer is then absent on that executor, and nothing of it is started. It is each executor's own
-setting, because it is that machine that runs the code.
+### Running an unsigned plugin
+
+When an image cannot be signed yet — an internal tool whose pipeline has no signing step — the
+**platform governor** waives the requirement **for that one plugin**, with a written justification:
+
+- **On screen**, the plugin's detail shows **Signature: required** and, to the governor, **Run unsigned…**,
+  which asks for the justification (20 to 500 characters — say why, and by when it will be signed).
+  Once granted, the detail shows **Runs unsigned (waiver)** with the justification, who granted it and
+  when, and the governor can **Withdraw the waiver**.
+- **Through the API**: `PUT /api/v1/plugins/{id}/unsigned-waiver` with `{"justification": "…"}`, and
+  `DELETE` on the same path to withdraw it (404 when there is none).
+
+The waiver is audited (`PLUGIN_SIGNATURE_WAIVED`, `PLUGIN_SIGNATURE_WAIVER_REVOKED`, with the
+justification) and forwarded to the SIEM (`VECTI-SEC-021`). It takes effect from the next scan: each
+task carries it with the plugin, to the built-in worker and to agents alike. **It lifts the duty to
+declare a signer, nothing else**: a signer the manifest declares is verified all the same, and a
+signature that does not verify is refused whatever the waiver. A scan that ran the plugin under the
+waiver says so on its **Plugins** card.
+
+**Switching the requirement off for a whole executor** remains possible —
+`VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=false` on the control plane (its built-in worker) or on an
+agent — and runs every unsigned plugin there, with no trace of why. Prefer the waiver: it names the
+plugin, says why, and is on the record.
 
 ### What the report must say
 
@@ -154,7 +180,8 @@ network and its justification, the timeout, and who registered and last changed 
 also see the projects it is switched on for, as *solution / project*. The governor alone gets **Register a plugin**, the pencil
 that edits the manifest, and **Enable** / **Disable**. The form says where the id is typed that it can
 never be renamed or reused, and locks it when editing; a refusal — an id already taken, a tag beside
-the digest, a justification too short — stays in the form with the server's reason. The page itself
+the digest, a justification too short — stays in the form with the server's reason. The detail also
+shows whether the plugin must be signed, and the [waiver](#running-an-unsigned-plugin) when there is one. The page itself
 stays open to every account: a developer or a security champion, who has no Administration section,
 reaches it from the scan's **Plugins** card, whose plugin names link to it.
 
@@ -165,6 +192,8 @@ Through the API:
   keeps every issue and its triage.** The id itself never changes.
 - `PUT /api/v1/plugins/{id}/enabled` with `{"enabled": false}` stops it everywhere from the next
   scan, without forgetting where it was switched on.
+- `PUT` / `DELETE /api/v1/plugins/{id}/unsigned-waiver` grants or withdraws the
+  [waiver of the signature requirement](#running-an-unsigned-plugin).
 - There is no delete: the id names every issue the plugin ever opened.
 
 Every signed-in account can read the registry (`GET /api/v1/plugins`).
@@ -190,20 +219,27 @@ is kept and runs nothing until it is enabled again.
 
 ## What a scan says about each plugin
 
-Each plugin of a scan ends in one of three states:
+Each plugin of a scan ends in one of four states:
 
 | State | When | Its issues on the repository |
 |---|---|---|
 | **produced** | It ran and its report was read. | Opened for what it reports; **resolved for what it no longer reports** — its own issues only. |
 | **not applicable** | None of its languages is in the repository; it was not started. | Left as they are. Not a failure. |
-| **absent** | It should have run and gave no usable report (signature not verified, pull failed, undeclared exit code, output directory full, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
+| **refused** | The executor would not start it: `unsigned` — no signer declared, a signer required, no waiver — or `signature_unverified` — cosign did not verify the image against the declared signer. | Left as they are, and the scan lists the failure under `plugin <id>`. |
+| **absent** | It should have run and gave no usable report (pull failed, undeclared exit code, output directory full, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
 
-The scan's detail lists each plugin with its state (`plugins`: `produced` with its number of findings,
-`not_applicable` with the languages it looked for, `absent` with the reason). On the scan's page, the
-**Plugins** card shows the three apart on purpose: **produced** in green with the number of findings in
-its report, **not applicable** in grey with the languages it looked for, **absent — failed** in red with
-the reason. Each names its plugin, linked to the registry, and its manifest digest. A plugin's findings
-say which tool and version reported them.
+The scan's detail lists each plugin with its state (`plugins`: `produced` with its number of findings
+and `signature` — `verified`, `waived` or `not_required` — `not_applicable` with the languages it
+looked for, `refused` with its `refusal` and the reason, `absent` with the reason). On the scan's page,
+the **Plugins** card shows them apart on purpose: **produced** in green with the number of findings in
+its report — and **ran unsigned (waiver)** when it ran under a waiver — **not applicable** in grey with
+the languages it looked for, **refused — unsigned** or **refused — signature not verified** in red,
+**absent — failed** in red with the reason. Each names its plugin, linked to the registry, and its
+manifest digest. A plugin's findings say which tool and version reported them.
+
+A [checklist line](../guide/security-checklists.md) measured on a plugin that was refused, and did not
+produce since within the line's age, has **no data**, with the reason `plugin_unsigned` or
+`plugin_signature_unverified` rather than `step_absent`.
 
 Languages are detected from file names and manifests (`pom.xml`, `package.json`, `pyproject.toml`,
 `go.mod`…), within a bound; a repository too large to count runs every plugin rather than skipping

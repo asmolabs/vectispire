@@ -97,7 +97,15 @@ rapport : un tmpfs ne survit pas au conteneur.)
 
 Le digest dit **ce qui** tourne ; une signature dit **qui l'a construit**. Déclarez le signataire dans le
 manifeste et chaque exécuteur vérifie l'image avec cosign **avant de la tirer** ; une image qui ne se
-vérifie pas n'est jamais lancée, et le plugin est **absent** avec la raison donnée par cosign.
+vérifie pas n'est jamais lancée, et le plugin est **refusé** (`signature_unverified`) avec la raison
+donnée par cosign.
+
+**Un signataire est exigé par défaut.** Un plugin dont le manifeste n'en déclare aucun est **refusé**
+(`unsigned`) sur chaque exécuteur, et rien de lui n'est démarré — sauf si le gouverneur de la
+plateforme a [levé l'exigence](#faire-tourner-un-plugin-non-signe) pour ce plugin. Le digest épingle les
+octets, pas qui les a poussés : un registre, un miroir ou un tag compromis en amont fait tourner du code
+sur le source de chaque projet pour lequel le plugin est activé, et l'absence de réseau n'empêche pas ce
+code d'inventer des constats ou d'en taire de vrais dans son rapport.
 
 - **Sans clé** (Sigstore) : `identity` est l'identité du certificat de signature — pour un workflow
   GitHub Actions, `https://github.com/<owner>/<repo>/.github/workflows/<fichier>@refs/tags/<tag>` — et
@@ -120,10 +128,30 @@ Changer de signataire est un nouveau manifeste, audité comme tout autre changem
 s'authentifie pas auprès de votre registre : la signature doit être lisible sans identifiants. Un miroir
 réglé par `VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` copie les deux).
 
-**Exiger une signature.** Positionnez `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=true` sur le plan de contrôle
-(pour son worker intégré) et sur chaque agent qui doit refuser du code non signé : un plugin dont le
-manifeste ne déclare aucun signataire y est alors absent, et rien de lui n'est démarré. C'est le réglage
-propre à chaque exécuteur, parce que c'est cette machine-là qui lance le code.
+### Faire tourner un plugin non signé
+
+Quand une image ne peut pas encore être signée — un outil interne dont la chaîne n'a pas d'étape de
+signature — le **gouverneur de la plateforme** lève l'exigence **pour ce seul plugin**, avec une
+justification écrite :
+
+- **À l'écran**, le détail du plugin affiche **Signature : exigée** et, pour le gouverneur, **Autoriser
+  sans signature…**, qui demande la justification (20 à 500 caractères — dites pourquoi, et d'ici quand
+  elle sera signée). Une fois accordée, le détail affiche **Tourne sans signature (dérogation)** avec la
+  justification, qui l'a accordée et quand, et le gouverneur peut **Retirer la dérogation**.
+- **Par l'API** : `PUT /api/v1/plugins/{id}/unsigned-waiver` avec `{"justification": "…"}`, et `DELETE`
+  sur le même chemin pour la retirer (404 s'il n'y en a pas).
+
+La dérogation est au journal d'audit (`PLUGIN_SIGNATURE_WAIVED`, `PLUGIN_SIGNATURE_WAIVER_REVOKED`, avec
+la justification) et transmise au SIEM (`VECTI-SEC-021`). Elle vaut dès le scan suivant : chaque tâche
+la porte avec le plugin, vers le worker intégré comme vers les agents. **Elle lève l'obligation de
+déclarer un signataire, rien d'autre** : un signataire déclaré par le manifeste est vérifié tout de
+même, et une signature qui ne se vérifie pas est refusée quelle que soit la dérogation. Un scan qui a
+lancé le plugin sous dérogation le dit sur sa carte **Plugins**.
+
+**Désactiver l'exigence pour tout un exécuteur** reste possible —
+`VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=false` sur le plan de contrôle (son worker intégré) ou sur un
+agent — et y lance tout plugin non signé, sans trace de pourquoi. Préférez la dérogation : elle nomme
+le plugin, dit pourquoi, et reste au dossier.
 
 ### Ce que le rapport doit dire
 
@@ -158,7 +186,8 @@ Les rôles de gouvernance voient aussi les projets pour lesquels il est activé,
 **Enregistrer un plugin**, le crayon qui modifie le manifeste, et **Activer** / **Désactiver**. Le
 formulaire dit, là où l'id se saisit, qu'il ne pourra jamais être renommé ni réutilisé, et le verrouille
 en modification ; un refus — id déjà pris, tag à côté du digest, justification trop courte — reste dans
-le formulaire avec la raison donnée par le serveur. La page elle-même reste ouverte à tout compte : un
+le formulaire avec la raison donnée par le serveur. Le détail dit aussi si le plugin doit être signé,
+et la [dérogation](#faire-tourner-un-plugin-non-signe) quand il y en a une. La page elle-même reste ouverte à tout compte : un
 développeur ou un security champion, qui n'a pas de section Administration, l'atteint depuis la carte
 **Plugins** du scan, dont les noms de plugin y mènent.
 
@@ -169,6 +198,8 @@ Par l'API :
   garde l'id, et garde chaque issue et son triage.** L'id lui-même ne change jamais.
 - `PUT /api/v1/plugins/{id}/enabled` avec `{"enabled": false}` l'arrête partout dès le scan suivant,
   sans oublier où il était activé.
+- `PUT` / `DELETE /api/v1/plugins/{id}/unsigned-waiver` accorde ou retire la
+  [dérogation à l'exigence de signature](#faire-tourner-un-plugin-non-signe).
 - Il n'y a pas de suppression : l'id nomme chaque issue que le plugin a ouverte.
 
 Tout compte connecté peut lire le registre (`GET /api/v1/plugins`).
@@ -194,20 +225,28 @@ le dit sur sa ligne — son activation est conservée et ne lance rien tant qu'i
 
 ## Ce qu'un scan dit de chaque plugin
 
-Chaque plugin d'un scan finit dans l'un de trois états :
+Chaque plugin d'un scan finit dans l'un de quatre états :
 
 | État | Quand | Ses issues sur le dépôt |
 |---|---|---|
 | **produit** | Il a tourné et son rapport a été lu. | Ouvertes pour ce qu'il rapporte ; **résolues pour ce qu'il ne rapporte plus** — ses propres issues seulement. |
 | **non applicable** | Aucun de ses langages n'est dans le dépôt ; il n'a pas été lancé. | Laissées telles quelles. Pas un échec. |
-| **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (signature non vérifiée, pull en échec, code de sortie non déclaré, répertoire de sortie plein, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
+| **refusé** | L'exécuteur ne l'a pas démarré : `unsigned` — aucun signataire déclaré, un signataire exigé, pas de dérogation — ou `signature_unverified` — cosign n'a pas vérifié l'image face au signataire déclaré. | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
+| **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (pull en échec, code de sortie non déclaré, répertoire de sortie plein, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
 
 Le détail du scan liste chaque plugin avec son état (`plugins` : `produced` avec son nombre de
-constats, `not_applicable` avec les langages qu'il cherchait, `absent` avec la raison). Sur la page du
-scan, la carte **Plugins** montre les trois distinctement, à dessein : **produit** en vert avec le nombre
-de constats de son rapport, **non applicable** en gris avec les langages qu'il cherchait, **absent —
-échec** en rouge avec la raison. Chacun nomme son plugin, lié au registre, et le digest de son
-manifeste. Les constats d'un plugin disent quel outil et quelle version les ont rapportés.
+constats et `signature` — `verified`, `waived` ou `not_required` — `not_applicable` avec les langages
+qu'il cherchait, `refused` avec son `refusal` et la raison, `absent` avec la raison). Sur la page du
+scan, la carte **Plugins** les montre distinctement, à dessein : **produit** en vert avec le nombre de
+constats de son rapport — et **sans signature (dérogation)** quand il a tourné sous dérogation — **non
+applicable** en gris avec les langages qu'il cherchait, **refusé — non signé** ou **refusé — signature
+non vérifiée** en rouge, **absent — échec** en rouge avec la raison. Chacun nomme son plugin, lié au
+registre, et le digest de son manifeste. Les constats d'un plugin disent quel outil et quelle version
+les ont rapportés.
+
+Une [ligne de checklist](../guide/security-checklists.md) mesurée sur un plugin refusé, qui n'a pas
+produit depuis dans l'âge de la ligne, est **sans données**, avec la raison `plugin_unsigned` ou
+`plugin_signature_unverified` plutôt que `step_absent`.
 
 Les langages sont détectés à partir des noms de fichiers et des manifestes (`pom.xml`, `package.json`,
 `pyproject.toml`, `go.mod`…), dans une borne ; un dépôt trop grand pour être recensé lance tous les
