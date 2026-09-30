@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.targets.persistence;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -12,4 +13,7 @@ public interface ProjectRepository extends JpaRepository<ProjectEntity, Long> {
     boolean existsBySolutionId(Long solutionId);
 
     long countBySolutionId(Long solutionId);
+
+    /** A solution's projects — what a grant naming one of them is compared with, one parameter whatever their number. */
+    List<ProjectEntity> findBySolutionId(Long solutionId);
 }

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.scanning.persistence;
 
 import com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
+import com.asmolabs.vectispire.core.scanning.persistence.queries.NewestCompletedScanRow;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -447,6 +448,37 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     @Modifying(clearAutomatically = true)
     @Query("update ScanEntity s set s.sastLanguages = :languages where s.id = :id")
     int recordSastLanguages(@Param("id") long id, @Param("languages") String languages);
+
+    /**
+     * Per repository, its newest scan with this status (the highest id), and whether that scan still
+     * holds its SBOM. A repository with no such scan is absent.
+     *
+     * <p>{@code repoIds} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.NewestCompletedScanRow(
+                       s.repoId, s.containerId, s.id, s.createdAt, case when s.sbom is null then false else true end)
+              from ScanEntity s
+             where s.repoId in :repoIds
+               and s.id = (select max(l.id) from ScanEntity l
+                            where l.repoId = s.repoId
+                              and l.status = :status)""")
+    List<NewestCompletedScanRow> findNewestWithStatusOfRepositories(
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("status") String status);
+
+    /** The same, per image: {@code containerIds} one parameter each, a thousand at most. */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.NewestCompletedScanRow(
+                       s.repoId, s.containerId, s.id, s.createdAt, case when s.sbom is null then false else true end)
+              from ScanEntity s
+             where s.containerId in :containerIds
+               and s.id = (select max(l.id) from ScanEntity l
+                            where l.containerId = s.containerId
+                              and l.status = :status)""")
+    List<NewestCompletedScanRow> findNewestWithStatusOfContainers(
+            @Param("containerIds") Collection<Long> containerIds,
+            @Param("status") String status);
 
     /**
      * Per repository, its newest scan with this status (the highest id) and the languages that scan's

@@ -2,10 +2,13 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleProject;
+import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -35,6 +38,9 @@ public final class RowVisibility {
 
     /** The one sentence a refused project gets — absent, hidden, or seen only in part. */
     private static final String PROJECT_NOT_FOUND = "Project not found.";
+
+    /** The one sentence a refused solution gets — absent, or none of it visible. */
+    private static final String SOLUTION_NOT_FOUND = "Solution not found.";
 
     private RowVisibility() {}
 
@@ -158,5 +164,72 @@ public final class RowVisibility {
             throw new NotFoundException(PROJECT_NOT_FOUND);
         }
         return new VisibleProject(projectId, name.get());
+    }
+
+    /**
+     * A project as far as the caller sees it, or "Project not found." — for a project that does not
+     * exist and one the caller sees nothing of, alike. The aggregates over a project (its read, its
+     * compliance, its consolidated inventory) take what this returns.
+     *
+     * <p><b>The solutions tree's rule, and one copy of it.</b> The caller sees the project when its
+     * visibility is everything, when it holds the project granted as such — even while the project holds
+     * nothing — or when it sees at least one target filed in it. Anything else would let a route answer
+     * a project the tree does not show, or refuse one it lists.
+     *
+     * <p><b>Why a partial reader is served, where the checklists refuse one</b> ({@link
+     * #requireWhollyVisibleProject}): a checklist speaks for every repository and its words carry the
+     * hidden ones' state; an aggregate here is computed over the visible targets only, every input
+     * narrowed, and says {@code partial} — the backlog's and the tree's figures already are.
+     *
+     * @param name the project's name, empty when there is no such project — passed here rather than
+     *     refused by the caller, whose own sentence would tell absent from hidden
+     * @param filed every target filed in the project now, visible or not: what {@code partial} is measured
+     *     against, and a list narrowed first would read a partial project as whole
+     */
+    public static VisibleScope requireVisibleProject(
+            long projectId, Optional<String> name, Collection<ScanTarget> filed, VisibilityService.Allowance allowance) {
+        List<ScanTarget> visible = visibleOf(filed, allowance.visibility());
+        if (name.isEmpty() || !(allowance.visibility() instanceof Visibility.Everything
+                || allowance.grantedProjects().contains(projectId)
+                || !visible.isEmpty())) {
+            throw new NotFoundException(PROJECT_NOT_FOUND);
+        }
+        return new VisibleScope(VisibleScope.Kind.PROJECT, projectId, name.get(), visible, visible.size() < filed.size());
+    }
+
+    /**
+     * A solution as far as the caller sees it, or "Solution not found." — absent and wholly hidden alike.
+     * The tree shows a solution when it shows one of its projects, so the rule is the project's over the
+     * solution: everything, one of its projects granted as such, or one target filed under it visible.
+     *
+     * @param projectIds the solution's projects, for the grants that name one
+     * @param filed every target filed in its projects now, visible or not
+     */
+    public static VisibleScope requireVisibleSolution(
+            long solutionId,
+            Optional<String> name,
+            Collection<Long> projectIds,
+            Collection<ScanTarget> filed,
+            VisibilityService.Allowance allowance) {
+        List<ScanTarget> visible = visibleOf(filed, allowance.visibility());
+        if (name.isEmpty() || !(allowance.visibility() instanceof Visibility.Everything
+                || projectIds.stream().anyMatch(allowance.grantedProjects()::contains)
+                || !visible.isEmpty())) {
+            throw new NotFoundException(SOLUTION_NOT_FOUND);
+        }
+        return new VisibleScope(VisibleScope.Kind.SOLUTION, solutionId, name.get(), visible, visible.size() < filed.size());
+    }
+
+    /** The permitted ones, distinct, repositories then images, each ascending — a stable order for a document. */
+    private static List<ScanTarget> visibleOf(Collection<ScanTarget> filed, Visibility visibility) {
+        return filed.stream()
+                .filter(visibility::permits)
+                .distinct()
+                .sorted(Comparator.comparing((ScanTarget target) -> target instanceof ScanTarget.Container)
+                        .thenComparingLong(target -> switch (target) {
+                            case ScanTarget.Repository repository -> repository.id();
+                            case ScanTarget.Container container -> container.id();
+                        }))
+                .toList();
     }
 }

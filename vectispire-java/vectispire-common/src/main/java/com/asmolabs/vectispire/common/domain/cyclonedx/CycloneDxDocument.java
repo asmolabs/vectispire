@@ -21,16 +21,52 @@ public record CycloneDxDocument(
         int version,
         Metadata metadata,
         List<Component> components,
-        List<Vulnerability> vulnerabilities) {
+        List<Vulnerability> vulnerabilities,
+        List<Composition> compositions) {
 
     public static final String BOM_FORMAT = "CycloneDX";
     public static final String SPEC_VERSION = "1.5";
 
+    /** A document that states nothing of its own completeness: the per-scan and the fleet's. */
+    public CycloneDxDocument(
+            String bomFormat,
+            String specVersion,
+            String serialNumber,
+            int version,
+            Metadata metadata,
+            List<Component> components,
+            List<Vulnerability> vulnerabilities) {
+        this(bomFormat, specVersion, serialNumber, version, metadata, components, vulnerabilities, null);
+    }
+
+    /**
+     * @param properties name-value pairs in a namespace of Vectispire's ({@code vectispire:…}), which
+     *     CycloneDX 1.5 allows on the metadata and on a component — how a project's document says which
+     *     of its targets carry a component and which were not read
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Metadata(
             Instant timestamp,
             List<Tool> tools,
-            Component component) {}
+            Component component,
+            List<Property> properties) {
+
+        public Metadata(Instant timestamp, List<Tool> tools, Component component) {
+            this(timestamp, tools, component, null);
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Property(String name, String value) {}
+
+    /**
+     * What the document claims of its own completeness — CycloneDX 1.5's {@code compositions}, whose
+     * {@code aggregate} is {@code complete}, {@code incomplete} or {@code unknown}, among others. A
+     * consumer reading a component list without it cannot tell "this is all" from "this is what was
+     * seen"; a project's document states which (decision 0007).
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Composition(String aggregate, List<String> assemblies) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Tool(
@@ -46,7 +82,13 @@ public record CycloneDxDocument(
             String name,
             String version,
             String purl,
-            String scope) {}
+            String scope,
+            List<Property> properties) {
+
+        public Component(String bomRef, String type, String group, String name, String version, String purl, String scope) {
+            this(bomRef, type, group, name, version, purl, scope, null);
+        }
+    }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Vulnerability(

@@ -12,8 +12,11 @@
  * {@code IssueFilters}): the documents state the backlog, its decisions and deadlines, and a VEX
  * document is imported through {@code VexIngestorService}. {@code scanning} since exports became a
  * module and took its controllers: a document is made for a scan, and its service first refuses a
- * scan the caller may not see ({@code ScanDocumentService}). {@code targets}: a document names its target. None of them uses
- * {@code exports}.
+ * scan the caller may not see ({@code ScanDocumentService}). {@code targets}: a document names its target, and a
+ * project's is made for the project as far as the caller sees it ({@code SolutionQueryService.visibleProject}).
+ * {@code inventory}: a project's CycloneDX document lists its consolidated inventory ({@code
+ * ConsolidatedInventoryService}), the merge being the inventory's to make and this module's only to render.
+ * None of them uses {@code exports}.
  *
  * <p>{@code access} for its routes only, which resolve a {@code Visibility} ({@code
  * ArchitectureTest.accessForRoutesOnly}) and refuse a named target, handing the service the proof of
@@ -24,7 +27,7 @@
  * module's service layer off every {@code web} package, {@code access}'s included.
  */
 @ApplicationModule(allowedDependencies = {
-        "access", "access::security", "gate", "issues", "issues::queries", "scanning", "targets"})
+        "access", "access::security", "gate", "inventory", "issues", "issues::queries", "scanning", "targets"})
 package com.asmolabs.vectispire.core.exports;
 
 import org.springframework.modulith.ApplicationModule;

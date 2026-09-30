@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.posture;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
@@ -111,31 +112,50 @@ public class SecurityScorecardService {
      * is both a leak and a number that means nothing about anything they can act on.
      */
     public SecurityScorecard getGlobalScorecard(Visibility allowed) {
+        // **Narrowed after the read, not in the query, and the difference is worth stating.** The
+        // issues are filtered in SQL; the licence inventory narrows to an allowance in
+        // memory, so the portfolio still parses every SBOM it can reach. Recorded rather than
+        // hidden, because a filter applied late is exactly the shape this service has been
+        // corrected for twice. The narrowing is the licence service's own since it stopped
+        // publishing the unfiltered estate: it used to be done here, on a list anyone could ask for.
+        return portfolio(allowed, licenseService.getInventory(allowed, null, null), null, "global", "Organization Portfolio");
+    }
+
+    /**
+     * A project's or a solution's scorecard: the portfolio's computation, over the scope's visible
+     * targets and nothing else — the same terms, the same weights, no formula of its own. A partial
+     * scope is scored on what the caller sees, as the portfolio is for a restricted reader; the scope
+     * says {@code partial} beside it.
+     *
+     * <p><b>The licences are read target by target</b>, each through the per-target inventory the
+     * target's own scorecard reads, rather than through the portfolio's, which parses every SBOM of
+     * the estate to keep a project's. The two agree: every inventory entry is keyed by its target, so
+     * the union of the targets' lists is the portfolio's list narrowed to them.
+     *
+     * @return {@code targetKind} {@code project} or {@code solution}, {@code targetId} the scope's
+     */
+    public SecurityScorecard getScopeScorecard(VisibleScope scope) {
+        Visibility allowed = scope.visibility();
+        List<LicenseEntry> licenses = scope.targets().stream()
+                .flatMap(target -> licenseService.getInventory(RowVisibility.requireVisible(target, allowed)).stream())
+                .toList();
+        return portfolio(allowed, licenses, scope.id(), scope.kind().wireName(), scope.name());
+    }
+
+    private SecurityScorecard portfolio(
+            Visibility allowed, List<LicenseEntry> licenses, Long id, String kind, String name) {
         List<IssueRows.Posture> openIssues = issuesRepo
                 .rows(openWithin(allowed), IssueRows.Posture.class)
                 .stream()
                 .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();
 
-        // **Narrowed after the read, not in the query, and the difference is worth stating.** The
-        // issues above are filtered in SQL; the licence inventory narrows to an allowance in
-        // memory, so the portfolio still parses every SBOM it can reach. Recorded rather than
-        // hidden, because a filter applied late is exactly the shape this service has been
-        // corrected for twice. The narrowing is the licence service's own since it stopped
-        // publishing the unfiltered estate: it used to be done here, on a list anyone could ask for.
-        List<LicenseEntry> licenses = licenseService.getInventory(allowed, null, null);
-        // **Still a read of every target, no longer of every scan.** Those above asked "has this
-        // target completed a scan" and are one indexed existence check. This asks "has *any target
-        // the caller may see* completed one", and the allowance is a set of targets rather than a
-        // column, so it is applied in memory — but over the distinct targets with a completed
-        // scan, as two columns. It used to load every scan entity, SBOM and CVE payloads included,
-        // to read one boolean.
         boolean hasAttestation = scansRepo.targetsWithStatus("completed").stream()
                 .anyMatch(row -> allowed.permits(row.target()));
 
         long overdue = sla.countOverdue(allowed);
 
-        return computeScorecard(null, "global", "Organization Portfolio", openIssues, licenses, hasAttestation, overdue);
+        return computeScorecard(id, kind, name, openIssues, licenses, hasAttestation, overdue);
     }
 
     private SecurityScorecard computeScorecard(

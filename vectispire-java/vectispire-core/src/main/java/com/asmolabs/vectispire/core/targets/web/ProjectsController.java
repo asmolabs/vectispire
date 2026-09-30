@@ -1,18 +1,24 @@
 package com.asmolabs.vectispire.core.targets.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService.ProjectView;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
+import com.asmolabs.vectispire.core.targets.SolutionQueryService;
+import com.asmolabs.vectispire.core.targets.SolutionQueryService.ProjectDetail;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -25,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Changing a project, and filing repositories and container images into it (decision 0023, and its
  * amendment of 2026-09-30 for images). Administrators only; a
  * project is created under its solution, {@code POST /api/v1/solutions/{id}/projects}, and read
- * in the tree.
+ * in the tree — or on its own, the one route here an account and a read key reach.
  *
  * <p><b>Filing is an access change.</b> A grant on a project resolves at each request into the
  * repositories and images filed in it, so each of the four filing routes moves visibility for that
@@ -38,11 +44,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectsController {
 
     private final SolutionAdministrationService administration;
+    private final SolutionQueryService query;
     private final VisibilityService visibility;
 
-    public ProjectsController(SolutionAdministrationService administration, VisibilityService visibility) {
+    public ProjectsController(
+            SolutionAdministrationService administration, SolutionQueryService query, VisibilityService visibility) {
         this.administration = administration;
+        this.query = query;
         this.visibility = visibility;
+    }
+
+    /**
+     * A reporting plugin asks about the project it reports on, with a read key; reading the whole tree to
+     * find one node would hand it every other project the key's account sees.
+     */
+    @Operation(summary = "Project", description = "One project as its node in the solutions tree describes it — its "
+            + "solution named, its repositories and images, open issues by severity over both, partial, "
+            + "checklistsVisible, detected languages — as far as the caller may see. The tree's rule decides: a caller "
+            + "sees the project when it sees everything, holds the project as such, or sees one of its repositories or "
+            + "images; a project that does not exist and one the caller sees nothing of both answer 404, \"Project not "
+            + "found.\".")
+    @RequiresAccount
+    @AcceptsApiKey(ApiKeyScope.READ)
+    @GetMapping("/{id}")
+    public ProjectDetail get(@PathVariable long id, @AuthenticationPrincipal VectispirePrincipal principal) {
+        return query.project(id, allowanceOf(principal));
     }
 
     /**
@@ -136,6 +162,11 @@ public class ProjectsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         administration.removeContainer(id, containerId, allowed(principal), RequestActors.of(principal, request));
+    }
+
+    /** The caller's visibility with the projects it holds as such: a granted project is read while it holds nothing. */
+    private VisibilityService.Allowance allowanceOf(VectispirePrincipal principal) {
+        return visibility.allowance(principal.user().orElse(null), principal.credentialRestriction());
     }
 
     private Visibility allowed(VectispirePrincipal principal) {

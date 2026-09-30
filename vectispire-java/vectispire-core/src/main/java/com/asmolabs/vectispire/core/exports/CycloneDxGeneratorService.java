@@ -1,7 +1,12 @@
 package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.core.inventory.ConsolidatedInventoryService;
+import com.asmolabs.vectispire.core.inventory.ConsolidatedInventoryService.ConsolidatedInventory;
+import com.asmolabs.vectispire.core.inventory.ConsolidatedInventoryService.MergedComponent;
+import com.asmolabs.vectispire.core.inventory.ConsolidatedInventoryService.TargetInventory;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
@@ -13,10 +18,13 @@ import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
@@ -31,13 +39,19 @@ public class CycloneDxGeneratorService {
     private final ScanCatalog scansRepo;
     private final ScanDocumentService documents;
     private final IssueCatalog issuesRepo;
+    private final ConsolidatedInventoryService inventory;
     private final String toolVersion;
 
     public CycloneDxGeneratorService(
-            ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo, ProductVersion version) {
+            ScanCatalog scansRepo,
+            ScanDocumentService documents,
+            IssueCatalog issuesRepo,
+            ConsolidatedInventoryService inventory,
+            ProductVersion version) {
         this.scansRepo = scansRepo;
         this.documents = documents;
         this.issuesRepo = issuesRepo;
+        this.inventory = inventory;
         // The same version every other export states, or none: the tool entry's version is
         // optional in CycloneDX, and it was the literal "0.9.0".
         this.toolVersion = version.get();
@@ -54,6 +68,110 @@ public class CycloneDxGeneratorService {
     public Optional<CycloneDxDocument> generateForScan(long scanId, Visibility allowed) {
         documents.requireVisible(scanId, allowed);
         return scansRepo.scan(scanId).map(this::buildForScan);
+    }
+
+    /**
+     * A project's consolidated SBOM as a CycloneDX 1.5 document, with the project's CVE issues as its
+     * BOM-linked VEX — the fleet document's shape ({@link #generateAggregate}), narrowed to the project's
+     * visible targets, its components the real inventory rather than only the packages a CVE named.
+     *
+     * <p><b>It states what was read, and no more.</b> Each component names the targets that carry it
+     * ({@code vectispire:target}); the metadata names every visible target whose inventory is unknown
+     * ({@code vectispire:inventory-unknown}) and whether the caller sees only part of the project ({@code
+     * vectispire:partial}); and {@code compositions} says {@code complete} only when every target of the
+     * project was seen and read, {@code incomplete} otherwise. A component list without that reads as
+     * the whole product to whoever receives the file.
+     *
+     * <p>Not signed, like every other export of this module: the per-scan and the fleet documents are
+     * not, and a project's is theirs in another scope. The checklists' signed document is a statement
+     * people made; this one is a rendering anybody may ask for again.
+     */
+    public CycloneDxDocument generateForProject(VisibleScope project) {
+        ConsolidatedInventory consolidated = inventory.of(project);
+        Map<String, Component> componentMap = new LinkedHashMap<>();
+        Map<String, String> refByPurl = new HashMap<>();
+        Set<String> usedRefs = new HashSet<>();
+
+        for (MergedComponent merged : consolidated.components()) {
+            String version = merged.version();
+            String bomRef = uniqueRef(merged.purl() != null
+                    ? merged.purl()
+                    : "urn:vectispire:component:" + merged.name() + "@" + (version == null ? "" : version), usedRefs);
+            List<Property> carriers = merged.targets().stream()
+                    .map(target -> new Property("vectispire:target", target.kind() + ":" + target.id()))
+                    .toList();
+            componentMap.put(bomRef, new Component(
+                    bomRef,
+                    "library",
+                    extractGroup(merged.name()),
+                    extractName(merged.name()),
+                    version,
+                    merged.purl(),
+                    "required",
+                    carriers));
+            if (merged.purl() != null) {
+                refByPurl.putIfAbsent(merged.purl(), bomRef);
+            }
+        }
+
+        List<Vulnerability> vulnerabilities = new ArrayList<>();
+        for (IssueView issue : issuesRepo.issues(withCve(project.visibility()))) {
+            String cve = issue.identifier();
+            if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
+                continue;
+            }
+            String pkg = issue.packageName() != null ? issue.packageName() : "unknown";
+            String version = issue.packageVersion() != null ? issue.packageVersion() : "latest";
+            String purl = issue.purl() != null && !issue.purl().isBlank()
+                    ? issue.purl()
+                    : "pkg:generic/" + pkg + "@" + version;
+            // A package the inventory did not list — an image scanned before its SBOM was kept, a finding
+            // of a tool that reads no manifest — is added as the fleet document adds every one, so the
+            // statement's `affects` points at a component of the document.
+            String ref = refByPurl.computeIfAbsent(purl, absent -> {
+                String added = uniqueRef(absent, usedRefs);
+                componentMap.put(added, new Component(
+                        added, "library", extractGroup(pkg), extractName(pkg), version, absent, "required"));
+                return added;
+            });
+            vulnerabilities.add(buildVulnerability(issue, ref));
+        }
+
+        List<Property> facts = new ArrayList<>();
+        facts.add(new Property("vectispire:project", String.valueOf(project.id())));
+        if (project.partial()) {
+            facts.add(new Property("vectispire:partial", "true"));
+        }
+        for (TargetInventory target : consolidated.targets()) {
+            if (!target.inventory().known()) {
+                facts.add(new Property("vectispire:inventory-unknown", target.kind() + ":" + target.id()));
+            }
+        }
+        // No version: a project is not a release, and a version here would claim one.
+        Component root = new Component(
+                "urn:vectispire:project:" + project.id(), "application", null, project.name(), null, null, null);
+        Metadata metadata = new Metadata(
+                Instant.now(), List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)), root, List.copyOf(facts));
+        boolean whole = consolidated.complete() && !project.partial();
+
+        return new CycloneDxDocument(
+                CycloneDxDocument.BOM_FORMAT,
+                CycloneDxDocument.SPEC_VERSION,
+                "urn:uuid:" + UUID.randomUUID(),
+                1,
+                metadata,
+                new ArrayList<>(componentMap.values()),
+                vulnerabilities,
+                List.of(new Composition(whole ? "complete" : "incomplete", List.of(root.bomRef()))));
+    }
+
+    /** A {@code bom-ref} unique in the document, as CycloneDX requires: the second of a kind gets a suffix. */
+    private static String uniqueRef(String wanted, Set<String> used) {
+        String ref = wanted;
+        for (int n = 2; !used.add(ref); n++) {
+            ref = wanted + "#" + n;
+        }
+        return ref;
     }
 
     public CycloneDxDocument generateAggregate(Visibility allowed) {

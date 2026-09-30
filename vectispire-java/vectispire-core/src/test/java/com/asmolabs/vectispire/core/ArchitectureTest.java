@@ -410,10 +410,20 @@ class ArchitectureTest {
                                 && call.getName().equals("requireWhollyVisibleProject")))
                 .because("a project is refused by the service that serves its checklists, whoever calls it")
                 .check(classes);
+        // A project or a solution seen in part is resolved by `targets`, which reads what is filed in it:
+        // a route calling the guard would have to read the filing itself, and hand it whatever it read.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "the project and solution guards",
+                        call -> call.getTargetOwner().isEquivalentTo(com.asmolabs.vectispire.core.access.RowVisibility.class)
+                                && Set.of("requireVisibleProject", "requireVisibleSolution").contains(call.getName())))
+                .because("a project's scope is resolved by targets' SolutionQueryService, beside the read of its filing")
+                .check(classes);
     }
 
     @Test
-    @DisplayName("a VisibleTarget, and a VisibleProject, is minted by the guard alone")
+    @DisplayName("a VisibleTarget, a VisibleProject and a VisibleScope are minted by the guard alone")
     void visibleTargetsAreMintedByTheGuard() {
         // Java cannot restrict a record's constructor to another package. `VisibleTarget` is worth
         // something only because the one way to obtain it is to have been permitted — a `new
@@ -433,6 +443,16 @@ class ArchitectureTest {
                         "a VisibleProject's constructor",
                         call -> call.getTargetOwner().isEquivalentTo(
                                 com.asmolabs.vectispire.common.domain.access.VisibleProject.class)))
+                .check(classes);
+        // And for a project or a solution as far as the caller sees it: the aggregates over one — its
+        // read, its compliance, its consolidated inventory — are computed over the targets it carries,
+        // so one built by hand would compute them over targets nobody checked.
+        ArchRuleDefinition.noClasses()
+                .that().doNotHaveFullyQualifiedName(com.asmolabs.vectispire.core.access.RowVisibility.class.getName())
+                .should().callConstructorWhere(DescribedPredicate.describe(
+                        "a VisibleScope's constructor",
+                        call -> call.getTargetOwner().isEquivalentTo(
+                                com.asmolabs.vectispire.common.domain.access.VisibleScope.class)))
                 .check(classes);
     }
 

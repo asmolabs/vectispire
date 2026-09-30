@@ -35,7 +35,7 @@ public class ComponentCatalog {
     }
 
     /** A component as the SBOM listed it: the version is the one stored, exactly — no ordering is applied. */
-    public record Component(long scanId, String name, String version, String purl) {}
+    public record Component(long scanId, String name, String version, String purl, String type) {}
 
     /**
      * Each scan's components; a scan the inventory holds nothing for is absent from the map — one whose
@@ -48,7 +48,7 @@ public class ComponentCatalog {
         for (int from = 0; from < distinct.size(); from += BATCH) {
             components.findByScanIdIn(distinct.subList(from, Math.min(distinct.size(), from + BATCH))).forEach(row ->
                     byScan.computeIfAbsent(row.getScanId(), id -> new ArrayList<>())
-                            .add(new Component(row.getScanId(), row.getName(), row.getVersion(), row.getPurl())));
+                            .add(new Component(row.getScanId(), row.getName(), row.getVersion(), row.getPurl(), row.getType())));
         }
         Map<Long, List<Component>> answer = new HashMap<>();
         byScan.forEach((scan, listed) -> answer.put(scan, List.copyOf(listed)));

@@ -2453,6 +2453,12 @@
           "name" : {
             "type" : "string"
           },
+          "properties" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Property"
+            },
+            "type" : "array"
+          },
           "purl" : {
             "type" : "string"
           },
@@ -2513,6 +2519,70 @@
             "type" : "array"
           }
         },
+        "type" : "object"
+      },
+      "ComponentTarget" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id" ],
+        "type" : "object"
+      },
+      "Composition" : {
+        "properties" : {
+          "aggregate" : {
+            "type" : "string"
+          },
+          "assemblies" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ConsolidatedInventory" : {
+        "properties" : {
+          "complete" : {
+            "type" : "boolean"
+          },
+          "components" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MergedComponent"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "targets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TargetInventory"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "complete", "id", "partial" ],
         "type" : "object"
       },
       "ContainerCreateRequest" : {
@@ -2800,6 +2870,12 @@
           "components" : {
             "items" : {
               "$ref" : "#/components/schemas/Component"
+            },
+            "type" : "array"
+          },
+          "compositions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Composition"
             },
             "type" : "array"
           },
@@ -4945,10 +5021,39 @@
         },
         "type" : "object"
       },
+      "MergedComponent" : {
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "purl" : {
+            "type" : "string"
+          },
+          "targets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ComponentTarget"
+            },
+            "type" : "array"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Metadata" : {
         "properties" : {
           "component" : {
             "$ref" : "#/components/schemas/Component"
+          },
+          "properties" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Property"
+            },
+            "type" : "array"
           },
           "timestamp" : {
             "format" : "date-time",
@@ -5952,6 +6057,76 @@
         },
         "type" : "object"
       },
+      "ProjectDetail" : {
+        "properties" : {
+          "checklistsVisible" : {
+            "type" : "boolean"
+          },
+          "containerCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "containers" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ContainerRef"
+            },
+            "type" : "array"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "detectedLanguages" : {
+            "items" : {
+              "enum" : [ "apex", "bash", "c", "clojure", "csharp", "dockerfile", "elixir", "go", "html", "java", "javascript", "json", "kotlin", "ocaml", "php", "python", "ruby", "rust", "scala", "solidity", "swift", "terraform", "typescript", "yaml" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "languagesUnknownFor" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openIssues" : {
+            "$ref" : "#/components/schemas/OpenIssues"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "repositories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RepositoryRef"
+            },
+            "type" : "array"
+          },
+          "repositoryCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "solution" : {
+            "$ref" : "#/components/schemas/SolutionRef"
+          },
+          "solutionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "checklistsVisible", "containerCount", "partial", "repositoryCount" ],
+        "type" : "object"
+      },
       "ProjectNode" : {
         "properties" : {
           "checklistsVisible" : {
@@ -6049,6 +6224,17 @@
           "solutionId" : {
             "format" : "int64",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Property" : {
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7652,6 +7838,35 @@
         },
         "type" : "object"
       },
+      "ScopeCompliance" : {
+        "properties" : {
+          "compliance" : {
+            "$ref" : "#/components/schemas/ComplianceSummary"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "scorecard" : {
+            "$ref" : "#/components/schemas/SecurityScorecard"
+          },
+          "targetCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "id", "partial", "targetCount" ],
+        "type" : "object"
+      },
       "ScopeCoverage" : {
         "properties" : {
           "declaredAssets" : {
@@ -8170,6 +8385,18 @@
         "required" : [ "containerCount", "partial", "repositoryCount" ],
         "type" : "object"
       },
+      "SolutionRef" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "SolutionRequest" : {
         "properties" : {
           "description" : {
@@ -8466,6 +8693,38 @@
           }
         },
         "required" : [ "isDirect" ],
+        "type" : "object"
+      },
+      "TargetInventory" : {
+        "properties" : {
+          "componentCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "inventory" : {
+            "enum" : [ "listed", "empty", "absent", "never_scanned" ],
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "scanId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "scannedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "componentCount", "id" ],
         "type" : "object"
       },
       "TargetMaturityScore" : {
@@ -11798,6 +12057,35 @@
         "tags" : [ "cyclone-dx-controller" ]
       }
     },
+    "/api/v1/cyclonedx/projects/{projectId}/cyclonedx-vex.json" : {
+      "get" : {
+        "description" : "The project's consolidated SBOM — the components of the newest completed scan of each repository and image the caller may see, merged — as CycloneDX 1.5, with the project's CVE issues as BOM-linked VEX. Each component names the targets carrying it (property vectispire:target); compositions says complete only when every target of the project was seen and its inventory read. Not signed, like the other exports. 404 \"Project not found.\" for a project that does not exist and one the caller sees nothing of.",
+        "operationId" : "getProjectCycloneDx",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CycloneDxDocument"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Project CycloneDX document",
+        "tags" : [ "cyclone-dx-controller" ]
+      }
+    },
     "/api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json" : {
       "get" : {
         "operationId" : "getScanCycloneDx",
@@ -13296,6 +13584,33 @@
         "summary" : "Delete project",
         "tags" : [ "Solutions" ]
       },
+      "get" : {
+        "description" : "One project as its node in the solutions tree describes it — its solution named, its repositories and images, open issues by severity over both, partial, checklistsVisible, detected languages — as far as the caller may see. The tree's rule decides: a caller sees the project when it sees everything, holds the project as such, or sees one of its repositories or images; a project that does not exist and one the caller sees nothing of both answer 404, \"Project not found.\".",
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Project",
+        "tags" : [ "Solutions" ]
+      },
       "patch" : {
         "description" : "A solutionId moves the project to that solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.",
         "operationId" : "update_5",
@@ -13331,6 +13646,64 @@
           }
         },
         "summary" : "Rename, describe or move project",
+        "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/projects/{id}/compliance" : {
+      "get" : {
+        "description" : "The project's compliance and score. The estate summary's evaluations, MTTR, counts and per-target matrix, and the portfolio scorecard, each computed over the targets the caller sees and nothing else — the same controls, coverage and freshness caps, and NO_DATA when none of them was scanned. partial says targets are hidden from the caller; targetCount says how many were counted. A project that does not exist and one the caller sees nothing of both answer 404, \"Project not found.\".",
+        "operationId" : "project",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScopeCompliance"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Project compliance",
+        "tags" : [ "Compliance" ]
+      }
+    },
+    "/api/v1/projects/{id}/components" : {
+      "get" : {
+        "description" : "The components of the newest completed scan of each of the project's repositories and images the caller may see, merged by package URL and version, each naming the targets that carry it. Every visible target is listed with what was read of it: listed, empty, absent (its newest completed scan holds no SBOM) or never_scanned; complete is false while one is absent or never scanned. partial says the project holds targets the caller does not see. A project that does not exist and one the caller sees nothing of both answer 404, \"Project not found.\".",
+        "operationId" : "components",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsolidatedInventory"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Project components",
         "tags" : [ "Solutions" ]
       }
     },
@@ -16400,6 +16773,35 @@
         },
         "summary" : "Rename or describe solution",
         "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/solutions/{id}/compliance" : {
+      "get" : {
+        "description" : "The solution's compliance and score, over the targets filed in its projects. The estate summary's evaluations, MTTR, counts and per-target matrix, and the portfolio scorecard, each computed over the targets the caller sees and nothing else — the same controls, coverage and freshness caps, and NO_DATA when none of them was scanned. partial says targets are hidden from the caller; targetCount says how many were counted. A solution that does not exist and one the caller sees nothing of both answer 404, \"Solution not found.\".",
+        "operationId" : "solution",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScopeCompliance"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Solution compliance",
+        "tags" : [ "Compliance" ]
       }
     },
     "/api/v1/solutions/{id}/projects" : {

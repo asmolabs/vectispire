@@ -1312,6 +1312,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cyclonedx/projects/{projectId}/cyclonedx-vex.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project CycloneDX document
+         * @description The project's consolidated SBOM — the components of the newest completed scan of each repository and image the caller may see, merged — as CycloneDX 1.5, with the project's CVE issues as BOM-linked VEX. Each component names the targets carrying it (property vectispire:target); compositions says complete only when every target of the project was seen and its inventory read. Not signed, like the other exports. 404 "Project not found." for a project that does not exist and one the caller sees nothing of.
+         */
+        get: operations["getProjectCycloneDx"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json": {
         parameters: {
             query?: never;
@@ -2017,7 +2037,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Project
+         * @description One project as its node in the solutions tree describes it — its solution named, its repositories and images, open issues by severity over both, partial, checklistsVisible, detected languages — as far as the caller may see. The tree's rule decides: a caller sees the project when it sees everything, holds the project as such, or sees one of its repositories or images; a project that does not exist and one the caller sees nothing of both answer 404, "Project not found.".
+         */
+        get: operations["get_1"];
         put?: never;
         post?: never;
         /**
@@ -2032,6 +2056,46 @@ export interface paths {
          * @description A solutionId moves the project to that solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.
          */
         patch: operations["update_5"];
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project compliance
+         * @description The project's compliance and score. The estate summary's evaluations, MTTR, counts and per-target matrix, and the portfolio scorecard, each computed over the targets the caller sees and nothing else — the same controls, coverage and freshness caps, and NO_DATA when none of them was scanned. partial says targets are hidden from the caller; targetCount says how many were counted. A project that does not exist and one the caller sees nothing of both answer 404, "Project not found.".
+         */
+        get: operations["project"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/components": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project components
+         * @description The components of the newest completed scan of each of the project's repositories and images the caller may see, merged by package URL and version, each naming the targets that carry it. Every visible target is listed with what was read of it: listed, empty, absent (its newest completed scan holds no SBOM) or never_scanned; complete is false while one is absent or never scanned. partial says the project holds targets the caller does not see. A project that does not exist and one the caller sees nothing of both answer 404, "Project not found.".
+         */
+        get: operations["components"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/projects/{id}/containers/{containerId}": {
@@ -3364,6 +3428,26 @@ export interface paths {
          * @description A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.
          */
         patch: operations["update_3"];
+        trace?: never;
+    };
+    "/api/v1/solutions/{id}/compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Solution compliance
+         * @description The solution's compliance and score, over the targets filed in its projects. The estate summary's evaluations, MTTR, counts and per-target matrix, and the portfolio scorecard, each computed over the targets the caller sees and nothing else — the same controls, coverage and freshness caps, and NO_DATA when none of them was scanned. partial says targets are hidden from the caller; targetCount says how many were counted. A solution that does not exist and one the caller sees nothing of both answer 404, "Solution not found.".
+         */
+        get: operations["solution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/solutions/{id}/projects": {
@@ -4730,6 +4814,7 @@ export interface components {
             "bom-ref"?: string;
             group?: string;
             name?: string;
+            properties?: components["schemas"]["Property"][];
             purl?: string;
             scope?: string;
             type?: string;
@@ -4750,6 +4835,26 @@ export interface components {
         ComponentForm: {
             purlPrefix?: string;
             versions?: string[];
+        };
+        ComponentTarget: {
+            /** Format: int64 */
+            id: number;
+            kind?: string;
+            name?: string;
+        };
+        Composition: {
+            aggregate?: string;
+            assemblies?: string[];
+        };
+        ConsolidatedInventory: {
+            complete: boolean;
+            components?: components["schemas"]["MergedComponent"][];
+            /** Format: int64 */
+            id: number;
+            kind?: string;
+            name?: string;
+            partial: boolean;
+            targets?: components["schemas"]["TargetInventory"][];
         };
         ContainerCreateRequest: {
             image_name?: string;
@@ -4855,6 +4960,7 @@ export interface components {
         CycloneDxDocument: {
             bomFormat?: string;
             components?: components["schemas"]["Component"][];
+            compositions?: components["schemas"]["Composition"][];
             metadata?: components["schemas"]["Metadata"];
             serialNumber?: string;
             specVersion?: string;
@@ -5672,8 +5778,16 @@ export interface components {
             ref?: string;
             value?: string;
         };
+        MergedComponent: {
+            name?: string;
+            purl?: string;
+            targets?: components["schemas"]["ComponentTarget"][];
+            type?: string;
+            version?: string;
+        };
         Metadata: {
             component?: components["schemas"]["Component"];
+            properties?: components["schemas"]["Property"][];
             /** Format: date-time */
             timestamp?: string;
             tools?: components["schemas"]["Tool"][];
@@ -6034,6 +6148,28 @@ export interface components {
             /** Format: int64 */
             solutionId?: number;
         };
+        ProjectDetail: {
+            checklistsVisible: boolean;
+            /** Format: int32 */
+            containerCount: number;
+            containers?: components["schemas"]["ContainerRef"][];
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            detectedLanguages?: ("apex" | "bash" | "c" | "clojure" | "csharp" | "dockerfile" | "elixir" | "go" | "html" | "java" | "javascript" | "json" | "kotlin" | "ocaml" | "php" | "python" | "ruby" | "rust" | "scala" | "solidity" | "swift" | "terraform" | "typescript" | "yaml")[];
+            /** Format: int64 */
+            id?: number;
+            languagesUnknownFor?: number[];
+            name?: string;
+            openIssues?: components["schemas"]["OpenIssues"];
+            partial: boolean;
+            repositories?: components["schemas"]["RepositoryRef"][];
+            /** Format: int32 */
+            repositoryCount: number;
+            solution?: components["schemas"]["SolutionRef"];
+            /** Format: int64 */
+            solutionId?: number;
+        };
         ProjectNode: {
             checklistsVisible: boolean;
             /** Format: int32 */
@@ -6068,6 +6204,10 @@ export interface components {
             name?: string;
             /** Format: int64 */
             solutionId?: number;
+        };
+        Property: {
+            name?: string;
+            value?: string;
         };
         ProposedLayout: {
             answerValues?: string[];
@@ -6650,6 +6790,17 @@ export interface components {
             location?: string;
             resourceType?: string;
         };
+        ScopeCompliance: {
+            compliance?: components["schemas"]["ComplianceSummary"];
+            /** Format: int64 */
+            id: number;
+            kind?: string;
+            name?: string;
+            partial: boolean;
+            scorecard?: components["schemas"]["SecurityScorecard"];
+            /** Format: int32 */
+            targetCount: number;
+        };
         ScopeCoverage: {
             /** Format: int32 */
             declaredAssets: number;
@@ -6851,6 +7002,11 @@ export interface components {
             /** Format: int32 */
             repositoryCount: number;
         };
+        SolutionRef: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+        };
         SolutionRequest: {
             description?: string;
             name?: string;
@@ -6961,6 +7117,20 @@ export interface components {
             targetId?: number;
             targetKind?: string;
             targetName?: string;
+        };
+        TargetInventory: {
+            /** Format: int32 */
+            componentCount: number;
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            inventory?: "listed" | "empty" | "absent" | "never_scanned";
+            kind?: string;
+            name?: string;
+            /** Format: int64 */
+            scanId?: number;
+            /** Format: date-time */
+            scannedAt?: string;
         };
         TargetMaturityScore: {
             maturityGrade?: string;
@@ -9170,6 +9340,28 @@ export interface operations {
             };
         };
     };
+    getProjectCycloneDx: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CycloneDxDocument"];
+                };
+            };
+        };
+    };
     getScanCycloneDx: {
         parameters: {
             query?: never;
@@ -10256,6 +10448,28 @@ export interface operations {
             };
         };
     };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProjectDetail"];
+                };
+            };
+        };
+    };
     remove_4: {
         parameters: {
             query?: never;
@@ -10298,6 +10512,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ProjectView"];
+                };
+            };
+        };
+    };
+    project: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScopeCompliance"];
+                };
+            };
+        };
+    };
+    components: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsolidatedInventory"];
                 };
             };
         };
@@ -12509,6 +12767,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SolutionView"];
+                };
+            };
+        };
+    };
+    solution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScopeCompliance"];
                 };
             };
         };

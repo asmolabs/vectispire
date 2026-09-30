@@ -28,6 +28,9 @@ public interface ContainerRepository extends JpaRepository<ContainerEntity, Long
     @Query("select c.id from ContainerEntity c where c.projectId in :projectIds")
     List<Long> findIdsByProjectIdIn(@Param("projectIds") Collection<Long> projectIds);
 
+    /** The images filed in this project now, whole, as {@link GitRepositoryRepository#findByProjectId}. */
+    List<ContainerEntity> findByProjectId(Long projectId);
+
     /** The images filed in any project of this solution, as {@link GitRepositoryRepository#findIdsBySolutionId}. */
     @Query("""
             select c.id from ContainerEntity c

@@ -57,6 +57,12 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
     List<Long> findIdsByProjectIdIn(@Param("projectIds") java.util.Collection<Long> projectIds);
 
     /**
+     * The repositories filed in this project now, whole — what a read of the project on its own lists and
+     * names. One parameter, the project, however many it holds.
+     */
+    List<RepositoryEntity> findByProjectId(Long projectId);
+
+    /**
      * The repositories filed in any project of this solution, at the moment of asking — a solution
      * holds no repository of its own (decision 0023). A subquery rather than the projects' ids bound
      * one by one, so a solution of many projects is one parameter.

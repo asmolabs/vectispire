@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -171,6 +172,45 @@ public class SolutionQueryService {
 
     public record SolutionTree(List<SolutionNode> solutions, Unfiled unfiled) {}
 
+    /** The solution a project read on its own is in, named. */
+    public record SolutionRef(Long id, String name) {}
+
+    /**
+     * A project read on its own ({@code GET /api/v1/projects/{id}}) — what its node in the tree says,
+     * field for field, with its solution named beside it, for a screen or a reporting plugin that asks
+     * about one project and should not read the whole tree to find it.
+     *
+     * <p>Every field means what the {@link ProjectNode} field of the same name means, and is computed by
+     * the same code over the same targets: a figure read here and in the tree cannot disagree.
+     *
+     * @param solution the solution the project is in; {@code solutionId} repeats its identifier, so a
+     *     screen holding a node's type can hold this one
+     */
+    public record ProjectDetail(
+            Long id,
+            Long solutionId,
+            SolutionRef solution,
+            String name,
+            String description,
+            Instant createdAt,
+            boolean partial,
+            boolean checklistsVisible,
+            int repositoryCount,
+            OpenIssues openIssues,
+            List<RepositoryRef> repositories,
+            List<Language> detectedLanguages,
+            List<Long> languagesUnknownFor,
+            int containerCount,
+            List<ContainerRef> containers) {
+
+        static ProjectDetail of(ProjectNode node, SolutionRef solution) {
+            return new ProjectDetail(node.id(), node.solutionId(), solution, node.name(), node.description(),
+                    node.createdAt(), node.partial(), node.checklistsVisible(), node.repositoryCount(), node.openIssues(),
+                    node.repositories(), node.detectedLanguages(), node.languagesUnknownFor(), node.containerCount(),
+                    node.containers());
+        }
+    }
+
     /**
      * A project and the targets filed in it now — what a module that answers for a whole project
      * needs to decide whether its caller sees all of it ({@code RowVisibility.requireWhollyVisibleProject}),
@@ -229,6 +269,84 @@ public class SolutionQueryService {
                         repositories.findIdsBySolutionId(solutionId).stream().<ScanTarget>map(ScanTarget.Repository::new),
                         containers.findIdsBySolutionId(solutionId).stream().<ScanTarget>map(ScanTarget.Container::new))
                 .toList();
+    }
+
+    /**
+     * The project as far as the caller sees it, or "Project not found." for a project that does not exist
+     * and one the caller sees nothing of, alike — the scope a module's aggregate over one project is
+     * computed on (its compliance, its consolidated inventory). The rule is the tree's, and it is {@code
+     * RowVisibility}'s: a grant on the project, or one of its targets visible, or everything.
+     */
+    @Transactional(readOnly = true)
+    public VisibleScope visibleProject(long projectId, VisibilityService.Allowance allowance) {
+        Optional<ProjectMembers> members = members(projectId);
+        return RowVisibility.requireVisibleProject(projectId, members.map(ProjectMembers::name),
+                members.map(ProjectMembers::targets).orElse(List.of()), allowance);
+    }
+
+    /**
+     * The solution as far as the caller sees it, or "Solution not found." — absent and wholly hidden
+     * alike; the tree shows a solution exactly when it shows one of its projects.
+     */
+    @Transactional(readOnly = true)
+    public VisibleScope visibleSolution(long solutionId, VisibilityService.Allowance allowance) {
+        Optional<SolutionEntity> solution = solutions.findById(solutionId);
+        List<Long> projectIds = solution
+                .map(found -> projects.findBySolutionId(found.getId()).stream().map(ProjectEntity::getId).toList())
+                .orElse(List.of());
+        return RowVisibility.requireVisibleSolution(solutionId, solution.map(SolutionEntity::getName), projectIds,
+                solution.map(found -> targetsOfSolution(found.getId())).orElse(List.of()), allowance);
+    }
+
+    /**
+     * One project as its node in the tree describes it, or "Project not found." when the tree would not
+     * list it for this caller — the same visibility rule ({@link #visibleProject}), the same figures,
+     * computed over the project's targets only rather than over the estate's.
+     */
+    @Transactional(readOnly = true)
+    public ProjectDetail project(long projectId, VisibilityService.Allowance allowance) {
+        Optional<ProjectEntity> project = projects.findById(projectId);
+        List<RepositoryEntity> filedRepositories =
+                project.map(found -> repositories.findByProjectId(found.getId())).orElse(List.of());
+        List<ContainerEntity> filedContainers =
+                project.map(found -> containers.findByProjectId(found.getId())).orElse(List.of());
+        VisibleScope scope = RowVisibility.requireVisibleProject(
+                projectId,
+                project.map(ProjectEntity::getName),
+                Stream.concat(
+                                filedRepositories.stream().<ScanTarget>map(repository -> new ScanTarget.Repository(repository.getId())),
+                                filedContainers.stream().<ScanTarget>map(container -> new ScanTarget.Container(container.getId())))
+                        .toList(),
+                allowance);
+        ProjectEntity found = project.orElseThrow();
+
+        Set<ScanTarget> seen = Set.copyOf(scope.targets());
+        List<RepositoryEntity> visible = filedRepositories.stream()
+                .filter(repository -> seen.contains(new ScanTarget.Repository(repository.getId())))
+                .toList();
+        List<ContainerEntity> visibleContainers = filedContainers.stream()
+                .filter(container -> seen.contains(new ScanTarget.Container(container.getId())))
+                .toList();
+        // Narrowed to the project's visible targets, written into the statement as the tree's are: the
+        // backlog is asked about this project alone, never about the estate and then filtered.
+        Map<ScanTarget, Map<Severity, Long>> open =
+                seen.isEmpty() ? Map.of() : backlog.openBySeverityPerTarget(scope.visibility());
+        Map<Long, Set<Language>> languages =
+                scans.detectedLanguages(visible.stream().map(RepositoryEntity::getId).toList());
+        ProjectNode node = projectNode(
+                found,
+                visible,
+                visibleContainers,
+                filedRepositories.size() + filedContainers.size(),
+                RowVisibility.seesWholeProject(
+                        projectId, filedRepositories.stream().map(RepositoryEntity::getId).toList(), allowance),
+                open,
+                languages);
+        // A project's solution is a foreign key the schema enforces, and a solution holding a project
+        // cannot be deleted: the name is there. Read as optional all the same, rather than a 500 on a
+        // race nobody can produce.
+        String solutionName = solutions.findById(found.getSolutionId()).map(SolutionEntity::getName).orElse(null);
+        return ProjectDetail.of(node, new SolutionRef(found.getSolutionId(), solutionName));
     }
 
     @Transactional(readOnly = true)

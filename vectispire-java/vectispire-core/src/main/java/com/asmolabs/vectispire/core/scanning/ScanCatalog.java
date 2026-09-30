@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
+import com.asmolabs.vectispire.core.scanning.persistence.queries.NewestCompletedScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.time.Instant;
 import java.util.Collection;
@@ -298,6 +299,35 @@ public class ScanCatalog {
             }
         }
         return Map.copyOf(detected);
+    }
+
+    /**
+     * Each of these targets' newest <b>completed</b> scan, and whether it still holds its SBOM — what a
+     * project's consolidated inventory reads (decision 0023). A target missing from the answer has no
+     * completed scan. Never an older scan in place of the newest: see {@link NewestCompletedScanRow}.
+     *
+     * <p>Newest is the highest id, as for the latest-scan rollups; a thousand identifiers per statement,
+     * repositories and images each by their own column, since a project's or a solution's targets are
+     * sized by the data.
+     */
+    public Map<ScanTarget, NewestCompletedScanRow> newestCompleted(Collection<ScanTarget> targets) {
+        List<Long> repositoryIds = new java.util.ArrayList<>();
+        List<Long> containerIds = new java.util.ArrayList<>();
+        for (ScanTarget target : targets) {
+            switch (target) {
+                case ScanTarget.Repository repository -> repositoryIds.add(repository.id());
+                case ScanTarget.Container container -> containerIds.add(container.id());
+            }
+        }
+        String completed = com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName();
+        Map<ScanTarget, NewestCompletedScanRow> newest = new java.util.HashMap<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            scans.findNewestWithStatusOfRepositories(batch, completed).forEach(row -> newest.put(row.target(), row));
+        }
+        for (List<Long> batch : batches(containerIds)) {
+            scans.findNewestWithStatusOfContainers(batch, completed).forEach(row -> newest.put(row.target(), row));
+        }
+        return Map.copyOf(newest);
     }
 
     /**
