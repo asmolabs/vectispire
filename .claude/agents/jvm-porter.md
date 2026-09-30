@@ -118,9 +118,11 @@ for exactly this. An empty list means "ran, found nothing", which resolves the b
 means "did not look". Getting it the wrong way round destroys triage silently — no exception,
 no log line, and a dashboard that looks better afterwards.
 
-**A plugin has three states, not two** (decision 0017). `PluginStep` is `produced` (ran; an empty
+**A plugin has four states, not two** (decision 0017). `PluginStep` is `produced` (ran; an empty
 list resolves *its* issues), `not_applicable` (none of its languages in the tree: resolves nothing,
-and is not a failure) or `absent` (should have run and did not: resolves nothing, and is a failure).
+and is not a failure), `absent` (should have run and did not: resolves nothing, and is a failure) or
+`refused` (its image's signature was not accepted — `unsigned` or `signature_unverified`: resolves
+nothing, is a failure, and a checklist line on it reads NO_DATA with that reason, never a pass).
 A plugin missing from `ScanArtifacts.plugins` is absent; a `produced` step whose findings did not
 arrive is absent. A SARIF run without `results`, or with `executionSuccessful: false`, is never read
 as clean — SARIF itself says absent is not empty. And a tool-scoped type (`PLUGIN`, `IMPORTED`) is
@@ -136,8 +138,10 @@ ceiling** (`ContainerRun.withBoundedOutput`: a tmpfs volume kept by a holder, `f
 never a bind of a host directory, which carries no size, and never `HostConfig.Tmpfs`, which the
 archive API cannot read back), the report read as a regular file up to the scanner output ceiling. A
 task names a plugin by id **and manifest digest**, and the executor refuses a manifest that does not
-hash to it. A declared signer is verified by the pinned cosign **before the pull**, and anything but its
-exit 0 is absent; a field added to the manifest joins the digest only when present, or every stored
+hash to it. **Signatures are required by default** (§9.1, V60): a declared signer is verified by the pinned
+cosign **before the pull**, anything but its exit 0 is `refused`, and a plugin with no signer is
+refused unless the platform governor has written a per-plugin waiver (`runsUnsigned` on the task) —
+a waiver lifts the duty to declare a signer, never a signer that fails; a field added to the manifest joins the digest only when present, or every stored
 manifest stops hashing to its key. Registration is the platform
 governor's (`@RequiresPlatformGovernor`); activation is per project; SARIF is imported only through
 a declared source's `sarif_import` key, for its scope and its declared tools.
