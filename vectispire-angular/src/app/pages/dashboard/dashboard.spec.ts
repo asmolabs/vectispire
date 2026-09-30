@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Dashboard } from './dashboard';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
+import type { SecurityGrade } from '../../core/api.models';
 
 /**
  * The backlog trend, and the one figure that must not be rounded to zero.
@@ -283,7 +284,7 @@ describe('the maturity ranking', () => {
     let fixture: ComponentFixture<Dashboard>;
     let http: HttpTestingController;
 
-    const row = (targetId: number, targetName: string, maturityGrade: string, securityScore: number | null) => ({
+    const row = (targetId: number, targetName: string, maturityGrade: SecurityGrade, securityScore: number | null) => ({
         targetId,
         targetKind: 'repository',
         targetName,
@@ -305,7 +306,11 @@ describe('the maturity ranking', () => {
         totalOpenedInWindow: 0,
         totalResolvedInWindow: 0,
         windowDays: 90,
-        targetScoreboard: [row(1, 'graded-repo', 'B', 72), row(2, 'unscanned-repo', 'NO_DATA', null)]
+        targetScoreboard: [
+            row(3, 'clean-repo', 'A_PLUS', 100),
+            row(1, 'graded-repo', 'B', 72),
+            row(2, 'unscanned-repo', 'NO_DATA', null)
+        ]
     });
 
     beforeEach(async () => {
@@ -376,5 +381,15 @@ describe('the maturity ranking', () => {
     it('paints no grade as neutral, not as failing', () => {
         expect(fixture.componentInstance.gradeSeverity('NO_DATA')).toBe('secondary');
         expect(fixture.componentInstance.gradeSeverity('F')).toBe('danger');
+    });
+
+    // The ranking grades as the scorecard does, whose best grade is A+: the dashboard's own colours
+    // knew A to F only, and painted the best target on the board as failing.
+    it('paints a clean scanned target at A+ as the card paints it, not as failing', () => {
+        const tr = rowOf('clean-repo');
+        expect(tr.textContent).toContain('100/100');
+        expect(fixture.componentInstance.gradeSeverity('A_PLUS')).toBe('success');
+        expect(tr.querySelector('.p-tag-danger')).toBeNull();
+        expect(tr.querySelector('.p-tag-success')).not.toBeNull();
     });
 });

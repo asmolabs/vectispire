@@ -793,7 +793,7 @@
     "cves_resolved": "CVEs Résolues",
     "effort": "Effort Estimé",
     "targets_affected": "Cibles Affectées",
-    "scoreboard_help": "Calculé sur les délais MTTR et le stock d'anomalies ouvertes",
+    "scoreboard_help": "Le score et la note de la carte de score de chaque cible, tels que son badge les affiche",
     "security_score": "Score Sécurité",
     "high_open": "Élevées Ouvertes",
     "resolved": "Résolues",

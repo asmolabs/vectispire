@@ -12,6 +12,7 @@ import { DashboardApi } from '../../core/api/dashboard.api';
 import { RemediationApi } from '../../core/api/remediation.api';
 import type { DashboardOverview, Trends, PostureTrendAnalytics, SecurityDebtReport } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
+import { gradeSeverity } from '../../shared/scorecard';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
  *  data: otherwise two successive loads could present them differently. */
@@ -130,21 +131,8 @@ export class Dashboard {
         });
     }
 
-    gradeSeverity(grade: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
-        switch (grade) {
-            // No grade at all: falling to the default would paint an unscanned target as failing.
-            case 'NO_DATA':
-                return 'secondary';
-            case 'A':
-                return 'success';
-            case 'B':
-                return 'info';
-            case 'C':
-                return 'warn';
-            default:
-                return 'danger';
-        }
-    }
+    /** The card's colours: one target, one grade, painted alike on every screen. */
+    readonly gradeSeverity = gradeSeverity;
 
     /**
      * The mean time to resolve, in words.

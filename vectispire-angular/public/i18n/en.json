@@ -793,7 +793,7 @@
     "cves_resolved": "CVEs resolved",
     "effort": "Estimated effort",
     "targets_affected": "Targets affected",
-    "scoreboard_help": "Computed from time to fix and the open backlog",
+    "scoreboard_help": "The score and grade of each target’s scorecard, as its badge shows them",
     "security_score": "Security score",
     "high_open": "High, open",
     "resolved": "Resolved",
