@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.compliance;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
 import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
-import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -31,9 +30,6 @@ class AiReviewPurge {
     @Order(TargetPurge.Phase.SCAN_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetPurge purge) {
-        List<Long> scanIds = scans.idsOf(purge);
-        if (!scanIds.isEmpty()) {
-            reviews.deleteByScanIdIn(scanIds);
-        }
+        scans.inBatches(purge, reviews::deleteByScanIdIn);
     }
 }

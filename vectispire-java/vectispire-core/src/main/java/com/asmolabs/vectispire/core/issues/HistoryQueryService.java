@@ -45,6 +45,9 @@ public class HistoryQueryService {
      */
     private static final int MAX_SCANS = 200;
 
+    /** Issues per lookup: far under every engine's bind-parameter ceiling. */
+    private static final int ISSUE_BATCH = 1_000;
+
     private static final int MAX_FINDINGS = 500;
 
     private final TargetCatalog targets;
@@ -150,15 +153,18 @@ public class HistoryQueryService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, IssueEntity> issuesById = issueIds.isEmpty()
-                ? Map.of()
-                : issues.findAllById(issueIds).stream()
-                        .collect(Collectors.toMap(IssueEntity::getId, issue -> issue));
-
-        Map<Long, List<TriageEventEntity>> decisionsByIssue = issueIds.isEmpty()
-                ? Map.of()
-                : events.findForIssues(issueIds).stream()
-                        .collect(Collectors.groupingBy(TriageEventEntity::getIssueId));
+        // A thousand issues per statement: two hundred scans of a large repository observe its whole
+        // backlog, and one bind parameter per issue is refused by the PostgreSQL driver past 65,535. An
+        // issue falls in one batch, so its decisions keep the query's order.
+        Map<Long, IssueEntity> issuesById = new LinkedHashMap<>();
+        Map<Long, List<TriageEventEntity>> decisionsByIssue = new LinkedHashMap<>();
+        List<Long> observedIssues = List.copyOf(issueIds);
+        for (int from = 0; from < observedIssues.size(); from += ISSUE_BATCH) {
+            List<Long> batch = observedIssues.subList(from, Math.min(from + ISSUE_BATCH, observedIssues.size()));
+            issues.findAllById(batch).forEach(issue -> issuesById.put(issue.getId(), issue));
+            events.findForIssues(batch).forEach(event ->
+                    decisionsByIssue.computeIfAbsent(event.getIssueId(), id -> new ArrayList<>()).add(event));
+        }
 
         Map<Long, String> versionByScan = new LinkedHashMap<>();
         history.forEach(scan -> versionByScan.put(scan.id(), scan.version()));

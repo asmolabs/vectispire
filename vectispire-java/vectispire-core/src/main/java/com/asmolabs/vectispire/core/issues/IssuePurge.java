@@ -5,7 +5,6 @@ import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -44,10 +43,7 @@ class IssuePurge {
     @Order(TargetPurge.Phase.ISSUE_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeTriageHistory(TargetPurge purge) {
-        List<Long> issueIds = purged.idsOf(purge);
-        if (!issueIds.isEmpty()) {
-            triageEvents.deleteByIssueIdIn(issueIds);
-        }
+        purged.inBatches(purge, triageEvents::deleteByIssueIdIn);
     }
 
     /**
@@ -59,22 +55,18 @@ class IssuePurge {
     @Order(TargetPurge.Phase.FINDINGS)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeFindings(TargetPurge purge) {
-        List<Long> issueIds = purged.idsOf(purge);
-        if (!issueIds.isEmpty()) {
-            scans.deleteFindingsOfIssues(issueIds);
-        }
+        purged.inBatches(purge, scans::deleteFindingsOfIssues);
     }
 
     @EventListener
     @Order(TargetPurge.Phase.ISSUES)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeIssues(TargetPurge purge) {
-        List<Long> issueIds = purged.idsOf(purge);
-        if (!issueIds.isEmpty()) {
-            issues.deleteByIdIn(issueIds);
+        int deleted = purged.inBatches(purge, issues::deleteByIdIn);
+        if (deleted > 0) {
             log.info(purge instanceof OrphanedTargetRows
                     ? "Cleaned up {} orphaned issues from deleted targets."
-                    : "Purged {} issues of a deleted target.", issueIds.size());
+                    : "Purged {} issues of a deleted target.", deleted);
         }
     }
 }

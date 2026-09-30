@@ -5,6 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
@@ -96,6 +101,38 @@ class TargetDeletionIntegrationTest {
         assertThat(fixture.rowsNaming(doomed)).allSatisfy((table, rows) -> assertThat(rows).as(table).isZero());
         assertThat(fixture.rowsNaming(survivor)).isEqualTo(before);
         assertThat(jdbc.queryForObject("select count(*) from t_container where id = ?", Integer.class, containerId))
+                .isZero();
+    }
+
+    /**
+     * Past the PostgreSQL driver's 65,535 bind parameters — the ceiling each purge listener's delete met
+     * with one parameter per issue. The rows are written as SQL, a thousand to a statement, since seventy
+     * thousand entities saved one by one are minutes; only their identifiers are read back. On MySQL and
+     * SQLite, whose drivers accept the bound statement, this checks only that the batches take every row.
+     */
+    @Test
+    @DisplayName("a repository whose issues outgrow one statement: seventy thousand, every one taken")
+    void pastTheBindLimit() {
+        TargetRowsFixture fixture = new TargetRowsFixture(beans, jdbc);
+        long repoId = ((ScanTarget.Repository) fixture.repository("large-" + ENGINE)).id();
+        Timestamp at = Timestamp.from(Instant.parse("2026-09-01T10:00:00Z"));
+        for (int from = 0; from < 70_000; from += 1_000) {
+            List<Object> values = new ArrayList<>();
+            for (int index = from; index < from + 1_000; index++) {
+                values.addAll(List.of(repoId, "large-" + repoId + "-" + index, "vulnerability", "high", "open",
+                        "under_review", false, "UNKNOWN", at, at, 1));
+            }
+            jdbc.update("insert into t_issue (repo_id, fingerprint, type, severity, state, triage_status, is_kev,"
+                            + " reachability, first_seen_at, last_seen_at, times_seen) values "
+                            + String.join(", ", Collections.nCopies(1_000, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")),
+                    values.toArray());
+        }
+        assertThat(jdbc.queryForObject("select count(*) from t_issue where repo_id = ?", Integer.class, repoId))
+                .isEqualTo(70_000);
+
+        deletion.deleteRepository(repoId);
+
+        assertThat(jdbc.queryForObject("select count(*) from t_issue where repo_id = ?", Integer.class, repoId))
                 .isZero();
     }
 }

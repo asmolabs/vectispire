@@ -4,7 +4,6 @@ import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -42,22 +41,18 @@ class ScanPurge {
     @Order(TargetPurge.Phase.FINDINGS)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeFindings(TargetPurge purge) {
-        List<Long> scanIds = purgedScans.idsOf(purge);
-        if (!scanIds.isEmpty()) {
-            findings.deleteByScanIdIn(scanIds);
-        }
+        purgedScans.inBatches(purge, findings::deleteByScanIdIn);
     }
 
     @EventListener
     @Order(TargetPurge.Phase.SCANS)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeScans(TargetPurge purge) {
-        List<Long> scanIds = purgedScans.idsOf(purge);
-        if (!scanIds.isEmpty()) {
-            scans.deleteByIdIn(scanIds);
+        int purged = purgedScans.inBatches(purge, scans::deleteByIdIn);
+        if (purged > 0) {
             log.info(purge instanceof OrphanedTargetRows
                     ? "Cleaned up {} orphaned scans from deleted targets."
-                    : "Purged {} scans of a deleted target.", scanIds.size());
+                    : "Purged {} scans of a deleted target.", purged);
         }
     }
 }

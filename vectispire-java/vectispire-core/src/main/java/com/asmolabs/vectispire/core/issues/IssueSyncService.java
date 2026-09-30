@@ -46,6 +46,9 @@ public class IssueSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(IssueSyncService.class);
 
+    /** Fingerprints per lookup: far under every engine's bind-parameter ceiling. */
+    private static final int FINGERPRINT_BATCH = 1_000;
+
     private final IssueRepository issues;
     private final Clock clock;
 
@@ -155,10 +158,15 @@ public class IssueSyncService {
             byFingerprint.computeIfAbsent(fingerprint, key -> new ArrayList<>()).add(index);
         }
 
-        Map<String, IssueEntity> existing = byFingerprint.isEmpty()
-                ? Map.of()
-                : issues.findByFingerprintIn(byFingerprint.keySet()).stream()
-                        .collect(Collectors.toMap(IssueEntity::getFingerprint, issue -> issue, (a, b) -> a));
+        // A thousand fingerprints per statement: a scan's findings are sized by the tree it read, and
+        // one bind parameter each is refused by the PostgreSQL driver past 65,535 — the scan's ingestion
+        // would fail whole. The first row of a fingerprint is kept, as the single statement kept it.
+        Map<String, IssueEntity> existing = new LinkedHashMap<>();
+        List<String> sought = List.copyOf(byFingerprint.keySet());
+        for (int from = 0; from < sought.size(); from += FINGERPRINT_BATCH) {
+            issues.findByFingerprintIn(sought.subList(from, Math.min(from + FINGERPRINT_BATCH, sought.size())))
+                    .forEach(issue -> existing.putIfAbsent(issue.getFingerprint(), issue));
+        }
 
         List<IssueEntity> created = new ArrayList<>();
         List<IssueEntity> reopened = new ArrayList<>();

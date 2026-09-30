@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.tickets;
 import com.asmolabs.vectispire.core.issues.PurgedIssues;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
-import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -32,9 +31,6 @@ class TicketLinkPurge {
     @Order(TargetPurge.Phase.ISSUE_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetPurge purge) {
-        List<Long> issueIds = issues.idsOf(purge);
-        if (!issueIds.isEmpty()) {
-            links.deleteByIssueIdIn(issueIds);
-        }
+        issues.inBatches(purge, links::deleteByIssueIdIn);
     }
 }
