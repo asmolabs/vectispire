@@ -85,7 +85,9 @@ transaction, removes those lines from `allowedDependencies` without changing wha
 1. **The scan's `beforeCommit` hook, under test first.** `IssueSyncService` catches a failing
    notification hook "so the scan's results are kept", but the hook calls transactional proxies; an
    exception crossing one marks the scan's transaction rollback-only, and the scan would be abandoned
-   rather than kept. A test decides which is true before anything is built on it.
+   rather than kept. A test decides which is true before anything is built on it. *Settled
+   2026-10-01: the rollback is real (`IssueSyncHookDatabaseTest`); the catch is removed and the scan
+   and its notifications commit together or not at all, which is what had always happened.*
 2. **SIEM events from the audit log and the gate, in the transaction that caused them.** The audit
    entry and its outbox row commit together; so do a verdict and its `SECURITY_GATE_FAILED`.
 3. **A checklist's automatic answers as a `checklist_answer` message**, enqueued in the scan's or the

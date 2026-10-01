@@ -93,7 +93,9 @@ est durable.
    crochet de notification « pour que les résultats du scan soient gardés », mais ce crochet appelle
    des proxys transactionnels ; une exception qui en traverse un marque la transaction du scan
    rollback-only, et le scan serait abandonné plutôt que gardé. Un test tranche avant que quoi que ce
-   soit soit construit dessus.
+   soit soit construit dessus. *Tranché le
+   2026-10-01 : l'annulation est réelle (`IssueSyncHookDatabaseTest`) ; le catch est retiré, et le scan
+   et ses notifications sont validés ensemble ou pas du tout, ce qui avait toujours été le cas.*
 2. **Les événements SIEM du journal d'audit et de la barrière, dans la transaction qui les cause.**
    L'entrée d'audit et sa ligne d'outbox sont validées ensemble ; un verdict et son
    `SECURITY_GATE_FAILED` aussi.

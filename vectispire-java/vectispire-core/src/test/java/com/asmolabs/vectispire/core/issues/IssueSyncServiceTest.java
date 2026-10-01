@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -260,19 +261,21 @@ class IssueSyncServiceTest {
         }
 
         @Test
-        @DisplayName("a hook that throws does not cost the scan its results")
-        void failureIsAbsorbed() {
-            // The results are what has value in this transaction. Losing them because a
-            // notification could not be queued would be the wrong trade.
-            IssueSyncService.SyncResult result = service.sync(scan().getId(), scan().target(),
-                    ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-key"))),
-                    Set.of(),
-                    Map.of(),
-                    ignored -> {
-                        throw new IllegalStateException("outbox unavailable");
-                    });
-
-            assertThat(result.created()).isEqualTo(1);
+        @DisplayName("a hook that throws fails the sync, so the scan and its notifications commit together or not at all")
+        void failureFailsTheSync() {
+            // This test used to assert the opposite — the failure absorbed, the results kept — and
+            // was green against these mocks while a real transaction rolled the scan back anyway:
+            // the hook's failure leaves a proxy that takes part in the transaction. What a mock can
+            // pin is that nothing here pretends otherwise; IssueSyncHookDatabaseTest pins the commit.
+            assertThatThrownBy(() -> service.sync(scan().getId(), scan().target(),
+                            ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-key"))),
+                            Set.of(),
+                            Map.of(),
+                            ignored -> {
+                                throw new IllegalStateException("outbox unavailable");
+                            }))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("outbox unavailable");
         }
     }
 

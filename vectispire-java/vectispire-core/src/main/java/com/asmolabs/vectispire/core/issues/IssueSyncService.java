@@ -21,8 +21,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,8 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class IssueSyncService {
-
-    private static final Logger log = LoggerFactory.getLogger(IssueSyncService.class);
 
     /** Fingerprints per lookup: far under every engine's bind-parameter ceiling. */
     private static final int FINGERPRINT_BATCH = 1_000;
@@ -227,15 +223,15 @@ public class IssueSyncService {
                 issueIds);
 
         if (beforeCommit != null) {
-            try {
-                beforeCommit.accept(result);
-            } catch (RuntimeException failed) {
-                // A failing hook must not cost the scan's results, which are what has value in
-                // this transaction. The caller commits anyway, without what the hook wanted to
-                // add — and says so, because a notification that silently never happens is the
-                // kind of absence nobody reports.
-                log.warn("The post-sync hook failed for scan {}; its results are kept", scanId, failed);
-            }
+            // **The hook commits with the scan, or neither does.** This was wrapped in a catch that
+            // logged "its results are kept", and nothing was kept: the hook queues notifications
+            // through `OutboxService.enqueue`, a proxy taking part in this transaction, and an
+            // exception leaving it marks the whole transaction rollback-only — the commit then
+            // answered `UnexpectedRollbackException` and the dispatcher abandoned the scan as
+            // transient (IssueSyncHookDatabaseTest, decision 0033). The catch only hid that. Kept
+            // atomic on purpose: a scan whose notifications were lost would announce nothing about
+            // what it found, and a retried scan is visible where a missing notification is not.
+            beforeCommit.accept(result);
         }
 
         return result;
