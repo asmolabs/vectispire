@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { asSchema } from '../src/app/core/testing/contract';
 
 /**
  * The documentation's screenshots, produced rather than taken.
@@ -88,6 +89,35 @@ async function stubEverything(page: Page): Promise<void> {
         });
     });
 
+    // **Sign-in lands on the dashboard, so every capture passes through it.** Answered `{}` by the
+    // catch-all, it threw on `posture.failingCount` in all of them. Checked against the published
+    // schema so this floor cannot drift from the server the way the `{}` did; the tests that
+    // photograph the dashboard register their own, richer answer after this one.
+    await stub(
+        page,
+        '**/api/v1/dashboard',
+        asSchema('DashboardOverview', {
+            posture: {
+                totalCount: 14,
+                failingCount: 3,
+                kevCount: 2,
+                overdueCount: 5,
+                neverScannedCount: 1,
+                lastScanFailedCount: 1
+            },
+            backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
+            qualityTotal: 0,
+            failing: [],
+            recentScans: []
+        })
+    );
+    // The same page draws its trend from `points`, which the client claims is always sent; `{}`
+    // threw on `points.length` as soon as the overview stopped throwing first.
+    await stub(
+        page,
+        '**/api/v1/dashboard/trends*',
+        asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 })
+    );
     await stub(page, '**/api/v1/auth/methods', { password: true, oidc: false });
     await stub(page, '**/api/v1/auth/me', SESSION.user);
     await page.route('**/api/v1/auth/login', (route) =>
@@ -169,6 +199,28 @@ async function shoot(page: Page, name: string, locale: string): Promise<void> {
 const edition = (name: string) => (name === 'screens-fr' ? 'fr' : 'en');
 
 test.describe('documentation screenshots', () => {
+    // **A screen that throws can still be photographed, and was.** Sign-in lands on `/dashboard`,
+    // and while the catch-all answered it `{}` every test logged `TypeError … 'failingCount'` from a
+    // dashboard reading `posture` off nothing — in the browser console, which no assertion reads,
+    // so every green run carried it. A page error now fails the capture it happened in, so a stub
+    // that drifts from the contract cannot hide behind a picture that looks right.
+    //
+    // **`pageerror` alone would not have seen it.** A template that throws is caught by Angular's
+    // `ErrorHandler`, which logs it through `console.error` and lets the page live on: the event
+    // never fires. The first version of this guard listened to `pageerror` only and passed fifty
+    // runs with the defect still in them. Both channels are collected.
+    let pageErrors: string[] = [];
+    test.beforeEach(({ page }) => {
+        pageErrors = [];
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error') pageErrors.push(message.text());
+        });
+    });
+    test.afterEach(() => {
+        expect(pageErrors, 'errors the page raised or logged').toEqual([]);
+    });
+
 
         test('exceptions', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
