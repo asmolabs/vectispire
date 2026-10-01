@@ -251,6 +251,32 @@ describe('the repository list', () => {
     });
 
     /**
+     * The pipeline snippets say what the CLI does. The SBOM line promised "CycloneDX / SPDX" for a
+     * route that serves Syft's native JSON — what an integrator builds against before the parse
+     * fails — and the key comment named one scope where waiting for the scan needs two.
+     */
+    describe('the pipeline snippets', () => {
+        const TABS = ['gitlab', 'github', 'bitbucket', 'jenkins', 'cli'] as const;
+
+        it('name the SBOM format the route serves, and the export for CycloneDX', () => {
+            const cli = fixture.componentInstance.getCicdSnippet('cli', null);
+            expect(cli).toContain("Syft's native JSON");
+            expect(cli).toContain('/api/v1/cyclonedx/scans/');
+            expect(cli).not.toContain('SPDX');
+        });
+
+        it('use a severity the server spells, and the scopes a scan that is waited for needs', () => {
+            for (const tab of TABS) {
+                const snippet = fixture.componentInstance.getCicdSnippet(tab, null);
+                expect(snippet, tab).toContain('--fail-on high');
+                expect(snippet, tab).not.toContain('HIGH');
+            }
+            expect(fixture.componentInstance.getCicdSnippet('gitlab', null)).toContain('scopes scan and read');
+            expect(fixture.componentInstance.getCicdSnippet('cli', null)).toContain('scopes scan and read');
+        });
+    });
+
+    /**
      * The clone credential: none, an SSH key, or an HTTPS token — never two.
      *
      * <p>The URL decides which are offered, and only the chosen kind is sent, the other cleared:

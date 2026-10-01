@@ -550,14 +550,15 @@ vectispire-scan:
   image: alpine:3.22
   variables:
     VECTISPIRE_URL: "${origin}"
-    # Configure VECTISPIRE_API_KEY in Settings > CI/CD > Variables (Masked & Protected)
+    # VECTISPIRE_API_KEY in Settings > CI/CD > Variables (Masked & Protected): scopes scan and read,
+    # restricted to this repository. Exit 1 is a red verdict, 2 a refusal or an unreachable server.
   before_script:
     - apk add --no-cache curl jq
   script:
     - curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
     - chmod +x vectispire-cli.sh
     - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
-    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH
+    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on high
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'`;
 
@@ -583,7 +584,7 @@ jobs:
           curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
           chmod +x vectispire-cli.sh
           ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
-          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH`;
+          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on high`;
 
             case 'bitbucket':
                 return `# bitbucket-pipelines.yml
@@ -598,7 +599,7 @@ pipelines:
           - curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
           - chmod +x vectispire-cli.sh
           - ./vectispire-cli.sh scan --url "${origin}" --repo-id ${repoId} --wait
-          - ./vectispire-cli.sh gate --url "${origin}" --repo-id ${repoId} --fail-on HIGH`;
+          - ./vectispire-cli.sh gate --url "${origin}" --repo-id ${repoId} --fail-on high`;
 
             case 'jenkins':
                 return `// Jenkinsfile
@@ -615,7 +616,7 @@ pipeline {
                     curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
                     chmod +x vectispire-cli.sh
                     ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
-                    ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH
+                    ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on high
                 '''
             }
         }
@@ -625,16 +626,17 @@ pipeline {
             case 'cli':
                 return `# Direct CLI execution
 export VECTISPIRE_URL="${origin}"
-export VECTISPIRE_API_KEY="<YOUR_API_KEY>"
+export VECTISPIRE_API_KEY="<YOUR_API_KEY>"   # scopes scan and read, restricted to this repository
 
 # 1. Trigger security scan and wait for completion
 ./scripts/vectispire-cli.sh scan --repo-id ${repoId} --wait
 
 # 2. Check Security Quality Gate
-./scripts/vectispire-cli.sh gate --repo-id ${repoId} --fail-on HIGH
+./scripts/vectispire-cli.sh gate --repo-id ${repoId} --fail-on high
 
-# 3. Download CycloneDX / SPDX SBOM artifact
-./scripts/vectispire-cli.sh sbom --repo-id ${repoId} --output ./vectispire-sbom.json`;
+# 3. Download the SBOM of the latest completed scan, in Syft's native JSON
+#    (for CycloneDX with VEX: GET /api/v1/cyclonedx/scans/<scan-id>/cyclonedx-vex.json, scope export)
+./scripts/vectispire-cli.sh sbom --repo-id ${repoId} --output ./vectispire-sbom.syft.json`;
         }
     }
 
