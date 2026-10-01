@@ -1,6 +1,6 @@
 # 0027 — Migrations communes avec des placeholders de type ; répertoires par moteur pour les divergences de structure
 
-**Date :** 2026-09-26 · **Statut :** acceptée · **Amende :** [0013](0013-flyway-multi-dialect-migrations.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-09-26 · **Statut :** acceptée · **Amende :** [0013](0013-flyway-multi-dialect-migrations.md) · **Amendée par :** [0034](0034-mysql-replaces-the-sqlite-fixture.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 

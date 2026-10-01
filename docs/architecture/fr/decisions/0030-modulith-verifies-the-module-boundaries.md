@@ -1,6 +1,6 @@
 # 0030 — Spring Modulith vérifie les frontières des modules, et ArchUnit garde les couches
 
-**Date :** 2026-09-26 · **Statut :** acceptée · **Remplace :** [0026](0026-services-are-grouped-by-domain.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-09-26 · **Statut :** acceptée · **Remplace :** [0026](0026-services-are-grouped-by-domain.md) · **Amendée par :** [0033](0033-internal-reactions-leave-through-the-outbox.md) · **Décideur :** Laurent Boucher
 
 > Étape 6 de la migration vers Spring Modulith. La forme d'un module et le socle sont ceux de la
 > [0028](0028-vertical-modules.md), les propriétaires et les ports ceux de la

@@ -1,6 +1,6 @@
 # 0027 — Common migrations with type placeholders; vendor directories for structural divergence
 
-**Date:** 2026-09-26 · **Status:** accepted · **Amends:** [0013](0013-flyway-multi-dialect-migrations.md) · **Decider:** Laurent Boucher
+**Date:** 2026-09-26 · **Status:** accepted · **Amends:** [0013](0013-flyway-multi-dialect-migrations.md) · **Amended by:** [0034](0034-mysql-replaces-the-sqlite-fixture.md) · **Decider:** Laurent Boucher
 
 ## Context
 

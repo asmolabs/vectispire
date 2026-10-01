@@ -1,6 +1,6 @@
 # 0025 — SIEM events leave through the outbox, after commit, and their catalogue is a contract
 
-**Date:** 2026-09-26 · **Status:** accepted · **Decider:** Laurent Boucher
+**Date:** 2026-09-26 · **Status:** accepted · **Amended by:** [0033](0033-internal-reactions-leave-through-the-outbox.md) · **Decider:** Laurent Boucher
 
 > **Note (2026-09-28).** The SIEM signature identifiers this record names as `ZAN-SEC-nnn` are
 > emitted as `VECTI-SEC-nnn` since 0.10.0 — same numbers, same meanings. The text

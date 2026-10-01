@@ -1,6 +1,6 @@
 # 0030 — Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers
 
-**Date:** 2026-09-26 · **Status:** accepted · **Supersedes:** [0026](0026-services-are-grouped-by-domain.md) · **Decider:** Laurent Boucher
+**Date:** 2026-09-26 · **Status:** accepted · **Supersedes:** [0026](0026-services-are-grouped-by-domain.md) · **Amended by:** [0033](0033-internal-reactions-leave-through-the-outbox.md) · **Decider:** Laurent Boucher
 
 > Step 6 of the migration to Spring Modulith. The module shape and the foundation are
 > [0028](0028-vertical-modules.md)'s, the owners and the ports [0029](0029-core-domains-become-modules.md)'s;

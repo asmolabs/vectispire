@@ -1,6 +1,6 @@
 # 0014 — Deux moteurs déployables, et SQLite comme fixture de test
 
-**Date :** 2026-08-25 · **Statut :** accepté · **Remplace :** [0009](0009-four-engines.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-08-25 · **Statut :** accepté · **Remplace :** [0009](0009-four-engines.md) · **Amendée par :** [0034](0034-mysql-replaces-the-sqlite-fixture.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 

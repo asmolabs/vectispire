@@ -36,6 +36,8 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers | accepted |
 | [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | An agent's sealing key is believed only on the word of its pinned signing key | accepted |
 | [0032](0032-security-checklists.md) | A security checklist is the organisation's template, versioned, answered per project by people, and prefilled only from evidence that ran | accepted |
+| [0033](0033-internal-reactions-leave-through-the-outbox.md) | A reaction between modules that must survive a commit leaves through the outbox, not Modulith's registry | accepted |
+| [0034](0034-mysql-replaces-the-sqlite-fixture.md) | MySQL replaces SQLite as the fixture the unit and HTTP suites run on | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

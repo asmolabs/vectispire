@@ -1,6 +1,6 @@
 # 0025 — Les événements SIEM partent par l'outbox, après validation, et leur catalogue est un contrat
 
-**Date :** 2026-09-26 · **Statut :** acceptée · **Décideur :** Laurent Boucher
+**Date :** 2026-09-26 · **Statut :** acceptée · **Amendée par :** [0033](0033-internal-reactions-leave-through-the-outbox.md) · **Décideur :** Laurent Boucher
 
 > **Note (2026-09-28).** Les identifiants de signature SIEM que cette décision nomme `ZAN-SEC-nnn`
 > sont émis en `VECTI-SEC-nnn` depuis la 0.10.0 — mêmes numéros, mêmes sens. Le
