@@ -1,6 +1,6 @@
 # Release notes
 
-## Next release (after 0.9.0)
+## 0.10.0 — 2026-10-01
 
 Not tagged yet. Read **Before you upgrade** first: five of its points stop something working
 until an operator acts, on purpose.

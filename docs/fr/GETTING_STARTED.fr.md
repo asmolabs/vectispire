@@ -192,10 +192,10 @@ contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.9.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --bundle vectispire-0.10.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.9.0.jar
+  vectispire-0.10.0.jar
 ```
 
 **Chaque partie de cette commande épingle quelque chose, et en retirer une seule rend l'essentiel
@@ -218,10 +218,10 @@ non signée est une liste que n'importe qui peut réécrire :
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.9.0.cdx.json.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --bundle vectispire-0.10.0.cdx.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.9.0.cdx.json
+  vectispire-0.10.0.cdx.json
 ```
 
 ### Exécuter depuis les images publiées
@@ -230,20 +230,20 @@ Une release publie aussi deux images de conteneur, de sorte que rien n'a besoin 
 pour exécuter ce logiciel :
 
 ```bash
-docker pull ghcr.io/asmolabs/vectispire:0.9.0
-docker pull ghcr.io/asmolabs/vectispire-agent:0.9.0
+docker pull ghcr.io/asmolabs/vectispire:0.10.0
+docker pull ghcr.io/asmolabs/vectispire-agent:0.10.0
 ```
 
 **Vérifiez-les avant de les exécuter, et vérifiez par empreinte.** Un tag est un pointeur mutable :
-signer `:0.9.0` ne dit rien de ce vers quoi `:0.9.0` pointera la semaine prochaine — c'est la
+signer `:0.10.0` ne dit rien de ce vers quoi `:0.10.0` pointera la semaine prochaine — c'est la
 raison même pour laquelle chaque action de ce dépôt est épinglée par SHA :
 
 ```bash
-DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.9.0 \
+DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 \
            --format '{{.Manifest.Digest}}')
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -253,7 +253,7 @@ côté — une liste de composants que n'importe qui peut remplacer ne prouve ri
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}" | jq -r '.payload' | base64 -d | jq '.predicate.components | length'
 ```

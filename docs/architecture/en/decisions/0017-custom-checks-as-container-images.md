@@ -3,7 +3,7 @@
 **Date:** 2026-09-27 · **Status:** accepted · **Decider:** Laurent Boucher · **§7 amended by:** [0032](0032-security-checklists.md) (coverage and test-report imports)
 
 > **Note (2026-09-28).** The SIEM signature identifiers this record names as `ZAN-SEC-nnn` are
-> emitted as `VECTI-SEC-nnn` since the release after 0.9.0 — same numbers, same meanings. The text
+> emitted as `VECTI-SEC-nnn` since 0.10.0 — same numbers, same meanings. The text
 > below is left as accepted; see the [SIEM catalogue](../../../../docs-site/integrations/siem.md#event-catalogue).
 
 *Proposed on 2026-08-29 as "custom checks as container images, not uploaded JARs"; amended and accepted

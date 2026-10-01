@@ -16,9 +16,9 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 * `coverage` : Send a JaCoCo, Cobertura or lcov coverage report for a repository (`--format` is required, never guessed).
 * `test-report` : Send a JUnit report — one XML file, or a zip of them — for a repository.
 
-`coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports). They are not in the `v0.9.0` script the snippets below pin.
+`coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports).
 
-Every command exits `0` when done, `1` only for a red verdict, and `2` when there is no answer to trust: a refusal — the server's `detail` is printed, *This API key lacks the read scope.* — an unreachable control plane, a scan that failed or timed out. `scan` adopts the scan already waiting on a `409` rather than failing. That is from the release after 0.9.0: the `v0.9.0` script called `curl -f`, exited with curl's code `22` on every refusal and printed nothing of the answer. The worked examples in [CI examples](../../docs-site/integrations/ci-examples.md) — GitLab CI with the shipped template, Jenkins, and SonarQube through a declared source — use a script that prints the problem document instead, and say which key each job needs.
+Every command exits `0` when done, `1` only for a red verdict, and `2` when there is no answer to trust: a refusal — the server's `detail` is printed, *This API key lacks the read scope.* — an unreachable control plane, a scan that failed or timed out. `scan` adopts the scan already waiting on a `409` rather than failing. That is from 0.10.0: the `v0.9.0` script called `curl -f`, exited with curl's code `22` on every refusal and printed nothing of the answer. The worked examples in [CI examples](../../docs-site/integrations/ci-examples.md) — GitLab CI with the shipped template, Jenkins, and SonarQube through a declared source — use a script that prints the problem document instead, and say which key each job needs.
 
 ---
 
@@ -51,7 +51,7 @@ vectispire-security-gate:
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
+    - curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
     - chmod +x vectispire-cli.sh
     # 1. Enqueue scan and wait for completion
     - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
@@ -87,7 +87,7 @@ jobs:
           VECTISPIRE_API_KEY: ${{ secrets.VECTISPIRE_API_KEY }}
           VECTISPIRE_REPO_ID: "1"
         run: |
-          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
           chmod +x vectispire-cli.sh
           ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
           ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
@@ -106,7 +106,7 @@ pipelines:
         name: Vectispire Security Gate
         script:
           - apk add --no-cache curl jq
-          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
           - chmod +x vectispire-cli.sh
           - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id 1 --wait
           - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id 1 --fail-on HIGH
@@ -128,7 +128,7 @@ pipeline {
         stage('Security Gate') {
             steps {
                 sh '''
-                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
                     chmod +x vectispire-cli.sh
                     ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
                     ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH

@@ -19,7 +19,7 @@ sh vectispire-gate.sh --repository <repository-id>
 Téléchargé, vérifié, puis lancé — jamais redirigé dans `sh`, où les octets s'exécutent à mesure
 qu'ils arrivent et où rien ne peut être vérifié d'abord. Sans `cosign`, comparez le SHA-256 du
 fichier au `VECTISPIRE_GATE_SHA256` du modèle GitLab au même tag, ce que fait le modèle lui-même. Le
-script est un asset de version depuis la version qui suit 0.9.0.
+script est un asset de version depuis la 0.10.0.
 
 Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la main :
 

@@ -137,7 +137,7 @@ jamais « passé ». Un scan passe par `pending`, `scanning`, puis `completed` o
 La [CLI du dépôt](https://github.com/asmolabs/vectispire/blob/main/scripts/vectispire-cli.sh) fait
 de même avec `scan --repo-id <id> --wait`, en lisant la clé dans `VECTISPIRE_API_KEY` : elle adopte
 le scan déjà en attente sur un `409`, affiche le `detail` du serveur sur un refus et sort avec les
-mêmes trois codes. C'est vrai depuis la version qui suit 0.9.0 ; la CLI taguée `v0.9.0` appelait
+mêmes trois codes. C’est vrai depuis la 0.10.0 ; la CLI taguée `v0.9.0` appelait
 `curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse.
 
 ## 1. GitLab CI {#gitlab-ci}
@@ -226,7 +226,7 @@ vectispire-gate:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 ```
 
-`<tag>` est une version postérieure à 0.9.0. Le modèle tagué `v0.9.0` ne peut pas être inclus tel
+`<tag>` est la 0.10.0 ou une version ultérieure. Le modèle tagué `v0.9.0` ne peut pas être inclus tel
 quel : il lance `ci/vectispire-gate.sh` depuis votre checkout, où ce fichier n'existe pas, livre
 `allow_failure: true`, et déclare `VECTISPIRE_REPOSITORY_ID: ""` sur son job, ce qui masque une
 valeur globale.
@@ -405,7 +405,7 @@ pipeline {
   GitLab au même tag ; `sha256sum -c` fait échouer l'étape sur tout autre fichier. La version porte
   aussi un bundle Sigstore pour lui, vérifié comme le jar — voir
   [Barrière CI](ci-gate.md#la-version-courte). `vectispire-gate.sh` est un asset de version depuis
-  la version qui suit 0.9.0.
+  la 0.10.0.
 
 Les refus sont ceux du [tableau GitLab](#when-it-is-refused) : les scripts affichent le statut et le
 `detail` du serveur dans la console.

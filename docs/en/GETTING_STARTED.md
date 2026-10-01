@@ -166,10 +166,10 @@ contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.9.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --bundle vectispire-0.10.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.9.0.jar
+  vectispire-0.10.0.jar
 ```
 
 **Each part of that command pins something, and dropping any of them gives back most of what
@@ -192,10 +192,10 @@ anybody can rewrite:
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-0.9.0.cdx.json.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --bundle vectispire-0.10.0.cdx.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-0.9.0.cdx.json
+  vectispire-0.10.0.cdx.json
 ```
 
 ### Running it from the published images
@@ -203,20 +203,20 @@ cosign verify-blob \
 A release also publishes two container images, so nothing has to be compiled to run this:
 
 ```bash
-docker pull ghcr.io/asmolabs/vectispire:0.9.0
-docker pull ghcr.io/asmolabs/vectispire-agent:0.9.0
+docker pull ghcr.io/asmolabs/vectispire:0.10.0
+docker pull ghcr.io/asmolabs/vectispire-agent:0.10.0
 ```
 
 **Verify them before running them, and verify by digest.** A tag is a mutable pointer — signing
-`:0.9.0` says nothing about what `:0.9.0` resolves to next week, which is the same reason every
+`:0.10.0` says nothing about what `:0.10.0` resolves to next week, which is the same reason every
 action in this repository is pinned by SHA:
 
 ```bash
-DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.9.0 \
+DIGEST=$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 \
            --format '{{.Manifest.Digest}}')
 
 cosign verify \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
@@ -226,7 +226,7 @@ a component list anybody can swap is not evidence of anything:
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   "ghcr.io/asmolabs/vectispire@${DIGEST}" | jq -r '.payload' | base64 -d | jq '.predicate.components | length'
 ```

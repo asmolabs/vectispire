@@ -18,7 +18,7 @@ sh vectispire-gate.sh --repository <repository-id>
 Downloaded, verified, then run — never piped into `sh`, where the bytes execute as they arrive and
 nothing can be checked first. Where `cosign` is not installed, compare the file's SHA-256 with the
 `VECTISPIRE_GATE_SHA256` of the GitLab template at the same tag, which is what the template itself
-does. The script is a release asset from the release after 0.9.0.
+does. The script is a release asset from 0.10.0 on.
 
 Or use the shipped integrations rather than writing the request by hand:
 

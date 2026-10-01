@@ -3,7 +3,7 @@
 **Date :** 2026-09-27 · **Statut :** accepté · **Décideur :** Laurent Boucher · **§7 amendé par :** [0032](0032-security-checklists.md) (imports de couverture et de rapports de tests)
 
 > **Note (2026-09-28).** Les identifiants de signature SIEM que cette décision nomme `ZAN-SEC-nnn`
-> sont émis en `VECTI-SEC-nnn` depuis la version qui suit la 0.9.0 — mêmes numéros, mêmes sens. Le
+> sont émis en `VECTI-SEC-nnn` depuis la 0.10.0 — mêmes numéros, mêmes sens. Le
 > texte ci-dessous est laissé tel qu'accepté ; voir le [catalogue SIEM](../../../../docs-site/integrations/siem.fr.md#catalogue-des-evenements).
 
 *Proposée le 2026-08-29 sous le titre « checks personnalisés en images de conteneur, pas en JAR » ;

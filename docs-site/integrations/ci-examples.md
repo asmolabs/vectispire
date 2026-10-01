@@ -132,7 +132,7 @@ gate on, since the verdict would describe the scan before it.
 The [repository's CLI](https://github.com/asmolabs/vectispire/blob/main/scripts/vectispire-cli.sh)
 does the same with `scan --repo-id <id> --wait`, reading the key from `VECTISPIRE_API_KEY`: it adopts
 the scan already waiting on a `409`, prints the server's `detail` on a refusal and exits with the
-same three codes. That is from the release after 0.9.0; the CLI tagged `v0.9.0` called `curl -f`,
+same three codes. That is from 0.10.0; the CLI tagged `v0.9.0` called `curl -f`,
 exited with curl's code `22` on every refusal and printed nothing of the answer.
 
 ## 1. GitLab CI {#gitlab-ci}
@@ -220,7 +220,7 @@ vectispire-gate:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 ```
 
-`<tag>` is a release after 0.9.0. The template tagged `v0.9.0` cannot be included as it is: it runs
+`<tag>` is 0.10.0 or later. The template tagged `v0.9.0` cannot be included as it is: it runs
 `ci/vectispire-gate.sh` from your checkout, where there is no such file, ships
 `allow_failure: true`, and declares `VECTISPIRE_REPOSITORY_ID: ""` on its job, which hides a global
 value.
@@ -394,7 +394,7 @@ pipeline {
 - **The gate script is checked before it runs**, against the digest the GitLab template at the same
   tag pins; `sha256sum -c` fails the stage on any other file. The release also carries a Sigstore
   bundle for it, verified as the jar is — see [CI policy gate](ci-gate.md#the-short-version).
-  `vectispire-gate.sh` is a release asset from the release after 0.9.0.
+  `vectispire-gate.sh` is a release asset from 0.10.0 on.
 
 The refusals are the ones in the [GitLab table](#when-it-is-refused): the scripts print the status
 and the server's `detail` in the console.

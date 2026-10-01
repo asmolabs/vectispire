@@ -132,8 +132,8 @@ the request path: a sign-in, a scan ingest or a sync never waits on your collect
 ## Event catalogue
 
 The signature identifier is a contract: correlation rules are written against it, and it will not
-change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in the release after
-0.9.0 — same numbers, same meanings; see the [release notes](../reference/release-notes.md#before-you-upgrade).
+change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in
+0.10.0 — same numbers, same meanings; see the [release notes](../reference/release-notes.md#before-you-upgrade).
 
 | Signature | Name | CEF severity | Emitted when |
 |---|---|---|---|

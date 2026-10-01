@@ -1,6 +1,6 @@
 # Notes de version
 
-## Prochaine version (après 0.9.0)
+## 0.10.0 — 1er octobre 2026
 
 Pas encore étiquetée. Lisez d'abord **Avant la mise à jour** : cinq de ses points arrêtent
 quelque chose tant qu'un opérateur n'a pas agi, et c'est voulu.
