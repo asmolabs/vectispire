@@ -29,7 +29,9 @@ Tout le reste — administration, triage, réglages, utilisateurs — refuse une
 soit le rôle du compte. C'est le but : la clé d'un administrateur utilisée par un pipeline n'est pas
 un administrateur.
 
-Donnez à une barrière CI une clé `scan`, et rien de plus.
+Donnez à une barrière CI une clé `scan`, et rien de plus — plus `read` si le pipeline attend aussi
+le scan qu'il a déclenché, puisque suivre un scan le lit. [Exemples CI](../integrations/ci-examples.md#three-keys)
+montre les clés dont un pipeline a besoin, une par job.
 
 ![Quatre clés : une sans restriction, une limitée à un dépôt, une clé d'agent jamais utilisée, et une expirée.](../assets/screens/fr/api-keys.png)
 

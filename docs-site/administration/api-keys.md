@@ -28,7 +28,9 @@ Anything else — administration, triage, settings, users — refuses a key with
 account's role. That is the point: an administrator's key used by a pipeline is not an
 administrator.
 
-Give a CI gate a key with `scan` and nothing more.
+Give a CI gate a key with `scan` and nothing more — plus `read` if the pipeline also waits for the
+scan it triggered, since following a scan reads it. [CI examples](../integrations/ci-examples.md#three-keys)
+shows the keys a pipeline needs, one per job.
 
 ![Four keys: one unrestricted, one scoped to a repository, an agent key never used, and one expired.](../assets/screens/en/api-keys.png)
 

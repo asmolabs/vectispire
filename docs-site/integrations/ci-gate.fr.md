@@ -6,7 +6,7 @@ La barrière répond à une question posée par votre pipeline : **cette constru
 ## La version courte
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh
+curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh -s -- --repository <repository-id>
 ```
 
 Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la main :
@@ -18,6 +18,9 @@ Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la m
 Les trois demandent `VECTISPIRE_URL` et `VECTISPIRE_TOKEN` dans l'environnement du job. Le jeton
 est une [clé d'API](../administration/api-keys.md) de portée `scan` — demander un verdict compte
 comme analyser — de préférence limitée à la seule cible que le pipeline contrôle.
+
+[Exemples CI](ci-examples.md) le branche de bout en bout dans GitLab CI et Jenkins — analyser,
+attendre, barrer — et importe les résultats de SonarQube par une source déclarée.
 
 ## Le verdict nomme sa politique
 

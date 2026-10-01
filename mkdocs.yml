@@ -132,6 +132,7 @@ plugins:
             Exports: Exports
             Integrations: Intégrations
             CI policy gate: Barrière CI
+            CI examples: Exemples CI
             Notifications: Notifications
             Tracker tickets: Tickets
             SIEM export: Export SIEM
@@ -212,6 +213,7 @@ nav:
       - Exports: guide/exports.md
   - Integrations:
       - CI policy gate: integrations/ci-gate.md
+      - CI examples: integrations/ci-examples.md
       - Notifications: integrations/notifications.md
       - Tracker tickets: integrations/ticketing.md
       - SIEM export: integrations/siem.md

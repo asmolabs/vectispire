@@ -15,7 +15,9 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 * `coverage` : Send a JaCoCo, Cobertura or lcov coverage report for a repository (`--format` is required, never guessed).
 * `test-report` : Send a JUnit report — one XML file, or a zip of them — for a repository.
 
-`coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports).
+`coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports). They are not in the `v0.9.0` script the snippets below pin.
+
+The CLI calls `curl -f`: on a refusal (`403` wrong scope, `404` repository outside the key's restriction, `409` scan already queued) `scan`, `gate` and `sbom` exit with curl's code `22` and print nothing of the server's answer. The worked examples in [CI examples](../../docs-site/integrations/ci-examples.md) — GitLab CI with the shipped template, Jenkins, and SonarQube through a declared source — use a script that prints the problem document instead, and say which key each job needs.
 
 ---
 
@@ -26,7 +28,7 @@ Configure these environment variables in your CI/CD project settings (e.g. *GitL
 | Variable | Description | Example |
 |---|---|---|
 | `VECTISPIRE_URL` | Public or internal URL of your Vectispire instance | `https://vectispire.mycorp.internal` |
-| `VECTISPIRE_API_KEY` | Programmatic API key with `scans:write` and `gate:read` scopes | *(Generated from the API Keys page)* |
+| `VECTISPIRE_API_KEY` | API key with the `scan` scope, plus `read` for `scan --wait` (which polls the scan), restricted to the repository the pipeline gates | *(Generated from the API Keys page)* |
 
 ---
 
@@ -48,7 +50,7 @@ vectispire-security-gate:
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L "${VECTISPIRE_URL}/scripts/vectispire-cli.sh" -o vectispire-cli.sh || curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
+    - curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
     - chmod +x vectispire-cli.sh
     # 1. Enqueue scan and wait for completion
     - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
@@ -138,13 +140,19 @@ pipeline {
 
 ---
 
-## 📦 Using the Pre-built Docker Image
+## 📦 Building the CLI Image
 
-An official container image `vectispire/cli:latest` is available to execute `vectispire-cli` directly in container-native CI platforms:
+No CLI image is published: the release builds the control plane and the agent, nothing else. [`Dockerfile.cli`](../../Dockerfile.cli) builds one — Alpine with `curl` and `jq`, running as a non-root user, `vectispire-cli` as its entrypoint — to push to your own registry:
+
+```bash
+docker build -f Dockerfile.cli -t <your-registry>/vectispire-cli:<tag> .
+```
 
 ```yaml
 vectispire-gate:
-  image: vectispire/cli:latest
+  image:
+    name: <your-registry>/vectispire-cli:<tag>
+    entrypoint: [""]   # GitLab runs the job's script through a shell, not through the CLI
   script:
     - vectispire-cli scan --repo-id 1 --wait
     - vectispire-cli gate --repo-id 1 --fail-on HIGH

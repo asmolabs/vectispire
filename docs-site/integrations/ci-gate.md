@@ -5,7 +5,7 @@ The gate answers one question from your pipeline: **should this build fail?**
 ## The short version
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh
+curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh -s -- --repository <repository-id>
 ```
 
 Or use the shipped integrations rather than writing the request by hand:
@@ -17,6 +17,9 @@ Or use the shipped integrations rather than writing the request by hand:
 All three need `VECTISPIRE_URL` and `VECTISPIRE_TOKEN` in the job environment. The token is an
 [API key](../administration/api-keys.md) with the `scan` scope — asking for a verdict counts as
 scanning — preferably restricted to the one target the pipeline gates.
+
+[CI examples](ci-examples.md) wires it end to end in GitLab CI and Jenkins — scan, wait, gate — and
+imports SonarQube's results through a declared source.
 
 ## The verdict names its policy
 
