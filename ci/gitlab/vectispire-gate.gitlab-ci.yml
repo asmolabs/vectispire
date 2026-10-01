@@ -1,41 +1,105 @@
-# Vectispire's gate as a GitLab job.
+# Vectispire's gate as a GitLab job, for **your** pipeline.
 #
 #   include:
-#     - remote: 'https://.../ci/gitlab/vectispire-gate.gitlab-ci.yml'
+#     - remote: 'https://raw.githubusercontent.com/asmolabs/vectispire/<tag>/ci/gitlab/vectispire-gate.gitlab-ci.yml'
 #
 #   vectispire-gate:
 #     extends: .vectispire-gate
 #     variables:
-#       VECTISPIRE_REPOSITORY_ID: "12"
+#       VECTISPIRE_GATE_VERSION: "<tag>"        # the same tag as the include
+#       VECTISPIRE_REPOSITORY_ID: "12"          # or VECTISPIRE_CONTAINER_ID
 #
-# `VECTISPIRE_URL` and `VECTISPIRE_TOKEN` belong in the project's CI/CD variables, and the token
-# **masked**: it is a bearer credential for the whole control plane, and a job log is read by
-# everybody who can see the pipeline.
+# Required, wherever you set them — on the job, globally, or in Settings → CI/CD → Variables:
+#   VECTISPIRE_URL            the control plane
+#   VECTISPIRE_TOKEN          an API key with the `scan` scope (plus `read` if a job of yours waits
+#                             for the scan it triggered), **restricted to the target this pipeline
+#                             gates**, and **masked**. A merge-request pipeline runs the job
+#                             definition of the pushed branch, so whoever can push can print the
+#                             variable: the restriction is what bounds that leak to one target.
+#   VECTISPIRE_GATE_VERSION   the release tag this template was included at
+#   VECTISPIRE_REPOSITORY_ID or VECTISPIRE_CONTAINER_ID — exactly one
+#
+# **The template fetches the gate script itself, and checks it before running it.** It used to
+# run `sh ci/vectispire-gate.sh` from the checkout, which is the consumer's repository, not ours:
+# the file was not there, and the job failed on every pipeline that included it. The script is the
+# `vectispire-gate.sh` asset of the release named by VECTISPIRE_GATE_VERSION, and it runs only if
+# its SHA-256 is the one written below — the script that sat next to this template on that tag.
+# The version locates the file; the digest is what pins it. A template included at one tag with
+# the version of another fails closed, unless the script is the same in both.
 
 .vectispire-gate:
   stage: test
   image: alpine:3.22
   variables:
-    # Overridable per project. Empty means "not this kind of target".
-    VECTISPIRE_REPOSITORY_ID: ""
-    VECTISPIRE_CONTAINER_ID: ""
+    # Written by hand beside `ci/vectispire-gate.sh`, and checked against it on every push
+    # (`ci.yml`, docs-consistency) and before a release is built (`release.yml`): a template whose
+    # digest is not its script's would refuse to run on the first pipeline that included it.
+    VECTISPIRE_GATE_SHA256: "542654a034b41b98a6001cbac8acf8411054ee7b91203326bc54b6c0c27a456b"
     VECTISPIRE_FAIL_ON_SEVERITY: ""
-    # `fail` blocks the pipeline when the gate cannot be asked at all. `warn` lets the build
-    # through ungated — availability over assurance, which is a decision somebody should make on
-    # purpose rather than inherit from a template.
+    # `fail` blocks the pipeline when the gate cannot be asked at all (exit 2). `warn` lets the
+    # build through ungated — availability over assurance, which is a decision somebody should make
+    # on purpose rather than inherit from a template.
     VECTISPIRE_ON_ERROR: "fail"
+    # `block`: a red verdict fails the job and the pipeline. `advisory`: it ends the job with
+    # exit 3, which `allow_failure` below accepts — the pipeline passes, the job shows as a
+    # warning, the violations are in its log and the verdict is recorded all the same.
+    VECTISPIRE_GATE_MODE: "block"
+    # No VECTISPIRE_REPOSITORY_ID or VECTISPIRE_CONTAINER_ID here, on purpose: a job's variables
+    # win over global ones, so declaring them empty on this job hid the value a pipeline set
+    # globally, and the gate was asked about nothing.
   before_script:
     - apk add --no-cache curl jq
   script:
     - |
       set -eu
-      target=""
-      if [ -n "$VECTISPIRE_REPOSITORY_ID" ]; then target="--repository $VECTISPIRE_REPOSITORY_ID"; fi
-      if [ -n "$VECTISPIRE_CONTAINER_ID" ]; then target="--container $VECTISPIRE_CONTAINER_ID"; fi
+      : "${VECTISPIRE_GATE_VERSION:?set VECTISPIRE_GATE_VERSION to the release tag this template was included at}"
+      repository="${VECTISPIRE_REPOSITORY_ID:-}"
+      container="${VECTISPIRE_CONTAINER_ID:-}"
+      if [ -n "$repository" ] && [ -n "$container" ]; then
+        echo "vectispire-gate: set VECTISPIRE_REPOSITORY_ID or VECTISPIRE_CONTAINER_ID, not both." >&2
+        exit 2
+      fi
+      if [ -n "$repository" ]; then target="--repository $repository"
+      elif [ -n "$container" ]; then target="--container $container"
+      else
+        echo "vectispire-gate: set VECTISPIRE_REPOSITORY_ID or VECTISPIRE_CONTAINER_ID." >&2
+        exit 2
+      fi
       severity=""
       if [ -n "$VECTISPIRE_FAIL_ON_SEVERITY" ]; then severity="--fail-on-severity $VECTISPIRE_FAIL_ON_SEVERITY"; fi
-      sh ci/vectispire-gate.sh $target $severity --on-error "$VECTISPIRE_ON_ERROR"
-  # The gate reports a verdict about a backlog, not about this commit's diff: it is worth a
-  # failed pipeline and it is not worth blocking a hotfix at three in the morning. Teams that
-  # want the second behaviour set `allow_failure: false` in their own job.
-  allow_failure: true
+      case "$VECTISPIRE_GATE_MODE" in
+        block|advisory) ;;
+        *) echo "vectispire-gate: VECTISPIRE_GATE_MODE is block or advisory, not \"$VECTISPIRE_GATE_MODE\"." >&2; exit 2 ;;
+      esac
+
+      # Fetched to a file and checked before it is executed — never piped into a shell, where the
+      # bytes run as they arrive and a check afterwards protects nothing.
+      gate_script="$(mktemp)"
+      gate_url="${VECTISPIRE_GATE_SCRIPT_URL:-https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_GATE_VERSION/vectispire-gate.sh}"
+      if ! curl -fsSL --retry 3 -o "$gate_script" "$gate_url"; then
+        echo "vectispire-gate: could not fetch the gate script from $gate_url" >&2
+        exit 2
+      fi
+      if ! echo "$VECTISPIRE_GATE_SHA256  $gate_script" | sha256sum -c -s -; then
+        echo "vectispire-gate: the script at $gate_url is not the one this template was released with." >&2
+        echo "  expected sha256 $VECTISPIRE_GATE_SHA256" >&2
+        echo "  received sha256 $(sha256sum "$gate_script" | cut -d' ' -f1)" >&2
+        echo "  Include the template and set VECTISPIRE_GATE_VERSION at the same tag." >&2
+        exit 2
+      fi
+
+      # Word splitting of $target and $severity is intended: each is a flag and its value.
+      # shellcheck disable=SC2086
+      sh "$gate_script" $target $severity --on-error "$VECTISPIRE_ON_ERROR" || verdict=$?
+      verdict="${verdict:-0}"
+      if [ "$verdict" -eq 1 ] && [ "$VECTISPIRE_GATE_MODE" = "advisory" ]; then
+        echo "vectispire-gate: VECTISPIRE_GATE_MODE=advisory — the verdict is red and the pipeline continues." >&2
+        exit 3
+      fi
+      exit "$verdict"
+  # **A red verdict fails the pipeline.** This shipped `allow_failure: true`, which turned every
+  # failed gate into a yellow job and a green pipeline — a gate that decided nothing unless each
+  # consumer found the line and overrode it. Only exit 3, the advisory mode chosen above, is
+  # allowed to fail; exit 1 (red verdict) and exit 2 (could not ask) both stop the pipeline.
+  allow_failure:
+    exit_codes: [3]

@@ -111,6 +111,14 @@ A behaviour change updates `docs-site/` and `docs/{en,fr}/` **in both languages*
 (`pip install --require-hashes --no-deps -r ci/docs/requirements.txt`, Python 3.12+, `mkdocs build
 --strict`).
 
+**A script or template we ship for other people's pipelines** (`ci/`, `scripts/vectispire-cli.sh`)
+is run the way a consumer runs it, not read: against a stub server answering pass, fail, a `403`
+problem document, a `404` and a pending scan, and — for the GitLab template — from a directory that
+is *not* this checkout. The template ran `ci/vectispire-gate.sh` from the consumer's checkout, shipped
+`allow_failure: true` and shadowed a global variable with an empty one; the CLI exited curl's `22` on
+every refusal. Every one of those read correctly. `docs-consistency` runs `ci/gitlab/check-gate-pin.sh`
+and ShellCheck on them; editing `ci/vectispire-gate.sh` means updating the digest the template pins.
+
 ## 7. Mutation check — for every test added
 
 Break the code the test pins (remove the guard, flip the condition), run the test, confirm it

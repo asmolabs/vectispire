@@ -124,6 +124,15 @@ jobs:
       # Underselling costs the same as overselling — a reader who checks is the one who gets it
       # wrong.
       - run: python3 scripts/check-doc-facts.py
+      # **The scripts we ship run in other people's pipelines**, where a defect is found by a
+      # stranger's red build rather than by ours. The GitLab template runs the release's gate script
+      # only at the digest it pins — edited apart, the next release ships a template that refuses to
+      # run anywhere — and both scripts are linted, since `curl -f` swallowing every refusal is the
+      # kind of thing a careful read had let through. ShellCheck is on the runner image.
+      - name: the shipped CI scripts
+        run: |
+          sh ci/gitlab/check-gate-pin.sh
+          shellcheck --shell=sh ci/vectispire-gate.sh ci/gitlab/check-gate-pin.sh scripts/vectispire-cli.sh
 
   c4-drift:
     runs-on: ubuntu-latest

@@ -135,12 +135,22 @@ jobs:
               scan "docker-archive:/work/${NAME}-image.tar" -o cyclonedx-json > "${NAME}-image.cdx.json"
           done
 
+      # **The gate script, as a release asset, because other people's pipelines run it.** The
+      # GitLab template (`ci/gitlab/vectispire-gate.gitlab-ci.yml`) is included from a consumer's
+      # project, where `ci/vectispire-gate.sh` does not exist: it downloads this asset and runs it
+      # only if its SHA-256 is the one the template carries. A tag whose template pins another
+      # digest would ship a template that refuses to run everywhere, so that is checked first.
+      - name: the gate script the GitLab template pins
+        run: |
+          sh ci/gitlab/check-gate-pin.sh
+          cp ci/vectispire-gate.sh vectispire-gate.sh
+
       # What `publish` signs is checked against this list before anything is signed: the handover
       # goes through artifact storage, and the job that holds the token trusts only what matches.
       - name: checksums of everything handed over
         run: |
           sha256sum "$JAR" "$SBOM" vectispire-image.tar vectispire-agent-image.tar \
-            vectispire-image.cdx.json vectispire-agent-image.cdx.json > SHA256SUMS
+            vectispire-image.cdx.json vectispire-agent-image.cdx.json vectispire-gate.sh > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -153,6 +163,7 @@ jobs:
             vectispire-agent-image.tar
             vectispire-image.cdx.json
             vectispire-agent-image.cdx.json
+            vectispire-gate.sh
             SHA256SUMS
           retention-days: 7
           if-no-files-found: error
@@ -232,19 +243,22 @@ jobs:
           install -m 0755 /tmp/cosign /usr/local/bin/cosign
           cosign version
 
-      - name: sign both, because both are downloaded
+      - name: sign all three, because all three are downloaded
         run: |
           cosign sign-blob --yes --bundle "${JAR}.cosign.bundle" "$JAR"
           # An unsigned SBOM is a list of components anybody can rewrite, which is the one thing
           # a consumer reads to decide whether a CVE applies to them.
           cosign sign-blob --yes --bundle "${SBOM}.cosign.bundle" "$SBOM"
+          # The GitLab template checks the gate script by digest; the bundle is for a consumer who
+          # fetches it some other way and wants the same proof the jar carries.
+          cosign sign-blob --yes --bundle vectispire-gate.sh.cosign.bundle vectispire-gate.sh
 
       # **Verified immediately, with the command a user will run.** A signature nobody has ever
       # verified is a signature nobody knows the shape of — and this step is what makes the
       # instruction in GETTING_STARTED a tested claim rather than a hopeful one.
       - name: verify, before anything is published
         run: |
-          for FILE in "$JAR" "$SBOM"; do
+          for FILE in "$JAR" "$SBOM" vectispire-gate.sh; do
             cosign verify-blob \
               --bundle "${FILE}.cosign.bundle" \
               --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
@@ -410,6 +424,8 @@ jobs:
             ${{ env.JAR }}.cosign.bundle
             ${{ env.SBOM }}
             ${{ env.SBOM }}.cosign.bundle
+            vectispire-gate.sh
+            vectispire-gate.sh.cosign.bundle
           retention-days: 90
 
       # **Only on a tag.** `workflow_dispatch` runs from a branch, where `GITHUB_REF_NAME` is the
@@ -442,10 +458,15 @@ jobs:
 
           **Jar** — attached below with its SBOM and a Sigstore bundle for each.
 
+          **CI gate script** — \`vectispire-gate.sh\`, attached with its Sigstore bundle. The GitLab
+          template at this tag downloads it and runs it only if its SHA-256 is the one the template
+          pins; set \`VECTISPIRE_GATE_VERSION: ${GITHUB_REF_NAME}\` beside the include.
+
           **Build provenance** (SLSA, naming commit ${GITHUB_SHA}) for the jar and both images:
 
               gh attestation verify <file or oci://image@digest> --repo ${GITHUB_REPOSITORY} \\
                 --signer-workflow ${GITHUB_REPOSITORY}/.github/workflows/release.yml --source-ref ${GITHUB_REF}
           NOTES
           )" \
-            "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle"
+            "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle" \
+            vectispire-gate.sh vectispire-gate.sh.cosign.bundle
