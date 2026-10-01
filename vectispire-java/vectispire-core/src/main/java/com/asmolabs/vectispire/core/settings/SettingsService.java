@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -97,9 +98,14 @@ public class SettingsService {
      *
      * <p>Here rather than in its caller's hands because the table is this module's: {@code crypto}
      * read and wrote {@code t_setting} through the repository while the code was packaged by layer,
-     * a dependency on settings nothing showed. No transaction of its own, as before the move — the
-     * repository call opens one.
+     * a dependency on settings nothing showed.
+     *
+     * <p><b>Outside the caller's transaction, deliberately</b> — see {@link #storeInternalIfAbsent}:
+     * this is the read-back of a row that method has just committed in a transaction of its own, and
+     * inside a caller's {@code REPEATABLE READ} transaction (MySQL's default) the snapshot taken at
+     * the caller's first read would not show it. The repository call opens a transaction of its own.
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Optional<String> internalValue(String key) {
         return settings.findById(key).map(SettingEntity::getValue);
     }
@@ -113,8 +119,16 @@ public class SettingsService {
      * signing with it, so its signatures verified against nothing stored. The insert now fails for
      * whoever comes second, and the caller reads back the row that won.
      *
+     * <p><b>Outside the caller's transaction.</b> The signing key is created by the first document
+     * signed, and documents are signed in read-only transactions — the evidence bundle's among them:
+     * joined to one, the insert was refused on both engines ("Connection is read-only") and the first
+     * bundle of every installation without {@code vectispire.signing.key} answered 500. SQLite
+     * ignores the read-only flag, and the suite ran on it. Suspending the caller's transaction also
+     * keeps a refused insert from marking it rollback-only, or aborting it on PostgreSQL.
+     *
      * @return false when the key already had a row, which is left as it was
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public boolean storeInternalIfAbsent(String key, String value) {
         try {
             return settings.insert(key, value) == 1;

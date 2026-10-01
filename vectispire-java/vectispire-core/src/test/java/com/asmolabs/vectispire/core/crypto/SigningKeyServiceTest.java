@@ -19,6 +19,8 @@ import java.security.spec.ECGenParameterSpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The signing key, against the database: whether a signature can still be checked tomorrow.
@@ -41,6 +43,28 @@ class SigningKeyServiceTest extends VectispireContextTest {
 
     @Autowired
     private EncryptionService encryption;
+
+    @Autowired
+    private PlatformTransactionManager transactions;
+
+    @Test
+    @DisplayName("is created by the first document signed in a read-only transaction, and read back from it")
+    void isCreatedInsideAReadOnlyTransaction() {
+        SigningKeyService service = new SigningKeyService("", settingsService, encryption);
+        TransactionTemplate readOnly = new TransactionTemplate(transactions);
+        readOnly.setReadOnly(true);
+
+        // The evidence bundle's shape: a read-only transaction that reads first, then signs. The
+        // insert joined to it was refused on MySQL and PostgreSQL, and the read-back inside its
+        // snapshot would not see the row the insert committed.
+        String keyId = readOnly.execute(status -> {
+            settings.count();
+            return service.getKeyId();
+        });
+
+        assertThat(settings.findById(SigningKeyService.STORED_KEY)).isPresent();
+        assertThat(new SigningKeyService("", settingsService, encryption).getKeyId()).isEqualTo(keyId);
+    }
 
     @Test
     @DisplayName("survives a restart: a second instance signs with the key the first one stored")
