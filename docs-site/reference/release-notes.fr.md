@@ -238,6 +238,23 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Changements visibles d'une intégration
 
+- **Le modèle de barrière GitLab fait désormais échouer le pipeline sur un verdict rouge.**
+  `ci/gitlab/vectispire-gate.gitlab-ci.yml` livrait `allow_failure: true`, si bien qu'une barrière
+  échouée s'affichait en avertissement et que le pipeline passait ; il n'accepte plus que la sortie
+  `3`, que `VECTISPIRE_GATE_MODE: advisory` produit pour un verdict rouge. Un pipeline qui comptait
+  sur l'ancien comportement pose cette variable. Le modèle demande aussi `VECTISPIRE_GATE_VERSION`,
+  le tag auquel il a été inclus : il télécharge le `vectispire-gate.sh` de cette version et ne le
+  lance qu'au SHA-256 qu'il épingle — il lançait `ci/vectispire-gate.sh` depuis le checkout du
+  consommateur, où ce fichier n'existe pas. Il ne déclare plus `VECTISPIRE_REPOSITORY_ID` ni
+  `VECTISPIRE_CONTAINER_ID` sur son job, si bien qu'une valeur posée globalement atteint la barrière.
+  Voir [Exemples CI](../integrations/ci-examples.md#gitlab-ci).
+- **La version porte `vectispire-gate.sh` et son bundle Sigstore**, signés par la même identité de
+  workflow que le jar.
+- **`vectispire-cli` sort en `2` avec le `detail` du serveur sur un refus**, là où il sortait avec le
+  `22` de curl sans rien afficher. La sortie `1` n'est plus qu'un verdict rouge ; un scan échoué ou
+  hors délai donne `2`. `scan` suit le scan déjà en attente sur un `409` ; `sbom --repo-id` prend le
+  dernier scan *terminé*, là où il prenait le dernier, qui pouvait être en attente ; `status`,
+  annoncé et absent, existe.
 - **Une fiche de score peut porter la note `NO_DATA`, avec un score `null`, et porte `totalTargets` et
   `observedTargets`.** `GET /api/v1/scorecards/repositories/{id}`, `/containers/{id}`, `/global` et le
   `scorecard` de `GET /api/v1/projects/{id}/compliance` et `/solutions/{id}/compliance` répondent la note

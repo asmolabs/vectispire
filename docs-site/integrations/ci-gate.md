@@ -5,14 +5,26 @@ The gate answers one question from your pipeline: **should this build fail?**
 ## The short version
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh -s -- --repository <repository-id>
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-gate.sh
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-gate.sh.cosign.bundle
+cosign verify-blob \
+  --bundle vectispire-gate.sh.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-gate.sh
+sh vectispire-gate.sh --repository <repository-id>
 ```
+
+Downloaded, verified, then run — never piped into `sh`, where the bytes execute as they arrive and
+nothing can be checked first. Where `cosign` is not installed, compare the file's SHA-256 with the
+`VECTISPIRE_GATE_SHA256` of the GitLab template at the same tag, which is what the template itself
+does. The script is a release asset from the release after 0.9.0.
 
 Or use the shipped integrations rather than writing the request by hand:
 
 - [`ci/vectispire-gate.sh`](https://github.com/asmolabs/vectispire/blob/main/ci/vectispire-gate.sh) — a shell script for any runner;
 - [`ci/github-action/action.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/github-action/action.yml) — a GitHub composite action;
-- [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — a GitLab template.
+- [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — a GitLab template, included from your project: it fetches the release's gate script, runs it only at the digest it pins, and fails the pipeline on a red verdict ([wired here](ci-examples.md#gitlab-ci)).
 
 All three need `VECTISPIRE_URL` and `VECTISPIRE_TOKEN` in the job environment. The token is an
 [API key](../administration/api-keys.md) with the `scan` scope — asking for a verdict counts as

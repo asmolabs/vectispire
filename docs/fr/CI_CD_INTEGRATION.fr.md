@@ -10,14 +10,15 @@ Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'i
 
 ### Commandes Principales :
 * `scan` : Déclenche une analyse de sécurité sur un dépôt ou un conteneur et attend optionnellement sa finalisation (`--wait`).
-* `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès) ou `1` (Échec / Blocage du build).
-* `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft.
+* `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès), `1` (Échec / Blocage du build) ou `2` (la barrière n'a pas pu être interrogée).
+* `status` : Affiche le statut d'un scan (`--scan-id`), ou du dernier scan d'une cible.
+* `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft ; avec `--repo-id`, celui du dernier scan **terminé**. Pour du CycloneDX avec VEX, utilisez la route d'export `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (portée `export`).
 * `coverage` : Envoie le rapport de couverture JaCoCo, Cobertura ou lcov d'un dépôt (`--format` est obligatoire, jamais deviné).
 * `test-report` : Envoie le rapport JUnit d'un dépôt — un fichier XML, ou un zip de plusieurs.
 
 `coverage` et `test-report` demandent une clé détenant `report_import` dont la source est déclarée pour ce type ; voir [Importer des rapports de couverture et de tests](../../docs-site/administration/plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests). Ils ne sont pas dans le script `v0.9.0` qu'épinglent les extraits ci-dessous.
 
-La CLI appelle `curl -f` : sur un refus (`403` mauvaise portée, `404` dépôt hors de la restriction de la clé, `409` scan déjà en file) `scan`, `gate` et `sbom` sortent avec le code `22` de curl et n'affichent rien de la réponse du serveur. Les exemples commentés d'[Exemples CI](../../docs-site/integrations/ci-examples.fr.md) — GitLab CI avec le modèle livré, Jenkins, et SonarQube par une source déclarée — utilisent un script qui affiche le document de problème, et disent quelle clé chaque job demande.
+Chaque commande sort en `0` quand elle a abouti, en `1` seulement pour un verdict rouge, et en `2` quand il n'y a pas de réponse à croire : un refus — le `detail` du serveur est affiché, *This API key lacks the read scope.* — un plan de contrôle injoignable, un scan échoué ou hors délai. `scan` adopte le scan déjà en attente sur un `409` au lieu d'échouer. C'est vrai depuis la version qui suit 0.9.0 : le script `v0.9.0` appelait `curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse. Les exemples commentés d'[Exemples CI](../../docs-site/integrations/ci-examples.fr.md) — GitLab CI avec le modèle livré, Jenkins, et SonarQube par une source déclarée — utilisent un script qui affiche le document de problème, et disent quelle clé chaque job demande.
 
 ---
 

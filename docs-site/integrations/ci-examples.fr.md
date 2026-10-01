@@ -134,10 +134,11 @@ jamais « passé ». Un scan passe par `pending`, `scanning`, puis `completed` o
     décrit toujours la branche configurée. Les deux exemples n'analysent et ne barrent donc que sur
     la branche que Vectispire analyse.
 
-La [CLI du dépôt](https://github.com/asmolabs/vectispire/blob/main/scripts/vectispire-cli.sh) a
-aussi `scan --repo-id <id> --wait`. Elle lit la clé dans `VECTISPIRE_API_KEY`, et sur un refus elle
-sort avec le code `22` de curl sans afficher la réponse du serveur — c'est pourquoi les exemples
-utilisent le script ci-dessus.
+La [CLI du dépôt](https://github.com/asmolabs/vectispire/blob/main/scripts/vectispire-cli.sh) fait
+de même avec `scan --repo-id <id> --wait`, en lisant la clé dans `VECTISPIRE_API_KEY` : elle adopte
+le scan déjà en attente sur un `409`, affiche le `detail` du serveur sur un refus et sort avec les
+mêmes trois codes. C'est vrai depuis la version qui suit 0.9.0 ; la CLI taguée `v0.9.0` appelait
+`curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse.
 
 ## 1. GitLab CI {#gitlab-ci}
 
@@ -165,16 +166,15 @@ projet) ; voir
 ```yaml
 include:
   # Épinglé : un modèle lu depuis une branche mouvante change votre pipeline sans commit de votre part.
-  - remote: 'https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/gitlab/vectispire-gate.gitlab-ci.yml'
+  - remote: 'https://raw.githubusercontent.com/asmolabs/vectispire/<tag>/ci/gitlab/vectispire-gate.gitlab-ci.yml'
 
 stages: [test, vectispire]
 
-# L'identifiant du dépôt dans Vectispire. Une variable de job, pas une variable globale : le
-# modèle déclare VECTISPIRE_REPOSITORY_ID: "" sur son job, et les variables d'un job l'emportent
-# sur les globales — posée globalement, la barrière recevrait la valeur vide.
-.vectispire-target:
-  variables:
-    VECTISPIRE_REPOSITORY_ID: "<repository-id>"
+variables:
+  # L'identifiant du dépôt dans Vectispire, lu par les trois jobs ci-dessous.
+  VECTISPIRE_REPOSITORY_ID: "<repository-id>"
+  # Le tag de l'include ci-dessus : le modèle télécharge le script de barrière de cette version.
+  VECTISPIRE_GATE_VERSION: "<tag>"
 
 # Votre propre job de tests ; ce qui compte est qu'il garde les deux rapports en artefacts.
 unit-tests:
@@ -189,7 +189,6 @@ unit-tests:
 
 vectispire-reports:
   stage: vectispire
-  extends: .vectispire-target
   image: alpine:3.22
   needs: [unit-tests]
   before_script:
@@ -211,7 +210,6 @@ vectispire-reports:
 
 vectispire-scan:
   stage: vectispire
-  extends: .vectispire-target
   image: alpine:3.22
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH   # la branche que Vectispire analyse
@@ -221,21 +219,17 @@ vectispire-scan:
     - sh ci/vectispire-scan.sh
 
 vectispire-gate:
-  extends: [.vectispire-gate, .vectispire-target]
+  extends: .vectispire-gate
   stage: vectispire
   needs: [vectispire-scan]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  before_script:
-    - apk add --no-cache curl jq
-    # Le modèle lance ci/vectispire-gate.sh depuis le checkout, qui est le vôtre et non le nôtre :
-    # récupérez-le au même tag que le modèle.
-    - mkdir -p ci
-    - curl -fsSL -o ci/vectispire-gate.sh https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh
-  # Le modèle livre `allow_failure: true` — un verdict rouge s'afficherait en avertissement et le
-  # pipeline passerait. Ici, le verdict décide.
-  allow_failure: false
 ```
+
+`<tag>` est une version postérieure à 0.9.0. Le modèle tagué `v0.9.0` ne peut pas être inclus tel
+quel : il lance `ci/vectispire-gate.sh` depuis votre checkout, où ce fichier n'existe pas, livre
+`allow_failure: true`, et déclare `VECTISPIRE_REPOSITORY_ID: ""` sur son job, ce qui masque une
+valeur globale.
 
 À quoi sert chaque pièce :
 
@@ -245,13 +239,20 @@ vectispire-gate:
 - **Le rapport de tests est zippé** parce que Surefire écrit un fichier par classe de test ; un
   seul fichier JUnit XML s'envoie en `application/xml`. Avec Gradle, les fichiers sont
   `build/reports/jacoco/test/jacocoTestReport.xml` et `build/test-results/test/TEST-*.xml`.
-- **Le job de barrière** sort en `0` quand la barrière est passée, `1` quand elle a échoué et `2`
-  quand elle n'a pas pu être interrogée. Pour laisser passer un plan de contrôle injoignable tout en
-  bloquant un verdict rouge, remplacez `allow_failure: false` par
-  `allow_failure: { exit_codes: [2] }` — le job s'affiche alors en avertissement, et quelqu'un
-  devrait le décider sciemment.
+- **Le job de barrière** télécharge le `vectispire-gate.sh` de la version, compare son SHA-256 à
+  l'empreinte que porte le modèle, et ne le lance que si elles concordent : un script qui n'est pas
+  celui publié à côté du modèle arrête le job, de même qu'un `VECTISPIRE_GATE_VERSION` nommant une
+  autre version dont le script diffère. Le script sort ensuite en `0` quand la barrière est passée,
+  `1` quand elle a échoué et `2` quand elle n'a pas pu être interrogée ; `1` et `2` font échouer le
+  pipeline.
+- **Consultatif, sciemment.** `VECTISPIRE_GATE_MODE: advisory` change un verdict rouge en sortie
+  `3`, que l'`allow_failure` du modèle accepte : le job s'affiche en avertissement, le pipeline
+  passe, et le verdict est consigné quand même. `VECTISPIRE_ON_ERROR: warn` fait de même pour un plan
+  de contrôle injoignable, en laissant passer le build non barré. Les deux bloquent par défaut.
 - **Gardez une copie plutôt qu'`include: remote`** si votre GitLab ne joint pas GitHub : versionnez
-  le modèle dans votre projet et utilisez `include: local`.
+  le modèle dans votre projet, utilisez `include: local`, et pointez `VECTISPIRE_GATE_SCRIPT_URL` sur
+  une copie du `vectispire-gate.sh` de la version, sur un serveur que vous joignez. La vérification
+  de l'empreinte s'applique toujours : la copie ne tourne que si c'est le fichier publié.
 
 Le verdict est dans le journal du job : la politique appliquée, sa version et son seuil, le nombre
 d'issues prises en compte, puis une ligne par violation avec sa gravité, son identifiant, le paquet,
@@ -264,6 +265,8 @@ boucle.
 | Lu dans le journal | Cause | Que faire |
 |---|---|---|
 | `set VECTISPIRE_TOKEN…` | la variable est protégée et la branche ne l'est pas | attendu sur les branches non protégées ; barrez les protégées |
+| `set VECTISPIRE_GATE_VERSION…` | le job de barrière ne sait pas quelle version du script récupérer | posez-la au tag de l'`include` |
+| `…is not the one this template was released with` | le SHA-256 du script téléchargé n'est pas celui du modèle : l'include et `VECTISPIRE_GATE_VERSION` nomment des versions différentes, ou `VECTISPIRE_GATE_SCRIPT_URL` sert un autre fichier | le même tag aux deux endroits ; rien ne tourne tant qu'ils diffèrent |
 | `HTTP 401` | aucune clé, ou une clé inconnue, révoquée ou expirée, ou son compte désactivé | émettez une nouvelle clé ; la réponse ne dit jamais laquelle de ces causes |
 | `HTTP 403` *This API key lacks the scan scope.* — ou *read* | il manque une portée à la clé | émettez-en une avec `scan` et `read` |
 | `HTTP 403` *This credential is not allowed to call this route.* | le compte de la clé ne peut pas faire cela : pas administrateur pour le scan ; auditeur ou gouverneur de la plateforme pour la barrière | émettez la clé depuis un compte administrateur |
@@ -359,8 +362,18 @@ pipeline {
 
         stage('Vectispire gate') {
             when { branch '<configured-branch>' }
+            environment {
+                // Le script de barrière de la version et son empreinte : le VECTISPIRE_GATE_SHA256
+                // de ci/gitlab/vectispire-gate.gitlab-ci.yml au même tag.
+                VECTISPIRE_GATE_VERSION = '<tag>'
+                VECTISPIRE_GATE_SHA256  = '<sha256>'
+            }
             steps {
-                sh 'curl -fsSL -o vectispire-gate.sh https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh'
+                sh '''
+                    curl -fsSL -o vectispire-gate.sh \
+                      "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_GATE_VERSION/vectispire-gate.sh"
+                    echo "$VECTISPIRE_GATE_SHA256  vectispire-gate.sh" | sha256sum -c -
+                '''
                 withCredentials([string(credentialsId: 'vectispire-ci-gate', variable: 'VECTISPIRE_TOKEN')]) {
                     script {
                         int verdict = sh(returnStatus: true,
@@ -388,6 +401,11 @@ pipeline {
   retirez le `when` et pointez le job sur la branche que Vectispire analyse.
 - Les options `--url-query` et `--fail-with-body` de `curl` demandent curl 7.87 ou plus récent sur
   l'agent.
+- **Le script de barrière est vérifié avant de tourner**, contre l'empreinte qu'épingle le modèle
+  GitLab au même tag ; `sha256sum -c` fait échouer l'étape sur tout autre fichier. La version porte
+  aussi un bundle Sigstore pour lui, vérifié comme le jar — voir
+  [Barrière CI](ci-gate.md#la-version-courte). `vectispire-gate.sh` est un asset de version depuis
+  la version qui suit 0.9.0.
 
 Les refus sont ceux du [tableau GitLab](#when-it-is-refused) : les scripts affichent le statut et le
 `detail` du serveur dans la console.

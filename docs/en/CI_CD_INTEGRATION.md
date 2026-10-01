@@ -10,14 +10,15 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 
 ### Core Commands:
 * `scan` : Enqueue a security scan on a repository or container and optionally wait for completion (`--wait`).
-* `gate` : Evaluate the active Security Quality Gate policy and exit with code `0` (PASS) or `1` (FAIL / break build).
-* `sbom` : Download the raw Software Bill of Materials, in Syft's native JSON.
+* `gate` : Evaluate the active Security Quality Gate policy and exit with code `0` (PASS), `1` (FAIL / break build) or `2` (the gate could not be asked).
+* `status` : Show the status of a scan (`--scan-id`), or of a target's latest scan.
+* `sbom` : Download the raw Software Bill of Materials, in Syft's native JSON; with `--repo-id`, of the latest **completed** scan. For CycloneDX with VEX, use the export route `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (scope `export`).
 * `coverage` : Send a JaCoCo, Cobertura or lcov coverage report for a repository (`--format` is required, never guessed).
 * `test-report` : Send a JUnit report — one XML file, or a zip of them — for a repository.
 
 `coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports). They are not in the `v0.9.0` script the snippets below pin.
 
-The CLI calls `curl -f`: on a refusal (`403` wrong scope, `404` repository outside the key's restriction, `409` scan already queued) `scan`, `gate` and `sbom` exit with curl's code `22` and print nothing of the server's answer. The worked examples in [CI examples](../../docs-site/integrations/ci-examples.md) — GitLab CI with the shipped template, Jenkins, and SonarQube through a declared source — use a script that prints the problem document instead, and say which key each job needs.
+Every command exits `0` when done, `1` only for a red verdict, and `2` when there is no answer to trust: a refusal — the server's `detail` is printed, *This API key lacks the read scope.* — an unreachable control plane, a scan that failed or timed out. `scan` adopts the scan already waiting on a `409` rather than failing. That is from the release after 0.9.0: the `v0.9.0` script called `curl -f`, exited with curl's code `22` on every refusal and printed nothing of the answer. The worked examples in [CI examples](../../docs-site/integrations/ci-examples.md) — GitLab CI with the shipped template, Jenkins, and SonarQube through a declared source — use a script that prints the problem document instead, and say which key each job needs.
 
 ---
 

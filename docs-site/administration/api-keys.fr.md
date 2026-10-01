@@ -19,9 +19,9 @@ qu'elle détient :
 
 | Portée | Permet |
 |---|---|
-| `read` | lister et lire dépôts, conteneurs, scans, issues, verdicts de barrière et synthèse de conformité ; l'arbre des solutions, un projet lu seul, ses composants, et la conformité d'un projet ou d'une solution |
+| `read` | lister et lire dépôts, conteneurs, scans — dont le SBOM d'un scan, `GET /api/v1/scans/{id}/sbom`, au format JSON natif de Syft — issues, verdicts de barrière et synthèse de conformité ; l'arbre des solutions, un projet lu seul, ses composants, et la conformité d'un projet ou d'une solution |
 | `scan` | déclencher le scan d'un dépôt ou d'un conteneur, et demander un verdict à la [barrière CI](../integrations/ci-gate.md) |
-| `export` | documents SBOM, VEX, CSAF et CycloneDX — dont le CycloneDX consolidé d'un projet — PDF et dossier de preuves de conformité, exports |
+| `export` | les documents générés : CycloneDX avec son VEX — dont le CycloneDX consolidé d'un projet — OpenVEX, CSAF, SARIF et CSV d'une cible, PDF et dossier de preuves de conformité, exports. Pas le SBOM produit par un scan, qui relève de `read` |
 | `sarif_import` | déposer le rapport SARIF d'un outil interne dans un dépôt — **seulement une fois que le gouverneur de la plateforme a déclaré la clé comme source SARIF**, voir [Plugins et imports SARIF](plugins.md). Jamais accordée par défaut |
 | `report_import` | déposer le rapport de couverture ou de tests JUnit d'un pipeline interne pour un dépôt — **seulement une fois que le gouverneur de la plateforme a déclaré la clé comme source livrant `coverage` ou `test_report`**, voir [Importer des rapports de couverture et de tests](plugins.md#importer-des-rapports-de-couverture-et-de-tests). Elle ne dépose aucun constat. Jamais accordée par défaut |
 

@@ -130,9 +130,10 @@ gate on, since the verdict would describe the scan before it.
     gate only on the branch Vectispire is configured for.
 
 The [repository's CLI](https://github.com/asmolabs/vectispire/blob/main/scripts/vectispire-cli.sh)
-has `scan --repo-id <id> --wait` too. It reads the key from `VECTISPIRE_API_KEY`, and on a refusal
-it exits with curl's code `22` without printing the server's answer, which is why the examples use
-the script above.
+does the same with `scan --repo-id <id> --wait`, reading the key from `VECTISPIRE_API_KEY`: it adopts
+the scan already waiting on a `409`, prints the server's `detail` on a refusal and exits with the
+same three codes. That is from the release after 0.9.0; the CLI tagged `v0.9.0` called `curl -f`,
+exited with curl's code `22` on every refusal and printed nothing of the answer.
 
 ## 1. GitLab CI {#gitlab-ci}
 
@@ -159,16 +160,15 @@ The reports key is declared once by the platform governor, on **Administration �
 ```yaml
 include:
   # Pinned: a template read from a moving branch changes your pipeline without a commit of yours.
-  - remote: 'https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/gitlab/vectispire-gate.gitlab-ci.yml'
+  - remote: 'https://raw.githubusercontent.com/asmolabs/vectispire/<tag>/ci/gitlab/vectispire-gate.gitlab-ci.yml'
 
 stages: [test, vectispire]
 
-# The repository's id in Vectispire. A job-level variable, not a global one: the template
-# declares VECTISPIRE_REPOSITORY_ID: "" on its job, and a job's variables win over the global
-# ones — set globally, the gate would receive the empty value.
-.vectispire-target:
-  variables:
-    VECTISPIRE_REPOSITORY_ID: "<repository-id>"
+variables:
+  # The repository's id in Vectispire, read by the three jobs below.
+  VECTISPIRE_REPOSITORY_ID: "<repository-id>"
+  # The tag of the include above: the template downloads that release's gate script.
+  VECTISPIRE_GATE_VERSION: "<tag>"
 
 # Your own test job; what matters is that it keeps the two reports as artifacts.
 unit-tests:
@@ -183,7 +183,6 @@ unit-tests:
 
 vectispire-reports:
   stage: vectispire
-  extends: .vectispire-target
   image: alpine:3.22
   needs: [unit-tests]
   before_script:
@@ -205,7 +204,6 @@ vectispire-reports:
 
 vectispire-scan:
   stage: vectispire
-  extends: .vectispire-target
   image: alpine:3.22
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH   # the branch Vectispire scans
@@ -215,21 +213,17 @@ vectispire-scan:
     - sh ci/vectispire-scan.sh
 
 vectispire-gate:
-  extends: [.vectispire-gate, .vectispire-target]
+  extends: .vectispire-gate
   stage: vectispire
   needs: [vectispire-scan]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  before_script:
-    - apk add --no-cache curl jq
-    # The template runs ci/vectispire-gate.sh from the checkout, which is yours, not ours:
-    # fetch it at the same tag as the template.
-    - mkdir -p ci
-    - curl -fsSL -o ci/vectispire-gate.sh https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh
-  # The template ships `allow_failure: true` — a red verdict would show as a warning and the
-  # pipeline would pass. Here the verdict decides.
-  allow_failure: false
 ```
+
+`<tag>` is a release after 0.9.0. The template tagged `v0.9.0` cannot be included as it is: it runs
+`ci/vectispire-gate.sh` from your checkout, where there is no such file, ships
+`allow_failure: true`, and declares `VECTISPIRE_REPOSITORY_ID: ""` on its job, which hides a global
+value.
 
 What each piece is for:
 
@@ -239,12 +233,19 @@ What each piece is for:
 - **The test report is zipped** because Surefire writes one file per test class; a single JUnit XML
   file is sent as `application/xml` instead. With Gradle, the files are
   `build/reports/jacoco/test/jacocoTestReport.xml` and `build/test-results/test/TEST-*.xml`.
-- **The gate job** exits `0` when the gate passed, `1` when it failed and `2` when it could not be
-  asked. To let an unreachable control plane through while a red verdict still blocks, replace
-  `allow_failure: false` with `allow_failure: { exit_codes: [2] }` — the job then shows as a
-  warning, and somebody should decide that on purpose.
+- **The gate job** downloads the release's `vectispire-gate.sh`, checks its SHA-256 against the
+  digest the template carries, and runs it only if they match: a script that is not the one
+  released beside the template stops the job, as does a `VECTISPIRE_GATE_VERSION` naming another
+  release whose script differs. The script then exits `0` when the gate passed, `1` when it failed
+  and `2` when it could not be asked; `1` and `2` fail the pipeline.
+- **Advisory, on purpose.** `VECTISPIRE_GATE_MODE: advisory` turns a red verdict into exit `3`,
+  which the template's `allow_failure` accepts: the job shows as a warning, the pipeline passes, and
+  the verdict is recorded all the same. `VECTISPIRE_ON_ERROR: warn` does the same for an unreachable
+  control plane, letting the build through ungated. Both default to blocking.
 - **Keep a copy instead of `include: remote`** if your GitLab cannot reach GitHub: commit the
-  template into your project and use `include: local`.
+  template into your project and use `include: local`, and point `VECTISPIRE_GATE_SCRIPT_URL` at a
+  copy of the release's `vectispire-gate.sh` on a server you can reach. The digest check still
+  applies, so the copy runs only if it is the released file.
 
 The verdict is in the job log: the policy applied, its version and threshold, the number of issues
 considered, then one line per violation with its severity, identifier, package, the reason and the
@@ -256,6 +257,8 @@ screen: every call writes one, so ask once per pipeline, not in a loop.
 | Seen in the log | Cause | What to do |
 |---|---|---|
 | `set VECTISPIRE_TOKEN…` | the variable is protected and the branch is not | expected on unprotected branches; gate the protected ones |
+| `set VECTISPIRE_GATE_VERSION…` | the gate job does not know which release's script to fetch | set it to the tag of the `include` |
+| `…is not the one this template was released with` | the downloaded script's SHA-256 is not the template's: the include and `VECTISPIRE_GATE_VERSION` name different releases, or `VECTISPIRE_GATE_SCRIPT_URL` serves another file | the same tag in both places; nothing runs until they agree |
 | `HTTP 401` | no key, or one unknown, revoked or expired, or its account deactivated | issue a new key; the answer never says which |
 | `HTTP 403` *This API key lacks the scan scope.* — or *read* | the key is missing a scope | issue one with `scan` and `read` |
 | `HTTP 403` *This credential is not allowed to call this route.* | the key's account may not do this: not an administrator for the scan; an auditor or a platform governor for the gate | issue the key from an administrator's account |
@@ -350,8 +353,18 @@ pipeline {
 
         stage('Vectispire gate') {
             when { branch '<configured-branch>' }
+            environment {
+                // The release's gate script and its digest: the VECTISPIRE_GATE_SHA256 of
+                // ci/gitlab/vectispire-gate.gitlab-ci.yml at the same tag.
+                VECTISPIRE_GATE_VERSION = '<tag>'
+                VECTISPIRE_GATE_SHA256  = '<sha256>'
+            }
             steps {
-                sh 'curl -fsSL -o vectispire-gate.sh https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh'
+                sh '''
+                    curl -fsSL -o vectispire-gate.sh \
+                      "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_GATE_VERSION/vectispire-gate.sh"
+                    echo "$VECTISPIRE_GATE_SHA256  vectispire-gate.sh" | sha256sum -c -
+                '''
                 withCredentials([string(credentialsId: 'vectispire-ci-gate', variable: 'VECTISPIRE_TOKEN')]) {
                     script {
                         int verdict = sh(returnStatus: true,
@@ -378,6 +391,10 @@ pipeline {
 - **`when { branch … }`** works in a multibranch pipeline. In a single-branch job, leave the `when`
   out and point the job at the branch Vectispire scans.
 - The `curl` flags `--url-query` and `--fail-with-body` need curl 7.87 or later on the agent.
+- **The gate script is checked before it runs**, against the digest the GitLab template at the same
+  tag pins; `sha256sum -c` fails the stage on any other file. The release also carries a Sigstore
+  bundle for it, verified as the jar is — see [CI policy gate](ci-gate.md#the-short-version).
+  `vectispire-gate.sh` is a release asset from the release after 0.9.0.
 
 The refusals are the ones in the [GitLab table](#when-it-is-refused): the scripts print the status
 and the server's `detail` in the console.

@@ -6,14 +6,26 @@ La barrière répond à une question posée par votre pipeline : **cette constru
 ## La version courte
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh -s -- --repository <repository-id>
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-gate.sh
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-gate.sh.cosign.bundle
+cosign verify-blob \
+  --bundle vectispire-gate.sh.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-gate.sh
+sh vectispire-gate.sh --repository <repository-id>
 ```
+
+Téléchargé, vérifié, puis lancé — jamais redirigé dans `sh`, où les octets s'exécutent à mesure
+qu'ils arrivent et où rien ne peut être vérifié d'abord. Sans `cosign`, comparez le SHA-256 du
+fichier au `VECTISPIRE_GATE_SHA256` du modèle GitLab au même tag, ce que fait le modèle lui-même. Le
+script est un asset de version depuis la version qui suit 0.9.0.
 
 Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la main :
 
 - [`ci/vectispire-gate.sh`](https://github.com/asmolabs/vectispire/blob/main/ci/vectispire-gate.sh) — un script shell pour n'importe quel exécuteur ;
 - [`ci/github-action/action.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/github-action/action.yml) — une action composite GitHub ;
-- [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — un modèle GitLab.
+- [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — un modèle GitLab, inclus depuis votre projet : il récupère le script de barrière de la version, ne le lance qu'à l'empreinte qu'il épingle, et fait échouer le pipeline sur un verdict rouge ([branché ici](ci-examples.md#gitlab-ci)).
 
 Les trois demandent `VECTISPIRE_URL` et `VECTISPIRE_TOKEN` dans l'environnement du job. Le jeton
 est une [clé d'API](../administration/api-keys.md) de portée `scan` — demander un verdict compte

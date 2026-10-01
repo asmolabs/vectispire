@@ -218,6 +218,21 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### Changes an integration can see
 
+- **The GitLab gate template now fails the pipeline on a red verdict.** `ci/gitlab/vectispire-gate.gitlab-ci.yml`
+  shipped `allow_failure: true`, so a failed gate showed as a warning and the pipeline passed; it now
+  accepts only exit `3`, which `VECTISPIRE_GATE_MODE: advisory` produces for a red verdict. A
+  pipeline that relied on the old behaviour sets that variable. The template also needs
+  `VECTISPIRE_GATE_VERSION`, the tag it was included at: it downloads that release's
+  `vectispire-gate.sh` and runs it only at the SHA-256 it pins — it ran `ci/vectispire-gate.sh` from
+  the consumer's checkout, where there is no such file. It no longer declares
+  `VECTISPIRE_REPOSITORY_ID` or `VECTISPIRE_CONTAINER_ID` on its job, so a value set globally reaches
+  the gate. See [CI examples](../integrations/ci-examples.md#gitlab-ci).
+- **The release carries `vectispire-gate.sh` and its Sigstore bundle**, signed by the same workflow
+  identity as the jar.
+- **`vectispire-cli` exits `2` with the server's `detail` on a refusal**, where it exited with curl's
+  `22` and printed nothing. Exit `1` is now only a red verdict; a failed or timed-out scan is `2`.
+  `scan` follows the scan already waiting on a `409`; `sbom --repo-id` takes the latest *completed*
+  scan, where it took the latest, which could be pending; `status`, advertised and missing, exists.
 - **A scorecard can grade `NO_DATA`, with a `null` score, and carries `totalTargets` and
   `observedTargets`.** `GET /api/v1/scorecards/repositories/{id}`, `/containers/{id}`, `/global` and
   the `scorecard` of `GET /api/v1/projects/{id}/compliance` and `/solutions/{id}/compliance` answer
