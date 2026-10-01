@@ -42,8 +42,15 @@ fi
 
 # 2. Check if package.json was modified
 NPM_CHANGED=$(echo "$STAGED_FILES" | grep -E '(^|/)package\.json$' || true)
+LOCK_STAGED=$(echo "$STAGED_FILES" | grep -E '^package-lock\.json$' || true)
 
-if [ -n "$NPM_CHANGED" ]; then
+# **A lockfile the author staged is left as staged.** `npm install --package-lock-only` does not
+# only sync: npm 11 also drops some thirty `"peer": true` markers on every run, unrelated to the
+# change, and this hook restaged them over the hand-kept lockfile of the Sparked plugin swap on
+# 2026-10-01. Syncing is for a package.json edited without its lockfile.
+if [ -n "$NPM_CHANGED" ] && [ -n "$LOCK_STAGED" ]; then
+    echo "ℹ️  [pre-commit] package-lock.json is staged with package.json: left as staged."
+elif [ -n "$NPM_CHANGED" ]; then
     echo "⚡ [pre-commit] package.json change detected. Synchronizing package-lock.json..."
     # **On the Node `.nvmrc` pins**, not whatever the shell has: under the system's Node 25 the
     # sync ran with engine warnings on every Angular package. nvm when it is there; otherwise
