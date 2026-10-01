@@ -50,6 +50,13 @@ updates:
       gradle:
         patterns: ["*"]
         update-types: [minor, patch]
+    # **Immutables follows docker-java, not its own releases.** It is on the classpath only so that
+    # javac can read the annotations docker-java's transport types keep, and the version has to be
+    # the one docker-java was compiled with (3.7.1 declares 2.10.1): any other risks the
+    # "unknown enum constant" warning `-Werror` fails on. #24 proposed 2.12.2 in the weekly group.
+    # It moves by hand, with docker-java.
+    ignore:
+      - dependency-name: org.immutables:value-annotations
 
   - package-ecosystem: npm
     directory: /
