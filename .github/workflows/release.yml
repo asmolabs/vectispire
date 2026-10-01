@@ -440,7 +440,13 @@ jobs:
           # Named, because this job checks nothing out: `gh` has no repository to infer it from.
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          # **A 0.x release is a pre-release, said by the workflow rather than by hand.** v0.10.0
+          # went out as a plain release and was flipped afterwards; until then GitHub showed a
+          # version that claims no stability as "Latest". From 1.0 on the flag
+          # drops by itself, which is the one moment it should.
+          prerelease=
+          case "$GITHUB_REF_NAME" in v0.*) prerelease=--prerelease ;; esac
+          gh release create "$GITHUB_REF_NAME" ${prerelease:+"$prerelease"} \
             --title "$GITHUB_REF_NAME" \
             --notes "$(cat <<NOTES
           Verify before running anything — see \`docs/en/GETTING_STARTED.md\` §8. The certificate
