@@ -1,12 +1,11 @@
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { BrandingService } from '@/app/core/branding.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     standalone: true,
     selector: 'app-footer',
-    imports: [CommonModule, TranslatePipe],
+    imports: [TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `<div
         class="layout-footer flex flex-wrap items-center justify-between gap-3 text-xs text-muted-color px-4 py-3"

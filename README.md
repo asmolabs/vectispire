@@ -495,7 +495,7 @@ vectispire-java/
 │   │   └── persistence/      # JPA entities and <Entity>Repository interfaces — the only place that speaks SQL
 │   └── config/               # Datasource and per-engine setup; the schema lives in db/migration/
 └── vectispire-agent/         # The remote worker. Does NOT depend on vectispire-core.
-vectispire-angular/src/app/   # Angular: 17 page areas, Sakai layout over Optimus UI
+vectispire-angular/src/app/   # Angular: 17 page areas, Sparked layout over Optimus UI
 docs/architecture/            # ADR
 ```
 

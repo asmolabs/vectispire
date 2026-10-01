@@ -1,5 +1,4 @@
 import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MenuItem } from '@openng/optimus-ui/api';
 import { AppMenuitem } from './app.menuitem';
@@ -9,7 +8,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 @Component({
     selector: 'app-menu',
     standalone: true,
-    imports: [CommonModule, AppMenuitem, RouterModule],
+    imports: [AppMenuitem, RouterModule],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `<ul class="layout-menu">
         @for (item of model(); track item.label) {

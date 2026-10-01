@@ -421,7 +421,9 @@ de base générique. Un service n'écrit aucun SQL, et un repository ne porte au
 
 Angular 22 et TypeScript 6.0 avec [Optimus UI](https://github.com/openng/optimus-ui) 2, le fork
 communautaire de PrimeNG v21 — PrimeTek a archivé PrimeNG et fait passer la v22 sous licence
-commerciale ; Optimus 2 est ce fork porté sur Angular 22. La coque vient du gabarit Sakai (MIT).
+commerciale ; Optimus 2 est ce fork porté sur Angular 22. La coque vient du gabarit Sparked
+(MIT), le portage par OpenNG du gabarit Sakai de PrimeTek sur Optimus, et ses utilitaires Tailwind de
+`@openng/optimus-ui-tailwindcss`, le fork MIT de `tailwindcss-primeui` par OpenNG.
 Les icônes sont `@openng/icons`, le fork MIT de `primeicons` 7.0.0 par OpenNG : primeicons 8.x a suivi PrimeNG sous licence propriétaire, ce que le passage à Optimus visait précisément à éviter. Voir
 [`vectispire-angular/README.md`](../../vectispire-angular/README.md).
 

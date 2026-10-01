@@ -1,5 +1,5 @@
 import { Component, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AppTopbar } from './app.topbar';
 import { AppSidebar } from './app.sidebar';
@@ -9,16 +9,16 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 @Component({
     selector: 'app-layout',
     standalone: true,
-    imports: [CommonModule, AppTopbar, AppSidebar, RouterModule, AppFooter],
+    imports: [NgClass, AppTopbar, AppSidebar, RouterModule, AppFooter],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `<div class="layout-wrapper" [ngClass]="containerClass()">
-        <app-topbar></app-topbar>
-        <app-sidebar></app-sidebar>
+        <app-topbar />
+        <app-sidebar />
         <div class="layout-main-container">
             <div class="layout-main">
-                <router-outlet></router-outlet>
+                <router-outlet />
             </div>
-            <app-footer></app-footer>
+            <app-footer />
         </div>
         <div class="layout-mask"></div>
     </div> `

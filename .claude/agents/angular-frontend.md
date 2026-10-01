@@ -39,6 +39,11 @@ TypeScript together, never one alone.
 classes. Read the licence of any version before raising it. `scripts/check-assets.mjs` refuses any `pi-*` class the installed stylesheet does not
 define.
 
+**The shell is Sparked** (`openng-org/sparked`, OpenNG's port of Sakai onto Optimus), its Tailwind
+utilities `@openng/optimus-ui-tailwindcss`, never `tailwindcss-primeui`. Take from Sparked only its
+upstream clean-ups; our i18n, menu, topbar and typing stay ours. `vectispire-angular/LICENSE.md` is the
+template's MIT notice (copyright PrimeTek) and must stay: it was deleted once without anyone noticing.
+
 **Every label goes through i18n.** `scripts/check-i18n-keys.mjs` counts referenced keys
 (`EXPECTED_KEYS`) and ratchets hard-coded text; a new key means an entry in both
 `public/i18n/en.json` and `fr.json` and a bumped `EXPECTED_KEYS` in the same commit. The ratchets

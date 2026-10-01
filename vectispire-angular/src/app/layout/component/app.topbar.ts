@@ -1,6 +1,5 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
-import { CommonModule } from '@angular/common';
 import { StyleClassModule } from '@openng/optimus-ui/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
@@ -13,7 +12,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 @Component({
     selector: 'app-topbar',
     standalone: true,
-    imports: [RouterModule, CommonModule, StyleClassModule, AppConfigurator, TranslatePipe],
+    imports: [RouterModule, StyleClassModule, AppConfigurator, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: ` <div class="layout-topbar">
         <div class="layout-topbar-logo-container">
@@ -71,8 +70,8 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                     "
                 >
                     <i
-                        [ngClass]="{
-                            'pi ': true,
+                        [class]="{
+                            pi: true,
                             'pi-moon': layoutService.isDarkTheme(),
                             'pi-sun': !layoutService.isDarkTheme()
                         }"
@@ -109,9 +108,9 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
             </button>
 
             <!--
-                Sakai's user menu offered Calendar / Messages / Profile, three screens
-                Vectispire does not have. Only the two real actions remain; the displayed
-                name and role will come from the session service.
+                The template's user menu (Sakai's, then Sparked's) offers Calendar / Messages /
+                Profile, three screens Vectispire does not have. Only the two real actions
+                remain; the displayed name and role will come from the session service.
             -->
             <div class="layout-topbar-menu hidden lg:block">
                 <div class="layout-topbar-menu-content">

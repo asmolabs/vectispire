@@ -3,15 +3,14 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { StyleClassModule } from '@openng/optimus-ui/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
-import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-floating-configurator',
-    imports: [CommonModule, ButtonModule, StyleClassModule, AppConfigurator, TranslatePipe],
+    imports: [ButtonModule, StyleClassModule, AppConfigurator, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
-        <div class="flex gap-4 top-8 right-8" [ngClass]="{ fixed: float() }">
+        <div class="flex gap-4 top-8 right-8" [class.fixed]="float()">
             <p-button
                 type="button"
                 (onClick)="toggleDarkMode()"

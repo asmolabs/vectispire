@@ -9,8 +9,9 @@
  * exactly what happened to the Reflex version: its typography never reached
  * production, and it took measuring in the browser to find out.
  *
- * The Sakai template this front end comes from loaded Lato from a CDN. This script
- * is what guarantees the fix will not be undone by a future template update.
+ * The template this front end comes from — Sakai, and now Sparked, its Optimus UI port —
+ * loads Lato from a CDN. This script is what guarantees the fix will not be undone by a
+ * future template update.
  *
  * Run by `npm test` before the unit suite: it is a file check, it needs no browser.
  */
@@ -57,7 +58,7 @@ for (const file of ['src/index.html', 'src/assets/styles.scss']) {
 }
 
 // **And the component templates, because that is where the leak happened.** This
-// script read only the shell above; two pages inherited from the Sakai template —
+// script read only the shell above; two pages inherited from the template (then Sakai) —
 // `auth/access.html` and `auth/error.html` — each pulled an illustration from
 // `primefaces.org/cdn`, and nothing saw it. The CSP refuses them: the page renders, the
 // text is there, the image is missing, and nobody ever opens those two screens.

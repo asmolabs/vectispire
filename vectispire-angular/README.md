@@ -45,15 +45,22 @@ Two renames to know about, inherited from that fork:
 | `PrimeNG` (configuration service) | `Optimus` |
 | `providePrimeNG()` | `provideOptimus()` |
 
-**Sakai** (MIT, PrimeTek) for the shell: top bar, sidebar, dark theme, appearance
-configurator. `LICENSE.md` is the template's own and must stay there.
+**Sparked** ([`openng-org/sparked`](https://github.com/openng-org/sparked), MIT) for the
+shell: top bar, sidebar, dark theme, appearance configurator. Sparked is OpenNG's port of
+PrimeTek's Sakai template onto Optimus UI; the shell came from Sakai first, and moving to
+Sparked changed no behaviour — the layout stylesheets already matched Sparked's but for formatting,
+and the components took only its upstream clean-ups (self-closing tags, `NgClass` or class
+bindings instead of `CommonModule`). `LICENSE.md` beside this file is the template's own —
+copyright PrimeTek, which Sparked keeps — and must stay there: MIT asks for the notice to
+travel with the code that derives from it, and it was once deleted without anyone noticing.
+The Tailwind utilities Optimus colours (`text-primary`, `bg-surface-*`, `border-surface`,
+`text-muted-color`, `bg-emphasis`, …) come from `@openng/optimus-ui-tailwindcss`, OpenNG's MIT
+fork of `tailwindcss-primeui` 0.6.1: same utilities, same CSS output byte for byte.
 
 Two things to know if you pull the template from source:
 
-- `src/assets` is a **git submodule** (`cetincakiroglu/sakai-assets`). A shallow clone
-  does not fetch it, and you then believe the repository is broken — `angular.json`
-  references stylesheets that aren't there. Here the assets are copied in directly, not
-  mounted as a submodule.
+- Sakai kept `src/assets` in a **git submodule** (`cetincakiroglu/sakai-assets`), which a
+  shallow clone does not fetch; Sparked has them in the tree, and so does this repository.
 - The demo pages (`uikit`, `crud`, `landing`, `documentation`, …) have been removed. Only
   the shell, authentication and the error pages are kept.
 
@@ -80,10 +87,10 @@ third-party domain in `index.html`, `styles.scss` **and every component template
 verifies that the declared fonts actually exist and are real `woff2` files.
 
 This is not zeal. Vectispire's content security policy refuses third-party stylesheets, and
-Sakai loaded Lato from a CDN. Such a reference breaks nothing visible: the request is
-blocked, the page falls back to the system font, and nothing reports it — which is how a
-typography can fail to reach production without anyone noticing, until somebody measures it
-in the browser. Inter is therefore served from `public/fonts/`, OFL license included.
+the template (Sakai, and Sparked after it) loads Lato from a CDN. Such a reference breaks
+nothing visible: the request is blocked, the page falls back to the system font, and nothing
+reports it — which is how a typography can fail to reach production without anyone
+noticing, until somebody measures it in the browser. Inter is therefore served from `public/fonts/`, OFL license included.
 
 **The templates were added to that list after the rule missed something.** It read the
 application shell only, and `auth/access.html` and `auth/error.html` each pulled an

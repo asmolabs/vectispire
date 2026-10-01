@@ -26,11 +26,11 @@
         "@angular/router": "^22",
         "@openng/icons": "1.0.0",
         "@openng/optimus-ui": "^2.0.2",
+        "@openng/optimus-ui-tailwindcss": "^2.0.2",
         "@openng/optimus-ui-themes": "^2.0.2",
         "@tailwindcss/postcss": "^4.1.11",
         "chart.js": "4.5.1",
         "rxjs": "~7.8.0",
-        "tailwindcss-primeui": "^0.6.1",
         "tslib": "^2.8.1"
     },
     "devDependencies": {

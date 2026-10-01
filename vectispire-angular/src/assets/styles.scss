@@ -1,8 +1,9 @@
 /* Global stylesheet.
  *
- * `layout/` and `tailwind.css` come from the Sakai template (MIT, PrimeTek), more
- * precisely from its `cetincakiroglu/sakai-assets` asset submodule — which explains
- * why they are absent from a shallow clone of `sakai-ng`.
+ * `layout/` and `tailwind.css` come from the Sparked template (`openng-org/sparked`, MIT,
+ * copyright PrimeTek — see `LICENSE.md`), OpenNG's port of Sakai onto Optimus UI. They
+ * first came from Sakai's `cetincakiroglu/sakai-assets` submodule; Sparked's copy was
+ * already the same, line for line, apart from formatting.
  *
  * Two departures from the original, both deliberate:
  *
@@ -18,9 +19,9 @@
 
 /* Inter, served locally.
  *
- * Sakai loaded Lato from a CDN. Vectispire's content security policy refuses every
- * third-party stylesheet, and that is how the Reflex version's typography never
- * reached production: the request was blocked, the page fell back to the system font,
+ * The template (Sakai, and Sparked after it) loads Lato from a CDN. Vectispire's
+ * content security policy refuses every third-party stylesheet, and that is how the
+ * Reflex version's typography never reached production: the request was blocked, the page fell back to the system font,
  * and nothing reported it.
  *
  * Two files rather than one: `unicode-range` means the extended subset (85 kB) is only

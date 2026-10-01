@@ -1,4 +1,4 @@
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { Component, PLATFORM_ID, computed, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
@@ -41,7 +41,7 @@ declare type SurfacesType = {
 @Component({
     selector: 'app-configurator',
     standalone: true,
-    imports: [CommonModule, FormsModule, SelectButtonModule, TranslatePipe],
+    imports: [FormsModule, SelectButtonModule, TranslatePipe],
     template: `
         <div class="flex flex-col gap-4">
             <div>
@@ -52,9 +52,8 @@ declare type SurfacesType = {
                             type="button"
                             [title]="primaryColor.name"
                             (click)="updateColors($event, 'primary', primaryColor)"
-                            [ngClass]="{
-                                'outline outline-primary': primaryColor.name === selectedPrimaryColor()
-                            }"
+                            [class.outline]="primaryColor.name === selectedPrimaryColor()"
+                            [class.outline-primary]="primaryColor.name === selectedPrimaryColor()"
                             class="cursor-pointer w-5 h-5 rounded-full flex shrink-0 items-center justify-center outline-offset-1 shadow"
                             [style]="{
                                 'background-color':
@@ -73,7 +72,7 @@ declare type SurfacesType = {
                             [title]="surface.name"
                             (click)="updateColors($event, 'surface', surface)"
                             class="cursor-pointer w-5 h-5 rounded-full flex shrink-0 items-center justify-center p-0 outline-offset-1"
-                            [ngClass]="{
+                            [class]="{
                                 'outline outline-primary': selectedSurfaceColor()
                                     ? selectedSurfaceColor() === surface.name
                                     : layoutService.layoutConfig().darkTheme
@@ -127,8 +126,6 @@ export class AppConfigurator implements OnInit {
     layoutService: LayoutService = inject(LayoutService);
 
     platformId = inject(PLATFORM_ID);
-
-    primeng = inject(Optimus);
 
     presets = Object.keys(presets);
 

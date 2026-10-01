@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { MenuItem } from '@openng/optimus-ui/api';
 import { NavigationEnd, Router, RouterModule, isActive as isUrlActive } from '@angular/router';
-import { CommonModule } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { RippleModule } from '@openng/optimus-ui/ripple';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { filter } from 'rxjs/operators';
@@ -24,7 +24,7 @@ export type AppMenuItem = MenuItem & { path?: string; class?: string; badgeClass
 @Component({
     // eslint-disable-next-line @angular-eslint/component-selector
     selector: '[app-menuitem]',
-    imports: [CommonModule, RouterModule, RippleModule],
+    imports: [NgClass, RouterModule, RippleModule],
     template: `
         @if (root() && isVisible()) {
             <div class="layout-menuitem-root-text">{{ item().label }}</div>

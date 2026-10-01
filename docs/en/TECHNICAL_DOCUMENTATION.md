@@ -414,9 +414,10 @@ A service writes no SQL, and a repository holds no business rule;
 
 Angular 22 and TypeScript 6.0 with [Optimus UI](https://github.com/openng/optimus-ui) 2, the
 community fork of PrimeNG v21 — PrimeTek archived PrimeNG and moved v22 to a commercial
-license; Optimus 2 is that fork carried to Angular 22. The shell comes from the Sakai template
-(MIT). The icons are `@openng/icons`, OpenNG's MIT fork of `primeicons` 7.0.0: primeicons 8.x
-followed PrimeNG under a proprietary license, which is what moving to Optimus was meant to avoid. See [`vectispire-angular/README.md`](../../vectispire-angular/README.md).
+license; Optimus 2 is that fork carried to Angular 22. The shell comes from the Sparked template
+(MIT), OpenNG's port of PrimeTek's Sakai onto Optimus, and its Tailwind utilities from
+`@openng/optimus-ui-tailwindcss`, OpenNG's MIT fork of `tailwindcss-primeui`. The icons are
+`@openng/icons`, OpenNG's MIT fork of `primeicons` 7.0.0: primeicons 8.x followed PrimeNG under a proprietary license, which is what moving to Optimus was meant to avoid. See [`vectispire-angular/README.md`](../../vectispire-angular/README.md).
 
 The view models the browser receives are typed and computed server-side
 ([`core/api.models.ts`](../../vectispire-angular/src/app/core/api.models.ts)): finished values, not

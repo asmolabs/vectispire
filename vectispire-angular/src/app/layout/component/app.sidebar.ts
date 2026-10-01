@@ -11,7 +11,7 @@ import { LayoutService } from '@/app/layout/service/layout.service';
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <div class="layout-sidebar">
-            <app-menu></app-menu>
+            <app-menu />
         </div>
     `
 })
