@@ -186,6 +186,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container: eclipse-temurin:25-jdk
+    # **The context and HTTP suites run on MySQL (decision 0034).** A job service beside the job's
+    # container shares its network, so the suite reaches `mysql:3306` with no Docker socket and no
+    # Testcontainers; `TestDatabase` takes the server from `VECTISPIRE_TEST_DB_URL`, creates its own
+    # database on it as root, and sets the server's `max_connections` and log flushing itself — a
+    # service takes no command line, and the fixture is the one place those settings are spelled.
+    # The image is `TestDatabase.IMAGE`'s and the campaign's `Engine.MYSQL`: three copies of one pin,
+    # and a difference is a suite running on an engine the campaign does not.
+    services:
+      mysql:
+        image: mysql:9.4
+        env:
+          MYSQL_ROOT_PASSWORD: vectispire-ci
+        # Healthy only once the real server listens on TCP: the image's first-start server runs with
+        # networking off, so a ping over 127.0.0.1 does not answer before the suite could connect.
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pvectispire-ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      VECTISPIRE_TEST_DB_URL: jdbc:mysql://mysql:3306
+      VECTISPIRE_TEST_DB_USER: root
+      VECTISPIRE_TEST_DB_PASSWORD: vectispire-ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -555,9 +578,9 @@ jobs:
           #   src/integrationTest/  the campaign itself
           #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
           #   verification-metadata.xml, verification-keyring.keys  what may be resolved at all:
-          #                      the campaign resolves Testcontainers, which `./gradlew build`
-          #                      never does, so an entry dropped for it fails here or not until
-          #                      the nightly
+          #                      the campaign resolves the PostgreSQL module of Testcontainers and
+          #                      its JUnit integration, which `./gradlew build` never does, so an
+          #                      entry dropped for them fails here or not until the nightly
           ENGINE_PATHS='src/main/resources/db/migration/|/core/([a-z]+/)?persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile|gradle/verification-metadata.xml|gradle/verification-keyring.keys'
           changed=$(git diff --name-only "$BASE" HEAD | grep -E "$ENGINE_PATHS" || true)
           if [ -n "$changed" ]; then
