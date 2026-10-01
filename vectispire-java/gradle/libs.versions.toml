@@ -32,7 +32,7 @@ jgit = "7.8.0.202609011348-r"
 # those types (`DockerHttpClient.Request`, in `OneRequestPerConnection`) makes javac warn that it
 # cannot read them — "unknown enum constant", which no `-Xlint` switch silences — and `-Werror`
 # fails the build. The version docker-java 3.7.1 itself compiles against; nothing of it is packaged.
-immutables = "2.12.2"
+immutables = "2.10.1"
 pdfbox = "3.0.8"
 bucket4j = "8.10.1"
 springdoc = "3.1.1"
