@@ -13,7 +13,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Conformité au modèle de Dossier d'Architecture de Bertrand Florat (docs/architecture/bflorat/ : 5 vues applicative, sécurité, dimensionnement, infrastructure, développement).
    - Modélisation C4 Structurizr DSL (docs/architecture/c4/workspace.dsl) et automatisation des diagrammes.
    - Modélisation formelle des menaces STRIDE DFD (docs/architecture/security/).
-   - Registre des décisions d'architecture (ADR 0001 à 0020 dans docs/architecture/{en,fr}/decisions/), et la substance de chacune : une décision sans son raisonnement ne survit pas au renversement suivant.
+   - Registre des décisions d'architecture (toutes les ADR de docs/architecture/{en,fr}/decisions/, dont le README tient l’index — le compter plutôt que le recopier ici), et la substance de chacune : une décision sans son raisonnement ne survit pas au renversement suivant.
    - Parité et synchronisation stricte bilingue (docs/fr/ et docs/en/).
 
 2. 🛡️ Sécurité & Cryptographie ("Security by Design") :
@@ -37,7 +37,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
 
 4. 📋 Conformité Réglementaire & Standards :
    - Conformité réglementaire : **un évaluateur de posture, six cartographies** — et la distinction est le fait à vérifier. ComplianceEngine commute sur sept catégories de contrôle (VULNERABILITY_MANAGEMENT, SUPPLY_CHAIN, SECRETS_MANAGEMENT, SECURE_CODING, INFRASTRUCTURE_AS_CODE, GOVERNANCE, AUDIT_AND_LOGGING) et projette ce verdict sur six référentiels : NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2 — soit 24 contrôles, dont deux partageant une catégorie reçoivent le même résultat. C'est ce qu'est une cartographie ; parler de « six moteurs » surévend autant que d'en annoncer quatre en sous-évend. L'OWASP Top 10 vit dans son propre contrôleur. Vérifier aussi cappedByPlatform : un contrôle ne doit jamais être déclaré conforme sur la foi d'un mécanisme éteint.
-   - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6 avec VEX intégré, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX n'est pas produit, voir ADR 0016).
+   - Support des formats de la chaîne d'approvisionnement logicielle (CycloneDX 1.6 avec VEX intégré, CSAF 2.0, OpenVEX, EPSS — SPDX n'est pas produit, voir ADR 0016 ; l'atteignabilité n'est pas calculée, et une affirmation qui la présuppose est un constat).
 
 5. 🔁 Vérification réellement exécutée :
    - Le pipeline est .github/workflows/ (ci.yml, nightly.yml, release.yml), sur GitHub, dépôt asmolabs/vectispire. Vérifier que chaque contrôle dont le projet se réclame y figure ET s'y déclenche — un job déclaré n'est pas un job qui a tourné. Le nocturne est planifié par cron: dans nightly.yml, mais GitHub n'exécute un workflow planifié que depuis la branche par défaut : un nocturne présent sur develop et absent de main ne se déclenche pas.
@@ -67,7 +67,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Compliance with the Bertrand Florat Architecture Model (docs/architecture/bflorat/: 5 self-contained views for application, security, dimensioning, infrastructure, and development).
    - C4 Structurizr DSL architecture-as-code modeling (docs/architecture/c4/workspace.dsl) and automated diagram generation.
    - Formal STRIDE DFD threat modeling (docs/architecture/security/).
-   - Architectural Decision Records registry (ADR 0001 through 0020 in docs/architecture/{en,fr}/decisions/), and the substance of each: a decision without its reasoning does not survive the next reversal.
+   - Architectural Decision Records registry (every ADR in docs/architecture/{en,fr}/decisions/, indexed by its README — count them there rather than copying the number here), and the substance of each: a decision without its reasoning does not survive the next reversal.
    - Strict bilingual parity and synchronization across French and English trees (docs/fr/ and docs/en/).
 
 2. 🛡️ Security & Cryptography ("Security by Design"):
@@ -91,7 +91,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
 
 4. 📋 Regulatory & Standards Compliance:
    - Regulatory compliance: **one posture evaluator, six mappings** — and the distinction is the fact to check. ComplianceEngine switches on seven control categories (VULNERABILITY_MANAGEMENT, SUPPLY_CHAIN, SECRETS_MANAGEMENT, SECURE_CODING, INFRASTRUCTURE_AS_CODE, GOVERNANCE, AUDIT_AND_LOGGING) and projects that verdict onto six frameworks: NIS_2, ISO_27001, EU_CRA, DORA, PCI_DSS, SOC_2 — 24 controls, of which any two sharing a category receive the same result. That is what a mapping is; calling it "six engines" oversells exactly as much as announcing four undersells. The OWASP Top 10 lives in its own controller. Check cappedByPlatform too: a control must never be reported compliant on the strength of a mechanism that is switched off.
-   - Software supply chain interoperability (CycloneDX 1.6 with embedded VEX, CSAF 2.0, OpenVEX, EPSS, reachability — SPDX documents are not produced, see ADR 0016).
+   - Software supply chain interoperability (CycloneDX 1.6 with embedded VEX, CSAF 2.0, OpenVEX, EPSS — SPDX documents are not produced, see ADR 0016; reachability is not computed, and a claim that assumes it is a finding).
 
 5. 🔁 Verification that actually runs:
    - The pipeline is .github/workflows/ (ci.yml, nightly.yml, release.yml), on GitHub, repository asmolabs/vectispire. Check that every control the project claims is both present AND triggered — a declared job is not a job that ran. The nightly is scheduled by cron: inside nightly.yml, but GitHub runs a scheduled workflow from the default branch only: a nightly present on develop and absent from main does not fire.
