@@ -8,11 +8,12 @@
  *
  *  - `demo/demo.scss` is not taken: it only styles the component showcase, which was
  *    removed along with the demonstration pages;
- *  - the icons stay on `primeicons` **7.0.0**, the last MIT release. 8.0.0 moved to a
- *    proprietary licence with the rest of the PrimeNG family, which is precisely why
- *    this interface builds on Optimus.
+ *  - the icons are `@openng/icons`, OpenNG's MIT fork of `primeicons` 7.0.0 — the last
+ *    MIT release; 8.0.0 moved to a proprietary licence with the rest of the PrimeNG
+ *    family, which is precisely why this interface builds on Optimus. Same `pi-*` classes
+ *    on the same code points (all 314 compared), so no template changed.
  */
-@use 'primeicons/primeicons.css';
+@use '@openng/icons/openng-icons.css';
 @use './layout/layout.scss';
 
 /* Inter, served locally.

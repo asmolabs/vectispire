@@ -415,8 +415,8 @@ A service writes no SQL, and a repository holds no business rule;
 Angular 22 and TypeScript 6.0 with [Optimus UI](https://github.com/openng/optimus-ui) 2, the
 community fork of PrimeNG v21 — PrimeTek archived PrimeNG and moved v22 to a commercial
 license; Optimus 2 is that fork carried to Angular 22. The shell comes from the Sakai template
-(MIT). `primeicons` is pinned to exactly `7.0.0`: 8.x followed PrimeNG under a proprietary
-license, which is what moving to Optimus was meant to avoid. See [`vectispire-angular/README.md`](../../vectispire-angular/README.md).
+(MIT). The icons are `@openng/icons`, OpenNG's MIT fork of `primeicons` 7.0.0: primeicons 8.x
+followed PrimeNG under a proprietary license, which is what moving to Optimus was meant to avoid. See [`vectispire-angular/README.md`](../../vectispire-angular/README.md).
 
 The view models the browser receives are typed and computed server-side
 ([`core/api.models.ts`](../../vectispire-angular/src/app/core/api.models.ts)): finished values, not
@@ -432,7 +432,7 @@ reference breaks nothing visible — the request is blocked, the page falls back
 font, and nothing reports it. That is exactly how a typography never
 reached production.
 
-The same script fails on any `pi-*` icon class the installed `primeicons.css` does not define:
+The same script fails on any `pi-*` icon class the installed `openng-icons.css` does not define:
 an unknown class renders an empty box and reports nothing either, and four had been shipped
 blank that way.
 

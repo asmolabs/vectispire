@@ -34,8 +34,9 @@ TypeScript together, never one alone.
 
 **TypeScript is pinned to one minor** (`~6.0.x`), because Angular 22 accepts only `>=6.0 <6.1`.
 
-**primeicons stays on 7.0.0.** 8.x is under the PrimeUI licence (revenue, headcount and licence key
-conditions). `scripts/check-assets.mjs` refuses any `pi-*` class the installed stylesheet does not
+**Icons come from `@openng/icons`, never `primeicons`.** primeicons 8.x is under the PrimeUI licence
+(revenue, headcount and licence key conditions); `@openng/icons` is the MIT fork of 7.0.0, same
+classes. Read the licence of any version before raising it. `scripts/check-assets.mjs` refuses any `pi-*` class the installed stylesheet does not
 define.
 
 **Every label goes through i18n.** `scripts/check-i18n-keys.mjs` counts referenced keys

@@ -57,11 +57,14 @@ Two things to know if you pull the template from source:
 - The demo pages (`uikit`, `crud`, `landing`, `documentation`, …) have been removed. Only
   the shell, authentication and the error pages are kept.
 
-**`primeicons` is pinned to `7.0.0`**, exactly. 8.0.0 followed PrimeNG under a
-proprietary license — which is precisely what moving to Optimus was meant to avoid. The
-constraint is a disguised `=`: do not loosen it without reading the license. It was read
-again for 8.0.1 during the Angular 22 move: the PrimeUI license, free only below a
-revenue and headcount threshold, with a license key and a ban on redistribution. Still no.
+**The icons are `@openng/icons`, not `primeicons`.** 8.0.0 followed PrimeNG under a
+proprietary license — which is precisely what moving to Optimus was meant to avoid: the
+PrimeUI license, free only below a revenue and headcount threshold, with a license key and
+a ban on redistribution. It was read for 8.0.1 during the Angular 22 move and again for
+8.0.2, which Dependabot proposed because an exact pin does not stop it from proposing.
+`primeicons` stayed pinned to `7.0.0`, the last MIT release, until OpenNG published its MIT
+fork of that release: same `pi-*` classes on the same code points — all 314 were compared —
+so the swap changed no template. Read the license of any version before raising it.
 
 **happy-dom, not jsdom, under the unit tests.** `@angular/build`'s Vitest runner takes
 happy-dom whenever it resolves and jsdom otherwise; there is no setting, so the choice is
@@ -91,7 +94,7 @@ would have shown a missing image forever. Only asset positions are examined: `sr
 navigation the CSP does not govern — refusing all of those would make this the rule someone
 switches off.
 
-**Every `pi-*` class must exist in the installed `primeicons.css`.** Same failure, different
+**Every `pi-*` class must exist in the installed `openng-icons.css`.** Same failure, different
 asset: an unknown icon class renders an empty box and reports nothing. `pi-balance-scale`,
 `pi-file-code`, `pi-gitlab` and `pi-terminal` exist in no primeicons release and had been
 blank on seven screens; they became `pi-building-columns`, `pi-file`, `pi-share-alt` and
