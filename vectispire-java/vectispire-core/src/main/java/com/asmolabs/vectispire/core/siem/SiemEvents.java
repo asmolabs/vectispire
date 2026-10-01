@@ -41,9 +41,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <h2>Two ways in</h2>
  *
  * <ul>
- *   <li>{@link #recorded} — <b>the one hook</b>. Every audit entry passes here after its own
- *       transaction commits; the entries that signal an event, by their operation or because their
- *       writer named one, become an event. Actor, address, target and action come from the entry,
+ *   <li>{@link #recordedInTransaction} — <b>the one hook</b>. Every audit entry passes here inside
+ *       its own transaction, so the event commits with it ({@link #recorded} is the audit log's
+ *       fallback when the two could not); the entries that signal an event, by their operation or
+ *       because their writer named one, become an event. Actor, address, target and action come from the entry,
  *       so the event says what the audit log says. <b>The address is only as good as the entry's</b>:
  *       sign-in, MFA, the bearer ceiling and the gate resolve it through {@code TrustedProxies};
  *       entries written through {@code RequestActors} still record the servlet's peer address, which
@@ -145,17 +146,30 @@ public class SiemEvents implements AuditLogService.Listener {
     }
 
     /**
-     * The hook: an audit entry that signals a security event becomes one.
+     * The hook: an audit entry that signals a security event becomes one, <b>in the entry's
+     * transaction</b>.
      *
-     * <p>Called after the entry's transaction commits, so an event exists exactly when its audit
-     * entry does. Entries that signal nothing cost no query.
+     * <p>The event and its entry commit together, so an event exists exactly when its entry does —
+     * which was the claim when this ran after the commit, in a transaction of its own, and a stop
+     * between the two made it false with nothing to send the event again (decision 0033). Entries
+     * that signal nothing cost no query.
      */
     @Override
+    public void recordedInTransaction(AuditLogService.Record entry, Instant at) {
+        signalledBy(entry, at).ifPresent(this::queue);
+    }
+
+    /** The same event, after the entry committed apart from it — the audit log's fallback when the two could not commit together. */
+    @Override
     public void recorded(AuditLogService.Record entry, Instant at) {
+        signalledBy(entry, at).ifPresent(this::publish);
+    }
+
+    private static Optional<CefEvent> signalledBy(AuditLogService.Record entry, Instant at) {
         Optional<SecurityEventType> signalled = entry.signal() != null
                 ? Optional.of(entry.signal())
                 : SecurityEventType.signalledBy(entry.operation());
-        signalled.ifPresent(type -> publish(CefEvent.builder(type)
+        return signalled.map(type -> CefEvent.builder(type)
                 .timestamp(at)
                 .message(bounded(entry.description()))
                 .user(entry.userId())
@@ -163,7 +177,7 @@ public class SiemEvents implements AuditLogService.Listener {
                 .action(entry.operation().wireName())
                 .target(entry.resourceId())
                 .userAgent(entry.userAgent())
-                .build()));
+                .build());
     }
 
     /**

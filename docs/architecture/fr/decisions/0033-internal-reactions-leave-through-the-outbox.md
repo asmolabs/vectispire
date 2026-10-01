@@ -98,7 +98,9 @@ est durable.
    et ses notifications sont validés ensemble ou pas du tout, ce qui avait toujours été le cas.*
 2. **Les événements SIEM du journal d'audit et de la barrière, dans la transaction qui les cause.**
    L'entrée d'audit et sa ligne d'outbox sont validées ensemble ; un verdict et son
-   `SECURITY_GATE_FAILED` aussi.
+   `SECURITY_GATE_FAILED` aussi. *Fait le 2026-10-01 : ensemble d'abord ; si cela ne peut pas être
+   validé, l'entrée ou le verdict est écrit seul et l'événement publié après — l'ancien chemin, gardé
+   en repli.*
 3. **Les réponses automatiques d'une checklist comme message `checklist_answer`**, écrit dans la
    transaction du scan ou de l'import, traité par `checklists`.
 4. **`AGENT_RESULT_SUBMITTED` dans la transaction du résultat.**

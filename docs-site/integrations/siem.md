@@ -112,6 +112,10 @@ scheduler sends it **after that transaction commits** — within a minute by def
 the request path: a sign-in, a scan ingest or a sync never waits on your collector.
 
 - **A change that rolls back sends nothing.**
+- **An event that cannot be written with its change does not cost the change.** For an event an
+  audit entry signals, and for a gate refusal, the change is then written on its own and the event
+  queued right after it, in a transaction of its own — the one case where a stop at the wrong moment
+  can still lose an event, and the only one; the server logs a warning when it happens.
 - **A collector that is down is retried** with the outbox's backoff — eight attempts over about four
   hours — and then marked failed, where it stays visible.
 - **Delivery is at least once.** A collector can accept an event and the record of that acceptance can

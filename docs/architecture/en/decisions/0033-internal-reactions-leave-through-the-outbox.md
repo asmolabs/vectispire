@@ -89,7 +89,9 @@ transaction, removes those lines from `allowedDependencies` without changing wha
    2026-10-01: the rollback is real (`IssueSyncHookDatabaseTest`); the catch is removed and the scan
    and its notifications commit together or not at all, which is what had always happened.*
 2. **SIEM events from the audit log and the gate, in the transaction that caused them.** The audit
-   entry and its outbox row commit together; so do a verdict and its `SECURITY_GATE_FAILED`.
+   entry and its outbox row commit together; so do a verdict and its `SECURITY_GATE_FAILED`. *Done
+   2026-10-01: together first; if that cannot commit, the entry or the verdict is written alone and the
+   event published after it — the old path, kept as the fallback.*
 3. **A checklist's automatic answers as a `checklist_answer` message**, enqueued in the scan's or the
    import's transaction, handled by `checklists`.
 4. **`AGENT_RESULT_SUBMITTED` in the result's transaction.**

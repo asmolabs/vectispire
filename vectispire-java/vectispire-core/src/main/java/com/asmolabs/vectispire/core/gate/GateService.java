@@ -46,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The verdict a pipeline asks for, and the posture the security screen shows.
@@ -76,6 +77,7 @@ public class GateService {
     private final RuleCoverageService ruleCoverage;
     private final SiemEvents siem;
     private final Clock clock;
+    private final TransactionTemplate transactions;
 
     public GateService(
             IssueCatalog issues,
@@ -85,7 +87,8 @@ public class GateService {
             ScanCatalog scans,
             RuleCoverageService ruleCoverage,
             SiemEvents siem,
-            Clock clock) {
+            Clock clock,
+            TransactionTemplate transactions) {
         this.issues = issues;
         this.policies = policies;
         this.activePolicies = new ActiveGatePolicies(policies);
@@ -95,6 +98,7 @@ public class GateService {
         this.scans = scans;
         this.siem = siem;
         this.clock = clock;
+        this.transactions = transactions;
     }
 
     /**
@@ -178,9 +182,10 @@ public class GateService {
      * <p><b>Not annotated, deliberately.</b> The evaluation below declares a read-only
      * transaction and saving inside one fails at the driver. Calling it from here bypasses the
      * proxy anyway — the self-invocation trap this codebase documents elsewhere — so the read
-     * runs plainly and the write takes the repository's own transaction. Neither needs the other
-     * to roll back: a verdict that was answered and not recorded is a gap in the register, and a
-     * verdict recorded twice would be worse.
+     * runs plainly and the write takes a transaction of its own, opened by {@link #record}, which
+     * the verdict and its SIEM event share. The evaluation does not need it to roll back: a verdict
+     * that was answered and not recorded is a gap in the register, and a verdict recorded twice
+     * would be worse.
      *
      * <p><b>A target somebody checked</b> ({@link VisibleTarget}). A verdict is a summary of a
      * target's backlog — counts, severities, the identifiers that violate — so answering one for a
@@ -192,54 +197,77 @@ public class GateService {
         ScanTarget target = checked.target();
         Decision decision = evaluate(target, requested);
         record(target, decision, caller);
-        if (!decision.verdict().passed()) {
-            // After the verdict's own write, in a transaction of its own, never at the expense of
-            // the answer: a pipeline waits on this verdict, and a SOC hearing of the refusal a
-            // second late costs nothing. A gate refusal leaves no audit entry — the verdict
-            // register is its record — so it is published here rather than signalled.
-            siem.publish(CefEvent.builder(SecurityEventType.SECURITY_GATE_FAILED)
-                    .message(decision.verdict().violations().size() + " violation(s) against the "
-                            + decision.policy().source().name().toLowerCase(java.util.Locale.ROOT) + " policy")
-                    .user(caller.principal())
-                    .sourceIp(caller.ipAddress())
-                    .action("GATE_EVALUATED")
-                    .target(PolicyScope.of(target).kind() + " " + PolicyScope.of(target).id())
-                    .build());
-        }
         return decision;
     }
 
+    /**
+     * The verdict and, for a refusal, its {@code SECURITY_GATE_FAILED} — <b>in one transaction</b>,
+     * or apart if that cannot commit (decision 0033).
+     *
+     * <p>The event was published after the verdict's own write, in a transaction of its own: a stop
+     * between the two left a refusal in the register that no SOC ever heard of, with nothing to send
+     * it again. Together, the two commit or neither does. A gate refusal leaves no audit entry — the
+     * verdict register is its record — so it is queued here rather than signalled.
+     *
+     * <p><b>Never at the expense of the answer.</b> A pipeline waiting on a verdict must get one. If
+     * the two cannot commit together, the verdict is written alone and the event published on its
+     * own, the path this replaced; if the verdict cannot be written at all, that is a hole in the
+     * register to investigate, logged at error level, and not a reason to fail somebody's build — a
+     * register that stops filling in silence is worse than one that stops loudly.
+     */
     private void record(ScanTarget target, Decision decision, Caller caller) {
+        Optional<CefEvent> refusal = decision.verdict().passed()
+                ? Optional.empty()
+                : Optional.of(CefEvent.builder(SecurityEventType.SECURITY_GATE_FAILED)
+                        .message(decision.verdict().violations().size() + " violation(s) against the "
+                                + decision.policy().source().name().toLowerCase(java.util.Locale.ROOT) + " policy")
+                        .user(caller.principal())
+                        .sourceIp(caller.ipAddress())
+                        .action("GATE_EVALUATED")
+                        .target(PolicyScope.of(target).kind() + " " + PolicyScope.of(target).id())
+                        .build());
         try {
-            GateVerdict verdict = decision.verdict();
-            GateVerdictEntity row = new GateVerdictEntity();
-            row.setId(UUID.randomUUID());
-            row.setRepoId(target instanceof ScanTarget.Repository repository ? repository.id() : null);
-            row.setContainerId(target instanceof ScanTarget.Container container ? container.id() : null);
-            row.setPassed(verdict.passed());
-            row.setEvaluated(verdict.evaluated());
-            row.setViolations(verdict.violations().size());
-            row.setCriticalCount(count(verdict, Severity.CRITICAL));
-            row.setHighCount(count(verdict, Severity.HIGH));
-            row.setMediumCount(count(verdict, Severity.MEDIUM));
-            row.setLowCount(count(verdict, Severity.LOW));
-            row.setFailOnSeverity(decision.policy().policy().failOnSeverity() == null
-                    ? null
-                    : decision.policy().policy().failOnSeverity().wireName());
-            row.setPolicySource(decision.policy().source().name());
-            row.setPolicyVersion(decision.policy().version().map(Integer::longValue).orElse(null));
-            row.setRelaxationsIgnored(!decision.policy().ignoredRelaxations().isEmpty());
-            row.setDecidedAt(clock.instant());
-            row.setDecidedBy(caller.principal());
-            row.setIpAddress(caller.ipAddress());
-            verdicts.save(row);
+            transactions.executeWithoutResult(status -> {
+                verdicts.save(verdictRow(target, decision, caller));
+                refusal.ifPresent(siem::enqueue);
+            });
+            return;
+        } catch (RuntimeException together) {
+            log.warn("Gate verdict and its SIEM event could not commit together; recording them apart: {}",
+                    together.getMessage());
+        }
+        try {
+            verdicts.save(verdictRow(target, decision, caller));
         } catch (RuntimeException failed) {
-            // **Never at the expense of the answer.** A pipeline waiting on a verdict must get
-            // one; a register that cannot be written is a hole to investigate, not a reason to
-            // fail somebody's build. Logged at error level for the same reason the audit log is:
-            // a register that stops filling in silence is worse than one that stops loudly.
             log.error("Gate verdict could not be recorded: {}", failed.getMessage(), failed);
         }
+        refusal.ifPresent(siem::publish);
+    }
+
+    /** A new row each time: an aborted transaction leaves the one it tried detached and unusable. */
+    private GateVerdictEntity verdictRow(ScanTarget target, Decision decision, Caller caller) {
+        GateVerdict verdict = decision.verdict();
+        GateVerdictEntity row = new GateVerdictEntity();
+        row.setId(UUID.randomUUID());
+        row.setRepoId(target instanceof ScanTarget.Repository repository ? repository.id() : null);
+        row.setContainerId(target instanceof ScanTarget.Container container ? container.id() : null);
+        row.setPassed(verdict.passed());
+        row.setEvaluated(verdict.evaluated());
+        row.setViolations(verdict.violations().size());
+        row.setCriticalCount(count(verdict, Severity.CRITICAL));
+        row.setHighCount(count(verdict, Severity.HIGH));
+        row.setMediumCount(count(verdict, Severity.MEDIUM));
+        row.setLowCount(count(verdict, Severity.LOW));
+        row.setFailOnSeverity(decision.policy().policy().failOnSeverity() == null
+                ? null
+                : decision.policy().policy().failOnSeverity().wireName());
+        row.setPolicySource(decision.policy().source().name());
+        row.setPolicyVersion(decision.policy().version().map(Integer::longValue).orElse(null));
+        row.setRelaxationsIgnored(!decision.policy().ignoredRelaxations().isEmpty());
+        row.setDecidedAt(clock.instant());
+        row.setDecidedBy(caller.principal());
+        row.setIpAddress(caller.ipAddress());
+        return row;
     }
 
     private static long count(GateVerdict verdict, Severity severity) {

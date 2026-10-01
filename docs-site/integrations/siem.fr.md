@@ -122,6 +122,11 @@ défaut. Rien n'est envoyé sur le chemin de la requête : une connexion, une in
 synchronisation n'attendent jamais votre collecteur.
 
 - **Un changement annulé n'envoie rien.**
+- **Un événement qui ne peut pas être écrit avec son changement ne coûte pas le changement.** Pour
+  un événement signalé par une entrée d'audit, et pour un refus de la barrière, le changement est
+  alors écrit seul et l'événement mis en file juste après, dans une transaction à lui — le seul cas
+  où un arrêt au mauvais moment peut encore perdre un événement ; le serveur journalise un
+  avertissement quand il se produit.
 - **Un collecteur indisponible est relancé** selon l'attente croissante de l'outbox — huit tentatives
   sur environ quatre heures — puis marqué en échec, où il reste visible.
 - **La livraison est au moins une fois.** Un collecteur peut accepter un événement et

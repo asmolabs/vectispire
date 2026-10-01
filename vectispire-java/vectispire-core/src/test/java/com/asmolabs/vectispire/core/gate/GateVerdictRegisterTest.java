@@ -1,6 +1,11 @@
 package com.asmolabs.vectispire.core.gate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
 import com.asmolabs.vectispire.common.domain.gate.SeverityRequest;
@@ -8,15 +13,23 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
+import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.rules.RuleCoverageService;
+import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.siem.SiemEvents;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Clock;
@@ -26,6 +39,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Limit;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.mockito.ArgumentCaptor;
 
 /**
  * The gate writes down what it answered, and a refusal is the entry that matters.
@@ -58,6 +73,24 @@ class GateVerdictRegisterTest extends VectispireContextTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private IssueCatalog issueCatalog;
+
+    @Autowired
+    private GatePolicyRepository policies;
+
+    @Autowired
+    private TargetCatalog targets;
+
+    @Autowired
+    private ScanCatalog scans;
+
+    @Autowired
+    private RuleCoverageService ruleCoverage;
+
+    @Autowired
+    private TransactionTemplate transactions;
 
     private ScanTarget failing;
     private ScanTarget clean;
@@ -155,6 +188,42 @@ class GateVerdictRegisterTest extends VectispireContextTest {
         assertThat(verdicts.findAllByOrderByDecidedAtDesc(Limit.of(10)))
                 .extracting(GateVerdictEntity::getDecidedBy)
                 .containsExactly("recent");
+    }
+
+    @Test
+    @DisplayName("a refusal and its SIEM event are written in the verdict's transaction, not after it")
+    void a_refusal_is_queued_with_its_verdict() {
+        // Decision 0033: published after the verdict's own write, a stop between the two left a
+        // refusal no SOC heard of. `enqueue` is MANDATORY — it can only have been called inside the
+        // transaction the verdict took — and `publish`, the after-the-fact path, is not used.
+        SiemEvents siem = mock(SiemEvents.class);
+
+        gateWith(siem).evaluateAndRecord(checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci", null));
+
+        ArgumentCaptor<CefEvent> queued = ArgumentCaptor.forClass(CefEvent.class);
+        verify(siem).enqueue(queued.capture());
+        assertThat(queued.getValue().eventType()).isEqualTo(SecurityEventType.SECURITY_GATE_FAILED);
+        verify(siem, never()).publish(any());
+        assertThat(onlyRow().isPassed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("an event that cannot be queued costs neither the verdict nor the answer: the two are recorded apart")
+    void a_failing_event_falls_back_to_apart() {
+        SiemEvents siem = mock(SiemEvents.class);
+        doThrow(new IllegalStateException("outbox unavailable")).when(siem).enqueue(any());
+
+        GateService.Decision decision = gateWith(siem)
+                .evaluateAndRecord(checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci", null));
+
+        assertThat(decision.verdict().passed()).as("the pipeline still gets its answer").isFalse();
+        assertThat(onlyRow().getDecidedBy()).as("the verdict written once, alone").isEqualTo("ci");
+        verify(siem).publish(any());
+    }
+
+    /** The gate as wired, with the SIEM stood in for — a new context would cost more than the two tests. */
+    private GateService gateWith(SiemEvents siem) {
+        return new GateService(issueCatalog, policies, verdicts, targets, scans, ruleCoverage, siem, clock, transactions);
     }
 
     private GateVerdictEntity onlyRow() {

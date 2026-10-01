@@ -113,14 +113,24 @@ public class AuditLogService {
     /**
      * Something that acts on an entry once it exists.
      *
-     * <p><b>After the entry's commit, never before.</b> Called from the audit transaction's
-     * after-commit callback, so a listener acts on entries that are in the table and on nothing an
-     * error rolled back — and <b>a listener that fails cannot cost the entry</b>: it is already
-     * committed when the listener runs, and its exception is caught and logged here. The obvious
-     * alternative, doing the listener's writes inside the audit transaction, would have let a
-     * failure there mark that transaction rollback-only and take the entry with it.
+     * <p><b>In the entry's transaction first, after its commit only if that failed</b> (decision
+     * 0033). A listener acted only after the commit, which made a failing listener harmless and a
+     * stop between the commit and the listener's own transaction a lost effect: every SIEM event an
+     * entry signals left that way, with nothing to send it again. {@link #recordedInTransaction}
+     * writes in the entry's transaction, so the entry and what it causes commit together.
+     *
+     * <p><b>A listener that fails still cannot cost the entry.</b> A failure there aborts the
+     * transaction — an exception leaving a participating proxy marks it rollback-only anyway — and
+     * the entry is written again on its own, with {@link #recorded} called after that commit: the
+     * old path, kept as the fallback rather than the rule. The two are never both called for one
+     * entry.
      */
     public interface Listener {
+
+        /** Inside the entry's transaction. Writes only in it; anything it throws aborts that transaction. */
+        void recordedInTransaction(Record entry, Instant at);
+
+        /** After the entry's commit, when {@link #recordedInTransaction} could not be. Exceptions are logged here. */
         void recorded(Record entry, Instant at);
     }
 
@@ -184,12 +194,35 @@ public class AuditLogService {
      */
     public void record(Record entry) {
         try {
-            writeRetryingOnLocks(entry);
+            writeWithItsEffects(entry);
         } catch (RuntimeException failed) {
             // See the class note: never at the expense of the action being described. Logged at
             // error level, because a log that stops recording in silence is worse than one that
             // stops loudly.
             log.error("Audit entry could not be written: {}", failed.getMessage(), failed);
+        }
+    }
+
+    /**
+     * The entry and what its listeners write, in one transaction — or, if that fails, the entry alone.
+     *
+     * <p><b>Once apart, whatever failed.</b> After a rollback nothing tells a listener's failure from
+     * the entry's own, and telling them apart is not needed: the entry is written again without the
+     * listeners in its transaction, and if that fails too the failure was the entry's. What an
+     * entry refused twice costs is one more statement; what a listener's failure would have cost
+     * without this is the entry.
+     */
+    private void writeWithItsEffects(Record entry) {
+        if (listeners.isEmpty()) {
+            writeRetryingOnLocks(entry, false);
+            return;
+        }
+        try {
+            writeRetryingOnLocks(entry, true);
+        } catch (RuntimeException together) {
+            log.warn("Audit entry {} and its listeners' writes could not commit together; writing the entry alone: {}",
+                    entry.operation(), together.getMessage());
+            writeRetryingOnLocks(entry, false);
         }
     }
 
@@ -209,10 +242,10 @@ public class AuditLogService {
      * victim and lock-wait timeout are the same class. Each is gone a moment later, so each is tried
      * again, in a new transaction; any other failure is the entry's own and is not.
      */
-    private void writeRetryingOnLocks(Record entry) {
+    private void writeRetryingOnLocks(Record entry, boolean withListeners) {
         for (int attempt = 0; ; attempt++) {
             try {
-                separately.executeWithoutResult(status -> write(entry));
+                separately.executeWithoutResult(status -> write(entry, withListeners));
                 return;
             } catch (PessimisticLockingFailureException locked) {
                 if (attempt >= LOCK_BACKOFF.size()) {
@@ -228,7 +261,7 @@ public class AuditLogService {
         }
     }
 
-    private void write(Record entry) {
+    private void write(Record entry, boolean withListeners) {
         String previousHash = entries.findTopByOrderByTimestampDescIdDesc()
                 .map(AuditLogEntity::getEntryHash)
                 .orElse(null);
@@ -249,6 +282,24 @@ public class AuditLogService {
 
         entries.saveAndFlush(row);
 
+        Record stored = new Record(
+                entry.operation(),
+                // The caller's, not the column's: the column holds String.valueOf, so an absent
+                // resource is the four letters "null" there, which a SOC would read as a name.
+                entry.resourceId(),
+                row.getDescription(),
+                row.getUserId(),
+                row.getIpAddress(),
+                row.getUserAgent(),
+                entry.signal());
+
+        // **Before the mirror.** A listener that throws aborts this transaction, and the entry is
+        // written again on its own: had the mirror line gone first, it would hold the aborted
+        // attempt too, an entry the table never kept.
+        if (withListeners) {
+            listeners.forEach(listener -> listener.recordedInTransaction(stored, row.getTimestamp()));
+        }
+
         // **Mirrored before this transaction commits, deliberately.** A rollback after the
         // line is written leaves the mirror holding an entry the table never kept, which
         // `verifyAgainstMirror` reports as unrecorded — noise. Writing after the commit
@@ -259,16 +310,9 @@ public class AuditLogService {
             log.error("Audit entry {} is in the table but not in the mirror", row.getId());
         }
 
-        afterCommit(new Record(
-                entry.operation(),
-                // The caller's, not the column's: the column holds String.valueOf, so an absent
-                // resource is the four letters "null" there, which a SOC would read as a name.
-                entry.resourceId(),
-                row.getDescription(),
-                row.getUserId(),
-                row.getIpAddress(),
-                row.getUserAgent(),
-                entry.signal()), row.getTimestamp());
+        if (!withListeners) {
+            afterCommit(stored, row.getTimestamp());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -423,8 +467,9 @@ public class AuditLogService {
     }
 
     /**
-     * Tells the listeners once this transaction has committed, or at once when there is none — a
-     * unit test calling this class directly.
+     * The fallback: tells the listeners once this transaction has committed, or at once when there is
+     * none — a unit test calling this class directly. Reached only for an entry written apart from
+     * its listeners' writes, see {@link #writeWithItsEffects}.
      *
      * <p>What they receive is the entry as stored: the description truncated to its column, the
      * blank address and user agent as null. An event forwarded to a SOC then says what the audit log
