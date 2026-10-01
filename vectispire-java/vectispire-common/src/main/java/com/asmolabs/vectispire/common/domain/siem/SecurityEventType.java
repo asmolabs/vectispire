@@ -12,7 +12,11 @@ import java.util.Optional;
  * changing an identifier silently disarms every rule written against it, in somebody else's SIEM,
  * with nothing on this side to notice. An identifier that is retired is never reused for another
  * meaning — {@code VECTI-SEC-001} (secret leak) and {@code VECTI-SEC-004} (SLA breach) were declared
- * and never emitted, and are kept out of circulation for that reason. See decision 0025.
+ * and never emitted, and are kept out of circulation for that reason. See decision 0025. When those
+ * two alarms were finally emitted, they took new numbers ({@code 029}, {@code 030}) rather than the
+ * old ones: a rule a SOC wrote against {@code 001} in the days it was declared was written for a
+ * definition nobody can now reconstruct — its trigger, its severity, its deduplication — and
+ * reviving the number would arm that rule on a meaning it was not written for.
  *
  * <p><b>Only what is actually emitted is listed.</b> The previous catalogue declared seven events
  * and one of them was ever sent; a SOC reading the list would have written rules for alarms that
@@ -131,6 +135,28 @@ public enum SecurityEventType {
      * the reports a checklist reads (decision 0032). {@code 025} and {@code 026} are the checklists'.
      */
     REPORT_IMPORT_REFUSED("VECTI-SEC-027", "Report import refused: undeclared source, kind or scope", 5, Outcome.FAILURE),
+
+    /**
+     * The export was switched off, or pointed at another collector: this collector will receive
+     * nothing more, on purpose. Sent synchronously to the collector that is being left, after the
+     * change commits and whatever the severity filter says — queued, it would be read at delivery
+     * against the configuration that no longer names this collector, and dropped. Its writer also
+     * records whether it was delivered in the change's audit entry.
+     */
+    SIEM_EXPORT_STOPPED("VECTI-SEC-028", "SIEM export switched off or redirected", 7, Outcome.SUCCESS),
+
+    /**
+     * A secret scan found a credential of high or critical severity that the backlog did not hold:
+     * once per issue, when it is created — a leak seen again by the next scan is the same leak, and
+     * one that comes back after being resolved reopens its issue rather than announcing a new one.
+     */
+    SECRET_LEAK_DETECTED("VECTI-SEC-029", "Secret leaked in source code", 8, Outcome.DETECTED),
+
+    /**
+     * An open, unsettled issue passed its remediation deadline ({@code RemediationSla}): once per
+     * issue, by the hourly maintenance turn that notices the crossing.
+     */
+    SLA_BREACHED("VECTI-SEC-030", "Remediation deadline passed", 6, Outcome.DETECTED),
 
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);

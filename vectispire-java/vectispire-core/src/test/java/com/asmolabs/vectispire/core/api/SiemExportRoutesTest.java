@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.maintenance.internal.MaintenanceJobs;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
@@ -64,6 +65,9 @@ class SiemExportRoutesTest extends ApiTestBase {
 
     @Autowired
     private TransactionTemplate transactions;
+
+    @Autowired
+    private AuditLogRepository auditEntries;
 
     @Test
     @DisplayName("issuing an API key reaches a UDP collector as a CEF event, after the relay runs")
@@ -200,6 +204,81 @@ class SiemExportRoutesTest extends ApiTestBase {
         assertThat(abandoned.getStatus()).isEqualTo("failed");
         assertThat(abandoned.getAttempts()).isLessThan(OutboxRetry.MAX_ATTEMPTS);
         assertThat(abandoned.getLastError()).contains("switched off");
+    }
+
+    @Test
+    @DisplayName("switching the export off tells the collector, at once and whatever the threshold, and the audit says so")
+    void switchingOffTellsTheCollector() throws Exception {
+        try (DatagramSocket collector = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            String endpoint = "127.0.0.1:" + collector.getLocalPort();
+            // CRITICAL: the notice is 7, and a threshold must not swallow the message explaining
+            // the silence after it.
+            configure("SYSLOG_UDP", endpoint, "CRITICAL");
+            assertThat(receive(collector, 300)).isEmpty();
+
+            save(false, "SYSLOG_UDP", endpoint, "CRITICAL");
+
+            // Synchronous: no relay turn, and nothing left in the outbox to deliver it later.
+            assertThat(receive(collector, 3_000)).singleElement().asString()
+                    .contains(" VECTI-SEC-028 - CEF:0|Vectispire|ASPM|")
+                    .contains("SIEM export switched off or redirected")
+                    .contains("suser=admin")
+                    .contains("switched off: no further events");
+            assertThat(siemRows()).isEmpty();
+            assertThat(lastSiemAuditEntry()).contains("enabled=false").contains("stop notice delivered");
+        }
+    }
+
+    @Test
+    @DisplayName("pointing the export elsewhere tells the collector left behind, without naming the new one")
+    void redirectingTellsTheCollectorLeftBehind() throws Exception {
+        try (DatagramSocket left = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+                DatagramSocket next = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            configure("SYSLOG_UDP", "127.0.0.1:" + left.getLocalPort(), "CRITICAL");
+
+            save(true, "SYSLOG_UDP", "127.0.0.1:" + next.getLocalPort(), "CRITICAL");
+
+            assertThat(receive(left, 3_000)).singleElement().asString()
+                    .contains(" VECTI-SEC-028 - ")
+                    .contains("pointed at another collector")
+                    .doesNotContain(String.valueOf(next.getLocalPort()));
+            assertThat(receive(next, 300)).isEmpty();
+
+            // A save that keeps the destination — a new threshold — leaves nobody.
+            save(true, "SYSLOG_UDP", "127.0.0.1:" + next.getLocalPort(), "HIGH");
+            assertThat(receive(next, 500)).noneMatch(message -> message.contains("VECTI-SEC-028"));
+        }
+    }
+
+    @Test
+    @DisplayName("a collector that cannot be told does not keep the export on: the audit says the notice did not arrive")
+    void anUnreachableCollectorDoesNotBlockTheSwitch() throws Exception {
+        int closed;
+        try (ServerSocket probe = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            closed = probe.getLocalPort();
+        }
+        configure("SYSLOG_TCP", "127.0.0.1:" + closed, "HIGH");
+
+        save(false, "SYSLOG_TCP", "127.0.0.1:" + closed, "HIGH");
+
+        assertThat(lastSiemAuditEntry()).contains("enabled=false").contains("stop notice NOT delivered");
+    }
+
+    private void save(boolean enabled, String protocol, String endpoint, String minSeverity) throws Exception {
+        mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"enabled": %s, "protocol": "%s", "endpoint": "%s", "minSeverity": "%s"}"""
+                                .formatted(enabled, protocol, endpoint, minSeverity)))
+                .andExpect(status().isOk());
+    }
+
+    private String lastSiemAuditEntry() {
+        return auditEntries.findAll().stream()
+                .map(entry -> entry.getDescription())
+                .filter(description -> description != null && description.startsWith("SIEM configuration updated"))
+                .reduce((first, second) -> second)
+                .orElseThrow();
     }
 
     private void configure(String protocol, String endpoint, String minSeverity) throws Exception {

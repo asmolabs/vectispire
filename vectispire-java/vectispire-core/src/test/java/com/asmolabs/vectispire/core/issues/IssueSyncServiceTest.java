@@ -10,12 +10,15 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -45,6 +48,7 @@ class IssueSyncServiceTest {
     private IssueRepository issues;
     private FindingRepository findings;
     private IssueSyncService service;
+    private SiemEvents siem;
 
     private final List<IssueEntity> stored = new ArrayList<>();
     private final AtomicLong nextId = new AtomicLong(1);
@@ -53,7 +57,8 @@ class IssueSyncServiceTest {
     void wire() {
         issues = mock(IssueRepository.class);
         findings = mock(FindingRepository.class);
-        service = new IssueSyncService(issues, Clock.fixed(NOW, ZoneOffset.UTC));
+        siem = mock(SiemEvents.class);
+        service = new IssueSyncService(issues, Clock.fixed(NOW, ZoneOffset.UTC), siem);
 
         stored.clear();
         // `saveAll` assigns identifiers, because the service depends on them being there
@@ -268,6 +273,62 @@ class IssueSyncServiceTest {
                     });
 
             assertThat(result.created()).isEqualTo(1);
+        }
+    }
+
+    @Nested
+    @DisplayName("the leak a SOC is told about")
+    class Leaks {
+
+        @Test
+        @DisplayName("a new high secret is announced once, with its rule and path, never its description")
+        void aNewSecretIsAnnounced() {
+            FindingEntity leak = finding(FindingType.SECRET, "aws-access-token");
+            leak.setFilePath("config/prod.env");
+            leak.setDescription("AKIA-the-matched-value");
+
+            service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(leak, leak)), Set.of(FindingType.SECRET),
+                    Map.of(), null);
+
+            org.mockito.ArgumentCaptor<CefEvent> sent = org.mockito.ArgumentCaptor.forClass(CefEvent.class);
+            verify(siem).enqueue(sent.capture());
+            CefEvent event = sent.getValue();
+            assertThat(event.eventType()).isEqualTo(SecurityEventType.SECRET_LEAK_DETECTED);
+            assertThat(event.message()).contains("aws-access-token").contains("config/prod.env").contains("issue 1");
+            assertThat(event.toCefString("1.0")).doesNotContain("AKIA").contains("cs1=repository 3");
+        }
+
+        @Test
+        @DisplayName("a secret seen again, or come back after being resolved, is not announced again")
+        void aKnownSecretIsNot() {
+            IssueSyncService.SyncResult first = service.sync(scan().getId(), scan().target(),
+                    ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-access-token"))), Set.of(), Map.of(), null);
+            IssueEntity known = first.newIssues().getFirst();
+            org.mockito.Mockito.clearInvocations(siem);
+            when(issues.findByFingerprintIn(any())).thenReturn(List.of(known));
+
+            service.sync(scan().getId(), scan().target(),
+                    ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-access-token"))), Set.of(), Map.of(), null);
+            known.resolveAt(NOW);
+            service.sync(scan().getId(), scan().target(),
+                    ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-access-token"))), Set.of(), Map.of(), null);
+
+            assertThat(known.getState()).isEqualTo("open");
+            verify(siem, never()).enqueue(any());
+        }
+
+        @Test
+        @DisplayName("neither a vulnerability, however critical, nor a secret graded below high is a leak")
+        void otherFindingsAreNot() {
+            FindingEntity critical = finding(FindingType.VULNERABILITY, "CVE-1");
+            critical.setSeverity("critical");
+            FindingEntity minor = finding(FindingType.SECRET, "generic-api-key");
+            minor.setSeverity("medium");
+
+            service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(critical, minor)), Set.of(), Map.of(),
+                    null);
+
+            verify(siem, never()).enqueue(any());
         }
     }
 

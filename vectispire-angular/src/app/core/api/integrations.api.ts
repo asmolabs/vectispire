@@ -26,6 +26,8 @@ export class IntegrationsApi {
         endpoint?: string;
         authHeader?: string;
         minSeverity: string;
+        /** Syslog over TLS only. Absent keeps the stored CA; blank removes it. */
+        tlsCaPem?: string;
     }): Observable<SiemConfig> {
         return this.http.put<SiemConfig>('/api/v1/siem/config', payload);
     }
@@ -34,6 +36,8 @@ export class IntegrationsApi {
         protocol?: string;
         endpoint: string;
         authHeader?: string;
+        /** Absent tests the stored CA; blank tests the server's trust store. */
+        tlsCaPem?: string;
     }): Observable<SiemTestResult> {
         return this.http.post<SiemTestResult>('/api/v1/siem/test', payload);
     }

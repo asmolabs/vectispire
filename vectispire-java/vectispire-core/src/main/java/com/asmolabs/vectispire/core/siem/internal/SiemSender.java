@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.CollectorCa;
 import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SyslogMessage;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
@@ -14,6 +15,7 @@ import java.net.InetAddress;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,7 +30,8 @@ import org.springframework.stereotype.Component;
  *       keep working. The authorization header goes with it.
  *   <li><b>Syslog</b>: the host and port through {@link OutboundUrlGuard#validateAndResolveEndpoint}
  *       — the same classifier as a URL, reserved endpoints included — then RFC 5424 over the pinned
- *       address. <b>No header</b>: a syslog frame has nowhere to carry one.
+ *       address. <b>No header</b>: a syslog frame has nowhere to carry one. Over TLS, the pinned
+ *       collector CA when one is configured, in place of the runtime's trust store.
  * </ul>
  *
  * <p>Both refuse a private destination unless {@code siem_allow_private_destination} is on — a
@@ -71,8 +74,9 @@ public class SiemSender {
      * outbox retries either; the connection test reports it.
      *
      * @param authHeader sent with a webhook only, ignored for syslog; {@code null} for none
+     * @param pinnedCa the collector's own CA, for syslog over TLS only; empty for the runtime's store
      */
-    public void send(SiemEndpoint endpoint, String authHeader, CefEvent event) {
+    public void send(SiemEndpoint endpoint, String authHeader, Optional<CollectorCa> pinnedCa, CefEvent event) {
         String cef = event.toCefString(version.get());
         switch (endpoint) {
             case SiemEndpoint.Webhook webhook -> {
@@ -86,7 +90,7 @@ public class SiemSender {
                 OutboundUrlGuard.Destination destination =
                         guard.validateAndResolveEndpoint(collector.host(), collector.port(), policy(), LABEL);
                 String message = SyslogMessage.format(event.eventType(), event.timestamp(), hostname(), cef);
-                syslog.send(collector.protocol(), destination, collector.port(), message, TIMEOUT, LABEL);
+                syslog.send(collector.protocol(), destination, collector.port(), message, TIMEOUT, LABEL, pinnedCa);
             }
         }
     }

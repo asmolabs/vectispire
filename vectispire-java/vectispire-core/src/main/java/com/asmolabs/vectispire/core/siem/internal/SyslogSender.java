@@ -1,10 +1,12 @@
 package com.asmolabs.vectispire.core.siem.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.siem.CollectorCa;
 import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.common.domain.siem.SyslogMessage;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.PinnedHttpSender;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.DatagramPacket;
@@ -13,10 +15,14 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateFactory;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +30,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -41,8 +48,10 @@ import org.springframework.stereotype.Component;
  * <em>as written</em>, so SNI and certificate verification are about the name the operator typed —
  * connecting to an IP literal and verifying against it would have broken both. Hostname
  * verification is on ({@code HTTPS} endpoint identification), the protocols are TLS 1.3 and 1.2,
- * and the trust store is the JVM's: a collector with a private CA needs that CA in the JVM's store,
- * which is a deployment step, not a setting — see the SIEM page of the guide.
+ * and the trust store is the JVM's — unless the configuration pins the collector's own CA ({@link
+ * CollectorCa}), which then replaces it for this connection alone: the public CAs are not trusted
+ * for it, and nothing else the control plane connects to trusts the pinned one. Hostname
+ * verification applies either way.
  *
  * <h2>Timeouts</h2>
  *
@@ -83,10 +92,23 @@ public class SyslogSender {
      * certificate they generate, which no system trust store holds; they hand in a context that
      * trusts it. Hostname verification, the protocol floor and the pinning are applied by this class
      * whatever the factory, so the seam replaces <em>whom</em> to trust and nothing about
-     * <em>how</em>. Package-private, so production wiring cannot reach it.
+     * <em>how</em>. Package-private, so production wiring cannot reach it — production replaces
+     * whom to trust only through a pinned {@link CollectorCa}, which takes precedence over this
+     * factory as it does over the JVM's.
      */
     SyslogSender(SSLSocketFactory tls) {
         this.tls = tls;
+    }
+
+    /** Sends over the runtime's trust store — {@link #send(SiemProtocol, OutboundUrlGuard.Destination, int, String, Duration, String, Optional)} with no pinned CA. */
+    public void send(
+            SiemProtocol protocol,
+            OutboundUrlGuard.Destination destination,
+            int port,
+            String message,
+            Duration timeout,
+            String label) {
+        send(protocol, destination, port, message, timeout, label, Optional.empty());
     }
 
     /**
@@ -96,6 +118,8 @@ public class SyslogSender {
      * @param protocol one of the three syslog protocols
      * @param destination what the guard checked; its addresses are the only ones connected to
      * @param message an RFC 5424 message, unframed: this method frames it for the transport
+     * @param pinned the CA the collector's certificate must chain to, in place of the runtime's
+     *     trust store; read for TLS only, and already checked current by the caller
      */
     public void send(
             SiemProtocol protocol,
@@ -103,7 +127,8 @@ public class SyslogSender {
             int port,
             String message,
             Duration timeout,
-            String label) {
+            String label,
+            Optional<CollectorCa> pinned) {
         if (destination.addresses().isEmpty()) {
             // Refused rather than sent unpinned, for PinnedHttpSender's reason: with no checked
             // address, the only way to send would be to resolve the name again here.
@@ -113,8 +138,9 @@ public class SyslogSender {
         }
         switch (protocol) {
             case SYSLOG_UDP -> sendDatagram(destination, port, message, label);
-            case SYSLOG_TCP -> sendStream(destination, port, SyslogMessage.octetCounted(message), timeout, false, label);
-            case SYSLOG_TLS -> sendStream(destination, port, SyslogMessage.octetCounted(message), timeout, true, label);
+            case SYSLOG_TCP -> sendStream(destination, port, SyslogMessage.octetCounted(message), timeout, null, label);
+            case SYSLOG_TLS -> sendStream(destination, port, SyslogMessage.octetCounted(message), timeout,
+                    pinned.map(ca -> pinnedTls(ca, label)).orElse(tls), label);
             case WEBHOOK -> throw new IllegalArgumentException("A webhook is sent over HTTP, not syslog.");
         }
     }
@@ -145,12 +171,13 @@ public class SyslogSender {
             int port,
             byte[] frame,
             Duration timeout,
-            boolean encrypted,
+            SSLSocketFactory encryption,
             String label) {
+        boolean encrypted = encryption != null;
         Socket plain = connect(destination, port, timeout, label);
         int millis = (int) Math.min(Integer.MAX_VALUE, timeout.toMillis());
         ScheduledFuture<?> deadline = WATCHDOG.schedule(() -> closeQuietly(plain), millis, TimeUnit.MILLISECONDS);
-        try (Socket socket = encrypted ? handshake(plain, destination.host(), port, millis) : plain) {
+        try (Socket socket = encrypted ? handshake(encryption, plain, destination.host(), port, millis) : plain) {
             socket.setSoTimeout(millis);
             OutputStream out = socket.getOutputStream();
             out.write(frame);
@@ -197,7 +224,8 @@ public class SyslogSender {
     }
 
     /** TLS over the pinned connection, verified against the host as written. */
-    private SSLSocket handshake(Socket plain, String host, int port, int timeoutMillis) throws IOException {
+    private static SSLSocket handshake(SSLSocketFactory tls, Socket plain, String host, int port, int timeoutMillis)
+            throws IOException {
         SSLSocket secured = (SSLSocket) tls.createSocket(plain, host, port, true);
         SSLParameters parameters = secured.getSSLParameters();
         // **The line that makes it TLS rather than encryption.** Without an endpoint
@@ -218,6 +246,36 @@ public class SyslogSender {
             socket.close();
         } catch (IOException ignored) {
             // Closing is the cleanup; a failure to close has nobody left to report to.
+        }
+    }
+
+    /**
+     * A TLS context trusting the pinned CA and nothing else.
+     *
+     * <p><b>JSSE, not BouncyCastle's lightweight API</b> — the one place the SIEM touches the JCA's
+     * certificate classes, because the socket itself is JSSE's and takes its trust anchors in that
+     * form. The certificates were read and checked by {@link CollectorCa} with BouncyCastle; this
+     * only hands their bytes to the stack. Built per message: at the relay's twenty a minute it costs
+     * nothing, and a cached context would outlive the CA an administrator has just replaced.
+     */
+    private static SSLSocketFactory pinnedTls(CollectorCa ca, String label) {
+        try {
+            CertificateFactory x509 = CertificateFactory.getInstance("X.509");
+            KeyStore anchors = KeyStore.getInstance("PKCS12");
+            anchors.load(null, null);
+            int index = 0;
+            for (CollectorCa.Anchor anchor : ca.anchors()) {
+                anchors.setCertificateEntry("collector-ca-" + index++,
+                        x509.generateCertificate(new ByteArrayInputStream(anchor.der())));
+            }
+            TrustManagerFactory trust = TrustManagerFactory.getInstance("PKIX");
+            trust.init(anchors);
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, trust.getTrustManagers(), null);
+            return context.getSocketFactory();
+        } catch (GeneralSecurityException | IOException unusable) {
+            throw new OutboundJson.OutboundFailureException(
+                    label + ": the pinned collector CA could not be loaded (" + unusable.getMessage() + ").", unusable);
         }
     }
 

@@ -55,7 +55,8 @@ export class SettingsSiem {
         protocol: 'WEBHOOK' as SiemConfig['protocol'],
         endpoint: '',
         authHeader: '',
-        minSeverity: 'HIGH'
+        minSeverity: 'HIGH',
+        tlsCaPem: ''
     };
 
     constructor() {
@@ -65,6 +66,20 @@ export class SettingsSiem {
     /** The authorization header travels with a webhook only; the syslog protocols have nowhere to put it. */
     isWebhook(): boolean {
         return this.siemForm.protocol === 'WEBHOOK';
+    }
+
+    /** The collector CA is read for syslog over TLS only; the other protocols verify no certificate against it. */
+    isTls(): boolean {
+        return this.siemForm.protocol === 'SYSLOG_TLS';
+    }
+
+    /**
+     * The CA as the requests carry it: what the field holds for TLS — blank removes a pinned one —
+     * and nothing otherwise, since the server refuses a CA sent with another protocol and drops the
+     * stored one when the protocol leaves TLS.
+     */
+    private caToSend(): string | undefined {
+        return this.isTls() ? this.siemForm.tlsCaPem.trim() : undefined;
     }
 
     /**
@@ -94,12 +109,14 @@ export class SettingsSiem {
                 // Not sent for syslog even if typed before the protocol changed: the server refuses
                 // a header it could never use, and the field is hidden anyway.
                 authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined,
-                minSeverity: this.siemForm.minSeverity
+                minSeverity: this.siemForm.minSeverity,
+                tlsCaPem: this.caToSend()
             })
             .subscribe({
                 next: (cfg) => {
                     this.savingSiem.set(false);
                     this.siemConfig.set(cfg);
+                    this.siemForm.tlsCaPem = cfg.tlsCaPem ?? '';
                     this.state.saved.set(true);
                 },
                 error: (response) => {
@@ -126,7 +143,9 @@ export class SettingsSiem {
                 // selected, and a working syslog collector was reported unreachable.
                 protocol: this.siemForm.protocol,
                 endpoint: this.siemForm.endpoint.trim(),
-                authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined
+                authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined,
+                // The CA on screen, saved or not, as for the protocol.
+                tlsCaPem: this.caToSend()
             })
             .subscribe({
                 next: (res) => {
@@ -153,7 +172,8 @@ export class SettingsSiem {
                     protocol: cfg.protocol || 'WEBHOOK',
                     endpoint: cfg.endpoint ?? '',
                     authHeader: '',
-                    minSeverity: cfg.minSeverity || 'HIGH'
+                    minSeverity: cfg.minSeverity || 'HIGH',
+                    tlsCaPem: cfg.tlsCaPem ?? ''
                 };
             },
             error: () => this.siemConfig.set(null)

@@ -39,10 +39,31 @@ octets : les analyseurs CEF attendent `CEF:0|` au premier octet.
 ### TLS
 
 Le certificat du collecteur est vérifié **contre le nom d'hôte saisi** — la vérification du nom
-d'hôte est active — au moyen du magasin de confiance de l'environnement Java. Un collecteur dont le
-certificat vient d'une autorité privée demande que cette autorité soit importée dans ce magasin (pour
-l'image conteneur, un `cacerts` monté par-dessus celui de la JVM) ; il n'existe pas encore de réglage
-d'autorité par collecteur.
+d'hôte est active, quelle que soit la confiance — au moyen du magasin de confiance de l'environnement
+Java, ou de la **CA du collecteur** que vous épinglez.
+
+Un collecteur dont le certificat vient d'une autorité privée n'a plus besoin de cette autorité dans
+le magasin de l'environnement. Collez le certificat de l'autorité, en PEM (`-----BEGIN
+CERTIFICATE-----`), dans **CA du collecteur**, affiché pour *Syslog TLS* seulement. Elle sert alors
+**à cette connexion seule, et à la place du magasin de l'environnement** : les autorités publiques ne
+sont pas reconnues pour le collecteur, et rien d'autre de ce que Vectispire contacte — trackers,
+modèles, webhooks — ne reconnaît l'autorité épinglée. Un paquet d'une racine et de ses
+intermédiaires est accepté, jusqu'à 8 certificats et 16 384 caractères.
+
+L'enregistrement refuse ce qui ne fonctionnerait pas ou ferait trop confiance : un certificat qui
+**n'est pas une autorité** (le certificat du collecteur lui-même, qui rendrait « de confiance »
+quiconque en détient une copie), une autorité **expirée ou pas encore valide**, une autorité dont
+l'usage de clé interdit de signer des certificats, tout ce qui n'est pas un certificat — une clé
+privée collée par erreur est refusée sans être recopiée dans la réponse — et une autorité envoyée
+avec un autre protocole. Une autorité est publique : elle est conservée telle quelle, non chiffrée,
+et réaffichée avec son sujet et son expiration. Une autorité épinglée qui expire ensuite n'est plus
+reconnue : les événements en file sont abandonnés avec le motif « the pinned SIEM collector CA is
+unusable … expired », et le remède est de coller l'autorité renouvelée.
+
+Vider le champ retire l'autorité épinglée ; quitter le protocole *Syslog TLS* la retire aussi. Par
+l'API, `tlsCaPem` absent de `PUT /api/v1/siem/config` conserve celle qui est enregistrée, pour qu'un
+script écrit avant ce champ ne la retire pas. Le test de connexion vérifie contre l'autorité du
+formulaire, enregistrée ou non.
 
 ### L'en-tête d'autorisation est réservé au webhook
 
@@ -61,6 +82,10 @@ peut porter n'est pas entre les mêmes mains. Il est désactivé par défaut. Ju
 l'export suivait *Autoriser une URL de webhook privée*, qu'un responsable sécurité peut régler ; une
 installation dont le collecteur est privé doit faire activer le nouveau réglage par un administrateur
 après la mise à jour, sans quoi les événements sont refusés et l'outbox le signale.
+
+Ce réglage est celui du SIEM, et n'est hérité d'aucun autre canal : ni *Autoriser une URL de webhook
+privée* (notifications) ni *Autoriser une URL de tracker privée* n'ouvrent le réseau interne à
+l'export. Son changement est audité (`SETTING_UPDATED`) et transmis comme `VECTI-SEC-019`.
 
 L'adresse de métadonnées du nuage, le proxy du démon Docker et la base de données sont refusés quel
 que soit ce réglage, en syslog exactement comme en webhook : l'adresse vers laquelle un nom se résout
@@ -103,8 +128,15 @@ synchronisation n'attendent jamais votre collecteur.
   l'enregistrement de cette acceptation échouer : un événement peut donc arriver deux fois.
   Dédupliquez sur `externalId`, identique sur chaque copie.
 - **La destination est lue au départ de l'événement.** Corriger une coquille dans le point d'arrivée
-  livre ce qui attendait ; couper l'export abandonne ce qui était en file. Le couper n'envoie aucun
-  événement « export coupé » — alertez sur l'absence du flux.
+  livre ce qui attendait ; couper l'export abandonne ce qui était en file.
+- **Couper l'export, ou le diriger vers un autre collecteur, prévient le collecteur quitté.**
+  `VECTI-SEC-028` lui est envoyé aussitôt, par son propre protocole, après l'enregistrement du
+  changement et quelle que soit la sévérité minimale — c'est le message qui explique le silence qui
+  suit. Il nomme le compte et l'adresse à l'origine du changement, jamais la nouvelle destination. Il
+  est envoyé au mieux : un collecteur hors service ne maintient pas l'export allumé. L'entrée d'audit
+  du changement dit si l'avis est arrivé (« stop notice delivered to the previous collector », ou
+  « NOT delivered », la cause dans le journal du serveur). Un avis qui n'arrive jamais est justement le
+  cas sur lequel alerter : continuez d'alerter sur l'absence du flux.
 - **Les événements de sécurité viennent du journal d'audit.** Un événement existe quand son entrée
   d'audit existe, et porte le même acteur, la même adresse et la même cible.
 
@@ -141,9 +173,17 @@ suit la 0.9.0 — mêmes numéros, mêmes sens ; voir les [notes de version](../
 | `VECTI-SEC-025` | Checklist signed off | 5 | la checklist d'un projet est approuvée — une attestation de mise en production, et qui l'a donnée ; l'entrée dit si le double contrôle exigeait que l'approbateur ne soit aucun de ses auteurs |
 | `VECTI-SEC-026` | Checklist sign-off refused or returned | 5 | une approbation est refusée parce que l'approbateur est l'un des auteurs de la checklist sous double contrôle, ou parce qu'une preuve a cessé de tenir depuis la soumission ; ou une checklist soumise est renvoyée à ses auteurs |
 | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | un rapport de couverture ou de tests est refusé pour ce qu'il prétend — une clé pour laquelle aucune source active n'est déclarée, un type pour lequel sa source n'est pas déclarée, un dépôt hors du périmètre de sa source |
+| `VECTI-SEC-028` | SIEM export switched off or redirected | 7 | l'export est coupé, ou son protocole ou son point d'arrivée change : envoyé de façon synchrone au collecteur quitté, quelle que soit la sévérité minimale (voir [Livraison](#livraison)) |
+| `VECTI-SEC-029` | Secret leaked in source code | 8 | un scan trouve un secret de sévérité élevée ou critique qui n'est pas encore un constat — chaque secret que rapporte l'analyseur fourni est classé élevé. Une fois par constat : la même fuite revue par le scan suivant, ou revenue après sa résolution, n'est pas annoncée à nouveau. `cs3` porte la règle, `msg` le fichier ; la valeur trouvée n'est jamais envoyée |
+| `VECTI-SEC-030` | Remediation deadline passed | 6 | un constat ouvert que personne n'a tranché dépasse son délai de remédiation (première détection + la fenêtre de sa sévérité — voir [Délais de correction](../guide/remediation-delays.md)). Relevé par le tour de maintenance horaire, daté de l'échéance elle-même, une fois par constat. Seules les échéances passées dans les sept derniers jours sont annoncées : le stock déjà en retard à la mise à jour — ou après qu'une fenêtre a été raccourcie — n'est pas annoncé d'un coup ; export coupé, un dépassement n'est pas rejoué quand il est rallumé. De sévérité 6, il est transmis à partir d'une sévérité minimale **Moyenne** |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.
+
+`VECTI-SEC-001` et `VECTI-SEC-004` avaient été déclarés pour une fuite de secret et un dépassement de
+SLA sans jamais être émis ; ils restent retirés. Les événements qui portent aujourd'hui ces sens ont
+pris de nouveaux numéros, `029` et `030`, pour qu'une règle écrite contre l'ancienne déclaration ne se
+mette pas à se déclencher sur une définition pour laquelle elle n'a pas été écrite.
 
 L'authentification unique, l'exigence de second facteur pour elle et les hôtes Git autorisés se
 règlent par variables d'environnement et ne changent qu'au redémarrage : ils n'émettent aucun

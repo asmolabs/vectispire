@@ -162,7 +162,7 @@ notifications. Trois choses autour de lui relèvent du déploiement :
 |---|---|---|
 | `VECTISPIRE_RELAY_INTERVAL` | `60s` | La fréquence à laquelle l'outbox est vidée — notifications et événements SIEM confondus, donc l'attente la plus longue d'un événement après sa validation. |
 | `HOSTNAME` | le nom de la machine | Ce que l'en-tête syslog déclare comme hôte émetteur. Les environnements de conteneurs le fixent. |
-| `JAVA_TOOL_OPTIONS` | *aucun* | Pour un collecteur syslog sur TLS signé par une autorité privée : `-Djavax.net.ssl.trustStore=/chemin/cacerts -Djavax.net.ssl.trustStorePassword=…`. Le nom du collecteur est vérifié contre son certificat dans tous les cas. |
+| `JAVA_TOOL_OPTIONS` | *aucun* | Options de la JVM. Un collecteur syslog sur TLS signé par une autorité privée n'a plus besoin de `-Djavax.net.ssl.trustStore=…` : épinglez son autorité sur la carte SIEM ([TLS](../integrations/siem.md#tls)), qui ne la reconnaît que pour cette connexion et non pour toutes les connexions TLS sortantes. Le nom du collecteur est vérifié contre son certificat dans tous les cas. |
 
 ## Personnalisation
 

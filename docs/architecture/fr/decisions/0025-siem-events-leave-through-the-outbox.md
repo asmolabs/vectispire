@@ -75,3 +75,24 @@ existent, et sur quoi un SOC peut compter pour les deux.
 - Pas d'autorité de certification propre pour TLS : une AC privée va dans le magasin de confiance de
   la JVM. Une AC par collecteur est une suite à donner.
 - Aucune migration : l'outbox, la ligne de configuration et leurs colonnes conviennent déjà.
+
+## Amendement (2026-10-01)
+
+Deux des conséquences ci-dessus étaient des suites à donner ; elles sont faites :
+
+- **Une AC par collecteur** (`CollectorCa`, V63). Un collecteur syslog sur TLS peut épingler un ou
+  quelques certificats d'autorité, utilisés pour cette connexion seule et à la place du magasin de
+  confiance de la JVM ; la vérification du nom d'hôte est inchangée. Seuls des certificats d'autorité
+  en cours de validité sont acceptés, à l'enregistrement et de nouveau à chaque livraison — le JDK ne
+  vérifie pas les dates d'une ancre de confiance.
+- **L'arrêt est annoncé** (`VECTI-SEC-028`). Pas par l'outbox, pour la raison donnée plus haut — la
+  destination est lue à l'envoi et n'existe plus — mais de façon synchrone, par l'enregistrement, au
+  collecteur quitté, après que le changement est stocké, quelle que soit la sévérité minimale, au
+  mieux ; l'entrée d'audit du changement dit s'il est arrivé. Les SOC devraient toujours alerter sur
+  l'absence du flux : un avis jamais arrivé est le cas que cela couvre.
+
+Les deux identifiants retirés le restent : la fuite de secret et le dépassement de SLA sont émis sous
+de nouveaux numéros, `VECTI-SEC-029` (une fois par constat, à sa création, dans la transaction du scan)
+et `VECTI-SEC-030` (une fois par constat, par le tour de maintenance horaire, échéances passées dans les
+sept derniers jours, V64), pour qu'une règle écrite contre l'ancienne déclaration ne soit pas armée sur
+une nouvelle définition.

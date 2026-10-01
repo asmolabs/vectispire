@@ -164,6 +164,10 @@ public class IssueEntity {
     @Column(name = "resolution_seconds")
     private Long resolutionSeconds;
 
+    /** When the SOC was told this issue passed its remediation deadline; never cleared. See V64. */
+    @Column(name = "sla_breach_signalled_at")
+    private Instant slaBreachSignalledAt;
+
     @Column(name = "first_seen_scan_id")
     private Long firstSeenScanId;
 
@@ -502,6 +506,20 @@ public class IssueEntity {
         this.state = com.asmolabs.vectispire.common.domain.issues.IssueState.OPEN.wireName();
         this.resolvedAt = null;
         this.resolutionSeconds = null;
+    }
+
+    /**
+     * Not published: a bookkeeping column of the SIEM signal, which no screen reads — the breach
+     * itself is {@code slaState}, computed — and {@code JsonIgnore} is how {@code EntityViewsTest}
+     * is told the view leaves it out on purpose.
+     */
+    @JsonIgnore
+    public Instant getSlaBreachSignalledAt() {
+        return slaBreachSignalledAt;
+    }
+
+    public void setSlaBreachSignalledAt(Instant slaBreachSignalledAt) {
+        this.slaBreachSignalledAt = slaBreachSignalledAt;
     }
 
     public Long getFirstSeenScanId() {

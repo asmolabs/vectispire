@@ -6982,6 +6982,7 @@ export interface components {
             endpoint?: string;
             minSeverity?: string;
             protocol?: string;
+            tlsCaPem?: string;
         };
         SiemConfigResponse: {
             enabled: boolean;
@@ -6989,12 +6990,16 @@ export interface components {
             hasAuthHeader: boolean;
             minSeverity?: string;
             protocol?: string;
+            tlsCaNotAfter?: string;
+            tlsCaPem?: string;
+            tlsCaSubject?: string;
             updatedAt?: string;
         };
         SiemTestRequest: {
             authHeader?: string;
             endpoint?: string;
             protocol?: string;
+            tlsCaPem?: string;
         };
         Sighting: {
             branch?: string;

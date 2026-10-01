@@ -157,7 +157,7 @@ Three things around it are the deployment's:
 |---|---|---|
 | `VECTISPIRE_RELAY_INTERVAL` | `60s` | How often the outbox is drained — notifications and SIEM events alike, so the longest an event waits after its commit. |
 | `HOSTNAME` | the machine's name | What the syslog header states as the sending host. Container runtimes set it. |
-| `JAVA_TOOL_OPTIONS` | *none* | For a syslog-over-TLS collector signed by a private CA: `-Djavax.net.ssl.trustStore=/path/cacerts -Djavax.net.ssl.trustStorePassword=…`. The collector's name is verified against its certificate either way. |
+| `JAVA_TOOL_OPTIONS` | *none* | JVM options. A syslog-over-TLS collector signed by a private CA no longer needs `-Djavax.net.ssl.trustStore=…`: pin its CA on the SIEM card instead ([TLS](../integrations/siem.md#tls)), which trusts it for that connection only rather than for every outbound TLS connection. The collector's name is verified against its certificate either way. |
 
 ## Branding
 

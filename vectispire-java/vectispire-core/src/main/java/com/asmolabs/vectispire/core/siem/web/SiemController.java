@@ -34,27 +34,35 @@ public class SiemController {
             String protocol,
             String endpoint,
             String authHeader,
-            String minSeverity) {}
+            String minSeverity,
+            String tlsCaPem) {}
 
+    /**
+     * @param tlsCaSubject the pinned CA's subject, {@code null} when none is pinned
+     * @param tlsCaNotAfter when the pinned bundle's earliest certificate expires
+     */
     public record SiemConfigResponse(
             boolean enabled,
             String protocol,
             String endpoint,
             boolean hasAuthHeader,
             String minSeverity,
+            String tlsCaPem,
+            String tlsCaSubject,
+            String tlsCaNotAfter,
             String updatedAt) {}
 
     /**
      * @param protocol the transport to test; absent, the stored one — so the button tests what the
      *     export will use, including a protocol changed on screen and not yet saved
      */
-    public record SiemTestRequest(String protocol, String endpoint, String authHeader) {}
+    public record SiemTestRequest(String protocol, String endpoint, String authHeader, String tlsCaPem) {}
 
     @GetMapping("/config")
     public SiemConfigResponse getConfig() {
         return exporterService.getConfig()
                 .map(this::toResponse)
-                .orElseGet(() -> new SiemConfigResponse(false, "WEBHOOK", null, false, "HIGH", null));
+                .orElseGet(() -> new SiemConfigResponse(false, "WEBHOOK", null, false, "HIGH", null, null, null, null));
     }
 
     @RequiresSecurityLead
@@ -70,6 +78,7 @@ public class SiemController {
                 request.endpoint(),
                 request.authHeader(),
                 request.minSeverity(),
+                request.tlsCaPem(),
                 RequestActors.of(principal, httpRequest, "system"));
 
         return toResponse(saved);
@@ -78,7 +87,8 @@ public class SiemController {
     @RequiresSecurityLead
     @PostMapping("/test")
     public SiemExporterService.TestResult testConnection(@RequestBody SiemTestRequest request) {
-        return exporterService.testConnection(request.protocol(), request.endpoint(), request.authHeader());
+        return exporterService.testConnection(
+                request.protocol(), request.endpoint(), request.authHeader(), request.tlsCaPem());
     }
 
     private SiemConfigResponse toResponse(SiemConfigView config) {
@@ -88,6 +98,9 @@ public class SiemController {
                 config.endpoint(),
                 config.hasAuthHeader(),
                 config.minSeverity(),
+                config.tlsCaPem(),
+                config.tlsCaSubject(),
+                config.tlsCaNotAfter() != null ? config.tlsCaNotAfter().toString() : null,
                 config.updatedAt() != null ? config.updatedAt().toString() : null);
     }
 }

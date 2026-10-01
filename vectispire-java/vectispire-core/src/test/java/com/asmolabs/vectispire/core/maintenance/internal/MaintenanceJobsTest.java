@@ -27,6 +27,8 @@ import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.inventory.internal.InventoryBackfillTask;
 import com.asmolabs.vectispire.core.issues.IssueTriageService;
+import com.asmolabs.vectispire.core.issues.SlaBreachSignals;
+import com.asmolabs.vectispire.core.issues.internal.SlaBreachTask;
 import com.asmolabs.vectispire.core.issues.internal.TriageExpiryTask;
 import com.asmolabs.vectispire.core.maintenance.MaintenanceTask;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
@@ -91,6 +93,7 @@ class MaintenanceJobsTest {
             TicketSweepTask.class,
             InventoryBackfillTask.class,
             TriageExpiryTask.class,
+            SlaBreachTask.class,
             WeeklyDigestTask.class,
             ComplianceHistoryTask.class,
             SessionCleanupTask.class,
@@ -109,6 +112,7 @@ class MaintenanceJobsTest {
     private SchedulerService scheduler;
     private CredentialedBacklog backlog;
     private IssueTriageService triage;
+    private SlaBreachSignals breaches;
     private PostureDigestService digest;
     private TargetDeletionService targetDeletion;
     private ComplianceHistoryService complianceHistory;
@@ -129,6 +133,7 @@ class MaintenanceJobsTest {
         scheduler = mock(SchedulerService.class);
         backlog = mock(CredentialedBacklog.class);
         triage = mock(IssueTriageService.class);
+        breaches = mock(SlaBreachSignals.class);
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
         complianceHistory = mock(ComplianceHistoryService.class);
@@ -155,6 +160,7 @@ class MaintenanceJobsTest {
                 new TicketSweepTask(tickets),
                 new InventoryBackfillTask(backfill),
                 new TriageExpiryTask(triage),
+                new SlaBreachTask(breaches),
                 new WeeklyDigestTask(digest),
                 new ComplianceHistoryTask(complianceHistory),
                 new SessionCleanupTask(sessions),
@@ -196,13 +202,16 @@ class MaintenanceJobsTest {
         // cover less than its name says. In order, because two positions matter: the decisions
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
-        InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, digest, complianceHistory, sessions,
-                verdicts, snapshots, reviews, feed, targetDeletion);
+        InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, breaches, digest, complianceHistory,
+                sessions, verdicts, snapshots, reviews, feed, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
         turn.verify(backfill).runOnce();
         turn.verify(triage).expireStale();
+        // After the expiry, so an acceptance that lapsed this turn counts; nothing else ever asks
+        // which deadlines have passed, so without this call no SLA breach reaches the SOC.
+        turn.verify(breaches).signalCrossings();
         turn.verify(digest).runOnce();
         turn.verify(complianceHistory).capture();
         turn.verify(sessions).prune();

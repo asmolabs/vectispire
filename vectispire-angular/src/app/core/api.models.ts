@@ -101,6 +101,9 @@ export type SiemConfig = Refine<
         minSeverity: string;
         endpoint: string | null;
         updatedAt: string | null;
+        tlsCaPem: string | null;
+        tlsCaSubject: string | null;
+        tlsCaNotAfter: string | null;
     }
 > & { authHeader?: string };
 

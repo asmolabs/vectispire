@@ -92,6 +92,37 @@
                 </div>
             }
 
+            <!--
+                Syslog over TLS only: the CA the collector's certificate must chain to, in place of
+                the server's trust store and for this connection alone. Hostname verification stays on.
+            -->
+            @if (isTls()) {
+                <div class="flex flex-col gap-2">
+                    <label for="siem-ca" class="font-medium">
+                        {{ 'settings.siem_ca' | translate }}
+                        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+                    </label>
+                    <textarea
+                        id="siem-ca"
+                        rows="6"
+                        [(ngModel)]="siemForm.tlsCaPem"
+                        spellcheck="false"
+                        class="p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    ></textarea>
+                    @if (siemConfig()?.tlsCaSubject; as subject) {
+                        <small class="text-green-600" data-testid="siem-ca-pinned">{{
+                            'settings.siem_ca_pinned'
+                                | translate
+                                    : {
+                                          subject: subject,
+                                          date: (siemConfig()?.tlsCaNotAfter | date: 'dd/MM/yyyy' : 'UTC') ?? ''
+                                      }
+                        }}</small>
+                    }
+                    <small class="text-muted-color">{{ 'settings.siem_ca_hint' | translate }}</small>
+                </div>
+            }
+
             @if (siemTestResult(); as res) {
                 <p-message [severity]="res.success ? 'success' : 'error'" [closable]="true" styleClass="w-full">
                     {{ res.message }}

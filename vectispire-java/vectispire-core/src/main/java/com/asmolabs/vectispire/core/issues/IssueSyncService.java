@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFinding;
+import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,10 +52,12 @@ public class IssueSyncService {
 
     private final IssueRepository issues;
     private final Clock clock;
+    private final SiemEvents siem;
 
-    public IssueSyncService(IssueRepository issues, Clock clock) {
+    public IssueSyncService(IssueRepository issues, Clock clock, SiemEvents siem) {
         this.issues = issues;
         this.clock = clock;
+        this.siem = siem;
     }
 
     /**
@@ -205,6 +208,12 @@ public class IssueSyncService {
         Map<String, Long> idByFingerprint =
                 saved.stream().collect(Collectors.toMap(IssueEntity::getFingerprint, IssueEntity::getId, (a, b) -> a));
         List<Long> issueIds = fingerprints.stream().map(idByFingerprint::get).toList();
+
+        // **Once per issue, at its creation.** A leak the next scan sees again is the same leak, and
+        // one that comes back after being resolved reopens its issue: neither is announced again.
+        // Queued in this transaction, after the save gave each issue its number: a scan that rolls
+        // back announces nothing, and the event leaves only once the issues it names exist.
+        created.stream().filter(IssueSignals::isLeak).forEach(leak -> siem.enqueue(IssueSignals.secretLeak(leak)));
 
         int resolved = resolveDisappeared(target, scannedTypes, scannedTools, byFingerprint.keySet(), moment);
 

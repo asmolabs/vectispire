@@ -184,9 +184,12 @@ public class SiemEvents implements AuditLogService.Listener {
     }
 
     private void queue(CefEvent event) {
-        if (event.eventType() == SecurityEventType.PING_TEST) {
+        if (event.eventType() == SecurityEventType.PING_TEST
+                || event.eventType() == SecurityEventType.SIEM_EXPORT_STOPPED) {
             // The connection test is sent synchronously by the route; queued, it would reach the
             // collector a minute later and prove nothing about the moment the button was pressed.
+            // The stop notice is sent synchronously by the save, to the collector being left;
+            // queued, it would be read against the configuration that no longer names that one.
             return;
         }
         Optional<SiemConfigEntity> config = configs.findById(SiemConfigEntity.SINGLETON_ID);

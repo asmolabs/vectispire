@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.SettingType;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.CollectorCa;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
@@ -16,6 +17,7 @@ import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Optional;
@@ -49,16 +51,19 @@ public class SiemExporterService {
     private final SiemSender sender;
     private final EncryptionService encryption;
     private final AuditLogService audit;
+    private final Clock clock;
 
     public SiemExporterService(
             SiemConfigRepository repository,
             SiemSender sender,
             EncryptionService encryption,
-            AuditLogService audit) {
+            AuditLogService audit,
+            Clock clock) {
         this.repository = repository;
         this.sender = sender;
         this.encryption = encryption;
         this.audit = audit;
+        this.clock = clock;
     }
 
     public Optional<SiemConfigView> getConfig() {
@@ -68,9 +73,19 @@ public class SiemExporterService {
     /**
      * Stores the configuration and audits the change — never the header, which is a credential and
      * the audit log is never purged.
+     *
+     * @param tlsCaPem the collector CA for syslog over TLS: {@code null} keeps the stored one, blank
+     *     removes it. Absent keeps because a client written before the field existed would otherwise
+     *     unpin the CA at every save; the screen always sends what it shows
      */
     public SiemConfigView saveConfig(
-            boolean enabled, String protocol, String endpoint, String authHeader, String minSeverity, RequestActor actor) {
+            boolean enabled,
+            String protocol,
+            String endpoint,
+            String authHeader,
+            String minSeverity,
+            String tlsCaPem,
+            RequestActor actor) {
         // Every field is checked before the row is touched, so a refusal leaves the stored
         // configuration exactly as it was. Each of these reached its column unchecked, and a value
         // past it was refused by the database at the write, as a 500.
@@ -106,6 +121,15 @@ public class SiemExporterService {
             }
             requireUsableHeader(authHeader.trim());
         }
+        boolean caGiven = tlsCaPem != null && !tlsCaPem.isBlank();
+        if (caGiven && parsedProtocol != SiemProtocol.SYSLOG_TLS) {
+            // Refused rather than stored, like a header sent for syslog: the screen would show a CA
+            // as pinned for a transport that never reads it.
+            throw new InvalidInputException(
+                    "A collector CA applies to syslog over TLS only: the other protocols do not verify a "
+                            + "collector's certificate against it.");
+        }
+        CollectorCa pinned = caGiven ? CollectorCa.parse(tlsCaPem, clock.instant()) : null;
 
         SiemConfigEntity entity = repository.findById(SiemConfigEntity.SINGLETON_ID)
                 .orElseGet(() -> {
@@ -113,6 +137,8 @@ public class SiemExporterService {
                     fresh.setId(SiemConfigEntity.SINGLETON_ID);
                     return fresh;
                 });
+        // Read before the row changes: the collector being left is the one configured now.
+        Optional<Collector> leaving = collectorOf(entity);
         // **A new destination does not inherit the old credential.** "Blank keeps the header" was
         // right for a save that changed the severity, and it also held when the endpoint changed:
         // the header an administrator had stored left for whatever collector the new URL named —
@@ -137,21 +163,114 @@ public class SiemExporterService {
         if (authHeader != null && !authHeader.isBlank()) {
             entity.setAuthHeader(encryption.encrypt(authHeader.trim(), AUTH_HEADER_CONTEXT));
         }
+        if (parsedProtocol != SiemProtocol.SYSLOG_TLS || (tlsCaPem != null && tlsCaPem.isBlank())) {
+            // Leaving TLS drops the CA with it: kept, it would come back unannounced the day the
+            // protocol is set to TLS again, for a collector it was perhaps never issued for.
+            entity.setTlsCaPem(null);
+        } else if (pinned != null) {
+            entity.setTlsCaPem(pinned.pem());
+        }
         // Stored in capitals, as the screen sends it and the default has always been written.
         entity.setMinSeverity(threshold.name());
         entity.setUpdatedAt(Instant.now());
         SiemConfigEntity saved = repository.save(entity);
 
+        // The collector being left hears it, before the silence: a feed that stops is otherwise
+        // read by a SOC as an outage — or not noticed at all — when it was a decision, possibly by
+        // somebody covering their tracks. Sent after the save, so it announces a change that
+        // happened, and before the audit entry, which records whether it arrived.
+        String notice = leaving
+                .filter(previous -> !saved.isEnabled() || !previous.sameDestinationAs(saved))
+                .map(previous -> announceStop(previous, saved.isEnabled(), actor))
+                .orElse("");
+
         // Signalled, and sent to the collector configured by this very save when it is on: a SOC
-        // should hear about the export being repointed — and, when it is switched off, the silence
-        // that follows is itself the signal, which is why nothing tries to send "switched off".
+        // should hear about the export being repointed, at the new collector as at the old one.
         audit.record(actor.entry(
                         AuditOperation.SETTING_UPDATED,
                         String.valueOf(saved.getId()),
                         "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol()
-                                + ", minimum severity=" + saved.getMinSeverity() + ")")
+                                + ", minimum severity=" + saved.getMinSeverity()
+                                + (saved.getTlsCaPem() != null ? ", collector CA pinned" : "") + ")" + notice)
                 .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
         return SiemConfigView.of(saved);
+    }
+
+    /**
+     * The collector a stored configuration exports to, with what it takes to reach it — or empty
+     * when it exports nowhere, or its row can no longer be read (then there is no collector to
+     * tell, and the delivery would have refused it too).
+     */
+    private Optional<Collector> collectorOf(SiemConfigEntity row) {
+        Optional<SiemProtocol> known = SiemProtocol.byName(row.getProtocol());
+        if (!row.isEnabled() || row.getEndpoint() == null || row.getEndpoint().isBlank() || known.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            SiemProtocol protocol = known.get();
+            SiemEndpoint endpoint = SiemEndpoint.parse(protocol, row.getEndpoint());
+            String header = protocol.carriesHeaders() && row.getAuthHeader() != null
+                    ? encryption.readSecret(row.getAuthHeader(), AUTH_HEADER_CONTEXT, "The SIEM authorization header")
+                    : null;
+            // Checked current, as the delivery checks it: the JDK does not read a trust anchor's
+            // dates, and a lapsed CA must not vouch for the collector even for a last message. Such
+            // a collector cannot be verified, so it is not told.
+            Optional<CollectorCa> ca = protocol == SiemProtocol.SYSLOG_TLS && row.getTlsCaPem() != null
+                    ? Optional.of(CollectorCa.parse(row.getTlsCaPem(), clock.instant()))
+                    : Optional.empty();
+            return Optional.of(new Collector(protocol, row.getEndpoint().trim(), endpoint, header, ca));
+        } catch (RuntimeException unreadable) {
+            log.warn("The SIEM collector being left could not be read, so it was not told: {}", unreadable.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Sends {@link SecurityEventType#SIEM_EXPORT_STOPPED} to the collector being left, synchronously,
+     * and says in words for the audit entry whether it arrived.
+     *
+     * <p><b>Not through the outbox</b>, which reads the destination when the message leaves — by
+     * then the configuration no longer names this collector, and the event would be abandoned as
+     * "switched off". <b>Not filtered by the minimum severity</b>: it is about the channel, like the
+     * connection test, and a threshold set to critical must not swallow the one message that
+     * explains the silence after it. <b>Best effort</b>: a collector that is down does not stop the
+     * export being switched off — the audit entry says the notice did not arrive, and the detail
+     * goes to the server log, as for the connection test.
+     *
+     * <p>The new destination is not named: the collector being left has no business learning where
+     * the feed went.
+     */
+    private String announceStop(Collector previous, boolean redirected, RequestActor actor) {
+        CefEvent stopped = CefEvent.builder(SecurityEventType.SIEM_EXPORT_STOPPED)
+                .message(redirected
+                        ? "The SIEM export was pointed at another collector: this one will receive no further events."
+                        : "The SIEM export was switched off: no further events will be sent until it is switched back on.")
+                .user(actor.username())
+                .sourceIp(actor.ipAddress())
+                .action(AuditOperation.SETTING_UPDATED.wireName())
+                .target(String.valueOf(SiemConfigEntity.SINGLETON_ID))
+                .userAgent(actor.userAgent())
+                .build();
+        try {
+            sender.send(previous.endpoint(), previous.header(), previous.ca(), stopped);
+            return "; stop notice delivered to the previous collector";
+        } catch (RuntimeException failed) {
+            log.warn("The SIEM stop notice to {} over {} was not delivered: {}", previous.written(), previous.protocol(),
+                    failed.getMessage());
+            return "; stop notice NOT delivered to the previous collector (the cause is in the server log)";
+        }
+    }
+
+    /** A collector as a configuration names it: the written endpoint, what was read of it, how to reach it. */
+    private record Collector(
+            SiemProtocol protocol, String written, SiemEndpoint endpoint, String header, Optional<CollectorCa> ca) {
+
+        /** The same transport to the same endpoint as written: a new severity or header does not leave it. */
+        boolean sameDestinationAs(SiemConfigEntity row) {
+            return protocol.name().equals(row.getProtocol())
+                    && row.getEndpoint() != null
+                    && written.equals(row.getEndpoint().trim());
+        }
     }
 
     /**
@@ -184,18 +303,27 @@ public class SiemExporterService {
      * filtered one from a listening web server: a scanner of whatever network the policy lets the
      * export reach. Three outcomes now — delivered, refused by the policy, not delivered — and the
      * detail goes to the server log, where an administrator reads it.
+     *
+     * @param tlsCaPem the collector CA to verify against, for syslog over TLS: {@code null} tests the
+     *     stored one, blank tests the runtime's trust store — so the button tests the CA on the form,
+     *     saved or not
      */
-    public TestResult testConnection(String protocol, String endpoint, String authHeader) {
+    public TestResult testConnection(String protocol, String endpoint, String authHeader, String tlsCaPem) {
         if (endpoint == null || endpoint.isBlank()) {
             return new TestResult(false, "An endpoint is required.", 0);
         }
         SiemProtocol parsed;
         SiemEndpoint destination;
+        Optional<CollectorCa> pinned;
         try {
             parsed = protocol == null || protocol.isBlank()
                     ? getConfig().flatMap(config -> SiemProtocol.byName(config.protocol())).orElse(SiemProtocol.WEBHOOK)
                     : parseProtocol(protocol);
             destination = SiemEndpoint.parse(parsed, endpoint);
+            String ca = tlsCaPem != null ? tlsCaPem : getConfig().map(SiemConfigView::tlsCaPem).orElse(null);
+            pinned = parsed == SiemProtocol.SYSLOG_TLS && ca != null && !ca.isBlank()
+                    ? Optional.of(CollectorCa.parse(ca, clock.instant()))
+                    : Optional.empty();
         } catch (IllegalArgumentException refused) {
             return new TestResult(false, refused.getMessage(), 0);
         }
@@ -203,7 +331,7 @@ public class SiemExporterService {
             CefEvent ping = CefEvent.builder(SecurityEventType.PING_TEST)
                     .message("Vectispire SIEM health check")
                     .build();
-            sender.send(destination, parsed.carriesHeaders() ? authHeader : null, ping);
+            sender.send(destination, parsed.carriesHeaders() ? authHeader : null, pinned, ping);
             return new TestResult(true, "Event delivered over " + parsed.name() + ".", parsed.carriesHeaders() ? 200 : 0);
         } catch (UnsafeUrlException refused) {
             log.warn("SIEM connection test refused by the outbound policy: {}", refused.getMessage());

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.CollectorCa;
 import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
@@ -11,6 +12,8 @@ import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -32,12 +35,15 @@ public class SiemDelivery implements OutboxHandler {
     private final SiemSender sender;
     private final EncryptionService encryption;
     private final ObjectMapper json;
+    private final Clock clock;
 
-    public SiemDelivery(SiemConfigRepository configs, SiemSender sender, EncryptionService encryption, ObjectMapper json) {
+    public SiemDelivery(
+            SiemConfigRepository configs, SiemSender sender, EncryptionService encryption, ObjectMapper json, Clock clock) {
         this.configs = configs;
         this.sender = sender;
         this.encryption = encryption;
         this.json = json;
+        this.clock = clock;
     }
 
     @Override
@@ -76,7 +82,24 @@ public class SiemDelivery implements OutboxHandler {
                 ? encryption.readSecret(config.getAuthHeader(), SiemExporterService.AUTH_HEADER_CONTEXT,
                         "The SIEM authorization header")
                 : null;
-        sender.send(endpoint, header, event);
+        sender.send(endpoint, header, pinnedCa(protocol, config.getTlsCaPem()), event);
+    }
+
+    /**
+     * The collector CA, checked current <em>now</em>: the save checked it once, and a CA expires
+     * while its row sits unchanged. The JDK does not check a trust anchor's own dates, so without
+     * this an expired CA would go on being trusted — and a CA the operator let lapse is a
+     * configuration to fix, which waiting four hours on the outbox's backoff does not do.
+     */
+    private Optional<CollectorCa> pinnedCa(SiemProtocol protocol, String stored) {
+        if (protocol != SiemProtocol.SYSLOG_TLS || stored == null || stored.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(CollectorCa.parse(stored, clock.instant()));
+        } catch (IllegalArgumentException unusable) {
+            throw new GoneDestinationException("the pinned SIEM collector CA is unusable: " + unusable.getMessage());
+        }
     }
 
     private SiemEvents.QueuedEvent read(String payload) {

@@ -44,6 +44,9 @@ class SecurityEventTypeTest {
         expected.put("CHECKLIST_SIGNED_OFF", "VECTI-SEC-025");
         expected.put("CHECKLIST_SIGN_OFF_REFUSED", "VECTI-SEC-026");
         expected.put("REPORT_IMPORT_REFUSED", "VECTI-SEC-027");
+        expected.put("SIEM_EXPORT_STOPPED", "VECTI-SEC-028");
+        expected.put("SECRET_LEAK_DETECTED", "VECTI-SEC-029");
+        expected.put("SLA_BREACHED", "VECTI-SEC-030");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())

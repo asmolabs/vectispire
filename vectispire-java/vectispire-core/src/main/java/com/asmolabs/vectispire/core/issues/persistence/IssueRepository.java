@@ -65,6 +65,33 @@ public interface IssueRepository
     List<IssueEntity> findByIdentifier(String identifier);
 
     /**
+     * The open, unsettled issues of one severity whose remediation deadline passed in {@code [since,
+     * before)} — first seen in that window, read against the severity's window — and that the SOC
+     * has not been told about, in identifier order from {@code afterId}.
+     *
+     * <p>{@code not in} the settled statuses, for the reason {@code IssueSpecifications} gives: a
+     * status this version does not know still counts as undecided. The lower bound is what keeps the
+     * backlog already late at the upgrade — or after a window is shortened — from being announced in
+     * one burst; the marker is what keeps a breach from being announced twice.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.state = :state and i.severity = :severity
+               and i.firstSeenAt < :before and i.firstSeenAt >= :since
+               and i.slaBreachSignalledAt is null
+               and i.triageStatus not in :settled
+               and i.id > :afterId
+             order by i.id""")
+    List<IssueEntity> findUnsignalledBreaches(
+            @Param("state") String state,
+            @Param("severity") String severity,
+            @Param("before") Instant before,
+            @Param("since") Instant since,
+            @Param("settled") Collection<String> settled,
+            @Param("afterId") long afterId,
+            Limit limit);
+
+    /**
      * The open issues of one target, restricted to the types a scan actually looked at.
      *
      * <p>The type filter is the whole safety of the resolution pass: without it a scan that

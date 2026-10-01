@@ -213,11 +213,19 @@ the plugin is on for, and having no network does not stop it from fabricating or
 [Plugins](../administration/plugins.md#running-an-unsigned-plugin) and
 [decision 0017](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0017-custom-checks-as-container-images.md).
 
-**Schema migrations V32 to V60 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V64 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
 
+- **Three new SIEM events, and the export says when it stops.** `VECTI-SEC-028` is sent to the
+  collector being left when the export is switched off or pointed elsewhere — the silence used to be
+  the only signal. `VECTI-SEC-029` announces a new secret of high or critical severity, once per
+  issue; `VECTI-SEC-030` an issue passing its remediation deadline, once per issue, from the hourly
+  turn (forwarded from a minimum severity of Medium). A correlation rule written for the retired
+  `001` and `004` does not match them: they took new numbers. `GET`/`PUT /api/v1/siem/config` carry
+  `tlsCaPem`, `tlsCaSubject` and `tlsCaNotAfter`, and `POST /api/v1/siem/test` accepts `tlsCaPem` —
+  [SIEM export](../integrations/siem.md#event-catalogue).
 - **The GitLab gate template now fails the pipeline on a red verdict.** `ci/gitlab/vectispire-gate.gitlab-ci.yml`
   shipped `allow_failure: true`, so a failed gate showed as a warning and the pipeline passed; it now
   accepts only exit `3`, which `VECTISPIRE_GATE_MODE: advisory` produces for a red verdict. A
@@ -455,6 +463,10 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **A syslog-over-TLS collector can pin its own CA.** Pasted in PEM on the SIEM card, it replaces the
+  Java runtime's trust store for that connection alone — no more `cacerts` mounted over the JVM's,
+  which made every outbound TLS connection trust the private CA too. Only a current CA certificate is
+  accepted; hostname verification stays on — [SIEM export](../integrations/siem.md#tls).
 - **One project on its own: its read, its compliance and score, its consolidated SBOM.**
   `GET /api/v1/projects/{id}` reads one project as its node in the tree describes it, its solution
   named. `GET /api/v1/projects/{id}/compliance` and `GET /api/v1/solutions/{id}/compliance` run the

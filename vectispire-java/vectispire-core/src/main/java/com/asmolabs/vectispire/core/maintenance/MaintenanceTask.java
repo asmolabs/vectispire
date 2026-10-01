@@ -71,6 +71,8 @@ public interface MaintenanceTask {
         public static final int TICKET_SWEEP = 300;
         public static final int INVENTORY_BACKFILL = 400;
         public static final int TRIAGE_EXPIRY = 500;
+        /** After the expiry: an acceptance that lapsed puts its issue back among those whose deadline counts. */
+        public static final int SLA_BREACHES = 510;
         public static final int WEEKLY_DIGEST = 600;
         public static final int COMPLIANCE_HISTORY = 700;
         public static final int SESSION_CLEANUP = 800;

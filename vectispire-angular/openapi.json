@@ -8257,6 +8257,9 @@
           },
           "protocol" : {
             "type" : "string"
+          },
+          "tlsCaPem" : {
+            "type" : "string"
           }
         },
         "required" : [ "enabled" ],
@@ -8279,6 +8282,15 @@
           "protocol" : {
             "type" : "string"
           },
+          "tlsCaNotAfter" : {
+            "type" : "string"
+          },
+          "tlsCaPem" : {
+            "type" : "string"
+          },
+          "tlsCaSubject" : {
+            "type" : "string"
+          },
           "updatedAt" : {
             "type" : "string"
           }
@@ -8295,6 +8307,9 @@
             "type" : "string"
           },
           "protocol" : {
+            "type" : "string"
+          },
+          "tlsCaPem" : {
             "type" : "string"
           }
         },

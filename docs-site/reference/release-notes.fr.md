@@ -233,11 +233,19 @@ l'empêche pas d'inventer ou de taire des constats. Voir
 [Plugins](../administration/plugins.md#faire-tourner-un-plugin-non-signe) et la
 [décision 0017](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0017-custom-checks-as-container-images.md).
 
-**Les migrations V32 à V60 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V64 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
 
+- **Trois nouveaux événements SIEM, et l'export dit quand il s'arrête.** `VECTI-SEC-028` est envoyé
+  au collecteur quitté quand l'export est coupé ou dirigé ailleurs — le silence était jusqu'ici le
+  seul signal. `VECTI-SEC-029` annonce un nouveau secret de sévérité élevée ou critique, une fois par
+  constat ; `VECTI-SEC-030` un constat qui dépasse son délai de remédiation, une fois par constat,
+  depuis le tour horaire (transmis à partir d'une sévérité minimale Moyenne). Une règle de corrélation
+  écrite pour les `001` et `004` retirés ne les capte pas : ils ont pris de nouveaux numéros. `GET` et
+  `PUT /api/v1/siem/config` portent `tlsCaPem`, `tlsCaSubject` et `tlsCaNotAfter`, et `POST
+  /api/v1/siem/test` accepte `tlsCaPem` — [Export SIEM](../integrations/siem.md#catalogue-des-evenements).
 - **Le modèle de barrière GitLab fait désormais échouer le pipeline sur un verdict rouge.**
   `ci/gitlab/vectispire-gate.gitlab-ci.yml` livrait `allow_failure: true`, si bien qu'une barrière
   échouée s'affichait en avertissement et que le pipeline passait ; il n'accepte plus que la sortie
@@ -503,6 +511,11 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Nouveautés
 
+- **Un collecteur syslog TLS peut épingler sa propre autorité.** Collée en PEM sur la carte SIEM, elle
+  remplace le magasin de confiance de l'environnement Java pour cette connexion seule — plus de
+  `cacerts` monté par-dessus celui de la JVM, qui faisait reconnaître l'autorité privée par toutes les
+  connexions TLS sortantes. Seul un certificat d'autorité en cours de validité est accepté ; la
+  vérification du nom d'hôte reste active — [Export SIEM](../integrations/siem.md#tls).
 - **Un projet seul : sa lecture, sa conformité et son score, son SBOM consolidé.**
   `GET /api/v1/projects/{id}` lit un projet tel que le décrit son nœud dans l'arbre, sa solution
   nommée. `GET /api/v1/projects/{id}/compliance` et `GET /api/v1/solutions/{id}/compliance` exécutent

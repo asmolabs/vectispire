@@ -37,9 +37,28 @@ first byte.
 ### TLS
 
 The collector's certificate is verified **against the host name you typed** — hostname verification
-is on — using the Java runtime's trust store. A collector whose certificate comes from a private CA
-needs that CA imported into the runtime's trust store (for the container image, a `cacerts` mounted
-over the JVM's); there is no per-collector CA setting yet.
+is on, whatever the trust — using the Java runtime's trust store, or the **collector CA** you pin.
+
+A collector whose certificate comes from a private CA no longer needs that CA in the runtime's trust
+store. Paste the CA certificate, in PEM (`-----BEGIN CERTIFICATE-----`), into **Collector CA**, shown
+for *Syslog TLS* only. It is then used **for this connection alone, and in place of the runtime's
+store**: the public CAs are not trusted for the collector, and nothing else Vectispire connects to —
+trackers, models, webhooks — trusts the pinned CA. A bundle of a root and its intermediates is
+accepted, up to 8 certificates and 16,384 characters.
+
+The save refuses what would not work or would trust too much: a certificate that is **not a CA**
+(the collector's own certificate, which would make anybody holding a copy of it "trusted"), a CA
+that has **expired or is not yet valid**, a CA whose key usage forbids signing certificates, anything
+that is not a certificate — a private key pasted by mistake is refused and not echoed back — and a
+CA sent with another protocol. A CA is public: it is stored as written, not encrypted, and shown
+again with its subject and expiry. A pinned CA that expires later is not trusted any more: queued
+events are abandoned with the reason "the pinned SIEM collector CA is unusable … expired", and the
+fix is to paste the renewed CA.
+
+Leaving the field empty removes a pinned CA; switching the protocol away from *Syslog TLS* removes it
+too. Through the API, `tlsCaPem` absent from `PUT /api/v1/siem/config` keeps the stored one, so a
+script written before the field existed does not unpin it. The connection test verifies against the
+CA on the form, saved or not.
 
 ### The authorization header is for the webhook only
 
@@ -56,6 +75,10 @@ configured and tested by a security lead, and the switch that decides how far it
 the same hands. It is off by default. Until 2026-09 the export followed *Allow a private webhook URL*,
 which a security lead may set; an installation whose collector is private needs an administrator to
 switch the new setting on after upgrading, or events are refused and the outbox reports it.
+
+The setting is the SIEM's own, not inherited from another channel's: neither *Allow a private
+webhook URL* (notifications) nor *Allow a private tracker URL* opens the internal network to the
+export. Changing it is audited (`SETTING_UPDATED`) and forwarded as `VECTI-SEC-019`.
 
 The cloud metadata address, the Docker daemon's proxy and the database are refused whatever that
 setting says, for syslog exactly as for the webhook: the address a name resolves to is checked once,
@@ -94,8 +117,15 @@ the request path: a sign-in, a scan ingest or a sync never waits on your collect
 - **Delivery is at least once.** A collector can accept an event and the record of that acceptance can
   fail, so an event can arrive twice. Deduplicate on `externalId`, which is the same on every copy.
 - **The destination is read when the event leaves.** Fixing a typo in the endpoint delivers what was
-  waiting; switching the export off abandons what was queued. Switching it off sends no "switched off"
-  event — alert on the absence of the feed.
+  waiting; switching the export off abandons what was queued.
+- **Switching the export off, or pointing it at another collector, tells the collector being left.**
+  `VECTI-SEC-028` is sent to it at once, over its own protocol, after the change is saved and whatever
+  the minimum severity — it is the message that explains the silence after it. It names the account
+  and the address that made the change, never the new destination. It is best effort: a collector
+  that is down does not keep the export on. The change's audit entry says whether the notice arrived
+  ("stop notice delivered to the previous collector", or "NOT delivered", the cause in the server
+  log). A notice that never arrives is itself the case to alert on: keep alerting on the absence of
+  the feed.
 - **Security events come from the audit log.** An event exists when its audit entry does, and carries
   the same actor, address and target.
 
@@ -132,7 +162,15 @@ change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in the
 | `VECTI-SEC-025` | Checklist signed off | 5 | a project's checklist is signed off — a release attestation, and who gave it; the entry says whether four-eyes required the signer to be none of its authors |
 | `VECTI-SEC-026` | Checklist sign-off refused or returned | 5 | a sign-off is refused because the signer is one of the checklist's authors while four-eyes is on, or because a proof stopped holding since the submission; or a submitted checklist is returned to its authors |
 | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | a coverage or test report is refused for what it claims — a key no enabled source is declared for, a kind its source is not declared for, a repository outside its source's scope |
+| `VECTI-SEC-028` | SIEM export switched off or redirected | 7 | the export is switched off, or its protocol or endpoint changes: sent synchronously to the collector being left, whatever the minimum severity (see [Delivery](#delivery)) |
+| `VECTI-SEC-029` | Secret leaked in source code | 8 | a scan finds a secret of high or critical severity that is not yet an issue — every secret the bundled scanner reports is graded high. Once per issue: the same leak seen by the next scan, or come back after being resolved, is not announced again. `cs3` carries the rule, `msg` the file; the matched value is never sent |
+| `VECTI-SEC-030` | Remediation deadline passed | 6 | an open issue nobody has settled passes its remediation deadline (first seen + the severity's window — see [Remediation times](../guide/remediation-delays.md)). Noticed by the hourly maintenance turn, stamped with the deadline itself, once per issue. Only deadlines passed within the last seven days are announced, so the backlog already late at the upgrade — or after a window is shortened — is not announced at once; with the export off, a breach is not replayed when it is switched back on. At severity 6, it is forwarded from a minimum severity of **Medium** |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | the connection test |
+
+`VECTI-SEC-001` and `VECTI-SEC-004` were once declared for a secret leak and an SLA breach and never
+emitted; they stay retired. The events that now carry those meanings took new numbers, `029` and
+`030`, so that a rule written against the old declaration does not start firing on a definition it
+was not written for.
 
 Single sign-on, the MFA requirement for single sign-on and the allowed Git hosts are set by
 environment variables and change only with a restart, so they emit no event; their change is a

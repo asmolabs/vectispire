@@ -46,6 +46,12 @@ organisation, pas par un outil. **Zéro désactive une gravité** — le texte d
 parce que l'autre lecture, zéro comme « à corriger immédiatement », transformerait le vidage d'un
 champ en un retard intégralement en dépassement.
 
+Un délai qui expire est aussi signalé au SOC, une fois par constat, par le tour de maintenance horaire
+— `VECTI-SEC-030` sur l'[export SIEM](../integrations/siem.fr.md#catalogue-des-evenements), transmis à
+partir d'une sévérité minimale Moyenne. Seules les échéances passées dans les sept derniers jours sont
+annoncées : le stock déjà en retard à l'arrivée de la fonction, ou après qu'une fenêtre a été
+raccourcie, n'atteint pas le SOC d'un coup.
+
 ## À lire aussi
 
 - [Plan de remédiation](remediation.fr.md) — quoi faire, dans l'ordre.

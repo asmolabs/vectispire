@@ -67,3 +67,22 @@ SOC may rely on about both.
   destination is read at send time and is gone. SOCs should alert on the absence of the feed.
 - No custom CA for TLS: a private CA goes into the JVM's trust store. A per-collector CA is a follow-up.
 - No migration: the outbox, the configuration row and their columns already fit.
+
+## Amendment (2026-10-01)
+
+Two of the consequences above were follow-ups, and are now done:
+
+- **A per-collector CA** (`CollectorCa`, V63). A syslog-over-TLS collector may pin one or a few CA
+  certificates, used for that connection alone and in place of the JVM's trust store; hostname
+  verification is unchanged. Only current CA certificates are accepted, at the save and again at each
+  delivery — the JDK does not check a trust anchor's own dates.
+- **The stop is announced** (`VECTI-SEC-028`). Not through the outbox, for the reason given above —
+  the destination is read at send time and is gone — but synchronously, by the save, to the collector
+  being left, after the change is stored, whatever the minimum severity, best effort; the change's
+  audit entry records whether it arrived. SOCs should still alert on the absence of the feed: a notice
+  that never arrived is the case it covers.
+
+The two retired identifiers stay retired: the secret leak and the SLA breach are emitted under new
+numbers, `VECTI-SEC-029` (once per issue, at its creation, in the scan's transaction) and
+`VECTI-SEC-030` (once per issue, by the hourly maintenance turn, deadlines passed within the last seven
+days, V64), so that a rule written against the old declaration is not armed on a new definition.
