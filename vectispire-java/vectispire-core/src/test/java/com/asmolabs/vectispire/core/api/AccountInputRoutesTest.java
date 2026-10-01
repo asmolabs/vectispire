@@ -22,8 +22,7 @@ import org.springframework.test.web.servlet.MvcResult;
  * <p>The target list reached the table as sent: {@code [null]} or an entry without an id was a 500
  * from the insert, and an unknown kind was stored — an assignment the screen showed and that granted
  * nothing. The account form's e-mail and display name reached their {@code varchar(255)} unchecked,
- * which SQLite accepts and the deployable engines refuse at the write; the status is the assertion
- * for that reason.
+ * which the engines refuse at the write as a 500; the status is the assertion for that reason.
  */
 @DisplayName("the account input routes")
 class AccountInputRoutesTest extends ApiTestBase {

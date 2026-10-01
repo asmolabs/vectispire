@@ -181,6 +181,10 @@ dependencies {
     // and MySQL are the integration campaign's business.
     testRuntimeOnly(libs.sqlite)
     testImplementation(libs.sqlite)
+    // The MySQL the context and HTTP suites run on (decision 0034): a container per test JVM, unless
+    // `VECTISPIRE_TEST_DB_URL` names a server — see `TestDatabase`. The version is the Spring Boot
+    // BOM's, as for the campaign, which inherits this line.
+    testImplementation("org.testcontainers:testcontainers-mysql")
     // BouncyCastle's certificate builder, for the TLS syslog collector the SIEM tests stand up:
     // its certificate is generated in the test rather than committed, so there is no key in the
     // repository and nothing that expires. Already on the runtime classpath through
@@ -215,7 +219,6 @@ dependencies {
     // nothing at all rather than to an older version.
     "integrationTestImplementation"("org.testcontainers:testcontainers-junit-jupiter")
     "integrationTestImplementation"("org.testcontainers:testcontainers-postgresql")
-    "integrationTestImplementation"("org.testcontainers:testcontainers-mysql")
     "integrationTestImplementation"("org.springframework.boot:spring-boot-testcontainers")
 }
 

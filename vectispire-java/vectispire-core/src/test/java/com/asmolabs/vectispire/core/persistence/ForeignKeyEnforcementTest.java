@@ -17,28 +17,20 @@ import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * The pragma that makes SQLite's foreign keys mean something.
+ * The foreign keys the schema declares, enforced by the engine the suite runs on.
  *
- * <p><b>SQLite records an {@code on delete cascade} and enforces nothing</b> until a connection
- * issues {@code PRAGMA foreign_keys = ON}. Nothing issued it, so on the fixture engine — and on
- * any single-file deployment — every cascade in the schema was decoration. {@code
- * SqliteForeignKeys} sets it as Hikari init SQL, on each connection as it is opened, because the
- * pragma is per connection and a migration's connection is not the one serving requests.
- *
- * <p><b>Why a test and not a settled config line.</b> A pool setting is one refactor away from
- * being dropped, and the failure is silent: nothing errors, the constraints simply stop being
- * checked and orphans start accumulating in tables nothing reads. The one existing test that
- * fabricated a {@code scan_id} out of a literal passed happily for as long as the pragma was
- * absent, which is exactly how this reads when it regresses.
+ * <p><b>MySQL discards a column-level {@code references}</b>, so a key that exists only inline in a
+ * migration exists on PostgreSQL and nowhere else; on SQLite, which this suite ran on until decision
+ * 0034, none is enforced without a pragma on each connection ({@code SqliteForeignKeysTest}). Either
+ * way the failure is silent:
+ * nothing errors, the constraints simply stop being checked and orphans start accumulating in tables
+ * nothing reads. The one existing test that fabricated a {@code scan_id} out of a literal passed
+ * happily for as long as the keys were absent, which is exactly how this reads when it regresses.
  */
 @DisplayName("the foreign keys the schema declares are enforced")
 class ForeignKeyEnforcementTest extends VectispireContextTest {
-
-    @Autowired
-    private JdbcTemplate jdbc;
 
     @Autowired
     private GitRepositoryRepository repositories;
@@ -48,16 +40,6 @@ class ForeignKeyEnforcementTest extends VectispireContextTest {
 
     @Autowired
     private FindingRepository findings;
-
-    @Test
-    @DisplayName("the pragma is on, on a connection the pool handed out")
-    void thePragmaIsOn() {
-        // Asked of a pooled connection rather than of the configuration, because the setting is
-        // only worth anything if it survived the trip through Hikari.
-        assertThat(jdbc.queryForObject("pragma foreign_keys", Integer.class))
-                .as("SQLite enforces nothing without it, whatever the schema declares")
-                .isEqualTo(1);
-    }
 
     @Test
     @DisplayName("a row cannot name a parent that does not exist")

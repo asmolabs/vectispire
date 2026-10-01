@@ -273,8 +273,12 @@ class SiemExportRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk());
     }
 
+    /**
+     * In the chain's order: {@code findAll} answered in insertion order on SQLite's rowid, and in the
+     * order of the random UUID keys on MySQL, so "the last one" was whichever key sorted last.
+     */
     private String lastSiemAuditEntry() {
-        return auditEntries.findAll().stream()
+        return auditEntries.findAllByOrderByTimestampAscIdAsc().stream()
                 .map(entry -> entry.getDescription())
                 .filter(description -> description != null && description.startsWith("SIEM configuration updated"))
                 .reduce((first, second) -> second)

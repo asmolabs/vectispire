@@ -22,8 +22,8 @@ import org.springframework.http.MediaType;
  * <p>Two rules, because two people write these fields. The administrator's form is refused past a
  * column — the name against the key's column, since the key is called "Agent " and the name. The
  * agent's own announcement is clipped instead: nobody can correct it from here, and refusing it
- * would drop the heartbeat that keeps the agent online. On SQLite neither overflow is visible to the
- * database, so the assertions are the status and the stored length.
+ * would drop the heartbeat that keeps the agent online. So the assertions are the status and the
+ * stored length.
  */
 @DisplayName("the bounds of an agent")
 class AgentInputBoundsTest extends ApiTestBase {

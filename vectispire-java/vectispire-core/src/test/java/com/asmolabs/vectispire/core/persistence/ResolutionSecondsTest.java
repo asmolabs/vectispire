@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -111,7 +112,9 @@ class ResolutionSecondsTest extends VectispireContextTest {
 
         // Rows arrive with the column empty, as they would after `alter table`.
         jdbc.update("update t_issue set resolution_seconds = null where id between 1 and 5");
-        jdbc.execute(backfillStatementFrom("db/migration/sqlite/V24__issue_resolution_seconds.sql"));
+        // The engine's own file, since the suite runs on MySQL (decision 0034): PostgreSQL's is the
+        // campaign's to execute.
+        jdbc.execute(backfillStatementFrom("db/migration/mysql/V24__issue_resolution_seconds.sql"));
 
         assertThat(secondsOf(1))
                 .as("three days, the one row with something to measure")
@@ -142,9 +145,11 @@ class ResolutionSecondsTest extends VectispireContextTest {
                 id,
                 "fingerprint-" + id,
                 resolvedAt == null ? "OPEN" : "RESOLVED",
-                firstSeen.toEpochMilli(),
-                SEEN.toEpochMilli(),
-                resolvedAt == null ? null : resolvedAt.toEpochMilli(),
+                // Timestamps, not the epoch milliseconds SQLite stored: MySQL refuses a number in a
+                // `datetime` column.
+                Timestamp.from(firstSeen),
+                Timestamp.from(SEEN),
+                resolvedAt == null ? null : Timestamp.from(resolvedAt),
                 resolvedAt != null && resolvedAt.isAfter(firstSeen)
                         ? Duration.between(firstSeen, resolvedAt).toSeconds()
                         : null);

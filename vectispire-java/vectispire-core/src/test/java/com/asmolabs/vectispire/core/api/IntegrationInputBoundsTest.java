@@ -24,8 +24,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * What the credential, channel, rule-set and SIEM forms may hold.
  *
  * <p>Each of these reached a bounded column unchecked, and the deployable engines refused the row
- * at the write, as a 500. SQLite, which this suite runs on, does not enforce a varchar length, so
- * the assertion is the status — the guard is what answers 400, on every engine, first.
+ * at the write, as a 500. The assertion is the status — the guard is what answers 400, on every
+ * engine, first.
  */
 @DisplayName("the bounds of the integration forms")
 class IntegrationInputBoundsTest extends ApiTestBase {

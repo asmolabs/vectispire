@@ -188,8 +188,9 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
     @Test
     @DisplayName("a name the collation confuses with an account's is not that account")
     void theCollationDoesNotChooseTheAccount() {
-        // MySQL's default collation answers `admin` for `ádmin`. SQLite does not, so the database
-        // is stood in for: what is under test is that the service checks the name it was given.
+        // MySQL's default collation answers `admin` for `ádmin`. The database is stood in for all the
+        // same, so the case does not depend on the collation a server was created with: what is
+        // under test is that the service checks the name it was given.
         UserEntity alice = new UserEntity();
         alice.setId(7L);
         alice.setUsername("alice");

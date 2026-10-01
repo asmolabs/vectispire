@@ -33,9 +33,8 @@ import org.springframework.test.web.servlet.ResultActions;
  *
  * <p>Through the real stack on purpose. The bound is a 400 a screen has to show, and the claim is
  * a long-poll route whose 204 has to carry the limit in a header — neither is visible from a
- * service called directly. Concurrency is not tested here: SQLite serializes every write, so two
- * racing polls would prove nothing. {@code ScanQueueIntegrationTest} races them on MySQL and
- * PostgreSQL.
+ * service called directly. Concurrency is not tested here: two polls racing by luck prove nothing,
+ * and {@code ScanQueueIntegrationTest} forces their interleaving on MySQL and PostgreSQL.
  */
 @DisplayName("an agent's concurrency limit, through the routes")
 class AgentConcurrencyRoutesTest extends ApiTestBase {

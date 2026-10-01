@@ -163,14 +163,14 @@ class TargetDeletionTest extends VectispireContextTest {
         Map<String, Integer> before = fixture.rowsNaming(survivor);
         long repoId = ((ScanTarget.Repository) gone).id();
         // A deletion from before the keys were enforced: the target went, its rows stayed. On one
-        // connection, since the pragma is per connection and the pool would hand out another.
+        // connection, since the switch is per session and the pool would hand out another.
         jdbc.execute((ConnectionCallback<Void>) connection -> {
             try (Statement statement = connection.createStatement()) {
-                statement.execute("pragma foreign_keys = off");
+                statement.execute("set foreign_key_checks = 0");
                 try {
                     statement.executeUpdate("delete from t_repository where id = " + repoId);
                 } finally {
-                    statement.execute("pragma foreign_keys = on");
+                    statement.execute("set foreign_key_checks = 1");
                 }
             }
             return null;
@@ -181,7 +181,7 @@ class TargetDeletionTest extends VectispireContextTest {
 
             Map<String, Integer> left = fixture.rowsNaming(gone);
             // Grants and gate policies have no parent to be orphaned from, and the sweep never took
-            // them; the verdicts are the schema's cascade, which the pragma was off for.
+            // them; the verdicts are the schema's cascade, which the checks were off for.
             for (String table : List.of("t_scan", "t_issue", "t_issue_triage_event", "t_issue_ticket", "t_finding",
                     "t_component", "t_ai_review_result")) {
                 assertThat(left.get(table)).as(table).isZero();

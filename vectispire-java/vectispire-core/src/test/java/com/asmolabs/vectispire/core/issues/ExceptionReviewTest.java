@@ -129,9 +129,9 @@ class ExceptionReviewTest extends VectispireContextTest {
     @DisplayName("moves the date when an exception is extended")
     void extensionMovesTheDate() {
         long issueId = excepted();
-        // Truncated to the millisecond the store keeps: SQLite holds an Instant as epoch millis,
-        // so comparing against a microsecond-precision clock would fail on the storage and not on
-        // the behaviour.
+        // Truncated below every store's precision — the engines keep microseconds, the SQLite fixture
+        // this suite ran on kept milliseconds — so the comparison fails on the behaviour and never on
+        // the storage.
         var newDate = clock.instant().plusSeconds(400L * 86_400).truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
 
         triage.review(issueId, IssueTriageService.ReviewOutcome.EXTENDED, "One more release.", "n.faure", newDate);

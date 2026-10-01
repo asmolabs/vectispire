@@ -30,10 +30,10 @@ import org.springframework.web.context.WebApplicationContext;
  * all. Every one of those is exactly what a port gets wrong, and none of them is visible from a
  * direct call.
  *
- * <p><b>SQLite, in the plain unit suite.</b> It needs no daemon, so these run on every {@code
- * ./gradlew build} rather than in a campaign somebody remembers to launch. The engines'
- * disagreements are the database campaign's business; what is under test here is the HTTP
- * surface, which is the same on all four.
+ * <p><b>MySQL, in the plain unit suite</b> (decision 0034), so these run on every {@code ./gradlew
+ * build} rather than in a campaign somebody remembers to launch, and on the engine deployments run:
+ * a column's bound, a foreign key and a read-only transaction are enforced here as they are there.
+ * What PostgreSQL disagrees about is the database campaign's business.
  *
  * <p>The context and the between-test cleanup come from {@link VectispireContextTest}; what this
  * adds is the HTTP half — the filter chain, and accounts to authenticate as.

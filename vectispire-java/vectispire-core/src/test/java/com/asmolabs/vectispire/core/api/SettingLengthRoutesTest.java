@@ -19,10 +19,10 @@ import org.springframework.http.MediaType;
  * <p><b>The defect.</b> {@code t_setting.value} was {@code varchar(255)} and a credential is stored
  * encrypted — "v2:" and the Base64 of nonce, text and tag — so every secret over about 160
  * characters was refused by MySQL and PostgreSQL at the write, as a 500. An Atlassian token is 192
- * characters. This suite runs on SQLite, which enforces no length, so it cannot see the column: that
- * half is {@code LongSettingIntegrationTest}'s, on the real engines. What it pins is the other half
- * — that a real token goes through the real route, and that the ceiling which replaced the column's
- * is a 400 and not the database's error.
+ * characters. This suite runs on MySQL, so the column is enforced here too; {@code
+ * LongSettingIntegrationTest} holds it on both engines. What this pins is that a real token goes
+ * through the real route, and that the ceiling which replaced the column's is a 400 and not the
+ * database's error.
  */
 @DisplayName("the length of a setting")
 class SettingLengthRoutesTest extends ApiTestBase {

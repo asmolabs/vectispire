@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  *
  * <p>A comment, a note or a justification lands in a {@code text} column, which MySQL caps at 64 KB;
  * a date lands in a {@code DATETIME}, which ends in the year 9999. Past either the write failed as a
- * 500 — invisible on SQLite, which this suite runs on, so the assertion is the status. A review date
+ * 500, and the assertion is the status: without the guard it is the database's error. A review date
  * had a lower bound and no upper one, an extension could run into the past, and a review without an
  * outcome answered with a NullPointerException.
  */

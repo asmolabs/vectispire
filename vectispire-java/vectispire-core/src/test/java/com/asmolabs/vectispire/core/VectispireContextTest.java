@@ -1,12 +1,8 @@
 package com.asmolabs.vectispire.core;
 
-import java.nio.file.Path;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -14,10 +10,10 @@ import org.springframework.test.context.DynamicPropertySource;
 /**
  * The whole application, on a real database, in the ordinary unit suite.
  *
- * <p><b>SQLite, so it runs on every build.</b> It needs no daemon, which is the difference
- * between a suite that runs and a suite somebody remembers to launch. What the engines
- * disagree about is the database campaign's business; what is under test here is behaviour they
- * all share — the queries, the transaction boundaries, and the wiring.
+ * <p><b>MySQL, the engine deployments run</b> (decision 0034), in a container or on the server CI
+ * gives the job — see {@link TestDatabase}. It replaced a SQLite file, which needed no daemon and
+ * validated no schema; here Hibernate validates every entity against the migrated tables at each
+ * context start, as it does in production.
  *
  * <p><b>The tables are emptied between tests, not wrapped in a rolled-back transaction.</b> The
  * usual {@code @Transactional} test would join its transaction to the code under test, which
@@ -31,20 +27,16 @@ import org.springframework.test.context.DynamicPropertySource;
 public abstract class VectispireContextTest {
 
     /**
-     * A database file nobody has touched, one per JVM.
+     * This JVM's database, emptied before the context starts on it.
      *
-     * <p>A fresh file rather than a cleaning step, so there is no teardown that can half-fail
-     * and leave the next class running against a schema nobody can describe.
-     *
-     * <p>Not {@code :memory:} either — Flyway and Hibernate open separate connections, and each
-     * would get its own empty database: the schema would be built in one and validated against
-     * another, and the failure reads as a missing table.
+     * <p>Shared by every context rather than one each, since migrating MySQL once per context would add
+     * a minute ({@link TestDatabase}); the emptying is what keeps a context's start-up — its repairs,
+     * its resumed purges — from finding what the previous class's last test left.
      */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
-        Path file = Path.of(System.getProperty("java.io.tmpdir"), "vectispire-apitest-" + UUID.randomUUID() + ".db");
-        file.toFile().deleteOnExit();
-        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
+        TestDatabase.emptyBeforeAContextStarts(TABLES_CHILDREN_FIRST);
+        TestDatabase.register(registry);
     }
 
     /**
@@ -116,7 +108,7 @@ public abstract class VectispireContextTest {
             "t_agent",
             "t_repository",
             // After t_repository, which names its project, and before t_solution, which the
-            // project names: the foreign keys are enforced on this fixture.
+            // project names: the foreign keys are enforced.
             "t_project",
             "t_solution",
             "t_container",
@@ -130,11 +122,8 @@ public abstract class VectispireContextTest {
             "t_setting",
             "t_user");
 
-    @Autowired
-    private JdbcTemplate jdbc;
-
     @BeforeEach
     void emptyTheDatabase() {
-        TABLES_CHILDREN_FIRST.forEach(table -> jdbc.execute("delete from " + table));
+        TestDatabase.empty(TABLES_CHILDREN_FIRST);
     }
 }

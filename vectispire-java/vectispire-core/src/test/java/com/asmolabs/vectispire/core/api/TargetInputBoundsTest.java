@@ -17,11 +17,10 @@ import org.springframework.http.MediaType;
 /**
  * What a repository or an image form may hold, refused at the door rather than by the database.
  *
- * <p><b>Why over HTTP, and why the assertion is the status.</b> This suite runs on SQLite, which
- * does not enforce a {@code varchar} length: a 300-character branch is stored here and refused by
- * MySQL and PostgreSQL at the write, as a 500. So a test that only checked "the row is not stored"
- * would be green without the guard on SQLite and meaningless on the others. The guard is what
- * answers 400, on every engine, before the database is asked.
+ * <p><b>Why over HTTP, and why the assertion is the status.</b> A 300-character branch is refused by
+ * MySQL and PostgreSQL at the write, as a 500 — so a test that only checked "the row is not stored"
+ * would be green without the guard. The guard is what answers 400, on every engine, before the
+ * database is asked.
  */
 @DisplayName("the bounds of a target form")
 class TargetInputBoundsTest extends ApiTestBase {

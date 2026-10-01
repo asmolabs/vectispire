@@ -66,7 +66,9 @@ class ComplianceRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/compliance/export.pdf?targetId=repo:7"), asAdmin()))
                 .andExpect(status().isOk());
 
-        assertThat(auditEntries.findAll())
+        // In the chain's order, not `findAll`'s: the keys are random UUIDs, and only SQLite's rowid
+        // made the unordered read look like the order of the requests.
+        assertThat(auditEntries.findAllByOrderByTimestampAscIdAsc())
                 .filteredOn(entry -> AuditOperation.REPORT_EXPORTED.wireName().equals(entry.getOperationType()))
                 .extracting(AuditLogEntity::getDescription)
                 .containsExactly(

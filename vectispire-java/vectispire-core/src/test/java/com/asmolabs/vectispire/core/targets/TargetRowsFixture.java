@@ -63,7 +63,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * A target carrying a row in every table that names it, directly or through its issues and scans.
  *
- * <p><b>Two copies, kept identical:</b> under {@code src/test} for the unit suite on SQLite, and under
+ * <p><b>Two copies, kept identical:</b> under {@code src/test} for the unit suite on MySQL, and under
  * {@code src/integrationTest} for the campaign on PostgreSQL, MySQL and the fixture. The campaign's
  * source set does not see the unit suite's classes, and widening its classpath to them would bring
  * the unit suite's configuration along. Change one, change the other.

@@ -200,9 +200,9 @@ class TeamVisibilityTest extends ApiTestBase {
         mvc.perform(authenticated(delete("/api/v1/teams/" + team), asAdmin()))
                 .andExpect(status().isNoContent());
 
-        // **The row, not the response.** The schema cascades and this suite runs on SQLite, where
-        // a cascade is decoration unless `PRAGMA foreign_keys = ON` was issued — which nothing
-        // does. Measured on a real file before this was written: the row survived. It is not an
+        // **The row, not the response.** The schema cascades, and a cascade an engine does not honour
+        // — SQLite's before its pragma was issued, MySQL's declared inline — is decoration. Measured on
+        // a SQLite file before this was written: the row survived. It is not an
         // access-control hole, since AUTOINCREMENT means no later team inherits the identifier,
         // but it is a bearer capability outliving its owner in a table nothing purges and no
         // screen shows.

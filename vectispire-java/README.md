@@ -372,8 +372,9 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 
 ## What the suites cover
 
-`./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against a
-real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
+`./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against
+MySQL — one container per test JVM through Testcontainers, or the server `VECTISPIRE_TEST_DB_URL`
+names, and without either it fails rather than skips (decision 0034, `TestDatabase`). `./gradlew integrationTestAll` runs the schema and concurrency checks on
 PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
 **when anything engine-sensitive changed** — a migration, a module's `core/<module>/persistence/`

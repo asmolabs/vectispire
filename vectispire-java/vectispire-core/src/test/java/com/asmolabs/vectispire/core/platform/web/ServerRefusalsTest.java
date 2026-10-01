@@ -2,16 +2,15 @@ package com.asmolabs.vectispire.core.platform.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.core.TestDatabase;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.UUID;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.valves.ErrorReportValve;
 import org.junit.jupiter.api.DisplayName;
@@ -50,11 +49,10 @@ class ServerRefusalsTest {
     @Autowired
     private ServletWebServerApplicationContext context;
 
+    /** The suite's database: this class writes nothing, and the next context to start empties it anyway. */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
-        Path file = Path.of(System.getProperty("java.io.tmpdir"), "vectispire-servertest-" + UUID.randomUUID() + ".db");
-        file.toFile().deleteOnExit();
-        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
+        TestDatabase.register(registry);
     }
 
     @ParameterizedTest(name = "{0}")

@@ -23,9 +23,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * The purge of a deleted target runs children before parents, phase by phase.
  *
  * <p><b>Why the order is checked apart from the outcome.</b> Every foreign key into these tables
- * cascades or sets null, and this fixture issues the pragma that makes SQLite honour them: a purge
- * that deleted parents first would still end with nothing left, here and on both deployable engines —
- * until the day a key becomes {@code restrict}, or the pragma goes. So probes stand between the
+ * cascades or sets null, and the engines honour them: a purge that deleted parents first would
+ * still end with nothing left, here and in the campaign — until the day a key becomes {@code
+ * restrict}, or goes. So probes stand between the
  * phases and look: before the issues go, nothing may still hang off them and they must still be
  * there; before the scans go, likewise. A listener given the wrong phase is caught by the probe it
  * crosses, not by a constraint that today never fires.
