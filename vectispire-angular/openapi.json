@@ -18298,11 +18298,11 @@
     "description" : "Each framework's verdict over time, with what moved it",
     "name" : "Compliance history"
   }, {
-    "description" : "Software Bill of Materials (CycloneDX, SPDX), CSAF and OpenVEX documents",
-    "name" : "SBOM & VEX"
-  }, {
     "description" : "Posture grades, security scorecards and SVG badges",
     "name" : "Scorecards"
+  }, {
+    "description" : "Software Bill of Materials (CycloneDX), CSAF and OpenVEX documents",
+    "name" : "SBOM & VEX"
   }, {
     "description" : "ISO 27001 clause 6.1.3 d — what is claimed, against what is measured",
     "name" : "Statement of Applicability"

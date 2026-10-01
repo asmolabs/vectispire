@@ -56,7 +56,7 @@ public class OpenApiConfiguration {
                         new Tag().name("Compliance").description("Regulatory conformity frameworks (NIS2, ISO 27001, CRA, SOC2, PCI-DSS)"),
                         new Tag().name("Scorecards").description("Posture grades, security scorecards and SVG badges"),
                         new Tag().name("Containers").description("Container image registry tracking, digest verification and scanning"),
-                        new Tag().name("SBOM & VEX").description("Software Bill of Materials (CycloneDX, SPDX), CSAF and OpenVEX documents"),
+                        new Tag().name("SBOM & VEX").description("Software Bill of Materials (CycloneDX), CSAF and OpenVEX documents"),
                         new Tag().name("Agents").description("Remote scanner agents protocol, tasks dispatching and heartbeat"),
                         new Tag().name("Administration").description("Users, teams, RBAC roles, SSH keys, audit logging and system settings")
                 ))
