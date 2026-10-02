@@ -374,6 +374,82 @@ class ChecklistRendererTest {
         }
     }
 
+    // ------------------------------------------------------------------ the trial at publication
+
+    @Nested
+    @DisplayName("the trial rendering a publication runs")
+    class Trial {
+
+        private static final String G7_MASTER = "<c r=\"G7\"><f t=\"shared\" ref=\"G7:G8\" si=\"0\">LEN(F7)</f><v>0</v></c>";
+        private static final String G8_DEPENDENT = "<c r=\"G8\"><f t=\"shared\" si=\"0\"/><v>0</v></c>";
+        private static final String G9_ARRAY = "<c r=\"G9\"><f t=\"array\" ref=\"G9:G10\">ROW(A1:A2)</f><v>1</v></c>";
+
+        @Test
+        @DisplayName("names every written cell carrying a formula others depend on, at once — a shared master and an array")
+        void namesEveryCell() {
+            XlsxFixture fixture = new XlsxFixture();
+            fixture.put(SHEET, fixture.parts.get(SHEET)
+                    .replace("<c r=\"D7\" t=\"s\"><v>15</v></c></row>", "<c r=\"D7\" t=\"s\"><v>15</v></c>" + G7_MASTER + "</row>")
+                    .replace("<c r=\"E8\" t=\"s\"><v>17</v></c></row>", "<c r=\"E8\" t=\"s\"><v>17</v></c>" + G8_DEPENDENT + "</row>")
+                    .replace("<c r=\"D9\" t=\"s\"><v>19</v></c></row>", "<c r=\"D9\" t=\"s\"><v>19</v></c>" + G9_ARRAY + "</row>"));
+            byte[] template = fixture.bytes();
+
+            assertThatThrownBy(() -> ChecklistRenderer.trial(template, layout(), items(template)))
+                    .isInstanceOfSatisfying(WrittenFormulaException.class, refused -> {
+                        assertThat(refused.cells()).containsExactly(
+                                new WrittenFormulaException.Cell("G7", "shared", "G7:G8"),
+                                new WrittenFormulaException.Cell("G9", "array", "G9:G10"));
+                        assertThat(refused.getMessage())
+                                .contains("G7 (the master of a formula shared across G7:G8)")
+                                .contains("G9 (an array formula over G9:G10)")
+                                .contains("Un-share the formula");
+                    });
+            // The sign-off meets the same refusal through the same code: the trial predicts nothing.
+            assertThatThrownBy(() -> ChecklistRenderer.render(template, layout(), statement(template, true)))
+                    .isInstanceOf(WrittenFormulaException.class);
+        }
+
+        @Test
+        @DisplayName("writes every line's answer and comment, so a master in a line the sign-off writes is met")
+        void writesEveryLine() {
+            XlsxFixture fixture = new XlsxFixture();
+            // The last line's comment: a trial answering only some lines would miss it.
+            fixture.put(SHEET, fixture.parts.get(SHEET).replace("</row></sheetData>",
+                    "<c r=\"G11\"><f t=\"shared\" ref=\"G11:H11\" si=\"1\">LEN(F11)</f><v>0</v></c></row></sheetData>"));
+            byte[] template = fixture.bytes();
+            assertThat(fixture.parts.get(SHEET)).contains("G11");
+
+            assertThatThrownBy(() -> ChecklistRenderer.trial(template, layout(), items(template)))
+                    .isInstanceOfSatisfying(WrittenFormulaException.class,
+                            refused -> assertThat(refused.cells()).extracting(WrittenFormulaException.Cell::cell)
+                                    .containsExactly("G11"));
+        }
+
+        @Test
+        @DisplayName("a dependent cell, and a formula shared outside the written cells, are no reason to refuse")
+        void aDependentIsWritable() {
+            XlsxFixture fixture = new XlsxFixture();
+            // H7 holds the master, outside the layout's columns; G8, written, only points at it.
+            fixture.put(SHEET, fixture.parts.get(SHEET)
+                    .replace("<c r=\"D7\" t=\"s\"><v>15</v></c></row>", "<c r=\"D7\" t=\"s\"><v>15</v></c>"
+                            + "<c r=\"H7\"><f t=\"shared\" ref=\"H7:H8\" si=\"0\">LEN(F7)</f><v>0</v></c></row>")
+                    .replace("<c r=\"E8\" t=\"s\"><v>17</v></c></row>", "<c r=\"E8\" t=\"s\"><v>17</v></c>" + G8_DEPENDENT
+                            + "<c r=\"H8\"><f t=\"shared\" si=\"0\"/><v>0</v></c></row>"));
+            byte[] template = fixture.bytes();
+
+            Sheet filled = Workbook.read(ChecklistRenderer.trial(template, layout(), items(template)), 10L * 1024 * 1024)
+                    .sheet("Checklist").orElseThrow();
+            assertThat(text(filled, "F7")).isEqualTo("Done");
+            assertThat(text(filled, "G8")).isEqualTo(ChecklistRenderer.TRIAL_TEXT);
+            assertThat(text(filled, "G11")).as("the last line too").isEqualTo(ChecklistRenderer.TRIAL_TEXT);
+            assertThat(text(filled, "B3")).as("the header").isEqualTo(ChecklistRenderer.TRIAL_TEXT);
+        }
+
+        private static List<ChecklistItem> items(byte[] template) {
+            return TemplateVersion.read(Workbook.read(template, 10L * 1024 * 1024), layout()).items();
+        }
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static XlsxFixture withCalcChain(XlsxFixture fixture) {

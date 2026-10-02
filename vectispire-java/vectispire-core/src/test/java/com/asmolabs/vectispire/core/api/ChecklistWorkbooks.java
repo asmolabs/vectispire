@@ -56,6 +56,22 @@ final class ChecklistWorkbooks {
     private ChecklistWorkbooks() {}
 
     static byte[] of(List<Line> lines) {
+        return of(lines, false);
+    }
+
+    /**
+     * {@link #of} with a helper formula in the comment column, as a template author writes one —
+     * {@code IF(F7="Not done","Explain why","")} on the first line, filled down. Excel saves a formula
+     * filled down as <b>shared</b>: its text on the first cell alone, the master, whose {@code ref}
+     * names the range; the cells below carry only its {@code si}. The comment column is a cell
+     * Vectispire writes, so the first line's answer would overwrite the master and leave the others
+     * pointing at nothing.
+     */
+    static byte[] withSharedCommentFormula(List<Line> lines) {
+        return of(lines, true);
+    }
+
+    private static byte[] of(List<Line> lines, boolean sharedComment) {
         Map<String, String> parts = new LinkedHashMap<>();
         parts.put("[Content_Types].xml", """
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -87,7 +103,7 @@ final class ChecklistWorkbooks {
                 <Relationship Id="rId3" Type="%2$s/worksheet" Target="worksheets/sheet3.xml"/>\
                 </Relationships>""".formatted(PACKAGE_REL, REL));
         parts.put("xl/worksheets/sheet1.xml", sheet(row(1, text("A1", "Read every line and answer it.")), ""));
-        parts.put("xl/worksheets/sheet2.xml", sheet(checklistRows(lines), """
+        parts.put("xl/worksheets/sheet2.xml", sheet(checklistRows(lines, sharedComment), """
                 <mergeCells count="1"><mergeCell ref="A1:G1"/></mergeCells>\
                 <extLst><ext uri="{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}" \
                 xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">\
@@ -103,7 +119,7 @@ final class ChecklistWorkbooks {
         return zip(entries);
     }
 
-    private static String checklistRows(List<Line> lines) {
+    private static String checklistRows(List<Line> lines, boolean sharedComment) {
         StringBuilder rows = new StringBuilder()
                 .append(row(1, text("A1", "Release checklist")))
                 .append("<row r=\"2\">").append(text("A2", "Date")).append("<c r=\"B2\"><f>TODAY()</f><v>46293</v></c></row>")
@@ -120,6 +136,13 @@ final class ChecklistWorkbooks {
                 if (!values[column].isEmpty()) {
                     cells.add(text((char) ('A' + column) + String.valueOf(number), values[column]));
                 }
+            }
+            if (sharedComment) {
+                int last = FIRST_ITEM_ROW + lines.size() - 1;
+                cells.add(i == 0
+                        ? "<c r=\"G" + number + "\" t=\"str\"><f t=\"shared\" ref=\"G" + number + ":G" + last
+                                + "\" si=\"0\">IF(F" + number + "=\"Not done\",\"Explain why\",\"\")</f><v></v></c>"
+                        : "<c r=\"G" + number + "\" t=\"str\"><f t=\"shared\" si=\"0\"/><v></v></c>");
             }
             rows.append(row(number, String.join("", cells)));
         }

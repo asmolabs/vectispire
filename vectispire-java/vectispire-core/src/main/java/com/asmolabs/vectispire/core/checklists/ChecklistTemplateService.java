@@ -7,15 +7,18 @@ import com.asmolabs.vectispire.common.domain.checklists.CellValue;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistColumn;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistItem;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistLayout;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistRenderer;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule;
 import com.asmolabs.vectispire.common.domain.checklists.EvidenceRequirement;
 import com.asmolabs.vectispire.common.domain.checklists.HeaderCell;
+import com.asmolabs.vectispire.common.domain.checklists.InvalidTemplateException;
 import com.asmolabs.vectispire.common.domain.checklists.ItemKey;
 import com.asmolabs.vectispire.common.domain.checklists.LayoutProposal;
 import com.asmolabs.vectispire.common.domain.checklists.Sheet;
 import com.asmolabs.vectispire.common.domain.checklists.TemplateVersion;
 import com.asmolabs.vectispire.common.domain.checklists.VersionPairing;
 import com.asmolabs.vectispire.common.domain.checklists.Workbook;
+import com.asmolabs.vectispire.common.domain.checklists.WrittenFormulaException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -510,8 +513,9 @@ public class ChecklistTemplateService {
      *
      * @param reviewedRevision the revision the publisher read — a draft edited since is refused
      * @throws ChecklistConflict {@code checklist-template-not-draft}, {@code checklist-template-no-layout},
-     *     {@code checklist-template-changed} (edited since the review), or {@code checklist-four-eyes} — with
-     *     four-eyes on, the publisher is one of its authors (409)
+     *     {@code checklist-template-changed} (edited since the review), {@code checklist-four-eyes} — with
+     *     four-eyes on, the publisher is one of its authors — or {@code checklist-template-unrenderable}, a
+     *     workbook a sign-off could not be written into (409)
      */
     public ChecklistVersionView publish(String slug, int ordinal, Integer reviewedRevision, Editor editor) {
         if (reviewedRevision == null) {
@@ -523,6 +527,7 @@ public class ChecklistTemplateService {
         requireLayout(version, "publishing it");
         requireSeen(template, version, reviewedRevision, "publishing it");
         boolean fourEyes = requireAnotherPerson(template, version, editor, "published");
+        requireRenderable(template, version);
         Instant now = clock.instant();
 
         transactions.executeWithoutResult(status -> requireStill(versions.publish(version.getId(), reviewedRevision,
@@ -566,6 +571,33 @@ public class ChecklistTemplateService {
                                 + ", a draft never published, set aside.");
         audit.record(published ? entry.signalling(SecurityEventType.CHECKLIST_TEMPLATE_CHANGED) : entry);
         return versionView(template, version.getId());
+    }
+
+    // ------------------------------------------------------------------ the trial rendering
+
+    /**
+     * Refuses a draft whose workbook a sign-off could not be written into, by filling it in once with
+     * placeholder answers ({@link ChecklistRenderer#trial}) — the renderer the sign-off calls, not a second
+     * reading of the workbook that could drift from it. Before this, such a version was published, projects
+     * answered checklists on it, and every sign-off failed, for good: the defect is in the workbook, which a
+     * published version never changes.
+     *
+     * <p>Outside any transaction, like the import's reading: the rendering is the costly part and holds no
+     * row. Nothing of it is kept — no document, no signature (this service holds no key), no audit entry.
+     */
+    private void requireRenderable(ChecklistTemplateEntity template, ChecklistTemplateVersionEntity version) {
+        List<ChecklistItem> lines = items.findByVersionIdOrderByPositionAsc(version.getId()).stream()
+                .map(ChecklistTemplateService::domain).toList();
+        try {
+            ChecklistRenderer.trial(version.getSourceBytes(), forms.layout(version.getLayout()), lines);
+        } catch (InvalidTemplateException refused) {
+            List<WrittenFormulaException.Cell> cells = refused instanceof WrittenFormulaException written
+                    ? written.cells()
+                    : List.of();
+            throw ChecklistConflict.unrenderable("Version " + version.getOrdinal() + " of \"" + template.getSlug()
+                    + "\" cannot be published: no sign-off could fill its workbook in. " + refused.getMessage()
+                    + " A version's workbook never changes once imported: set this draft aside first.", cells);
+        }
     }
 
     // ------------------------------------------------------------------ four-eyes

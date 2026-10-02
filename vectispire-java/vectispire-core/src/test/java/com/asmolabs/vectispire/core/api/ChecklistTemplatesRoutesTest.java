@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.checklists.ChecklistLayoutForm;
 import com.asmolabs.vectispire.core.checklists.ChecklistVersionView;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -57,6 +58,9 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
 
     @Autowired
     private ChecklistTemplateVersionRepository versions;
+
+    @Autowired
+    private ChecklistDocumentRepository documents;
 
     private String importerName;
     private String importer;
@@ -311,6 +315,45 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             publish(importer, "release", 1, revision).andExpect(status().isOk());
             assertThat(entries("CHECKLIST_TEMPLATE_PUBLISHED")).singleElement()
                     .satisfies(entry -> assertThat(entry.getDescription()).contains("four-eyes not required"));
+        }
+
+        @Test
+        @DisplayName("refuses a draft no sign-off could fill in, naming the written cell that carries a shared formula")
+        void refusesAnUnrenderableDraft() throws Exception {
+            exportTo("127.0.0.1:9");
+            // The comment column holds a helper formula filled down G7:G9; G7, which a sign-off writes, is its
+            // master. Published before the trial, every sign-off on it answered 400 and the revision stayed
+            // submitted for good.
+            importWorkbook(importer, "release", ChecklistWorkbooks.withSharedCommentFormula(ChecklistWorkbooks.FIRST), "")
+                    .andExpect(status().isCreated());
+            int revision = read(confirm(importer, "release", 1, layout(9)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+            long entriesBefore = auditLog.count();
+
+            MvcResult refused = publish(reviewer, "release", 1, revision).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "checklist-template-unrenderable");
+            assertThat(detailOf(refused)).contains("G7 (the master of a formula shared across G7:G9)")
+                    .contains("Un-share the formula").contains("set this draft aside");
+            JsonNode cells = json.readTree(refused.getResponse().getContentAsString()).path("cells");
+            assertThat(cells).hasSize(1);
+            assertThat(cells.get(0).path("cell").asText()).isEqualTo("G7");
+            assertThat(cells.get(0).path("kind").asText()).isEqualTo("shared");
+            assertThat(cells.get(0).path("range").asText()).isEqualTo("G7:G9");
+
+            // The trial leaves nothing behind: not published, no entry, no event, no document.
+            assertThat(statusOf("release", 1)).isEqualTo("draft");
+            assertThat(auditLog.count()).as("no audit entry of any kind").isEqualTo(entriesBefore);
+            assertThat(queued("CHECKLIST_TEMPLATE_CHANGED")).isEmpty();
+            assertThat(documents.count()).isZero();
+
+            // The way out: the draft set aside, the corrected workbook imported and published.
+            mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), importer)).andExpect(status().isOk());
+            importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")
+                    .andExpect(status().isCreated());
+            int corrected = read(confirm(importer, "release", 2, layout(9)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+            publish(reviewer, "release", 2, corrected).andExpect(status().isOk());
+            assertThat(documents.count()).as("a publication renders nothing it keeps").isZero();
         }
 
         @Test

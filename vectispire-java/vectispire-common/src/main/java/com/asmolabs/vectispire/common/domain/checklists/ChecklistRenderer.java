@@ -84,6 +84,48 @@ public final class ChecklistRenderer {
 
     private ChecklistRenderer() {}
 
+    /** The words a {@linkplain #trial trial} writes: never seen, but the length of real ones. */
+    static final String TRIAL_TEXT = "Trial rendering";
+
+    /**
+     * Fills the workbook in as a sign-off would, with placeholder answers — every line answered, commented,
+     * the header dated — through {@link #render} itself, and returns what it produced, which nobody keeps.
+     *
+     * <p>Why at publication: a template the renderer cannot write into used to be found at the first
+     * sign-off, by which time a project had answered every line of a checklist that could never be signed
+     * — and its draft could not even be exported. Every cell a sign-off writes is written here (the
+     * renderer writes the answer and comment cells of every line and every header cell, whatever they
+     * receive), so a refusal the sign-off would meet is met here, in the same code, rather than predicted
+     * by a second reading of the workbook that could drift from it.
+     *
+     * <p>Pure computation: no row, no signature, no audit entry — the caller holds no key to give it.
+     *
+     * @param items the version's lines, as its layout read them: their rows are where the answers go
+     * @throws InvalidTemplateException as {@link #render} does, {@link WrittenFormulaException} included
+     */
+    public static byte[] trial(byte[] template, ChecklistLayout layout, List<ChecklistItem> items) {
+        Objects.requireNonNull(template, "template");
+        Objects.requireNonNull(layout, "layout");
+        Instant at = DocumentZip.ENTRY_TIME.toInstant(ZoneOffset.UTC);
+        ChecklistAnswer given = ChecklistAnswer.YES;
+        List<ChecklistStatement.Line> lines = new ArrayList<>();
+        for (ChecklistItem item : items) {
+            ChecklistStatement.Answer answer = new ChecklistStatement.Answer(item.position(), given.wireName(),
+                    layout.answers().written(given), TRIAL_TEXT, TRIAL_TEXT, AnswerAuthor.PERSON.wireName(), at, null, null, null,
+                    false, false);
+            lines.add(new ChecklistStatement.Line(item.position(), item.key().value(), item.position(), item.row(),
+                    item.domain(), item.objective(), item.control(), item.contact(), item.kpi(), item.contentDigest(),
+                    item.evidence().kind().wireName(), item.evidence().validityMonths().orElse(null), answer,
+                    List.of(answer), null, Reconciliation.NOT_MEASURED_HERE.wireName(), List.of()));
+        }
+        ChecklistStatement.Act act = new ChecklistStatement.Act(TRIAL_TEXT, at);
+        ChecklistStatement statement = new ChecklistStatement(ChecklistStatement.FORM, "signed_off", true,
+                new ChecklistStatement.Project(0, TRIAL_TEXT), 1,
+                new ChecklistStatement.Template(TRIAL_TEXT, TRIAL_TEXT, 1, null, Digests.sha256Hex(template)),
+                new ChecklistStatement.Header(TRIAL_TEXT, TRIAL_TEXT, at), act, act, act, false, null, at, lines);
+        return render(template, layout, statement);
+    }
+
     /**
      * Renders the filled workbook.
      *
@@ -91,8 +133,9 @@ public final class ChecklistRenderer {
      * @param layout the version's confirmed layout: the only thing read to know where to write
      * @throws IllegalStateException when the template does not hash to the statement's source SHA-256, or a
      *     line names a row outside the layout's items — the rows this was given do not belong together
-     * @throws InvalidTemplateException past the reader's guards, or a cell the renderer cannot replace
-     *     without breaking others: the master of a formula shared with other cells
+     * @throws InvalidTemplateException past the reader's guards
+     * @throws WrittenFormulaException a cell the renderer cannot replace without breaking others: the master
+     *     of a formula shared with other cells, or an array formula spanning several — every one named
      */
     public static byte[] render(byte[] template, ChecklistLayout layout, ChecklistStatement statement) {
         Objects.requireNonNull(template, "template");
@@ -522,6 +565,7 @@ public final class ChecklistRenderer {
         private final StringBuilder out = new StringBuilder();
         private int copied;
         private boolean formulaRemoved;
+        private final List<WrittenFormulaException.Cell> dependedOn = new ArrayList<>();
         private String prefix = "";
         private String namespace = MAIN_NAMESPACE;
 
@@ -590,6 +634,11 @@ public final class ChecklistRenderer {
             if (!pending.isEmpty()) {
                 throw new InvalidTemplateException("The checklist sheet has no sheetData to write rows "
                         + pending.firstKey() + " to.");
+            }
+            // Every such cell named at once, after the whole sheet was walked: one refusal per cell would
+            // have the person import the workbook again for each.
+            if (!dependedOn.isEmpty()) {
+                throw new WrittenFormulaException(dependedOn);
             }
             out.append(xml, copied, xml.length());
             return new SheetPatch(out.toString(), formulaRemoved, namespace);
@@ -662,9 +711,8 @@ public final class ChecklistRenderer {
                     String type = tag.attribute("t").orElse("normal");
                     if ((type.equals("shared") || type.equals("array")) && ref.isPresent()
                             && !CellRange.parse(ref.get()).map(range -> range.first().equals(range.last())).orElse(false)) {
-                        throw new InvalidTemplateException("Cell " + reference + " of the checklist sheet holds a formula "
-                                + "other cells share (" + BoundedText.clip(ref.get(), 30) + "): writing into it would break "
-                                + "them. Move the formula out of the cells the layout writes and import the workbook again.");
+                        dependedOn.add(new WrittenFormulaException.Cell(reference.toString(), type,
+                                BoundedText.clip(ref.get().strip(), 30)));
                     }
                 }
                 if (tag.local().equals("c") && tag.kind() == XmlCursor.Kind.END) {

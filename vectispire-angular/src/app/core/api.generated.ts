@@ -879,7 +879,7 @@ export interface paths {
         put?: never;
         /**
          * Publish checklist template version
-         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on).
+         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on), checklist-template-unrenderable (the workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes carries a formula other cells depend on — the master of a shared formula, or an array formula — and the problem's cells member names each: cell, kind shared or array, range).
          */
         post: operations["publishVersion"];
         delete?: never;

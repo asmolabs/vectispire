@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists;
 
+import com.asmolabs.vectispire.common.domain.checklists.WrittenFormulaException;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +82,12 @@ public class ChecklistConflict extends ConflictException {
         /** The version is already retired. */
         TEMPLATE_RETIRED("checklist-template-retired"),
         /** The draft follows no published version, so there is nothing to pair its items with. */
-        TEMPLATE_NOTHING_TO_PAIR("checklist-template-nothing-to-pair");
+        TEMPLATE_NOTHING_TO_PAIR("checklist-template-nothing-to-pair"),
+        /**
+         * The draft's workbook cannot be filled in as a sign-off fills it — a cell the layout writes carries a
+         * formula other cells depend on: correct the workbook, set the draft aside and import it again.
+         */
+        TEMPLATE_UNRENDERABLE("checklist-template-unrenderable");
 
         private final String token;
 
@@ -113,6 +119,17 @@ public class ChecklistConflict extends ConflictException {
     private ChecklistConflict(Cause reason, String message, Map<String, ?> members) {
         super(message, reason.token(), members);
         this.reason = reason;
+    }
+
+    /**
+     * A {@link Cause#TEMPLATE_UNRENDERABLE} refusal naming, in the problem's {@code cells} member, each written
+     * cell that carries a formula others depend on — {@code cell}, {@code kind} ({@code shared} or {@code
+     * array}) and {@code range} — when that is the reason; without the member for another one.
+     */
+    static ChecklistConflict unrenderable(String message, List<WrittenFormulaException.Cell> cells) {
+        return cells.isEmpty()
+                ? new ChecklistConflict(Cause.TEMPLATE_UNRENDERABLE, message)
+                : new ChecklistConflict(Cause.TEMPLATE_UNRENDERABLE, message, Map.of("cells", List.copyOf(cells)));
     }
 
     /**

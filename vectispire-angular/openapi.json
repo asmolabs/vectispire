@@ -11511,7 +11511,7 @@
     },
     "/api/v1/checklist-templates/{slug}/versions/{ordinal}/publish" : {
       "post" : {
-        "description" : "Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on).",
+        "description" : "Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on), checklist-template-unrenderable (the workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes carries a formula other cells depend on — the master of a shared formula, or an array formula — and the problem's cells member names each: cell, kind shared or array, range).",
         "operationId" : "publishVersion",
         "parameters" : [ {
           "in" : "path",
@@ -18509,9 +18509,6 @@
     "description" : "SARIF from declared internal sources",
     "name" : "SARIF import"
   }, {
-    "description" : "The organisation's checklist templates, imported from its workbooks. A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed, checklist-template-has-draft, checklist-template-not-published, checklist-template-retired, checklist-template-nothing-to-pair, checklist-four-eyes.",
-    "name" : "Checklist templates"
-  }, {
     "description" : "Each framework's verdict over time, with what moved it",
     "name" : "Compliance history"
   }, {
@@ -18550,6 +18547,9 @@
   }, {
     "description" : "Security findings, triage workflow, risk assessment and remediation",
     "name" : "Issues & Vulnerabilities"
+  }, {
+    "description" : "The organisation's checklist templates, imported from its workbooks. A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed, checklist-template-has-draft, checklist-template-not-published, checklist-template-retired, checklist-template-nothing-to-pair, checklist-template-unrenderable, checklist-four-eyes.",
+    "name" : "Checklist templates"
   }, {
     "description" : "Container image registry tracking, digest verification and scanning",
     "name" : "Containers"

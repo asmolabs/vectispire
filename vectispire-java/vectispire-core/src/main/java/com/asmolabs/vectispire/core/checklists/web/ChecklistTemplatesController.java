@@ -51,14 +51,16 @@ import org.springframework.web.bind.annotation.RestController;
  * version), {@code checklist-template-no-layout}, {@code checklist-template-changed} (changed since the
  * revision named — read it again), {@code checklist-template-has-draft} (one draft at a time), {@code
  * checklist-template-not-published} (derived from a draft or a retired version), {@code
- * checklist-template-retired}, {@code checklist-template-nothing-to-pair}, and {@code
- * checklist-four-eyes}, the project checklists' own token, since it means the same there.
+ * checklist-template-retired}, {@code checklist-template-nothing-to-pair}, {@code
+ * checklist-template-unrenderable} (a workbook no sign-off could fill in, found by a trial rendering at
+ * publication), and {@code checklist-four-eyes}, the project checklists' own token, since it means the
+ * same there.
  */
 @Tag(name = "Checklist templates", description = "The organisation's checklist templates, imported from its "
         + "workbooks. A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: "
         + "checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed, "
         + "checklist-template-has-draft, checklist-template-not-published, checklist-template-retired, "
-        + "checklist-template-nothing-to-pair, checklist-four-eyes.")
+        + "checklist-template-nothing-to-pair, checklist-template-unrenderable, checklist-four-eyes.")
 @RestController
 @RequestMapping("/api/v1/checklist-templates")
 public class ChecklistTemplatesController {
@@ -236,7 +238,10 @@ public class ChecklistTemplatesController {
             + "confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. "
             + "400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, "
             + "checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the "
-            + "caller while four-eyes is on).")
+            + "caller while four-eyes is on), checklist-template-unrenderable (the workbook is filled in once with "
+            + "placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes "
+            + "carries a formula other cells depend on — the master of a shared formula, or an array formula — "
+            + "and the problem's cells member names each: cell, kind shared or array, range).")
     @PostMapping("/{slug}/versions/{ordinal}/publish")
     @RequiresSecurityLead
     public ChecklistVersionView publishVersion(
