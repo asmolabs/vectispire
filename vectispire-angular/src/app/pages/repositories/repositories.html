@@ -209,7 +209,7 @@
                 id="url"
                 [(ngModel)]="form.url"
                 (ngModelChange)="onUrlChange()"
-                placeholder="https://github.com/org/projet.git"
+                placeholder="https://github.com/org/repo.git"
             />
             <small class="text-muted-color">{{ 'repositories.url_hint' | translate }}</small>
             @if (urlCarriesSecret()) {
@@ -373,7 +373,7 @@
                     @if (badge(); as state) {
                         @if (state.published && state.url) {
                             <div class="flex items-center justify-between gap-4">
-                                <img [src]="state.url" alt="Vectispire Security Badge" class="h-6" />
+                                <img [src]="state.url" [alt]="'repositories.badge_alt' | translate" class="h-6" />
                                 <div class="flex items-center gap-2">
                                     <p-button
                                         [label]="

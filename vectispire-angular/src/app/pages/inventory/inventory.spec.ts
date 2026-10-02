@@ -213,4 +213,53 @@ describe('the component search', () => {
         expect(label).toContain('#34');
         expect(label).toContain('main');
     });
+
+    it("names each change in the reader's language, not in the French it was first typed in", () => {
+        // The tags read `AJOUTÉ`, `SUPPRIMÉ`, `INCHANGÉ` as static attributes, to every reader: no
+        // language preference reached them, and no check read a `value=`.
+        TestBed.inject(I18nService).translations.set({
+            inventory: {
+                delta_added: 'ADDED',
+                delta_removed: 'REMOVED',
+                delta_version: 'VERSION',
+                delta_license: 'LICENSE',
+                delta_unchanged: 'UNCHANGED'
+            }
+        });
+        const page = fixture.componentInstance;
+        page.activeTab.set('diff');
+        page.diffReport.set(
+            asSchema('SbomDiffReport', {
+                fromScanId: 33,
+                toScanId: 34,
+                fromVersion: null,
+                toVersion: null,
+                cveDeltas: [],
+                addedCount: 1,
+                removedCount: 1,
+                versionChangedCount: 1,
+                licenseChangedCount: 1,
+                resolvedCveCount: 0,
+                introducedCveCount: 0,
+                componentDeltas: (['ADDED', 'REMOVED', 'VERSION_CHANGED', 'LICENSE_CHANGED', 'UNCHANGED'] as const).map(
+                    (changeType, index) => ({
+                        name: `lib-${index}`,
+                        changeType,
+                        type: null,
+                        purl: null,
+                        oldVersion: null,
+                        newVersion: null,
+                        oldLicense: null,
+                        newLicense: null
+                    })
+                )
+            })
+        );
+        fixture.detectChanges();
+
+        const tags = [...(fixture.nativeElement as HTMLElement).querySelectorAll('p-tag')].map((tag) =>
+            tag.textContent.trim()
+        );
+        expect(tags).toEqual(['ADDED', 'REMOVED', 'VERSION', 'LICENSE', 'UNCHANGED']);
+    });
 });

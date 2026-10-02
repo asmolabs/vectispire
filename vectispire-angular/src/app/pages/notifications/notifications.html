@@ -64,9 +64,15 @@
                                 }}</span>
                             </div>
                             @if (c.configured) {
-                                <p-tag severity="success" value="Configuré"></p-tag>
+                                <p-tag
+                                    severity="success"
+                                    [value]="'notifications.channel_configured' | translate"
+                                ></p-tag>
                             } @else {
-                                <p-tag severity="secondary" value="Inactif"></p-tag>
+                                <p-tag
+                                    severity="secondary"
+                                    [value]="'notifications.channel_inactive' | translate"
+                                ></p-tag>
                             }
                         </div>
 

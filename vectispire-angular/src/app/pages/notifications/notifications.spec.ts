@@ -60,6 +60,11 @@ describe('the notification channels screen', () => {
             expect(text).toContain('Teams');
             expect(text).toContain('https://hooks.slack.com/services/T000/B000/…');
             expect(text).toContain('notifications.not_set');
+            // The state of each channel, once written "Configuré" and "Inactif" to every reader.
+            const states = [...(fixture.nativeElement as HTMLElement).querySelectorAll('p-tag')].map((tag) =>
+                tag.textContent.trim()
+            );
+            expect(states).toEqual(['notifications.channel_configured', 'notifications.channel_inactive']);
         });
 
         it('offers a test only on a configured channel', () => {

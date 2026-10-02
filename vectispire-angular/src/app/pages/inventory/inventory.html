@@ -229,15 +229,15 @@
                             </td>
                             <td>
                                 @if (delta.changeType === 'ADDED') {
-                                    <p-tag value="AJOUTÉ" severity="success" />
+                                    <p-tag [value]="'inventory.delta_added' | translate" severity="success" />
                                 } @else if (delta.changeType === 'REMOVED') {
-                                    <p-tag value="SUPPRIMÉ" severity="danger" />
+                                    <p-tag [value]="'inventory.delta_removed' | translate" severity="danger" />
                                 } @else if (delta.changeType === 'VERSION_CHANGED') {
-                                    <p-tag value="VERSION" severity="info" />
+                                    <p-tag [value]="'inventory.delta_version' | translate" severity="info" />
                                 } @else if (delta.changeType === 'LICENSE_CHANGED') {
-                                    <p-tag value="LICENCE" severity="warn" />
+                                    <p-tag [value]="'inventory.delta_license' | translate" severity="warn" />
                                 } @else {
-                                    <p-tag value="INCHANGÉ" severity="secondary" />
+                                    <p-tag [value]="'inventory.delta_unchanged' | translate" severity="secondary" />
                                 }
                             </td>
                             <td>

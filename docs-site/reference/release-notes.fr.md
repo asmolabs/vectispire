@@ -161,6 +161,10 @@
   répondues… — étaient écrits au pluriel ou avec « (s) » et le restaient quel que soit le nombre. Chacun a
   désormais un singulier et un pluriel choisis par la règle de la langue : en français 0 prend le singulier
   (« 0 dépôt »), en anglais le pluriel (« 0 repositories »).
+- **Les derniers libellés figés dans une langue suivent la préférence de langue** : les étiquettes de
+  changement du différentiel d'inventaire, l'état d'un canal de notification, les étiquettes « UNPROTECTED »
+  et « HIGH RISK » de la surface d'attaque — désormais « NON PROTÉGÉ » et « RISQUE ÉLEVÉ » — et le texte
+  alternatif de l'image du badge.
 
 ## 0.10.0 — 1er octobre 2026
 

@@ -146,6 +146,9 @@
   scanned, components listed, checklist lines answered… — were written in the plural or with "(s)" and
   said so whatever the number. Each now has a singular and a plural chosen by the language's own rule: in
   French 0 takes the singular ("0 dépôt"), in English the plural ("0 repositories").
+- **The last labels frozen in one language follow the language preference**: the change tags of the
+  inventory diff ("AJOUTÉ", "SUPPRIMÉ"…), a notification channel's state ("Configuré", "Inactif"), the
+  "UNPROTECTED" and "HIGH RISK" tags of the attack surface, and the badge image's alternative text.
 
 ## 0.10.0 — 2026-10-01
 

@@ -558,7 +558,7 @@
                                 }}</span>
                             </td>
                             <td>
-                                <p-tag value="UNPROTECTED" severity="danger"></p-tag>
+                                <p-tag [value]="'attack_surface.tag_unprotected' | translate" severity="danger"></p-tag>
                             </td>
                             <td>
                                 <p-tag [value]="ep.visibility" severity="warn"></p-tag>
@@ -568,7 +568,7 @@
                                 {{ ep.filePath }}
                             </td>
                             <td>
-                                <p-tag value="HIGH RISK" severity="danger"></p-tag>
+                                <p-tag [value]="'attack_surface.tag_high_risk' | translate" severity="danger"></p-tag>
                             </td>
                         </tr>
                     </ng-template>

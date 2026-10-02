@@ -110,7 +110,7 @@ if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 2638;
+const EXPECTED_KEYS = 2649;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -515,6 +515,75 @@ if (messagesInCode !== MESSAGES_IN_CODE_CEILING) {
     process.exit(1);
 }
 
+// **The sixth rule: a static attribute a reader sees, which is never prose.**
+//
+// The ratchets above read `label`, `placeholder`, `header`, `title` and `ariaLabel`, and count only
+// what looks like prose: a space, or a capital and four letters. `<p-tag value="AJOUTÉ">` was in
+// none of those attributes, and `value="Configuré"`, `value="UNPROTECTED"`, `value="HIGH RISK"` with
+// it: the inventory diff told an English reader "SUPPRIMÉ", the notification channels "Inactif",
+// with every counter at zero. A tag's `value` is its whole visible text, and an `alt` is what a
+// screen reader says for an image — `alt="Vectispire Security Badge"` stayed English in French.
+//
+// So this one is a prohibition with no prose heuristic: any static value with a letter in it, on
+// an attribute that is shown or spoken, fails — the bound form `[value]="'key' | translate"` is the
+// only way to write one. `value` counts only on the display components; on an `<option>` or a radio
+// button it is the form's value, never shown. Text around an interpolation (`title="Delete {{ x }}"`)
+// counts too: the interpolated part is a value, the rest is a sentence in one language.
+//
+// **What passes.** A placeholder written in lower case without a space is an example of what to
+// type — a URL, a host, a branch, an image tag, `customer-network` — and is the same in every
+// language. And three exact values, each the same word in both: `KEV`, the name of CISA's Known
+// Exploited Vulnerabilities catalogue, which the French interface also calls KEV; `CI/CD`, the
+// trade's own term; and the PEM header of the key field, which a reader must recognise as it
+// stands. A fourth entry is a decision for the review, not a convenience.
+const SHOWN_ATTRIBUTES = new Set([
+    'label', 'header', 'subheader', 'placeholder', 'title', 'ariaLabel', 'aria-label', 'alt',
+    'pTooltip', 'emptyMessage', 'emptyFilterMessage', 'filterPlaceholder'
+]);
+const DISPLAY_COMPONENTS = new Set(['p-tag', 'p-badge', 'p-chip']);
+const STATIC_TOKENS = new Set(['KEV', 'CI/CD', '-----BEGIN PUBLIC KEY----- ...']);
+const exampleInput = /^[a-z0-9][a-z0-9./:_\-…]*$/;
+
+/** The opening tags of a template, read with their quotes respected: `[x]="a > b"` does not end one. */
+function* openingTags(source) {
+    for (const match of source.matchAll(/<([a-zA-Z][\w-]*)\b/g)) {
+        let quote = null;
+        let end = source.length;
+        for (let i = match.index; i < source.length; i += 1) {
+            const c = source[i];
+            if (quote) {
+                if (c === quote) quote = null;
+            } else if (c === '"' || c === "'") quote = c;
+            else if (c === '>') { end = i; break; }
+        }
+        yield { name: match[1], text: source.slice(match.index, end), at: match.index };
+    }
+}
+
+const frozenAttributes = [];
+for (const { file, source } of templates()) {
+    const raw = source.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '));
+    for (const tag of openingTags(raw)) {
+        for (const [, attribute, value] of tag.text.matchAll(/\s([a-zA-Z][\w-]*)="([^"]*)"/g)) {
+            const shown = SHOWN_ATTRIBUTES.has(attribute) || (attribute === 'value' && DISPLAY_COMPONENTS.has(tag.name));
+            if (!shown) continue;
+            const text = value.replace(/\{\{[\s\S]*?\}\}/g, '').trim();
+            if (!/[A-Za-zÀ-ÿ]/.test(text) || STATIC_TOKENS.has(text)) continue;
+            if (attribute === 'placeholder' && exampleInput.test(text)) continue;
+            const line = raw.slice(0, tag.at).split('\n').length;
+            frozenAttributes.push(`${file.slice(root.length + 1)}:${line}  <${tag.name} ${attribute}="${value}">`);
+        }
+    }
+}
+if (frozenAttributes.length > 0) {
+    console.error(`${frozenAttributes.length} static attribute(s) showing text no language preference reaches:`);
+    for (const offender of frozenAttributes) console.error(`  ${offender}`);
+    console.error(
+        `Bind it through the pipe — [value]="'section.key' | translate" — with the key in both bundles. ` +
+            `If it is a token every language writes alike, it belongs in STATIC_TOKENS, with its reason.`);
+    process.exit(1);
+}
+
 // **A plural key is referenced by its stem.** `t('repositories.scan_all_queued', { count })` reads
 // `scan_all_queued_one` or `scan_all_queued_other` as the language's rule says (I18nService.t), so
 // the stem is present when both forms are: the `_one` alone would leave every other count a raw
@@ -554,4 +623,5 @@ console.log(
     `${frozenFrench} frozen French labels in the templates (ceiling ${FRENCH_IN_TEMPLATES_CEILING}); ` +
     `${boundLabels} hard-coded labels inside a binding (ceiling ${BOUND_LABEL_CEILING}); ` +
     `${untranslated} untranslated strings in the templates (ceiling ${UNTRANSLATED_TEXT_CEILING}); ` +
-    `${messagesInCode} sentences in the code (ceiling ${MESSAGES_IN_CODE_CEILING}).`);
+    `${messagesInCode} sentences in the code (ceiling ${MESSAGES_IN_CODE_CEILING}); ` +
+    `no static attribute showing text (${STATIC_TOKENS.size} tokens allowed).`);
