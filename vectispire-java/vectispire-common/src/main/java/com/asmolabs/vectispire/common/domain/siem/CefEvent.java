@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.siem;
 
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,20 +33,36 @@ import java.util.stream.Collectors;
  * <p>Extension keys are ours, never a caller's: they are checked to be alphanumeric and a bad one
  * is a programming error, thrown rather than escaped, because an escaped key is still a key no
  * SIEM will recognise.
+ *
+ * <h2>The severity is the event's</h2>
+ *
+ * <p>{@code cefSeverity} is what the header states, what the syslog priority is derived from and what
+ * the configured minimum is compared with ({@link SiemSeverityFilter}) — one value, so the three
+ * cannot disagree. It is the type's unless the type {@linkplain SecurityEventType#followsIssueSeverity()
+ * follows the issue} and the event was given one ({@link Builder#issueSeverity}).
  */
 public record CefEvent(
         SecurityEventType eventType,
         Instant timestamp,
         String message,
-        Map<String, String> extensions) {
+        Map<String, String> extensions,
+        int cefSeverity) {
 
     private static final Pattern EXTENSION_KEY = Pattern.compile("[A-Za-z0-9]+");
 
     public CefEvent {
         if (eventType == null) throw new IllegalArgumentException("eventType is required");
         if (timestamp == null) timestamp = Instant.now();
+        if (cefSeverity < 0 || cefSeverity > 10) {
+            throw new IllegalArgumentException("A CEF severity is 0 to 10, not " + cefSeverity);
+        }
         extensions = extensions != null ? Collections.unmodifiableMap(new LinkedHashMap<>(extensions)) : Map.of();
         extensions.keySet().forEach(CefEvent::requireKey);
+    }
+
+    /** An event at its type's severity. */
+    public CefEvent(SecurityEventType eventType, Instant timestamp, String message, Map<String, String> extensions) {
+        this(eventType, timestamp, message, extensions, requireType(eventType).cefSeverity());
     }
 
     public static Builder builder(SecurityEventType eventType) {
@@ -63,7 +80,7 @@ public record CefEvent(
                 + escapeHeader(deviceVersion) + "|"
                 + escapeHeader(eventType.signatureId()) + "|"
                 + escapeHeader(eventType.description()) + "|"
-                + eventType.cefSeverity() + "|";
+                + cefSeverity + "|";
 
         Map<String, String> ext = new LinkedHashMap<>();
         ext.put("rt", String.valueOf(timestamp.toEpochMilli()));
@@ -107,6 +124,11 @@ public record CefEvent(
         return out.toString();
     }
 
+    private static SecurityEventType requireType(SecurityEventType eventType) {
+        if (eventType == null) throw new IllegalArgumentException("eventType is required");
+        return eventType;
+    }
+
     private static void requireKey(String key) {
         if (key == null || !EXTENSION_KEY.matcher(key).matches()) {
             throw new IllegalArgumentException("Not a CEF extension key: " + key);
@@ -118,9 +140,26 @@ public record CefEvent(
         private Instant timestamp = Instant.now();
         private String message;
         private final Map<String, String> extensions = new LinkedHashMap<>();
+        private int cefSeverity;
 
         public Builder(SecurityEventType eventType) {
-            this.eventType = eventType;
+            this.eventType = requireType(eventType);
+            this.cefSeverity = eventType.cefSeverity();
+        }
+
+        /**
+         * The severity of the issue the event reports on, which becomes the event's
+         * ({@link SecurityEventType#cefSeverityOf}).
+         *
+         * @throws IllegalStateException for a type whose severity is fixed: a SOC's rules were written
+         *     against that one, and an emitter is not where it changes
+         */
+        public Builder issueSeverity(Severity issueSeverity) {
+            if (!eventType.followsIssueSeverity()) {
+                throw new IllegalStateException(eventType + " has a fixed CEF severity");
+            }
+            this.cefSeverity = SecurityEventType.cefSeverityOf(issueSeverity);
+            return this;
         }
 
         public Builder timestamp(Instant timestamp) {
@@ -181,7 +220,7 @@ public record CefEvent(
         }
 
         public CefEvent build() {
-            return new CefEvent(eventType, timestamp, message, extensions);
+            return new CefEvent(eventType, timestamp, message, extensions, cefSeverity);
         }
 
         private Builder labelled(int slot, String label, String value) {

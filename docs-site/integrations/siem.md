@@ -103,6 +103,10 @@ Each event carries a CEF severity from 0 to 10. The minimum severity keeps the b
 | Medium | 4–10 |
 | Low | everything |
 
+The severity compared is the event's. Every type has one fixed severity, given in the
+[catalogue](#event-catalogue), except `VECTI-SEC-030`, which takes the late issue's: the threshold that
+forwards an issue's severity forwards its breach.
+
 The connection test is always sent, whatever the threshold.
 
 ## Delivery
@@ -168,7 +172,7 @@ change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in
 | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | a coverage or test report is refused for what it claims — a key no enabled source is declared for, a kind its source is not declared for, a repository outside its source's scope |
 | `VECTI-SEC-028` | SIEM export switched off or redirected | 7 | the export is switched off, or its protocol or endpoint changes: sent synchronously to the collector being left, whatever the minimum severity (see [Delivery](#delivery)) |
 | `VECTI-SEC-029` | Secret leaked in source code | 8 | a scan finds a secret of high or critical severity that is not yet an issue — every secret the bundled scanner reports is graded high. Once per issue: the same leak seen by the next scan, or come back after being resolved, is not announced again. `cs3` carries the rule, `msg` the file; the matched value is never sent |
-| `VECTI-SEC-030` | Remediation deadline passed | 6 | an open issue nobody has settled passes its remediation deadline (first seen + the severity's window — see [Remediation times](../guide/remediation-delays.md)). Noticed by the hourly maintenance turn, stamped with the deadline itself, once per issue. Only deadlines passed within the last seven days are announced, so the backlog already late at the upgrade — or after a window is shortened — is not announced at once; with the export off, a breach is not replayed when it is switched back on. At severity 6, it is forwarded from a minimum severity of **Medium** |
+| `VECTI-SEC-030` | Remediation deadline passed | 3–8 | an open issue nobody has settled passes its remediation deadline (first seen + the severity's window — see [Remediation times](../guide/remediation-delays.md)). Noticed by the hourly maintenance turn, stamped with the deadline itself, once per issue. Only deadlines passed within the last seven days are announced, so the backlog already late at the upgrade — or after a window is shortened — is not announced at once; with the export off, a breach is not replayed when it is switched back on. **As severe as the late issue**: 8 for a critical, 7 for a high, 5 for a medium, 3 for a low — so the default minimum (High) forwards the critical and high breaches, Medium the medium ones too. An event still queued when upgrading from 0.10.0, where the severity was a fixed 6, leaves at 6 |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | the connection test |
 
 `VECTI-SEC-001` and `VECTI-SEC-004` were once declared for a secret leak and an SLA breach and never

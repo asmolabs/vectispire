@@ -47,8 +47,9 @@ parce que l'autre lecture, zéro comme « à corriger immédiatement », transfo
 champ en un retard intégralement en dépassement.
 
 Un délai qui expire est aussi signalé au SOC, une fois par constat, par le tour de maintenance horaire
-— `VECTI-SEC-030` sur l'[export SIEM](../integrations/siem.fr.md#catalogue-des-evenements), transmis à
-partir d'une sévérité minimale Moyenne. Seules les échéances passées dans les sept derniers jours sont
+— `VECTI-SEC-030` sur l'[export SIEM](../integrations/siem.fr.md#catalogue-des-evenements), aussi
+sévère que le constat en retard : au minimum par défaut (Élevée), le dépassement d'un constat critique
+ou élevé est transmis, celui d'un moyen à partir de Moyenne. Seules les échéances passées dans les sept derniers jours sont
 annoncées : le stock déjà en retard à l'arrivée de la fonction, ou après qu'une fenêtre a été
 raccourcie, n'atteint pas le SOC d'un coup.
 

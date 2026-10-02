@@ -20,14 +20,23 @@ import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.maintenance.internal.MaintenanceJobs;
+import com.asmolabs.vectispire.core.siem.SiemDelivery;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +78,12 @@ class SiemBacklogSignalsTest extends ApiTestBase {
 
     @Autowired
     private ScanRepository scans;
+
+    @Autowired
+    private MaintenanceJobs jobs;
+
+    @Autowired
+    private SiemDelivery delivery;
 
     private Long repoId;
 
@@ -115,6 +130,53 @@ class SiemBacklogSignalsTest extends ApiTestBase {
         // The next turn finds them marked.
         assertThat(breaches.signalCrossings()).isZero();
         assertThat(siemRows()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("under the factory minimum a critical or high issue's breach reaches the collector at the issue's severity; a medium or low one's is not queued")
+    void aCriticalBreachReachesTheSocUnderTheDefaults() throws Exception {
+        try (DatagramSocket collector = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            exportWithTheDefaultMinimum("127.0.0.1:" + collector.getLocalPort());
+            outbox.deleteAll();
+            Instant now = Instant.now();
+            IssueEntity critical = issue("critical", "critical", now.minus(Duration.ofDays(16)), TriageStatus.UNDER_REVIEW.wireName());
+            IssueEntity high = issue("high", "high", now.minus(Duration.ofDays(31)), TriageStatus.UNDER_REVIEW.wireName());
+            issue("medium", "medium", now.minus(Duration.ofDays(91)), TriageStatus.UNDER_REVIEW.wireName());
+            issue("low", "low", now.minus(Duration.ofDays(181)), TriageStatus.UNDER_REVIEW.wireName());
+
+            // All four are marked; only the two the minimum admits are queued.
+            assertThat(breaches.signalCrossings()).isEqualTo(4);
+            assertThat(siemRows()).hasSize(2);
+
+            jobs.relayNotifications();
+
+            List<String> received = receive(collector, 3_000);
+            // CEF 8 is syslog 3 (error): 80 + 3. CEF 7 is syslog 3 too; the header field tells them apart.
+            assertThat(received).hasSize(2)
+                    .anySatisfy(message -> assertThat(message).startsWith("<83>1 ")
+                            .contains("|VECTI-SEC-030|Remediation deadline passed|8|")
+                            .contains("issue " + critical.getId() + " "))
+                    .anySatisfy(message -> assertThat(message)
+                            .contains("|VECTI-SEC-030|Remediation deadline passed|7|")
+                            .contains("issue " + high.getId() + " "));
+        }
+    }
+
+    @Test
+    @DisplayName("a breach queued before its severity was stored leaves at the type's, 6")
+    void aBreachQueuedBeforeTheUpgradeKeepsTheTypesSeverity() throws Exception {
+        try (DatagramSocket collector = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            exportWithTheDefaultMinimum("127.0.0.1:" + collector.getLocalPort());
+
+            // The payload 0.10.0 wrote: no cefSeverity.
+            delivery.deliver(UUID.randomUUID(), """
+                    {"eventType":"SLA_BREACHED","timestamp":1790000000000,"message":"queued at 0.10.0","extensions":{}}""");
+
+            assertThat(receive(collector, 3_000)).singleElement().asString()
+                    .startsWith("<84>1 ")
+                    .contains("|VECTI-SEC-030|Remediation deadline passed|6|")
+                    .contains("msg=queued at 0.10.0");
+        }
     }
 
     @Test
@@ -194,6 +256,31 @@ class SiemBacklogSignalsTest extends ApiTestBase {
                                 {"enabled": %s, "protocol": "SYSLOG_UDP", "endpoint": "127.0.0.1:9", "minSeverity": "LOW"}"""
                                 .formatted(enabled)))
                 .andExpect(status().isOk());
+    }
+
+    /** No {@code minSeverity}: the service stores {@code HIGH}, the factory minimum. */
+    private void exportWithTheDefaultMinimum(String endpoint) throws Exception {
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
+        mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"enabled": true, "protocol": "SYSLOG_UDP", "endpoint": "%s"}""".formatted(endpoint)))
+                .andExpect(status().isOk());
+    }
+
+    private static List<String> receive(DatagramSocket collector, int waitMillis) throws Exception {
+        List<String> messages = new ArrayList<>();
+        collector.setSoTimeout(waitMillis);
+        while (true) {
+            DatagramPacket packet = new DatagramPacket(new byte[65_536], 65_536);
+            try {
+                collector.receive(packet);
+            } catch (SocketTimeoutException drained) {
+                return messages;
+            }
+            messages.add(new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8));
+            collector.setSoTimeout(300);
+        }
     }
 
     private List<OutboxMessageEntity> siemRows() {

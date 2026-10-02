@@ -37,6 +37,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p><b>Marked whether or not anything was sent.</b> With the export off, the SIEM export
  * queues nothing, and the issue is marked anyway: a breach is announced when it happens, to whoever
  * listens then, and switching the export on does not replay the past week — like every other event.
+ *
+ * <p><b>As severe as the issue.</b> Each event carries the late issue's severity as its CEF one
+ * ({@code SecurityEventType.cefSeverityOf}), and the export's minimum is compared with that. At the
+ * type's fixed 6 the factory minimum ({@code HIGH}) let no breach through, a critical issue's included.
  */
 @Service
 public class SlaBreachSignals {

@@ -89,7 +89,7 @@ public class SiemSender {
             case SiemEndpoint.Syslog collector -> {
                 OutboundUrlGuard.Destination destination =
                         guard.validateAndResolveEndpoint(collector.host(), collector.port(), policy(), LABEL);
-                String message = SyslogMessage.format(event.eventType(), event.timestamp(), hostname(), cef);
+                String message = SyslogMessage.format(event, hostname(), cef);
                 syslog.send(collector.protocol(), destination, collector.port(), message, TIMEOUT, LABEL, pinnedCa);
             }
         }

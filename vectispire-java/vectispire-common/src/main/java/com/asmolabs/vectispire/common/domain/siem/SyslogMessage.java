@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.common.domain.siem;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
@@ -48,19 +47,19 @@ public final class SyslogMessage {
     private static final int MAX_HOSTNAME = 255;
 
     /**
-     * The syslog message carrying one CEF line.
+     * The syslog message carrying one CEF line, at the event's own severity and stamped with its time.
      *
      * @param hostname this instance's name as the header states it; anything outside printable
      *     US-ASCII is dropped, and nothing left becomes the NILVALUE — a space in the header would
      *     shift every field after it
      */
-    public static String format(SecurityEventType type, Instant timestamp, String hostname, String cef) {
-        return "<" + priority(type) + ">1 "
-                + TIMESTAMP.format(timestamp) + " "
+    public static String format(CefEvent event, String hostname, String cef) {
+        return "<" + priority(event.cefSeverity()) + ">1 "
+                + TIMESTAMP.format(event.timestamp()) + " "
                 + headerToken(hostname, MAX_HOSTNAME) + " "
                 + APP_NAME + " "
                 + NIL + " "
-                + headerToken(type.signatureId(), 32) + " "
+                + headerToken(event.eventType().signatureId(), 32) + " "
                 + NIL + " "
                 + cef;
     }
@@ -76,8 +75,8 @@ public final class SyslogMessage {
     }
 
     /** {@code facility × 8 + severity}. */
-    static int priority(SecurityEventType type) {
-        return FACILITY * 8 + syslogSeverity(type.cefSeverity());
+    static int priority(int cefSeverity) {
+        return FACILITY * 8 + syslogSeverity(cefSeverity);
     }
 
     /**

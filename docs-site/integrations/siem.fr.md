@@ -112,6 +112,10 @@ l'atteignent :
 | Moyenne | 4–10 |
 | Faible | tout |
 
+La sévérité comparée est celle de l'événement. Chaque type a une sévérité fixe, donnée dans le
+[catalogue](#catalogue-des-evenements), sauf `VECTI-SEC-030`, qui prend celle du constat en retard : le
+seuil qui transmet la sévérité d'un constat transmet son dépassement.
+
 Le test de connexion part toujours, quel que soit le seuil.
 
 ## Livraison
@@ -180,7 +184,7 @@ changera pas de sens. Son préfixe a changé une fois, de `ZAN-SEC-` à `VECTI-S
 | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | un rapport de couverture ou de tests est refusé pour ce qu'il prétend — une clé pour laquelle aucune source active n'est déclarée, un type pour lequel sa source n'est pas déclarée, un dépôt hors du périmètre de sa source |
 | `VECTI-SEC-028` | SIEM export switched off or redirected | 7 | l'export est coupé, ou son protocole ou son point d'arrivée change : envoyé de façon synchrone au collecteur quitté, quelle que soit la sévérité minimale (voir [Livraison](#livraison)) |
 | `VECTI-SEC-029` | Secret leaked in source code | 8 | un scan trouve un secret de sévérité élevée ou critique qui n'est pas encore un constat — chaque secret que rapporte l'analyseur fourni est classé élevé. Une fois par constat : la même fuite revue par le scan suivant, ou revenue après sa résolution, n'est pas annoncée à nouveau. `cs3` porte la règle, `msg` le fichier ; la valeur trouvée n'est jamais envoyée |
-| `VECTI-SEC-030` | Remediation deadline passed | 6 | un constat ouvert que personne n'a tranché dépasse son délai de remédiation (première détection + la fenêtre de sa sévérité — voir [Délais de correction](../guide/remediation-delays.md)). Relevé par le tour de maintenance horaire, daté de l'échéance elle-même, une fois par constat. Seules les échéances passées dans les sept derniers jours sont annoncées : le stock déjà en retard à la mise à jour — ou après qu'une fenêtre a été raccourcie — n'est pas annoncé d'un coup ; export coupé, un dépassement n'est pas rejoué quand il est rallumé. De sévérité 6, il est transmis à partir d'une sévérité minimale **Moyenne** |
+| `VECTI-SEC-030` | Remediation deadline passed | 3–8 | un constat ouvert que personne n'a tranché dépasse son délai de remédiation (première détection + la fenêtre de sa sévérité — voir [Délais de correction](../guide/remediation-delays.md)). Relevé par le tour de maintenance horaire, daté de l'échéance elle-même, une fois par constat. Seules les échéances passées dans les sept derniers jours sont annoncées : le stock déjà en retard à la mise à jour — ou après qu'une fenêtre a été raccourcie — n'est pas annoncé d'un coup ; export coupé, un dépassement n'est pas rejoué quand il est rallumé. **Aussi sévère que le constat en retard** : 8 pour un critique, 7 pour un élevé, 5 pour un moyen, 3 pour un faible — le minimum par défaut (Élevée) transmet donc les dépassements critiques et élevés, Moyenne aussi les moyens. Un événement encore en file lors de la mise à jour depuis 0.10.0, où la sévérité valait 6, part à 6 |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.

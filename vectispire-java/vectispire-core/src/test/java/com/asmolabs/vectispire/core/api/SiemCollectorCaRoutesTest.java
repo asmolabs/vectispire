@@ -190,6 +190,7 @@ class SiemCollectorCaRoutesTest extends ApiTestBase {
     private String payload() throws Exception {
         CefEvent event = CefEvent.builder(SecurityEventType.SECURITY_SETTING_CHANGED).message("probe").build();
         return json.writeValueAsString(new SiemEvents.QueuedEvent(
-                event.eventType().name(), event.timestamp().toEpochMilli(), event.message(), event.extensions()));
+                event.eventType().name(), event.timestamp().toEpochMilli(), event.message(), event.extensions(),
+                event.cefSeverity()));
     }
 }

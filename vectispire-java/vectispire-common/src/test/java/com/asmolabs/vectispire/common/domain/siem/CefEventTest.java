@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.common.domain.siem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,31 @@ class CefEventTest {
         assertThat(cef).contains("act=API_KEY_CREATED");
         assertThat(cef).contains("cs1Label=Target cs1=42");
         assertThat(cef).endsWith("msg=API key issued: ci-pipeline");
+    }
+
+    @Test
+    @DisplayName("a deadline breach states its issue's severity in the header; any other event its type's")
+    void theHeaderCarriesTheEventsSeverity() {
+        assertThat(CefEvent.builder(SecurityEventType.SLA_BREACHED).issueSeverity(Severity.CRITICAL).timestamp(TS)
+                        .build().toCefString("1"))
+                .startsWith("CEF:0|Vectispire|ASPM|1|VECTI-SEC-030|Remediation deadline passed|8|");
+        assertThat(CefEvent.builder(SecurityEventType.SLA_BREACHED).issueSeverity(Severity.LOW).timestamp(TS)
+                        .build().toCefString("1"))
+                .contains("|Remediation deadline passed|3|");
+        // Without an issue's severity — an event queued before it was stored — the type's.
+        assertThat(CefEvent.builder(SecurityEventType.SLA_BREACHED).timestamp(TS).build().toCefString("1"))
+                .contains("|Remediation deadline passed|6|");
+    }
+
+    @Test
+    @DisplayName("a type with a fixed severity refuses an issue's, and no severity leaves the CEF scale")
+    void fixedSeveritiesStayFixed() {
+        assertThatThrownBy(() -> CefEvent.builder(SecurityEventType.SECRET_LEAK_DETECTED).issueSeverity(Severity.LOW))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new CefEvent(SecurityEventType.SLA_BREACHED, TS, null, Map.of(), 11))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new CefEvent(SecurityEventType.SLA_BREACHED, TS, null, Map.of(), -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

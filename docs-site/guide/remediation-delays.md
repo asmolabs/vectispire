@@ -43,8 +43,9 @@ a tool. **Zero disables a severity** — the help text says so on each of them, 
 reading, zero as "due immediately", turns clearing a field into a backlog entirely in breach.
 
 A deadline that passes is also told to the SOC, once per issue, by the hourly maintenance turn —
-`VECTI-SEC-030` on the [SIEM export](../integrations/siem.md#event-catalogue), forwarded from a minimum
-severity of Medium. Only deadlines passed within the last seven days are announced, so the backlog
+`VECTI-SEC-030` on the [SIEM export](../integrations/siem.md#event-catalogue), as severe as the late
+issue: with the default minimum (High), a critical or high issue's breach is forwarded, a medium one's
+from Medium. Only deadlines passed within the last seven days are announced, so the backlog
 already late when the feature arrived, or after a window is shortened, does not reach the SOC at once.
 
 ## Related

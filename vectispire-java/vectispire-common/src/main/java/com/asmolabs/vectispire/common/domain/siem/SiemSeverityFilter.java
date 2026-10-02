@@ -21,7 +21,10 @@ public final class SiemSeverityFilter {
     private SiemSeverityFilter() {}
 
     /**
-     * Whether an event of this type is forwarded under this stored minimum.
+     * Whether this event is forwarded under this stored minimum — on the <b>event's</b> severity, which
+     * for a type that {@linkplain SecurityEventType#followsIssueSeverity() follows the issue} is not
+     * the type's: deciding on the type kept every remediation-deadline breach, a critical issue's
+     * included, under the factory minimum.
      *
      * <p><b>Null or blank sends everything</b>: no threshold is not a threshold of "nothing". And
      * <b>an unreadable value sends everything too</b> — a row edited by hand, or a severity a later
@@ -32,11 +35,11 @@ public final class SiemSeverityFilter {
      * <p>{@link SecurityEventType#PING_TEST} always passes: it tests the destination, and a filter
      * that swallowed it would make the connection test report a failure on a working collector.
      */
-    public static boolean admits(SecurityEventType type, String storedMinimum) {
-        if (type == SecurityEventType.PING_TEST) {
+    public static boolean admits(CefEvent event, String storedMinimum) {
+        if (event.eventType() == SecurityEventType.PING_TEST) {
             return true;
         }
-        return minimumOf(storedMinimum).map(floor -> type.cefSeverity() >= floor).orElse(true);
+        return minimumOf(storedMinimum).map(floor -> event.cefSeverity() >= floor).orElse(true);
     }
 
     /** The lowest CEF severity a stored minimum forwards, or empty when it forwards everything. */

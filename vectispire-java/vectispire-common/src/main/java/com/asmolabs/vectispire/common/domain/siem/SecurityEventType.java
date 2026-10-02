@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.siem;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.Optional;
 
 /**
@@ -23,7 +24,11 @@ import java.util.Optional;
  * could not fire, which is worse than no list — it reads as coverage.
  *
  * <p>The CEF severity follows the usual bands — 0–3 low, 4–6 medium, 7–8 high, 9–10 very high —
- * which is what {@link SiemSeverityFilter} maps the configured minimum onto.
+ * which is what {@link SiemSeverityFilter} maps the configured minimum onto. <b>It is the event's, not
+ * always the type's</b>: a type that {@linkplain #followsIssueSeverity() follows the issue} it reports
+ * on carries that issue's band ({@link #cefSeverityOf(Severity)}), and the filter reads the event. The
+ * severity declared here is then the default, which only an event queued before its type followed
+ * the issue still carries.
  */
 public enum SecurityEventType {
 
@@ -155,8 +160,13 @@ public enum SecurityEventType {
     /**
      * An open, unsettled issue passed its remediation deadline ({@code RemediationSla}): once per
      * issue, by the hourly maintenance turn that notices the crossing.
+     *
+     * <p><b>As severe as the late issue</b> — 8 for a critical, 7 for a high, 5 and 3 below. At a fixed
+     * 6 it sat under the factory minimum ({@code HIGH}, 7 and above), so out of the box no breach ever
+     * reached the SOC, a critical, exploited issue's included. The 6 stays as the default for an event
+     * queued before the upgrade, whose stored form carries no severity of its own.
      */
-    SLA_BREACHED("VECTI-SEC-030", "Remediation deadline passed", 6, Outcome.DETECTED),
+    SLA_BREACHED("VECTI-SEC-030", "Remediation deadline passed", 6, Outcome.DETECTED, true),
 
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
@@ -188,12 +198,19 @@ public enum SecurityEventType {
     private final String description;
     private final int cefSeverity;
     private final Outcome outcome;
+    private final boolean followsIssueSeverity;
 
     SecurityEventType(String signatureId, String description, int cefSeverity, Outcome outcome) {
+        this(signatureId, description, cefSeverity, outcome, false);
+    }
+
+    SecurityEventType(
+            String signatureId, String description, int cefSeverity, Outcome outcome, boolean followsIssueSeverity) {
         this.signatureId = signatureId;
         this.description = description;
         this.cefSeverity = cefSeverity;
         this.outcome = outcome;
+        this.followsIssueSeverity = followsIssueSeverity;
     }
 
     public String signatureId() {
@@ -204,8 +221,39 @@ public enum SecurityEventType {
         return description;
     }
 
+    /** The type's own severity: every event's, unless the type {@linkplain #followsIssueSeverity() follows the issue}. */
     public int cefSeverity() {
         return cefSeverity;
+    }
+
+    /**
+     * Whether an event of this type takes its CEF severity from the issue it reports on
+     * ({@link #cefSeverityOf(Severity)}) rather than from the type. Only such a type accepts an
+     * issue's severity ({@link CefEvent.Builder#issueSeverity}): the others keep the one a SOC's rules
+     * were written against.
+     */
+    public boolean followsIssueSeverity() {
+        return followsIssueSeverity;
+    }
+
+    /**
+     * An issue's severity as the CEF severity of an event about it — the one place it is decided.
+     *
+     * <p>Inside the CEF band of the same name and below its top, so that the configured minimum
+     * ({@link SiemSeverityFilter}) lets an issue's event through exactly from the issue's own
+     * severity: {@code HIGH} forwards a high or critical issue's, {@code MEDIUM} a medium one's too.
+     * A critical takes 8 and not 9: 9–10 is kept for what is exploited or broken now (a KEV, the
+     * audit chain), and a late fix is neither. {@code NEGLIGIBLE} and {@code UNKNOWN} rank with
+     * {@code LOW}. A switch without a default, so a severity added to {@link Severity} has to be
+     * placed here.
+     */
+    public static int cefSeverityOf(Severity issueSeverity) {
+        return switch (issueSeverity) {
+            case CRITICAL -> 8;
+            case HIGH -> 7;
+            case MEDIUM -> 5;
+            case LOW, NEGLIGIBLE, UNKNOWN -> 3;
+        };
     }
 
     public Outcome outcome() {

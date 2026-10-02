@@ -48,6 +48,7 @@ final class IssueSignals {
      */
     static CefEvent slaBreach(IssueEntity issue, Severity severity, Duration window, Instant dueAt) {
         return CefEvent.builder(SecurityEventType.SLA_BREACHED)
+                .issueSeverity(severity)
                 .timestamp(dueAt)
                 .message(severity.name() + " issue " + issue.getId() + " (" + issue.getIdentifier() + ") passed its "
                         + window.toDays() + "-day remediation deadline, open since " + issue.getFirstSeenAt())

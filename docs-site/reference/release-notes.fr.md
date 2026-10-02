@@ -34,6 +34,15 @@
   contrôle ; ils téléchargent désormais l'asset, comparent son SHA-256 à celui qu'ils épinglent, et
   arrêtent le job sur tout autre fichier. Un pipeline copié d'un ancien snippet continue de fonctionner,
   sans contrôle, jusqu'à ce qu'il soit remplacé — la 0.10.0 et les précédentes ne portent pas d'asset CLI.
+- **`VECTI-SEC-030` (délai de remédiation dépassé) est aussi sévère que le constat en retard** : sévérité
+  CEF 8 pour un constat critique, 7 pour un élevé, 5 pour un moyen, 3 pour un faible — dans l'en-tête CEF
+  comme dans la priorité syslog, et c'est elle que la sévérité minimale compare. Elle valait 6, sous le
+  minimum par défaut (Élevée) : avec la configuration d'usine, aucun dépassement n'atteignait le SOC, pas
+  même celui d'un constat critique. Au réglage par défaut, les dépassements critiques et élevés arrivent
+  désormais ; Moyenne laisse aussi passer les moyens. **Une règle du SOC qui attend la sévérité 6 pour ces
+  alertes doit être adaptée** — reconnaître `VECTI-SEC-030` à sa signature, et lire la sévérité comme
+  celle du constat. Un événement déjà en file à la mise à jour part à 6, tel qu'il a été émis —
+  [Export SIEM](../integrations/siem.fr.md#catalogue-des-evenements).
 
 ### Nouveautés
 

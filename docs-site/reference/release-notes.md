@@ -32,6 +32,14 @@
   unchecked; they now download the asset, compare its SHA-256 with the one they pin, and stop the job
   on any other file. A pipeline copied from an earlier snippet keeps working, unchecked, until it is
   replaced — 0.10.0 and earlier carry no CLI asset.
+- **`VECTI-SEC-030` (remediation deadline passed) is as severe as the late issue**: CEF severity 8 for
+  a critical issue, 7 for a high, 5 for a medium, 3 for a low — in the CEF header and in the syslog
+  priority, and the minimum severity is compared with that. It was a fixed 6, under the default minimum
+  (High), so with the factory configuration no breach reached the SOC, not even a critical one's. With
+  the default, critical and high breaches now arrive; Medium lets medium ones through too. **A SOC rule
+  matching these alerts on severity 6 must adapt** — match `VECTI-SEC-030` on the signature, and read
+  the severity as the issue's. An event already queued at the upgrade leaves at 6, as it was raised —
+  [SIEM export](../integrations/siem.md#event-catalogue).
 
 ### New
 

@@ -3,12 +3,15 @@ package com.asmolabs.vectispire.common.domain.siem;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @DisplayName("the SIEM event catalogue")
 class SecurityEventTypeTest {
@@ -66,6 +69,20 @@ class SecurityEventTypeTest {
     @DisplayName("every severity is a CEF severity")
     void severitiesAreInRange() {
         assertThat(SecurityEventType.values()).allSatisfy(type -> assertThat(type.cefSeverity()).isBetween(0, 10));
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @CsvSource({"CRITICAL, 8", "HIGH, 7", "MEDIUM, 5", "LOW, 3", "NEGLIGIBLE, 3", "UNKNOWN, 3"})
+    @DisplayName("an issue's severity as an event's CEF severity")
+    void issueSeverities(Severity issue, int cef) {
+        assertThat(SecurityEventType.cefSeverityOf(issue)).isEqualTo(cef);
+    }
+
+    @Test
+    @DisplayName("only the deadline breach follows its issue's severity")
+    void onlyTheBreachFollowsTheIssue() {
+        assertThat(Arrays.stream(SecurityEventType.values()).filter(SecurityEventType::followsIssueSeverity))
+                .containsExactly(SecurityEventType.SLA_BREACHED);
     }
 
     @Test

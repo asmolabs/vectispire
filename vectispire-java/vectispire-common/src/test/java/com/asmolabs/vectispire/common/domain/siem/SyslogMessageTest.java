@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.domain.siem;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -15,10 +16,22 @@ class SyslogMessageTest {
     @Test
     @DisplayName("the header carries priority, version, UTC timestamp, host, app, the signature as MSGID")
     void header() {
-        String message = SyslogMessage.format(SecurityEventType.SIGN_IN_THROTTLED, TS, "vectispire-1", "CEF:0|x");
+        String message = SyslogMessage.format(event(SecurityEventType.SIGN_IN_THROTTLED), "vectispire-1", "CEF:0|x");
 
         // Facility 10 × 8 + severity 3 (CEF 7 is "high", syslog "error") = 83.
         assertThat(message).isEqualTo("<83>1 2026-09-26T10:00:00.123Z vectispire-1 vectispire - VECTI-SEC-007 - CEF:0|x");
+    }
+
+    @Test
+    @DisplayName("the priority is the event's severity, not its type's: a critical issue's breach is an error, not a warning")
+    void priorityFollowsTheEvent() {
+        CefEvent breach = CefEvent.builder(SecurityEventType.SLA_BREACHED)
+                .issueSeverity(Severity.CRITICAL)
+                .timestamp(TS)
+                .build();
+
+        // CEF 8 → syslog 3: 80 + 3. At the type's 6 it would have been 84.
+        assertThat(SyslogMessage.format(breach, "h", "CEF")).startsWith("<83>1 ");
     }
 
     @Test
@@ -32,25 +45,25 @@ class SyslogMessageTest {
         assertThat(SyslogMessage.syslogSeverity(4)).isEqualTo(4);
         assertThat(SyslogMessage.syslogSeverity(3)).isEqualTo(5);
         assertThat(SyslogMessage.syslogSeverity(1)).isEqualTo(5);
-        assertThat(SyslogMessage.priority(SecurityEventType.AUDIT_CHAIN_BROKEN)).isEqualTo(82);
-        assertThat(SyslogMessage.priority(SecurityEventType.PING_TEST)).isEqualTo(85);
+        assertThat(SyslogMessage.priority(SecurityEventType.AUDIT_CHAIN_BROKEN.cefSeverity())).isEqualTo(82);
+        assertThat(SyslogMessage.priority(SecurityEventType.PING_TEST.cefSeverity())).isEqualTo(85);
     }
 
     @Test
     @DisplayName("a hostname with a space or a control character cannot shift the header's fields")
     void hostnameIsAToken() {
-        assertThat(SyslogMessage.format(SecurityEventType.PING_TEST, TS, "my host\n", "CEF"))
+        assertThat(SyslogMessage.format(event(SecurityEventType.PING_TEST), "my host\n", "CEF"))
                 .startsWith("<85>1 2026-09-26T10:00:00.123Z myhost vectispire - VECTI-SEC-999 - ");
-        assertThat(SyslogMessage.format(SecurityEventType.PING_TEST, TS, " ", "CEF"))
+        assertThat(SyslogMessage.format(event(SecurityEventType.PING_TEST), " ", "CEF"))
                 .contains(".123Z - vectispire ");
-        assertThat(SyslogMessage.format(SecurityEventType.PING_TEST, TS, null, "CEF"))
+        assertThat(SyslogMessage.format(event(SecurityEventType.PING_TEST), null, "CEF"))
                 .contains(".123Z - vectispire ");
     }
 
     @Test
     @DisplayName("no byte-order mark: CEF:0| is the first byte of MSG")
     void noBom() {
-        String message = SyslogMessage.format(SecurityEventType.PING_TEST, TS, "h", "CEF:0|Vectispire");
+        String message = SyslogMessage.format(event(SecurityEventType.PING_TEST), "h", "CEF:0|Vectispire");
 
         assertThat(message).doesNotContain("﻿").endsWith(" - CEF:0|Vectispire");
     }
@@ -72,5 +85,9 @@ class SyslogMessageTest {
         byte[] frame = SyslogMessage.octetCounted("a\nb");
 
         assertThat(new String(frame, StandardCharsets.UTF_8)).isEqualTo("3 a\nb");
+    }
+
+    private static CefEvent event(SecurityEventType type) {
+        return CefEvent.builder(type).timestamp(TS).build();
     }
 }

@@ -98,12 +98,16 @@ public class SiemEvents implements AuditLogService.Listener {
      *
      * @param eventType the {@link SecurityEventType} constant's name
      * @param timestamp epoch milliseconds, which is what CEF's {@code rt} carries anyway
+     * @param cefSeverity the event's own severity, stored because it is not always the type's — a
+     *     remediation breach is as severe as its issue, and a relayed one must say so. {@code null} in a
+     *     row queued before it was stored, which leaves at its type's severity, as it would have then
      */
-    public record QueuedEvent(String eventType, long timestamp, String message, Map<String, String> extensions) {
+    public record QueuedEvent(
+            String eventType, long timestamp, String message, Map<String, String> extensions, Integer cefSeverity) {
 
         static QueuedEvent of(CefEvent event) {
-            return new QueuedEvent(
-                    event.eventType().name(), event.timestamp().toEpochMilli(), event.message(), event.extensions());
+            return new QueuedEvent(event.eventType().name(), event.timestamp().toEpochMilli(), event.message(),
+                    event.extensions(), event.cefSeverity());
         }
 
         /** Empty when the type is one this version does not know: a row written by a newer one, during an upgrade. */
@@ -111,7 +115,8 @@ public class SiemEvents implements AuditLogService.Listener {
             Optional<SecurityEventType> type = java.util.Arrays.stream(SecurityEventType.values())
                     .filter(candidate -> candidate.name().equals(eventType))
                     .findFirst();
-            return type.map(known -> new CefEvent(known, Instant.ofEpochMilli(timestamp), message, withId(messageId)));
+            return type.map(known -> new CefEvent(known, Instant.ofEpochMilli(timestamp), message, withId(messageId),
+                    cefSeverity == null ? known.cefSeverity() : cefSeverity));
         }
 
         private Map<String, String> withId(String messageId) {
@@ -232,7 +237,7 @@ public class SiemEvents implements AuditLogService.Listener {
                         && found.getEndpoint() != null
                         && !found.getEndpoint().isBlank())
                 .orElse(false);
-        if (!exporting || !SiemSeverityFilter.admits(event.eventType(), config.get().getMinSeverity())) {
+        if (!exporting || !SiemSeverityFilter.admits(event, config.get().getMinSeverity())) {
             return;
         }
         outbox.enqueue(QueuedEvent.of(event), TYPE);
