@@ -2781,6 +2781,16 @@ export type ChecklistIncompleteLine = Refine<
     { problems: Exclude<ChecklistLineProblem, 'measurement_contradicted'>[] }
 >;
 
+/**
+ * One cell a `checklist-template-unrenderable` or `checklist-version-unrenderable` refusal names, in the
+ * problem's `cells` member (`ChecklistUnrenderableProblem`): a cell a sign-off writes that carries a
+ * formula other cells depend on — `shared`, the master of a shared formula, or `array`, an array formula.
+ */
+export type ChecklistUnrenderableCell = Refine<
+    Schema<'UnrenderableCell'>,
+    { cell: string; kind: 'shared' | 'array'; range: string }
+>;
+
 // ---------------------------------------------------------------------- measured lines (decision 0032 §6)
 
 /** What a line is measured by — `ChecklistRule.Kind.wireName()`. */

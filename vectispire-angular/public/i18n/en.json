@@ -2900,6 +2900,7 @@
     "refusal_has_draft": "This template already has a draft, and it has one at a time: publish that draft or set it aside before importing or deriving another version.",
     "refusal_not_published": "A new draft is derived from a published version only, and this one is a draft or retired. Derive it from the template's published version instead.",
     "refusal_nothing_to_pair": "This draft follows no published version, so there is nothing to pair its items with: every item is new.",
+    "refusal_unrenderable": "No sign-off could fill this draft's workbook in, so it was not published: cells Vectispire writes an answer, a comment or a header value into hold a formula other cells depend on — {{cells}}. In the workbook, un-share the formula — give each cell its own formula, or move it out of the cells the layout writes — then set this draft aside and import the corrected workbook as a new version.",
     "problem_sheet": "Name the sheet the checklist is on.",
     "problem_required": "Name the control, answer and comment columns: without them no item can be read nor an answer written.",
     "problem_letters": "A column is named by its letters, from A to XFD.",
@@ -3201,6 +3202,7 @@
     "conflict_four_eyes": "Four-eyes approval: you wrote part of this revision, so a second person must sign it off. Written by: {{authors}}.",
     "conflict_version_not_published": "That version is no longer published. Reload to see the versions offered.",
     "conflict_same_version": "The checklist is already on that version. After a sign-off, reopen the signed revision to start again on it.",
+    "conflict_version_unrenderable": "No sign-off could fill in the workbook of the version you chose, so nothing was opened or moved: cells Vectispire writes into hold a formula other cells depend on — {{cells}}. The version was published before Vectispire checked for this, and a published version never changes. Ask whoever manages the checklist templates to publish a corrected version, then open or move the checklist onto that one; a checklist already on this version can still be moved away from it.",
     "conflict_nothing_to_confirm": "This line no longer has a carried answer awaiting confirmation. Reload the checklist.",
     "conflict_evidence_withdrawn": "That evidence was already withdrawn. Reload the checklist.",
     "reload_btn": "Reload the checklist",
@@ -3319,6 +3321,10 @@
     "col_detail": "Detail",
     "repository_n": "#{{id}}",
     "measurement_none": "No measurement was stored for this revision."
+  },
+  "checklist_cells": {
+    "shared": "{{cell}} (the master of a formula shared across {{range}})",
+    "array": "{{cell}} (an array formula over {{range}})"
   },
   "checklist_rules": {
     "kind_dependency_analysis": "Dependencies analysed",

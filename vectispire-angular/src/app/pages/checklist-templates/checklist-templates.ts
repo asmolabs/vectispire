@@ -38,6 +38,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
 import { canonicalRule, describeRule, ruleKindLabel, sameRule } from '../../shared/checklist-rules';
+import { describeUnrenderableCells, unrenderableCellsOf } from '../../shared/unrenderable-cells';
 import { ChecklistRuleEditor } from './rule-editor';
 
 /** In the order the form lists them: the sheet's reading order, left to right, as a template usually runs. */
@@ -102,7 +103,15 @@ export const CHANGE_KEYS = {
  * request to do it.
  */
 export type TemplateConflict =
-    'changed' | 'not_draft' | 'no_layout' | 'has_draft' | 'not_published' | 'retired' | 'nothing_to_pair' | 'four_eyes';
+    | 'changed'
+    | 'not_draft'
+    | 'no_layout'
+    | 'has_draft'
+    | 'not_published'
+    | 'retired'
+    | 'nothing_to_pair'
+    | 'unrenderable'
+    | 'four_eyes';
 
 /** `ApiExceptionHandler.PROBLEM_TYPE` followed by `Cause.token()`, one per cause the template routes name. */
 export const CONFLICT_TYPES: Readonly<Record<string, TemplateConflict>> = {
@@ -113,6 +122,7 @@ export const CONFLICT_TYPES: Readonly<Record<string, TemplateConflict>> = {
     'urn:vectispire:problem:checklist-template-not-published': 'not_published',
     'urn:vectispire:problem:checklist-template-retired': 'retired',
     'urn:vectispire:problem:checklist-template-nothing-to-pair': 'nothing_to_pair',
+    'urn:vectispire:problem:checklist-template-unrenderable': 'unrenderable',
     // The project checklists' token, shared because it means the same on both.
     'urn:vectispire:problem:checklist-four-eyes': 'four_eyes'
 };
@@ -128,6 +138,7 @@ export const REFUSAL_KEYS = {
     not_published: 'checklist_templates.refusal_not_published',
     retired: 'checklist_templates.refusal_retired',
     nothing_to_pair: 'checklist_templates.refusal_nothing_to_pair',
+    unrenderable: 'checklist_templates.refusal_unrenderable',
     four_eyes_publish: 'checklist_templates.refusal_four_eyes_publish',
     four_eyes_retire: 'checklist_templates.refusal_four_eyes_retire'
 } as const satisfies Record<Refusal, string>;
@@ -145,6 +156,8 @@ export const REFUSAL_RELOADS = {
     not_published: true,
     retired: true,
     nothing_to_pair: false,
+    // The workbook is what is wrong, and a version's workbook never changes: reading it again shows the same.
+    unrenderable: false,
     four_eyes_publish: false,
     four_eyes_retire: false
 } as const satisfies Record<Refusal, boolean>;
@@ -995,6 +1008,17 @@ export class ChecklistTemplates {
     private refuse(failure: unknown, act: 'publish' | 'retire' | 'edit', revision: number): boolean {
         const cause = conflictOf(failure);
         if (!cause) return false;
+        if (cause === 'unrenderable') {
+            const cells = unrenderableCellsOf(failure);
+            // Refused for another reason than a formula — the server's words, rather than a sentence naming no cell.
+            this.refusal.set({
+                message: cells
+                    ? this.i18n.t(REFUSAL_KEYS.unrenderable, { cells: describeUnrenderableCells(this.i18n, cells) })
+                    : messageOf(failure, this.i18n.t('checklist_templates.error_act')),
+                reload: REFUSAL_RELOADS.unrenderable
+            });
+            return true;
+        }
         const refusal: Refusal =
             cause === 'four_eyes' ? (act === 'retire' ? 'four_eyes_retire' : 'four_eyes_publish') : cause;
         this.refusal.set({

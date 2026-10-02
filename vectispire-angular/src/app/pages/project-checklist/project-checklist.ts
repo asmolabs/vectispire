@@ -51,6 +51,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
+import { describeUnrenderableCells, unrenderableCellsOf } from '../../shared/unrenderable-cells';
 import { LineMeasurement } from './line-measurement';
 import {
     changedSinceSubmission,
@@ -117,6 +118,7 @@ export type ConflictCause =
     | 'four_eyes'
     | 'version_not_published'
     | 'same_version'
+    | 'version_unrenderable'
     | 'nothing_to_confirm'
     | 'evidence_withdrawn'
     | 'measurement_contradicted'
@@ -134,6 +136,7 @@ export const CONFLICT_TYPES: Readonly<Record<string, ConflictCause>> = {
     'urn:vectispire:problem:checklist-four-eyes': 'four_eyes',
     'urn:vectispire:problem:checklist-version-not-published': 'version_not_published',
     'urn:vectispire:problem:checklist-same-version': 'same_version',
+    'urn:vectispire:problem:checklist-version-unrenderable': 'version_unrenderable',
     'urn:vectispire:problem:checklist-nothing-to-confirm': 'nothing_to_confirm',
     'urn:vectispire:problem:checklist-evidence-withdrawn': 'evidence_withdrawn',
     'urn:vectispire:problem:checklist-measurement-contradicted': 'measurement_contradicted',
@@ -151,6 +154,7 @@ export const CONFLICT_KEYS = {
     four_eyes: 'project_checklist.conflict_four_eyes',
     version_not_published: 'project_checklist.conflict_version_not_published',
     same_version: 'project_checklist.conflict_same_version',
+    version_unrenderable: 'project_checklist.conflict_version_unrenderable',
     nothing_to_confirm: 'project_checklist.conflict_nothing_to_confirm',
     evidence_withdrawn: 'project_checklist.conflict_evidence_withdrawn',
     measurement_contradicted: 'project_checklist.conflict_measurement_contradicted',
@@ -1141,6 +1145,9 @@ export class ProjectChecklist {
         if (cause === 'measurement_contradicted' || cause === 'measurement_changed') {
             return this.explainMeasured(cause, failure, itemId);
         }
+        if (cause === 'version_unrenderable') {
+            return this.explainUnrenderable(failure, itemId);
+        }
         // The lines the refusal names, as data, over the ones the view shows: the server's are the
         // ones it refused for, and a proof that lapsed since the view was read is on no line here.
         const named = cause === 'incomplete' ? incompleteLinesOf(failure) : null;
@@ -1186,6 +1193,25 @@ export class ProjectChecklist {
         return {
             message: this.i18n.t(CONFLICT_KEYS[cause], { lines: lines.join(', ') || '—' }),
             reload: true,
+            itemId
+        };
+    }
+
+    /**
+     * The version chosen is one no sign-off could fill in — published before its publication tried — so
+     * nothing was opened or moved. The cells are named for whoever corrects the workbook; reloading cures
+     * nothing, since a published version's workbook never changes: a corrected version is the way.
+     */
+    private explainUnrenderable(failure: unknown, itemId: number | null): Refusal {
+        const cells = unrenderableCellsOf(failure);
+        return {
+            // Refused for another reason than a formula: the server's words, rather than a sentence naming no cell.
+            message: cells
+                ? this.i18n.t(CONFLICT_KEYS.version_unrenderable, {
+                      cells: describeUnrenderableCells(this.i18n, cells)
+                  })
+                : messageOf(failure, this.i18n.t('project_checklist.error_write')),
+            reload: false,
             itemId
         };
     }

@@ -3018,6 +3018,7 @@
     "refusal_has_draft": "Ce modèle a déjà un brouillon, et il n'en a qu'un à la fois : publiez ce brouillon ou mettez-le de côté avant d'importer ou de dériver une autre version.",
     "refusal_not_published": "Un nouveau brouillon se dérive d'une version publiée uniquement, et celle-ci est un brouillon ou retirée. Dérivez-le plutôt de la version publiée du modèle.",
     "refusal_nothing_to_pair": "Ce brouillon ne suit aucune version publiée : il n'y a rien avec quoi apparier ses items, tous sont nouveaux.",
+    "refusal_unrenderable": "Aucune approbation ne pourrait remplir le classeur de ce brouillon : il n'a pas été publié. Des cellules où Vectispire écrit une réponse, un commentaire ou une valeur d'en-tête portent une formule dont d'autres cellules dépendent — {{cells}}. Dans le classeur, cessez de partager la formule — donnez à chaque cellule sa propre formule, ou sortez-la des cellules que la disposition écrit — puis mettez ce brouillon de côté et importez le classeur corrigé comme nouvelle version.",
     "problem_sheet": "Nommez la feuille qui porte la checklist.",
     "problem_required": "Nommez les colonnes contrôle, réponse et commentaire : sans elles, aucun item ne peut être lu ni aucune réponse écrite.",
     "problem_letters": "Une colonne se nomme par ses lettres, de A à XFD.",
@@ -3319,6 +3320,7 @@
     "conflict_four_eyes": "Principe des quatre yeux : vous avez écrit une partie de cette révision, une deuxième personne doit donc l'approuver. Écrite par : {{authors}}.",
     "conflict_version_not_published": "Cette version n'est plus publiée. Rechargez pour voir les versions proposées.",
     "conflict_same_version": "La checklist est déjà sur cette version. Après une approbation, rouvrez la révision approuvée pour recommencer dessus.",
+    "conflict_version_unrenderable": "Aucune approbation ne pourrait remplir le classeur de la version choisie : rien n'a été ouvert ni changé de version. Des cellules où Vectispire écrit portent une formule dont d'autres cellules dépendent — {{cells}}. La version a été publiée avant que Vectispire ne le vérifie, et une version publiée ne change jamais. Demandez à qui gère les modèles de checklist de publier une version corrigée, puis ouvrez la checklist sur celle-ci ou passez-y ; une checklist déjà sur cette version peut toujours la quitter pour une autre.",
     "conflict_nothing_to_confirm": "Cette ligne n'a plus de réponse reportée en attente de confirmation. Rechargez la checklist.",
     "conflict_evidence_withdrawn": "Cette preuve a déjà été retirée. Rechargez la checklist.",
     "reload_btn": "Recharger la checklist",
@@ -3437,6 +3439,10 @@
     "col_detail": "Détail",
     "repository_n": "n° {{id}}",
     "measurement_none": "Aucune mesure n’a été conservée pour cette révision."
+  },
+  "checklist_cells": {
+    "shared": "{{cell}} (la cellule maîtresse d'une formule partagée sur {{range}})",
+    "array": "{{cell}} (une formule matricielle sur {{range}})"
   },
   "checklist_rules": {
     "kind_dependency_analysis": "Dépendances analysées",

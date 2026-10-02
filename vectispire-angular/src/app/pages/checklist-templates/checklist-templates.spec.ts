@@ -643,8 +643,8 @@ describe('the checklist templates screen', () => {
      * The 409, naming its cause in its type — and nothing read after it: the cause is the problem's,
      * and the version is not read again to guess it.
      */
-    function refuse(request: TestRequest, token: string, detail?: string): void {
-        request.flush(conflict(token, detail), { status: 409, statusText: 'Conflict' });
+    function refuse(request: TestRequest, token: string, detail?: string, members?: Record<string, unknown>): void {
+        request.flush(conflict(token, detail, members), { status: 409, statusText: 'Conflict' });
         fixture.detectChanges();
         http.expectNone((call) => call.method === 'GET');
     }
@@ -781,6 +781,36 @@ describe('the checklist templates screen', () => {
 
         expect(text('[data-testid="refusal-message"]')).toBe(sentence);
         expect(dom().querySelector('#reload-version') !== null).toBe(reload);
+    });
+
+    it('names every cell the trial rendering refused, in words, and says how to correct the workbook', async () => {
+        await start('CISO', 'bob');
+        refuse(publishShown(), 'checklist-template-unrenderable', undefined, {
+            cells: [
+                { cell: 'G7', kind: 'shared', range: 'G7:G9' },
+                { cell: 'B3', kind: 'array', range: 'B3:C3' }
+            ]
+        });
+
+        expect(text('[data-testid="refusal-message"]')).toBe(
+            "No sign-off could fill this draft's workbook in, so it was not published: cells Vectispire writes an answer, a comment or a header value into hold a formula other cells depend on — G7 (the master of a formula shared across G7:G9), B3 (an array formula over B3:C3). In the workbook, un-share the formula — give each cell its own formula, or move it out of the cells the layout writes — then set this draft aside and import the corrected workbook as a new version."
+        );
+        // The workbook is what is wrong, and reading the version again shows the same workbook.
+        expect(dom().querySelector('#reload-version')).toBeNull();
+        expect(text('[data-testid="shown-status"]')).toBe('Draft');
+    });
+
+    it("shows a trial rendering refused for another reason than a formula in the server's own words", async () => {
+        await start('CISO', 'bob');
+        refuse(
+            publishShown(),
+            'checklist-template-unrenderable',
+            'The checklist sheet has no sheetData to write rows 7 to.'
+        );
+
+        expect(text('[data-testid="refusal-message"]')).toBe(
+            'The checklist sheet has no sheetData to write rows 7 to.'
+        );
     });
 
     it('explains a draft edited since it was read, naming the revision reviewed, and offers to reload', async () => {
@@ -985,6 +1015,7 @@ describe('the checklist layout helpers', () => {
                 'checklist-template-not-published',
                 'checklist-template-retired',
                 'checklist-template-nothing-to-pair',
+                'checklist-template-unrenderable',
                 'checklist-four-eyes'
             ]
                 .map((token) => `urn:vectispire:problem:${token}`)

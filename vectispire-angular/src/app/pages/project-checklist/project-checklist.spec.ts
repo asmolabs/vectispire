@@ -167,9 +167,13 @@ describe('the project checklist screen', () => {
     function refuse(
         request: TestRequest,
         type: string,
-        detail = 'An English sentence the screen must not show.'
+        detail = 'An English sentence the screen must not show.',
+        members: Record<string, unknown> = {}
     ): void {
-        request.flush({ type, title: 'Conflict', status: 409, detail }, { status: 409, statusText: 'Conflict' });
+        request.flush(
+            { type, title: 'Conflict', status: 409, detail, ...members },
+            { status: 409, statusText: 'Conflict' }
+        );
         fixture.detectChanges();
     }
 
@@ -1086,6 +1090,55 @@ describe('the project checklist screen', () => {
         expect(text('[data-testid="notice"]')).toBe('Revision 3 opened on version 2.');
     });
 
+    /** The `cells` member of a `checklist-version-unrenderable` refusal: a shared master and an array formula. */
+    const UNRENDERABLE = {
+        cells: [
+            { cell: 'G7', kind: 'shared', range: 'G7:G9' },
+            { cell: 'B3', kind: 'array', range: 'B3:C3' }
+        ]
+    };
+    const UNRENDERABLE_SENTENCE =
+        'No sign-off could fill in the workbook of the version you chose, so nothing was opened or moved: cells Vectispire writes into hold a formula other cells depend on — G7 (the master of a formula shared across G7:G9), B3 (an array formula over B3:C3). The version was published before Vectispire checked for this, and a published version never changes. Ask whoever manages the checklist templates to publish a corrected version, then open or move the checklist onto that one; a checklist already on this version can still be moved away from it.';
+
+    it('names the cells of a version no sign-off could fill in when the checklist is moved to it, and moves nothing', async () => {
+        await start('USER');
+
+        choose('#move-version', 'Release checklist — version 2 (2026 edition)');
+        click('move-checklist');
+        refuse(post(BASE), 'urn:vectispire:problem:checklist-version-unrenderable', undefined, UNRENDERABLE);
+
+        expect(text('[data-testid="refusal-message"]')).toBe(UNRENDERABLE_SENTENCE);
+        // A published version's workbook never changes: reloading would show the same refusal again.
+        expect(has('#reload-checklist')).toBe(false);
+        expect(text('[data-testid="shown-revision"]')).toBe('Revision 2');
+        http.expectNone({ method: 'GET', url: BASE });
+    });
+
+    it('names the cells when the first checklist is opened on such a version', async () => {
+        await start('USER', 'carol', { revisions: [] });
+
+        choose('#open-version', 'Release checklist — version 1 (2025 edition)');
+        click('open-checklist');
+        refuse(post(BASE), 'urn:vectispire:problem:checklist-version-unrenderable', undefined, UNRENDERABLE);
+
+        expect(text('[data-testid="refusal-message"]')).toBe(UNRENDERABLE_SENTENCE);
+        expect(has('[data-testid="no-checklist"]')).toBe(true);
+    });
+
+    it("shows such a refusal naming no cell in the server's own words", async () => {
+        await start('USER');
+
+        choose('#move-version', 'Release checklist — version 2 (2026 edition)');
+        click('move-checklist');
+        refuse(
+            post(BASE),
+            'urn:vectispire:problem:checklist-version-unrenderable',
+            'Version 2 of "release" cannot be signed off.'
+        );
+
+        expect(text('[data-testid="refusal-message"]')).toBe('Version 2 of "release" cannot be signed off.');
+    });
+
     it('lists the earlier revisions and reads one, read-only', async () => {
         await start('USER');
 
@@ -1151,6 +1204,7 @@ describe('the project checklist, by its rules', () => {
                 'four-eyes',
                 'version-not-published',
                 'same-version',
+                'version-unrenderable',
                 'nothing-to-confirm',
                 'evidence-withdrawn',
                 'measurement-contradicted',
