@@ -451,6 +451,13 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 | Cette version n'est plus publiée / déjà sur cette version | Choisissez une autre version ; après une approbation, rouvrez plutôt. |
 | Plus de réponse reportée en attente / preuve déjà retirée | Quelqu'un l'a fait avant vous. |
 
+Une approbation refusée parce qu'**une cellule du classeur du modèle porte une formule dont d'autres
+cellules dépendent** — la phrase nomme les cellules — ne peut pas réussir sur cette version : le
+classeur est celui du modèle, et une version publiée ne change jamais. Depuis la version qui suit la 0.10.0,
+une version est contrôlée avant sa publication. Demandez à qui gère les modèles une
+[version corrigée](../administration/checklist-templates.fr.md#une-formule-dans-une-cellule-que-vectispire-ecrit),
+puis [passez-y](#7-passer-a-une-version-plus-recente) : vos réponses sont reportées.
+
 ## Ce qui est consigné
 
 L'ouverture, le passage de version, la réouverture, chaque réponse et chaque confirmation — les

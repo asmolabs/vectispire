@@ -188,6 +188,12 @@ Publishing makes the version what projects open their checklists on. The button 
 by somebody else after you opened the page refuses the publication rather than publishing something
 nobody here has read.
 
+**Publishing fills the workbook in once, as a sign-off would** — every line answered and commented,
+the header's product, author and date written — and keeps nothing of it: no document, no signature,
+no audit entry. A workbook no sign-off could be written into is refused here, rather than at the
+first sign-off, once a project has answered every line of a checklist that could never be signed. The
+case met so far is [a formula in a cell Vectispire writes](#a-formula-in-a-cell-vectispire-writes).
+
 When the server refuses — a publication, or any other change to a version — the screen says why, in
 one sentence for each cause the server names (see [the table below](#refusals-for-scripts-and-integrations)),
 and offers **Reload the version** where reading it again is the remedy:
@@ -204,7 +210,49 @@ and offers **Reload the version** where reading it again is the remedy:
   from a draft or a retired version; **it is already retired**; **it follows no published version**,
   so there is nothing to pair.
 
-A refusal the server names no cause for is shown in the server's own words.
+A refusal the server names no cause for is shown in the server's own words — and so is **no sign-off
+could fill its workbook in**, whose sentence names each cell to correct.
+
+### A formula in a cell Vectispire writes
+
+A sign-off writes the **answer and comment cells of every item row** and the **value cells of the
+header** — the date, the product, the author. Whatever those cells hold is replaced; a formula alone
+there is replaced too, which is what happens to a `TODAY()` in the date cell: the document is dated by
+the sign-off, not by whoever opens it next.
+
+What cannot be replaced is a formula **other cells depend on**:
+
+- **the master of a shared formula.** When a formula is filled down or copied across, Excel saves its
+  text once, on the first cell, and the other cells only point back at it. Writing an answer or a
+  comment over that first cell would leave the others pointing at nothing, and whoever opened the
+  document would be asked to repair it. A helper in the comment column —
+  `=IF(F7="Not done","Explain why","")` filled down — is the usual way in;
+- **an array formula entered over several cells.**
+
+The refusal names each such cell with the range depending on it — *Cell G7 (the master of a formula
+shared across G7:G9) of the checklist sheet is a cell Vectispire writes…* — and, for a script, the
+problem's `cells` member lists them: `cell`, `kind` (`shared` or `array`) and `range`.
+
+**Correct the workbook by taking the formula out of the cells Vectispire writes** — their contents
+are replaced at the sign-off anyway:
+
+- **Excel**: select the cells named — for a whole array, *Home → Find & Select → Go To Special →
+  Current array* — and *Home → Clear → Clear Contents*. To keep what they show as plain text instead,
+  *Copy*, then *Paste Special → Values* on the same cells. If the helper must stay, cut it and paste
+  it into a column the layout does not name.
+- **LibreOffice Calc**: select the cells — for a whole array, *Edit → Select → Select Array* or
+  `Ctrl+/` — and *Sheet → Delete Contents…* with *Formulas* ticked. To keep what they show, *Copy*,
+  then *Edit → Paste Special → Paste Only Values*. Moving the helper works as in Excel.
+
+Save, then **set the draft aside** — a version's workbook never changes once imported — and import
+the corrected workbook. Confirm its layout again; the evidence requirements and rules are inherited
+by key from the previous *published* version only, so set again what you had set on the draft you
+put aside.
+
+A version **published before this check** that has such a cell refuses every sign-off on it, in the
+same words. Publish a corrected version as above, and have the projects
+[move their checklists to it](../guide/security-checklists.md#7-move-to-a-newer-version): their
+answers are carried.
 
 With four-eyes on, the platform refuses to be left with a single account able to publish — see
 [four-eyes approval](four-eyes.md#switching-it-on-requires-that-a-second-person-exist).
@@ -235,6 +283,7 @@ which is written for a person and may change.
 | `checklist-template-not-published` | Deriving from a draft or a retired version | Derive from a published one |
 | `checklist-template-retired` | The version is already retired | — |
 | `checklist-template-nothing-to-pair` | A first version: no previous one to pair with | — |
+| `checklist-template-unrenderable` | At publication: no sign-off could fill the workbook in — a cell it writes carries a formula other cells depend on, each named in the problem's `cells` member | [Correct the workbook](#a-formula-in-a-cell-vectispire-writes), set the draft aside and import it again |
 | `checklist-four-eyes` | Four-eyes approval is on and you wrote this draft | Somebody else publishes or retires it |
 
 `checklist-four-eyes` is the token a project checklist's sign-off uses too: it means the same there.

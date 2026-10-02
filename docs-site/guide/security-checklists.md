@@ -429,6 +429,13 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 | That version is no longer published / already on that version | Choose another version; after a sign-off, reopen instead. |
 | No carried answer awaiting confirmation / evidence already withdrawn | Somebody did it before you. |
 
+A sign-off refused because **a cell of the template's workbook carries a formula other cells depend
+on** — the sentence names the cells — cannot succeed on that version: the workbook is the template's,
+and a published version never changes. Since the release after 0.10.0, a version is checked for it before
+it is published. Ask whoever manages the templates for a
+[corrected version](../administration/checklist-templates.md#a-formula-in-a-cell-vectispire-writes),
+then [move to it](#7-move-to-a-newer-version): your answers are carried.
+
 ## What is recorded
 
 Opening, moving, reopening, every answer and confirmation — Vectispire's automatic answers and

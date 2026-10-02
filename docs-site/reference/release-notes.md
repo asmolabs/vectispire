@@ -41,6 +41,11 @@
   the severity as the issue's. An event already queued at the upgrade leaves at 6, as it was raised —
   [SIEM export](../integrations/siem.md#event-catalogue).
 
+- **Publishing a checklist template version can answer 409 `checklist-template-unrenderable`.**
+  `POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish` fills the workbook in once, as a
+  sign-off would, and refuses a workbook no sign-off could be written into; the problem's `cells` member
+  names each cell at fault (`cell`, `kind` — `shared` or `array` — and `range`). See *Fixed* below.
+
 ### New
 
 - **A weekly record of the OWASP Top 10 coverage starts now.** Every six hours at most, the maintenance
@@ -90,6 +95,17 @@
 
 ### Fixed
 
+- **A checklist template whose workbook no sign-off could fill in was published, and found at the first
+  sign-off.** A cell Vectispire writes — an answer or a comment of an item row, a header value — that
+  holds the master of a shared formula (a helper filled down the comment column, typically) or an array
+  formula over several cells cannot be written without breaking the cells depending on it. The sign-off
+  refused it, rightly, but only once a project had answered every line: the revision stayed submitted,
+  its draft could not even be exported, and the version could never be signed. Publication now runs the
+  sign-off's own rendering once, with placeholder answers and nothing kept, and refuses such a version,
+  naming every cell — the sign-off of a version published earlier names them all too, where it named
+  the first. A version published before this release with such a cell still refuses its sign-offs:
+  publish a corrected one and move the projects' checklists to it — see
+  [a formula in a cell Vectispire writes](../administration/checklist-templates.md#a-formula-in-a-cell-vectispire-writes).
 - **A reopened issue left no trace in its triage history.** When a scan or an import found a resolved
   issue again, it reopened it and cleared a `fixed` decision with no entry: the history showed `fixed` as
   the last word on an issue standing open under review again, and the resolution it had — from when to

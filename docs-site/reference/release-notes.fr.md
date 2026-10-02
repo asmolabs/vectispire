@@ -44,6 +44,12 @@
   celle du constat. Un événement déjà en file à la mise à jour part à 6, tel qu'il a été émis —
   [Export SIEM](../integrations/siem.fr.md#catalogue-des-evenements).
 
+- **Publier une version de modèle de checklist peut répondre 409 `checklist-template-unrenderable`.**
+  `POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish` remplit le classeur une fois,
+  comme le ferait une approbation, et refuse un classeur dans lequel aucune approbation ne pourrait
+  écrire ; le membre `cells` du problème nomme chaque cellule en cause (`cell`, `kind` — `shared` ou
+  `array` — et `range`). Voir *Corrigé* plus bas.
+
 ### Nouveautés
 
 - **Un relevé hebdomadaire de la couverture OWASP Top 10 commence maintenant.** Toutes les six heures au
@@ -96,6 +102,19 @@
 
 ### Corrigé
 
+- **Un modèle de checklist dont aucune approbation ne pourrait remplir le classeur était publié, et
+  découvert à la première approbation.** Une cellule que Vectispire écrit — une réponse ou un
+  commentaire d'une ligne d'item, une valeur de l'en-tête — qui porte la cellule maîtresse d'une formule
+  partagée (une formule d'aide recopiée dans la colonne des commentaires, typiquement) ou une formule
+  matricielle sur plusieurs cellules ne peut pas être écrite sans casser les cellules qui en dépendent.
+  L'approbation la refusait, à raison, mais seulement une fois qu'un projet avait répondu à chaque
+  ligne : la révision restait soumise, son brouillon ne pouvait même pas être exporté, et la version ne
+  pouvait jamais être signée. La publication exécute désormais une fois le rendu de l'approbation
+  elle-même, avec des réponses factices et rien de conservé, et refuse une telle version en nommant
+  chaque cellule — l'approbation d'une version publiée auparavant les nomme toutes aussi, là où elle
+  nommait la première. Une version publiée avant cette version-ci avec une telle cellule refuse toujours
+  ses approbations : publiez-en une corrigée et faites-y passer les checklists des projets — voir
+  [une formule dans une cellule que Vectispire écrit](../administration/checklist-templates.fr.md#une-formule-dans-une-cellule-que-vectispire-ecrit).
 - **Une issue rouverte ne laissait aucune trace dans son historique de triage.** Quand une analyse ou un
   import retrouvait une issue résolue, il la rouvrait et effaçait une décision `fixed` sans aucune
   entrée : l'historique montrait `fixed` comme dernier mot d'une issue de nouveau ouverte et en revue, et

@@ -200,6 +200,13 @@ Publier fait de la version celle sur laquelle les projets ouvrent leurs checklis
 envoyée : une modification faite par quelqu'un d'autre après l'ouverture de la page refuse la
 publication plutôt que de publier ce que personne ici n'a lu.
 
+**Publier remplit le classeur une fois, comme le ferait une approbation** — chaque ligne répondue et
+commentée, le produit, l'auteur et la date de l'en-tête écrits — et n'en garde rien : ni document, ni
+signature, ni entrée d'audit. Un classeur dans lequel aucune approbation ne pourrait écrire est refusé
+ici, plutôt qu'à la première approbation, quand un projet a déjà répondu à chaque ligne d'une
+checklist qui ne pourrait jamais être signée. Le cas rencontré jusqu'ici est
+[une formule dans une cellule que Vectispire écrit](#une-formule-dans-une-cellule-que-vectispire-ecrit).
+
 Quand le serveur refuse — une publication, ou toute autre modification d'une version — l'écran dit
 pourquoi, en une phrase pour chaque cause que le serveur nomme (voir
 [le tableau plus bas](#refus-pour-les-scripts-et-les-integrations)), et propose **Recharger la
@@ -218,7 +225,53 @@ version** là où la relire est le remède :
   publiée**, quand vous dérivez d'un brouillon ou d'une version retirée ; **elle est déjà retirée** ;
   **elle ne suit aucune version publiée**, il n'y a donc rien à apparier.
 
-Un refus dont le serveur ne nomme pas la cause est affiché dans les mots du serveur.
+Un refus dont le serveur ne nomme pas la cause est affiché dans les mots du serveur — de même que
+**aucune approbation ne pourrait remplir son classeur**, dont la phrase (en anglais) nomme chaque
+cellule à corriger.
+
+### Une formule dans une cellule que Vectispire écrit
+
+Une approbation écrit les **cellules de réponse et de commentaire de chaque ligne d'item** et les
+**cellules de valeur de l'en-tête** — la date, le produit, l'auteur. Ce que ces cellules contiennent est
+remplacé ; une formule seule y est remplacée aussi, ce qui arrive à un `AUJOURDHUI()` dans la cellule
+de date : le document est daté par l'approbation, pas par la prochaine personne qui l'ouvre.
+
+Ce qui ne peut pas être remplacé, c'est une formule **dont d'autres cellules dépendent** :
+
+- **la cellule maîtresse d'une formule partagée.** Quand une formule est recopiée vers le bas ou vers
+  la droite, Excel n'enregistre son texte qu'une fois, dans la première cellule, et les autres ne font
+  que renvoyer à celle-ci. Écrire une réponse ou un commentaire par-dessus cette première cellule
+  laisserait les autres renvoyer à rien, et quiconque ouvrirait le document serait invité à le
+  réparer. Une formule d'aide dans la colonne des commentaires —
+  `=SI(F7="Non fait";"Expliquer pourquoi";"")` recopiée vers le bas — en est l'origine habituelle ;
+- **une formule matricielle saisie sur plusieurs cellules.**
+
+Le refus nomme chacune de ces cellules avec la plage qui en dépend — *Cell G7 (the master of a formula
+shared across G7:G9) of the checklist sheet is a cell Vectispire writes…* — et, pour un script, le
+membre `cells` du problème les liste : `cell`, `kind` (`shared` ou `array`) et `range`.
+
+**Corrigez le classeur en retirant la formule des cellules que Vectispire écrit** — leur contenu est de
+toute façon remplacé à l'approbation :
+
+- **Excel** : sélectionnez les cellules nommées — pour une matrice entière, *Accueil → Rechercher et
+  sélectionner → Sélectionner les cellules → Matrice en cours* — puis *Accueil → Effacer → Effacer le
+  contenu*. Pour garder ce qu'elles affichent en simple texte, *Copier*, puis *Collage spécial →
+  Valeurs* sur les mêmes cellules. Si la formule d'aide doit rester, coupez-la et collez-la dans une
+  colonne que la disposition ne nomme pas.
+- **LibreOffice Calc** : sélectionnez les cellules — pour une matrice entière, *Édition → Sélectionner
+  → Sélectionner la matrice* ou `Ctrl+/` — puis *Feuille → Supprimer le contenu…* avec *Formules*
+  coché. Pour garder ce qu'elles affichent, *Copier*, puis *Édition → Collage spécial → Coller
+  uniquement les valeurs*. Déplacer la formule d'aide se fait comme dans Excel.
+
+Enregistrez, puis **écartez le brouillon** — le classeur d'une version ne change jamais une fois
+importé — et importez le classeur corrigé. Confirmez de nouveau sa disposition ; les exigences de
+preuve et les règles ne sont héritées, par clé, que de la version *publiée* précédente : refixez donc ce
+que vous aviez fixé sur le brouillon écarté.
+
+Une version **publiée avant ce contrôle** qui a une telle cellule refuse chaque approbation, dans les
+mêmes termes. Publiez une version corrigée comme ci-dessus, et faites
+[passer les checklists des projets sur celle-ci](../guide/security-checklists.fr.md#7-passer-a-une-version-plus-recente) :
+leurs réponses sont reportées.
 
 Double validation active, la plateforme refuse de se retrouver avec un seul compte capable de
 publier — voir [double validation](four-eyes.fr.md#lactiver-demande-quune-seconde-personne-existe).
@@ -250,6 +303,7 @@ personne et susceptible de changer.
 | `checklist-template-not-published` | Dériver d'un brouillon ou d'une version retirée | Dériver d'une version publiée |
 | `checklist-template-retired` | La version est déjà retirée | — |
 | `checklist-template-nothing-to-pair` | Une première version : aucune précédente avec laquelle apparier | — |
+| `checklist-template-unrenderable` | À la publication : aucune approbation ne pourrait remplir le classeur — une cellule qu'elle écrit porte une formule dont d'autres cellules dépendent, chacune nommée dans le membre `cells` du problème | [Corriger le classeur](#une-formule-dans-une-cellule-que-vectispire-ecrit), écarter le brouillon et l'importer de nouveau |
 | `checklist-four-eyes` | Le double contrôle est activé et vous avez écrit ce brouillon | Quelqu'un d'autre le publie ou le retire |
 
 `checklist-four-eyes` est aussi le jeton de l'approbation d'une checklist de projet : il y signifie la
