@@ -18,6 +18,14 @@
 
 ### Corrigé
 
+- **Des écritures d'audit simultanées pouvaient casser la chaîne d'audit, et déclencher une fausse
+  alerte de falsification.** Deux entrées écrites au même instant — deux requêtes sur un serveur, ou deux
+  serveurs — pouvaient se chaîner toutes deux sur le même prédécesseur ; la vérification déclarait alors
+  la chaîne rompue, et le SIEM recevait `AUDIT_CHAIN_BROKEN`, sans que rien ait été modifié. Les entrées
+  sont désormais écrites une à une, entre serveurs aussi (migration V66). Une installation qui a vu une
+  rupture inexpliquée doit relancer la vérification après la mise à jour : les entrées écrites ensuite se
+  chaînent correctement ; une rupture déjà enregistrée reste où elle est, puisque réécrire un journal
+  d'intégrité est précisément ce qu'il doit révéler.
 - **Le premier coffre de preuves d'une installation sans `vectispire.signing.key` répondait 500.** La clé
   de signature créée à la première utilisation rejoignait la transaction en lecture seule du coffre, dans
   laquelle MySQL et PostgreSQL refusent d'écrire. Elle est désormais créée hors de celle-ci.

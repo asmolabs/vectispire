@@ -4,12 +4,15 @@ import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.audit.internal.AuditMirror;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
+import com.asmolabs.vectispire.core.audit.persistence.AuditChainHeadEntity;
+import com.asmolabs.vectispire.core.audit.persistence.AuditChainHeadRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -76,19 +79,35 @@ public class AuditLogService {
     /** The entry's own transaction — see {@link #record}. */
     private final TransactionOperations separately;
 
+    /**
+     * Taken first in every entry's transaction, and held until it ends (V66).
+     *
+     * <p><b>The chain forked under concurrent writers.</b> An entry read the newest entry and inserted
+     * itself onto it, and the read took no lock: two writers that read the same head before either
+     * committed both chained onto it, and the verification reported a break in a log nobody touched —
+     * eight threads of one instance did it on MySQL and PostgreSQL, and so did two instances
+     * ({@code AuditChainConcurrencyIntegrationTest}). The lock is a row of the database's, so it
+     * serialises the writers of every instance; the cost is that entries are written one at a time,
+     * each in a transaction a few statements long.
+     */
+    private final Runnable lockChain;
+
     @Autowired
     public AuditLogService(
             AuditLogRepository entries,
+            AuditChainHeadRepository heads,
             AuditMirror mirror,
             Clock clock,
             List<Listener> listeners,
             PlatformTransactionManager transactions) {
-        this(entries, mirror, clock, listeners, requiresNew(transactions));
+        this(entries, mirror, clock, listeners, requiresNew(transactions), () -> heads.lock(AuditChainHeadEntity.THE_ROW)
+                .orElseThrow(() -> new IllegalStateException(
+                        "t_audit_chain_head has lost its row: audit entries are not written without the chain's lock")));
     }
 
     /**
      * With the boundary supplied — {@link TransactionOperations#withoutTransaction()} for a unit
-     * test that has no database.
+     * test that has no database, and therefore no chain to lock and no second writer to wait for.
      */
     public AuditLogService(
             AuditLogRepository entries,
@@ -96,11 +115,22 @@ public class AuditLogService {
             Clock clock,
             List<Listener> listeners,
             TransactionOperations separately) {
+        this(entries, mirror, clock, listeners, separately, () -> {});
+    }
+
+    private AuditLogService(
+            AuditLogRepository entries,
+            AuditMirror mirror,
+            Clock clock,
+            List<Listener> listeners,
+            TransactionOperations separately,
+            Runnable lockChain) {
         this.entries = entries;
         this.mirror = mirror;
         this.clock = clock;
         this.listeners = List.copyOf(listeners);
         this.separately = separately;
+        this.lockChain = lockChain;
     }
 
     private static TransactionTemplate requiresNew(PlatformTransactionManager transactions) {
@@ -262,15 +292,15 @@ public class AuditLogService {
     }
 
     private void write(Record entry, boolean withListeners) {
-        String previousHash = entries.findTopByOrderByTimestampDescIdDesc()
-                .map(AuditLogEntity::getEntryHash)
-                .orElse(null);
+        lockChain.run();
+        Optional<AuditLogEntity> head = entries.findTopByOrderByTimestampDescIdDesc();
+        String previousHash = head.map(AuditLogEntity::getEntryHash).orElse(null);
 
         AuditLogEntity row = new AuditLogEntity();
         // Set here rather than left to a column default: the hash covers the timestamp, and
         // a value applied by the database after the computation would make every entry fail
         // its own verification.
-        row.setTimestamp(monotonicNow());
+        row.setTimestamp(after(head, monotonicNow()));
         row.setOperationType(entry.operation().wireName());
         row.setResourceId(truncate(String.valueOf(entry.resourceId()), TEXT_COLUMN));
         row.setDescription(truncate(entry.description(), TEXT_COLUMN));
@@ -499,6 +529,19 @@ public class AuditLogService {
         } else {
             notify.run();
         }
+    }
+
+    /**
+     * Later than the head, whichever instance wrote it. The verification follows the chain in timestamp
+     * order, and the lock orders the writers but not their clocks: an instance whose clock runs a
+     * millisecond behind another's would date its entry before the head it chains onto, and the
+     * verification would read the two in the wrong order and report a break.
+     */
+    private static Instant after(Optional<AuditLogEntity> head, Instant candidate) {
+        return head.map(AuditLogEntity::getTimestamp)
+                .filter(newest -> !candidate.isAfter(newest))
+                .map(newest -> newest.plusMillis(1))
+                .orElse(candidate);
     }
 
     private Instant monotonicNow() {

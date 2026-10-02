@@ -409,6 +409,15 @@ on MySQL 9, and V23's `t_mfa_challenge.user_id` was no key at all on MySQL 8 —
 settled them. `MigrationsTest` now fails on a key that exists twice; it cannot see one that MySQL 8
 alone is missing, because the suites run MySQL 9, so read your migration on both.
 
+**The audit chain is written one entry at a time, and stays that way.** Every entry locks
+`t_audit_chain_head` (V66) before it reads the head, because concurrent writers forked the chain
+without it — `AuditChainConcurrencyIntegrationTest` proves both the fork and the fix, on threads and on
+two instances whose clocks differ. Two consequences: never write an audit entry from inside a long
+transaction (the lock would be held until that transaction commits, and every other entry of every
+instance would wait for it — the reason decision 0033's fourth lot does not do so), and never date an
+entry from the local clock alone (the lock orders writers, not clocks: an entry is dated after the
+head it chains onto).
+
 **A dependency or a plugin you add or bump is not resolved until you record it.** Gradle checks
 every artifact against `gradle/verification-metadata.xml` — a signature by a key in
 `gradle/verification-keyring.keys` trusted for that group, or the sha256 of an unsigned one (the

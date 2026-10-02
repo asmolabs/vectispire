@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.audit.internal.AuditMirror;
+import com.asmolabs.vectispire.core.audit.persistence.AuditChainHeadRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
@@ -35,6 +36,9 @@ class AuditListenerDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private AuditLogRepository entries;
+
+    @Autowired
+    private AuditChainHeadRepository heads;
 
     @Autowired
     private OutboxService outbox;
@@ -77,7 +81,7 @@ class AuditListenerDatabaseTest extends VectispireContextTest {
     }
 
     private AuditLogService audit(AuditLogService.Listener listener) {
-        return new AuditLogService(entries, new AuditMirror.Disabled(), clock, List.of(listener), transactions);
+        return new AuditLogService(entries, heads, new AuditMirror.Disabled(), clock, List.of(listener), transactions);
     }
 
     /** A listener that writes what it is given in the transaction, and counts both calls. */

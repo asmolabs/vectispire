@@ -17,6 +17,13 @@
 
 ### Fixed
 
+- **Concurrent audit writes could break the audit chain, and raise a false tampering alarm.** Two
+  entries written at the same moment — two requests on one server, or two servers — could both chain
+  onto the same predecessor; the verification then reported the chain broken, and the SIEM received
+  `AUDIT_CHAIN_BROKEN`, although nothing had been altered. Entries are now written one at a time,
+  across servers too (migration V66). An installation that saw an unexplained break should verify again
+  after the upgrade: entries written from then on chain correctly; a break already recorded stays where
+  it is, since rewriting an integrity log is what it exists to reveal.
 - **The first evidence bundle of an installation without `vectispire.signing.key` answered 500.** The
   signing key created on first use joined the bundle's read-only transaction, which MySQL and PostgreSQL
   refuse to write in. It is now created outside it.
