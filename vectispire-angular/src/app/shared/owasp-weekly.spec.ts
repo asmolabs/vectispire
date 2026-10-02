@@ -9,10 +9,13 @@ import {
     mondayOf,
     openLink,
     openedLink,
+    owaspCategory,
     queryOf,
     readView,
+    reopenedLink,
     resolvedLink,
     sundayOf,
+    totalOpenLink,
     viewParams,
     weeklyCsv
 } from './owasp-weekly';
@@ -155,33 +158,108 @@ describe('the weekly OWASP view, as rules', () => {
         });
     });
 
+    it('opens a total on every category at once, never on the whole backlog', () => {
+        const [reconstructed, recorded] = threeWeeks().weeks;
+        expect(openedLink(recorded, null, { kind: 'project', id: 7 })).toEqual({
+            owasp_category: 'any',
+            first_seen_from: '2026-09-21',
+            first_seen_to: '2026-09-27',
+            project_id: '7'
+        });
+        expect(resolvedLink(recorded, null, null)).toEqual({
+            owasp_category: 'any',
+            resolved_from: '2026-09-21',
+            resolved_to: '2026-09-27'
+        });
+        // A reconstructed week counts every placed issue open at its end, as the list does.
+        expect(totalOpenLink(reconstructed, null)).toEqual({ owasp_category: 'any', open_at: '2026-09-20' });
+    });
+
+    it('opens no list for a recorded total the grid did not count whole', () => {
+        // A03 is not measured that week: its open issues are in no figure, and would be in the list.
+        expect(totalOpenLink(threeWeeks().weeks[1], null)).toBeNull();
+        const notRecorded = owaspWeek('2026-09-28', false, {
+            A06: { state: 'FINDINGS', open: 2 },
+            A09: { state: null }
+        });
+        expect(totalOpenLink(notRecorded, null)).toBeNull();
+        const whole = owaspWeek('2026-09-28', false, {
+            A06: { state: 'FINDINGS', open: 2 },
+            A07: { state: 'NO_FINDING' }
+        });
+        expect(totalOpenLink(whole, { kind: 'solution', id: 3 })).toEqual({
+            owasp_category: 'any',
+            open_at: '2026-10-04',
+            unsettled: 'true',
+            solution_id: '3'
+        });
+    });
+
+    it('opens the reopened bar on the week, and nothing on a week before reopenings were recorded', () => {
+        const [before, recorded] = threeWeeks().weeks;
+        expect(reopenedLink(recorded, 'A06', { kind: 'project', id: 7 })).toEqual({
+            owasp_category: 'A06',
+            reopened_from: '2026-09-21',
+            reopened_to: '2026-09-27',
+            project_id: '7'
+        });
+        expect(reopenedLink(recorded, null, null)).toEqual({
+            owasp_category: 'any',
+            reopened_from: '2026-09-21',
+            reopened_to: '2026-09-27'
+        });
+        expect(reopenedLink(before, 'A06', null)).toBeNull();
+    });
+
+    it('reads any as every category, and nothing else it does not know', () => {
+        expect(owaspCategory('any')).toBe('any');
+        expect(owaspCategory('A06')).toBe('A06');
+        expect(owaspCategory('ANY')).toBeNull();
+        expect(owaspCategory('A11')).toBeNull();
+    });
+
     it('gives the selected week its figures, and no open delta across the start of the record', () => {
         const weeks = threeWeeks().weeks;
         const last = indicatorsOf(weeks, null)!;
         expect(last.week.weekStart).toBe('2026-09-28');
-        expect(last.delta).toEqual({ categoriesMeasured: 0, open: 2, settled: 0, opened: 2, resolved: -4 });
+        expect(last.delta).toEqual({
+            categoriesMeasured: 0,
+            open: 2,
+            settled: 0,
+            opened: 2,
+            resolved: -4,
+            reopened: 2
+        });
 
         const first = indicatorsOf(weeks, '2026-09-21')!;
         expect(first.delta.open).toBeNull();
         expect(first.delta.settled).toBeNull();
         expect(first.delta.opened).toBe(-1);
+        // The week before is from before reopenings were recorded: no movement from an unknown.
+        expect(first.delta.reopened).toBeNull();
     });
 
     it('writes one CSV row per week and category, with the reconstructed flag and unknowns empty', () => {
         const csv = weeklyCsv(threeWeeks()).split('\r\n');
         expect(csv[0]).toBe(
-            'week_start,week_end,reconstructed,captured_at,category,title,state,open,settled,opened,resolved'
+            'week_start,week_end,reconstructed,captured_at,category,title,state,open,settled,opened,resolved,reopened'
         );
         expect(csv).toHaveLength(1 + 30 + 1);
-        expect(csv).toContain('2026-09-14,2026-09-20,true,,A06,Vulnerable and Outdated Components,,9,,2,1');
+        expect(csv).toContain('2026-09-14,2026-09-20,true,,A06,Vulnerable and Outdated Components,,9,,2,1,');
         expect(csv).toContain(
-            '2026-09-28,2026-10-04,false,2026-09-28T06:00:00Z,A06,Vulnerable and Outdated Components,FINDINGS,6,3,3,1'
+            '2026-09-28,2026-10-04,false,2026-09-28T06:00:00Z,A06,Vulnerable and Outdated Components,FINDINGS,6,3,3,1,2'
         );
     });
 
     it('cannot write a formula into the spreadsheet', () => {
         const week = owaspWeek('2026-09-28', false, { A01: { title: '=HYPERLINK("x")' } });
-        const csv = weeklyCsv({ from: week.weekStart, to: week.weekStart, scope: null, weeks: [week] });
+        const csv = weeklyCsv({
+            from: week.weekStart,
+            to: week.weekStart,
+            scope: null,
+            reopenedRecordedFrom: null,
+            weeks: [week]
+        });
         expect(csv).toContain(`"'=HYPERLINK(""x"")"`);
     });
 });

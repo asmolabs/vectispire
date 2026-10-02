@@ -49,8 +49,16 @@ export function isoDay(value: string | null | undefined): string | null {
     return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : value;
 }
 
-/** An OWASP 2021 category code, or nothing. */
+/**
+ * What the backlog's `owasp_category` asks for every category at once: the issues the grid places in
+ * one of the ten, whichever — what a week's totals count. Not "no filter": licence and quality
+ * findings are in no category, and a total opening the whole backlog would list them too.
+ */
+export const ANY_CATEGORY = 'any';
+
+/** An OWASP 2021 category code, or {@link ANY_CATEGORY}, or nothing. */
 export function owaspCategory(value: string | null | undefined): string | null {
+    if (value === ANY_CATEGORY) return ANY_CATEGORY;
     return value && CATEGORY.test(value) ? value : null;
 }
 
@@ -272,9 +280,19 @@ export function stateLabel(i18n: I18nService, state: OwaspState | null, reconstr
     }
 }
 
+/**
+ * The figure a link counts: one category's line, or — `null` — the week's total, every category at
+ * once, which the backlog filters as {@link ANY_CATEGORY}.
+ */
+export type CategoryOrTotal = string | null;
+
 function scoped(params: Params, scope: WeeklyScope): Params {
     if (scope) params[`${scope.kind}_id`] = String(scope.id);
     return params;
+}
+
+function filterOf(category: CategoryOrTotal): string {
+    return category ?? ANY_CATEGORY;
 }
 
 /**
@@ -292,18 +310,51 @@ export function openLink(week: OwaspWeek, category: string, scope: WeeklyScope):
     return scoped(params, scope);
 }
 
+/**
+ * The backlog that a week's total open count counts, or `null` where no list can hold it.
+ *
+ * **A recorded week's total is the grid's, and the grid counts nothing in a category it does not
+ * measure** — nor in one the record holds no line of. Such a category may still hold open issues,
+ * which the backlog lists under `any`, so the list would come out longer than the total: no link
+ * there, rather than one that disagrees. A reconstructed week counts every placed issue open at its
+ * end, as the list does, and keeps its link; so does a recorded week where every category is
+ * measured or covered by nothing.
+ */
+export function totalOpenLink(week: OwaspWeek, scope: WeeklyScope): Params | null {
+    const uncounted = week.categories.some((line) => line.state === null || line.state === 'NOT_MEASURED');
+    if (!week.reconstructed && uncounted) return null;
+    return openLink(week, ANY_CATEGORY, scope);
+}
+
 /** The issues a week's "opened" bar counts: first seen from its Monday to its Sunday, both included. */
-export function openedLink(week: OwaspWeek, category: string, scope: WeeklyScope): Params {
+export function openedLink(week: OwaspWeek, category: CategoryOrTotal, scope: WeeklyScope): Params {
     return scoped(
-        { owasp_category: category, first_seen_from: week.weekStart, first_seen_to: sundayOf(week.weekStart) },
+        {
+            owasp_category: filterOf(category),
+            first_seen_from: week.weekStart,
+            first_seen_to: sundayOf(week.weekStart)
+        },
         scope
     );
 }
 
 /** The issues a week's "resolved" bar counts: resolved from its Monday to its Sunday, both included. */
-export function resolvedLink(week: OwaspWeek, category: string, scope: WeeklyScope): Params {
+export function resolvedLink(week: OwaspWeek, category: CategoryOrTotal, scope: WeeklyScope): Params {
     return scoped(
-        { owasp_category: category, resolved_from: week.weekStart, resolved_to: sundayOf(week.weekStart) },
+        { owasp_category: filterOf(category), resolved_from: week.weekStart, resolved_to: sundayOf(week.weekStart) },
+        scope
+    );
+}
+
+/**
+ * The issues a week's "reopened" bar counts: a reopening the triage history recorded from its Monday
+ * to its Sunday. `null` where the week's figure is unknown — before reopenings were recorded, a list
+ * would show the ones that happened to be recorded and read as the figure the week does not have.
+ */
+export function reopenedLink(week: OwaspWeek, category: CategoryOrTotal, scope: WeeklyScope): Params | null {
+    if (week.reopened === null) return null;
+    return scoped(
+        { owasp_category: filterOf(category), reopened_from: week.weekStart, reopened_to: sundayOf(week.weekStart) },
         scope
     );
 }
@@ -318,6 +369,8 @@ export interface WeekIndicators {
         settled: number | null;
         opened: number | null;
         resolved: number | null;
+        /** `null` also where either week's figure is unknown — before reopenings were recorded. */
+        reopened: number | null;
     };
 }
 
@@ -345,7 +398,8 @@ export function indicatorsOf(weeks: OwaspWeek[], weekStart: string | null): Week
             open: comparable ? week.open - previous.open : null,
             settled: comparable ? minus(week.settled, previous.settled) : null,
             opened: previous ? week.opened - previous.opened : null,
-            resolved: previous ? week.resolved - previous.resolved : null
+            resolved: previous ? week.resolved - previous.resolved : null,
+            reopened: previous ? minus(week.reopened, previous.reopened) : null
         }
     };
 }
@@ -380,7 +434,8 @@ const CSV_HEADER = [
     'open',
     'settled',
     'opened',
-    'resolved'
+    'resolved',
+    'reopened'
 ];
 
 /**
@@ -388,7 +443,7 @@ const CSV_HEADER = [
  *
  * `reconstructed` is on every row, because it changes what `open` means on that row: a figure
  * copied out of the file without it would be compared with a recorded one it does not count alike.
- * An empty `state` or `settled` is "not known", never zero.
+ * An empty `state`, `settled` or `reopened` is "not known", never zero.
  */
 export function weeklyCsv(coverage: OwaspWeeklyCoverage): string {
     const rows = [CSV_HEADER.join(',')];
@@ -406,7 +461,8 @@ export function weeklyCsv(coverage: OwaspWeeklyCoverage): string {
                     line.open,
                     line.settled,
                     line.opened,
-                    line.resolved
+                    line.resolved,
+                    line.reopened
                 ]
                     .map(csvCell)
                     .join(',')

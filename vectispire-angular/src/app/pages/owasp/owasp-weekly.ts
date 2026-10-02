@@ -28,6 +28,7 @@ import { LatestRequest } from '@/app/core/latest-request';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import type { OwaspWeek, OwaspWeekCategory, OwaspWeeklyCoverage, SolutionTree } from '@/app/core/api.models';
 import {
+    CategoryOrTotal,
     HeatCell,
     WINDOW_SIZES,
     WeeklyView,
@@ -42,9 +43,11 @@ import {
     openedLink,
     queryOf,
     readView,
+    reopenedLink,
     resolvedLink,
     stateLabel,
     sundayOf,
+    totalOpenLink,
     viewParams,
     weeklyCsv
 } from '@/app/shared/owasp-weekly';
@@ -263,6 +266,8 @@ export class OwaspWeekly {
     readonly weeks = computed(() => this.data()?.weeks ?? []);
     readonly max = computed(() => maxOpen(this.weeks()));
     readonly anyReconstructed = computed(() => this.weeks().some((week) => week.reconstructed));
+    /** Some week of the window began before reopenings were recorded, and shows no figure for them. */
+    readonly anyReopenedUnknown = computed(() => this.weeks().some((week) => week.reopened === null));
 
     readonly rows = computed<HeatRow[]>(() => {
         const weeks = this.weeks();
@@ -318,12 +323,22 @@ export class OwaspWeekly {
         return openLink(week, category, this.scope());
     }
 
-    openedParams(week: OwaspWeek, category: string): Params {
+    /** `null` where the week's total is not a list's length — see `totalOpenLink`. */
+    totalOpenParams(week: OwaspWeek): Params | null {
+        return totalOpenLink(week, this.scope());
+    }
+
+    openedParams(week: OwaspWeek, category: CategoryOrTotal): Params {
         return openedLink(week, category, this.scope());
     }
 
-    resolvedParams(week: OwaspWeek, category: string): Params {
+    resolvedParams(week: OwaspWeek, category: CategoryOrTotal): Params {
         return resolvedLink(week, category, this.scope());
+    }
+
+    /** `null` on a week before reopenings were recorded, whose figure is unknown. */
+    reopenedParams(week: OwaspWeek, category: CategoryOrTotal): Params | null {
+        return reopenedLink(week, category, this.scope());
     }
 
     sunday(week: OwaspWeek): string {
@@ -408,6 +423,14 @@ export class OwaspWeekly {
                     label: this.i18n.t('owasp_weekly.resolved'),
                     data: lines.map((line) => -(line?.resolved ?? 0)),
                     backgroundColor: '#22c55e'
+                },
+                {
+                    // Stacked on the opened: an issue coming back adds to the backlog as a new one does,
+                    // and is what makes the open curve rise where the opened bar does not. No bar at
+                    // all — not a zero — on a week before reopenings were recorded.
+                    label: this.i18n.t('owasp_weekly.reopened'),
+                    data: lines.map((line) => (line === null ? 0 : line.reopened)),
+                    backgroundColor: '#a855f7'
                 }
             ]
         };
@@ -420,7 +443,10 @@ export class OwaspWeekly {
      * with no zero line between the opened and the resolved.
      */
     readonly flowOptions = computed(() => {
-        const [opened, resolved] = this.flowChart().datasets.map((set) => Math.max(0, ...set.data.map(Math.abs)));
+        const [openedBars, resolvedBars, reopenedBars] = this.flowChart().datasets.map((set) => set.data);
+        // The opened and the reopened stack upwards: the axis holds their sum, week by week.
+        const opened = Math.max(0, ...openedBars.map((value, index) => (value ?? 0) + (reopenedBars[index] ?? 0)));
+        const resolved = Math.max(0, ...resolvedBars.map((value) => Math.abs(value ?? 0)));
         const step = Math.max(1, Math.ceil(Math.max(opened, resolved) / 3));
         const options = this.options(this.i18n.t('owasp_weekly.flow_axis'), true);
         return {
@@ -469,18 +495,21 @@ export class OwaspWeekly {
     }
 
     /**
-     * A bar opens the issues it counts — for one category only. The total counts the issues the grid
-     * places in a category, and the backlog has no filter for "placed in any category": a link from it
-     * would list licence and quality findings too, and disagree with the bar.
+     * A bar opens the issues it counts, the total's included: the backlog's `owasp_category=any` lists
+     * the issues placed in some category, which is what the total counts — never the whole backlog,
+     * whose licence and quality findings are in no category and would make the list longer than the bar.
      */
     flowSelected(event: { element?: { index: number; datasetIndex: number } }): void {
         const category = this.flowCategory();
         const element = event.element;
         const week = element ? this.weeks()[element.index] : undefined;
-        if (category === null || !element || !week) return;
-        const params =
-            element.datasetIndex === 0 ? this.openedParams(week, category) : this.resolvedParams(week, category);
-        void this.router.navigate(['/issues'], { queryParams: params });
+        if (!element || !week) return;
+        const params = [
+            () => this.openedParams(week, category),
+            () => this.resolvedParams(week, category),
+            () => this.reopenedParams(week, category)
+        ][element.datasetIndex]?.();
+        if (params) void this.router.navigate(['/issues'], { queryParams: params });
     }
 
     flowChanged(category: string | null): void {

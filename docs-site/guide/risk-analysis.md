@@ -85,9 +85,16 @@ Sunday in UTC; a column header selects the week, whose figures and grid appear b
 - **Every count opens the backlog it counts**, in the same scope: an open count lists the issues of that
   category open at the end of the week's Sunday (and not settled, on a recorded week — triage as it
   stands today); an opened or resolved figure lists the issues first seen or resolved from its Monday to
-  its Sunday. The backlog says what it was asked in a banner, with the way back and a way to clear it.
-  The total of the flows opens nothing: it counts only the issues placed in a category, which the
-  backlog cannot filter on — pick a category first.
+  its Sunday; a reopened figure lists the issues brought back in that week. The backlog says what it was
+  asked in a banner, with the way back and a way to clear it.
+- **A total opens the issues placed in any of the ten categories** — never the whole backlog, whose
+  licence and quality findings are in no category and would make the list longer than the bar. One
+  exception: on a recorded week where a category was not measured, the total open count opens nothing,
+  since the grid counted nothing in that category and the list would hold its issues.
+- **Reopened** counts the issues a scan or an import found again after they were resolved — what makes
+  open rise in a week with no opened bar to match. It is drawn in purple, stacked on the opened bar.
+  Reopenings have been recorded only since the upgrade that introduced them: **a week that began
+  before shows a dash, not a zero**, and a note under the view says from which week the figure exists.
 
 *Export CSV* gives one row per week and category, with whether the week was reconstructed; *Print /
 PDF* prints the view without the menus, through the browser's own "save as PDF". The address carries

@@ -2,7 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useEnglish } from '@/app/core/testing/english';
@@ -156,9 +156,11 @@ describe('the weekly OWASP view', () => {
         expect(view.curveChart().datasets.map((set) => set.label)).toEqual(['A06', 'Total']);
         expect(view.curveChart().datasets[0].data).toEqual([9, 4, 6]);
         expect(view.flowChart().datasets[1].data).toEqual([-1, -5, -1]);
-        // The axis steps on zero: -6, -4, -2, 0, 2, 4 for opened up to 3 and resolved down to 5.
+        // No bar, not a zero, where reopenings were not recorded yet.
+        expect(view.flowChart().datasets[2].data).toEqual([null, 0, 2]);
+        // The axis steps on zero, and holds the opened and the reopened stacked: 3 + 2 up, 5 down.
         const y = view.flowOptions().scales.y;
-        expect([y.min, y.max, y.ticks.stepSize]).toEqual([-6, 4, 2]);
+        expect([y.min, y.max, y.ticks.stepSize]).toEqual([-6, 6, 2]);
         view.flowChanged('A06');
         expect(view.flowChart().datasets[0].data).toEqual([2, 1, 3]);
     });
@@ -178,6 +180,100 @@ describe('the weekly OWASP view', () => {
         expect(name).toBe('vectispire-owasp-weekly-2026-09-14-2026-09-28.csv');
         const text = await saved!.text();
         expect(text.split('\r\n')[0]).toContain('reconstructed');
-        expect(text).toContain('2026-09-14,2026-09-20,true,,A06,Vulnerable and Outdated Components,,9,,2,1');
+        expect(text).toContain('2026-09-14,2026-09-20,true,,A06,Vulnerable and Outdated Components,,9,,2,1,');
+    });
+
+    it('opens the week totals on every category at once, and no open total the grid did not count whole', async () => {
+        await open('/owasp?view=weekly&project_id=4');
+        const grid = () => page().querySelector('[data-testid="week-grid"]')!;
+        const linkOf = (testId: string) => {
+            const anchor = grid().querySelector<HTMLAnchorElement>(`[data-testid="${testId}"]`);
+            return anchor ? Object.fromEntries(new URL(anchor.href).searchParams) : null;
+        };
+        // The last week: recorded, A03 not measured — its open total is the grid's, no list holds it.
+        expect(linkOf('total-open')).toBeNull();
+        expect(grid().querySelector('[data-testid="grid-total"]')?.textContent).toContain('6');
+        expect(linkOf('total-opened')).toEqual({
+            owasp_category: 'any',
+            first_seen_from: '2026-09-28',
+            first_seen_to: '2026-10-04',
+            project_id: '4'
+        });
+        expect(linkOf('total-resolved')).toEqual({
+            owasp_category: 'any',
+            resolved_from: '2026-09-28',
+            resolved_to: '2026-10-04',
+            project_id: '4'
+        });
+        expect(linkOf('total-reopened')).toEqual({
+            owasp_category: 'any',
+            reopened_from: '2026-09-28',
+            reopened_to: '2026-10-04',
+            project_id: '4'
+        });
+        const indicators = page().querySelector('[data-testid="week-indicators"]')!;
+        const figure = indicators.querySelector<HTMLAnchorElement>('[data-testid="figure-reopened-link"]')!;
+        expect(figure.textContent?.trim()).toBe('2');
+        expect(new URL(figure.href).searchParams.get('owasp_category')).toBe('any');
+        expect(indicators.querySelector('[data-testid="figure-opened-link"]')).not.toBeNull();
+        expect(indicators.querySelector('[data-testid="figure-open-link"]')).toBeNull();
+
+        // The reconstructed week counts every placed issue open at its end, as the list does.
+        page().querySelectorAll<HTMLButtonElement>('[data-testid="owasp-heatmap"] thead button')[0].click();
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        expect(linkOf('total-open')).toEqual({ owasp_category: 'any', open_at: '2026-09-20', project_id: '4' });
+    });
+
+    it('shows a reopened figure only where it was recorded, and says from when', async () => {
+        await open('/owasp?view=weekly');
+        const grid = page().querySelector('[data-testid="week-grid"]')!;
+        const a06 = grid.querySelector<HTMLAnchorElement>('[data-testid="grid-reopened"]')!;
+        expect(Object.fromEntries(new URL(a06.href).searchParams)).toEqual({
+            owasp_category: 'A06',
+            reopened_from: '2026-09-28',
+            reopened_to: '2026-10-04'
+        });
+        expect(page().querySelector('[data-testid="reopened-note"]')?.textContent).toContain(
+            'Reopenings are recorded from the week of 2026-09-21'
+        );
+
+        page().querySelectorAll<HTMLButtonElement>('[data-testid="owasp-heatmap"] thead button')[0].click();
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        // Unknown, said as unknown: a dash with its reason, no link, and no zero.
+        const figure = page().querySelector('[data-testid="figure-reopened"]')!;
+        expect(figure.textContent?.trim()).toBe('—');
+        expect(figure.querySelector('[aria-label]')?.getAttribute('aria-label')).toContain('not recorded yet');
+        expect(page().querySelector('[data-testid="grid-reopened"]')).toBeNull();
+        expect(page().querySelector('[data-testid="total-reopened"]')).toBeNull();
+    });
+
+    it('opens a total bar on every category, and a reopened bar on its reopenings', async () => {
+        await open('/owasp?view=weekly&solution_id=3');
+        const view = harness.routeDebugElement!.componentInstance as OwaspWeekly;
+        const router = TestBed.inject(Router);
+        view.flowSelected({ element: { index: 2, datasetIndex: 0 } });
+        await harness.fixture.whenStable();
+        expect(router.url).toBe(
+            '/issues?owasp_category=any&first_seen_from=2026-09-28&first_seen_to=2026-10-04&solution_id=3'
+        );
+
+        await open('/owasp?view=weekly&solution_id=3');
+        const again = harness.routeDebugElement!.componentInstance as OwaspWeekly;
+        again.flowChanged('A06');
+        again.flowSelected({ element: { index: 2, datasetIndex: 2 } });
+        await harness.fixture.whenStable();
+        expect(router.url).toBe(
+            '/issues?owasp_category=A06&reopened_from=2026-09-28&reopened_to=2026-10-04&solution_id=3'
+        );
+
+        // A reopened bar of a week before the recording opens nothing.
+        await open('/owasp?view=weekly');
+        const before = harness.routeDebugElement!.componentInstance as OwaspWeekly;
+        before.flowSelected({ element: { index: 0, datasetIndex: 2 } });
+        await harness.fixture.whenStable();
+        expect(router.url).toBe('/owasp?view=weekly');
+        expect(page().textContent).not.toContain('Pick a category');
     });
 });

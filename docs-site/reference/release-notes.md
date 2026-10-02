@@ -76,22 +76,31 @@
   resolution of a reopened issue counts — not open from that resolution to the reopening, and a
   resolution of its week — from the reopening entries of the triage history; a reopening before this
   release left none, and such an issue still counts as open between that earlier resolution and its
-  reopening.
+  reopening. Each week and category also gives **`reopened`**, the issues a recorded reopening brought
+  back in the week — what makes open rise with no opened figure to match. **It is `null`, not zero, on a
+  week that began before reopenings were recorded** (dated by V68's application, a day's margin aside);
+  `reopenedRecordedFrom` names the first week that has it.
 - **New backlog filters for that view's figures**: `owasp_category` (`A01`…`A10`, placed as the grid
   places issues — a vulnerability is `A06`), `open_at` (open at the end of that day, UTC) and
   `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` and the resolved range
-  read a reopened issue's earlier resolutions the same way. **With a date and no `state`,
+  read a reopened issue's earlier resolutions the same way — and `reopened_from` / `reopened_to` (a
+  reopening the triage history recorded in that range). **`owasp_category=any`** lists the issues placed
+  in any of the ten categories — a week's totals — and never a licence, quality, plugin or import
+  finding, which no category holds. **With a date and no `state`,
   `GET /api/v1/issues` lists every state**, since the issues open on a past day are mostly resolved
   since; the default stays `open` otherwise.
 - **The OWASP report screen gains a "By week" view** (*OWASP report* → *By week*, or
   `/owasp?view=weekly`): a heatmap of the ten categories over 12, 26 or 52 weeks or a chosen range, for
   the whole estate or one project or solution; the curves of what is open per category; the issues
-  opened and resolved each week; the selected week's figures and their change since the week before;
+  opened, reopened (stacked on the opened, in purple) and resolved each week; the selected week's figures and their change since the week before;
   and that week's grid. **Reconstructed weeks are hatched** and their curves dashed — their open count
   includes accepted risks, so no change is shown across the week the record started. **Accepted
   risks are shown apart**, in grey, never added into the open count. Every count opens the backlog it
-  counts — open at the week's Sunday (not settled, on a recorded week), or first seen / resolved from
-  its Monday to its Sunday, in the same scope — and the backlog says so in a banner, with the way back
+  counts — open at the week's Sunday (not settled, on a recorded week), or first seen / resolved /
+  reopened from its Monday to its Sunday, in the same scope — **the totals included**, which open the
+  issues placed in any category (except a recorded week's total open count where a category was not
+  measured: the grid counted nothing there, and the list would). A week before reopenings were recorded
+  shows a dash for them, not a zero. The backlog says what it was asked in a banner, with the way back
   and a way to clear it. The figures export as CSV, one row per week and category with the
   reconstructed flag; *Print / PDF* prints the view without the application's menus (the browser's
   own "save as PDF" — no PDF is generated on the server). Window, scope and selected week are in the

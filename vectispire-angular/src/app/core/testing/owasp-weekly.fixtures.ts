@@ -24,7 +24,8 @@ export const TITLES: Record<string, string> = {
 export function owaspWeek(
     weekStart: string,
     reconstructed: boolean,
-    lines: Partial<Record<string, Partial<OwaspWeekCategory>>> = {}
+    lines: Partial<Record<string, Partial<OwaspWeekCategory>>> = {},
+    reopenedKnown = !reconstructed
 ): OwaspWeek {
     const categories = Object.entries(TITLES).map(([category, title]) => ({
         category,
@@ -34,6 +35,7 @@ export function owaspWeek(
         settled: reconstructed ? null : 0,
         opened: 0,
         resolved: 0,
+        reopened: reopenedKnown ? 0 : null,
         ...lines[category]
     }));
     const sum = (pick: (line: OwaspWeekCategory) => number) =>
@@ -49,6 +51,7 @@ export function owaspWeek(
         settled: reconstructed ? null : sum((line) => line.settled ?? 0),
         opened: sum((line) => line.opened),
         resolved: sum((line) => line.resolved),
+        reopened: reopenedKnown ? sum((line) => line.reopened ?? 0) : null,
         categories
     };
 }
@@ -58,11 +61,15 @@ export function weeklyCoverage(weeks: OwaspWeek[], scope: OwaspWeeklyScope | nul
         from: weeks[0].weekStart,
         to: weeks[weeks.length - 1].weekStart,
         scope,
+        reopenedRecordedFrom: weeks.find((week) => week.reopened !== null)?.weekStart ?? null,
         weeks
     });
 }
 
-/** A reconstructed week, then two recorded ones; A06 carries the figures, A03 an unmeasured square. */
+/**
+ * A reconstructed week, then two recorded ones; A06 carries the figures, A03 an unmeasured square.
+ * Reopenings are recorded from the second week on: the first one's `reopened` is unknown.
+ */
 export function threeWeeks(): OwaspWeeklyCoverage {
     return weeklyCoverage([
         owaspWeek('2026-09-14', true, { A06: { open: 9, opened: 2, resolved: 1 } }),
@@ -73,7 +80,7 @@ export function threeWeeks(): OwaspWeeklyCoverage {
             A09: { state: null }
         }),
         owaspWeek('2026-09-28', false, {
-            A06: { state: 'FINDINGS', open: 6, settled: 3, opened: 3, resolved: 1 },
+            A06: { state: 'FINDINGS', open: 6, settled: 3, opened: 3, resolved: 1, reopened: 2 },
             A03: { state: 'NOT_MEASURED' },
             A02: { state: 'NO_FINDING' }
         })

@@ -24,7 +24,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest, AiVulnerabilityAdvice, AiDeterministic, SolutionTree } from '@/app/core/api.models';
 import * as wording from '@/app/shared/ai-advice';
 import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
-import { isoDay, mondayOf, owaspCategory } from '@/app/shared/owasp-weekly';
+import { ANY_CATEGORY, isoDay, mondayOf, owaspCategory } from '@/app/shared/owasp-weekly';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 
@@ -222,6 +222,8 @@ export class Issues {
     readonly firstSeenTo = signal<string | null>(null);
     readonly resolvedFrom = signal<string | null>(null);
     readonly resolvedTo = signal<string | null>(null);
+    readonly reopenedFrom = signal<string | null>(null);
+    readonly reopenedTo = signal<string | null>(null);
 
     readonly asksDates = computed(
         () =>
@@ -229,7 +231,9 @@ export class Issues {
             this.firstSeenFrom() !== null ||
             this.firstSeenTo() !== null ||
             this.resolvedFrom() !== null ||
-            this.resolvedTo() !== null
+            this.resolvedTo() !== null ||
+            this.reopenedFrom() !== null ||
+            this.reopenedTo() !== null
     );
 
     /**
@@ -244,7 +248,9 @@ export class Issues {
     /** What the drill-down asks, in words; `null` when the URL carries none of it. */
     readonly weeklyBanner = computed(() => {
         this.i18n.translations();
-        const category = this.owaspCategory();
+        const asked = this.owaspCategory();
+        // `any` is every category at once — a week's total — and is said so, never shown as a code.
+        const category = asked === ANY_CATEGORY ? this.i18n.t('issues.weekly.any') : asked;
         const sentences: string[] = [];
         const openAt = this.openAt();
         if (openAt !== null) {
@@ -274,7 +280,17 @@ export class Issues {
                     : this.i18n.t('issues.weekly.resolved', range)
             );
         }
-        if (sentences.length === 0 && category !== null) {
+        if (this.reopenedFrom() !== null || this.reopenedTo() !== null) {
+            const range = { category: category ?? '', from: this.reopenedFrom() ?? '…', to: this.reopenedTo() ?? '…' };
+            sentences.push(
+                category !== null
+                    ? this.i18n.t('issues.weekly.reopened_category', range)
+                    : this.i18n.t('issues.weekly.reopened', range)
+            );
+        }
+        if (sentences.length === 0 && asked === ANY_CATEGORY) {
+            sentences.push(this.i18n.t('issues.weekly.category_any'));
+        } else if (sentences.length === 0 && category !== null) {
             sentences.push(this.i18n.t('issues.weekly.category', { category }));
         }
         return sentences.length === 0 ? null : sentences.join(' · ');
@@ -287,7 +303,13 @@ export class Issues {
      */
     readonly weeklyBack = computed<Params>(() => {
         const day =
-            this.openAt() ?? this.firstSeenFrom() ?? this.resolvedFrom() ?? this.firstSeenTo() ?? this.resolvedTo();
+            this.openAt() ??
+            this.firstSeenFrom() ??
+            this.resolvedFrom() ??
+            this.reopenedFrom() ??
+            this.firstSeenTo() ??
+            this.resolvedTo() ??
+            this.reopenedTo();
         const params: Params = { view: 'weekly' };
         if (day !== null) params['week'] = mondayOf(day);
         const projectId = this.projectId();
@@ -306,6 +328,8 @@ export class Issues {
         this.firstSeenTo.set(null);
         this.resolvedFrom.set(null);
         this.resolvedTo.set(null);
+        this.reopenedFrom.set(null);
+        this.reopenedTo.set(null);
         if (!explicitState) this.state = 'open';
         this.filtersChanged();
     }
@@ -430,6 +454,8 @@ export class Issues {
         this.firstSeenTo.set(isoDay(params.get('first_seen_to')));
         this.resolvedFrom.set(isoDay(params.get('resolved_from')));
         this.resolvedTo.set(isoDay(params.get('resolved_to')));
+        this.reopenedFrom.set(isoDay(params.get('reopened_from')));
+        this.reopenedTo.set(isoDay(params.get('reopened_to')));
         // The dashboard has always linked here with these, and this screen once read none of
         // them: clicking "8 high" opened the whole backlog, and so did the KEV panel. Nothing
         // failed — the page loaded, full of issues, simply not the ones that were asked for.
@@ -469,7 +495,9 @@ export class Issues {
             first_seen_from: this.firstSeenFrom() ?? undefined,
             first_seen_to: this.firstSeenTo() ?? undefined,
             resolved_from: this.resolvedFrom() ?? undefined,
-            resolved_to: this.resolvedTo() ?? undefined
+            resolved_to: this.resolvedTo() ?? undefined,
+            reopened_from: this.reopenedFrom() ?? undefined,
+            reopened_to: this.reopenedTo() ?? undefined
         };
         return Object.fromEntries(
             Object.entries(params)
@@ -576,6 +604,8 @@ export class Issues {
                 first_seen_to: this.firstSeenTo() ?? undefined,
                 resolved_from: this.resolvedFrom() ?? undefined,
                 resolved_to: this.resolvedTo() ?? undefined,
+                reopened_from: this.reopenedFrom() ?? undefined,
+                reopened_to: this.reopenedTo() ?? undefined,
                 limit: this.limit,
                 offset: this.offset()
             }),

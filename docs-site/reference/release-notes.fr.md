@@ -82,24 +82,36 @@
   antérieure d'une issue rouverte compte — pas ouverte de cette résolution à la réouverture, et une
   résolution de sa semaine — d'après les entrées de réouverture de l'historique de triage ; une
   réouverture antérieure à cette version n'en a laissé aucune, et une telle issue compte encore comme
-  ouverte entre cette résolution antérieure et sa réouverture.
+  ouverte entre cette résolution antérieure et sa réouverture. Chaque semaine et catégorie donne aussi
+  **`reopened`**, les issues qu'une réouverture consignée a ramenées dans la semaine — ce qui fait monter
+  les ouverts sans chiffre d'apparues correspondant. **Il vaut `null`, pas zéro, sur une semaine commencée
+  avant que les réouvertures soient consignées** (datées par l'application de V68, à un jour près) ;
+  `reopenedRecordedFrom` nomme la première semaine qui l'a.
 - **De nouveaux filtres du backlog pour les chiffres de cette vue** : `owasp_category` (`A01`…`A10`,
   rangée comme la grille range les issues — une vulnérabilité est `A06`), `open_at` (ouverte à la fin de
   ce jour, UTC) et `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` et
-  l'intervalle de résolution lisent de même les résolutions antérieures d'une issue rouverte. **Avec une date
+  l'intervalle de résolution lisent de même les résolutions antérieures d'une issue rouverte — et
+  `reopened_from` / `reopened_to` (une réouverture que l'historique de triage a consignée dans
+  l'intervalle). **`owasp_category=any`** liste les issues rangées dans l'une des dix catégories — les
+  totaux d'une semaine — et jamais un constat de licence, de qualité, de plugin ou d'import, qu'aucune
+  catégorie ne tient. **Avec une date
   et sans `state`, `GET /api/v1/issues` liste tous les états**, puisque les issues ouvertes un jour passé
   sont pour la plupart résolues depuis ; le défaut reste `open` sinon.
 - **L'écran du rapport OWASP gagne une vue « Par semaine »** (*Rapport OWASP* → *Par semaine*, ou
   `/owasp?view=weekly`) : une carte de chaleur des dix catégories sur 12, 26 ou 52 semaines ou un
   intervalle choisi, pour tout le parc ou un projet ou une solution ; les courbes de ce qui est ouvert par
-  catégorie ; les issues apparues et résolues chaque semaine ; les chiffres de la semaine sélectionnée et
+  catégorie ; les issues apparues, rouvertes (empilées sur les apparues, en violet) et résolues chaque
+  semaine ; les chiffres de la semaine sélectionnée et
   leur évolution depuis la précédente ; et la grille de cette semaine. **Les semaines reconstituées sont
   hachurées** et leurs courbes en pointillé — leurs ouverts incluent les risques acceptés, d'où l'absence
   d'évolution affichée sur la semaine où le relevé commence. **Les risques acceptés sont montrés à part**,
   en gris, jamais ajoutés aux ouverts. Chaque nombre ouvre le backlog qu'il compte — ouvertes au dimanche
-  de la semaine (non réglées, sur une semaine relevée), ou apparues / résolues de son lundi à son
-  dimanche, dans le même périmètre — et le backlog le dit dans un bandeau, avec le chemin du retour et de
-  quoi le retirer. Les chiffres s'exportent en CSV, une ligne par semaine et catégorie avec l'indicateur
+  de la semaine (non réglées, sur une semaine relevée), ou apparues / résolues / rouvertes de son lundi à
+  son dimanche, dans le même périmètre — **les totaux compris**, qui ouvrent les issues rangées dans une
+  catégorie quelconque (sauf le total des ouverts d'une semaine relevée où une catégorie n'était pas
+  mesurée : la grille n'y comptait rien, la liste les tiendrait). Une semaine antérieure à l'enregistrement
+  des réouvertures affiche un tiret pour elles, pas un zéro. Le backlog dit ce qu'on lui a demandé dans un
+  bandeau, avec le chemin du retour et de quoi le retirer. Les chiffres s'exportent en CSV, une ligne par semaine et catégorie avec l'indicateur
   « reconstituée » ; *Imprimer / PDF* imprime la vue sans les menus de l'application (le « enregistrer en
   PDF » du navigateur — aucun PDF n'est produit par le serveur). Fenêtre, périmètre et semaine
   sélectionnée sont dans l'adresse : un lien reproduit la vue.

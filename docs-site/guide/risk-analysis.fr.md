@@ -94,9 +94,18 @@ s'affichent sous la carte de chaleur.
 - **Chaque nombre ouvre le backlog qu'il compte**, dans le même périmètre : des ouverts listent les issues
   de la catégorie ouvertes à la fin du dimanche de la semaine (et non réglées, sur une semaine relevée —
   le triage tel qu'il est aujourd'hui) ; des apparues ou résolues listent les issues vues pour la première
-  fois ou résolues de son lundi à son dimanche. Le backlog dit ce qu'on lui a demandé dans un bandeau, avec
-  le chemin du retour et de quoi le retirer. Le total des flux n'ouvre rien : il ne compte que les issues
-  rangées dans une catégorie, ce que le backlog ne sait pas filtrer — choisissez d'abord une catégorie.
+  fois ou résolues de son lundi à son dimanche ; des rouvertes listent les issues revenues pendant cette
+  semaine. Le backlog dit ce qu'on lui a demandé dans un bandeau, avec le chemin du retour et de quoi le
+  retirer.
+- **Un total ouvre les issues rangées dans l'une des dix catégories** — jamais tout le backlog, dont les
+  constats de licence et de qualité ne sont dans aucune catégorie et rendraient la liste plus longue que
+  la barre. Une exception : sur une semaine relevée où une catégorie n'était pas mesurée, le total des
+  ouverts n'ouvre rien, puisque la grille n'y comptait rien et que la liste en tiendrait les issues.
+- **Rouvertes** compte les issues qu'une analyse ou un import a retrouvées après leur résolution — ce qui
+  fait monter les ouverts d'une semaine sans barre d'apparues correspondante. Elles sont dessinées en
+  violet, empilées sur les apparues. Les réouvertures ne sont consignées que depuis la mise à jour qui les
+  a introduites : **une semaine commencée avant affiche un tiret, pas un zéro**, et une note sous la vue
+  dit à partir de quelle semaine le chiffre existe.
 
 *Exporter en CSV* donne une ligne par semaine et catégorie, avec l'indication « reconstituée » ;
 *Imprimer / PDF* imprime la vue sans les menus, par le « enregistrer en PDF » du navigateur. L'adresse

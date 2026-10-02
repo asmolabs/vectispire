@@ -403,7 +403,7 @@ export interface IssueFilters {
     solution_id?: number;
     only_direct?: boolean;
     search?: string;
-    /** The weekly OWASP view's drill-down: a category as the grid places it (`A01`…`A10`). */
+    /** The weekly OWASP view's drill-down: a category as the grid places it (`A01`…`A10`), or `any` of them. */
     owasp_category?: string;
     /** Open at the end of that day, UTC — what a week's open count counts at its Sunday. */
     open_at?: string;
@@ -412,6 +412,9 @@ export interface IssueFilters {
     first_seen_to?: string;
     resolved_from?: string;
     resolved_to?: string;
+    /** Reopened in that range, by a reopening the triage history recorded. */
+    reopened_from?: string;
+    reopened_to?: string;
     limit?: number;
     offset?: number;
 }
@@ -2148,7 +2151,7 @@ export type OwaspGrid = Refine<Schema<'DeclaredGrid'>, { lines: OwaspCoverageLin
  */
 export type OwaspWeekCategory = Refine<
     Schema<'OwaspWeekCategory'>,
-    { category: string; title: string; state: OwaspState | null; settled: number | null }
+    { category: string; title: string; state: OwaspState | null; settled: number | null; reopened: number | null }
 >;
 
 /**
@@ -2164,6 +2167,8 @@ export type OwaspWeek = Refine<
         capturedAt: string | null;
         categoriesMeasured: number | null;
         settled: number | null;
+        /** `null` on a week that began before reopenings were recorded: not zero, not known. */
+        reopened: number | null;
         categories: OwaspWeekCategory[];
     }
 >;
@@ -2173,7 +2178,14 @@ export type OwaspWeeklyScope = Refine<Schema<'OwaspWeeklyScope'>, { kind: string
 
 export type OwaspWeeklyCoverage = Refine<
     Schema<'OwaspWeeklyCoverage'>,
-    { from: string; to: string; scope: OwaspWeeklyScope | null; weeks: OwaspWeek[] }
+    {
+        from: string;
+        to: string;
+        scope: OwaspWeeklyScope | null;
+        /** The Monday of the first week whose `reopened` is known; `null` when none is. */
+        reopenedRecordedFrom: string | null;
+        weeks: OwaspWeek[];
+    }
 >;
 
 /** The query string of the weekly view; absent values are left to the server's defaults. */

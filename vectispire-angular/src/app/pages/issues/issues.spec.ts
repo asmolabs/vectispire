@@ -11,7 +11,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
-import { openLink, openedLink, resolvedLink } from '@/app/shared/owasp-weekly';
+import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
 
 /**
  * The backlog.
@@ -912,6 +912,53 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         expect(params.get('solution_id')).toBe('1');
         expect(TestBed.inject(Router).url).toBe('/issues?solution_id=1');
         expect(page().querySelector('[data-testid="weekly-banner"]')).toBeNull();
+    });
+
+    it('asks a total for every category at once, and says so in words rather than as a code', async () => {
+        const week = threeWeeks().weeks[2];
+        const params = await open(url(resolvedLink(week, null, { kind: 'project', id: 12 })), week.resolved);
+        expect(params.get('owasp_category')).toBe('any');
+        expect(params.get('resolved_from')).toBe('2026-09-28');
+        expect(params.get('resolved_to')).toBe('2026-10-04');
+        const text = page().querySelector('[data-testid="weekly-banner-text"]')?.textContent;
+        expect(text).toContain('Issues of any OWASP category resolved from 2026-09-28 to 2026-10-04');
+        expect(text).not.toContain('any resolved');
+    });
+
+    it('goes back to the week a reopened range starts in, even with no end', async () => {
+        await open('/issues?reopened_from=2026-09-30', 1);
+        const back = page().querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!;
+        expect(new URL(back.href).searchParams.get('week')).toBe('2026-09-28');
+    });
+
+    it('names a lone any filter as the Top 10, not as a category called any', async () => {
+        await open('/issues?owasp_category=any', 2);
+        expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues placed in an OWASP Top 10 category'
+        );
+    });
+
+    it('asks a reopened bar its recorded reopenings over every state, and its way back is the week', async () => {
+        const week = threeWeeks().weeks[2];
+        const params = await open(url(reopenedLink(week, 'A06', null)!), 2);
+        expect(params.get('reopened_from')).toBe('2026-09-28');
+        expect(params.get('reopened_to')).toBe('2026-10-04');
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('state')).toBe('all');
+        const banner = page().querySelector('[data-testid="weekly-banner"]')!;
+        expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues A06 reopened from 2026-09-28 to 2026-10-04'
+        );
+        const back = new URL(banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!.href);
+        expect(back.searchParams.get('week')).toBe('2026-09-28');
+        expect(TestBed.inject(Router).url).toContain('reopened_to=2026-10-04');
+
+        page().querySelector<HTMLButtonElement>('[data-testid="weekly-clear"] button')!.click();
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        const cleared = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        for (const key of ['reopened_from', 'reopened_to', 'owasp_category']) expect(cleared.has(key)).toBe(false);
     });
 
     it('shows no banner, and asks no date, on an ordinary visit or a garbled one', async () => {
