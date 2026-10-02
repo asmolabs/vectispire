@@ -120,6 +120,11 @@ test.describe('Project checklists', () => {
         await line.getByRole('radio', { name: value }).check();
         if (comment) await line.getByLabel('Comment:').fill(comment);
         await line.getByRole('button', { name: 'Save the answer' }).click();
+        // **The save has landed once its form has closed**, and not before. `not Ready` is already
+        // true while the request is in flight, so the next line's form could open first and be
+        // closed by this save's answer — invisible on SQLite, deterministic on MySQL, a few
+        // milliseconds slower to answer.
+        await expect(page.getByTestId(`answer-form-${position}`)).toHaveCount(0);
         if (ready) await expect(line.getByTestId('problems')).toHaveText('Ready');
         else await expect(line.getByTestId('problems')).not.toHaveText('Ready');
     }
