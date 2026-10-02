@@ -132,6 +132,11 @@
   then to the dashboard, the link forgotten; the same happened to a change opened from the top bar or
   the account page. The change now returns to the page asked for — or the one it was opened from — and
   only to a page of Vectispire: an address pointing elsewhere is ignored.
+- **"1 scans", "1 target(s)": counts now agree with their noun**, in English and French. Forty-six
+  messages — scans queued, issues to be resolved, entries missing from the audit chain, targets never
+  scanned, components listed, checklist lines answered… — were written in the plural or with "(s)" and
+  said so whatever the number. Each now has a singular and a plural chosen by the language's own rule: in
+  French 0 takes the singular ("0 dépôt"), in English the plural ("0 repositories").
 
 ## 0.10.0 — 2026-10-01
 

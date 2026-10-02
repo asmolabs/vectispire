@@ -249,7 +249,7 @@ test.describe('Project checklists', () => {
         await expect(kind.locator('option:checked')).toHaveText('None', { timeout: 15_000 });
         await kind.selectOption({ label: 'File' });
         await page.getByRole('button', { name: 'Save the proof asked (1 changed)' }).click();
-        await expect(page.getByTestId('notice')).toHaveText('Proof asked set on 1 item(s).');
+        await expect(page.getByTestId('notice')).toHaveText('Proof asked set on 1 item.');
         await expect(kind.locator('option:checked')).toHaveText('File');
         await expect(page.getByRole('button', { name: 'Save the proof asked (0 changed)' })).toBeDisabled();
 
@@ -347,7 +347,7 @@ test.describe('Project checklists', () => {
         await expect(editor.getByTestId('rule-described')).toContainText('Evidence at most 7 days old');
         await editor.getByRole('button', { name: 'Keep this rule' }).click();
         await page.getByRole('button', { name: 'Save the rules (1)' }).click();
-        await expect(page.getByTestId('notice')).toHaveText('Rules saved on 1 line(s).');
+        await expect(page.getByTestId('notice')).toHaveText('Rules saved on 1 line.');
         await expect(page.getByTestId('item-4').getByTestId('item-rule-kind')).toHaveText('Findings within thresholds');
 
         const version = (await (
@@ -529,7 +529,7 @@ test.describe('Project checklists', () => {
             await expect(page.getByTestId('automatic-count')).toHaveCount(0);
 
             await page.getByRole('button', { name: 'Answer every measured line as measured' }).click();
-            await expect(page.getByTestId('as-measured-answered')).toHaveText('1 line(s) answered yes as measured.');
+            await expect(page.getByTestId('as-measured-answered')).toHaveText('1 line answered yes as measured.');
             await expect(page.getByTestId('line-1').getByTestId('answer-value')).toHaveText('Yes');
             await expect(page.getByTestId('measurement-1').getByTestId('reconciliation')).toHaveText('Consistent');
             await expect(page.getByTestId('as-measured-needs_comment')).toContainText(
@@ -564,7 +564,7 @@ test.describe('Project checklists', () => {
         const { name, templateName } = await measuredByCoverage(page, 'automatic');
         await openMeasured(page, name, templateName);
 
-        await expect(page.getByTestId('automatic-count')).toHaveText('2 automatic answer(s)');
+        await expect(page.getByTestId('automatic-count')).toHaveText('2 automatic answers');
         const met = page.getByTestId('line-1');
         await expect(met.getByTestId('answer-value')).toHaveText('Yes');
         await expect(met.getByTestId('answer-automatic')).toHaveText('Automatic — measured by Vectispire');
@@ -583,7 +583,7 @@ test.describe('Project checklists', () => {
         await unmet.getByRole('button', { name: 'Save the answer' }).click();
         await expect(unmet.getByTestId('answer-comment')).toContainText('tests planned this sprint');
         await expect(unmet.getByTestId('answer-automatic')).toHaveCount(0);
-        await expect(page.getByTestId('automatic-count')).toHaveText('1 automatic answer(s)');
+        await expect(page.getByTestId('automatic-count')).toHaveText('1 automatic answer');
 
         await unmet.getByRole('button', { name: 'History of line 2' }).click();
         const history = page.getByTestId('history-2');

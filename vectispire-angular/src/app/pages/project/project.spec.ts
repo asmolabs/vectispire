@@ -129,7 +129,7 @@ describe('the project page', () => {
 
         expect(text('[data-testid="scorecard-score"]')).toBe('64/100');
         expect(text('[data-testid="scorecard-grade"]')).toBe('Grade C');
-        expect(text('[data-testid="scope-target-count"]')).toBe('Computed over 2 target(s).');
+        expect(text('[data-testid="scope-target-count"]')).toBe('Computed over 2 targets.');
         expect(text('[data-testid="framework-NIS_2"]')).toContain('72%');
         expect(text('[data-testid="framework-NIS_2"]')).toContain('Partial');
         expect(dom().querySelectorAll('[data-testid="matrix-row"]')).toHaveLength(1);
@@ -171,9 +171,9 @@ describe('the project page', () => {
     it('says the list is incomplete while a visible target was never scanned, and shows that target as such', async () => {
         await open();
 
-        expect(text('[data-testid="incomplete"]')).toContain('Incomplete list: 1 target(s) listed no components');
+        expect(text('[data-testid="incomplete"]')).toContain('Incomplete list: 1 target listed no components');
         expect(text('[data-testid="inventory-container-4"] [data-testid="inventory-state"]')).toBe('Never scanned');
-        expect(text('[data-testid="inventory-repository-9"] [data-testid="inventory-state"]')).toBe('2 component(s)');
+        expect(text('[data-testid="inventory-repository-9"] [data-testid="inventory-state"]')).toBe('2 components');
     });
 
     it('draws no banner over a complete list', async () => {

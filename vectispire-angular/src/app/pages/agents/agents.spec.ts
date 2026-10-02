@@ -304,7 +304,7 @@ describe('the agents screen, on credentialed scans nobody can take', () => {
         await open({ scans: 3, labels: ['', 'dmz'], keptAgents: ['edge-01', 'edge-02'] });
 
         const text = banner();
-        expect(text).toContain('3 scan(s)');
+        expect(text).toContain('3 scans');
         // "No label" in words, not an empty slot before the comma.
         expect(text).toContain('label: none, dmz');
         expect(text).toContain('edge-01, edge-02 would take them');
@@ -326,6 +326,6 @@ describe('the agents screen, on credentialed scans nobody can take', () => {
         expect(request.request.method).toBe('GET');
         request.flush({ scans: 2, labels: ['dmz'], keptAgents: ['edge-01'] });
         flushLoad(NONE);
-        expect(banner()).toContain('2 scan(s)');
+        expect(banner()).toContain('2 scans');
     });
 });

@@ -492,7 +492,7 @@ describe('the checklist templates screen', () => {
         request.flush(WITH_EVIDENCE);
         fixture.detectChanges();
 
-        expect(text('[data-testid="notice"]')).toBe('Proof asked set on 2 item(s).');
+        expect(text('[data-testid="notice"]')).toBe('Proof asked set on 2 items.');
         // The view answered is adopted: its revision is the one the next write names.
         expect(text('[data-testid="shown-revision"]')).toBe('5');
         http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush({

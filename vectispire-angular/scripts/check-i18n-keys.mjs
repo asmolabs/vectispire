@@ -515,10 +515,27 @@ if (messagesInCode !== MESSAGES_IN_CODE_CEILING) {
     process.exit(1);
 }
 
+// **A plural key is referenced by its stem.** `t('repositories.scan_all_queued', { count })` reads
+// `scan_all_queued_one` or `scan_all_queued_other` as the language's rule says (I18nService.t), so
+// the stem is present when both forms are: the `_one` alone would leave every other count a raw
+// key, the `_other` alone would say "1 repositories" again. A key that only ends that way —
+// `gate_verdicts.refused_one` beside `refused` — is a word of its own, and the service treats it so.
+// What is refused is a stem both plain and plural: which one the reader got would depend on whether
+// a count happened to be passed.
+const presentIn = (known, key) => known.has(key) || (known.has(`${key}_one`) && known.has(`${key}_other`));
 let failed = false;
 for (const lang of ['en', 'fr']) {
     const known = bundle(lang);
-    const missing = [...referenced].filter((key) => !known.has(key)).sort();
+    const ambiguous = [...known]
+        .filter((key) => key.endsWith('_other'))
+        .map((key) => key.slice(0, -'_other'.length))
+        .filter((stem) => known.has(stem) && known.has(`${stem}_one`));
+    if (ambiguous.length > 0) {
+        failed = true;
+        console.error(`Keys both plain and plural in public/i18n/${lang}.json:`);
+        for (const key of ambiguous) console.error(`  - ${key}`);
+    }
+    const missing = [...referenced].filter((key) => !presentIn(known, key)).sort();
     if (missing.length > 0) {
         failed = true;
         console.error(`Keys missing from public/i18n/${lang}.json:`);

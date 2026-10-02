@@ -428,7 +428,7 @@ describe('triaging a selection', () => {
 
         // The sentence the server took care to write, kept — with the batch's fate stated first.
         expect(component.triageError()).toContain('Too many issues at once');
-        expect(component.triageError()).toContain('None of the 1 selected issues were triaged');
+        expect(component.triageError()).toContain('The selected issue was not triaged');
     });
 
     /**

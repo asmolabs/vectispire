@@ -217,7 +217,7 @@ describe('binding a rule to a template line', () => {
         });
         request.flush(BOUND_VERSION);
         fixture.detectChanges();
-        expect(text('[data-testid="notice"]')).toBe('Rules saved on 1 line(s).');
+        expect(text('[data-testid="notice"]')).toBe('Rules saved on 1 line.');
         // The version answered is adopted: its revision is the one the next write names.
         expect(text('[data-testid="shown-revision"]')).toBe('5');
         answerRereads(BOUND_VERSION);

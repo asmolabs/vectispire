@@ -16,6 +16,15 @@ describe('I18nService & TranslatePipe', () => {
         },
         menu: {
             dashboard: 'Dashboard'
+        },
+        scans: {
+            queued_one: 'Scan queued for {{count}} repository.',
+            queued_other: 'Scan queued for {{count}} repositories.',
+            mean_one: '{{count}} day',
+            mean_other: '{{count}} days',
+            seen_once: 'seen once',
+            refused: 'refusals',
+            refused_one: 'refused'
         }
     };
 
@@ -26,6 +35,10 @@ describe('I18nService & TranslatePipe', () => {
         },
         menu: {
             dashboard: 'Tableau de bord'
+        },
+        scans: {
+            queued_one: 'Analyse planifiée pour {{count}} dépôt.',
+            queued_other: 'Analyse planifiée pour {{count}} dépôts.'
         }
     };
 
@@ -74,5 +87,52 @@ describe('I18nService & TranslatePipe', () => {
         const pipe = TestBed.inject(TranslatePipe);
         expect(pipe.transform('common.save')).toBe('Enregistrer');
         expect(pipe.transform('common.welcome', { name: 'Charlie' })).toBe('Bonjour Charlie !');
+    });
+
+    /**
+     * "1 repositories" was on screen wherever a count was: the strings were written for the plural
+     * and the singular never came. The language's rule picks the form, not `count === 1`.
+     */
+    describe('plurals', () => {
+        it('takes the singular for one and the plural otherwise, in English', async () => {
+            await service.setLanguage('en');
+            expect(service.t('scans.queued', { count: 1 })).toBe('Scan queued for 1 repository.');
+            expect(service.t('scans.queued', { count: 0 })).toBe('Scan queued for 0 repositories.');
+            expect(service.t('scans.queued', { count: 12 })).toBe('Scan queued for 12 repositories.');
+        });
+
+        it('takes the singular for zero as well in French', async () => {
+            await service.setLanguage('fr');
+            expect(service.t('scans.queued', { count: 0 })).toBe('Analyse planifiée pour 0 dépôt.');
+            expect(service.t('scans.queued', { count: 1 })).toBe('Analyse planifiée pour 1 dépôt.');
+            expect(service.t('scans.queued', { count: 2 })).toBe('Analyse planifiée pour 2 dépôts.');
+            // CLDR's `many` for French large round numbers falls back to the general form.
+            expect(service.t('scans.queued', { count: 1_000_000 })).toBe('Analyse planifiée pour 1000000 dépôts.');
+        });
+
+        it('reads a count given as text with its decimals, as the reader sees it', async () => {
+            await service.setLanguage('en');
+            expect(service.t('scans.mean', { count: '1' })).toBe('1 day');
+            expect(service.t('scans.mean', { count: '1.0' })).toBe('1.0 days');
+            expect(service.t('scans.mean', { count: '2.5' })).toBe('2.5 days');
+        });
+
+        it('gives the general form to a plural key asked without a count, never the raw key', async () => {
+            await service.setLanguage('en');
+            expect(service.t('scans.queued')).toBe('Scan queued for {{count}} repositories.');
+        });
+
+        it('leaves a key that merely ends like a plural form alone', async () => {
+            await service.setLanguage('en');
+            expect(service.t('scans.seen_once', { count: 1 })).toBe('seen once');
+            // `gate_verdicts.refused_one` sits beside `refused` in the real bundle: a word, not a form.
+            expect(service.t('scans.refused', { count: 1 })).toBe('refusals');
+        });
+
+        it('chooses through the pipe too', async () => {
+            await service.setLanguage('en');
+            const pipe = TestBed.inject(TranslatePipe);
+            expect(pipe.transform('scans.queued', { count: 1 })).toBe('Scan queued for 1 repository.');
+        });
     });
 });

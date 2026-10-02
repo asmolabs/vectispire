@@ -70,7 +70,7 @@ test.describe('A project page', () => {
             await expect(page.getByTestId('scorecard-grade')).toHaveText('No data');
             await expect(page.getByTestId('framework-NIS_2')).toContainText('No data');
 
-            await expect(page.getByTestId('incomplete')).toContainText('Incomplete list: 1 target(s)');
+            await expect(page.getByTestId('incomplete')).toContainText('Incomplete list: 1 target listed');
             await expect(page.getByTestId(`inventory-container-${containerId}`)).toContainText('Never scanned');
 
             const download = page.waitForEvent('download');

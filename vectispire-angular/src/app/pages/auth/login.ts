@@ -218,9 +218,7 @@ export class Login {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
                 if (retryAfter) {
-                    this.error.set(
-                        this.i18n.t('auth.error_too_many_attempts', { minutes: Math.ceil(retryAfter / 60) })
-                    );
+                    this.error.set(this.i18n.t('auth.error_too_many_attempts', { count: Math.ceil(retryAfter / 60) }));
                 } else if (response.status === 401) {
                     this.error.set(this.i18n.t('auth.error_invalid_credentials'));
                 } else {

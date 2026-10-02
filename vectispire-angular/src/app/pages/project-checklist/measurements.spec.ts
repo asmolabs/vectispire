@@ -478,7 +478,7 @@ describe('the measured lines of a project checklist', () => {
         fixture.detectChanges();
 
         expect(text('[data-testid="line-1"] [data-testid="answer-value"]')).toBe('Yes');
-        expect(text('[data-testid="as-measured-answered"]')).toBe('1 line(s) answered yes as measured.');
+        expect(text('[data-testid="as-measured-answered"]')).toBe('1 line answered yes as measured.');
         expect(text('[data-testid="as-measured-needs_comment"]')).toContain(
             'Lines 3, measured as not met, need your “no” with a comment:'
         );
@@ -534,7 +534,7 @@ describe('the measured lines of a project checklist', () => {
         measurementsRead().flush(OFFERED_MEASUREMENTS);
         fixture.detectChanges();
 
-        expect(text('[data-testid="as-measured-answered"]')).toBe('0 line(s) answered yes as measured.');
+        expect(text('[data-testid="as-measured-answered"]')).toBe('0 lines answered yes as measured.');
         expect(text('[data-testid="as-measured-measurement_changed"]')).toBe(
             'The measurement of lines 3 changed since you read it: check it again, then answer.'
         );

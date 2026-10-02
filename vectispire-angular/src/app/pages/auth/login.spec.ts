@@ -104,7 +104,7 @@ describe('the sign-in screen', () => {
 
         // 90 seconds rounds up: "try again in 1 minute" would come back too early and spend
         // another attempt against the same counter.
-        expect(fixture.componentInstance.error()).toBe('Too many attempts. Try again in 2 minute(s).');
+        expect(fixture.componentInstance.error()).toBe('Too many attempts. Try again in 2 minutes.');
     });
 
     it('does not blame the password when the server is unreachable', () => {

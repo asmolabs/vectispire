@@ -145,6 +145,12 @@
   changement ouvert depuis la barre du haut ou la page du compte. Le changement ramène désormais à la
   page demandée — ou à celle d'où il a été ouvert — et seulement à une page de Vectispire : une adresse
   qui mène ailleurs est ignorée.
+- **« 1 analyses », « 1 cible(s) » : les nombres s'accordent désormais avec leur nom**, en français
+  comme en anglais. Quarante-six messages — analyses planifiées, constats qui seront résolus, entrées
+  absentes de la chaîne d'audit, cibles jamais analysées, composants listés, lignes de checklist
+  répondues… — étaient écrits au pluriel ou avec « (s) » et le restaient quel que soit le nombre. Chacun a
+  désormais un singulier et un pluriel choisis par la règle de la langue : en français 0 prend le singulier
+  (« 0 dépôt »), en anglais le pluriel (« 0 repositories »).
 
 ## 0.10.0 — 1er octobre 2026
 

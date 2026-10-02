@@ -738,7 +738,7 @@ describe('the project checklist screen', () => {
         // A person called Vectispire is a person; an answer with no kind is a person's.
         expect(has('[data-testid="line-1"] [data-testid="answer-automatic"]')).toBe(false);
         expect(has('[data-testid="line-2"] [data-testid="answer-automatic"]')).toBe(false);
-        expect(text('[data-testid="automatic-count"]')).toBe('1 automatic answer(s)');
+        expect(text('[data-testid="automatic-count"]')).toBe('1 automatic answer');
         // Still a line people answer.
         expect(button('Answer line 3').textContent).toContain('Change the answer');
     });

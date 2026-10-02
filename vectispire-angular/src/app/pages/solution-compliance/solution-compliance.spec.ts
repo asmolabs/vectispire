@@ -37,7 +37,7 @@ describe("a solution's compliance", () => {
         await open((request) => request.flush(SOLUTION_COMPLIANCE_NO_DATA));
 
         expect(text('[data-testid="solution-title"]')).toBe('Compliance and score — Mobile');
-        expect(text('[data-testid="scope-target-count"]')).toBe('Computed over 1 target(s).');
+        expect(text('[data-testid="scope-target-count"]')).toBe('Computed over 1 target.');
         // The server grades a scope nobody scanned NO_DATA with a null score; it used to answer 100, A+.
         expect(text('[data-testid="scorecard-score"]')).toBe('—');
         expect(text('[data-testid="scorecard-grade"]')).toBe('No data');

@@ -101,7 +101,7 @@ describe('the backlog trend', () => {
 
         expect(fixture.componentInstance.meanLabel()).toBe('12.4 days');
         // An average with no denominator is a number people quote and should not.
-        expect(fixture.nativeElement.textContent).toContain('9 issue(s) resolved');
+        expect(fixture.nativeElement.textContent).toContain('9 issues resolved');
     });
 
     it('separates the backlog from the movements, on two charts and not two axes', () => {

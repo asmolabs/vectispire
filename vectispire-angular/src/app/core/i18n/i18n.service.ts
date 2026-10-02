@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
@@ -61,12 +61,17 @@ export class I18nService {
     /**
      * Resolves a dotted key (e.g. 'menu.dashboard' or 'common.save') and substitutes
      * any interpolation parameters.
+     *
+     * **A `count` parameter chooses the plural form.** A key written as `key_one` / `key_other` in the
+     * bundles is asked for as `key`, and the language's own rule picks the form: English says "1
+     * repository" and "0 repositories", French "0 dépôt" and "2 dépôts" — 0 is singular there, which a
+     * test on `count === 1` gets wrong. Before this, every count read "{{count}} repositories" or hid
+     * behind "(s)", and a single scan was announced as "1 scans".
      */
     t(key: string, params?: Record<string, string | number>): string {
-        const dict = this.translations();
-        const value = this.resolveKey(dict, key);
+        const value = this.resolve(this.translations(), key, params?.['count']);
 
-        if (typeof value !== 'string') {
+        if (value === undefined) {
             return key;
         }
 
@@ -77,6 +82,41 @@ export class I18nService {
         return Object.entries(params).reduce((acc, [paramKey, paramVal]) => {
             return acc.replace(new RegExp(`{{\\s*${paramKey}\\s*}}`, 'g'), String(paramVal));
         }, value);
+    }
+
+    /** Integer counts are the common case, and the pipe is impure: one rule object per language. */
+    private readonly pluralRules = computed(() => new Intl.PluralRules(this.currentLang()));
+
+    /**
+     * The key itself, or its plural form for `count`. A key is plural when it has both `_one` and
+     * `_other`: a key that merely ends that way — `gate_verdicts.refused_one`, `remediation.gap_other` —
+     * is a word of its own, and must not be swapped in for its stem because a count was passed.
+     * A plural key asked without a count gets its general form rather than showing as a raw key.
+     */
+    private resolve(dict: TranslationTree, key: string, count: string | number | undefined): string | undefined {
+        const one = this.resolveKey(dict, `${key}_one`);
+        const other = this.resolveKey(dict, `${key}_other`);
+        if (typeof one === 'string' && typeof other === 'string') {
+            if (count === undefined) return other;
+            const form = this.resolveKey(dict, `${key}_${this.pluralForm(count)}`);
+            return typeof form === 'string' ? form : other;
+        }
+        const direct = this.resolveKey(dict, key);
+        return typeof direct === 'string' ? direct : undefined;
+    }
+
+    /**
+     * A count passed as text keeps its decimals for the rule: "1.0" is plural in English ("1.0
+     * days") although the number it parses to is 1.
+     */
+    private pluralForm(count: string | number): Intl.LDMLPluralRule {
+        if (typeof count === 'number') return this.pluralRules().select(count);
+        const value = Number(count);
+        if (!Number.isFinite(value)) return 'other';
+        const decimals = count.split('.')[1]?.length ?? 0;
+        return decimals === 0
+            ? this.pluralRules().select(value)
+            : new Intl.PluralRules(this.currentLang(), { minimumFractionDigits: decimals }).select(value);
     }
 
     private resolveKey(obj: TranslationTree, path: string): string | TranslationTree | undefined {
