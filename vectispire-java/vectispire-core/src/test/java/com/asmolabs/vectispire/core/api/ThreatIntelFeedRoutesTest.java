@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.threatintel.KevCatalog;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
@@ -108,8 +109,8 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
 
         assertThat(issuesRepo.findById(log4shell.getId()).orElseThrow().isKev()).isTrue();
         // The promotion is a security event, and this is the only place it is raised.
-        verify(siem).enqueue(argThat(event -> event.eventType() == SecurityEventType.CRITICAL_KEV_DETECTED
-                && event.message().contains("CVE-2021-44228")));
+        verify(siem).raised(argThat(raised -> raised.event().eventType() == SecurityEventType.CRITICAL_KEV_DETECTED
+                && raised.event().message().contains("CVE-2021-44228")));
 
         mvc.perform(authenticated(get("/api/v1/threat-intel/status"), asAdmin()))
                 .andExpect(jsonPath("$.status").value("SYNCED"))
@@ -224,7 +225,7 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
         assertThat(feed.syncIfDue()).isEmpty();
 
         verify(source, times(1)).fetch();
-        verify(siem, never()).enqueue(any());
+        verify(siem, never()).raised(any());
     }
 
     @Test
@@ -259,10 +260,10 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
             boolean settled = !"open".equals(issue.getState());
             assertThat(issue.isKev()).as(issue.getIdentifier() + " " + issue.getState()).isEqualTo(!settled && row % 2 == 0);
         });
-        ArgumentCaptor<CefEvent> events =
-                ArgumentCaptor.forClass(CefEvent.class);
-        verify(siem, atLeast(0)).enqueue(events.capture());
-        assertThat(events.getAllValues())
+        ArgumentCaptor<SecurityEventRaised> events =
+                ArgumentCaptor.forClass(SecurityEventRaised.class);
+        verify(siem, atLeast(0)).raised(events.capture());
+        assertThat(events.getAllValues().stream().map(SecurityEventRaised::event).toList())
                 .filteredOn(event -> event.eventType() == SecurityEventType.CRITICAL_KEV_DETECTED)
                 .map(CefEvent::message)
                 .hasSize(promoted)
@@ -274,7 +275,7 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
                 new RequestActor("lead", null, null),
                 ThreatIntelFeedService.Origin.THREAT_INTELLIGENCE_SCREEN);
         assertThat(again.backlogUpdatedCount()).isZero();
-        verify(siem, never()).enqueue(argThat(event -> event.eventType() == SecurityEventType.CRITICAL_KEV_DETECTED));
+        verify(siem, never()).raised(argThat(raised -> raised.event().eventType() == SecurityEventType.CRITICAL_KEV_DETECTED));
     }
 
     private static String cve(int row) {

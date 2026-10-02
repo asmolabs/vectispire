@@ -10,8 +10,9 @@
  * <p>{@code issues} (and {@code issues::queries}' {@code IssueRows}), {@code scanning} (and {@code
  * scanning::queries}' {@code LatestScanRow}), {@code targets}: a verdict is computed over the open
  * issues and the latest scans of the targets, and the register takes its part of a deleted target's
- * purge. {@code rules}: the verdict weighs rule coverage ({@code RuleCoverageService}). {@code
- * siem}: a failed gate is a security event ({@code SECURITY_GATE_FAILED}). Not {@code access} for
+ * purge. {@code rules}: the verdict weighs rule coverage ({@code RuleCoverageService}). Not {@code
+ * siem} any more: a failed gate is a security event ({@code SECURITY_GATE_FAILED}), raised as a
+ * {@code SecurityEventRaised} application event the export listens to (decision 0033). Not {@code access} for
  * its services since step 5: the register was purged past the evidence window by the authentication
  * tables' pass, through a port {@code gate} implemented; it is {@code gate}'s own periodic task now
  * ({@code VerdictRetentionTask}).
@@ -26,7 +27,7 @@
  */
 @ApplicationModule(allowedDependencies = {
         "access", "access::security", "issues", "issues::queries", "rules", "scanning", "scanning::queries",
-        "siem", "targets"})
+        "targets"})
 package com.asmolabs.vectispire.core.gate;
 
 import org.springframework.modulith.ApplicationModule;

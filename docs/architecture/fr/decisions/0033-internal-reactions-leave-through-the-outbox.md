@@ -113,6 +113,13 @@ est durable.
    l'acceptation.*
 5. **Des événements de domaine à la place des appels vers `siem`**, et `notifications` → `issues`
    examiné de la même façon ; chaque ligne d'`allowedDependencies` retirée est une ligne de la revue.
+   *Fait le 2026-10-02 : `SecurityEventRaised` (dans la transaction de l'émetteur, `MANDATORY` sur
+   l'écouteur) et `SecurityEventRaisedApart` (le repli de la barrière) vivent dans `vectispire-common` à
+   côté de `CefEvent`, si bien qu'aucun module ne nomme `siem` pour en émettre un ; `siem` sort des
+   `allowedDependencies` d'`issues`, `gate` et `threatintel`. Pas de type d'événement par module : `siem`
+   aurait alors dépendu des trois, la flèche inversée au lieu d'être retirée. `notifications` → `issues`
+   reste : c'est le port d'`issues`, `ScanDelta.Sink`, implémenté au-dessus de lui — le sens que veulent
+   les couches.*
 
 Chaque lot porte ses tests sur les trois moteurs de la campagne, une vérification par mutation de
 chaque nouveau test, et sa documentation dans les deux langues.

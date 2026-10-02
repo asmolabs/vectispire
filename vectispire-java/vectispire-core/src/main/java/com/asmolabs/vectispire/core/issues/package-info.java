@@ -17,17 +17,17 @@
  * through {@code ScanIngestor.Backlog}, a port {@code scanning} declares and {@code issues}
  * implements.
  *
- * <p>{@code siem}: the backlog raises two security events of its own, queued in the transaction
- * that causes them like the KEV reclassification is — a newly found secret ({@code
- * IssueSyncService}) and a passed remediation deadline ({@code SlaBreachSignals}). {@code siem} uses
- * nothing above the foundation, so the arrow cannot close a cycle; it is the same call {@code
- * threatintel} and {@code gate} make.
+ * <p>Not {@code siem}: the backlog raises two security events of its own — a newly found secret
+ * ({@code IssueSyncService}) and a passed remediation deadline ({@code SlaBreachSignals}) — as
+ * {@code SecurityEventRaised} application events, which the export queues in the transaction that
+ * causes them (decision 0033). The line was here for those two calls alone, as it was in {@code
+ * threatintel} and {@code gate}.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code Visibilities},
  * which every controller needs. Only its {@code web} may name them — the layer rule keeps a
  * module's service layer off every {@code web} package, {@code access}'s included.
  */
-@ApplicationModule(allowedDependencies = {"access", "access::security", "scanning", "siem", "targets"})
+@ApplicationModule(allowedDependencies = {"access", "access::security", "scanning", "targets"})
 package com.asmolabs.vectispire.core.issues;
 
 import org.springframework.modulith.ApplicationModule;

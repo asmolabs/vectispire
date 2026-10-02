@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.threatintel.KevCatalog;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
@@ -241,9 +242,10 @@ class KevCatalogueIntegrationTest {
 
     /** The messages of every {@code CRITICAL_KEV_DETECTED} queued since the spy was last cleared. */
     private List<String> announced() {
-        ArgumentCaptor<CefEvent> events = ArgumentCaptor.forClass(CefEvent.class);
-        verify(siem, atLeast(0)).enqueue(events.capture());
+        ArgumentCaptor<SecurityEventRaised> events = ArgumentCaptor.forClass(SecurityEventRaised.class);
+        verify(siem, atLeast(0)).raised(events.capture());
         return events.getAllValues().stream()
+                .map(SecurityEventRaised::event)
                 .filter(event -> event.eventType() == SecurityEventType.CRITICAL_KEV_DETECTED)
                 .map(CefEvent::message)
                 .toList();

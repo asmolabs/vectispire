@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaisedApart;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.siem.SiemSeverityFilter;
 import com.asmolabs.vectispire.core.audit.AuditChainBroken;
@@ -143,6 +145,25 @@ public class SiemEvents implements AuditLogService.Listener {
         } catch (RuntimeException failed) {
             log.error("SIEM event {} could not be queued: {}", event.eventType(), failed.getMessage(), failed);
         }
+    }
+
+    /**
+     * A module's security event, queued in the module's transaction (decision 0033, lot 5).
+     *
+     * <p>{@code MANDATORY} on the listener, as on {@link #enqueue}: an event raised outside a transaction
+     * would commit independently of what it describes. Synchronous, so that a failure here fails the
+     * publisher's transaction exactly as the call did.
+     */
+    @EventListener
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void raised(SecurityEventRaised raised) {
+        queue(raised.event());
+    }
+
+    /** A security event raised after what it describes committed — queued apart, and never failing its publisher. */
+    @EventListener
+    public void raisedApart(SecurityEventRaisedApart raised) {
+        publish(raised.event());
     }
 
     /**

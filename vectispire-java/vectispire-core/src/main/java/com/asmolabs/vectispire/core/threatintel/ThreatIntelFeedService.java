@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.threatintel;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
 import com.asmolabs.vectispire.common.domain.threatintel.KevCatalog;
@@ -15,7 +16,6 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
-import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFeed;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogSource;
 import com.asmolabs.vectispire.core.threatintel.persistence.KnownEpssScore;
@@ -41,6 +41,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -113,7 +114,7 @@ public class ThreatIntelFeedService {
     private final ThreatIntelRepository intelRepo;
     private final ThreatIntelSyncRepository syncRepo;
     private final IssueCatalog issuesRepo;
-    private final SiemEvents siemEvents;
+    private final ApplicationEventPublisher events;
     private final AuditLogService audit;
     private final KevCatalogSource catalogue;
     private final EpssFeed epss;
@@ -124,7 +125,7 @@ public class ThreatIntelFeedService {
             ThreatIntelRepository intelRepo,
             ThreatIntelSyncRepository syncRepo,
             IssueCatalog issuesRepo,
-            SiemEvents siemEvents,
+            ApplicationEventPublisher events,
             AuditLogService audit,
             KevCatalogSource catalogue,
             EpssFeed epss,
@@ -133,7 +134,7 @@ public class ThreatIntelFeedService {
         this.intelRepo = intelRepo;
         this.syncRepo = syncRepo;
         this.issuesRepo = issuesRepo;
-        this.siemEvents = siemEvents;
+        this.events = events;
         this.audit = audit;
         this.catalogue = catalogue;
         this.epss = epss;
@@ -370,13 +371,13 @@ public class ThreatIntelFeedService {
                         issue.identifier());
                 // Queued in this transaction, sent after it commits: a page that rolls back announces
                 // nothing, and no collector holds this sync's locks while it answers.
-                siemEvents.enqueue(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
+                events.publishEvent(new SecurityEventRaised(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
                         .message("Vulnerability " + issue.identifier()
                                 + " promoted to CISA Known Exploited Vulnerability (KEV)")
                         .target(targetOf(issue.repoId(), issue.containerId()))
                         .identifier(issue.identifier())
                         .component(issue.packageName())
-                        .build());
+                        .build()));
             }
         }
         issuesRepo.recordExploitation(updates);

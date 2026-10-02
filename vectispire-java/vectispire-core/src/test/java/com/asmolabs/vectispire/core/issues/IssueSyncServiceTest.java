@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
@@ -19,7 +20,6 @@ import com.asmolabs.vectispire.core.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -49,7 +49,7 @@ class IssueSyncServiceTest {
     private IssueRepository issues;
     private FindingRepository findings;
     private IssueSyncService service;
-    private SiemEvents siem;
+    private org.springframework.context.ApplicationEventPublisher siem;
 
     private final List<IssueEntity> stored = new ArrayList<>();
     private final AtomicLong nextId = new AtomicLong(1);
@@ -58,7 +58,7 @@ class IssueSyncServiceTest {
     void wire() {
         issues = mock(IssueRepository.class);
         findings = mock(FindingRepository.class);
-        siem = mock(SiemEvents.class);
+        siem = mock(org.springframework.context.ApplicationEventPublisher.class);
         service = new IssueSyncService(issues, Clock.fixed(NOW, ZoneOffset.UTC), siem);
 
         stored.clear();
@@ -293,9 +293,9 @@ class IssueSyncServiceTest {
             service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(leak, leak)), Set.of(FindingType.SECRET),
                     Map.of(), null);
 
-            org.mockito.ArgumentCaptor<CefEvent> sent = org.mockito.ArgumentCaptor.forClass(CefEvent.class);
-            verify(siem).enqueue(sent.capture());
-            CefEvent event = sent.getValue();
+            org.mockito.ArgumentCaptor<SecurityEventRaised> sent = org.mockito.ArgumentCaptor.forClass(SecurityEventRaised.class);
+            verify(siem).publishEvent(sent.capture());
+            CefEvent event = sent.getValue().event();
             assertThat(event.eventType()).isEqualTo(SecurityEventType.SECRET_LEAK_DETECTED);
             assertThat(event.message()).contains("aws-access-token").contains("config/prod.env").contains("issue 1");
             assertThat(event.toCefString("1.0")).doesNotContain("AKIA").contains("cs1=repository 3");
@@ -317,7 +317,7 @@ class IssueSyncServiceTest {
                     ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-access-token"))), Set.of(), Map.of(), null);
 
             assertThat(known.getState()).isEqualTo("open");
-            verify(siem, never()).enqueue(any());
+            verify(siem, never()).publishEvent(any(Object.class));
         }
 
         @Test
@@ -331,7 +331,7 @@ class IssueSyncServiceTest {
             service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(critical, minor)), Set.of(), Map.of(),
                     null);
 
-            verify(siem, never()).enqueue(any());
+            verify(siem, never()).publishEvent(any(Object.class));
         }
     }
 

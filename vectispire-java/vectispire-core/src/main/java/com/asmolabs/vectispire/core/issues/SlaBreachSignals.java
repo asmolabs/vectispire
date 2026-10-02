@@ -4,15 +4,16 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
-import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -33,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * settings screen. Seven days is longer than any outage the turn should outlive; a deadline missed
  * by more than that is a figure on the compliance report, not a fresh alarm.
  *
- * <p><b>Marked whether or not anything was sent.</b> With the export off, {@link SiemEvents#enqueue}
+ * <p><b>Marked whether or not anything was sent.</b> With the export off, the SIEM export
  * queues nothing, and the issue is marked anyway: a breach is announced when it happens, to whoever
  * listens then, and switching the export on does not replay the past week — like every other event.
  */
@@ -48,15 +49,15 @@ public class SlaBreachSignals {
 
     private final SlaService sla;
     private final IssueRepository issues;
-    private final SiemEvents siem;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
     public SlaBreachSignals(
-            SlaService sla, IssueRepository issues, SiemEvents siem, PlatformTransactionManager transactions, Clock clock) {
+            SlaService sla, IssueRepository issues, ApplicationEventPublisher events, PlatformTransactionManager transactions, Clock clock) {
         this.sla = sla;
         this.issues = issues;
-        this.siem = siem;
+        this.events = events;
         this.transactions = new TransactionTemplate(transactions);
         this.clock = clock;
     }
@@ -84,7 +85,8 @@ public class SlaBreachSignals {
                 List<IssueEntity> crossed = issues.findUnsignalledBreaches(IssueState.OPEN.wireName(),
                         severity.wireName(), before, since, TriageStatus.settledWireNames(), from, Limit.of(BATCH));
                 for (IssueEntity issue : crossed) {
-                    siem.enqueue(IssueSignals.slaBreach(issue, severity, window, issue.getFirstSeenAt().plus(window)));
+                    events.publishEvent(new SecurityEventRaised(
+                            IssueSignals.slaBreach(issue, severity, window, issue.getFirstSeenAt().plus(window))));
                     issue.setSlaBreachSignalledAt(now);
                 }
                 issues.saveAll(crossed);

@@ -10,9 +10,10 @@
  * <p>{@code issues}: the feed re-evaluates the backlog's exploitation and the EPSS ranking reads
  * the open issues, through {@code IssueCatalog} and {@code issues::queries}. {@code scanning}:
  * enrichment and end of life are {@code ScanIngestor.Enricher} and {@code
- * ScanIngestor.EndOfLifeSource}, ports {@code scanning} declares and this module implements. {@code
- * siem}: a critical finding the KEV catalogue lists is a security event ({@code
- * CRITICAL_KEV_DETECTED}). {@code targets}: the ranking names each issue's target.
+ * ScanIngestor.EndOfLifeSource}, ports {@code scanning} declares and this module implements. Not
+ * {@code siem}: a critical finding the KEV catalogue lists is a security event ({@code
+ * CRITICAL_KEV_DETECTED}), raised as a {@code SecurityEventRaised} application event the export
+ * listens to in this transaction (decision 0033). {@code targets}: the ranking names each issue's target.
  *
  * <p>{@code access} for its routes only, which resolve a {@code Visibility}: its service layer does
  * not use {@code access} ({@code ArchitectureTest.accessForRoutesOnly}).
@@ -22,7 +23,7 @@
  * module's service layer off every {@code web} package, {@code access}'s included.
  */
 @ApplicationModule(allowedDependencies = {
-        "access", "access::security", "issues", "issues::queries", "scanning", "siem", "targets"})
+        "access", "access::security", "issues", "issues::queries", "scanning", "targets"})
 package com.asmolabs.vectispire.core.threatintel;
 
 import org.springframework.modulith.ApplicationModule;

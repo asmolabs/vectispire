@@ -14,6 +14,8 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaisedApart;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
@@ -28,7 +30,6 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
-import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
@@ -196,34 +197,34 @@ class GateVerdictRegisterTest extends VectispireContextTest {
         // Decision 0033: published after the verdict's own write, a stop between the two left a
         // refusal no SOC heard of. `enqueue` is MANDATORY — it can only have been called inside the
         // transaction the verdict took — and `publish`, the after-the-fact path, is not used.
-        SiemEvents siem = mock(SiemEvents.class);
+        org.springframework.context.ApplicationEventPublisher events = mock(org.springframework.context.ApplicationEventPublisher.class);
 
-        gateWith(siem).evaluateAndRecord(checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci", null));
+        gateWith(events).evaluateAndRecord(checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci", null));
 
-        ArgumentCaptor<CefEvent> queued = ArgumentCaptor.forClass(CefEvent.class);
-        verify(siem).enqueue(queued.capture());
-        assertThat(queued.getValue().eventType()).isEqualTo(SecurityEventType.SECURITY_GATE_FAILED);
-        verify(siem, never()).publish(any());
+        ArgumentCaptor<SecurityEventRaised> queued = ArgumentCaptor.forClass(SecurityEventRaised.class);
+        verify(events).publishEvent(queued.capture());
+        assertThat(queued.getValue().event().eventType()).isEqualTo(SecurityEventType.SECURITY_GATE_FAILED);
+        verify(events, never()).publishEvent(any(SecurityEventRaisedApart.class));
         assertThat(onlyRow().isPassed()).isFalse();
     }
 
     @Test
     @DisplayName("an event that cannot be queued costs neither the verdict nor the answer: the two are recorded apart")
     void a_failing_event_falls_back_to_apart() {
-        SiemEvents siem = mock(SiemEvents.class);
-        doThrow(new IllegalStateException("outbox unavailable")).when(siem).enqueue(any());
+        org.springframework.context.ApplicationEventPublisher events = mock(org.springframework.context.ApplicationEventPublisher.class);
+        doThrow(new IllegalStateException("outbox unavailable")).when(events).publishEvent(any(SecurityEventRaised.class));
 
-        GateService.Decision decision = gateWith(siem)
+        GateService.Decision decision = gateWith(events)
                 .evaluateAndRecord(checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci", null));
 
         assertThat(decision.verdict().passed()).as("the pipeline still gets its answer").isFalse();
         assertThat(onlyRow().getDecidedBy()).as("the verdict written once, alone").isEqualTo("ci");
-        verify(siem).publish(any());
+        verify(events).publishEvent(any(SecurityEventRaisedApart.class));
     }
 
     /** The gate as wired, with the SIEM stood in for — a new context would cost more than the two tests. */
-    private GateService gateWith(SiemEvents siem) {
-        return new GateService(issueCatalog, policies, verdicts, targets, scans, ruleCoverage, siem, clock, transactions);
+    private GateService gateWith(org.springframework.context.ApplicationEventPublisher events) {
+        return new GateService(issueCatalog, policies, verdicts, targets, scans, ruleCoverage, events, clock, transactions);
     }
 
     private GateVerdictEntity onlyRow() {

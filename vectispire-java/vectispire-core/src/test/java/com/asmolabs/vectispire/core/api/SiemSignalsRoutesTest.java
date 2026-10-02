@@ -74,6 +74,9 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     private MaintenanceJobs jobs;
 
     @Autowired
+    private org.springframework.context.ApplicationEventPublisher events;
+
+    @Autowired
     private com.asmolabs.vectispire.core.access.TotpService totp;
 
     @Test
@@ -234,6 +237,23 @@ class SiemSignalsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.passed").value(true));
 
         assertThat(queued("SECURITY_GATE_FAILED")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an event raised apart, after its cause committed, is queued in a transaction of its own")
+    void raisedApart() throws Exception {
+        // The gate's fallback when its verdict and its event could not commit together: no transaction
+        // is open here, and the export opens its own (decision 0033).
+        exportTo("127.0.0.1:9");
+
+        events.publishEvent(new com.asmolabs.vectispire.common.domain.siem.SecurityEventRaisedApart(
+                com.asmolabs.vectispire.common.domain.siem.CefEvent.builder(
+                                com.asmolabs.vectispire.common.domain.siem.SecurityEventType.SECURITY_GATE_FAILED)
+                        .message("raised apart")
+                        .build()));
+
+        assertThat(queued("SECURITY_GATE_FAILED")).singleElement()
+                .satisfies(event -> assertThat(event.at("/message").asText()).isEqualTo("raised apart"));
     }
 
     @Test

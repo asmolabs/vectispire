@@ -19,6 +19,8 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaisedApart;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
@@ -31,7 +33,6 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
-import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Clock;
@@ -44,6 +45,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -75,7 +77,7 @@ public class GateService {
     private final TargetCatalog catalog;
     private final ScanCatalog scans;
     private final RuleCoverageService ruleCoverage;
-    private final SiemEvents siem;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
@@ -86,7 +88,7 @@ public class GateService {
             TargetCatalog catalog,
             ScanCatalog scans,
             RuleCoverageService ruleCoverage,
-            SiemEvents siem,
+            ApplicationEventPublisher events,
             Clock clock,
             TransactionTemplate transactions) {
         this.issues = issues;
@@ -96,7 +98,7 @@ public class GateService {
         this.ruleCoverage = ruleCoverage;
         this.catalog = catalog;
         this.scans = scans;
-        this.siem = siem;
+        this.events = events;
         this.clock = clock;
         this.transactions = transactions;
     }
@@ -229,7 +231,7 @@ public class GateService {
         try {
             transactions.executeWithoutResult(status -> {
                 verdicts.save(verdictRow(target, decision, caller));
-                refusal.ifPresent(siem::enqueue);
+                refusal.ifPresent(event -> events.publishEvent(new SecurityEventRaised(event)));
             });
             return;
         } catch (RuntimeException together) {
@@ -241,7 +243,7 @@ public class GateService {
         } catch (RuntimeException failed) {
             log.error("Gate verdict could not be recorded: {}", failed.getMessage(), failed);
         }
-        refusal.ifPresent(siem::publish);
+        refusal.ifPresent(event -> events.publishEvent(new SecurityEventRaisedApart(event)));
     }
 
     /** A new row each time: an aborted transaction leaves the one it tried detached and unusable. */

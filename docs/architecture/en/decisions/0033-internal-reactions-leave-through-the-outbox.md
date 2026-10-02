@@ -102,7 +102,13 @@ transaction, removes those lines from `allowedDependencies` without changing wha
    transaction would then have held that lock for the scan's length. The entry is queued with the result
    and written by `AgentResultAuditDelivery`, dated in its description to the moment of acceptance.*
 5. **Domain events in place of the calls into `siem`**, and `notifications` → `issues` examined the
-   same way; each removed `allowedDependencies` line is a line of the review.
+   same way; each removed `allowedDependencies` line is a line of the review. *Done 2026-10-02:
+   `SecurityEventRaised` (in the publisher's transaction, `MANDATORY` on the listener) and
+   `SecurityEventRaisedApart` (the gate's fallback) live in `vectispire-common` beside `CefEvent`, so no
+   module names `siem` to raise one; `siem` is out of the `allowedDependencies` of `issues`, `gate` and
+   `threatintel`. A per-module event type was not used: `siem` would then have depended on all three,
+   the arrow reversed rather than removed. `notifications` → `issues` stays: it is `issues`' own port,
+   `ScanDelta.Sink`, implemented above it — the direction the layering wants.*
 
 Each lot carries its tests on the three engines of the campaign, a mutation check of every new test,
 and its documentation in both languages.

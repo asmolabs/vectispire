@@ -4,12 +4,12 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFinding;
-import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,12 +49,13 @@ public class IssueSyncService {
 
     private final IssueRepository issues;
     private final Clock clock;
-    private final SiemEvents siem;
+    /** Where a new leak is raised for the SIEM export — an event, so that this module does not depend on it (decision 0033). */
+    private final ApplicationEventPublisher events;
 
-    public IssueSyncService(IssueRepository issues, Clock clock, SiemEvents siem) {
+    public IssueSyncService(IssueRepository issues, Clock clock, ApplicationEventPublisher events) {
         this.issues = issues;
         this.clock = clock;
-        this.siem = siem;
+        this.events = events;
     }
 
     /**
@@ -209,7 +211,7 @@ public class IssueSyncService {
         // one that comes back after being resolved reopens its issue: neither is announced again.
         // Queued in this transaction, after the save gave each issue its number: a scan that rolls
         // back announces nothing, and the event leaves only once the issues it names exist.
-        created.stream().filter(IssueSignals::isLeak).forEach(leak -> siem.enqueue(IssueSignals.secretLeak(leak)));
+        created.stream().filter(IssueSignals::isLeak).forEach(leak -> events.publishEvent(new SecurityEventRaised(IssueSignals.secretLeak(leak))));
 
         int resolved = resolveDisappeared(target, scannedTypes, scannedTools, byFingerprint.keySet(), moment);
 
