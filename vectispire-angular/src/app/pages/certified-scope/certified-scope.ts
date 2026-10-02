@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -28,8 +27,7 @@ import type { MonitoredContainer, MonitoredRepository, ScopeView } from '@/app/c
  */
 @Component({
     selector: 'zs-certified-scope',
-    standalone: true,
-    imports: [CommonModule, FormsModule, MessageModule, TranslatePipe],
+    imports: [FormsModule, MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './certified-scope.html'
 })

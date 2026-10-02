@@ -26,7 +26,6 @@ export function gradeLabel(grade: SecurityGrade, t: I18nService['t']): string {
 
 @Pipe({
     name: 'gradeLabel',
-    standalone: true,
     // Impure like `translate`: the text changes when the language does, the grade not.
     pure: false
 })

@@ -50,7 +50,6 @@ function isNotFound(failure: unknown): boolean {
  */
 @Component({
     selector: 'app-project',
-    standalone: true,
     imports: [
         DatePipe,
         FormsModule,

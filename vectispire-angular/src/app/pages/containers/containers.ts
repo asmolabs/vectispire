@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { AssetTier } from '@/app/core/api.models';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -23,9 +22,7 @@ import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-containers',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         RouterLink,
         ButtonModule,

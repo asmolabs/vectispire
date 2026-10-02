@@ -8,7 +8,6 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 
 @Component({
     selector: 'app-layout',
-    standalone: true,
     imports: [NgClass, AppTopbar, AppSidebar, RouterModule, AppFooter],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `<div class="layout-wrapper" [ngClass]="containerClass()">

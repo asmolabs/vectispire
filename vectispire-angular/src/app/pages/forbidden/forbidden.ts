@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -16,8 +15,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
  */
 @Component({
     selector: 'app-forbidden',
-    standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, TranslatePipe],
+    imports: [RouterLink, ButtonModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './forbidden.html'
 })

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpHeaders } from '@angular/common/http';
 import {
     afterNextRender,
@@ -246,9 +246,9 @@ export interface DomainGroup {
  */
 @Component({
     selector: 'app-project-checklist',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
+        NgTemplateOutlet,
         FormsModule,
         RouterLink,
         ButtonModule,

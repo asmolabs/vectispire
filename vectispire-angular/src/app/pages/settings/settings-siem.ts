@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -21,9 +21,8 @@ import { SettingsState } from './settings-state';
  */
 @Component({
     selector: 'app-settings-siem',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,

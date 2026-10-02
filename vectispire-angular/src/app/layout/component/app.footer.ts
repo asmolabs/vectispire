@@ -3,7 +3,6 @@ import { BrandingService } from '@/app/core/branding.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
-    standalone: true,
     selector: 'app-footer',
     imports: [TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,

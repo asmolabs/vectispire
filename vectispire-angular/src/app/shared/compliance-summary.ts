@@ -28,7 +28,6 @@ const STATUS_KEYS = {
  */
 @Component({
     selector: 'app-compliance-summary',
-    standalone: true,
     imports: [NgClass, ButtonModule, TagModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance-summary.html'

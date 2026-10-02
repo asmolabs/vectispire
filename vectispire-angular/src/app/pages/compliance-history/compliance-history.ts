@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
@@ -24,8 +23,7 @@ import type { ComplianceMovement, ComplianceSeries, ComplianceStep } from '@/app
  */
 @Component({
     selector: 'zs-compliance-history',
-    standalone: true,
-    imports: [CommonModule, MessageModule, TranslatePipe],
+    imports: [MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance-history.html'
 })

@@ -33,7 +33,6 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
  */
 @Component({
     selector: 'app-scorecard',
-    standalone: true,
     imports: [TagModule, TranslatePipe, GradeLabelPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `

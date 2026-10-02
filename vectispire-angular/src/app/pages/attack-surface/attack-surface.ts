@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -25,9 +25,9 @@ import type {
 
 @Component({
     selector: 'app-attack-surface',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
+        NgClass,
         FormsModule,
         ButtonModule,
         CardModule,

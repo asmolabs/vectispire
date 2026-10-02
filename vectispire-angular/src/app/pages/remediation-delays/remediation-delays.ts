@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
@@ -22,8 +21,7 @@ import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/
  */
 @Component({
     selector: 'zs-remediation-delays',
-    standalone: true,
-    imports: [CommonModule, MessageModule, TranslatePipe],
+    imports: [MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remediation-delays.html'
 })

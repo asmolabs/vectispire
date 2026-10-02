@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -24,8 +24,7 @@ import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from 
  */
 @Component({
     selector: 'app-attestation',
-    standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, MessageModule, TranslatePipe],
+    imports: [DatePipe, RouterLink, ButtonModule, MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attestation.html'
 })

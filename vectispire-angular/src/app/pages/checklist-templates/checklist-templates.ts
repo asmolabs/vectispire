@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Observable } from 'rxjs';
@@ -215,9 +215,8 @@ export interface Grid {
  */
 @Component({
     selector: 'app-checklist-templates',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,

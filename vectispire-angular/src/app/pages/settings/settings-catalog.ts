@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -49,9 +48,7 @@ const SERVER_STAMPED = new Set(['ai_review_risk_acknowledged_by', 'ai_review_ris
  */
 @Component({
     selector: 'app-settings-catalog',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         ButtonModule,
         CardModule,

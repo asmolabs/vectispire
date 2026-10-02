@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -50,9 +50,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-issue-detail',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         RouterLink,
         ButtonModule,

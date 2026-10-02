@@ -17,14 +17,12 @@ import { QualityOverview, Tally } from '@/app/core/api.models';
  * The banner says outright that these findings never fail a build. Without that sentence people
  * assume the opposite — and it is that assumption which gets a gate switched off.
  */
-import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 
 @Component({
     selector: 'zs-quality',
-    standalone: true,
-    imports: [CommonModule, ButtonModule, MessageModule, RouterLink, RuleCoverageBanner, TranslatePipe],
+    imports: [ButtonModule, MessageModule, RouterLink, RuleCoverageBanner, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './quality.html'
 })

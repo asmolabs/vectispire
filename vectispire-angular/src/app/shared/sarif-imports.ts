@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
@@ -24,8 +24,7 @@ import { LatestRequest } from '../core/latest-request';
  */
 @Component({
     selector: 'app-sarif-imports',
-    standalone: true,
-    imports: [CommonModule, MessageModule, TableModule, TagModule, TranslatePipe],
+    imports: [DatePipe, MessageModule, TableModule, TagModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         @if (error(); as message) {

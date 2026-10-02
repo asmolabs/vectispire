@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -29,9 +28,7 @@ import type {
 
 @Component({
     selector: 'app-licenses',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         CardModule,
         ButtonModule,

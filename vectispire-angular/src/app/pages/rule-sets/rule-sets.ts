@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
@@ -54,9 +54,8 @@ function losesIssues(failure: unknown): RuleSetLosesIssuesProblem | null {
 
 @Component({
     selector: 'app-rule-sets',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,

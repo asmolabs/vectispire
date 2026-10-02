@@ -13,7 +13,7 @@ import { LatestRequest } from './latest-request';
  */
 describe('LatestRequest', () => {
     function mount() {
-        @Component({ standalone: true, template: '' })
+        @Component({ template: '' })
         class Host {
             readonly slot = new LatestRequest();
         }

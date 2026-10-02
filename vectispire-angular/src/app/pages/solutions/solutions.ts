@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -101,9 +101,9 @@ interface Filing {
  */
 @Component({
     selector: 'app-solutions',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
+        NgTemplateOutlet,
         FormsModule,
         RouterLink,
         ButtonModule,

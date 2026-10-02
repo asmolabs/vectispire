@@ -16,7 +16,7 @@ describe('pollWhile', () => {
     afterEach(() => vi.useRealTimers());
 
     function mount(active: ReturnType<typeof signal<boolean>>, refresh: () => void) {
-        @Component({ standalone: true, template: '' })
+        @Component({ template: '' })
         class Host {
             constructor() {
                 pollWhile(active, refresh, 1000);

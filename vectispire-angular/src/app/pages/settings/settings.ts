@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -24,9 +24,8 @@ export type { SettingsTab } from './settings-state';
  */
 @Component({
     selector: 'app-settings',
-    standalone: true,
     imports: [
-        CommonModule,
+        NgClass,
         ButtonModule,
         MessageModule,
         TranslatePipe,

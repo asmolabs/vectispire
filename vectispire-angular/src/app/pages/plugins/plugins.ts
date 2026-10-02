@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -95,9 +95,8 @@ export const JUSTIFICATION_MAX = 500;
  */
 @Component({
     selector: 'app-plugins',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,

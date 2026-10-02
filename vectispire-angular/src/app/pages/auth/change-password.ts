@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -23,8 +22,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-change-password',
-    standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, MessageModule, PasswordModule, TranslatePipe],
+    imports: [FormsModule, ButtonModule, MessageModule, PasswordModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './change-password.html'
 })

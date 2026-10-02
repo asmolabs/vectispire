@@ -16,7 +16,6 @@ import { ScopeComplianceView } from '../../shared/scope-compliance';
  */
 @Component({
     selector: 'app-solution-compliance',
-    standalone: true,
     imports: [RouterLink, CardModule, MessageModule, TranslatePipe, ScopeComplianceView],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `

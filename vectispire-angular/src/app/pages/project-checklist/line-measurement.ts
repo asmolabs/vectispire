@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -33,8 +33,7 @@ import {
  */
 @Component({
     selector: 'app-line-measurement',
-    standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, TagModule, TranslatePipe],
+    imports: [DatePipe, RouterLink, ButtonModule, TagModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './line-measurement.html'
 })

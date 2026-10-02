@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -75,9 +75,8 @@ const KIND_SCOPES: Record<SourceKind, 'sarif_import' | 'report_import'> = {
  */
 @Component({
     selector: 'app-sarif-sources',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,

@@ -7,7 +7,6 @@ import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
     selector: 'app-menu',
-    standalone: true,
     imports: [AppMenuitem, RouterModule],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `<ul class="layout-menu">

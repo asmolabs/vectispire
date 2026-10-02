@@ -11,7 +11,6 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-topbar',
-    standalone: true,
     imports: [RouterModule, StyleClassModule, AppConfigurator, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: ` <div class="layout-topbar">

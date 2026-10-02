@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { CosignCliHelper } from '@/app/core/api.models';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -19,9 +18,7 @@ import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-compliance',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         DialogModule,
         ButtonModule,

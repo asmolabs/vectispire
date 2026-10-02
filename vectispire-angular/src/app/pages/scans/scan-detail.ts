@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -36,9 +36,8 @@ export type Examination =
 
 @Component({
     selector: 'app-scan-detail',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         RouterLink,
         ButtonModule,
         CardModule,

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { KeyValuePipe, NgClass, NgTemplateOutlet } from '@angular/common';
 import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -17,9 +17,10 @@ import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository }
 
 @Component({
     selector: 'app-attack-paths',
-    standalone: true,
     imports: [
-        CommonModule,
+        KeyValuePipe,
+        NgClass,
+        NgTemplateOutlet,
         FormsModule,
         ButtonModule,
         CardModule,

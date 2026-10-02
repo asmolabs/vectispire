@@ -93,7 +93,6 @@ interface HeatRow {
  */
 @Component({
     selector: 'zs-owasp-weekly',
-    standalone: true,
     imports: [
         DatePipe,
         FormsModule,

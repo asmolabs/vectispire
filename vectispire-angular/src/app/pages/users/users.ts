@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -29,9 +29,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-users',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,

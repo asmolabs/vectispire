@@ -1,5 +1,4 @@
 import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
 import { IntegrationsApi } from '../../core/api/integrations.api';
@@ -16,9 +15,7 @@ import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-notifications',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         ButtonModule,
         TableModule,

@@ -15,7 +15,6 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
  */
 @Component({
     selector: 'app-detected-languages',
-    standalone: true,
     imports: [TagModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -23,9 +23,8 @@ import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'app-inventory',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         CardModule,
         SelectModule,

@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -47,8 +46,7 @@ import {
  */
 @Component({
     selector: 'app-checklist-rule-editor',
-    standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, MessageModule, TranslatePipe],
+    imports: [FormsModule, ButtonModule, InputTextModule, MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './rule-editor.html'
 })

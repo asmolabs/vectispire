@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '../core/api-error';
@@ -23,8 +23,7 @@ import { LatestRequest } from '../core/latest-request';
  */
 @Component({
     selector: 'app-report-imports',
-    standalone: true,
-    imports: [CommonModule, MessageModule, TranslatePipe],
+    imports: [DatePipe, MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <p class="text-sm text-muted-color mt-0">{{ 'report_imports.explain' | translate }}</p>

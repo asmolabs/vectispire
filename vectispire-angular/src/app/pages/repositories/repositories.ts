@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { AssetTier } from '@/app/core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
@@ -104,9 +104,8 @@ const CLI_SIGNER = `https://github.com/asmolabs/vectispire/.github/workflows/rel
 
 @Component({
     selector: 'app-repositories',
-    standalone: true,
     imports: [
-        CommonModule,
+        NgClass,
         FormsModule,
         RouterLink,
         ButtonModule,

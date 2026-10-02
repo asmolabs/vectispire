@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, LowerCasePipe } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -27,9 +27,9 @@ import { pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-agents',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
+        LowerCasePipe,
         FormsModule,
         ButtonModule,
         CardModule,

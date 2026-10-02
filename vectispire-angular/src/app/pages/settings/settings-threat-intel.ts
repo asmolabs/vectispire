@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { Component, DestroyRef, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -19,8 +19,7 @@ import { SettingsState } from './settings-state';
  */
 @Component({
     selector: 'app-settings-threat-intel',
-    standalone: true,
-    imports: [CommonModule, ButtonModule, CardModule, MessageModule, TranslatePipe],
+    imports: [DatePipe, NgClass, ButtonModule, CardModule, MessageModule, TranslatePipe],
     templateUrl: './settings-threat-intel.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -51,8 +51,7 @@ function isLocalEndpoint(url: string): boolean {
  */
 @Component({
     selector: 'app-settings-model-review',
-    standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, MessageModule, TranslatePipe],
+    imports: [DatePipe, FormsModule, ButtonModule, InputTextModule, MessageModule, TranslatePipe],
     templateUrl: './settings-model-review.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }

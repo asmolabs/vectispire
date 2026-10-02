@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -35,9 +35,8 @@ import { OwaspWeekly } from './owasp-weekly';
 
 @Component({
     selector: 'app-owasp',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
         FormsModule,
         CardModule,
         ButtonModule,

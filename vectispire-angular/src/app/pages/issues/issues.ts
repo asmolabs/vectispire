@@ -50,7 +50,6 @@ import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'zs-issues',
-    standalone: true,
     imports: [
         DatePipe,
         FormsModule,

@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -37,9 +36,7 @@ import { grantOptions } from '../../shared/grant-options';
  */
 @Component({
     selector: 'app-teams',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         ButtonModule,
         CardModule,

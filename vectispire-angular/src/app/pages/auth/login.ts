@@ -23,15 +23,13 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
  * whoever probes it. A rate-limiter block, on the other hand, is announced: that is something
  * the person needs to know, so that they know waiting is enough.
  */
-import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { BrandingService } from '@/app/core/branding.service';
 import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'zs-login',
-    standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule, TranslatePipe],
+    imports: [FormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './login.html'
 })

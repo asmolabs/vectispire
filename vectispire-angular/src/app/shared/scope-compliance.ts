@@ -14,7 +14,6 @@ import { ScorecardView } from './scorecard';
  */
 @Component({
     selector: 'app-scope-compliance',
-    standalone: true,
     imports: [MessageModule, TranslatePipe, ComplianceSummaryView, ScorecardView],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `

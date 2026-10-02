@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, LowerCasePipe } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -71,9 +71,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-history',
-    standalone: true,
     imports: [
-        CommonModule,
+        DatePipe,
+        LowerCasePipe,
         CardModule,
         TableModule,
         TagModule,

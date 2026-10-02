@@ -37,14 +37,12 @@ export function scheduleLabel(
  * fields as "the default schedule" would never learn that nothing at all is scheduled, so the
  * empty state is spelled out too.
  */
-import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { I18nService } from '../core/i18n/i18n.service';
 
 @Component({
     selector: 'app-schedule-fields',
-    standalone: true,
-    imports: [CommonModule, FormsModule, InputNumberModule, InputTextModule, MessageModule, TranslatePipe],
+    imports: [FormsModule, InputNumberModule, InputTextModule, MessageModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './schedule-fields.html'
 })

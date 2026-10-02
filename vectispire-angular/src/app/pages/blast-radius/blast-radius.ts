@@ -1,5 +1,4 @@
 import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ExposureApi } from '../../core/api/exposure.api';
 import { BlastRadiusReport, TopImpactPackage } from '../../core/api.models';
@@ -15,9 +14,7 @@ import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-blast-radius',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         ButtonModule,
         InputTextModule,

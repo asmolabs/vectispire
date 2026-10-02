@@ -1,5 +1,4 @@
 import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
 import { IntelApi } from '../../core/api/intel.api';
@@ -18,9 +17,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-epss',
-    standalone: true,
     imports: [
-        CommonModule,
         FormsModule,
         ButtonModule,
         InputTextModule,
