@@ -1,4 +1,3 @@
-import { HttpResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
 import {
     Component,
@@ -22,7 +21,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { OwaspApi } from '@/app/core/api/owasp.api';
 import { SolutionsApi } from '@/app/core/api/solutions.api';
 import { messageOf } from '@/app/core/api-error';
-import { saveDocument } from '@/app/core/download';
+import { saveBlob } from '@/app/core/download';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
@@ -496,7 +495,7 @@ export class OwaspWeekly {
         if (!coverage) return;
         const body = new Blob([weeklyCsv(coverage)], { type: 'text/csv;charset=utf-8' });
         const scope = coverage.scope ? `-${coverage.scope.kind}-${coverage.scope.id}` : '';
-        saveDocument(new HttpResponse({ body }), `vectispire-owasp-weekly${scope}-${coverage.from}-${coverage.to}.csv`);
+        saveBlob(body, `vectispire-owasp-weekly${scope}-${coverage.from}-${coverage.to}.csv`);
     }
 
     /** The browser's own "save as PDF": no PDF library, and the print stylesheet keeps the figures only. */

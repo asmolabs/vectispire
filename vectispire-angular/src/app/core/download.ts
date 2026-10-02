@@ -15,15 +15,29 @@ import { HttpResponse } from '@angular/common/http';
  * filename survives: the body alone does not carry it.
  */
 export function saveDocument(response: HttpResponse<Blob>, fallbackName: string): void {
-    const blob = response.body;
-    if (!blob) {
+    if (!response.body) {
         return;
     }
+    saveBlob(response.body, filenameOf(response.headers.get('Content-Disposition')) ?? fallbackName);
+}
 
+/**
+ * Saving a document the server sent as JSON — a VEX, a CSAF, a CycloneDX — under the name given.
+ * Indented, since it is read by people as often as by tools.
+ */
+export function saveJson(document: unknown, filename: string): void {
+    saveBlob(new Blob([JSON.stringify(document, null, 2)], { type: 'application/json' }), filename);
+}
+
+/**
+ * Saving what is already in memory: a document parsed from a response, or one built on the page.
+ * The one place an object URL is made, so that it is revoked everywhere.
+ */
+export function saveBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const link = window.document.createElement('a');
     link.href = url;
-    link.download = filenameOf(response.headers.get('Content-Disposition')) ?? fallbackName;
+    link.download = filename;
     link.click();
     // Revoked immediately: the blob holds the whole export in memory, and a tab left open on a
     // screen with an export button would accumulate one per click.

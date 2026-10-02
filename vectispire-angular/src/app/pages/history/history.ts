@@ -9,7 +9,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { ScansApi } from '../../core/api/scans.api';
 import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { saveDocument } from '../../core/download';
+import { saveDocument, saveJson } from '../../core/download';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
@@ -138,13 +138,7 @@ export class History {
     downloadVex(scanId: number): void {
         this.documentsApi.getScanVex(scanId).subscribe({
             next: (vexDoc) => {
-                const blob = new Blob([JSON.stringify(vexDoc, null, 2)], { type: 'application/json' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `scan-${scanId}-openvex.json`;
-                a.click();
-                window.URL.revokeObjectURL(url);
+                saveJson(vexDoc, `scan-${scanId}-openvex.json`);
             },
             error: () => this.error.set(this.i18n.t('history.vex_download_failed'))
         });

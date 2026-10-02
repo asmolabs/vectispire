@@ -1,7 +1,7 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Compliance } from './compliance';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
@@ -151,6 +151,60 @@ describe('Compliance Page', () => {
 
             http.verify();
             expect(saved).toEqual(['vectispire-compliance-REPOSITORY-3.pdf']);
+        });
+    });
+
+    /** The four documents the header offers, each saved under its own name and type. */
+    describe('document downloads', () => {
+        const saved: { name: string; blob: Blob }[] = [];
+        let blobs: Blob[];
+
+        beforeEach(() => {
+            saved.length = 0;
+            blobs = [];
+            vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob | MediaSource) => {
+                blobs.push(blob as Blob);
+                return `blob:test/${blobs.length}`;
+            });
+            vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+                saved.push({ name: this.download, blob: blobs[blobs.length - 1] });
+            });
+            fixture.detectChanges();
+            http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+            fixture.detectChanges();
+        });
+
+        afterEach(() => vi.restoreAllMocks());
+
+        const click = (label: string) =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')]
+                .find((b) => b.textContent.includes(label))!
+                .click();
+
+        it('saves the aggregate OpenVEX, CSAF and CycloneDX as indented JSON', async () => {
+            click('compliance.export_vex');
+            http.expectOne('/api/v1/vex/aggregate.json').flush({ statements: [] });
+            click('compliance.export_csaf');
+            http.expectOne((r) => r.url.includes('/csaf/')).flush({ document: {} });
+            click('compliance.export_cyclonedx');
+            http.expectOne((r) => r.url.includes('cyclonedx')).flush({ bomFormat: 'CycloneDX' });
+
+            expect(saved.map((file) => file.name)).toEqual([
+                'vectispire-aggregate-openvex.json',
+                'vectispire-aggregate-csaf.json',
+                'vectispire-aggregate-cyclonedx-vex.json'
+            ]);
+            expect(saved.every((file) => file.blob.type === 'application/json')).toBe(true);
+            expect(await saved[0].blob.text()).toBe('{\n  "statements": []\n}');
+        });
+
+        it('saves the signing key as a PEM file', async () => {
+            click('compliance.cosign_key');
+            http.expectOne('/api/v1/crypto/public-key.pub').flush('-----BEGIN PUBLIC KEY-----');
+
+            expect(saved.map((file) => file.name)).toEqual(['vectispire-signing-key.pub']);
+            expect(saved[0].blob.type).toBe('application/x-pem-file');
+            expect(await saved[0].blob.text()).toBe('-----BEGIN PUBLIC KEY-----');
         });
     });
 

@@ -8,7 +8,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { SessionStore } from '@/app/core/session.store';
 import { ComplianceApi } from '../../core/api/compliance.api';
 import { DocumentsApi } from '../../core/api/documents.api';
-import { saveDocument } from '../../core/download';
+import { saveBlob, saveDocument, saveJson } from '../../core/download';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { ComplianceSummary } from '../../core/api.models';
@@ -184,13 +184,7 @@ export class Compliance {
         this.exportingVex.set(true);
         this.documentsApi.getAggregateVex().subscribe({
             next: (vexDoc) => {
-                const blob = new Blob([JSON.stringify(vexDoc, null, 2)], { type: 'application/json' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'vectispire-aggregate-openvex.json';
-                a.click();
-                window.URL.revokeObjectURL(url);
+                saveJson(vexDoc, 'vectispire-aggregate-openvex.json');
                 this.exportingVex.set(false);
             },
             error: () => {
@@ -204,13 +198,7 @@ export class Compliance {
         this.exportingCsaf.set(true);
         this.documentsApi.getAggregateCsaf().subscribe({
             next: (csafDoc) => {
-                const blob = new Blob([JSON.stringify(csafDoc, null, 2)], { type: 'application/json' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'vectispire-aggregate-csaf.json';
-                a.click();
-                window.URL.revokeObjectURL(url);
+                saveJson(csafDoc, 'vectispire-aggregate-csaf.json');
                 this.exportingCsaf.set(false);
             },
             error: () => {
@@ -224,13 +212,7 @@ export class Compliance {
         this.exportingCycloneDx.set(true);
         this.documentsApi.getAggregateCycloneDx().subscribe({
             next: (cdxDoc) => {
-                const blob = new Blob([JSON.stringify(cdxDoc, null, 2)], { type: 'application/json' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'vectispire-aggregate-cyclonedx-vex.json';
-                a.click();
-                window.URL.revokeObjectURL(url);
+                saveJson(cdxDoc, 'vectispire-aggregate-cyclonedx-vex.json');
                 this.exportingCycloneDx.set(false);
             },
             error: () => {
@@ -296,13 +278,7 @@ export class Compliance {
         this.downloadingPubKey.set(true);
         this.documentsApi.getPublicKeyPem().subscribe({
             next: (pem) => {
-                const blob = new Blob([pem], { type: 'application/x-pem-file' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'vectispire-signing-key.pub';
-                a.click();
-                window.URL.revokeObjectURL(url);
+                saveBlob(new Blob([pem], { type: 'application/x-pem-file' }), 'vectispire-signing-key.pub');
                 this.downloadingPubKey.set(false);
             },
             error: () => {
