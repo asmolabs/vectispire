@@ -15,6 +15,10 @@
   qui les cause.** Ils l'étaient juste après, dans une transaction à eux, et un arrêt entre les deux les
   perdait. Si les deux ne peuvent pas être écrits ensemble, l'entrée ou le verdict est quand même écrit et
   l'événement mis en file juste après, comme avant ; le serveur journalise alors un avertissement.
+- **L'entrée d'audit `AGENT_RESULT_SUBMITTED` d'un agent est écrite jusqu'à une minute après le
+  résultat**, depuis l'outbox, au lieu de juste après — et ne se perd plus si le serveur s'arrête entre
+  les deux. Son horodatage est celui de l'écriture ; le moment où le résultat a été accepté est dans sa
+  description (« … at 2026-… »), avec l'identifiant de la livraison.
 
 ### Corrigé
 

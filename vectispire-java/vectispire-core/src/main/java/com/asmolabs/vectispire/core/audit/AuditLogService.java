@@ -255,6 +255,18 @@ public class AuditLogService {
         }
     }
 
+    /**
+     * Appends an entry, and <b>throws</b> when it cannot be written — for a caller that retries, which
+     * {@link #record} never lets know.
+     *
+     * <p>The outbox's handlers: an entry queued in the transaction of what it describes, and written
+     * here by the relay (decision 0033). Swallowed as {@code record} swallows a failure, the relay would
+     * mark the message delivered and the entry would be lost exactly as it was before it was queued.
+     */
+    public void append(Record entry) {
+        writeWithItsEffects(entry);
+    }
+
     /** The pauses before each new try of an entry refused a lock; their sum bounds what it costs its caller. */
     private static final List<Duration> LOCK_BACKOFF = List.of(
             Duration.ofMillis(50), Duration.ofMillis(100), Duration.ofMillis(200),

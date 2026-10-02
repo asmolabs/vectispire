@@ -105,7 +105,12 @@ est durable.
    transaction du scan ou de l'import, traité par `checklists`. *Fait le 2026-10-02 :
    `ChecklistAnswerDelivery` ; les ports sont appelés dans la transaction des propriétaires et ne font que
    mettre en file, et les réponses arrivent au prochain passage du relais.*
-4. **`AGENT_RESULT_SUBMITTED` dans la transaction du résultat.**
+4. **`AGENT_RESULT_SUBMITTED` dans la transaction du résultat.** *Fait le 2026-10-02, par l'outbox plutôt
+   qu'écrite là : un test de concurrence a montré que la chaîne d'audit se fourchait sous des écritures
+   concurrentes, corrigé en les sérialisant sur `t_audit_chain_head` (V66) — et une entrée écrite dans la
+   transaction d'un scan aurait alors tenu ce verrou pendant toute la durée du scan. L'entrée est mise en
+   file avec le résultat et écrite par `AgentResultAuditDelivery`, datée dans sa description du moment de
+   l'acceptation.*
 5. **Des événements de domaine à la place des appels vers `siem`**, et `notifications` → `issues`
    examiné de la même façon ; chaque ligne d'`allowedDependencies` retirée est une ligne de la revue.
 

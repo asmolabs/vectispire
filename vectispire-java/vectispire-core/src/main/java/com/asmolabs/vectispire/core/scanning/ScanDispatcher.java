@@ -408,11 +408,22 @@ public class ScanDispatcher {
      * than written, so the successor's work is not overwritten.
      */
     public boolean acceptAgentResult(long scanId, AgentView agent, ScanArtifacts artifacts) {
+        return acceptAgentResult(scanId, agent, artifacts, () -> {});
+    }
+
+    /**
+     * The same, with something to write <b>in the result's transaction</b> — run only when the result is
+     * written, so it commits with it or not at all (decision 0033). The agent route queues its audit
+     * entry this way: written after the commit, a stop in between lost it, and a re-sent result is
+     * answered {@code NoLongerYours}, so nothing ever wrote it again. It must only write in the caller's
+     * transaction; what it throws rolls the result back.
+     */
+    public boolean acceptAgentResult(long scanId, AgentView agent, ScanArtifacts artifacts, Runnable alongside) {
         // Read before the write, because recording the result clears the claim. Timed from the
         // claim rather than from the submission: what an operator wants to know is how long the
         // agent held the work, which is the number that grows when an agent is struggling.
         Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
-        boolean accepted = record(scanId, agent.id().toString(), artifacts);
+        boolean accepted = record(scanId, agent.id().toString(), artifacts, alongside);
         metrics.scanFinishedSince(claimedAt, accepted, true);
         return accepted;
     }
@@ -606,6 +617,10 @@ public class ScanDispatcher {
      * overwrite its work with stale results.
      */
     private boolean record(long scanId, String worker, ScanArtifacts artifacts) {
+        return record(scanId, worker, artifacts, () -> {});
+    }
+
+    private boolean record(long scanId, String worker, ScanArtifacts artifacts, Runnable alongside) {
         // **The remote lookups first, then the transaction.** End of life asks a public catalogue,
         // and asking it inside `write` held the scan's row lock — the one that fences a concurrent
         // reclaim — for as long as the catalogue took to answer.
@@ -613,7 +628,13 @@ public class ScanDispatcher {
         if (prepared.isEmpty()) {
             return false;
         }
-        return Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts, prepared.get())));
+        return Boolean.TRUE.equals(transactions.execute(status -> {
+            boolean written = write(scanId, worker, artifacts, prepared.get());
+            if (written) {
+                alongside.run();
+            }
+            return written;
+        }));
     }
 
     /**

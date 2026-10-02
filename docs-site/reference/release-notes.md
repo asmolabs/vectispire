@@ -14,6 +14,10 @@
   They were queued just after, in a transaction of their own, and a stop between the two lost them.
   If the two cannot be written together, the entry or the verdict is still written and the event queued
   right after it, as before; the server logs a warning when that happens.
+- **An agent's `AGENT_RESULT_SUBMITTED` audit entry is written up to a minute after the result**, from
+  the outbox, instead of just after it — and is no longer lost when the server stops in between. The
+  entry's timestamp is when it is written; the moment the result was accepted is in its description
+  ("… at 2026-…"), with the delivery's id.
 
 ### Fixed
 

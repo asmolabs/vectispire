@@ -12,8 +12,10 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
+import com.asmolabs.vectispire.core.agents.internal.AgentResultAuditDelivery;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -40,6 +42,7 @@ public class AgentProtocolService {
     private final AuditLogService audit;
     private final ObjectMapper json;
     private final Clock clock;
+    private final OutboxService outbox;
 
     /**
      * How old the last sign of life may be before a poll writes a new one. Well inside the two
@@ -49,12 +52,18 @@ public class AgentProtocolService {
     static final Duration SEEN_GRANULARITY = Duration.ofSeconds(15);
 
     public AgentProtocolService(
-            AgentRepository agents, ScanDispatcher dispatcher, AuditLogService audit, ObjectMapper json, Clock clock) {
+            AgentRepository agents,
+            ScanDispatcher dispatcher,
+            AuditLogService audit,
+            ObjectMapper json,
+            Clock clock,
+            OutboxService outbox) {
         this.agents = agents;
         this.dispatcher = dispatcher;
         this.audit = audit;
         this.json = json;
         this.clock = clock;
+        this.outbox = outbox;
     }
 
     /**
@@ -306,18 +315,21 @@ public class AgentProtocolService {
             return new Submission.Unreadable();
         }
 
-        if (!dispatcher.acceptAgentResult(scanId, agent, artifacts)) {
-            return new Submission.NoLongerYours();
-        }
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.AGENT_RESULT_SUBMITTED,
-                String.valueOf(scanId),
-                "Result accepted from agent \"" + agent.name() + "\""
+        // **The audit entry is queued in the result's transaction** (decision 0033, lot 4) and written by
+        // `AgentResultAuditDelivery`: recorded after the commit, a stop in between lost it, and nothing
+        // ever wrote it again. The moment of acceptance goes in the description, since the entry is
+        // dated when the relay writes it.
+        AgentResultAuditDelivery.Queued entry = new AgentResultAuditDelivery.Queued(
+                scanId,
+                "Result accepted from agent \"" + agent.name() + "\" at " + clock.instant()
                         + (agent.signingPublicKey() == null ? " (not attested)." : ", attestation verified."),
                 agent.name(),
                 origin.ipAddress(),
-                origin.userAgent()));
+                origin.userAgent());
+        if (!dispatcher.acceptAgentResult(scanId, agent, artifacts,
+                () -> outbox.enqueue(entry, AgentResultAuditDelivery.TYPE))) {
+            return new Submission.NoLongerYours();
+        }
 
         return new Submission.Accepted();
     }

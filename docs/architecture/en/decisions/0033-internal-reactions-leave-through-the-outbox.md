@@ -96,7 +96,11 @@ transaction, removes those lines from `allowedDependencies` without changing wha
    import's transaction, handled by `checklists`. *Done 2026-10-02: `ChecklistAnswerDelivery`; the ports
    are called inside the owners' transactions and only queue, and the answers arrive with the relay's
    next pass.*
-4. **`AGENT_RESULT_SUBMITTED` in the result's transaction.**
+4. **`AGENT_RESULT_SUBMITTED` in the result's transaction.** *Done 2026-10-02, through the outbox rather
+   than written there: a concurrency test showed that the audit chain forked under concurrent writers,
+   fixed by serialising them on `t_audit_chain_head` (V66) — and an entry written inside a scan's
+   transaction would then have held that lock for the scan's length. The entry is queued with the result
+   and written by `AgentResultAuditDelivery`, dated in its description to the moment of acceptance.*
 5. **Domain events in place of the calls into `siem`**, and `notifications` → `issues` examined the
    same way; each removed `allowedDependencies` line is a line of the review.
 
