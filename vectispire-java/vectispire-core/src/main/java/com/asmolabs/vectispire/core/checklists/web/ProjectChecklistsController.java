@@ -60,7 +60,8 @@ import org.springframework.web.bind.annotation.RestController;
  * checklist-line-changed} (the line did), {@code checklist-not-draft}, {@code checklist-not-submitted},
  * {@code checklist-not-signed-off}, {@code checklist-not-latest}, {@code checklist-incomplete}, {@code
  * checklist-four-eyes}, {@code checklist-version-not-published}, {@code checklist-same-version},
- * {@code checklist-nothing-to-confirm}, {@code checklist-evidence-withdrawn}, {@code
+ * {@code checklist-version-unrenderable} (a version no sign-off could fill in, published before the
+ * publication's trial rendering; its cells in a {@code cells} member), {@code checklist-nothing-to-confirm}, {@code checklist-evidence-withdrawn}, {@code
  * checklist-measurement-contradicted}, {@code checklist-measurement-changed}. A {@code
  * checklist-incomplete} problem also names its lines as data, in a {@code lines} member — each line's
  * {@code itemId}, {@code position} and {@code problems} — so that a client shows them in its own words;
@@ -75,7 +76,7 @@ import org.springframework.web.bind.annotation.RestController;
         + "its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, "
         + "checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, "
         + "checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, "
-        + "checklist-nothing-to-confirm, checklist-evidence-withdrawn, checklist-measurement-contradicted, "
+        + "checklist-version-unrenderable, checklist-nothing-to-confirm, checklist-evidence-withdrawn, checklist-measurement-contradicted, "
         + "checklist-measurement-changed.")
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/checklists")
@@ -156,7 +157,18 @@ public class ProjectChecklistsController {
             + "line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; "
             + "absent when the person saw none. 400 without template and version; 404 for a project not seen whole or "
             + "a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist "
-            + "opened or changed since), checklist-same-version.")
+            + "opened or changed since), checklist-same-version, checklist-version-unrenderable (the version's "
+            + "workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; "
+            + "a version published before that check whose workbook no sign-off could fill in is refused, and the "
+            + "problem's cells member names each cell at fault: cell, kind shared or array, range — the version moved "
+            + "to is tried, never the one moved from).")
+    // Declaring the 409 drops the 201 springdoc would infer, so it is declared too, as it was inferred.
+    @ApiResponse(responseCode = "201", description = "Created",
+            content = @Content(mediaType = "*/*", schema = @Schema(implementation = ChecklistView.class)))
+    @ApiResponse(responseCode = "409", description = "The checklist cannot be opened on, or moved to, that version; "
+            + "checklist-version-unrenderable names the cells at fault",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ChecklistRefusals.Unrenderable.class)))
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @RequiresWriteAccount

@@ -29,4 +29,14 @@ final class ChecklistRefusals {
             + "its answer, what the rule finds now and, for a sign-off, what it found at the submission.")
     record Measured(String type, String title, int status, String detail, String instance,
             List<ChecklistConflict.MeasuredLine> lines) {}
+
+    /**
+     * {@code urn:vectispire:problem:checklist-template-unrenderable} and {@code checklist-version-unrenderable}:
+     * the cells a sign-off writes that carry a formula other cells depend on, found by the trial rendering.
+     */
+    @Schema(name = "ChecklistUnrenderableProblem", description = "A checklist-template-unrenderable or "
+            + "checklist-version-unrenderable refusal: an RFC 9457 problem whose cells member names each cell a "
+            + "sign-off writes that carries a formula other cells depend on — cell, kind shared or array, range.")
+    record Unrenderable(String type, String title, int status, String detail, String instance,
+            List<ChecklistConflict.UnrenderableCell> cells) {}
 }

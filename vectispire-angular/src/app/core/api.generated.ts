@@ -2205,7 +2205,7 @@ export interface paths {
         put?: never;
         /**
          * Open project checklist
-         * @description Opens the project's checklist on a published version, or moves it to another: a new revision, the previous one's answers carried — current where the line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; absent when the person saw none. 400 without template and version; 404 for a project not seen whole or a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist opened or changed since), checklist-same-version.
+         * @description Opens the project's checklist on a published version, or moves it to another: a new revision, the previous one's answers carried — current where the line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; absent when the person saw none. 400 without template and version; 404 for a project not seen whole or a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist opened or changed since), checklist-same-version, checklist-version-unrenderable (the version's workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; a version published before that check whose workbook no sign-off could fill in is refused, and the problem's cells member names each cell at fault: cell, kind shared or array, range — the version moved to is tried, never the one moved from).
          */
         post: operations["open"];
         delete?: never;
@@ -4735,6 +4735,16 @@ export interface components {
             name?: string;
             slug?: string;
             versions?: components["schemas"]["ChecklistVersionSummary"][];
+        };
+        /** @description A checklist-template-unrenderable or checklist-version-unrenderable refusal: an RFC 9457 problem whose cells member names each cell a sign-off writes that carries a formula other cells depend on — cell, kind shared or array, range. */
+        ChecklistUnrenderableProblem: {
+            cells?: components["schemas"]["UnrenderableCell"][];
+            detail?: string;
+            instance?: string;
+            /** Format: int32 */
+            status: number;
+            title?: string;
+            type?: string;
         };
         ChecklistVersionSummary: {
             /** Format: int32 */
@@ -7476,6 +7486,11 @@ export interface components {
             /** Format: int32 */
             repositoryCount: number;
         };
+        UnrenderableCell: {
+            cell?: string;
+            kind?: string;
+            range?: string;
+        };
         UnroutableLabel: {
             label?: string;
             /** Format: int64 */
@@ -8890,6 +8905,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+            /** @description The draft cannot be published; checklist-template-unrenderable names the cells at fault */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ChecklistUnrenderableProblem"];
                 };
             };
         };
@@ -10897,6 +10921,15 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+            /** @description The checklist cannot be opened on, or moved to, that version; checklist-version-unrenderable names the cells at fault */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ChecklistUnrenderableProblem"];
                 };
             };
         };

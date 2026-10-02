@@ -13,6 +13,9 @@ import com.asmolabs.vectispire.core.checklists.ChecklistTemplateService;
 import com.asmolabs.vectispire.core.checklists.ChecklistTemplateView;
 import com.asmolabs.vectispire.core.checklists.ChecklistVersionView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -242,6 +245,13 @@ public class ChecklistTemplatesController {
             + "placeholder answers, as a sign-off fills it, and nothing of it is kept; a cell the layout writes "
             + "carries a formula other cells depend on — the master of a shared formula, or an array formula — "
             + "and the problem's cells member names each: cell, kind shared or array, range).")
+    // Declaring the 409 drops the 200 springdoc would infer, so it is declared too, as it was inferred.
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "*/*", schema = @Schema(implementation = ChecklistVersionView.class)))
+    @ApiResponse(responseCode = "409", description = "The draft cannot be published; checklist-template-unrenderable "
+            + "names the cells at fault",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ChecklistRefusals.Unrenderable.class)))
     @PostMapping("/{slug}/versions/{ordinal}/publish")
     @RequiresSecurityLead
     public ChecklistVersionView publishVersion(

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.checklists;
 
+import com.asmolabs.vectispire.common.domain.checklists.InvalidTemplateException;
 import com.asmolabs.vectispire.common.domain.checklists.WrittenFormulaException;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import java.util.List;
@@ -50,6 +51,13 @@ public class ChecklistConflict extends ConflictException {
         VERSION_NOT_PUBLISHED("checklist-version-not-published"),
         /** The project's checklist is already on that version. */
         SAME_VERSION("checklist-same-version"),
+        /**
+         * The published version's workbook cannot be filled in as a sign-off fills it — published before the
+         * publication's trial rendering (0.10.0 and earlier) with a cell the layout writes carrying a formula
+         * other cells depend on. A checklist opened on it, or moved to it, could never be signed off: publish a
+         * corrected version and open on, or move to, that one. Moving <em>away</em> from it is never refused.
+         */
+        VERSION_UNRENDERABLE("checklist-version-unrenderable"),
         /** The line's answer is not a carried one awaiting confirmation. */
         NOTHING_TO_CONFIRM("checklist-nothing-to-confirm"),
         /** The proof is already withdrawn. */
@@ -122,14 +130,31 @@ public class ChecklistConflict extends ConflictException {
     }
 
     /**
-     * A {@link Cause#TEMPLATE_UNRENDERABLE} refusal naming, in the problem's {@code cells} member, each written
-     * cell that carries a formula others depend on — {@code cell}, {@code kind} ({@code shared} or {@code
-     * array}) and {@code range} — when that is the reason; without the member for another one.
+     * A {@link Cause#TEMPLATE_UNRENDERABLE} or {@link Cause#VERSION_UNRENDERABLE} refusal naming, in the
+     * problem's {@code cells} member, each written cell that carries a formula others depend on — when that is
+     * the trial rendering's reason; without the member for another one.
      */
-    static ChecklistConflict unrenderable(String message, List<WrittenFormulaException.Cell> cells) {
-        return cells.isEmpty()
-                ? new ChecklistConflict(Cause.TEMPLATE_UNRENDERABLE, message)
-                : new ChecklistConflict(Cause.TEMPLATE_UNRENDERABLE, message, Map.of("cells", List.copyOf(cells)));
+    static ChecklistConflict unrenderable(Cause cause, String message, InvalidTemplateException refused) {
+        return refused instanceof WrittenFormulaException written && !written.cells().isEmpty()
+                ? new ChecklistConflict(cause, message, Map.of("cells",
+                        written.cells().stream().map(UnrenderableCell::of).toList()))
+                : new ChecklistConflict(cause, message);
+    }
+
+    /**
+     * One cell a sign-off writes that carries a formula other cells depend on, as the problem's {@code cells}
+     * member states it — the domain's {@link WrittenFormulaException.Cell} restated here so that the contract
+     * names a schema of its own rather than the domain's bare {@code Cell}.
+     *
+     * @param cell the cell, {@code G7}
+     * @param kind {@code shared} (the master of a shared formula) or {@code array} (an array formula)
+     * @param range the cells depending on it, {@code G7:G9}
+     */
+    public record UnrenderableCell(String cell, String kind, String range) {
+
+        static UnrenderableCell of(WrittenFormulaException.Cell cell) {
+            return new UnrenderableCell(cell.cell(), cell.kind(), cell.range());
+        }
     }
 
     /**

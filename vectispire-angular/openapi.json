@@ -2135,6 +2135,35 @@
         },
         "type" : "object"
       },
+      "ChecklistUnrenderableProblem" : {
+        "description" : "A checklist-template-unrenderable or checklist-version-unrenderable refusal: an RFC 9457 problem whose cells member names each cell a sign-off writes that carries a formula other cells depend on — cell, kind shared or array, range.",
+        "properties" : {
+          "cells" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UnrenderableCell"
+            },
+            "type" : "array"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string"
+          },
+          "status" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "ChecklistVersionSummary" : {
         "properties" : {
           "derivedFromOrdinal" : {
@@ -9481,6 +9510,20 @@
         "required" : [ "containerCount", "repositoryCount" ],
         "type" : "object"
       },
+      "UnrenderableCell" : {
+        "properties" : {
+          "cell" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "range" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "UnroutableLabel" : {
         "properties" : {
           "label" : {
@@ -11549,6 +11592,16 @@
               }
             },
             "description" : "OK"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistUnrenderableProblem"
+                }
+              }
+            },
+            "description" : "The draft cannot be published; checklist-template-unrenderable names the cells at fault"
           }
         },
         "summary" : "Publish checklist template version",
@@ -14221,7 +14274,7 @@
         "tags" : [ "Project checklists" ]
       },
       "post" : {
-        "description" : "Opens the project's checklist on a published version, or moves it to another: a new revision, the previous one's answers carried — current where the line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; absent when the person saw none. 400 without template and version; 404 for a project not seen whole or a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist opened or changed since), checklist-same-version.",
+        "description" : "Opens the project's checklist on a published version, or moves it to another: a new revision, the previous one's answers carried — current where the line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; absent when the person saw none. 400 without template and version; 404 for a project not seen whole or a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist opened or changed since), checklist-same-version, checklist-version-unrenderable (the version's workbook is filled in once with placeholder answers, as a sign-off fills it, and nothing of it is kept; a version published before that check whose workbook no sign-off could fill in is refused, and the problem's cells member names each cell at fault: cell, kind shared or array, range — the version moved to is tried, never the one moved from).",
         "operationId" : "open",
         "parameters" : [ {
           "in" : "path",
@@ -14252,6 +14305,16 @@
               }
             },
             "description" : "Created"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistUnrenderableProblem"
+                }
+              }
+            },
+            "description" : "The checklist cannot be opened on, or moved to, that version; checklist-version-unrenderable names the cells at fault"
           }
         },
         "summary" : "Open project checklist",
@@ -18542,6 +18605,9 @@
     "description" : "User login, MFA, SSO and session management",
     "name" : "Authentication"
   }, {
+    "description" : "A project's security checklist, answered by people and, on its measured lines, automatically by Vectispire (answeredByKind system). A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, checklist-version-unrenderable, checklist-nothing-to-confirm, checklist-evidence-withdrawn, checklist-measurement-contradicted, checklist-measurement-changed.",
+    "name" : "Project checklists"
+  }, {
     "description" : "Solutions, their projects and the repositories and images filed in them",
     "name" : "Solutions"
   }, {
@@ -18562,9 +18628,6 @@
   }, {
     "description" : "The ISMS scope, and the evidence covering it",
     "name" : "Certified scope"
-  }, {
-    "description" : "A project's security checklist, answered by people and, on its measured lines, automatically by Vectispire (answeredByKind system). A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, checklist-nothing-to-confirm, checklist-evidence-withdrawn, checklist-measurement-contradicted, checklist-measurement-changed.",
-    "name" : "Project checklists"
   }, {
     "description" : "Discovered API endpoints, declared contracts (OpenAPI/Swagger) and shadow APIs",
     "name" : "Attack Surface"

@@ -349,7 +349,8 @@ public class ProjectChecklistService {
      *     saw no checklist on the project. A checklist opened or changed since is refused, so that
      *     nobody moves a checklist they have not seen, nor two people open one each
      * @throws ChecklistConflict {@code checklist-version-not-published}, {@code checklist-changed},
-     *     {@code checklist-same-version}
+     *     {@code checklist-same-version}, {@code checklist-version-unrenderable} — a version no sign-off could
+     *     fill in, published before the publication's trial rendering
      */
     public ChecklistView open(long projectId, VisibilityService.Allowance allowance, String templateSlug,
             Integer versionOrdinal, Integer seenEdition, Participant who) {
@@ -392,6 +393,8 @@ public class ProjectChecklistService {
             }
         }
 
+        requireRenderable(template, version, latest.isPresent());
+
         Carried carried = latest.map(previous -> carryOnto(previous, version, template)).orElse(Carried.NOTHING);
         ChecklistEntity opened = openRevision(project, version, latest, carried, who);
 
@@ -406,6 +409,30 @@ public class ProjectChecklistService {
                 resource(project, opened.getRevision()), line));
         answerAfterOpening(guarded, opened);
         return view(guarded, reread(opened));
+    }
+
+    /**
+     * Refuses to open a checklist on, or move one to, a version whose workbook no sign-off could fill in, by
+     * the publication's own trial rendering ({@link ChecklistTemplateService#trial}). A version published
+     * since runs it at publication; one published before (0.10.0 and earlier) may carry the master of a
+     * shared formula in a cell a sign-off writes, and a checklist on it was answered line by line only for
+     * its sign-off to be refused, for good — a published version's workbook never changes.
+     *
+     * <p>The version moved <em>to</em> alone is tried, never the one moved from: moving away from a defective
+     * version is the way out, and refusing it would hold the project's checklist on a version it can never
+     * sign. Before any write and outside any transaction: refused, nothing is stored, audited or signalled.
+     */
+    private void requireRenderable(ChecklistTemplateEntity template, ChecklistTemplateVersionEntity version,
+            boolean moving) {
+        ChecklistTemplateService.trial(version, forms.layout(version.getLayout()),
+                domains(items.findByVersionIdOrderByPositionAsc(version.getId()))).ifPresent(refused -> {
+                    throw ChecklistConflict.unrenderable(Cause.VERSION_UNRENDERABLE, "Version " + version.getOrdinal()
+                            + " of \"" + template.getSlug() + "\" cannot be signed off: no sign-off could fill its "
+                            + "workbook in, so a checklist " + (moving ? "moved to" : "opened on") + " it could never be "
+                            + "signed. " + refused.getMessage() + " A published version's workbook never changes: "
+                            + "the template's managers publish a corrected version, and the checklist "
+                            + (moving ? "moves to that one instead." : "opens on that one instead."), refused);
+                });
     }
 
     /**

@@ -26,6 +26,7 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentRepo
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistFileRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
@@ -95,6 +96,9 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
 
     @Autowired
     private ChecklistDocumentRepository documents;
+
+    @Autowired
+    private ChecklistTemplateVersionRepository templateVersions;
 
     /** An account the test acts as: its token, its identifier, its name. */
     private record Account(String token, long id, String name) {}
@@ -908,6 +912,98 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
     }
 
+    // ------------------------------------------------------------------ a version no sign-off could fill in
+
+    @Nested
+    @DisplayName("a version published before the trial rendering, which no sign-off could fill in")
+    class AnUnrenderableVersion {
+
+        @Test
+        @DisplayName("is refused to a checklist opened on it and to one moved to it, naming its cells, and leaves nothing")
+        void refusesOpeningAndMoving() throws Exception {
+            exportTo("127.0.0.1:9");
+            publishedBeforeTheTrial("release", ChecklistWorkbooks.withSharedCommentFormula(ChecklistWorkbooks.SECOND), 10);
+            long entriesBefore = auditLog.count();
+            long eventsBefore = outbox.count();
+
+            MvcResult opening = open(developer, "release", 2, null).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(opening)).isEqualTo(PROBLEM + "checklist-version-unrenderable");
+            assertThat(detailOf(opening)).contains("a checklist opened on it could never be signed")
+                    .contains("G7 (the master of a formula shared across G7:G10)")
+                    .contains("publish a corrected version");
+            JsonNode cells = json.readTree(opening.getResponse().getContentAsString()).path("cells");
+            assertThat(cells).hasSize(1);
+            assertThat(cells.get(0).path("cell").asText()).isEqualTo("G7");
+            assertThat(cells.get(0).path("kind").asText()).isEqualTo("shared");
+            assertThat(cells.get(0).path("range").asText()).isEqualTo("G7:G10");
+            // Refused before any write: no revision, no entry, no event, no document.
+            assertThat(checklists.findByProjectIdOrderByRevisionDesc(project)).isEmpty();
+            assertThat(auditLog.count()).as("no audit entry of any kind").isEqualTo(entriesBefore);
+            assertThat(outbox.count()).as("nothing for the SIEM").isEqualTo(eventsBefore);
+            assertThat(documents.count()).isZero();
+
+            // On a version a sign-off can fill in, the checklist opens; moved to the defective one, it stays.
+            open(developer, "release", 1, null).andExpect(status().isCreated());
+            int read = edition(1);
+            long movedEntriesBefore = auditLog.count();
+            long movedEventsBefore = outbox.count();
+            MvcResult moving = open(developer, "release", 2, read).andExpect(status().isConflict()).andReturn();
+            assertThat(typeOf(moving)).isEqualTo(PROBLEM + "checklist-version-unrenderable");
+            assertThat(detailOf(moving)).contains("a checklist moved to it could never be signed");
+            assertThat(json.readTree(moving.getResponse().getContentAsString()).path("cells")).hasSize(1);
+            assertThat(checklists.findByProjectIdOrderByRevisionDesc(project)).singleElement()
+                    .satisfies(only -> assertThat(only.getStatus()).isEqualTo("draft"));
+            assertThat(edition(1)).as("revision 1 untouched").isEqualTo(read);
+            assertThat(auditLog.count()).isEqualTo(movedEntriesBefore);
+            assertThat(outbox.count()).isEqualTo(movedEventsBefore);
+            assertThat(documents.count()).isZero();
+        }
+
+        @Test
+        @DisplayName("a checklist already on it moves away to a version a sign-off can fill in: the way out")
+        void movingAwayIsTheWayOut() throws Exception {
+            long defective = publishedBeforeTheTrial("release",
+                    ChecklistWorkbooks.withSharedCommentFormula(ChecklistWorkbooks.SECOND), 10);
+            // Opened before the check existed, as 0.10.0 let it be: opening on it is refused now, so the row is
+            // written as that release wrote it.
+            var opened = new com.asmolabs.vectispire.core.checklists.persistence.ChecklistEntity();
+            opened.setProjectId(project);
+            opened.setTemplateVersionId(defective);
+            opened.setRevision(1);
+            opened.setStatus("draft");
+            opened.setEdition(1);
+            opened.setOpenSlot(1);
+            opened.setAuthorId(developer.id());
+            opened.setAuthor(developer.name());
+            opened.setOpenedAt(java.time.Instant.now());
+            opened.setOpenedBy(developer.name());
+            checklists.saveAndFlush(opened);
+
+            JsonNode moved = read(open(developer, "release", 1, edition(1)).andExpect(status().isCreated()));
+            assertThat(moved.at("/checklist/revision").asInt()).isEqualTo(2);
+            assertThat(moved.at("/checklist/versionOrdinal").asInt()).isEqualTo(1);
+            assertThat(read(developer, 1).at("/checklist/status").asText()).isEqualTo("superseded");
+            assertThat(entries("CHECKLIST_MOVED_TO_VERSION")).hasSize(1);
+        }
+
+        /**
+         * Imports the workbook as the template's next version, confirms its layout, and publishes it by the
+         * statement the publication runs — without the publication's trial rendering, as 0.10.0 and earlier
+         * published every version; the route refuses such a workbook now. Returns the version's id.
+         */
+        private long publishedBeforeTheTrial(String slug, byte[] workbook, int lastItemRow) throws Exception {
+            importDraft(slug, workbook, lastItemRow);
+            int ordinal = read(mvc.perform(authenticated(get(TEMPLATES + "/" + slug), asAdmin())).andExpect(status().isOk()))
+                    .at("/versions").size();
+            JsonNode version = read(mvc.perform(authenticated(get(TEMPLATES + "/" + slug + "/versions/" + ordinal), asAdmin()))
+                    .andExpect(status().isOk())).at("/version");
+            long id = version.at("/id").asLong();
+            assertThat(templateVersions.publish(id, version.at("/revision").asInt(), "draft", "published",
+                    java.time.Instant.now(), "admin")).isEqualTo(1);
+            return id;
+        }
+    }
+
     // ------------------------------------------------------------------ moving the project
 
     @Test
@@ -1010,8 +1106,12 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
 
     /** Imports a workbook as the template's next version and confirms its layout, as an administrator. */
     private void importDraft(String slug, List<ChecklistWorkbooks.Line> lines, int lastItemRow) throws Exception {
+        importDraft(slug, ChecklistWorkbooks.of(lines), lastItemRow);
+    }
+
+    private void importDraft(String slug, byte[] workbook, int lastItemRow) throws Exception {
         mvc.perform(authenticated(post(TEMPLATES + "/" + slug + "/versions"), asAdmin())
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM).content(ChecklistWorkbooks.of(lines)))
+                        .contentType(MediaType.APPLICATION_OCTET_STREAM).content(workbook))
                 .andExpect(status().isCreated());
         int ordinal = read(mvc.perform(authenticated(get(TEMPLATES + "/" + slug), asAdmin())).andExpect(status().isOk()))
                 .at("/versions").size();
