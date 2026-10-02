@@ -110,7 +110,7 @@ if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 2649;
+const EXPECTED_KEYS = 2651;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -612,8 +612,64 @@ for (const lang of ['en', 'fr']) {
     }
 }
 
+// **A count is spelt by a plural pair, never by "(s)".** Twelve messages still wrote "entrée(s)
+// vérifiée(s)", "member(s)", "Line(s) 1 are": two counts in one sentence, or a count that was a list
+// of line numbers, had kept them out of the `_one`/`_other` move. Each is a pair now — a second count
+// is a phrase of its own passed in (`{{targets}}` is `teams.delete_consequence_targets`), a list of
+// lines passes its length as `count`. `http(s)` is a scheme, not a plural.
+const hedgedPlural = /[A-Za-zÀ-ÿ]\((?:s|es|ies|x)\)/;
+for (const lang of ['en', 'fr']) {
+    const tree = JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'));
+    const hedged = flatten(tree).filter((key) => {
+        const value = key.split('.').reduce((node, part) => node[part], tree);
+        return hedgedPlural.test(value.replace(/\bhttp\(s\)/g, ''));
+    });
+    if (hedged.length > 0) {
+        failed = true;
+        console.error(`Messages hedging a plural with "(s)" in public/i18n/${lang}.json — write a _one/_other pair:`);
+        for (const key of hedged) console.error(`  - ${key}`);
+    }
+}
+
+// **And a plural key asked for by name is given its count.** Without one, I18nService.t falls back
+// on `_other`: "1 entries verified", exactly the sentence the pair exists to prevent, and nothing on
+// screen tells the missing argument apart from a correct plural. Only a literal reference can be read
+// — a key held in a map (`CONFLICT_KEYS`, `AS_MEASURED_SKIP_KEYS`) is asked for through a variable, and
+// its call passes `count` for every key the map holds.
+const pluralStems = new Set(
+    ['en', 'fr'].flatMap((lang) => {
+        const known = bundle(lang);
+        return [...known]
+            .filter((key) => key.endsWith('_one') && known.has(`${key.slice(0, -4)}_other`))
+            .map((key) => key.slice(0, -4));
+    })
+);
+const countless = [];
+for (const file of walk(join(root, 'src/app'))) {
+    if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts')) continue;
+    const source = readFileSync(file, 'utf8');
+    const asked = [
+        ...source.matchAll(/['"]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"]\s*\|\s*translate\b(\s*:)?/g),
+        ...source.matchAll(/\bt\(\s*['"]([a-z0-9_.]+)['"]\s*(,)?/g)
+    ];
+    for (const match of asked) {
+        if (!pluralStems.has(match[1])) continue;
+        const args = match[2] ? source.slice(match.index + match[0].length, match.index + match[0].length + 300) : '';
+        if (/^\s*\{[^}]*\bcount\b/.test(args)) continue;
+        const line = source.slice(0, match.index).split('\n').length;
+        countless.push(`${file.slice(root.length + 1)}:${line}  ${match[1]}`);
+    }
+}
+if (countless.length > 0) {
+    failed = true;
+    console.error('Plural keys asked for without a count — the reader would get the plural whatever the number:');
+    for (const offender of countless) console.error(`  - ${offender}`);
+}
+
 if (failed) {
-    console.error('Add them to both bundles: an unresolved key is shown as it stands.');
+    console.error(
+        'Fix the keys listed above: an unresolved key is shown as it stands, and a hedged or countless ' +
+            'plural reads wrong for every number but one.');
     process.exit(1);
 }
 

@@ -14,10 +14,15 @@
             @if (result.unverifiable > 0) {
                 {{
                     'audit_log.chain_intact_partial'
-                        | translate: { verified: result.verified, unverifiable: result.unverifiable }
+                        | translate
+                            : {
+                                  count: result.verified,
+                                  unverifiable:
+                                      ('audit_log.unverifiable_count' | translate: { count: result.unverifiable })
+                              }
                 }}
             } @else {
-                {{ 'audit_log.chain_intact' | translate: { verified: result.verified } }}
+                {{ 'audit_log.chain_intact' | translate: { count: result.verified } }}
             }
         </p-message>
     } @else {

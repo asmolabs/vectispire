@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AuditLog } from './audit-log';
 import { I18nService, TranslationTree } from '@/app/core/i18n/i18n.service';
+import { asSchema } from '@/app/core/testing/contract';
 import english from '../../../../public/i18n/en.json';
 import french from '../../../../public/i18n/fr.json';
 
@@ -56,5 +57,59 @@ describe('the audit log operation labels', () => {
             'Dépôts du projet modifiés',
             'Images du projet modifiées'
         ]);
+    });
+});
+
+/**
+ * The chain's verdict, counted. It read "1 entrée(s) vérifiée(s), 1 antérieure(s) au chaînage": two
+ * counts in one sentence had kept it out of the plural pairs. The second count is a phrase of its own,
+ * so each agrees with its own number — in French, where "antérieure" agrees too.
+ */
+describe('the audit chain verdict', () => {
+    let http: HttpTestingController;
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [AuditLog],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        http = TestBed.inject(HttpTestingController);
+    }, 20_000);
+
+    function verdict(bundle: TranslationTree, verified: number, unverifiable: number): string {
+        TestBed.inject(I18nService).translations.set(bundle);
+        const fixture = TestBed.createComponent(AuditLog);
+        fixture.detectChanges();
+        http.expectOne('/api/v1/audit-log/verify').flush(
+            asSchema('Verification', {
+                intact: true,
+                broken: null,
+                mirrored: false,
+                missingFromMirror: 0,
+                missingFromTable: 0,
+                total: verified + unverifiable,
+                unverifiable,
+                verified
+            })
+        );
+        fixture.detectChanges();
+        return ((fixture.nativeElement as HTMLElement).querySelector('p-message')?.textContent ?? '').trim();
+    }
+
+    it('agrees each count with its own noun, in French', () => {
+        expect(verdict(french, 1, 1)).toBe('Chaîne intègre — 1 entrée vérifiée, 1 antérieure au chaînage.');
+    });
+
+    it('takes the plural for each count that needs it, independently', () => {
+        expect(verdict(french, 1, 3)).toBe('Chaîne intègre — 1 entrée vérifiée, 3 antérieures au chaînage.');
+    });
+
+    it('says one entry in English, and no partial clause when every entry was verifiable', () => {
+        expect(verdict(english, 1, 0)).toBe('Chain intact — 1 entry verified.');
+    });
+
+    it('says entries for any other number in English', () => {
+        expect(verdict(english, 4, 2)).toBe('Chain intact — 4 entries verified, 2 predating the chaining.');
     });
 });

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { RuleSets } from './rule-sets';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { useEnglish } from '@/app/core/testing/english';
 
 /**
  * What the upstream catalogue's preview says before it is imported.
@@ -265,5 +266,37 @@ describe('a rule-set change', () => {
         expect(request.request.body).toEqual({});
         request.flush({ active: null });
         reload();
+    });
+});
+
+/** The files picked for an upload, counted: "1 file(s) selected" whatever the number, until now. */
+describe('the picked rule files', () => {
+    let fixture: ComponentFixture<RuleSets>;
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [RuleSets],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(RuleSets);
+        fixture.detectChanges();
+    }, 20_000);
+
+    function said(picked: number, ignored: number): string {
+        const page = fixture.componentInstance;
+        page.picked.set(Array.from({ length: picked }, (_, index) => ({ name: `r${index}.yaml`, content: '' })));
+        page.ignored.set(ignored);
+        fixture.detectChanges();
+        const line = [...(fixture.nativeElement as HTMLElement).querySelectorAll('p.m-0.text-sm')].find((p) =>
+            p.textContent.includes('selected')
+        );
+        return (line?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    }
+
+    it('says one file in the singular, and each count with its own noun', () => {
+        expect(said(1, 2)).toBe('1 file selected. 2 files without a .yaml or .yml extension were ignored.');
+        expect(said(3, 1)).toBe('3 files selected. 1 file without a .yaml or .yml extension was ignored.');
     });
 });

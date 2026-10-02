@@ -221,7 +221,7 @@
                         report()!.totalTargetsAffected
                     }}</span>
                     <span class="text-xs text-surface-500 ml-1">{{
-                        'blast_radius.repos_and_containers' | translate
+                        'blast_radius.repos_and_containers' | translate: { count: report()!.totalTargetsAffected }
                     }}</span>
                 </div>
             </div>
@@ -305,7 +305,9 @@
                     <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{
                         report()!.totalAssociatedCves
                     }}</span>
-                    <span class="text-xs text-surface-500 ml-1">{{ 'blast_radius.correlated_cves' | translate }}</span>
+                    <span class="text-xs text-surface-500 ml-1">{{
+                        'blast_radius.correlated_cves' | translate: { count: report()!.totalAssociatedCves }
+                    }}</span>
                 </div>
             </div>
         </div>

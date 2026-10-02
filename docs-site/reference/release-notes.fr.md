@@ -160,7 +160,10 @@
   absentes de la chaîne d'audit, cibles jamais analysées, composants listés, lignes de checklist
   répondues… — étaient écrits au pluriel ou avec « (s) » et le restaient quel que soit le nombre. Chacun a
   désormais un singulier et un pluriel choisis par la règle de la langue : en français 0 prend le singulier
-  (« 0 dépôt »), en anglais le pluriel (« 0 repositories »).
+  (« 0 dépôt »), en anglais le pluriel (« 0 repositories »). Les derniers suivent : le verdict de la
+  chaîne d'audit, l'avertissement de suppression d'une équipe, le « les lignes 3 demandent encore de
+  l'attention » des checklists et les autres messages qui nomment des lignes, et six libellés comptés
+  (rayon d'impact, EPSS, licences, fichiers de règles).
 - **Les derniers libellés figés dans une langue suivent la préférence de langue** : les étiquettes de
   changement du différentiel d'inventaire, l'état d'un canal de notification, les étiquettes « UNPROTECTED »
   et « HIGH RISK » de la surface d'attaque — désormais « NON PROTÉGÉ » et « RISQUE ÉLEVÉ » — et le texte

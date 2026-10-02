@@ -480,7 +480,7 @@ describe('the measured lines of a project checklist', () => {
         expect(text('[data-testid="line-1"] [data-testid="answer-value"]')).toBe('Yes');
         expect(text('[data-testid="as-measured-answered"]')).toBe('1 line answered yes as measured.');
         expect(text('[data-testid="as-measured-needs_comment"]')).toContain(
-            'Lines 3, measured as not met, need your “no” with a comment:'
+            'Line 3, measured as not met, needs your “no” with a comment:'
         );
         // Line 2 was answered before the act and not sent: naming it would bury what the act did.
         expect(has('[data-testid="as-measured-already_answered"]')).toBe(false);
@@ -536,14 +536,14 @@ describe('the measured lines of a project checklist', () => {
 
         expect(text('[data-testid="as-measured-answered"]')).toBe('0 lines answered yes as measured.');
         expect(text('[data-testid="as-measured-measurement_changed"]')).toBe(
-            'The measurement of lines 3 changed since you read it: check it again, then answer.'
+            'The measurement of line 3 changed since you read it: check it again, then answer.'
         );
         expect(text('[data-testid="as-measured-no_data"]')).toBe(
             'Lines 4, 5 have no data: answer them yourself — a yes there needs a comment and a proof.'
         );
-        expect(text('[data-testid="as-measured-not_shown"]')).toContain('Lines 6 are measured met now');
+        expect(text('[data-testid="as-measured-not_shown"]')).toContain('Line 6 is measured met now');
         expect(text('[data-testid="as-measured-already_answered"]')).toBe(
-            'Lines 1 were answered meanwhile: their answer is left as it is.'
+            'Line 1 was answered meanwhile: its answer is left as it is.'
         );
         expect(has('[data-testid="as-measured-needs_comment"]')).toBe(false);
 
@@ -676,7 +676,7 @@ describe('the measured lines of a project checklist', () => {
         );
 
         expect(button('submit-checklist').disabled).toBe(true);
-        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: lines 3 still need attention.');
+        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: line 3 still needs attention.');
         expect(text('[data-testid="measurement-3"] [data-testid="reconciliation"]')).toBe(
             'Contradicted: yes where the measurement is not met'
         );
@@ -704,7 +704,7 @@ describe('the measured lines of a project checklist', () => {
         expect(lineProblems(3)).toEqual(['Comment required', 'Evidence required']);
         expect(badges(3)).toEqual([]);
         expect(button('submit-checklist').disabled).toBe(true);
-        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: lines 3 still need attention.');
+        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: line 3 still needs attention.');
     });
 
     it('still badges what the measurement says and the line does not', async () => {
@@ -752,7 +752,7 @@ describe('the measured lines of a project checklist', () => {
             }
         ]);
         expect(text('[data-testid="refusal-message"]')).toBe(
-            'Line(s) 1 are answered yes where the measurement is not met, and the submission is refused. Answer them as measured, or settle the findings through triage: a false positive leaves the figures once it is settled.'
+            'Line 1 is answered yes where the measurement is not met, and the submission is refused. Answer it as measured, or settle the findings through triage: a false positive leaves the figures once it is settled.'
         );
         expect(text('[data-testid="measured-conflict-1"]')).toBe(
             'Refused by its measurement Answered Yes, measured Not met'
@@ -783,7 +783,7 @@ describe('the measured lines of a project checklist', () => {
             }
         ]);
         expect(text('[data-testid="refusal-message"]')).toContain(
-            'A measurement changed since the submission — line(s) 1.'
+            'A measurement changed since the submission — line 1.'
         );
         expect(text('[data-testid="measured-conflict-1"]')).toContain(
             'Answered Yes, measured No data (too old) · Met at the submission'
@@ -804,7 +804,7 @@ describe('the measured lines of a project checklist', () => {
         );
 
         expect(button('sign-off-checklist').disabled).toBe(true);
-        expect(text('[data-testid="sign-off-blocked-measured"]')).toContain('Line(s) 1 are measured otherwise');
+        expect(text('[data-testid="sign-off-blocked-measured"]')).toContain('Line 1 is measured otherwise');
         expect(text('[data-testid="changed-since-submission"]')).toBe('Changed since the submission, which found: Met');
     });
 
@@ -884,6 +884,12 @@ describe('the measured lines, by their rules', () => {
             key
                 .split('.')
                 .reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], bundle);
+        // A message counting its lines is a pair, `_one` and `_other`, asked for by its stem.
+        const kind = (bundle: unknown, key: string) =>
+            typeof lookup(bundle, key) === 'string' ||
+            (typeof lookup(bundle, `${key}_one`) === 'string' && typeof lookup(bundle, `${key}_other`) === 'string')
+                ? 'string'
+                : 'missing';
         for (const map of [
             OUTCOME_KEYS,
             NO_DATA_KEYS,
@@ -895,8 +901,8 @@ describe('the measured lines, by their rules', () => {
             AS_MEASURED_SKIP_KEYS
         ]) {
             for (const key of Object.values(map)) {
-                expect(typeof lookup(english, key), `${key} in en.json`).toBe('string');
-                expect(typeof lookup(french, key), `${key} in fr.json`).toBe('string');
+                expect(kind(english, key), `${key} in en.json`).toBe('string');
+                expect(kind(french, key), `${key} in fr.json`).toBe('string');
             }
         }
     });

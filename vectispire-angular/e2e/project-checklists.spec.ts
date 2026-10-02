@@ -281,7 +281,7 @@ test.describe('Project checklists', () => {
         await expect(line.getByTestId('problems')).toHaveText('Evidence required');
         await expect(page.getByRole('button', { name: 'Submit for sign-off' })).toBeDisabled();
         await expect(page.getByTestId('submit-blocked')).toHaveText(
-            'Not ready to submit: lines 3 still need attention.'
+            'Not ready to submit: line 3 still needs attention.'
         );
 
         // The server says it whatever the screen shows, and names the line as data.
@@ -389,7 +389,7 @@ test.describe('Project checklists', () => {
         await expect(measured.getByTestId('measured-problem')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Submit for sign-off' })).toBeDisabled();
         await expect(page.getByTestId('submit-blocked')).toHaveText(
-            'Not ready to submit: lines 1 still need attention.'
+            'Not ready to submit: line 1 still needs attention.'
         );
 
         await answer(page, 1, /^Yes/, 'No repository filed yet: the secrets review was done by hand.', false);
@@ -533,7 +533,7 @@ test.describe('Project checklists', () => {
             await expect(page.getByTestId('line-1').getByTestId('answer-value')).toHaveText('Yes');
             await expect(page.getByTestId('measurement-1').getByTestId('reconciliation')).toHaveText('Consistent');
             await expect(page.getByTestId('as-measured-needs_comment')).toContainText(
-                'Lines 2, measured as not met, need your “no” with a comment:'
+                'Line 2, measured as not met, needs your “no” with a comment:'
             );
             await expect(page.getByTestId('line-2').getByTestId('answer-value')).toHaveCount(0);
 

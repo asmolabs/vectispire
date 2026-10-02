@@ -951,7 +951,7 @@ describe('the project checklist screen', () => {
         );
         fixture.detectChanges();
 
-        expect(text('[data-testid="refusal-message"]')).toBe('Not every line is ready: lines 2 still need attention.');
+        expect(text('[data-testid="refusal-message"]')).toBe('Not every line is ready: line 2 still needs attention.');
         expect(tags('incomplete-2')).toEqual(['Evidence out of date']);
     });
 
@@ -1220,6 +1220,12 @@ describe('the project checklist, by its rules', () => {
             key
                 .split('.')
                 .reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], bundle);
+        // A message counting its lines is a pair, `_one` and `_other`, asked for by its stem.
+        const kind = (bundle: unknown, key: string) =>
+            typeof lookup(bundle, key) === 'string' ||
+            (typeof lookup(bundle, `${key}_one`) === 'string' && typeof lookup(bundle, `${key}_other`) === 'string')
+                ? 'string'
+                : 'missing';
         const keys = [
             ...Object.values(STATUS_KEYS),
             ...Object.values(ANSWER_KEYS),
@@ -1228,8 +1234,8 @@ describe('the project checklist, by its rules', () => {
             ...Object.values(CONFLICT_KEYS)
         ];
         for (const key of keys) {
-            expect(typeof lookup(english, key), `${key} in en.json`).toBe('string');
-            expect(typeof lookup(french, key), `${key} in fr.json`).toBe('string');
+            expect(kind(english, key), `${key} in en.json`).toBe('string');
+            expect(kind(french, key), `${key} in fr.json`).toBe('string');
         }
     });
 });

@@ -786,7 +786,8 @@ export class ProjectChecklist {
     asMeasuredLabel(group: AsMeasuredGroup): string {
         this.i18n.translations();
         return this.i18n.t(AS_MEASURED_SKIP_KEYS[group.reason], {
-            lines: group.lines.map((line) => line.position).join(', ')
+            lines: group.lines.map((line) => line.position).join(', '),
+            count: group.lines.length
         });
     }
 
@@ -1160,6 +1161,7 @@ export class ProjectChecklist {
                 ? this.i18n.t('project_checklist.conflict_incomplete_reload')
                 : this.i18n.t(CONFLICT_KEYS[cause], {
                       lines: lines.join(', '),
+                      count: lines.length,
                       authors: (this.view()?.authors ?? []).join(', ')
                   });
         // Four-eyes is the one cause reloading does not cure: the person is who they are.
@@ -1191,7 +1193,7 @@ export class ProjectChecklist {
         }
         const lines = named.map((line) => line.position).sort((a, b) => a - b);
         return {
-            message: this.i18n.t(CONFLICT_KEYS[cause], { lines: lines.join(', ') || '—' }),
+            message: this.i18n.t(CONFLICT_KEYS[cause], { lines: lines.join(', ') || '—', count: lines.length }),
             reload: true,
             itemId
         };

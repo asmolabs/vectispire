@@ -38,7 +38,11 @@ describe('I18nService & TranslatePipe', () => {
         },
         scans: {
             queued_one: 'Analyse planifiée pour {{count}} dépôt.',
-            queued_other: 'Analyse planifiée pour {{count}} dépôts.'
+            queued_other: 'Analyse planifiée pour {{count}} dépôts.',
+            lose_one: '{{count}} membre perd {{targets}}.',
+            lose_other: '{{count}} membres perdent {{targets}}.',
+            targets_one: '{{count}} cible',
+            targets_other: '{{count}} cibles'
         }
     };
 
@@ -127,6 +131,16 @@ describe('I18nService & TranslatePipe', () => {
             expect(service.t('scans.seen_once', { count: 1 })).toBe('seen once');
             // `gate_verdicts.refused_one` sits beside `refused` in the real bundle: a word, not a form.
             expect(service.t('scans.refused', { count: 1 })).toBe('refusals');
+        });
+
+        it('agrees a second count through a phrase of its own, never through the first', async () => {
+            // "ses 3 membre(s) perdent les 1 cible(s)": a sentence with two counts. `count` chooses the
+            // sentence; the other count is a phrase translated with its own, and passed in as text.
+            await service.setLanguage('fr');
+            const lose = (members: number, targets: number) =>
+                service.t('scans.lose', { count: members, targets: service.t('scans.targets', { count: targets }) });
+            expect(lose(3, 1)).toBe('3 membres perdent 1 cible.');
+            expect(lose(1, 2)).toBe('1 membre perd 2 cibles.');
         });
 
         it('chooses through the pipe too', async () => {

@@ -54,9 +54,11 @@
 
         @if (picked().length > 0) {
             <p class="m-0 text-sm">
-                {{ picked().length }} {{ 'rule_sets.files_selected' | translate }}
+                {{ picked().length }} {{ 'rule_sets.files_selected' | translate: { count: picked().length } }}
                 @if (ignored() > 0) {
-                    <span class="text-muted-color"> {{ ignored() }} {{ 'rule_sets.ignored_files' | translate }} </span>
+                    <span class="text-muted-color">
+                        {{ ignored() }} {{ 'rule_sets.ignored_files' | translate: { count: ignored() } }}
+                    </span>
                 }
             </p>
         }

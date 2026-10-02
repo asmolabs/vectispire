@@ -6,6 +6,8 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Teams } from './teams';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { I18nService } from '@/app/core/i18n/i18n.service';
+import french from '../../../../public/i18n/fr.json';
 
 /**
  * The team screen, which is the authorization model with a form on it.
@@ -135,6 +137,37 @@ describe('the teams screen', () => {
         );
         expect(names).toContain('Rename platform');
         expect(names).toContain('Delete platform');
+    });
+
+    /** The deletion warning, as rendered: the dialog may sit outside the component's own element. */
+    function deletionWarning(team: typeof TEAM): string {
+        fixture.componentInstance.confirmDelete(team);
+        fixture.detectChanges();
+        const paragraph = [...document.querySelectorAll('p.m-0')].find((p) => p.textContent.includes(team.name));
+        return (paragraph?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    }
+
+    it('agrees the members and the targets each with its own count', () => {
+        settleBoot();
+        fixture.detectChanges();
+
+        // It read "its 1 member(s) immediately lose the 2 target(s)": two counts in one sentence had
+        // kept it out of the plural pairs. The members choose the sentence, the targets their phrase.
+        expect(deletionWarning(TEAM)).toBe(
+            'platform and its access go together: its 1 member immediately loses the 2 targets it owned, ' +
+                'unless something else grants that access.'
+        );
+    });
+
+    it('says it in French with each agreement of its own', () => {
+        settleBoot();
+        fixture.detectChanges();
+        TestBed.inject(I18nService).translations.set(french);
+
+        expect(deletionWarning({ ...TEAM, memberCount: 3, targetCount: 1 })).toBe(
+            "platform et ses accès disparaissent ensemble : ses 3 membres perdent immédiatement l'accès à 1 " +
+                "cible qu'elle possédait, sauf si autre chose le leur accorde."
+        );
     });
 
     it('survives a users payload with no array in it', () => {

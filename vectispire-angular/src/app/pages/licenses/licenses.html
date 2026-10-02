@@ -367,7 +367,9 @@
                             [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'"
                             [value]="
                                 blockingConflictsCount() > 0
-                                    ? blockingConflictsCount() + ' ' + ('licenses.blocking_conflicts' | translate)
+                                    ? blockingConflictsCount() +
+                                      ' ' +
+                                      ('licenses.blocking_conflicts' | translate: { count: blockingConflictsCount() })
                                     : ('licenses.no_blocking_conflict' | translate)
                             "
                         />

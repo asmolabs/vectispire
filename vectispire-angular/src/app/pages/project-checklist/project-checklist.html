@@ -294,7 +294,10 @@
                         />
                         @if (!shown.readyToSubmit) {
                             <span class="text-sm text-muted-color" data-testid="submit-blocked">
-                                {{ 'project_checklist.submit_blocked' | translate: { lines: unready().join(', ') } }}
+                                {{
+                                    'project_checklist.submit_blocked'
+                                        | translate: { lines: unready().join(', '), count: unready().length }
+                                }}
                             </span>
                         }
                     </div>
@@ -314,7 +317,11 @@
                             <span class="text-sm text-muted-color" data-testid="sign-off-blocked-measured">
                                 {{
                                     'project_checklist.sign_off_blocked_measured'
-                                        | translate: { lines: changedSinceSubmission().join(', ') }
+                                        | translate
+                                            : {
+                                                  lines: changedSinceSubmission().join(', '),
+                                                  count: changedSinceSubmission().length
+                                              }
                                 }}
                             </span>
                         }

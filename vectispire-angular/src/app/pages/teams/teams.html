@@ -233,7 +233,14 @@
     @if (pendingDelete(); as team) {
         <p class="m-0">
             <strong>{{ team.name }}</strong>
-            {{ 'teams.delete_consequence' | translate: { members: team.memberCount, targets: team.targetCount } }}
+            {{
+                'teams.delete_consequence'
+                    | translate
+                        : {
+                              count: team.memberCount,
+                              targets: ('teams.delete_consequence_targets' | translate: { count: team.targetCount })
+                          }
+            }}
         </p>
     }
     <ng-template #footer>
