@@ -23,6 +23,15 @@
   `previousResolvedAt` — null on every other entry. Their `actor` is null, as on an `expiry`. The history
   CSV gains a last column, `decision_previous_resolved_at`; a target's `decisions` count leaves reopenings
   out.
+- **The CLI is a release asset, signed like the gate script.** `vectispire-cli.sh` is attached to the
+  release with its Sigstore bundle, `vectispire-cli.sh.cosign.bundle`, signed by `release.yml` at the
+  tag and verified with the same `cosign verify-blob` command as the jar; the release notes print its
+  SHA-256. The snippets of the **CI/CD** dialog on *Repositories* and of
+  [`CI_CD_INTEGRATION`](https://github.com/asmolabs/vectispire/blob/main/docs/en/CI_CD_INTEGRATION.md#-getting-the-cli)
+  used to download `scripts/vectispire-cli.sh` from the repository's raw URL at the tag and run it
+  unchecked; they now download the asset, compare its SHA-256 with the one they pin, and stop the job
+  on any other file. A pipeline copied from an earlier snippet keeps working, unchecked, until it is
+  replaced — 0.10.0 and earlier carry no CLI asset.
 
 ### New
 

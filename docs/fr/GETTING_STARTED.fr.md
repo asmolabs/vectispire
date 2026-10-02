@@ -185,8 +185,9 @@ vérifié.
 
 ## 9. Vérifier une release
 
-Chaque release porte quatre fichiers — le jar, son SBOM, et un paquet Sigstore pour chacun — et
-deux images de conteneur signées.
+Chaque release porte le jar et son SBOM, le script de barrière CI `vectispire-gate.sh` et — à
+partir de la version qui suit la 0.10.0 — la CLI `vectispire-cli.sh` ([Intégration CI/CD](CI_CD_INTEGRATION.fr.md#-obtenir-la-cli)),
+chacun avec un paquet Sigstore vérifié de la même façon, et deux images de conteneur signées.
 Vérifiez avant de lancer quoi que ce soit — un outil de sécurité pris sur parole est une
 contradiction.
 

@@ -216,8 +216,9 @@ and shares nothing with it but the HTTP contract.
 
 ## Verifying a release
 
-Each release carries four files: the jar, its SBOM, and a Sigstore bundle for each. Verify
-before running anything — a security tool you took on trust is a contradiction.
+Each release carries the jar, its SBOM, the [CI gate script](../integrations/ci-gate.md) and —
+from the release after 0.10.0 on — the CLI `vectispire-cli.sh`, each with a Sigstore bundle verified
+as the jar is below. Verify before running anything — a security tool you took on trust is a contradiction.
 
 ```bash
 cosign verify-blob \

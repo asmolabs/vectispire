@@ -128,11 +128,15 @@ jobs:
       # stranger's red build rather than by ours. The GitLab template runs the release's gate script
       # only at the digest it pins — edited apart, the next release ships a template that refuses to
       # run anywhere — and both scripts are linted, since `curl -f` swallowing every refusal is the
-      # kind of thing a careful read had let through. ShellCheck is on the runner image.
+      # kind of thing a careful read had let through. The interface's CI/CD snippets run the
+      # release's CLI only at the digest the interface pins, under the same rule. ShellCheck is on
+      # the runner image.
       - name: the shipped CI scripts
         run: |
           sh ci/gitlab/check-gate-pin.sh
-          shellcheck --shell=sh ci/vectispire-gate.sh ci/gitlab/check-gate-pin.sh scripts/vectispire-cli.sh
+          sh ci/check-cli-pin.sh
+          shellcheck --shell=sh ci/vectispire-gate.sh ci/gitlab/check-gate-pin.sh ci/check-cli-pin.sh \
+            scripts/vectispire-cli.sh
 
   c4-drift:
     runs-on: ubuntu-latest

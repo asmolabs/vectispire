@@ -33,6 +33,45 @@ Configure these environment variables in your CI/CD project settings (e.g. *GitL
 
 ---
 
+## 🔏 Getting the CLI
+
+The CLI is a **release asset**, signed like the jar: `vectispire-cli.sh` and its Sigstore bundle
+`vectispire-cli.sh.cosign.bundle`, from the release after 0.10.0 on — 0.10.0 and earlier do not carry
+it. The snippets below download it, compare its SHA-256 with the one the pipeline pins, and only then
+run it. Never pipe it into `sh`, where the bytes execute as they arrive and nothing can be checked
+first. Until 0.10.0 these snippets fetched `scripts/vectispire-cli.sh` from the repository's raw URL
+at the tag and ran it unchecked: a file outside the release, unsigned, compared with nothing.
+
+Two values pin it:
+
+| Variable | Value |
+|---|---|
+| `VECTISPIRE_CLI_VERSION` | the release tag, `<tag>` |
+| `VECTISPIRE_CLI_SHA256` | the CLI's SHA-256, printed in that release's notes |
+
+The **CI/CD** dialog of the *Repositories* page fills both in, for the version the server runs, and
+its *CLI* tab carries the signature check. To take the digest from the signature rather than from the
+release notes, verify the file once:
+
+```bash
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh.cosign.bundle
+cosign verify-blob \
+  --bundle vectispire-cli.sh.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-cli.sh
+sha256sum vectispire-cli.sh    # macOS: shasum -a 256 vectispire-cli.sh
+```
+
+The identity names the workflow file and the tag — replace the tag in both places — and the issuer
+says it came from GitHub's token service; [Getting started §8](GETTING_STARTED.md#8-verifying-a-release)
+says what each flag pins. From then on the digest pins the file in every run: `sha256sum -c` fails the
+job on any other bytes, so a pipeline that moves to another tag without moving the digest stops rather
+than running a script nobody checked.
+
+---
+
 ## 🛠️ Pipeline Snippets
 
 ### 1. 🦊 GitLab CI (`.gitlab-ci.yml`)
@@ -48,10 +87,14 @@ vectispire-security-gate:
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
+    VECTISPIRE_CLI_VERSION: "<tag>"
+    VECTISPIRE_CLI_SHA256: "<sha256 from the release notes>"
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
+    # The release's CLI, run only at the digest pinned above
+    - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+    - echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
     - chmod +x vectispire-cli.sh
     # 1. Enqueue scan and wait for completion
     - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
@@ -86,8 +129,12 @@ jobs:
           VECTISPIRE_URL: ${{ secrets.VECTISPIRE_URL }}
           VECTISPIRE_API_KEY: ${{ secrets.VECTISPIRE_API_KEY }}
           VECTISPIRE_REPO_ID: "1"
+          VECTISPIRE_CLI_VERSION: "<tag>"
+          VECTISPIRE_CLI_SHA256: "<sha256 from the release notes>"
         run: |
-          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          # The release's CLI, run only at the digest pinned above
+          curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+          echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
           chmod +x vectispire-cli.sh
           ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
           ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
@@ -106,7 +153,9 @@ pipelines:
         name: Vectispire Security Gate
         script:
           - apk add --no-cache curl jq
-          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          # The release's CLI, run only at the digest its release notes print
+          - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh"
+          - echo "<sha256 from the release notes>  vectispire-cli.sh" | sha256sum -c -
           - chmod +x vectispire-cli.sh
           - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id 1 --wait
           - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id 1 --fail-on HIGH
@@ -123,12 +172,16 @@ pipeline {
         VECTISPIRE_URL = 'https://vectispire.example.com'
         VECTISPIRE_API_KEY = credentials('vectispire-api-key')
         VECTISPIRE_REPO_ID = '1'
+        VECTISPIRE_CLI_VERSION = '<tag>'
+        VECTISPIRE_CLI_SHA256 = '<sha256 from the release notes>'
     }
     stages {
         stage('Security Gate') {
             steps {
                 sh '''
-                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+                    # The release's CLI, run only at the digest pinned above
+                    curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+                    echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
                     chmod +x vectispire-cli.sh
                     ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
                     ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH

@@ -138,7 +138,12 @@ La [CLI du dépôt](https://github.com/asmolabs/vectispire/blob/main/scripts/vec
 de même avec `scan --repo-id <id> --wait`, en lisant la clé dans `VECTISPIRE_API_KEY` : elle adopte
 le scan déjà en attente sur un `409`, affiche le `detail` du serveur sur un refus et sort avec les
 mêmes trois codes. C’est vrai depuis la 0.10.0 ; la CLI taguée `v0.9.0` appelait
-`curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse.
+`curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse. À
+partir de la version qui suit la 0.10.0, c'est un asset de version, `vectispire-cli.sh`, avec un
+paquet Sigstore vérifié comme celui du script de barrière — téléchargez-la depuis la version,
+comparez son SHA-256 à celui qu'affichent les notes de version, puis exécutez-la ;
+[Intégration CI/CD](https://github.com/asmolabs/vectispire/blob/main/docs/fr/CI_CD_INTEGRATION.fr.md#-obtenir-la-cli)
+donne les commandes.
 
 ## 1. GitLab CI {#gitlab-ci}
 

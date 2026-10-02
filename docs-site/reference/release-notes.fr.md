@@ -25,6 +25,15 @@
   toute autre entrée. Leur `actor` est `null`, comme sur une `expiry`. Le CSV de l'historique reçoit une
   dernière colonne, `decision_previous_resolved_at` ; le compte `decisions` d'une cible n'inclut pas les
   réouvertures.
+- **La CLI est un asset de version, signé comme le script de barrière.** `vectispire-cli.sh` est joint à
+  la version avec son paquet Sigstore, `vectispire-cli.sh.cosign.bundle`, signé par `release.yml` au tag
+  et vérifié par la même commande `cosign verify-blob` que le jar ; les notes de version affichent son
+  SHA-256. Les snippets de la fenêtre **CI/CD** de *Dépôts* et de
+  [`CI_CD_INTEGRATION`](https://github.com/asmolabs/vectispire/blob/main/docs/fr/CI_CD_INTEGRATION.fr.md#-obtenir-la-cli)
+  téléchargeaient `scripts/vectispire-cli.sh` à l'URL brute du dépôt au tag et l'exécutaient sans
+  contrôle ; ils téléchargent désormais l'asset, comparent son SHA-256 à celui qu'ils épinglent, et
+  arrêtent le job sur tout autre fichier. Un pipeline copié d'un ancien snippet continue de fonctionner,
+  sans contrôle, jusqu'à ce qu'il soit remplacé — la 0.10.0 et les précédentes ne portent pas d'asset CLI.
 
 ### Nouveautés
 

@@ -86,7 +86,21 @@ export function urlCarriesSecret(url: string): boolean {
     }
 }
 
-const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v${RELEASE}/scripts/vectispire-cli.sh`;
+/**
+ * The CLI the snippets download: the `vectispire-cli.sh` asset of the release this interface is,
+ * run only at the digest that release shipped.
+ *
+ * <p>The snippets used to fetch `scripts/vectispire-cli.sh` from the raw URL at the tag and run it
+ * unchecked — a file nobody had signed, whose bytes were whatever the forge served that day. The
+ * release now publishes the script with a Sigstore bundle, as it does the gate script, and every
+ * snippet compares its SHA-256 with the one below before executing it. The interface and the asset
+ * come from the same tag, so this is the digest of `scripts/vectispire-cli.sh` in this tree;
+ * `ci/check-cli-pin.sh` fails the push and the release when the two drift apart.
+ */
+const CLI_SCRIPT_URL = `https://github.com/asmolabs/vectispire/releases/download/v${RELEASE}/vectispire-cli.sh`;
+const CLI_SCRIPT_SHA256 = '4ae86409eedce33eb0e94fa9f79ff73831b6f3d99788a73b4610938910e51387';
+/** The identity the release workflow signs with — per tag, naming the workflow file, never the repository alone. */
+const CLI_SIGNER = `https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v${RELEASE}`;
 
 @Component({
     selector: 'app-repositories',
@@ -555,7 +569,9 @@ vectispire-scan:
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
+    # The release's CLI, run only at the digest it shipped with; its cosign bundle is beside it (CLI tab).
+    - curl -fsSL -o vectispire-cli.sh ${CLI_SCRIPT_URL}
+    - echo "${CLI_SCRIPT_SHA256}  vectispire-cli.sh" | sha256sum -c -
     - chmod +x vectispire-cli.sh
     - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
     - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on high
@@ -581,7 +597,9 @@ jobs:
           VECTISPIRE_URL: "${origin}"
           VECTISPIRE_API_KEY: \${{ secrets.VECTISPIRE_API_KEY }}
         run: |
-          curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
+          # The release's CLI, run only at the digest it shipped with; its cosign bundle is beside it (CLI tab).
+          curl -fsSL -o vectispire-cli.sh ${CLI_SCRIPT_URL}
+          echo "${CLI_SCRIPT_SHA256}  vectispire-cli.sh" | sha256sum -c -
           chmod +x vectispire-cli.sh
           ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
           ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on high`;
@@ -596,7 +614,9 @@ pipelines:
         name: Vectispire Security Gate
         script:
           - apk add --no-cache curl jq
-          - curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
+          # The release's CLI, run only at the digest it shipped with; its cosign bundle is beside it (CLI tab).
+          - curl -fsSL -o vectispire-cli.sh ${CLI_SCRIPT_URL}
+          - echo "${CLI_SCRIPT_SHA256}  vectispire-cli.sh" | sha256sum -c -
           - chmod +x vectispire-cli.sh
           - ./vectispire-cli.sh scan --url "${origin}" --repo-id ${repoId} --wait
           - ./vectispire-cli.sh gate --url "${origin}" --repo-id ${repoId} --fail-on high`;
@@ -613,7 +633,9 @@ pipeline {
         stage('Security Gate') {
             steps {
                 sh '''
-                    curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
+                    # The release's CLI, run only at the digest it shipped with; its cosign bundle is beside it (CLI tab).
+                    curl -fsSL -o vectispire-cli.sh ${CLI_SCRIPT_URL}
+                    echo "${CLI_SCRIPT_SHA256}  vectispire-cli.sh" | sha256sum -c -
                     chmod +x vectispire-cli.sh
                     ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
                     ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on high
@@ -628,15 +650,28 @@ pipeline {
 export VECTISPIRE_URL="${origin}"
 export VECTISPIRE_API_KEY="<YOUR_API_KEY>"   # scopes scan and read, restricted to this repository
 
+# 0. Download the release's CLI and its Sigstore bundle, verify, and only then run it —
+#    never piped into sh, where the bytes execute as they arrive and nothing can be checked first
+curl -fsSLO ${CLI_SCRIPT_URL}
+curl -fsSLO ${CLI_SCRIPT_URL}.cosign.bundle
+cosign verify-blob \\
+  --bundle vectispire-cli.sh.cosign.bundle \\
+  --certificate-identity "${CLI_SIGNER}" \\
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\
+  vectispire-cli.sh
+#    and the digest the pipeline tabs pin, which is all a runner without cosign checks
+echo "${CLI_SCRIPT_SHA256}  vectispire-cli.sh" | sha256sum -c -
+chmod +x vectispire-cli.sh
+
 # 1. Trigger security scan and wait for completion
-./scripts/vectispire-cli.sh scan --repo-id ${repoId} --wait
+./vectispire-cli.sh scan --repo-id ${repoId} --wait
 
 # 2. Check Security Quality Gate
-./scripts/vectispire-cli.sh gate --repo-id ${repoId} --fail-on high
+./vectispire-cli.sh gate --repo-id ${repoId} --fail-on high
 
 # 3. Download the SBOM of the latest completed scan, in Syft's native JSON
 #    (for CycloneDX with VEX: GET /api/v1/cyclonedx/scans/<scan-id>/cyclonedx-vex.json, scope export)
-./scripts/vectispire-cli.sh sbom --repo-id ${repoId} --output ./vectispire-sbom.syft.json`;
+./vectispire-cli.sh sbom --repo-id ${repoId} --output ./vectispire-sbom.syft.json`;
         }
     }
 

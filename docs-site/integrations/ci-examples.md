@@ -133,7 +133,11 @@ The [repository's CLI](https://github.com/asmolabs/vectispire/blob/main/scripts/
 does the same with `scan --repo-id <id> --wait`, reading the key from `VECTISPIRE_API_KEY`: it adopts
 the scan already waiting on a `409`, prints the server's `detail` on a refusal and exits with the
 same three codes. That is from 0.10.0; the CLI tagged `v0.9.0` called `curl -f`,
-exited with curl's code `22` on every refusal and printed nothing of the answer.
+exited with curl's code `22` on every refusal and printed nothing of the answer. From the release
+after 0.10.0 on it is a release asset, `vectispire-cli.sh`, with a Sigstore bundle verified as the
+gate script's is — download it from the release, check its SHA-256 against the one the release notes
+print, then run it; [CI/CD integration](https://github.com/asmolabs/vectispire/blob/main/docs/en/CI_CD_INTEGRATION.md#-getting-the-cli)
+has the commands.
 
 ## 1. GitLab CI {#gitlab-ci}
 

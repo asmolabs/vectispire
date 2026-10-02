@@ -145,12 +145,24 @@ jobs:
           sh ci/gitlab/check-gate-pin.sh
           cp ci/vectispire-gate.sh vectispire-gate.sh
 
+      # **The CLI, as a release asset, for the same reason.** The interface's CI/CD snippets and
+      # `CI_CD_INTEGRATION` used to fetch `scripts/vectispire-cli.sh` from the raw URL at the tag and
+      # run it unchecked: a file outside the release, unsigned, with no digest anybody had written
+      # down. The snippets now download this asset and compare it with the digest the interface pins
+      # before running it; a tag whose interface pins another digest would ship snippets that refuse
+      # to run, so that is checked first.
+      - name: the CLI the interface's snippets pin
+        run: |
+          sh ci/check-cli-pin.sh
+          cp scripts/vectispire-cli.sh vectispire-cli.sh
+
       # What `publish` signs is checked against this list before anything is signed: the handover
       # goes through artifact storage, and the job that holds the token trusts only what matches.
       - name: checksums of everything handed over
         run: |
           sha256sum "$JAR" "$SBOM" vectispire-image.tar vectispire-agent-image.tar \
-            vectispire-image.cdx.json vectispire-agent-image.cdx.json vectispire-gate.sh > SHA256SUMS
+            vectispire-image.cdx.json vectispire-agent-image.cdx.json vectispire-gate.sh \
+            vectispire-cli.sh > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -164,6 +176,7 @@ jobs:
             vectispire-image.cdx.json
             vectispire-agent-image.cdx.json
             vectispire-gate.sh
+            vectispire-cli.sh
             SHA256SUMS
           retention-days: 7
           if-no-files-found: error
@@ -243,7 +256,7 @@ jobs:
           install -m 0755 /tmp/cosign /usr/local/bin/cosign
           cosign version
 
-      - name: sign all three, because all three are downloaded
+      - name: sign every file a consumer downloads
         run: |
           cosign sign-blob --yes --bundle "${JAR}.cosign.bundle" "$JAR"
           # An unsigned SBOM is a list of components anybody can rewrite, which is the one thing
@@ -252,13 +265,16 @@ jobs:
           # The GitLab template checks the gate script by digest; the bundle is for a consumer who
           # fetches it some other way and wants the same proof the jar carries.
           cosign sign-blob --yes --bundle vectispire-gate.sh.cosign.bundle vectispire-gate.sh
+          # The snippets check the CLI by the digest the interface pins; the bundle is what binds
+          # that file to this workflow and this tag, for whoever checks it with cosign instead.
+          cosign sign-blob --yes --bundle vectispire-cli.sh.cosign.bundle vectispire-cli.sh
 
       # **Verified immediately, with the command a user will run.** A signature nobody has ever
       # verified is a signature nobody knows the shape of — and this step is what makes the
       # instruction in GETTING_STARTED a tested claim rather than a hopeful one.
       - name: verify, before anything is published
         run: |
-          for FILE in "$JAR" "$SBOM" vectispire-gate.sh; do
+          for FILE in "$JAR" "$SBOM" vectispire-gate.sh vectispire-cli.sh; do
             cosign verify-blob \
               --bundle "${FILE}.cosign.bundle" \
               --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
@@ -426,6 +442,8 @@ jobs:
             ${{ env.SBOM }}.cosign.bundle
             vectispire-gate.sh
             vectispire-gate.sh.cosign.bundle
+            vectispire-cli.sh
+            vectispire-cli.sh.cosign.bundle
           retention-days: 90
 
       # **Only on a tag.** `workflow_dispatch` runs from a branch, where `GITHUB_REF_NAME` is the
@@ -444,6 +462,10 @@ jobs:
           # went out as a plain release and was flipped afterwards; until then GitHub showed a
           # version that claims no stability as "Latest". From 1.0 on the flag
           # drops by itself, which is the one moment it should.
+          # The digest a pipeline pins for the CLI, printed where a consumer reads the release: the
+          # file it names is the one `sha256sum --check` vouched for and `cosign verify-blob` above
+          # verified.
+          CLI_SHA256="$(sha256sum vectispire-cli.sh | cut -d' ' -f1)"
           prerelease=
           case "$GITHUB_REF_NAME" in v0.*) prerelease=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" ${prerelease:+"$prerelease"} \
@@ -468,6 +490,11 @@ jobs:
           template at this tag downloads it and runs it only if its SHA-256 is the one the template
           pins; set \`VECTISPIRE_GATE_VERSION: ${GITHUB_REF_NAME}\` beside the include.
 
+          **CLI** — \`vectispire-cli.sh\`, attached with its Sigstore bundle. Its SHA-256, the value a
+          pipeline checks before running it (\`docs/en/CI_CD_INTEGRATION.md\`):
+
+              ${CLI_SHA256}
+
           **Build provenance** (SLSA, naming commit ${GITHUB_SHA}) for the jar and both images:
 
               gh attestation verify <file or oci://image@digest> --repo ${GITHUB_REPOSITORY} \\
@@ -475,4 +502,5 @@ jobs:
           NOTES
           )" \
             "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle" \
-            vectispire-gate.sh vectispire-gate.sh.cosign.bundle
+            vectispire-gate.sh vectispire-gate.sh.cosign.bundle \
+            vectispire-cli.sh vectispire-cli.sh.cosign.bundle

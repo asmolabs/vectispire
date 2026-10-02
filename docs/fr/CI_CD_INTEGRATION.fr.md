@@ -33,6 +33,46 @@ Configurez les variables suivantes dans les paramètres de votre projet CI/CD (e
 
 ---
 
+## 🔏 Obtenir la CLI
+
+La CLI est un **asset de version**, signé comme le jar : `vectispire-cli.sh` et son bundle Sigstore
+`vectispire-cli.sh.cosign.bundle`, à partir de la version qui suit la 0.10.0 — la 0.10.0 et les
+précédentes ne le portent pas. Les snippets ci-dessous la téléchargent, comparent son SHA-256 à celui
+que le pipeline épingle, et seulement ensuite l'exécutent. Ne la passez jamais à `sh` par un pipe, où
+les octets s'exécutent à mesure qu'ils arrivent et où rien ne peut être vérifié d'abord. Jusqu'à la
+0.10.0, ces snippets récupéraient `scripts/vectispire-cli.sh` à l'URL brute du dépôt au tag et
+l'exécutaient sans contrôle : un fichier hors de la version, non signé, comparé à rien.
+
+Deux valeurs l'épinglent :
+
+| Variable | Valeur |
+|---|---|
+| `VECTISPIRE_CLI_VERSION` | le tag de la version, `<tag>` |
+| `VECTISPIRE_CLI_SHA256` | le SHA-256 de la CLI, affiché dans les notes de cette version |
+
+La fenêtre **CI/CD** de la page *Dépôts* remplit les deux, pour la version que le serveur exécute, et
+son onglet *CLI* porte la vérification de signature. Pour tirer l'empreinte de la signature plutôt que
+des notes de version, vérifiez le fichier une fois :
+
+```bash
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh
+curl -fsSLO https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh.cosign.bundle
+cosign verify-blob \
+  --bundle vectispire-cli.sh.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  vectispire-cli.sh
+sha256sum vectispire-cli.sh    # macOS : shasum -a 256 vectispire-cli.sh
+```
+
+L'identité nomme le fichier de workflow et le tag — remplacez le tag aux deux endroits — et l'émetteur
+dit qu'elle vient du service de jetons de GitHub ; [Démarrage §9](GETTING_STARTED.fr.md#9-vérifier-une-release)
+dit ce que chaque option épingle. Ensuite, l'empreinte épingle le fichier à chaque exécution :
+`sha256sum -c` fait échouer le job sur tout autre contenu, si bien qu'un pipeline qui passe à un autre
+tag sans changer l'empreinte s'arrête au lieu d'exécuter un script que personne n'a vérifié.
+
+---
+
 ## 🛠️ Snippets d'Intégration par Plateforme
 
 ### 1. 🦊 GitLab CI (`.gitlab-ci.yml`)
@@ -48,10 +88,14 @@ vectispire-security-gate:
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
+    VECTISPIRE_CLI_VERSION: "<tag>"
+    VECTISPIRE_CLI_SHA256: "<sha256 des notes de version>"
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
+    # La CLI de la version, exécutée seulement à l'empreinte épinglée plus haut
+    - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+    - echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
     - chmod +x vectispire-cli.sh
     # 1. Déclenche le scan et attend sa fin
     - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
@@ -86,8 +130,12 @@ jobs:
           VECTISPIRE_URL: ${{ secrets.VECTISPIRE_URL }}
           VECTISPIRE_API_KEY: ${{ secrets.VECTISPIRE_API_KEY }}
           VECTISPIRE_REPO_ID: "1"
+          VECTISPIRE_CLI_VERSION: "<tag>"
+          VECTISPIRE_CLI_SHA256: "<sha256 des notes de version>"
         run: |
-          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          # La CLI de la version, exécutée seulement à l'empreinte épinglée plus haut
+          curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+          echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
           chmod +x vectispire-cli.sh
           ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
           ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
@@ -106,7 +154,9 @@ pipelines:
         name: Vectispire Security Gate
         script:
           - apk add --no-cache curl jq
-          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          # La CLI de la version, exécutée seulement à l'empreinte que ses notes de version affichent
+          - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/<tag>/vectispire-cli.sh"
+          - echo "<sha256 des notes de version>  vectispire-cli.sh" | sha256sum -c -
           - chmod +x vectispire-cli.sh
           - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id 1 --wait
           - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id 1 --fail-on HIGH
@@ -123,12 +173,16 @@ pipeline {
         VECTISPIRE_URL = 'https://vectispire.example.com'
         VECTISPIRE_API_KEY = credentials('vectispire-api-key')
         VECTISPIRE_REPO_ID = '1'
+        VECTISPIRE_CLI_VERSION = '<tag>'
+        VECTISPIRE_CLI_SHA256 = '<sha256 des notes de version>'
     }
     stages {
         stage('Security Gate') {
             steps {
                 sh '''
-                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.10.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
+                    # La CLI de la version, exécutée seulement à l'empreinte épinglée plus haut
+                    curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+                    echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
                     chmod +x vectispire-cli.sh
                     ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
                     ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH

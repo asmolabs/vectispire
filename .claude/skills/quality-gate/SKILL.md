@@ -118,8 +118,10 @@ is run the way a consumer runs it, not read: against a stub server answering pas
 problem document, a `404` and a pending scan, and — for the GitLab template — from a directory that
 is *not* this checkout. The template ran `ci/vectispire-gate.sh` from the consumer's checkout, shipped
 `allow_failure: true` and shadowed a global variable with an empty one; the CLI exited curl's `22` on
-every refusal. Every one of those read correctly. `docs-consistency` runs `ci/gitlab/check-gate-pin.sh`
-and ShellCheck on them; editing `ci/vectispire-gate.sh` means updating the digest the template pins.
+every refusal. Every one of those read correctly. `docs-consistency` runs `ci/gitlab/check-gate-pin.sh`,
+`ci/check-cli-pin.sh` and ShellCheck on them; editing `ci/vectispire-gate.sh` means updating the digest
+the template pins, and editing `scripts/vectispire-cli.sh` the `CLI_SCRIPT_SHA256` the interface's
+CI/CD snippets pin (`repositories.ts`) — both are release assets, run by consumers only at that digest.
 
 ## 7. Mutation check — for every test added
 

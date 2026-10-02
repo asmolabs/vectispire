@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Repositories } from './repositories';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { version as RELEASE } from '../../../../package.json';
 
 /**
  * The repository list, as cards rather than rows.
@@ -273,6 +274,35 @@ describe('the repository list', () => {
             }
             expect(fixture.componentInstance.getCicdSnippet('gitlab', null)).toContain('scopes scan and read');
             expect(fixture.componentInstance.getCicdSnippet('cli', null)).toContain('scopes scan and read');
+        });
+
+        /**
+         * The snippets fetched `scripts/vectispire-cli.sh` from the raw URL at the tag and ran it
+         * unchecked. The CLI is now a signed release asset: each snippet downloads that asset at
+         * this interface's own version and checks its digest before the first line of it runs.
+         * Whether the digest is the right one is `ci/check-cli-pin.sh`'s, which reads the file.
+         */
+        it('run the release asset at this version, and only after its digest matched', () => {
+            const asset = `https://github.com/asmolabs/vectispire/releases/download/v${RELEASE}/vectispire-cli.sh`;
+            for (const tab of TABS) {
+                const snippet = fixture.componentInstance.getCicdSnippet(tab, null);
+                expect(snippet, tab).not.toContain('raw.githubusercontent.com');
+                expect(snippet, tab).not.toContain('scripts/vectispire-cli.sh');
+                expect(snippet, tab).toContain(asset);
+                const check = snippet.search(/echo "[0-9a-f]{64} {2}vectispire-cli\.sh" \| sha256sum -c -/);
+                expect(check, tab).toBeGreaterThan(snippet.indexOf(asset));
+                expect(check, tab).toBeLessThan(snippet.indexOf('./vectispire-cli.sh'));
+            }
+        });
+
+        it('show the signature check with the identity the release workflow signs with', () => {
+            const cli = fixture.componentInstance.getCicdSnippet('cli', null);
+            expect(cli).toContain('--bundle vectispire-cli.sh.cosign.bundle');
+            expect(cli).toContain(
+                `--certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v${RELEASE}"`
+            );
+            expect(cli).toContain('--certificate-oidc-issuer https://token.actions.githubusercontent.com');
+            expect(cli.indexOf('cosign verify-blob')).toBeLessThan(cli.indexOf('./vectispire-cli.sh'));
         });
     });
 

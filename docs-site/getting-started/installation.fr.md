@@ -221,8 +221,9 @@ npm --workspace @vectispire/frontend start    # interface sur :4280, /api relay�
 
 ## Vérifier une release
 
-Chaque release porte quatre fichiers : le jar, son SBOM, et un paquet Sigstore pour chacun.
-Vérifiez avant d'exécuter quoi que ce soit — un outil de sécurité que vous avez pris sur
+Chaque release porte le jar, son SBOM, le [script de barrière CI](../integrations/ci-gate.md) et —
+à partir de la version qui suit la 0.10.0 — la CLI `vectispire-cli.sh`, chacun avec un paquet Sigstore
+vérifié comme le jar ci-dessous. Vérifiez avant d'exécuter quoi que ce soit — un outil de sécurité que vous avez pris sur
 parole est une contradiction.
 
 ```bash

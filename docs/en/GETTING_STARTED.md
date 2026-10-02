@@ -160,8 +160,9 @@ a run without Docker fails loudly rather than reporting green having verified no
 
 ## 8. Verifying a release
 
-Each release carries four files — the jar, its SBOM, and a Sigstore bundle for each — and two
-signed container images. Verify before running anything: a security tool you took on trust is a
+Each release carries the jar and its SBOM, the CI gate script `vectispire-gate.sh` and — from the
+release after 0.10.0 on — the CLI `vectispire-cli.sh` ([CI/CD integration](CI_CD_INTEGRATION.md#-getting-the-cli)),
+each with a Sigstore bundle verified the same way, and two signed container images. Verify before running anything: a security tool you took on trust is a
 contradiction.
 
 ```bash
