@@ -39,7 +39,7 @@ import org.springframework.stereotype.Component;
  * <p><b>Written beside the scores in use, switched to in one statement.</b> A synchronisation claims
  * the feed ({@link ThreatIntelSyncRepository#claimEpss}), writes the whole file under a generation of
  * its own in batches of {@value #WRITE_BATCH} rows — each its own short transaction, so no lock is
- * held for the 380,000 rows and SQLite's writers wait milliseconds, not seconds — then checks it and
+ * held for the 380,000 rows and the other writers wait milliseconds, not seconds — then checks it and
  * points the sync row at it ({@link ThreatIntelSyncRepository#applyEpss}). Every reader reads the
  * generation the row names: until that update commits the previous scores are the ones in use, and a
  * file refused half-way, or a synchronisation that dies, leaves nothing a reader sees. A refused
@@ -87,7 +87,7 @@ public class EpssFeed {
 
     /**
      * How long a claim holds. Writing, applying and replacing FIRST's 380,000 rows was measured at 1.7 s
-     * on PostgreSQL, 3 to 4.5 s on MySQL and under a second on SQLite ({@code EpssScoresIntegrationTest});
+     * on PostgreSQL and 3 to 4.5 s on MySQL ({@code EpssScoresIntegrationTest});
      * the download's deadline is two minutes. Half an hour covers a slow mirror and a busy engine many
      * times over, and bounds how long a crashed instance keeps the others from trying.
      */

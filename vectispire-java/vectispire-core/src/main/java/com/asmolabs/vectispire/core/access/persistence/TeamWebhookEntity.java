@@ -9,9 +9,9 @@ import jakarta.persistence.Table;
  * One team's notification channel.
  *
  * <p><b>Its own table rather than a column on {@code t_team}</b>, for the two reasons the
- * changeset gives: adding a column to {@code t_team} destroys the foreign keys of the access
- * tables on SQLite, and a webhook URL is a bearer capability that has no business being carried
- * by every query over teams.
+ * changeset gave: adding a column to {@code t_team} destroyed the foreign keys of the access
+ * tables on the SQLite fixture of the time, and a webhook URL is a bearer capability that has no
+ * business being carried by every query over teams.
  *
  * <p>The team's identifier is the key: a team has one channel, and a second row for the same team
  * would be a second destination nobody chose.

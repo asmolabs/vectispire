@@ -21,9 +21,10 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttemptEntity
     /**
      * Takes back the rows an attempt reserved — see {@code AuthService.Reservation}.
      *
-     * <p>One statement rather than {@code deleteAllById}, which reads each row before removing it:
-     * on SQLite a transaction that reads and then writes is refused outright when another writer
-     * committed in between, and concurrent attempts are exactly when this runs.
+     * <p>One statement rather than {@code deleteAllById}, which reads each row and then removes it one
+     * statement at a time — a read-then-write per row, while concurrent attempts are exactly when
+     * this runs. (The SQLite fixture of the time refused such a transaction outright once another
+     * writer had committed.)
      */
     @Transactional
     @Modifying

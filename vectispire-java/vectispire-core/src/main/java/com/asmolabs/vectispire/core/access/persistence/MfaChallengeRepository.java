@@ -37,9 +37,9 @@ public interface MfaChallengeRepository extends JpaRepository<MfaChallengeEntity
     /**
      * Destroys one challenge.
      *
-     * <p>One statement rather than {@code deleteById}, which reads the row before removing it:
-     * codes presented together all end here, and on SQLite a transaction that reads and then writes
-     * is refused outright when another writer committed in between.
+     * <p>One statement rather than {@code deleteById}, which reads the row before removing it — a
+     * read-then-write, while codes presented together all end here. (The SQLite fixture of the time
+     * refused such a transaction outright once another writer had committed.)
      */
     @Transactional
     @Modifying(clearAutomatically = true)

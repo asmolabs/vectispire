@@ -20,8 +20,8 @@ import org.springframework.stereotype.Service;
  *
  * <p><b>A bean of its own rather than two more methods on {@link GateService}</b>, because the
  * writes there are {@code @Transactional} and the audit entry must follow their commit: it opens
- * its own transaction, and inside theirs it waits on the parent's lock on SQLite, where the lock is
- * the file. Calling {@code store} through {@code this} would bypass the proxy and drop the
+ * its own transaction, and inside theirs it would describe a policy that may still roll back.
+ * Calling {@code store} through {@code this} would bypass the proxy and drop the
  * transaction; calling it across beans keeps the boundary exactly where the route had it.
  */
 @Service

@@ -78,11 +78,11 @@ public class TicketSweepService {
      * refusing at the twelfth ticket does not undo the eleven already opened — they would all be
      * attempted again next pass, and a tracker does not deduplicate what it has already created.
      *
-     * <p>The second is that a transaction here breaks SQLite outright. The audit entry is written
-     * {@code REQUIRES_NEW}, deliberately, so that the attempt survives a rollback; on an engine
-     * where the lock is the whole database file, that second connection waits for the first —
-     * which is this one — and the pass deadlocks against itself. Found by running it, on the one
-     * engine the unit suite can reach.
+     * <p>The second is the audit entry, written {@code REQUIRES_NEW}, deliberately, so that the
+     * attempt survives a rollback: inside a transaction here, each would hold a second pooled
+     * connection while the pass held the first and its locks. On the SQLite fixture of the time,
+     * where the lock was the whole file, that second connection waited for the first and the pass
+     * deadlocked against itself — found by running it.
      */
     public int sweep(int limit) {
         if (!tickets.isEnabled()) {

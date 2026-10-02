@@ -31,8 +31,8 @@ import org.springframework.stereotype.Service;
  * <p>No transaction of its own, for the same reason as {@link RepositoryAdministrationService}:
  * every write is a single {@code save} carrying the repository's transaction, which is all the
  * routes ever had. It is also what lets each write be audited here, straight after it: the audit
- * entry opens its own transaction, and inside an outer one it would wait on its parent's lock on
- * SQLite, where the lock is the file.
+ * entry opens its own transaction, and inside an outer one it would describe a write that may still
+ * roll back.
  */
 @Service
 public class ContainerAdministrationService {

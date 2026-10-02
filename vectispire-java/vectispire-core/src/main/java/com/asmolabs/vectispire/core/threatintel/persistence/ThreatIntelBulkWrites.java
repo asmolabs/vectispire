@@ -20,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 public interface ThreatIntelBulkWrites {
 
     /**
-     * Rows per statement: 2,000 bind parameters, under every engine's ceiling — SQLite's default
-     * build refuses a statement past 32,766, PostgreSQL's driver past 65,535.
+     * Rows per statement: 2,000 bind parameters, well under the ceiling — PostgreSQL's driver and a
+     * MySQL server-side statement refuse one past 65,535.
      */
     int ROWS_PER_STATEMENT = 500;
 

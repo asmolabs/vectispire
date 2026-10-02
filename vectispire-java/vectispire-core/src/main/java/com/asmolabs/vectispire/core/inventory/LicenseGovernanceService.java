@@ -87,8 +87,8 @@ public class LicenseGovernanceService {
      *
      * <p>Through a {@link TransactionTemplate} rather than by calling the annotated method below:
      * through {@code this} the annotation is bypassed, and the audit entry has to follow the commit
-     * rather than sit inside it — it opens its own transaction, which on SQLite waits on the
-     * parent's lock, the lock being the file.
+     * rather than sit inside it — it opens its own transaction, and inside the write's it would
+     * describe a policy that may still roll back.
      */
     public LicensePolicy updatePolicy(LicensePolicy policy, RequestActor actor) {
         if (policy == null) {

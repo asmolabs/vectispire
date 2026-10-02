@@ -185,8 +185,8 @@ public class ChecklistDocumentService {
     /**
      * Loads the signing key — or creates and stores it, the first time — outside any transaction. The key's
      * first use inserts a row of its own and reads it back; inside the sign-off's transaction a lost race on
-     * that insert would mark the whole sign-off for rollback, and on SQLite its read-then-write would wait
-     * on this very transaction's lock. Called before the sign-off opens one, so that {@link #produceSigned}
+     * that insert would mark the whole sign-off for rollback, and the read-back inside its snapshot would not
+     * see the row the winner committed. Called before the sign-off opens one, so that {@link #produceSigned}
      * finds it loaded.
      */
     void requireSigningKey() {

@@ -92,7 +92,7 @@ public class TargetCatalog {
      * <p><b>Asked in batches</b>, because {@code findAllById} is one {@code in (…)} with a bind
      * parameter per identifier, and the engines stop somewhere: the PostgreSQL driver refuses a
      * statement past 65,535 (measured, with 70,003: "PreparedStatement can have at most 65 535
-     * parameters"), a MySQL server-side statement stops at the same, SQLite's default build at 32,766.
+     * parameters"), and a MySQL server-side statement stops at the same.
      * The claim asks a page at a time, but the figure of the scans nobody can take asks about every
      * waiting repository at once, and an estate is allowed to be large.
      */

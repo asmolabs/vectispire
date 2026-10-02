@@ -47,7 +47,7 @@ public class InventoryBackfill {
     /** Enough to converge quickly, small enough that one pass is never a long transaction. */
     private static final int BATCH = 50;
 
-    /** Identifiers per page: an in-list every engine takes, the SQLite fixture's included. */
+    /** Identifiers per page: an in-list every engine takes, far below any bind limit. */
     private static final int PAGE = 500;
 
     private final ScanCatalog scans;

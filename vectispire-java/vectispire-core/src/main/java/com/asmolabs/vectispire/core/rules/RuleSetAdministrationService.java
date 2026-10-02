@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
  * <p><b>Audited, because changing the rule set is the same class of decision as changing a gate
  * policy.</b> The entries are written here, after {@link RuleSetService} has committed: its writes
  * are {@code @Transactional}, and an audit entry — its own transaction — written inside one would
- * wait on the parent's lock on SQLite, where the lock is the file. This class opens no transaction
+ * describe a change that may still roll back. This class opens no transaction
  * of its own, which is what keeps the two apart.
  */
 @Service

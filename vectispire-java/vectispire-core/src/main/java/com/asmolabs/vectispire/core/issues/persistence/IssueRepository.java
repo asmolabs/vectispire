@@ -40,7 +40,7 @@ public interface IssueRepository
      * The page of exceptions after a cursor.
      *
      * <p><b>A second method rather than a nullable parameter</b>, for the reason spelt out on
-     * {@code GateVerdictRepository.pageAfter}: an untyped null in a comparison runs on SQLite and fails on
+     * {@code GateVerdictRepository.pageAfter}: an untyped null in a comparison runs on MySQL and fails on
      * PostgreSQL, and that has already shipped here once.
      *
      * <p>{@code triagedAt} can be null on a row written before triage recorded one. Such a row
@@ -132,8 +132,8 @@ public interface IssueRepository
      * <p><b>One query for a page of targets, not nine per target.</b> The summary asked for four
      * severities, the KEV flag and three finding types, per target, inside its loop — nine round
      * trips per row, so a hundred-target estate produced nine hundred for one page. That is the
-     * shape {@code TriageEventRepository.findForIssues} was written to avoid, and it is invisible on the
-     * SQLite suite for the same reason: a demo database answers all nine before anyone notices.
+     * shape {@code TriageEventRepository.findForIssues} was written to avoid, and it is invisible to a
+     * test for the same reason: a demo database answers all nine before anyone notices.
      *
      * <p><b>Visibility is not applied here, deliberately, and that is safe because it is purely
      * target-scoped.</b> {@code IssueFilters} restricts by {@code repoId}/{@code containerId} and

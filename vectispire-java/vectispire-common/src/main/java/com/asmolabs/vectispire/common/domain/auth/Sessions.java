@@ -121,10 +121,10 @@ public final class Sessions {
      *
      * <p><b>One write per authenticated request, onto a single row.</b> That was the cost of
      * millisecond precision on a sixty-minute idle window: a screen firing three calls in parallel
-     * sent three concurrent transactions at the same row, and on the single-file deployment they
-     * blocked one another — one browser-suite session produced a thousand {@code SQLITE_BUSY}, each
-     * surfacing as a {@code 500} in front of the user. On MySQL and PostgreSQL it does not break,
-     * but it remains one write per read.
+     * sent three concurrent transactions at the same row, and on the SQLite file the browser suite
+     * then ran on they blocked one another — one session produced a thousand {@code SQLITE_BUSY},
+     * each a {@code 500} in front of the user. On MySQL and PostgreSQL it does not break, but it
+     * remains one write per read, each holding the row's lock against the next.
      *
      * <p><b>The grain is a sixtieth of the window</b>, a minute by default. What is lost is the
      * exactness of the last-activity instant, to within that grain; what is not lost is the closing

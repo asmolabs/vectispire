@@ -15,8 +15,9 @@ public interface ThreatIntelSyncRepository extends JpaRepository<ThreatIntelSync
      * Marks an attempt on the row, and so takes the row's write lock until the caller's transaction
      * ends.
      *
-     * <p><b>An update rather than a {@code select … for update}</b>, because SQLite has no row lock
-     * to ask for and an update takes the one every engine has. Two synchronisations writing at once
+     * <p><b>An update rather than a {@code select … for update}</b>: either takes the row's lock on
+     * PostgreSQL and MySQL, and the update was chosen while the SQLite fixture, which has no row lock
+     * to ask for, was among the engines; it also records the attempt the row exists to show. Two synchronisations writing at once
      * — the schedule on one instance, a lead's button on another — would otherwise both read an issue
      * as not yet exploited and both announce it to the SIEM; the second one now waits, then reads the
      * first one's flags.
@@ -75,8 +76,8 @@ public interface ThreatIntelSyncRepository extends JpaRepository<ThreatIntelSync
      *
      * <p><b>A lease rather than the row lock the KEV sync holds.</b> The KEV catalogue is written in
      * one transaction, so the row's write lock serialises two syncs for free. The EPSS file is written
-     * in many short ones — 380,000 rows in one would hold their locks, and SQLite's whole-file lock,
-     * for as long as the engine takes — so exclusivity has to outlive a transaction: whoever claims
+     * in many short ones — 380,000 rows in one would hold their locks for as long as the engine
+     * takes — so exclusivity has to outlive a transaction: whoever claims
      * writes {@code generation} into {@code epss_claim} until {@code leaseUntil}, and every write
      * that follows is conditional on it still being there.
      *

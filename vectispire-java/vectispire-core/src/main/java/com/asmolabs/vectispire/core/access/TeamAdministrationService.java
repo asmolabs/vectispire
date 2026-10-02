@@ -185,11 +185,11 @@ public class TeamAdministrationService {
      *
      * <p>Its memberships, its target assignments <b>and its channel</b> go first,
      * <b>explicitly</b>, and that is not belt-and-braces. The schema declares them as cascading
-     * foreign keys and SQLite enforces foreign keys only when {@code PRAGMA foreign_keys = ON}
-     * has been issued on the connection — which nothing here does. On that engine the cascade is
-     * decoration: the team row would disappear and its membership rows would stay, so every
-     * member would keep seeing everything the team owned, through rows pointing at a team that no
-     * longer exists. Revocation may not depend on which engine is underneath.
+     * foreign keys, and a cascade an engine does not honour is decoration — MySQL's declared inline
+     * before V19, SQLite's without its per-connection pragma. The team row would disappear and its
+     * membership rows would stay, so every member would keep seeing everything the team owned,
+     * through rows pointing at a team that no longer exists. Revocation may not depend on which
+     * engine is underneath, nor on a migration nobody has re-read.
      *
      * <p><b>The channel was the one that got forgotten</b>, and it was measured on a real SQLite
      * file rather than assumed: deleting the team left the {@code t_team_webhook} row behind. It

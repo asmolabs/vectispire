@@ -125,7 +125,7 @@ public class WithheldClaimRepair {
         }
 
         // Claimed and done in one transaction, the entry recorded after its commit: the audit log opens
-        // its own, and inside this one it would wait on SQLite's file lock until it timed out.
+        // its own, and inside this one it would record a repair that may still roll back.
         List<Long> repaired;
         try {
             repaired = transactions.execute(status -> {

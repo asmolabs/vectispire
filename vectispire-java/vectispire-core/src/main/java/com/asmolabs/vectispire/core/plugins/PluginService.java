@@ -50,7 +50,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * </ul>
  *
  * <p><b>Every change is audited after its transaction commits</b> — the audit log opens its own, and
- * on SQLite would wait on this one's file lock — and signals {@code PLUGIN_CHANGED} to the SIEM.
+ * inside this one an entry would describe a change that may still roll back — and signals {@code
+ * PLUGIN_CHANGED} to the SIEM.
  *
  * <p><b>No delete.</b> A plugin's id is in every one of its issues' fingerprints; deleting it and
  * registering other code under the same id would hand that code the old triage. A plugin that should

@@ -302,7 +302,7 @@ public class SolutionAdministrationService {
      *
      * <p><b>One transaction for the writes</b>, opened here with a template because the
      * boundary starts inside this class; the audit entry is written after it commits, since it
-     * opens its own and on SQLite would wait on this one's file lock.
+     * opens its own and inside this one would describe a deletion that may still roll back.
      */
     public void deleteProject(long id, RequestActor actor) {
         ProjectEntity project = requireProject(id);

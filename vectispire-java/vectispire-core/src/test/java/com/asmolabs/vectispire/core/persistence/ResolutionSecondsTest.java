@@ -21,10 +21,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * The stored resolution time, written once and read as an average.
  *
  * <p><b>Why the column exists.</b> Mean time to resolution is the gap between two instants, and
- * MySQL, PostgreSQL and SQLite each express that differently — so the dashboard used to fetch
- * every closed issue in the estate and average them in Java. Storing the gap when the issue
- * closes turns the whole thing into {@code avg} of a number, which is one statement on all three
- * engines. The dialects are named once, in the migration, where they are named anyway.
+ * MySQL and PostgreSQL express that differently — so the dashboard used to fetch every closed
+ * issue in the estate and average them in Java. Storing the gap when the issue closes turns the
+ * whole thing into {@code avg} of a number, which is one statement on every engine. The dialects are named once, in the migration, where they are named anyway.
  *
  * <p>That trade only holds if the column is right, and it can be wrong in two independent ways
  * that no compiler sees: the write path can drift from {@code resolvedAt}, and the migration's

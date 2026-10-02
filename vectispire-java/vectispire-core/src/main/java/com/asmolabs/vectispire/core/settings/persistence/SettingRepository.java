@@ -26,7 +26,7 @@ public interface SettingRepository extends JpaRepository<SettingEntity, String> 
      * it had lost. Here the primary key arbitrates, and the loser hears about it.
      *
      * @throws org.springframework.dao.DataAccessException when the key is taken — an integrity
-     *     violation on the two engines, a generic JPA failure on SQLite
+     *     violation — or the statement failed for another reason
      */
     @Transactional
     @Modifying

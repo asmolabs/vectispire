@@ -39,10 +39,12 @@ import tools.jackson.databind.JsonNode;
  * and a failure halfway would leave a team with half its members.
  *
  * <p><b>The group's audit entry is written after that transaction commits, never inside it.</b>
- * The entry opens its own {@code REQUIRES_NEW} transaction, and on SQLite — where the lock is the
- * file — that second connection waited on the first one's write lock: every group write answered
- * {@code SQLITE_BUSY}, whichever class held the boundary. The boundary is therefore a {@link
- * TransactionTemplate}, as in {@code AgentAdministrationService}, since an annotated method cannot
+ * The entry opens its own {@code REQUIRES_NEW} transaction: inside the group's it would record a
+ * rewrite that may still roll back, on a second pooled connection held while the first keeps its
+ * locks. (On the SQLite fixture of the time that second connection waited on the first one's
+ * lock on the file, and every group write answered {@code SQLITE_BUSY}.) The boundary is
+ * therefore a {@link TransactionTemplate}, as in {@code AgentAdministrationService}, since an
+ * annotated method cannot
  * put the entry after its own commit. What commits together is unchanged — the team and its
  * memberships; the cost is that a write which rolls back is no longer recorded as attempted.
  *

@@ -33,8 +33,8 @@ public class GateVerdictEntity {
     /**
      * <b>{@code SqlTypes.CHAR}, like every other UUID key here.</b> Left to its default, Hibernate
      * expects {@code binary(16)} on MySQL while the migration writes {@code char(36)} — and the
-     * two disagree only on that one engine, so the unit suite on SQLite and the campaign on
-     * PostgreSQL both pass while MySQL refuses to start at all.
+     * two disagree only on that one engine, so the unit suite on SQLite, as it then was, and the
+     * campaign on PostgreSQL both passed while MySQL refused to start at all.
      */
     @Id
     @JdbcTypeCode(SqlTypes.CHAR)

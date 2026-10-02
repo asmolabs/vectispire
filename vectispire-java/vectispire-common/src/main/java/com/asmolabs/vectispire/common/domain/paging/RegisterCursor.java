@@ -62,9 +62,10 @@ public record RegisterCursor(Instant at, String id) {
     /**
      * The form a client sends back.
      *
-     * <p>Epoch milliseconds rather than an ISO instant: the stores hold these timestamps to the
-     * millisecond — SQLite keeps an {@code Instant} as an integer of them — so an encoding with
-     * more precision than the column would hand back a cursor that falls between two rows.
+     * <p>Epoch milliseconds rather than an ISO instant, the precision of the SQLite fixture this was
+     * written on. MySQL's {@code datetime(6)} and PostgreSQL keep microseconds, so a register paging
+     * with this cursor writes its instants at the millisecond: a cursor with less precision than the
+     * column falls between two rows, and one with more would too.
      */
     public String encoded() {
         return at.toEpochMilli() + String.valueOf(SEPARATOR) + id;

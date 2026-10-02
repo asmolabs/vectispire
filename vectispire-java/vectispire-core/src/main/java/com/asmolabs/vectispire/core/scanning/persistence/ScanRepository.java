@@ -98,8 +98,8 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * <p><b>A page of columns, not a list of exclusions.</b> This used to be the same selection with
      * {@code and s.repoId not in :excluded}, the list being every waiting repository that carries a
      * credential: bounded by nothing but the queue, and one bind parameter per repository. Past the
-     * engines' limits — 65,535 for the PostgreSQL driver and a MySQL server-side statement, 32,766 in
-     * SQLite's default build — the claim itself failed, at every poll of every such agent. The caller
+     * engines' limits — 65,535 for the PostgreSQL driver and a MySQL server-side statement — the claim
+     * itself failed, at every poll of every such agent. The caller
      * now reads a page, asks which of <em>its</em> repositories carry a credential, and goes on past
      * the page's last row; no statement carries more than a page.
      *

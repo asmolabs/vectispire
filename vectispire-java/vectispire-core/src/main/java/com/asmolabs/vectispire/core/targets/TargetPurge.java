@@ -33,11 +33,10 @@ public sealed interface TargetPurge permits TargetDeleted, OrphanedTargetRows {
      * cascade the schema declares.
      *
      * <p><b>Why an order at all, when every foreign key into these tables cascades or sets null.</b>
-     * On PostgreSQL and MySQL it does — V19 and later — and on SQLite only while {@code PRAGMA
-     * foreign_keys} is issued on every connection, which one refactor of the pool can silently
-     * undo. Deleting leaves first holds whatever the cascade does, and holds still if a key is ever
-     * declared {@code restrict}: a parent deleted before its children would then fail on the two
-     * deployable engines and nowhere in the unit suite. Pass these to {@code @Order} on the listener
+     * On PostgreSQL and MySQL it does — V19 and later — and a migration can lose a key without an
+     * error, as MySQL's inline ones were lost before V19. Deleting leaves first holds whatever the
+     * cascade does, and holds still if a key is ever declared {@code restrict}: a parent deleted
+     * before its children would then fail at the commit, on a target nobody can delete. Pass these to {@code @Order} on the listener
      * method; listeners of one phase touch disjoint tables — or, for the findings, one table by two
      * selections whose union is the same whatever the order — and may run in any order among themselves.
      *

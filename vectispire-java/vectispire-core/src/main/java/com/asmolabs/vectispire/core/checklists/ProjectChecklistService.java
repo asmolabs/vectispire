@@ -156,7 +156,7 @@ import org.springframework.util.unit.DataSize;
  * revision's authors for four-eyes.
  *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
- * on SQLite would wait on this one's file lock.
+ * inside this one an entry would describe a write that may still roll back.
  */
 @Service
 public class ProjectChecklistService {
@@ -1792,7 +1792,7 @@ public class ProjectChecklistService {
         } catch (RuntimeException failed) {
             // Whatever failed, the transaction rolled back; only the committed rows say whether it was
             // somebody else's revision taking the number or the slot — a lock timeout or a dropped
-            // connection is not, and on SQLite a key's refusal is not even a DataIntegrityViolation.
+            // connection is not, and not every driver reports a key's refusal as an integrity violation.
             Optional<ChecklistEntity> now2 = checklists.findFirstByProjectIdOrderByRevisionDesc(project.projectId());
             if (now2.map(ChecklistEntity::getRevision).orElse(0) >= next) {
                 throw new ChecklistConflict(Cause.CHANGED, "Somebody else opened revision " + now2.get().getRevision()

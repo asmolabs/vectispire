@@ -12,13 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>A read of "has it run?" cannot decide this.</b> The repair of withheld claims read its own
  * audit entry: two instances starting together both found none, both ran, and both wrote one. The
  * decision is the primary key's: {@link #claim} inserts the job's name, and of two instances only one
- * insert succeeds — the other waits for the first transaction to end and then fails, or, on SQLite,
- * waits for the file's write lock and fails the same way.
+ * insert succeeds — the other waits for the first transaction to end and then fails.
  *
  * <p><b>And a failed insert does not say why it failed.</b> The loser's refusal arrives as a
- * {@code DataIntegrityViolationException} on PostgreSQL and MySQL but as a bare {@code
- * JpaSystemException} on SQLite, whose dialect leaves a primary-key failure uncategorised; a lock
- * that timed out or a connection that dropped fails the same statement. The first version read every
+ * {@code DataIntegrityViolationException} on PostgreSQL and MySQL — and arrived as a bare {@code
+ * JpaSystemException} on the SQLite fixture of the time; a lock that timed out or a connection that
+ * dropped fails the same statement. The first version read every
  * failure as "taken elsewhere" — a claim that failed for any reason would have been reported as
  * somebody else's while nobody ran the job. So the failure is thrown, and only the row answers:
  * {@link #hasRun}, read after the rollback, is what tells a lost claim from a failed one.

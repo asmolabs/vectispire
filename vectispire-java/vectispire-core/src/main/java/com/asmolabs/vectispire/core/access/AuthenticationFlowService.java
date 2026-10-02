@@ -371,7 +371,8 @@ public class AuthenticationFlowService {
      * had not been told existed. Either all three hold or none does.
      *
      * <p><b>The audit entry follows the commit</b>, a refusal's included: it opens its own
-     * transaction, and inside this one it would wait on SQLite's file lock until it timed out.
+     * transaction, and inside this one it would record a sign-in that may still roll back, on a
+     * second connection held while this one keeps its locks.
      *
      * @param ipAddress the client's address, already resolved against the trusted proxies
      */

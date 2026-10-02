@@ -278,8 +278,8 @@ public class OutboxService {
      *
      * <p><b>The notification types share one payload shape and differ only in where they go.</b>
      * That conflates "what this message is" with "where it is bound", and the alternative — a second
-     * column — would mean recreating the table on SQLite for a distinction the routing column
-     * already carries. The next message shape did have to choose again: the SIEM event is not a
+     * column — meant recreating the table on the SQLite fixture of the time, for a distinction the
+     * routing column already carries. The next message shape did have to choose again: the SIEM event is not a
      * notification, and it arrives through {@link OutboxHandler}, which reads its own payload,
      * rather than by bending this one.
      */

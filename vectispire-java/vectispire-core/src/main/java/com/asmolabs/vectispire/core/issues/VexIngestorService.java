@@ -89,8 +89,8 @@ public class VexIngestorService {
      * Imports a document on behalf of {@code caller}.
      *
      * <p>The triage writes share one transaction; the audit entry is written after it commits. The
-     * entry opens a transaction of its own, and on SQLite — where the lock is the file — a second
-     * connection opened inside the first waits on its write lock until it times out.
+     * entry opens a transaction of its own, and inside the first it would describe an import that
+     * may still roll back.
      *
      * @throws AccessDeniedException for the platform governor, whose role decides the rules and
      *     takes no triage decision under them

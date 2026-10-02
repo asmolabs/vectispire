@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
  * <p><b>Its own bean rather than a method on {@link ComplianceService} or {@link
  * EvidenceVaultService}</b>, because both reads are {@code @Transactional(readOnly = true)} and the
  * audit entry has to be written outside them: it opens its own transaction, and inside a caller's
- * it waits on that caller's connection on SQLite. A method beside the read would call it through
+ * it would hold a second connection while the read holds the first. A method beside the read would call it through
  * {@code this}, bypass the proxy and run it with no transaction at all. Calling across beans keeps
  * both boundaries where they were when the route did this itself.
  */

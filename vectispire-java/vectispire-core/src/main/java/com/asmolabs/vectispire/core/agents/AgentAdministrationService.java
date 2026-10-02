@@ -41,8 +41,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p><b>Boundaries are opened with a {@link TransactionTemplate}, not {@code @Transactional}.</b>
  * Declaring and deleting an agent each write two rows that must commit together, and each is
- * then audited — outside that transaction, because the audit entry uses {@code REQUIRES_NEW} and
- * a nested connection deadlocks against its own parent on SQLite, where the lock is the file. An
+ * then audited — outside that transaction, because the audit entry uses {@code REQUIRES_NEW}, and
+ * nested it would describe a write that may still roll back, on a second connection held while the
+ * first keeps its locks. (On the SQLite fixture of the time it deadlocked against its own parent,
+ * the lock being the file.) An
  * annotated method would have to either hold the audit inside its boundary or be split across
  * two beans to escape the proxy; the template states the boundary where it is.
  */

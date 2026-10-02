@@ -46,8 +46,8 @@ public interface TeamTargetRepository extends JpaRepository<TeamTargetEntity, Te
      *
      * <p>For target deletion: there is no foreign key to cascade through, so the rows would
      * otherwise outlive the repository they name. See {@link UserTargetRepository#deleteByTarget} for why
-     * that is an access-control matter and not housekeeping — SQLite reuses a freed
-     * {@code rowid}, so a stale row can come to name a different target.
+     * that is an access-control matter and not housekeeping — a stale row can come to name a
+     * different target.
      */
     @Transactional
     @Modifying(clearAutomatically = true)

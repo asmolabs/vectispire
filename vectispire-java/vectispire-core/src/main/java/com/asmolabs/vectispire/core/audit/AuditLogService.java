@@ -43,8 +43,7 @@ public class AuditLogService {
      *
      * <p>Not only the description. A resource id built from a request — the joined keys of a
      * settings write, the URI of a refused request — or a user agent or address from a header has
-     * no length the caller controls, and MySQL and PostgreSQL refuse the whole row where SQLite, on
-     * which the HTTP suite runs, stores it whatever its length.
+     * no length the caller controls, and MySQL and PostgreSQL refuse the whole row.
      */
     private static final int TEXT_COLUMN = 255;
 
@@ -235,12 +234,13 @@ public class AuditLogService {
      * The entry's transaction, tried again when a lock refused it — and only then.
      *
      * <p><b>A refused lock is not a refused entry.</b> The write reads the chain's head and then
-     * inserts, and on SQLite a transaction that has read cannot wait for the write lock: it is
-     * answered {@code SQLITE_BUSY} at once, its busy timeout never consulted. Two instances starting
-     * together lost the one-shot repair's entry that way — the loser's refused claim still held the
-     * lock, for the milliseconds before its rollback, when the winner recorded. MySQL's deadlock
-     * victim and lock-wait timeout are the same class. Each is gone a moment later, so each is tried
-     * again, in a new transaction; any other failure is the entry's own and is not.
+     * inserts, and two writers of the chain meet there: MySQL chooses a deadlock victim or lets a
+     * lock wait time out, PostgreSQL likewise. Two instances starting together lost the one-shot
+     * repair's entry that way on the SQLite fixture of the time, which answered a transaction that
+     * had read with {@code SQLITE_BUSY} at once — the loser's refused claim still held the lock, for
+     * the milliseconds before its rollback, when the winner recorded. Each of these is gone a moment
+     * later, so each is tried again, in a new transaction; any other failure is the entry's own and
+     * is not.
      */
     private void writeRetryingOnLocks(Record entry, boolean withListeners) {
         for (int attempt = 0; ; attempt++) {

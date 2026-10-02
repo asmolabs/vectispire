@@ -136,9 +136,10 @@ public class TicketingWebhookService {
         try {
             deliveries.saveAndFlush(new WebhookDeliveryEntity(bodyHash, provider.wireName(), now));
         } catch (org.springframework.dao.DataAccessException refused) {
-            // The primary key refusing a duplicate is not translated the same way on every engine
-            // — SQLite's dialect reports it as a generic JPA failure — so the row is asked for
-            // rather than the exception's class trusted. A database that is down is not a replay.
+            // The insert fails for more than a duplicate — a lock timeout, a dropped connection —
+            // and the SQLite fixture of the time did not even report the duplicate as one, so the
+            // row is asked for rather than the exception's class trusted. A database that is down
+            // is not a replay.
             if (!deliveries.existsById(bodyHash)) {
                 throw refused;
             }

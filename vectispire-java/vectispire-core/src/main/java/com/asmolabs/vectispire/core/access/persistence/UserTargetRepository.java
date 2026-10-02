@@ -29,11 +29,11 @@ public interface UserTargetRepository extends JpaRepository<UserTargetEntity, Us
      * Every account's claim on one target, dropped — for when the target itself is deleted.
      *
      * <p><b>Not housekeeping: identifier reuse.</b> There is no foreign key to cascade through,
-     * because {@code (target_kind, target_id)} points into one of two tables. SQLite reuses a
-     * freed {@code rowid} when the deleted row was the highest, so a stale assignment naming
-     * repository 5 would grant access to <em>the next</em> repository 5 — a different
-     * repository, to an account nobody assigned it to. On the three server engines a sequence
-     * makes that unlikely rather than impossible.
+     * because {@code (target_kind, target_id)} points into one of two tables. An identifier comes
+     * back — a restore that renumbers, a sequence reset, and on the SQLite fixture of the time a
+     * freed {@code rowid} — so a stale assignment naming repository 5 would grant access to
+     * <em>the next</em> repository 5: a different repository, to an account nobody assigned it to.
+     * On MySQL and PostgreSQL a sequence makes that unlikely rather than impossible.
      */
     @Transactional
     @Modifying(clearAutomatically = true)

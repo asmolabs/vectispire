@@ -37,9 +37,9 @@ class RegisterCursorTest {
     @Test
     @DisplayName("encodes no more precision than the stores keep")
     void encodesMilliseconds() {
-        // SQLite holds an Instant as integer epoch millis. A cursor carrying microseconds would
-        // point between two rows: the engine returns neither, and the page after it is short by
-        // however many shared that millisecond.
+        // A register paging with this cursor writes its instants at the millisecond. A cursor
+        // carrying microseconds would point between two rows: the engine returns neither, and the
+        // page after it is short by however many shared that millisecond.
         RegisterCursor cursor = new RegisterCursor(Instant.parse("2026-09-14T08:00:00.123456Z"), "41");
 
         assertThat(RegisterCursor.parse(cursor.encoded()).orElseThrow().at())

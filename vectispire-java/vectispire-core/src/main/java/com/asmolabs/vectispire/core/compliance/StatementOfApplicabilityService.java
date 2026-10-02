@@ -107,8 +107,9 @@ public class StatementOfApplicabilityService {
      * into the database, must still be visible rather than silently well-formed.
      *
      * <p><b>Deliberately not in a transaction.</b> The audit entry is written with {@code
-     * REQUIRES_NEW} — an attempt must survive a rollback of the thing attempted — and a second
-     * connection writing inside an open snapshot is what SQLite refuses outright. So this method
+     * REQUIRES_NEW} — an attempt must survive a rollback of the thing attempted — and opened inside
+     * a transaction here it would hold a second connection while the first keeps its locks. So this
+     * method
      * follows the convention the rest of the codebase already keeps: persist, then audit, neither
      * wrapping the other.
      *

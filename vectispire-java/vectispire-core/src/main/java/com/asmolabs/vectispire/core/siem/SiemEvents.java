@@ -133,9 +133,9 @@ public class SiemEvents implements AuditLogService.Listener {
      * Queues an event in a transaction of its own, for a caller whose state has already committed or
      * that has none. <b>Never throws</b>: the export must not fail the action it reports on.
      *
-     * <p>Call it outside any open write transaction: on SQLite, where the lock is the file, a second
-     * transaction opened inside the first waits on it until it times out — the trap the audit log
-     * documents.
+     * <p>Call it outside any open write transaction: inside one, the event would report a state that
+     * may still roll back, on a second connection held while the first keeps its locks. A caller in
+     * a transaction enqueues in it instead (decision 0033).
      */
     public void publish(CefEvent event) {
         try {

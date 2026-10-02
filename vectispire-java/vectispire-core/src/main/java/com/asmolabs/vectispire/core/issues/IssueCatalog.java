@@ -155,7 +155,8 @@ public class IssueCatalog {
      * See {@code IssueRepository.countOpenGroupedByTarget}.
      *
      * <p><b>Tolerant of a numeric flag, though no engine currently sends one.</b> Written on the
-     * assumption that SQLite would hand back an Integer where the others hand back a Boolean.
+     * assumption that the SQLite fixture of the time would hand back an Integer where the others
+     * hand back a Boolean.
      * Measured afterwards, and that is not what happens: the projection selects a mapped entity
      * attribute, so Hibernate normalises it to {@code Boolean} on every engine the campaign runs —
      * a plain cast would pass everywhere. Kept anyway, and the reason is narrow rather than

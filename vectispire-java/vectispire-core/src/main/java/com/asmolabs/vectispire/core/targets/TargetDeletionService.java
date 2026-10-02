@@ -13,8 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Deleting a target, atomically with every row that names it, on both deployable engines and on the
- * SQLite fixture.
+ * Deleting a target, atomically with every row that names it, on both deployable engines.
  *
  * <p><b>This class deletes the target and announces it; each domain purges its own rows.</b> It used
  * to issue every delete itself — grants, gate policies, issues, triage events, ticket links,

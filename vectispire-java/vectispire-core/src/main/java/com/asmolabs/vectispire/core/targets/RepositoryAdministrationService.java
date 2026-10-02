@@ -35,8 +35,7 @@ import org.springframework.stereotype.Service;
  * the repository's own transaction; the route this was lifted from never opened a wider one, and
  * wrapping the lookup and the save together here would change what a concurrent edit sees. It is
  * also what lets each write be audited here, straight after it: the audit entry opens its own
- * transaction, and inside an outer one it would wait on its parent's lock on SQLite, where the
- * lock is the file.
+ * transaction, and inside an outer one it would describe a write that may still roll back.
  */
 @Service
 public class RepositoryAdministrationService {

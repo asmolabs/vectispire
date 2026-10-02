@@ -53,8 +53,8 @@ public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, 
      * The page after a cursor.
      *
      * <p><b>A second method rather than a nullable parameter, and {@code TriageEventRepository} says why.</b>
-     * A clause written {@code (:decidedAt is null or v.decidedAt < :decidedAt)} runs on SQLite —
-     * which the unit suite uses — and fails on PostgreSQL with <i>could not determine data type of
+     * A clause written {@code (:decidedAt is null or v.decidedAt < :decidedAt)} runs on MySQL — and ran
+     * on the SQLite the unit suite used — and fails on PostgreSQL with <i>could not determine data type of
      * parameter</i>: an untyped null in a comparison leaves the driver nothing to infer from. That
      * defect has already shipped once in this codebase, on a route that returned 500 while every
      * test was green.

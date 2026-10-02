@@ -46,11 +46,11 @@ public interface TriageEventRepository extends JpaRepository<TriageEventEntity, 
      * How many decisions were ever taken on one repository's issues.
      *
      * <p><b>A count, and no date window.</b> The first version took a nullable {@code from}/{@code
-     * to} pair written as {@code (:from is null or e.occurredAt >= :from)}. That runs on SQLite —
-     * which is what the HTTP suite uses — and fails on PostgreSQL with <i>could not determine data
+     * to} pair written as {@code (:from is null or e.occurredAt >= :from)}. That ran on SQLite —
+     * which is what the HTTP suite then used — and fails on PostgreSQL with <i>could not determine data
      * type of parameter $2</i>: an untyped null in a comparison leaves the driver nothing to infer
      * from. The whole history page returned 500 while every test was green, which is the exact
-     * portability defect the four-engine campaign exists to catch and that a single engine cannot.
+     * portability defect the campaign exists to catch and that a single engine cannot.
      *
      * <p>The window went with it rather than being cast into shape: nothing asked for it yet, and
      * a parameter no caller passes is one nobody exercises. It comes back the day an export by

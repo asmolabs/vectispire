@@ -133,9 +133,10 @@ public class SettingsService {
         try {
             return settings.insert(key, value) == 1;
         } catch (DataAccessException refused) {
-            // Decided by what is there, not by the exception's type: SQLite's dialect reports the
-            // primary key as a generic JPA failure, the two engines as an integrity violation. A
-            // refusal with no row behind it is some other failure, and is not swallowed.
+            // Decided by what is there, not by the exception's type: a lock timeout or a dropped
+            // connection fails the insert too, and the SQLite fixture of the time reported the key's
+            // refusal as a generic JPA failure. A refusal with no row behind it is some other
+            // failure, and is not swallowed.
             if (settings.existsById(key)) {
                 return false;
             }

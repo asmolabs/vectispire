@@ -84,7 +84,7 @@ class AuditLogServiceTest {
         AtomicInteger tries = new AtomicInteger();
         doAnswer(call -> {
             if (tries.incrementAndGet() == 1) {
-                throw new CannotAcquireLockException("SQLITE_BUSY");
+                throw new CannotAcquireLockException("Lock wait timeout exceeded");
             }
             AuditLogEntity row = call.getArgument(0);
             row.setId(UUID.randomUUID());

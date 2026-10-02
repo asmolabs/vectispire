@@ -178,8 +178,8 @@ class ApiInventoryRoutesTest extends ApiTestBase {
 
         // **A real scan, not a number.** These two endpoints used to be attached to scans 999 and
         // 1000, which never existed — the row was an orphan the moment it was written, and the
-        // engine accepted it because SQLite enforces no foreign key until the pragma is issued.
-        // Now that it is, the fabrication is refused, which is the point of enforcing it.
+        // SQLite fixture of the time accepted it, enforcing no foreign key without its pragma. The
+        // engine refuses the fabrication, which is the point of enforcing it.
         ScanEntity scan = new ScanEntity();
         scan.setRepoId(repo.getId());
         scan.setBranch("main");

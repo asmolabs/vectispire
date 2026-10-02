@@ -171,7 +171,7 @@ class OwaspReportTest extends ApiTestBase {
 
         /**
          * The call held a transaction open for as long as the model took — five minutes by default,
-         * a pooled connection and, on SQLite, the database file for all of it. Asked from inside the
+         * and a pooled connection for all of it. Asked from inside the
          * stub, because only there is the question about the call rather than about the method.
          */
         @Test

@@ -25,10 +25,10 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
      * Takes the agent's row for the rest of the transaction, and records that it was heard from.
      *
      * <p><b>A write because a write is what every engine serializes</b> — see {@code
-     * ScanQueue.claimWithin}. {@code select … for update} would do on PostgreSQL and MySQL and
-     * nothing on SQLite, where it is not even syntax, and a read there pins a snapshot whose later
-     * upgrade to a write is refused at once with {@code SQLITE_BUSY} instead of waiting. The
-     * column written is the one a claim makes true anyway.
+     * ScanQueue.claimWithin}. {@code select … for update} would do the same on PostgreSQL and MySQL;
+     * the write was chosen while the SQLite fixture, which has no row lock, was among the engines,
+     * and it stays because the column written is the one a claim makes true anyway and the claim's
+     * interleaving is what {@code ScanQueueIntegrationTest} forces on both engines.
      *
      * @return 0 when the agent no longer exists
      */

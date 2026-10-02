@@ -88,7 +88,7 @@ import org.springframework.util.unit.DataSize;
  * without reading the sentence.
  *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
- * on SQLite would wait on this one's file lock. Publishing a version, and retiring a published one,
+ * inside this one an entry would describe a write that may still roll back. Publishing a version, and retiring a published one,
  * signal {@code VECTI-SEC-024} to the SIEM (§9).
  */
 @Service
@@ -800,8 +800,9 @@ public class ChecklistTemplateService {
      * template, so of two drafts made at once one insert fails.
      *
      * <p><b>Read as "taken" only once the committed rows say so.</b> A statement can fail for other
-     * reasons — a lock timeout, a dropped connection — and on SQLite a key's refusal is not even a
-     * {@link DataIntegrityViolationException}. So whatever failed, the transaction rolls back, the
+     * reasons — a lock timeout, a dropped connection — that are not a {@link
+     * DataIntegrityViolationException}, and not every driver reports a key's refusal as one. So
+     * whatever failed, the transaction rolls back, the
      * rows are asked, and the failure is answered as the draft somebody else made only when there is
      * one; otherwise it is the failure it was.
      */

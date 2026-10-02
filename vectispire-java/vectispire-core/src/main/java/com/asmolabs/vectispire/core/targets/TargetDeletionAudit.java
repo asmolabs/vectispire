@@ -17,7 +17,8 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
  * a revocation; one revoked by a deletion is the same act, and is recorded the same way.
  *
  * <p>Written by the callers of {@link TargetDeletionService} once its transaction has committed — the
- * audit log opens its own, which on SQLite would wait on the deletion's file lock.
+ * audit log opens its own, and inside the deletion's an entry would describe a deletion that may
+ * still roll back.
  */
 final class TargetDeletionAudit {
 

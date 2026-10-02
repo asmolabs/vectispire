@@ -22,8 +22,9 @@ import org.springframework.http.MediaType;
  * Declaring, changing and removing an agent, through the routes.
  *
  * <p>Declaring writes a key and an agent that must commit together, and removing deletes both —
- * each audited outside that boundary, because the audit's own transaction would deadlock against
- * its parent on the SQLite file. The boundary moved from the controller into a service; only a
+ * each audited outside that boundary, because the audit's own transaction inside it would describe
+ * a write that may still roll back (and deadlocked against its parent on the SQLite fixture this
+ * suite once ran on). The boundary moved from the controller into a service; only a
  * request through the real stack shows it still opens, commits and does not block.
  */
 @DisplayName("the agent administration routes")

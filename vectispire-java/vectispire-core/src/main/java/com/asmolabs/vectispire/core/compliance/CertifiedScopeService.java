@@ -122,8 +122,8 @@ public class CertifiedScopeService {
      * Puts one target in or out of the certified scope, and records who did when the flag moved.
      *
      * <p><b>No transaction here</b>, and that is the point: the write commits in {@code
-     * TargetCatalog}'s own before the entry is written, since the audit log opens its own and on
-     * SQLite would wait on the write's file lock. A no-op leaves no entry, as a setting saved
+     * TargetCatalog}'s own before the entry is written, since the audit log opens its own and an
+     * entry written first would describe a write that may still roll back. A no-op leaves no entry, as a setting saved
      * unchanged leaves none.
      *
      * <p><b>A hidden target is refused here, before the write</b>, and one that does not exist in the

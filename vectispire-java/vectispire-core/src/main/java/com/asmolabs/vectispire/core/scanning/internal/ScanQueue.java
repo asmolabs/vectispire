@@ -106,9 +106,9 @@ public class ScanQueue {
      * makes {@link #claim} safe turns one of them away; it says nothing when they read
      * <em>different</em> rows — a scan requeued between their reads, one created out of order —
      * and that is rare enough to pass every test that does not force it. So the transaction starts
-     * by writing the agent's row, which every engine serializes: PostgreSQL and MySQL hold the row
-     * lock until the commit, SQLite takes its write lock on the first write. The second poll waits
-     * there, and counts after the first has committed its take.
+     * by writing the agent's row, which both engines serialize: PostgreSQL and MySQL hold the row
+     * lock until the commit. The second poll waits there, and counts after the first has committed
+     * its take.
      *
      * <p><b>The lock is the first statement, and that is what makes the count fresh on MySQL.</b>
      * Under REPEATABLE READ the snapshot is fixed at the transaction's first plain read — here,
@@ -247,7 +247,7 @@ public class ScanQueue {
      * <p><b>Walked a page at a time instead of excluding a list</b>, which the selection used to
      * carry as {@code not in :excluded}: one bind parameter per waiting repository that carries a
      * credential, bounded only by the queue, and past the engines' limits — 65,535 parameters for the
-     * PostgreSQL driver and a MySQL server-side statement, 32,766 in SQLite's default build — a claim
+     * PostgreSQL driver and a MySQL server-side statement — a claim
      * that failed on every poll. Each page is read in the claim's own order, from where the last one
      * ended, and only its repositories are asked about, so no statement here or in the exclusion's
      * owner carries more than {@link #PAGE}, however large the queue.
@@ -529,16 +529,15 @@ public class ScanQueue {
      *
      * <p>Filtered in SQL rather than by loading every running scan and comparing in memory: that
      * version worked only while the column was text, and stopped as soon as it became a real
-     * timestamp on one engine out of four.
+     * timestamp on one of the engines it then ran on.
      *
      * <p><b>No transaction around the loop, deliberately.</b> Each release is a conditional update
      * with a transaction of its own, and nothing here needs the set to change atomically: a scan
-     * requeued while its neighbour is not is a correct outcome. Wrapping the read and the updates
-     * in one transaction broke on SQLite in WAL: the read pins a snapshot, a renewal or a final
-     * write commits meanwhile, and the update's upgrade to a write lock is then refused at once
-     * with {@code SQLITE_BUSY} — no busy timeout applies to a stale snapshot — instead of waiting
-     * and finding the condition false. PostgreSQL and MySQL re-check the condition either way;
-     * the nightly's SQLite run was the one that could tell.
+     * requeued while its neighbour is not is a correct outcome, and the condition each update
+     * re-checks is what keeps a renewal or a final write committed meanwhile from being undone. One
+     * transaction around the loop would only hold every lapsed scan's lock until the last release.
+     * It was tried once and broke on the SQLite fixture of the time, which refused the update's
+     * upgrade from a stale snapshot outright; PostgreSQL and MySQL wait and re-check instead.
      */
     public Reclaimed reclaimLapsedLeases() {
         Instant asOf = clock.instant();

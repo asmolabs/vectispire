@@ -150,10 +150,9 @@ public class IssueEntity {
      * How long this issue lived, in seconds, written when it is resolved.
      *
      * <p><b>Stored rather than derived, so the average can be a query.</b> Mean time to
-     * resolution is the difference between two instants, and MySQL, PostgreSQL and SQLite each
-     * spell that differently — so the dashboard used to compute it in Java over every closed
+     * resolution is the difference between two instants, and every engine spells that differently — so the dashboard used to compute it in Java over every closed
      * issue in the estate. A column of seconds turns it into {@code avg} of a number, which is
-     * the same statement on all three. The dialects are named once, in {@code V24}, where a
+     * the same statement on every engine. The dialects are named once, in {@code V24}, where a
      * migration is written per dialect anyway.
      *
      * <p><b>Null is not zero.</b> It stays null while the issue is open, when there is no first

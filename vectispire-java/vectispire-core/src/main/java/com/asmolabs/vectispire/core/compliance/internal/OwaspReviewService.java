@@ -106,8 +106,8 @@ public class OwaspReviewService {
      *
      * <p><b>Three steps, and the call to the model is in none of the transactions.</b> This method
      * was one transaction around a request that may take five minutes — the configured timeout —
-     * holding a connection from the pool and whatever the reads had locked for all of it, and on
-     * SQLite the database file. The request is recorded {@code running} and committed first, so the
+     * holding a connection from the pool and whatever the reads had locked for all of it. The
+     * request is recorded {@code running} and committed first, so the
      * screen can say a report is being written; the model is asked with nothing open; its answer or
      * its failure is written by a second, short transaction. A process that stops between the first
      * and the last leaves a running row with a deadline — the timeout and {@link #SETTLING_MARGIN}

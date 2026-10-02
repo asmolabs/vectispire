@@ -8,9 +8,9 @@ import java.util.Optional;
  *
  * <p><b>Why this exists.</b> A value longer than its column is not refused by Hibernate; it is
  * refused by the database at flush, as a {@code DataException} nothing maps, so the caller receives
- * a 500 for what was a typing mistake — and on SQLite, which the HTTP suite runs on, it is not
- * refused at all, because SQLite does not enforce a {@code varchar} length. The defect is therefore
- * invisible to every test that does not run on a deployable engine. Several services had grown a
+ * a 500 for what was a typing mistake — and on SQLite, which the HTTP suite ran on until decision
+ * 0034, it was not refused at all, because SQLite does not enforce a {@code varchar} length: the
+ * defect was invisible to every test that did not run on a deployable engine. Several services had grown a
  * private copy of this check ({@code TeamRules}, {@code ApiKeyAdministrationService}, the ticket
  * reference); the ones that had not were the ones that answered 500.
  *

@@ -155,8 +155,8 @@ public class ThreatIntelFeedService {
      *
      * <p><b>No transaction is open while a feed is fetched.</b> The catalogue is a megabyte and a
      * half, the EPSS file some three; the writes that follow are short transactions. The audit entry
-     * opens its own transaction, and inside the sync's it would wait on the parent's lock on SQLite,
-     * where the lock is the file; so it is written after.
+     * opens its own transaction, and inside the sync's it would describe a synchronisation that may
+     * still roll back; so it is written after.
      *
      * <p><b>The one way in.</b> The EPSS screen's sync called the unaudited body directly, so the same
      * outbound call and the same re-evaluation of the backlog left an entry from one screen and none
@@ -311,8 +311,7 @@ public class ThreatIntelFeedService {
      * time in id order — each page its own short transaction.
      *
      * <p><b>Not the whole backlog in one transaction.</b> This read every open issue into memory in the
-     * catalogue's transaction and held the sync row's lock, and SQLite's whole file, until the last
-     * one was written — hundreds of thousands of rows on a large estate. Walked by keyset, each page
+     * catalogue's transaction and held the sync row's lock until the last one was written — hundreds of thousands of rows on a large estate. Walked by keyset, each page
      * costs the same however deep the walk is, as the EPSS refresh's does.
      *
      * <p><b>Announced once.</b> Each page takes the sync row's lock before it reads its issues ({@link

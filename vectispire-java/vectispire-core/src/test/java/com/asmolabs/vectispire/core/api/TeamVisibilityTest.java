@@ -220,8 +220,8 @@ class TeamVisibilityTest extends ApiTestBase {
         mvc.perform(authenticated(delete("/api/v1/repositories/" + doomed), asAdmin()))
                 .andExpect(status().isNoContent());
 
-        // Not tidiness: `(target_kind, target_id)` cascades from nothing, and SQLite reuses a
-        // freed rowid — a stale row would come to name whichever repository is created next.
+        // Not tidiness: `(target_kind, target_id)` cascades from nothing, and an identifier can come
+        // back — a stale row would come to name whichever repository next holds it.
         mvc.perform(authenticated(get("/api/v1/teams/" + team + "/targets"), asAdmin()))
                 .andExpect(jsonPath("$.length()").value(0));
     }

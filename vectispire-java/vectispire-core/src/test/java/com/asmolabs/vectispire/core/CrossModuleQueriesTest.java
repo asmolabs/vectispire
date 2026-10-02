@@ -82,8 +82,8 @@ class CrossModuleQueriesTest {
             + "repository and image id into memory, or handing it every distinct target id this table holds, "
             + "a thousand per statement, to learn that all of them exist: a read of the whole estate per tick "
             + "where one `not in (select …)` per table binds no parameter and "
-            + "probes the owner's primary key. The foreign keys keep orphans from forming (MySQL since V19, "
-            + "SQLite since the pragma), so the statement exists for the rows left before them, and costs one "
+            + "probes the owner's primary key. The foreign keys keep orphans from forming (MySQL since V19), "
+            + "so the statement exists for the rows left before them, and costs one "
             + "anti-join per table to find none. `targets` is below scanning "
             + "and issues, and both list it, so the direction holds.";
 
