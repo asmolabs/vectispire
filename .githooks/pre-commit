@@ -40,8 +40,24 @@ if [ -n "$GRADLE_CHANGED" ]; then
     echo "✅ [pre-commit] Gradle dependency lockfiles updated and staged."
 fi
 
-# 2. Check if package.json was modified
-NPM_CHANGED=$(echo "$STAGED_FILES" | grep -E '(^|/)package\.json$' || true)
+# 2. Check if package.json was modified — in what the lockfile records
+#
+# **Only a change the lockfile records triggers the sync.** A `scripts` entry is not in it, and
+# every sync costs the same thirty `"peer": true` markers npm 11 drops (below): adding
+# `check-icon-buttons.mjs` to `npm test` on 2026-10-02 rewrote the lockfile for nothing, and the
+# commit had to be amended with --no-verify. Compared field by field between HEAD and the index;
+# a package.json new to the tree counts as a change.
+LOCK_FIELDS='["name","version","dependencies","devDependencies","peerDependencies","peerDependenciesMeta","optionalDependencies","bundleDependencies","overrides","workspaces","engines","bin","license"]'
+NPM_CHANGED=""
+for manifest in $(echo "$STAGED_FILES" | grep -E '(^|/)package\.json$' || true); do
+    if ! git cat-file -e "HEAD:$manifest" 2>/dev/null \
+        || ! node -e '
+            const [fields, before, after] = [JSON.parse(process.argv[1]), JSON.parse(process.argv[2]), JSON.parse(process.argv[3])];
+            process.exit(fields.every((f) => JSON.stringify(before[f]) === JSON.stringify(after[f])) ? 0 : 1);
+        ' "$LOCK_FIELDS" "$(git show "HEAD:$manifest")" "$(git show ":$manifest")"; then
+        NPM_CHANGED="$NPM_CHANGED $manifest"
+    fi
+done
 LOCK_STAGED=$(echo "$STAGED_FILES" | grep -E '^package-lock\.json$' || true)
 
 # **A lockfile the author staged is left as staged.** `npm install --package-lock-only` does not
