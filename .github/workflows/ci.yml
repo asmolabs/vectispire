@@ -517,7 +517,9 @@ jobs:
       # and the check. Then the same repository over SSH with a deploy key registered through the
       # API, which had never once cloned through the composition (no home for the image's user, and
       # a host-key check that refused every first contact), and again after the fixture changes its
-      # host key, which must be refused. About a minute and a half with the images present; the
+      # host key, which must be refused. Last, the two fates of a scan that cannot run: a repository
+      # the fixture does not serve fails at its first attempt, and a host that does not resolve is
+      # back in the queue a minute after its failure. About two minutes with the images present; the
       # pulls of the IaC checker, the SAST engine and the matcher add some 630 MB compressed.
       - name: the composition scans
         run: ./scripts/composition-scan-check.sh

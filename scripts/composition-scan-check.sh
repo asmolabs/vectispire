@@ -62,6 +62,16 @@
 # a mode. On a Linux host they stay under this run's temporary directory. Either way the script
 # reaches them only through containers, as the daemon's host sees them.
 #
+# **Then the two failures a scan meets most, and the two fates the queue has for them** (2026-10-03).
+# A repository the fixture's daemon does not serve must fail at its first attempt, saying it could not
+# be found, with nothing scheduled — over `git://` it used to be retried three times, a quarter of an
+# hour, before failing as "the clone failed". A host that does not resolve must wait and come back: the
+# scan back in the queue after its first attempt, `notBefore` a minute after the failure. The minute is
+# read off the scan's own sentence, which states the instant the queue computed, and checked against
+# this machine's clock with a few seconds' slack — the daemon's host shares it, or is a VM kept in step
+# with it. The attempts after the first are not waited for (five more minutes, then fifteen): the
+# exact schedule is `CloneFailureFateTest`'s, on a clock moved by hand.
+#
 # **It never touches a deployment.** The composition runs under its own project name, and an override
 # resets every fixed container, network and volume name so none of them is `vectispire-*`: a
 # developer's running installation is left alone, and `down -v` removes only what this created.
@@ -446,4 +456,72 @@ if [ "$MODE" = agent ] && [ $(( $(date +%s) - started )) -ge 600 ]; then
   fail "the agent's failure took $(( $(date +%s) - started ))s to reach the scan: it waited for a lease, not a report"
 fi
 echo "✓ a changed host key is refused, and said to be one"
+
+# Waits for scan $1's first attempt to end, and leaves its detail in $detail. Not `scan`, which waits
+# for the scan to finish: a failure read as transient would take its three attempts first, six minutes.
+first_attempt() {
+  local ended deadline=$(( $(date +%s) + 300 ))
+  while :; do
+    detail="$(curl -sf -H "$bearer" "$base/api/v1/scans/$1")"
+    ended="$(printf '%s' "$detail" | json 'd["scan"]["attempts"] >= 1 and d["scan"]["status"] != "scanning"')"
+    [ "$ended" = True ] && return
+    [ "$(date +%s)" -lt "$deadline" ] || fail "scan $1 did not end its first attempt in 300s"
+    sleep 2
+  done
+}
+
+# ── A repository that is not there: failed at once, and why.
+echo "── a repository the fixture does not serve: failed at its first attempt, nothing scheduled"
+missing_repo="$(register '{"url":"git://fixture/missing.git","branch":"main","name":"scan-check-missing"}')"
+missing_scan="$(queue "$missing_repo")"
+first_attempt "$missing_scan"
+printf '%s' "$detail" | python3 -c '
+import json, sys
+s = json.load(sys.stdin)["scan"]; error = s["error"] or ""
+problems = []
+if s["status"] != "failed":
+    problems.append("the scan is " + s["status"] + ", not failed")
+if s["attempts"] != 1:
+    problems.append("it took " + str(s["attempts"]) + " attempts: a missing repository was retried")
+if s["notBefore"] is not None:
+    problems.append("a retry is scheduled for " + s["notBefore"])
+if "another attempt would meet the same refusal" not in error or "git://fixture/missing.git could not be found." not in error:
+    problems.append("the reason is not that the repository could not be found: " + error)
+if problems:
+    print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)'
+echo "✓ a missing repository fails at its first attempt, and says it could not be found"
+
+# ── A host that cannot be reached: back in the queue, a minute later.
+echo "── a host that does not resolve: back in the queue, not before a minute after the failure"
+unreachable_repo="$(register '{"url":"git://unreachable.invalid/fixture.git","branch":"main","name":"scan-check-unreachable"}')"
+queued_at=$(date +%s)
+unreachable_scan="$(queue "$unreachable_repo")"
+first_attempt "$unreachable_scan"
+observed_at=$(date +%s)
+printf '%s' "$detail" | QUEUED_AT="$queued_at" OBSERVED_AT="$observed_at" python3 -c '
+import datetime, json, os, re, sys
+s = json.load(sys.stdin)["scan"]; error = s["error"] or ""
+problems = []
+if s["status"] != "pending" or s["attempts"] != 1:
+    problems.append("after its first attempt the scan is " + s["status"] + " at attempt " + str(s["attempts"])
+                    + ", not pending at attempt 1: " + error)
+if "could not reach its host" not in error:
+    problems.append("the reason is not an unreachable host: " + error)
+stated = re.search(r"not before (\S+): ", error)
+if s["notBefore"] is None or stated is None:
+    problems.append("no retry is scheduled: " + str(s["notBefore"]) + " — " + error)
+else:
+    def epoch(text):  # microseconds at most: what every Python 3 reads
+        return datetime.datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", text).replace("Z", "+00:00")).timestamp()
+    not_before = epoch(s["notBefore"])
+    # The failure happened between the queueing and the observation; a few seconds of slack for the
+    # clocks, and for the sentence stating the instant to the second.
+    low, high = int(os.environ["QUEUED_AT"]) + 60 - 5, int(os.environ["OBSERVED_AT"]) + 60 + 5
+    if not low <= not_before <= high:
+        problems.append("notBefore " + s["notBefore"] + " is not a minute after the failure")
+    if abs(epoch(stated.group(1)) - not_before) >= 1:
+        problems.append("the sentence says " + stated.group(1) + ", the scan " + s["notBefore"])
+if problems:
+    print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)'
+echo "✓ an unreachable host is retried, a minute after the failure"
 echo "── done in $(elapsed "$started_at")"
