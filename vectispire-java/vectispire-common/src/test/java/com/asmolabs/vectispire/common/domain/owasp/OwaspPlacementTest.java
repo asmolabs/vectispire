@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Measurement;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Split;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.State;
 import java.util.List;
 import java.util.Map;
@@ -56,19 +57,46 @@ class OwaspPlacementTest {
     }
 
     @Test
-    @DisplayName("over several targets: findings anywhere, else measured anywhere, else not covered only when all are")
+    @DisplayName("over several targets: counted where any target measured, else not covered only when all are, else not measured")
     void acrossTargets() {
-        assertThat(OwaspCoverage.acrossTargets(List.of(State.NOT_MEASURED, State.NO_FINDING, State.FINDINGS)))
-                .contains(State.FINDINGS);
-        assertThat(OwaspCoverage.acrossTargets(List.of(State.NOT_MEASURED, State.NO_FINDING)))
+        assertThat(across(line(State.NOT_MEASURED, 0, 0), line(State.NO_FINDING, 0, 1), line(State.FINDINGS, 2, 0)))
+                .contains(new Split("A06", State.FINDINGS, 2, 1));
+        assertThat(across(line(State.NOT_MEASURED, 0, 0), line(State.NO_FINDING, 0, 0)))
                 .as("one target scanned and clean measures the category, as one scanned target does in the grid")
-                .contains(State.NO_FINDING);
-        assertThat(OwaspCoverage.acrossTargets(List.of(State.NOT_MEASURED, State.NOT_MEASURED)))
-                .contains(State.NOT_MEASURED);
-        assertThat(OwaspCoverage.acrossTargets(List.of(State.NOT_COVERED, State.NOT_COVERED)))
-                .contains(State.NOT_COVERED);
-        assertThat(OwaspCoverage.acrossTargets(List.of(State.NOT_COVERED, State.NOT_MEASURED)))
-                .contains(State.NOT_MEASURED);
-        assertThat(OwaspCoverage.acrossTargets(List.of())).as("nothing recorded is not a state").isEmpty();
+                .contains(new Split("A06", State.NO_FINDING, 0, 0));
+        assertThat(across(line(State.NOT_MEASURED, 3, 1), line(State.NO_FINDING, 0, 0)))
+                .as("a never-scanned target's findings, beside a measured target: the grid counts them")
+                .contains(new Split("A06", State.FINDINGS, 3, 1));
+        assertThat(across(line(State.NOT_MEASURED, 3, 1), line(State.NOT_MEASURED, 0, 0)))
+                .as("nothing scanned: the grid counts nothing, a never-scanned target's findings included")
+                .contains(new Split("A06", State.NOT_MEASURED, 0, 0));
+        assertThat(across(line(State.NOT_COVERED, 0, 0), line(State.NOT_COVERED, 0, 0)))
+                .contains(new Split("A06", State.NOT_COVERED, 0, 0));
+        assertThat(across(line(State.NOT_COVERED, 0, 0), line(State.NOT_MEASURED, 0, 0)))
+                .contains(new Split("A06", State.NOT_MEASURED, 0, 0));
+        assertThat(OwaspCoverage.acrossTargets("A06", List.of())).as("nothing recorded is not a state").isEmpty();
+    }
+
+    @Test
+    @DisplayName("a never-scanned target is not measured, and keeps the findings the grid would count")
+    void unscanned() {
+        assertThat(OwaspCoverage.unscanned(List.of(
+                        new Split("A05", State.FINDINGS, 2, 1),
+                        new Split("A06", State.NO_FINDING, 0, 3),
+                        new Split("A01", State.NOT_COVERED, 0, 0),
+                        new Split("A03", State.NOT_MEASURED, 0, 0))))
+                .containsExactly(
+                        new Split("A05", State.NOT_MEASURED, 2, 1),
+                        new Split("A06", State.NOT_MEASURED, 0, 3),
+                        new Split("A01", State.NOT_COVERED, 0, 0),
+                        new Split("A03", State.NOT_MEASURED, 0, 0));
+    }
+
+    private static Optional<Split> across(Split... lines) {
+        return OwaspCoverage.acrossTargets("A06", List.of(lines));
+    }
+
+    private static Split line(State state, long open, long settled) {
+        return new Split("A06", state, open, settled);
     }
 }

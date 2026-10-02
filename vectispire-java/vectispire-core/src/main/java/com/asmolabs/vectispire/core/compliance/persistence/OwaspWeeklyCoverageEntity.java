@@ -14,6 +14,12 @@ import java.time.Instant;
  * <p>The reasoning is in V67: the state cannot be reconstructed afterwards, so it is recorded. The
  * target is named by kind and identifier, with no foreign key; {@code OwaspCoveragePurge} removes a
  * deleted target's rows in the deleting transaction.
+ *
+ * <p><b>V67 says both counts are zero unless the category was measured; one case reads otherwise.</b> A
+ * target never scanned keeps {@code NOT_MEASURED} with the findings the grid would count where the
+ * category is measured — what the live grid counts for it once a target beside it is scanned. A reader
+ * combines the rows with {@code OwaspCoverage.acrossTargets}, which counts them only then; summing the
+ * counts without the states would count them where the grid does not.
  */
 @Entity
 @Table(name = "t_owasp_weekly_coverage")

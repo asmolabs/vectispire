@@ -104,13 +104,14 @@ class OwaspWeeklyCoverageDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("a target never scanned reads unmeasured, whatever its backlog holds — and nobody else's evidence")
+    @DisplayName("a target never scanned reads unmeasured, and keeps the findings the grid counts beside a scanned one")
     void aNeverScannedTarget() {
         // The estate is scanned (alpha is); beta is not. Narrowed to beta, the grid must not borrow
-        // alpha's scan: its categories are unmeasured, and its open vulnerability is not a measurement.
+        // alpha's scan: its categories are unmeasured. Its open vulnerability is kept all the same — the
+        // live grid counts it for any reader who sees alpha too, and `acrossTargets` adds it back then.
         List<Split> lines = coverage.ofTarget(new ScanTarget.Repository(beta), coverage.reading());
 
-        assertThat(line(lines, "A06")).isEqualTo(new Split("A06", State.NOT_MEASURED, 0, 0));
+        assertThat(line(lines, "A06")).isEqualTo(new Split("A06", State.NOT_MEASURED, 1, 0));
         assertThat(line(lines, "A01").state()).isEqualTo(State.NOT_COVERED);
     }
 

@@ -32,7 +32,9 @@
   plus, le passage de maintenance enregistre, pour chaque dépôt et chaque image — analysés ou non — et pour
   chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien
   trouvé), les constats ouverts qu'elle compte, et à part les constats ouverts dont le triage est réglé,
-  pour que les risques acceptés puissent être montrés comme tels. La semaine en cours (lundi 00:00 UTC) est
+  pour que les risques acceptés puissent être montrés comme tels — pour une cible jamais analysée, ses
+  constats tels que la grille les compte dès qu'une cible à côté d'elle est analysée, pour que la semaine
+  d'un projet ou d'un parc lise ce que lit la grille en direct. La semaine en cours (lundi 00:00 UTC) est
   réécrite jusqu'à sa clôture ; une semaine close garde son dernier relevé. **Les semaines antérieures à la
   mise à jour n'ont pas d'état enregistré** — qu'une catégorie ait alors été couverte ou mesurée dépendait
   de réglages et de règles qui ont changé depuis, et la vue hebdomadaire ci-dessous dit « non enregistré »

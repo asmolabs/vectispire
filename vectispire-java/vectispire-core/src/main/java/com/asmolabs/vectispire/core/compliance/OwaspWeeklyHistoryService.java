@@ -270,14 +270,20 @@ public class OwaspWeeklyHistoryService {
                         return new OwaspWeekCategory(category.getKey(), category.getValue(), null,
                                 flow.openAtEnd(), null, flow.opened(), flow.resolved());
                     }
-                    List<OwaspWeeklyStateCount> rows = byCategory.getOrDefault(category.getKey(), List.of());
+                    // Summed per state in the database; combined here by the grid's rule, which needs the
+                    // states apart — a never-scanned target's findings count only beside a measured one.
+                    Optional<OwaspCoverage.Split> combined = OwaspCoverage.acrossTargets(category.getKey(),
+                            byCategory.getOrDefault(category.getKey(), List.of()).stream()
+                                    .flatMap(row -> stateOf(row.state())
+                                            .map(state -> new OwaspCoverage.Split(category.getKey(), state, row.open(), row.settled()))
+                                            .stream())
+                                    .toList());
                     return new OwaspWeekCategory(
                             category.getKey(),
                             category.getValue(),
-                            OwaspCoverage.acrossTargets(rows.stream().map(row -> stateOf(row.state())).flatMap(Optional::stream).toList())
-                                    .orElse(null),
-                            rows.stream().mapToLong(OwaspWeeklyStateCount::open).sum(),
-                            rows.stream().mapToLong(OwaspWeeklyStateCount::settled).sum(),
+                            combined.map(OwaspCoverage.Split::state).orElse(null),
+                            combined.map(OwaspCoverage.Split::open).orElse(0L),
+                            combined.map(OwaspCoverage.Split::settled).orElse(0L),
                             flow.opened(),
                             flow.resolved());
                 })
@@ -300,7 +306,7 @@ public class OwaspWeeklyHistoryService {
 
     /**
      * A recorded state by its name. One this version does not know — written by a later one — is left
-     * out of the combination rather than read as one it is not.
+     * out of the combination, its counts with it, rather than read as one it is not.
      */
     private static Optional<OwaspCoverage.State> stateOf(String name) {
         return java.util.Arrays.stream(OwaspCoverage.State.values()).filter(state -> state.name().equals(name)).findFirst();

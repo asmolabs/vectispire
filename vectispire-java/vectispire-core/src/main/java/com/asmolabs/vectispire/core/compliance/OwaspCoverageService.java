@@ -84,7 +84,11 @@ public class OwaspCoverageService {
 
     @Transactional(readOnly = true)
     public OwaspCoverage.Grid grid(Visibility allowed) {
-        return grid(allowed, reading(), true);
+        Reading reading = reading();
+        // **Asked of the estate and not of the deployment.** A restricted reader whose two repositories
+        // were never scanned must be told their categories are unmeasured, even where the rest of the
+        // estate is covered — otherwise the grid reports somebody else's evidence under their name.
+        return grid(allowed, reading, true, reading.scanned().stream().anyMatch(allowed::permits));
     }
 
     /**
@@ -97,21 +101,23 @@ public class OwaspCoverageService {
     @Transactional(readOnly = true)
     public List<OwaspCoverage.Split> ofTarget(ScanTarget target, Reading reading) {
         Visibility only = Visibility.only(Set.of(target));
-        return OwaspCoverage.split(grid(only, reading, true), grid(only, reading, false));
+        if (reading.scanned().contains(target)) {
+            return OwaspCoverage.split(grid(only, reading, true, true), grid(only, reading, false, true));
+        }
+        // A target nothing scanned: not measured, with the findings the estate's grid counts once anything
+        // beside it is scanned — `OwaspCoverage.unscanned` says why, and `acrossTargets` adds them back
+        // only where the grid would.
+        return OwaspCoverage.unscanned(OwaspCoverage.split(grid(only, reading, true, true), grid(only, reading, false, true)));
     }
 
-    private OwaspCoverage.Grid grid(Visibility allowed, Reading reading, boolean excludeSettled) {
+    private OwaspCoverage.Grid grid(Visibility allowed, Reading reading, boolean excludeSettled, boolean scanned) {
         Map<FindingType, Long> open = new EnumMap<>(FindingType.class);
         for (FindingType type : FindingType.values()) {
             OwaspCoverage.categoryOf(type).ifPresent(category -> open.put(type, countOpen(type, allowed, excludeSettled)));
         }
 
         return OwaspCoverage.assess(new OwaspCoverage.Measurement(
-                // **Asked of the estate and not of the deployment.** A restricted reader whose two
-                // repositories were never scanned must be told their categories are unmeasured, even
-                // where the rest of the estate is covered — otherwise the grid reports somebody else's
-                // evidence under their name.
-                reading.scanned().stream().anyMatch(allowed::permits),
+                scanned,
                 reading.endOfLifeEnabled(),
                 reading.codeAnalysisReaches(),
                 Map.copyOf(open),

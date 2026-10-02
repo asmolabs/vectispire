@@ -79,6 +79,7 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
     @DisplayName("the current week, once recorded, reads what the live grid reads — state and open, category by category")
     void theCurrentWeekIsTheLiveGrid() throws Exception {
         anEstate();
+        aNeverScannedTarget();
         assertThat(record.capture()).isEqualTo(OwaspWeeklyCoverageService.Outcome.CAPTURED);
 
         JsonNode current = lastWeek(weekly("", asAdmin()));
@@ -88,6 +89,9 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
         assertSameAsTheGrid(current, grid(asAdmin()));
         assertThat(category(current, "A06").path("settled").asLong())
                 .as("the accepted vulnerability, kept apart").isEqualTo(1);
+        assertThat(category(current, "A06").path("open").asLong())
+                .as("alpha's, beta's and the never-scanned gamma's, as the grid counts them").isEqualTo(3);
+        assertThat(category(current, "A05").path("settled").asLong()).as("gamma's accepted misconfiguration").isEqualTo(1);
         JsonNode secrets = category(current, "A07");
         assertThat(List.of(secrets.path("state").asText(), secrets.path("open").asLong(), secrets.path("settled").asLong()))
                 .as("findings on beta, clean on alpha; an accepted secret on each")
@@ -111,6 +115,30 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
 
         JsonNode all = lastWeek(weekly("", asAdmin()));
         assertThat(category(all, "A06").path("open").asLong()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("a never-scanned target counts beside a scanned one, and nowhere when the reader sees only it — as in the grid")
+    void aNeverScannedTargetCountsAsTheGridCountsIt() throws Exception {
+        Estate estate = anEstate();
+        long gamma = aNeverScannedTarget();
+        restrict();
+        String reader = asReader();
+        record.capture();
+
+        grant(readerId(), List.of(gamma));
+        JsonNode alone = lastWeek(weekly("", reader));
+        assertSameAsTheGrid(alone, grid(reader));
+        assertThat(List.of(category(alone, "A05").path("state").asText(), category(alone, "A05").path("open").asLong()))
+                .as("nothing the reader sees was scanned: not measured, its findings not counted")
+                .containsExactly("NOT_MEASURED", 0L);
+
+        grant(readerId(), List.of(estate.alpha(), gamma));
+        JsonNode beside = lastWeek(weekly("", reader));
+        assertSameAsTheGrid(beside, grid(reader));
+        assertThat(List.of(category(beside, "A05").path("state").asText(), category(beside, "A05").path("open").asLong()))
+                .as("alpha scanned and clean, gamma's misconfiguration counted").containsExactly("FINDINGS", 1L);
+        assertThat(category(beside, "A06").path("open").asLong()).as("alpha's and gamma's").isEqualTo(2);
     }
 
     // ------------------------------------------------------------------------------ the past, reconstructed
@@ -341,6 +369,19 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
     }
 
     /**
+     * A repository nothing has scanned, with an open vulnerability, an open misconfiguration and an
+     * accepted one: the grid counts the open ones once a visible target beside it is scanned.
+     */
+    private long aNeverScannedTarget() {
+        long gamma = repository();
+        Instant seen = Instant.now().minusSeconds(3600);
+        issue(gamma, FindingType.VULNERABILITY, null, seen, null);
+        issue(gamma, FindingType.IAC, null, seen, null);
+        triaged(issue(gamma, FindingType.IAC, null, seen, null), TriageStatus.NOT_AFFECTED);
+        return gamma;
+    }
+
+    /**
      * @param atStart a vulnerability first seen at the week's first instant, still open
      * @param atTheEnd a secret first seen at the next Monday's midnight
      * @param resolvedAtTheEnd a vulnerability resolved at the next Monday's midnight
@@ -470,6 +511,13 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
     private void file(long project, long repository) throws Exception {
         mvc.perform(authenticated(put("/api/v1/projects/" + project + "/repositories/" + repository), asAdmin()))
                 .andExpect(status().isNoContent());
+    }
+
+    private void grant(long userId, List<Long> repositories) throws Exception {
+        mvc.perform(authenticated(put("/api/v1/users/" + userId + "/targets"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(repositories.stream().map(id -> Map.of("kind", "repository", "id", id)).toList())))
+                .andExpect(status().isOk());
     }
 
     private void grant(long userId, String kind, long id) throws Exception {

@@ -30,7 +30,9 @@
   turn records, for every repository and image — scanned or not — and for each of the ten categories,
   the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings
   it counts, and apart from them the open findings whose triage is settled, so that accepted risks can be
-  shown as such. The current week (Monday 00:00 UTC) is rewritten until it closes; a closed week keeps its
+  shown as such — for a target never scanned, its findings as the grid counts them once a target beside it
+  is scanned, so that a project's or an estate's week reads what the live grid reads. The current week
+  (Monday 00:00 UTC) is rewritten until it closes; a closed week keeps its
   last capture. **Weeks before the upgrade have no recorded state** — whether a category was covered or
   measured then depended on settings and rules that have moved since, and the weekly view below says
   "not recorded" for them rather than guess.

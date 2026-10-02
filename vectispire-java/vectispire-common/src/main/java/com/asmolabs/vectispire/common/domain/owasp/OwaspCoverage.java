@@ -168,29 +168,58 @@ public final class OwaspCoverage {
     }
 
     /**
-     * One category's state over several targets, from each target's recorded state — the weekly
-     * record kept per target, read for a project, a solution or a reader's estate.
+     * One category over several targets, from each target's recorded line — the weekly record kept per
+     * target, read for a project, a solution or a reader's estate. The lines may be per target or already
+     * summed per state; the answer is the same.
      *
-     * <p><b>The live grid's answer for the same targets</b>, which is what makes a heatmap's last
-     * column agree with the grid beside it: findings anywhere is {@link State#FINDINGS} (a target's
-     * state is that exactly when its count is above zero, so the sum is too); otherwise one target
-     * measured and clean makes {@link State#NO_FINDING}, as one scanned target makes the grid
-     * measured; a category nothing here covers is {@link State#NOT_COVERED} for every target, since
-     * that is a property of the deployment; anything else is {@link State#NOT_MEASURED}.
+     * <p><b>The live grid's answer for the same targets</b>, which is what makes a heatmap's last column
+     * agree with the grid beside it. The grid counts every visible target's open findings once one of
+     * them has been scanned, so: a category some target measured ({@link State#FINDINGS} or {@link
+     * State#NO_FINDING} — a scanned target's line, the reading's settings being the estate's) counts every
+     * line's findings, those of a target never scanned included ({@link #unscanned}), and reads {@code
+     * FINDINGS} when the sum is above zero, {@code NO_FINDING} otherwise; a category nothing here covers is
+     * {@link State#NOT_COVERED} for every target, since that is a property of the deployment; anything
+     * else is {@link State#NOT_MEASURED}, and counts nothing — a target never scanned holds findings the
+     * grid does not count until something visible beside it is scanned.
      *
      * @return empty when no target was recorded — never a state invented for nothing
      */
-    public static Optional<State> acrossTargets(java.util.Collection<State> perTarget) {
+    public static Optional<Split> acrossTargets(String id, java.util.Collection<Split> perTarget) {
         if (perTarget.isEmpty()) {
             return Optional.empty();
         }
-        if (perTarget.contains(State.FINDINGS)) {
-            return Optional.of(State.FINDINGS);
+        boolean measured = perTarget.stream()
+                .anyMatch(line -> line.state() == State.FINDINGS || line.state() == State.NO_FINDING);
+        if (measured) {
+            long open = perTarget.stream().mapToLong(Split::open).sum();
+            long settled = perTarget.stream().mapToLong(Split::settled).sum();
+            return Optional.of(new Split(id, open > 0 ? State.FINDINGS : State.NO_FINDING, open, settled));
         }
-        if (perTarget.contains(State.NO_FINDING)) {
-            return Optional.of(State.NO_FINDING);
-        }
-        return Optional.of(perTarget.stream().allMatch(State.NOT_COVERED::equals) ? State.NOT_COVERED : State.NOT_MEASURED);
+        return Optional.of(new Split(id,
+                perTarget.stream().allMatch(line -> line.state() == State.NOT_COVERED) ? State.NOT_COVERED : State.NOT_MEASURED,
+                0, 0));
+    }
+
+    /**
+     * The lines of a target nothing has scanned, from its grid read as if it had been.
+     *
+     * <p><b>Not measured, with the findings the grid would count.</b> The live grid reads a whole visible
+     * estate: one scanned target makes it measured, and from then on it counts every target's open
+     * findings — a target never scanned among them. Recorded per target, such a target used to read not
+     * measured with nothing, and an estate's sum then fell short of the grid shown beside it. Its state
+     * stays {@link State#NOT_MEASURED}, since nothing looked at it, and its counts are kept: {@link
+     * #acrossTargets} adds them where something measured the category, and drops them where nothing did,
+     * which is what the grid does. A category no scanner covers, or one unmeasured by the settings, counts
+     * nothing already.
+     *
+     * @param asIfScanned the target's split, read with the estate measured
+     */
+    public static List<Split> unscanned(List<Split> asIfScanned) {
+        return asIfScanned.stream()
+                .map(line -> line.state() == State.FINDINGS || line.state() == State.NO_FINDING
+                        ? new Split(line.id(), State.NOT_MEASURED, line.open(), line.settled())
+                        : line)
+                .toList();
     }
 
     /**

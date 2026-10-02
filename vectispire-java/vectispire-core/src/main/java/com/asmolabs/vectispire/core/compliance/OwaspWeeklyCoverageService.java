@@ -40,7 +40,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p><b>The whole estate, every target that exists, whether scanned or not.</b> A target never
  * scanned is recorded: its categories read not measured or not covered, and that is the information —
- * a heatmap leaving it out would show an estate better examined than it is. Per target so that a reader
+ * a heatmap leaving it out would show an estate better examined than it is. Its open and settled
+ * findings are counted all the same, as the grid would count them were it scanned: the live grid counts
+ * them once any target beside it is, and a sum without them fell short of the grid shown beside the
+ * week ({@code OwaspCoverage.unscanned}, {@code acrossTargets}). Per target so that a reader
  * can aggregate to a project or a solution and see only what they may.
  *
  * <p><b>Two instances may capture the same week at once, and the unique key decides.</b> No instance
