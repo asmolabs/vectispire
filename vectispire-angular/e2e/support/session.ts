@@ -60,10 +60,12 @@ export async function signIn(page: Page): Promise<void> {
 
     await rotate(page);
 
-    // **Signed in again, because the change revokes every session the account had** — including
-    // the one that just made it. Without this the helper returns on a page that is about to
-    // redirect, and the case that follows fails against the sign-in screen for a reason that has
-    // nothing to do with what it was testing.
+    // **Signed in again, though the change keeps this session.** The server closes the account's
+    // *other* sessions and leaves the one that made the change alive
+    // (`AuthenticationFlowService.changePassword`), and the screen moves on to the dashboard. The
+    // second sign-in is a check, not a recovery: it proves the rotated password is the one the
+    // server now holds before `known` records it, so a rotation that silently failed is reported
+    // here rather than as a refused sign-in in some unrelated case later.
     known.set('admin', E2E_PASSWORD);
     const afterRotation = await attempt(page, E2E_PASSWORD);
     expect(afterRotation, 'the rotated password was refused right after being set').toBe(true);
@@ -219,8 +221,8 @@ export async function signInAs(page: Page, role: 'ADMIN' | 'CISO' | 'AUDITOR' | 
         await page.click('button[type="submit"]');
         await expect(page).not.toHaveURL(/\/change-password/, { timeout: 15_000 });
 
-        // The change revokes every session of the account, including the one that just made it —
-        // the same reason as for bootstrap.
+        // The change keeps this session and closes the others; signing in again checks the rotated
+        // password before `known` records it — the same reason as for bootstrap.
         known.set(username, ROLE_PASSWORD_ROTATED);
         const again = await attempt(page, ROLE_PASSWORD_ROTATED, username);
         expect(again, `the rotated password was refused immediately after being set`).toBe(true);
