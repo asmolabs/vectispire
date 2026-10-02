@@ -1,19 +1,20 @@
 package com.asmolabs.vectispire.core.plugins;
 
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
  * Tells the module above that a report was accepted for a repository ({@link RepositoryReported}), once
- * for the three kinds of import, and never at the import's expense: the pipeline that sent the report is
- * answered for what was recorded, and whatever the reaction throws is logged and dropped here.
+ * for the three kinds of import, <b>inside the import's transaction</b> (decision 0033).
+ *
+ * <p>It was called after the commit and the audit entry, and whatever the reaction threw was logged and
+ * dropped: a process stopping in between answered nothing for that report. The reaction now only queues
+ * what it will do, in the import's transaction, so it commits with the import or not at all, and does
+ * its work later, from the outbox, where a failure is retried instead of logged and lost. Nothing is
+ * caught here any more: a failure to queue is a failure of the write it belongs to.
  */
 @Component
 class ReportedRepositories {
-
-    private static final Logger log = LoggerFactory.getLogger(ReportedRepositories.class);
 
     private final Optional<RepositoryReported> reported;
 
@@ -21,15 +22,8 @@ class ReportedRepositories {
         this.reported = reported;
     }
 
-    /** Called after the import's commit and its audit entry. */
+    /** Called inside the import's transaction, after its rows are saved. */
     void announce(long repositoryId) {
-        reported.ifPresent(listener -> {
-            try {
-                listener.reported(repositoryId);
-            } catch (RuntimeException failed) {
-                log.warn("A report for repository {} was recorded, and what reacts to it failed — the import stands: {}",
-                        repositoryId, failed.toString());
-            }
-        });
+        reported.ifPresent(listener -> listener.reported(repositoryId));
     }
 }

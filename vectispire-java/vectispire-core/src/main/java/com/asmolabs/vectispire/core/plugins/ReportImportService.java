@@ -157,7 +157,11 @@ public class ReportImportService {
         row.setImportedAt(clock.instant());
         row.setImportedBy(importedBy(caller));
         row.setApiKeyId(caller.keyId());
-        CoverageImportEntity saved = transactions.execute(status -> coverage.save(row));
+        CoverageImportEntity saved = transactions.execute(status -> {
+            CoverageImportEntity imported = coverage.save(row);
+            reported.announce(repositoryId);
+            return imported;
+        });
 
         audit.record(caller.actor().entry(AuditOperation.COVERAGE_IMPORTED, String.valueOf(repositoryId),
                 "Coverage from source \"" + source.getSlug() + "\" (" + saved.getFormat() + ") recorded for repository "
@@ -165,7 +169,6 @@ public class ReportImportService {
                         + (saved.getBranchesTotal() == null ? ""
                                 : ", branches " + saved.getBranchesCovered() + "/" + saved.getBranchesTotal())
                         + stated(said) + ", sha256 " + saved.getDocumentSha256().substring(0, 12) + "."));
-        reported.announce(repositoryId);
         return CoverageImportView.of(saved);
     }
 
@@ -212,6 +215,7 @@ public class ReportImportService {
                 entity.setSkippedCount(suite.skipped());
                 return entity;
             }).toList());
+            reported.announce(repositoryId);
             return imported;
         });
 
@@ -221,7 +225,6 @@ public class ReportImportService {
                         + saved.getSuitesCount() + " suite(s), " + saved.getTestsCount() + " test(s), "
                         + saved.getFailuresCount() + " failed, " + saved.getErrorsCount() + " in error, "
                         + saved.getSkippedCount() + " skipped" + stated(said) + ", sha256 " + sha256.substring(0, 12) + "."));
-        reported.announce(repositoryId);
         return TestReportImportView.of(saved);
     }
 

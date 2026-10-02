@@ -312,7 +312,10 @@ sentences.
 
 **When.** When a scan completes on a repository of the project, when a SARIF, coverage or test report
 is accepted for one, and when the checklist is opened, moved to another version or reopened — the page
-you are sent to already shows the answers. Never on a submitted or signed-off revision, and never
+you are sent to already shows the answers. After a scan or a report, the answers arrive **within a
+minute** rather than at once: the scan or the import queues them with its own results, and the
+scheduler's next relay gives them, retrying if answering fails — so a server that stops at the wrong
+moment still answers when it starts again. Never on a submitted or signed-off revision, and never
 because somebody read the page.
 
 **Who.** The author is **Vectispire**: no account, no role. Every such answer shows *automatic* beside

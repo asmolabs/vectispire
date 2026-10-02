@@ -613,31 +613,22 @@ public class ScanDispatcher {
         if (prepared.isEmpty()) {
             return false;
         }
-        boolean written = Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts, prepared.get())));
-        if (written) {
-            announce(scanId);
-        }
-        return written;
+        return Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts, prepared.get())));
     }
 
     /**
-     * Tells the module above that a repository's scan completed — after the commit, here where both
-     * executors' results pass, and never at the scan's expense: whatever the reaction throws is logged
-     * and dropped. Thrown on, it would reach the built-in worker's handler, which abandons the scan whose
-     * results are already written, or the agent's route, which answers an error for a result it kept.
+     * Tells the module above that a repository's scan completed — <b>in the scan's transaction</b>, here
+     * where both executors' results pass (decision 0033). It was called after the commit and never at the
+     * scan's expense, and a stop between the two lost the reaction: a checklist's automatic answers
+     * waited for the next scan. The reaction now only queues what it will do, in this transaction, so it
+     * commits with the scan or not at all; the work itself runs later, from the outbox, where a failure
+     * is retried rather than dropped.
      */
-    private void announce(long scanId) {
-        if (scanned.isEmpty()) {
-            return;
-        }
-        try {
-            queue.byId(scanId)
-                    .filter(scan -> com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName()
-                            .equals(scan.getStatus()))
-                    .map(ScanEntity::getRepoId)
-                    .ifPresent(repositoryId -> scanned.get().scanned(repositoryId));
-        } catch (RuntimeException failed) {
-            log.warn("Scan {} completed, and what reacts to it failed — the scan stands: {}", scanId, failed.toString());
+    private void announce(ScanEntity scan) {
+        if (scanned.isPresent()
+                && scan.getRepoId() != null
+                && com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName().equals(scan.getStatus())) {
+            scanned.get().scanned(scan.getRepoId());
         }
     }
 
@@ -696,6 +687,7 @@ public class ScanDispatcher {
         scan.setClaimedAt(null);
         scan.setLeaseExpiresAt(null);
         queue.save(scan);
+        announce(scan);
         return true;
     }
 

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,6 +13,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.checklists.ProjectChecklistService;
+import com.asmolabs.vectispire.core.checklists.internal.ChecklistAnswerDelivery;
+import com.asmolabs.vectispire.core.maintenance.internal.MaintenanceJobs;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -32,10 +37,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * A scan or an import is never failed by the checklists reacting to it (decision 0032, amendment "the
- * scans answer the lines they measure"): the reaction runs after their commit and whatever it throws is
- * the caller's to swallow — the agent is answered for the result it sent, the pipeline for the report it
- * deposited, and neither goes back to a queue or a retry.
+ * A scan or an import is never failed by the checklists reacting to it, and the reaction is not lost
+ * when it fails (decision 0033, lot 3). The scan or the import only queues a {@code checklist_answer}
+ * message in its own transaction; the answer is given from the outbox, where a failure is the relay's
+ * to retry — the agent is answered for the result it sent, the pipeline for the report it deposited,
+ * and the message waits for its next attempt with the reason it failed. Before the lot the reaction ran
+ * after the commit, a failure was logged and dropped, and a stop in between lost it.
  */
 @DisplayName("a scan and an import stand when answering the checklist fails")
 class ChecklistAutomaticAnswersFailureRoutesTest extends ApiTestBase {
@@ -51,6 +58,12 @@ class ChecklistAutomaticAnswersFailureRoutesTest extends ApiTestBase {
 
     @Autowired
     private CoverageImportRepository coverageImports;
+
+    @Autowired
+    private OutboxMessageRepository outbox;
+
+    @Autowired
+    private MaintenanceJobs jobs;
 
     private long project;
     private long repository;
@@ -74,7 +87,7 @@ class ChecklistAutomaticAnswersFailureRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("an agent's result is accepted and the scan completed, the reaction's failure logged")
+    @DisplayName("an agent's result is accepted and the scan completed; the answer fails from the outbox and waits for its retry")
     void theScanCompletes() throws Exception {
         ScanEntity pending = new ScanEntity();
         pending.setRepoId(repository);
@@ -100,15 +113,21 @@ class ChecklistAutomaticAnswersFailureRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"secrets\":[], \"duration\":\"PT1S\"}"))
                 .andExpect(status().isOk());
 
-        verify(checklists).answerFromEvidence(repository);
+        verify(checklists, never()).answerFromEvidence(anyLong());
         ScanEntity scan = scans.findById(scanId).orElseThrow();
         assertThat(scan.getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
         assertThat(scan.getAttempts()).as("not handed back to the queue").isEqualTo(1);
         assertThat(scan.getClaimedBy()).isNull();
+        assertThat(answersQueued()).as("queued with the scan, answered from the outbox").hasSize(1);
+
+        jobs.relayNotifications();
+
+        verify(checklists).answerFromEvidence(repository);
+        assertFailedAndKept();
     }
 
     @Test
-    @DisplayName("a coverage report is recorded and answered 201, the reaction's failure logged")
+    @DisplayName("a coverage report is recorded and answered 201; the answer fails from the outbox and waits for its retry")
     void theImportStands() throws Exception {
         JsonNode key = json.readTree(mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -130,7 +149,28 @@ class ChecklistAutomaticAnswersFailureRoutesTest extends ApiTestBase {
                         .content(ReportImportRoutesTest.JACOCO.getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isCreated());
 
-        verify(checklists).answerFromEvidence(repository);
+        verify(checklists, never()).answerFromEvidence(anyLong());
         assertThat(coverageImports.findAll()).hasSize(1);
+        assertThat(answersQueued()).as("queued with the import, answered from the outbox").hasSize(1);
+
+        jobs.relayNotifications();
+
+        verify(checklists).answerFromEvidence(repository);
+        assertFailedAndKept();
+    }
+
+    private List<OutboxMessageEntity> answersQueued() {
+        return outbox.findAll().stream()
+                .filter(message -> ChecklistAnswerDelivery.TYPE.equals(message.getMessageType()))
+                .toList();
+    }
+
+    /** The failed answer is still in the queue, due again, with its reason — not dropped as it was. */
+    private void assertFailedAndKept() {
+        assertThat(answersQueued()).singleElement().satisfies(message -> {
+            assertThat(message.getStatus()).isEqualTo("pending");
+            assertThat(message.getAttempts()).isEqualTo(1);
+            assertThat(message.getLastError()).contains("the measurer is down");
+        });
     }
 }

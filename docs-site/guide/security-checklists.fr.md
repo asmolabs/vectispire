@@ -329,7 +329,10 @@ du produit.
 
 **Quand.** Quand une analyse se termine sur un dépôt du projet, quand un rapport SARIF, de couverture
 ou de tests est accepté pour l'un d'eux, et quand la checklist est ouverte, passée à une autre version
-ou rouverte — la page où vous arrivez montre déjà les réponses. Jamais sur une révision soumise ou
+ou rouverte — la page où vous arrivez montre déjà les réponses. Après une analyse ou un rapport, les
+réponses arrivent **en moins d'une minute** plutôt qu'aussitôt : l'analyse ou l'import les met en file
+avec ses propres résultats, et le prochain passage du relais du planificateur les donne, en réessayant
+si la réponse échoue — un serveur qui s'arrête au mauvais moment répond donc quand même à son redémarrage. Jamais sur une révision soumise ou
 approuvée, et jamais parce que quelqu'un a lu la page.
 
 **Qui.** L'auteur est **Vectispire** : aucun compte, aucun rôle. Chacune de ces réponses porte la

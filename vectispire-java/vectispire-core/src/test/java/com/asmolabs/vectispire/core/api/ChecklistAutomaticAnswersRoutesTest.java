@@ -16,6 +16,7 @@ import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.checklists.ProjectChecklistService;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerRepository;
+import com.asmolabs.vectispire.core.maintenance.internal.MaintenanceJobs;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -123,6 +124,12 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
 
     @Autowired
     private ProjectChecklistService service;
+
+    @Autowired
+    private MaintenanceJobs jobs;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository outbox;
 
     private record Account(String token, long id, String name) {}
 
@@ -400,6 +407,10 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
             assertThat(answers.findAll()).isEmpty();
             assertThat(entries("CHECKLIST_ANSWERED")).isEmpty();
             assertThat(read(developer, 1).at("/checklist/edition").asInt()).isEqualTo(1);
+            assertThat(outbox.findAll())
+                    .as("nothing queued either: a message whose delivery would do nothing is one to learn to ignore")
+                    .noneMatch(message -> com.asmolabs.vectispire.core.checklists.internal.ChecklistAnswerDelivery.TYPE
+                            .equals(message.getMessageType()));
         }
 
         @Test
@@ -449,6 +460,7 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
                             .contentType(MediaType.APPLICATION_XML)
                             .content(ReportImportRoutesTest.JACOCO.getBytes(StandardCharsets.UTF_8)))
                     .andExpect(status().isCreated());
+            relay();
 
             JsonNode coverage = read(developer, 1).at("/lines/2/answer");
             assertThat(coverage.at("/value").asText()).isEqualTo("yes");
@@ -592,6 +604,15 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON).content(result))
                 .andExpect(status().isOk());
         assertThat(scans.findById(scanId).orElseThrow().getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
+        relay();
+    }
+
+    /**
+     * The relay's pass, as the scheduler runs it every minute: a scan or an import only queues the
+     * checklist's answers in its own transaction (decision 0033), and they are given from the outbox.
+     */
+    private void relay() {
+        jobs.relayNotifications();
     }
 
     /** A completed scan written straight into the table, as one from before: no reaction runs. */

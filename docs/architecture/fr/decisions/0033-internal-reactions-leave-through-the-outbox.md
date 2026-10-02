@@ -102,7 +102,9 @@ est durable.
    validé, l'entrée ou le verdict est écrit seul et l'événement publié après — l'ancien chemin, gardé
    en repli.*
 3. **Les réponses automatiques d'une checklist comme message `checklist_answer`**, écrit dans la
-   transaction du scan ou de l'import, traité par `checklists`.
+   transaction du scan ou de l'import, traité par `checklists`. *Fait le 2026-10-02 :
+   `ChecklistAnswerDelivery` ; les ports sont appelés dans la transaction des propriétaires et ne font que
+   mettre en file, et les réponses arrivent au prochain passage du relais.*
 4. **`AGENT_RESULT_SUBMITTED` dans la transaction du résultat.**
 5. **Des événements de domaine à la place des appels vers `siem`**, et `notifications` → `issues`
    examiné de la même façon ; chaque ligne d'`allowedDependencies` retirée est une ligne de la revue.

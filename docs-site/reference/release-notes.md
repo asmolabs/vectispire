@@ -1,8 +1,29 @@
 # Release notes
 
+## Next release (after 0.10.0)
+
+### Changes an integration can see
+
+- **A checklist's automatic answers arrive within a minute of a scan or a report, not at once.** A
+  completed scan, or an accepted SARIF, coverage or test report, queues them with its own results, and
+  the scheduler's next relay gives them, retrying if answering fails. They used to be given just after
+  the commit, and a server stopping in between left the lines unanswered until the next scan. A script
+  that reads a checklist right after uploading a report should wait for the relay — opening, moving or
+  reopening a revision still answers at once.
+- **A SIEM event an audit entry signals, and `SECURITY_GATE_FAILED`, are queued with what caused them.**
+  They were queued just after, in a transaction of their own, and a stop between the two lost them.
+  If the two cannot be written together, the entry or the verdict is still written and the event queued
+  right after it, as before; the server logs a warning when that happens.
+
+### Fixed
+
+- **The first evidence bundle of an installation without `vectispire.signing.key` answered 500.** The
+  signing key created on first use joined the bundle's read-only transaction, which MySQL and PostgreSQL
+  refuse to write in. It is now created outside it.
+
 ## 0.10.0 — 2026-10-01
 
-Not tagged yet. Read **Before you upgrade** first: five of its points stop something working
+Read **Before you upgrade** first: five of its points stop something working
 until an operator acts, on purpose.
 
 ### Before you upgrade

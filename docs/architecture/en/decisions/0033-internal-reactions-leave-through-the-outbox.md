@@ -93,7 +93,9 @@ transaction, removes those lines from `allowedDependencies` without changing wha
    2026-10-01: together first; if that cannot commit, the entry or the verdict is written alone and the
    event published after it — the old path, kept as the fallback.*
 3. **A checklist's automatic answers as a `checklist_answer` message**, enqueued in the scan's or the
-   import's transaction, handled by `checklists`.
+   import's transaction, handled by `checklists`. *Done 2026-10-02: `ChecklistAnswerDelivery`; the ports
+   are called inside the owners' transactions and only queue, and the answers arrive with the relay's
+   next pass.*
 4. **`AGENT_RESULT_SUBMITTED` in the result's transaction.**
 5. **Domain events in place of the calls into `siem`**, and `notifications` → `issues` examined the
    same way; each removed `allowedDependencies` line is a line of the review.

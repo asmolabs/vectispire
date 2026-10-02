@@ -1,8 +1,30 @@
 # Notes de version
 
+## Prochaine version (après 0.10.0)
+
+### Changements visibles d'une intégration
+
+- **Les réponses automatiques d'une checklist arrivent en moins d'une minute après une analyse ou un
+  rapport, et non plus aussitôt.** Une analyse terminée, ou un rapport SARIF, de couverture ou de tests
+  accepté, les met en file avec ses propres résultats, et le prochain passage du relais du planificateur
+  les donne, en réessayant si la réponse échoue. Elles étaient données juste après la validation, et un
+  serveur arrêté entre les deux laissait les lignes sans réponse jusqu'à l'analyse suivante. Un script qui
+  lit une checklist juste après avoir déposé un rapport doit attendre le relais — ouvrir, passer à une
+  autre version ou rouvrir une révision répond toujours aussitôt.
+- **Un événement SIEM signalé par une entrée d'audit, et `SECURITY_GATE_FAILED`, sont mis en file avec ce
+  qui les cause.** Ils l'étaient juste après, dans une transaction à eux, et un arrêt entre les deux les
+  perdait. Si les deux ne peuvent pas être écrits ensemble, l'entrée ou le verdict est quand même écrit et
+  l'événement mis en file juste après, comme avant ; le serveur journalise alors un avertissement.
+
+### Corrigé
+
+- **Le premier coffre de preuves d'une installation sans `vectispire.signing.key` répondait 500.** La clé
+  de signature créée à la première utilisation rejoignait la transaction en lecture seule du coffre, dans
+  laquelle MySQL et PostgreSQL refusent d'écrire. Elle est désormais créée hors de celle-ci.
+
 ## 0.10.0 — 1er octobre 2026
 
-Pas encore étiquetée. Lisez d'abord **Avant la mise à jour** : cinq de ses points arrêtent
+Lisez d'abord **Avant la mise à jour** : cinq de ses points arrêtent
 quelque chose tant qu'un opérateur n'a pas agi, et c'est voulu.
 
 ### Avant la mise à jour

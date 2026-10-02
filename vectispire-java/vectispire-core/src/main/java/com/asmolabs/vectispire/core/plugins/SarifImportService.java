@@ -207,14 +207,15 @@ public class SarifImportService {
             row.setImportedBy(caller.actor() == null || caller.actor().username() == null
                     ? "key:" + caller.keyName() : caller.actor().username());
             row.setApiKeyId(caller.keyId());
-            return imports.save(row);
+            SarifImportEntity imported = imports.save(row);
+            reported.announce(repositoryId);
+            return imported;
         });
 
         audit.record(caller.actor().entry(AuditOperation.SARIF_IMPORTED, String.valueOf(repositoryId),
                 "SARIF from source \"" + source.getSlug() + "\" (" + tools + ") imported into repository " + repositoryId
                         + ": " + resultsCount + " result(s), " + saved.getCreatedCount() + " new, "
                         + saved.getResolvedCount() + " resolved, sha256 " + sha256.substring(0, 12) + "."));
-        reported.announce(repositoryId);
         return SarifImportView.of(saved);
     }
 

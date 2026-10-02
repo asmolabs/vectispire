@@ -5,16 +5,15 @@ package com.asmolabs.vectispire.core.scanning;
  * the checklists, whose measured lines the scan may now answer (decision 0032, amendment "the scans
  * answer the lines they measure").
  *
- * <p><b>Called after the scan's own commit, and never able to fail it.</b> The dispatcher calls it once
- * the result is written and committed, for a completed scan of a repository — whichever executor ran it —
- * and catches whatever it throws: a scan does not fail, nor go back to the queue, because a checklist
- * could not be answered. Inside the scan's transaction a reaction would hold the scan's row lock for as
- * long as it took, and its failure would roll the results back. The cost accepted: a process that stops
- * between the commit and the call answers nothing for that scan — the next scan, import or opening does,
- * from the same evidence.
+ * <p><b>Called inside the scan's transaction, and only to queue.</b> The dispatcher calls it as the
+ * completed result of a repository's scan is written, whichever executor ran it, so that what reacts
+ * commits with the scan or not at all (decision 0033): called after the commit, a process stopping in
+ * between answered nothing for that scan. An implementation writes only in the caller's transaction —
+ * an outbox message — and does its work later, where a failure is retried; anything it throws here
+ * rolls the scan's results back, which is why it must do nothing that can fail for a reason of its own.
  */
 public interface RepositoryScanned {
 
-    /** A scan of this repository completed and is committed. */
+    /** A scan of this repository completed; called in its transaction, before it commits. */
     void scanned(long repositoryId);
 }
