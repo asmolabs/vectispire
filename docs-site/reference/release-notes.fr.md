@@ -57,6 +57,20 @@
   l'intervalle de résolution lisent de même les résolutions antérieures d'une issue rouverte. **Avec une date
   et sans `state`, `GET /api/v1/issues` liste tous les états**, puisque les issues ouvertes un jour passé
   sont pour la plupart résolues depuis ; le défaut reste `open` sinon.
+- **L'écran du rapport OWASP gagne une vue « Par semaine »** (*Rapport OWASP* → *Par semaine*, ou
+  `/owasp?view=weekly`) : une carte de chaleur des dix catégories sur 12, 26 ou 52 semaines ou un
+  intervalle choisi, pour tout le parc ou un projet ou une solution ; les courbes de ce qui est ouvert par
+  catégorie ; les issues apparues et résolues chaque semaine ; les chiffres de la semaine sélectionnée et
+  leur évolution depuis la précédente ; et la grille de cette semaine. **Les semaines reconstituées sont
+  hachurées** et leurs courbes en pointillé — leurs ouverts incluent les risques acceptés, d'où l'absence
+  d'évolution affichée sur la semaine où le relevé commence. **Les risques acceptés sont montrés à part**,
+  en gris, jamais ajoutés aux ouverts. Chaque nombre ouvre le backlog qu'il compte — ouvertes au dimanche
+  de la semaine (non réglées, sur une semaine relevée), ou apparues / résolues de son lundi à son
+  dimanche, dans le même périmètre — et le backlog le dit dans un bandeau, avec le chemin du retour et de
+  quoi le retirer. Les chiffres s'exportent en CSV, une ligne par semaine et catégorie avec l'indicateur
+  « reconstituée » ; *Imprimer / PDF* imprime la vue sans les menus de l'application (le « enregistrer en
+  PDF » du navigateur — aucun PDF n'est produit par le serveur). Fenêtre, périmètre et semaine
+  sélectionnée sont dans l'adresse : un lien reproduit la vue.
 
 ### Corrigé
 

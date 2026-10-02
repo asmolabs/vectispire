@@ -54,6 +54,19 @@
   read a reopened issue's earlier resolutions the same way. **With a date and no `state`,
   `GET /api/v1/issues` lists every state**, since the issues open on a past day are mostly resolved
   since; the default stays `open` otherwise.
+- **The OWASP report screen gains a "By week" view** (*OWASP report* → *By week*, or
+  `/owasp?view=weekly`): a heatmap of the ten categories over 12, 26 or 52 weeks or a chosen range, for
+  the whole estate or one project or solution; the curves of what is open per category; the issues
+  opened and resolved each week; the selected week's figures and their change since the week before;
+  and that week's grid. **Reconstructed weeks are hatched** and their curves dashed — their open count
+  includes accepted risks, so no change is shown across the week the record started. **Accepted
+  risks are shown apart**, in grey, never added into the open count. Every count opens the backlog it
+  counts — open at the week's Sunday (not settled, on a recorded week), or first seen / resolved from
+  its Monday to its Sunday, in the same scope — and the backlog says so in a banner, with the way back
+  and a way to clear it. The figures export as CSV, one row per week and category with the
+  reconstructed flag; *Print / PDF* prints the view without the application's menus (the browser's
+  own "save as PDF" — no PDF is generated on the server). Window, scope and selected week are in the
+  address, so a link reproduces the view.
 
 ### Fixed
 

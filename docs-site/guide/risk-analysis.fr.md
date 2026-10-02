@@ -75,6 +75,33 @@ d'entrée qu'un constat doit franchir pour compter.
 revues de sécurité et la plupart des auditeurs parlent déjà. C'est une reformulation des mêmes
 constats, pas un scan séparé.
 
+### Le Top 10, semaine par semaine
+
+*Rapport OWASP* → *Par semaine* montre les mêmes dix catégories sur 12, 26 ou 52 semaines — ou un
+intervalle choisi — pour tout le parc ou un projet ou une solution. Chaque colonne est une semaine ISO,
+du lundi au dimanche en UTC ; un en-tête de colonne sélectionne la semaine, dont les chiffres et la grille
+s'affichent sous la carte de chaleur.
+
+- **Une semaine relevée** est une semaine que le relevé hebdomadaire a capturée : sa case prend la couleur
+  de la grille (constats, plus foncé quand il y en a plus ; rien trouvé ; non mesurée ; aucun scanner ici),
+  et ses ouverts laissent de côté le triage réglé. **Les risques acceptés sont montrés à part**, en gris et
+  entre parenthèses — jamais ajoutés aux ouverts.
+- **Une semaine reconstituée**, antérieure au relevé, est **hachurée**, et les courbes passent en pointillé
+  sur elle. Elle se lit dans les dates des issues : elle n'a pas d'état, et ses ouverts incluent les issues
+  que le triage avait réglées, car le triage à une date passée n'est pas connu. C'est pourquoi aucune
+  évolution des ouverts n'est affichée sur la semaine où le relevé commence — l'écart serait celui de la
+  définition.
+- **Chaque nombre ouvre le backlog qu'il compte**, dans le même périmètre : des ouverts listent les issues
+  de la catégorie ouvertes à la fin du dimanche de la semaine (et non réglées, sur une semaine relevée —
+  le triage tel qu'il est aujourd'hui) ; des apparues ou résolues listent les issues vues pour la première
+  fois ou résolues de son lundi à son dimanche. Le backlog dit ce qu'on lui a demandé dans un bandeau, avec
+  le chemin du retour et de quoi le retirer. Le total des flux n'ouvre rien : il ne compte que les issues
+  rangées dans une catégorie, ce que le backlog ne sait pas filtrer — choisissez d'abord une catégorie.
+
+*Exporter en CSV* donne une ligne par semaine et catégorie, avec l'indication « reconstituée » ;
+*Imprimer / PDF* imprime la vue sans les menus, par le « enregistrer en PDF » du navigateur. L'adresse
+porte la fenêtre, le périmètre et la semaine sélectionnée : un lien reproduit la vue.
+
 ## Bien s'en servir
 
 Aucune de ces vues ne produit de nouveaux constats. Elles reclassent ceux que vous avez selon

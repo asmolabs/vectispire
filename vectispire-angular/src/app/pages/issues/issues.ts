@@ -24,6 +24,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest, AiVulnerabilityAdvice, AiDeterministic, SolutionTree } from '@/app/core/api.models';
 import * as wording from '@/app/shared/ai-advice';
 import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
+import { isoDay, mondayOf, owaspCategory } from '@/app/shared/owasp-weekly';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 
@@ -207,6 +208,109 @@ export class Issues {
         return (this.tree()?.solutions ?? []).find((candidate) => candidate.id === id)?.name ?? `#${id}`;
     });
 
+    /**
+     * The weekly OWASP view's drill-down: a category as the grid places it, and the dates of an
+     * issue's life — ISO days in UTC, `_to` included, as the server reads them.
+     *
+     * **Read from the URL into signals and shown in a banner**, because no other control can show
+     * them: a list narrowed to "A06 open on 27/09" with nothing on screen saying so reads as a backlog
+     * that lost most of its rows — and a figure that opens a list disagreeing with it reads as a wrong
+     * figure. A garbled value is dropped, as a garbled id is: the server would answer it with a 400.
+     */
+    readonly owaspCategory = signal<string | null>(null);
+    readonly openAt = signal<string | null>(null);
+    readonly firstSeenFrom = signal<string | null>(null);
+    readonly firstSeenTo = signal<string | null>(null);
+    readonly resolvedFrom = signal<string | null>(null);
+    readonly resolvedTo = signal<string | null>(null);
+
+    readonly asksDates = computed(
+        () =>
+            this.openAt() !== null ||
+            this.firstSeenFrom() !== null ||
+            this.firstSeenTo() !== null ||
+            this.resolvedFrom() !== null ||
+            this.resolvedTo() !== null
+    );
+
+    /**
+     * `all` when a date is asked, `open` otherwise — the server's own default, shown in the control.
+     * "Open on that Sunday" is mostly issues resolved since: the backlog's usual `open` would hide them
+     * and the list would come out shorter than the figure that opened it.
+     */
+    private defaultState(): string {
+        return this.asksDates() ? 'all' : 'open';
+    }
+
+    /** What the drill-down asks, in words; `null` when the URL carries none of it. */
+    readonly weeklyBanner = computed(() => {
+        this.i18n.translations();
+        const category = this.owaspCategory();
+        const sentences: string[] = [];
+        const openAt = this.openAt();
+        if (openAt !== null) {
+            sentences.push(
+                category !== null
+                    ? this.i18n.t('issues.weekly.open_at_category', { category, date: openAt })
+                    : this.i18n.t('issues.weekly.open_at', { date: openAt })
+            );
+        }
+        if (this.firstSeenFrom() !== null || this.firstSeenTo() !== null) {
+            const range = {
+                category: category ?? '',
+                from: this.firstSeenFrom() ?? '…',
+                to: this.firstSeenTo() ?? '…'
+            };
+            sentences.push(
+                category !== null
+                    ? this.i18n.t('issues.weekly.first_seen_category', range)
+                    : this.i18n.t('issues.weekly.first_seen', range)
+            );
+        }
+        if (this.resolvedFrom() !== null || this.resolvedTo() !== null) {
+            const range = { category: category ?? '', from: this.resolvedFrom() ?? '…', to: this.resolvedTo() ?? '…' };
+            sentences.push(
+                category !== null
+                    ? this.i18n.t('issues.weekly.resolved_category', range)
+                    : this.i18n.t('issues.weekly.resolved', range)
+            );
+        }
+        if (sentences.length === 0 && category !== null) {
+            sentences.push(this.i18n.t('issues.weekly.category', { category }));
+        }
+        return sentences.length === 0 ? null : sentences.join(' · ');
+    });
+
+    /**
+     * The way back to the weekly view, on the week the figure came from and in the same scope. Built
+     * from the parameters themselves, never from a URL the link carried: a return address taken from
+     * the query string is an open redirect.
+     */
+    readonly weeklyBack = computed<Params>(() => {
+        const day =
+            this.openAt() ?? this.firstSeenFrom() ?? this.resolvedFrom() ?? this.firstSeenTo() ?? this.resolvedTo();
+        const params: Params = { view: 'weekly' };
+        if (day !== null) params['week'] = mondayOf(day);
+        const projectId = this.projectId();
+        const solutionId = this.solutionId();
+        if (projectId !== null) params['project_id'] = String(projectId);
+        else if (solutionId !== null) params['solution_id'] = String(solutionId);
+        return params;
+    });
+
+    /** Takes the drill-down off and leaves every other filter; the state returns to its own default. */
+    clearWeekly(): void {
+        const explicitState = this.route.snapshot.queryParamMap.has('state');
+        this.owaspCategory.set(null);
+        this.openAt.set(null);
+        this.firstSeenFrom.set(null);
+        this.firstSeenTo.set(null);
+        this.resolvedFrom.set(null);
+        this.resolvedTo.set(null);
+        if (!explicitState) this.state = 'open';
+        this.filtersChanged();
+    }
+
     readonly states = computed(() => {
         this.i18n.translations();
         return [
@@ -321,11 +425,17 @@ export class Issues {
         // like the whole backlog having lost most of its rows.
         this.target = repositoryId ? `repository:${repositoryId}` : containerId ? `container:${containerId}` : null;
         this.type = params.get('type');
+        this.owaspCategory.set(owaspCategory(params.get('owasp_category')));
+        this.openAt.set(isoDay(params.get('open_at')));
+        this.firstSeenFrom.set(isoDay(params.get('first_seen_from')));
+        this.firstSeenTo.set(isoDay(params.get('first_seen_to')));
+        this.resolvedFrom.set(isoDay(params.get('resolved_from')));
+        this.resolvedTo.set(isoDay(params.get('resolved_to')));
         // The dashboard has always linked here with these, and this screen once read none of
         // them: clicking "8 high" opened the whole backlog, and so did the KEV panel. Nothing
         // failed — the page loaded, full of issues, simply not the ones that were asked for.
         this.severity = params.get('severity');
-        this.state = params.get('state') ?? 'open';
+        this.state = params.get('state') ?? this.defaultState();
         this.onlyKev = params.get('is_kev') === 'true';
         this.overdue = params.get('overdue') === 'true';
         // The per-severity figures on the dashboard and the tree leave settled triage out and
@@ -346,7 +456,7 @@ export class Issues {
             container_id: kind === 'container' ? id : undefined,
             project_id: this.projectId() ?? undefined,
             solution_id: this.solutionId() ?? undefined,
-            state: this.state !== 'open' ? this.state : undefined,
+            state: this.state !== this.defaultState() ? this.state : undefined,
             severity: this.severity ?? undefined,
             type: this.type ?? undefined,
             triage_status: this.triageFilter ?? undefined,
@@ -354,7 +464,13 @@ export class Issues {
             is_kev: this.onlyKev || undefined,
             overdue: this.overdue || undefined,
             unsettled: this.unsettled || undefined,
-            search: this.search || undefined
+            search: this.search || undefined,
+            owasp_category: this.owaspCategory() ?? undefined,
+            open_at: this.openAt() ?? undefined,
+            first_seen_from: this.firstSeenFrom() ?? undefined,
+            first_seen_to: this.firstSeenTo() ?? undefined,
+            resolved_from: this.resolvedFrom() ?? undefined,
+            resolved_to: this.resolvedTo() ?? undefined
         };
         return Object.fromEntries(
             Object.entries(params)
@@ -455,6 +571,12 @@ export class Issues {
                 overdue: this.overdue || undefined,
                 unsettled: this.unsettled || undefined,
                 search: this.search || undefined,
+                owasp_category: this.owaspCategory() ?? undefined,
+                open_at: this.openAt() ?? undefined,
+                first_seen_from: this.firstSeenFrom() ?? undefined,
+                first_seen_to: this.firstSeenTo() ?? undefined,
+                resolved_from: this.resolvedFrom() ?? undefined,
+                resolved_to: this.resolvedTo() ?? undefined,
                 limit: this.limit,
                 offset: this.offset()
             }),

@@ -10,6 +10,8 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
+import { openLink, openedLink, resolvedLink } from '@/app/shared/owasp-weekly';
 
 /**
  * The backlog.
@@ -762,5 +764,161 @@ describe('the backlog narrowed to a project or a solution', () => {
         expect(http.match((call) => call.url === '/api/v1/solutions')).toEqual([]);
         for (const request of http.match(() => true))
             request.flush(request.request.url.endsWith('/issues') ? EMPTY_PAGE : []);
+    });
+});
+
+/**
+ * The weekly OWASP view's drill-down, read back from the URL its figures build. **The link is taken
+ * from the view's own rules** (`openLink`, `openedLink`), not retyped here: a spec that wrote the
+ * parameters by hand would pass while the two screens disagreed on the week's last day.
+ */
+describe('the backlog opened from a weekly OWASP figure', () => {
+    let harness: RouterTestingHarness;
+    let http: HttpTestingController;
+    const page = () => harness.routeNativeElement as HTMLElement;
+
+    function issueRow(id: number) {
+        return asSchema('BacklogEntry', {
+            id,
+            repoId: 5,
+            containerId: null,
+            targetKind: 'repository',
+            targetName: 'Arm Libs Spring',
+            type: 'vulnerability',
+            identifier: `CVE-2026-${id}`,
+            severity: 'high',
+            packageName: 'openssl',
+            packageVersion: '3.0.1',
+            state: id % 2 === 0 ? 'resolved' : 'open',
+            firstSeenAt: '2026-09-03T08:00:00Z',
+            lastSeenAt: '2026-09-21T05:03:00Z',
+            timesSeen: 1,
+            triageStatus: 'under_review',
+            isKev: false
+        });
+    }
+
+    async function open(url: string, total: number): Promise<URLSearchParams> {
+        await harness.navigateByUrl(url);
+        let issues: URLSearchParams | null = null;
+        for (const request of http.match(() => true)) {
+            const path = request.request.url;
+            if (path === '/api/v1/issues') {
+                issues = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+                request.flush({
+                    items: Array.from({ length: total }, (_, index) => issueRow(index + 1)),
+                    total,
+                    limit: 50,
+                    offset: 0
+                });
+            } else if (path === '/api/v1/ai-advisor/status') request.flush({ enabled: false });
+            else if (path === '/api/v1/solutions')
+                request.flush({ solutions: [], unfiled: { repositoryCount: 0, containerCount: 0, repositories: [] } });
+            else request.flush([]);
+        }
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+        expect(issues).not.toBeNull();
+        return issues!;
+    }
+
+    const url = (params: Record<string, string>) => `/issues?${new URLSearchParams(params).toString()}`;
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                provideRouter([{ path: 'issues', component: Issues }])
+            ]
+        });
+        useEnglish();
+        http = TestBed.inject(HttpTestingController);
+        harness = await RouterTestingHarness.create();
+    }, 20_000);
+
+    it('asks exactly what an open count counts, every state, and says so in a banner with the count', async () => {
+        const week = threeWeeks().weeks[1];
+        const line = week.categories.find((candidate) => candidate.category === 'A06')!;
+        const params = await open(url(openLink(week, 'A06', { kind: 'project', id: 12 })), line.open);
+
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('open_at')).toBe('2026-09-27');
+        expect(params.get('unsettled')).toBe('true');
+        expect(params.get('project_id')).toBe('12');
+        // Every state: "open on that Sunday" is mostly resolved since, and `open` would hide them.
+        expect(params.get('state')).toBe('all');
+
+        const banner = page().querySelector('[data-testid="weekly-banner"]')!;
+        expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues A06 open on 2026-09-27 — from the weekly OWASP view'
+        );
+        // The count the banner shows is the server's total for that filter — the figure clicked.
+        expect(banner.textContent).toContain(`1–${line.open} of ${line.open}`);
+        expect(banner.textContent).toContain('not settled by triage as it stands today');
+        // The state control says "all", not "open": the control agrees with the request.
+        expect((harness.routeDebugElement!.componentInstance as Issues).state).toBe('all');
+        // The way back names the week and the scope, and nothing the link could have smuggled in.
+        const back = new URL(banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!.href);
+        expect(back.pathname).toBe('/owasp');
+        expect(Object.fromEntries(back.searchParams)).toEqual({ view: 'weekly', week: '2026-09-21', project_id: '12' });
+    });
+
+    it('reads a flow range, and keeps a state the link names', async () => {
+        const week = threeWeeks().weeks[2];
+        const params = await open(`${url(openedLink(week, 'A06', null))}&state=open`, 3);
+        expect(params.get('first_seen_from')).toBe('2026-09-28');
+        expect(params.get('first_seen_to')).toBe('2026-10-04');
+        expect(params.get('state')).toBe('open');
+        expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues A06 first seen from 2026-09-28 to 2026-10-04'
+        );
+    });
+
+    it('keeps the drill-down when another control moves', async () => {
+        const week = threeWeeks().weeks[1];
+        await open(url(openLink(week, 'A06', null)), 4);
+        const component = harness.routeDebugElement!.componentInstance as Issues;
+        component.severity = 'critical';
+        component.filtersChanged();
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        expect(params.get('open_at')).toBe('2026-09-27');
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('severity')).toBe('critical');
+        const address = TestBed.inject(Router).url;
+        expect(address).toContain('open_at=2026-09-27');
+        expect(address).toContain('owasp_category=A06');
+        // The default for a date is every state: it stays out of the address, as `open` does without one.
+        expect(address).not.toContain('state=');
+    });
+
+    it('takes the drill-down off in one click, back to the open backlog, leaving the scope', async () => {
+        const week = threeWeeks().weeks[1];
+        await open(url(resolvedLink(week, 'A06', { kind: 'solution', id: 1 })), 5);
+        page().querySelector<HTMLButtonElement>('[data-testid="weekly-clear"] button')!.click();
+        await harness.fixture.whenStable();
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        const params = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
+        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+
+        for (const key of ['owasp_category', 'resolved_from', 'resolved_to']) expect(params.has(key)).toBe(false);
+        expect(params.get('state')).toBe('open');
+        expect(params.get('solution_id')).toBe('1');
+        expect(TestBed.inject(Router).url).toBe('/issues?solution_id=1');
+        expect(page().querySelector('[data-testid="weekly-banner"]')).toBeNull();
+    });
+
+    it('shows no banner, and asks no date, on an ordinary visit or a garbled one', async () => {
+        const params = await open('/issues?open_at=2026-13-40&owasp_category=A11', 0);
+        expect(params.has('open_at')).toBe(false);
+        expect(params.has('owasp_category')).toBe(false);
+        expect(params.get('state')).toBe('open');
+        expect(page().querySelector('[data-testid="weekly-banner"]')).toBeNull();
     });
 });

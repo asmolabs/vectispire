@@ -403,6 +403,15 @@ export interface IssueFilters {
     solution_id?: number;
     only_direct?: boolean;
     search?: string;
+    /** The weekly OWASP view's drill-down: a category as the grid places it (`A01`…`A10`). */
+    owasp_category?: string;
+    /** Open at the end of that day, UTC — what a week's open count counts at its Sunday. */
+    open_at?: string;
+    /** ISO days, `_to` included. With any date and no `state`, the server lists every state. */
+    first_seen_from?: string;
+    first_seen_to?: string;
+    resolved_from?: string;
+    resolved_to?: string;
     limit?: number;
     offset?: number;
 }
@@ -2129,6 +2138,51 @@ export type OwaspCoverageLine = Refine<
 
 /** `covered` says how many of the ten a scanner here can even look at. **Read before the rest.** */
 export type OwaspGrid = Refine<Schema<'DeclaredGrid'>, { lines: OwaspCoverageLine[] }>;
+
+/**
+ * One category in one week of `GET /api/v1/owasp/coverage/weekly`.
+ *
+ * `state` and `settled` are `null` on a reconstructed week — the record holds nothing for it, and
+ * the server never computes a state now for then. `state` is `null` too on a recorded week whose
+ * targets left no line for the category: "not recorded", which is not "nothing found".
+ */
+export type OwaspWeekCategory = Refine<
+    Schema<'OwaspWeekCategory'>,
+    { category: string; title: string; state: OwaspState | null; settled: number | null }
+>;
+
+/**
+ * One ISO week, Monday 00:00 UTC to the next. **`open` does not mean the same thing on both
+ * kinds of week**: recorded, it leaves settled triage out and `settled` carries it apart;
+ * reconstructed, it counts every issue open at the week's end whatever its triage, and `settled`
+ * is `null` because the triage of a past date is not known.
+ */
+export type OwaspWeek = Refine<
+    Schema<'OwaspWeek'>,
+    {
+        weekStart: string;
+        capturedAt: string | null;
+        categoriesMeasured: number | null;
+        settled: number | null;
+        categories: OwaspWeekCategory[];
+    }
+>;
+
+/** The project or solution asked for; `partial` says the reader sees only `targetCount` of its targets. */
+export type OwaspWeeklyScope = Refine<Schema<'OwaspWeeklyScope'>, { kind: string; name: string }>;
+
+export type OwaspWeeklyCoverage = Refine<
+    Schema<'OwaspWeeklyCoverage'>,
+    { from: string; to: string; scope: OwaspWeeklyScope | null; weeks: OwaspWeek[] }
+>;
+
+/** The query string of the weekly view; absent values are left to the server's defaults. */
+export interface OwaspWeeklyQuery {
+    from?: string;
+    to?: string;
+    project_id?: number;
+    solution_id?: number;
+}
 
 export type ComplianceMovement = NonNullable<Schema<'Step'>['movement']>;
 

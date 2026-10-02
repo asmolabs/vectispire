@@ -109,6 +109,49 @@
     }
 
     <!--
+        The weekly OWASP view's drill-down, said in words: no control on this screen shows a category
+        or a date, and a list narrowed by them with nothing saying so reads as a backlog that lost
+        rows. Taken off in one click, and with the way back to the column it came from.
+    -->
+    @if (weeklyBanner(); as banner) {
+        <div
+            class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4 p-3 rounded-md border border-primary bg-primary-50 dark:bg-surface-800"
+            role="status"
+            data-testid="weekly-banner"
+        >
+            <i class="pi pi-calendar text-primary" aria-hidden="true"></i>
+            <div class="flex-1">
+                <div class="font-medium" data-testid="weekly-banner-text">
+                    {{ banner }} — {{ 'issues.weekly.origin' | translate }}
+                </div>
+                <div class="text-sm text-muted-color">
+                    {{ pageLabel() }}
+                    @if (openAt() !== null && unsettled) {
+                        · {{ 'issues.weekly.triage_today' | translate }}
+                    }
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a
+                    routerLink="/owasp"
+                    [queryParams]="weeklyBack()"
+                    class="p-button p-button-sm p-button-text no-underline"
+                    data-testid="weekly-back"
+                    >{{ 'issues.weekly.back' | translate }}</a
+                >
+                <p-button
+                    [label]="'issues.weekly.clear' | translate"
+                    icon="pi pi-times"
+                    size="small"
+                    severity="secondary"
+                    data-testid="weekly-clear"
+                    (onClick)="clearWeekly()"
+                />
+            </div>
+        </div>
+    }
+
+    <!--
         Written as `[ngModel]` plus one `(ngModelChange)` rather than the banana-in-a-box with a
         second change handler beside it: two listeners for one event on one element is a reload
         whose ordering against the assignment is left to attribute order.

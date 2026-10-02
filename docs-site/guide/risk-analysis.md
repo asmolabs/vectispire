@@ -69,6 +69,30 @@ to traverse to matter.
 security reviews and most auditors already speak. It is a reframing of the same findings,
 not a separate scan.
 
+### The Top 10, week by week
+
+*OWASP report* → *By week* shows the same ten categories over 12, 26 or 52 weeks — or a range you
+choose — for the whole estate or one project or solution. Each column is an ISO week, Monday to
+Sunday in UTC; a column header selects the week, whose figures and grid appear below the heatmap.
+
+- **A recorded week** is one the weekly record captured: its square has the grid's colour (findings,
+  darker for more; nothing found; not measured; no scanner here), and its open count leaves settled
+  triage out. **Accepted risks are shown apart**, in grey and in brackets — never added into open.
+- **A reconstructed week**, before the record started, is **hatched**, and the curves are dashed over
+  it. It is read from the issues' dates: there is no state for it, and its open count includes the
+  issues triage had settled, because the triage of a past date is not known. That is why no change is
+  shown for open across the week the record starts — the difference would be the definition changing.
+- **Every count opens the backlog it counts**, in the same scope: an open count lists the issues of that
+  category open at the end of the week's Sunday (and not settled, on a recorded week — triage as it
+  stands today); an opened or resolved figure lists the issues first seen or resolved from its Monday to
+  its Sunday. The backlog says what it was asked in a banner, with the way back and a way to clear it.
+  The total of the flows opens nothing: it counts only the issues placed in a category, which the
+  backlog cannot filter on — pick a category first.
+
+*Export CSV* gives one row per week and category, with whether the week was reconstructed; *Print /
+PDF* prints the view without the menus, through the browser's own "save as PDF". The address carries
+the window, the scope and the selected week, so a link reproduces the view.
+
 ## Using these well
 
 None of these views produce new findings. They re-rank the ones you have according to a

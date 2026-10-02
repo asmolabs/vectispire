@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -29,6 +31,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { OwaspGridComponent } from '@/app/shared/owasp-grid';
 import { LatestRequest } from '@/app/core/latest-request';
 import { messageOf } from '@/app/core/api-error';
+import { OwaspWeekly } from './owasp-weekly';
 
 @Component({
     selector: 'app-owasp',
@@ -42,6 +45,8 @@ import { messageOf } from '@/app/core/api-error';
         SelectModule,
         TagModule,
         OwaspGridComponent,
+        OwaspWeekly,
+        RouterLink,
         TranslatePipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -54,6 +59,15 @@ export class Owasp {
     private readonly owaspApi = inject(OwaspApi);
     private readonly documentsApi = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
+    private readonly route = inject(ActivatedRoute);
+
+    /**
+     * Which of the two views, from the URL: the grid as it stands, or the same grid week by week.
+     * A query parameter rather than a route of its own, so that the menu entry, the page title and
+     * the guard stay one, and a link into the weekly view still says where it lands.
+     */
+    private readonly params = toSignal(this.route.queryParamMap);
+    readonly weekly = computed(() => this.params()?.get('view') === 'weekly');
 
     selected: number | null = null;
 

@@ -92,3 +92,30 @@ body {
 .zs-table-narrow .p-datatable-table {
     min-width: 0;
 }
+
+/* Printing a report screen — the weekly OWASP view's "Print / PDF", and the browser's own print on
+ * any page.
+ *
+ * The browser's "save as PDF" is the PDF here: no PDF library, which would be one more dependency
+ * whose licence and advisories somebody has to read, for a document the browser already lays out.
+ * What has to go is the shell — a printout whose first third is a menu and a top bar is a printout
+ * of the application, not of the figures. Screens hide their own controls with `print:hidden`.
+ */
+@media print {
+    .layout-topbar,
+    .layout-sidebar,
+    .layout-footer,
+    .layout-mask {
+        display: none !important;
+    }
+
+    .layout-main-container {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        min-height: 0;
+    }
+
+    .card {
+        box-shadow: none !important;
+    }
+}

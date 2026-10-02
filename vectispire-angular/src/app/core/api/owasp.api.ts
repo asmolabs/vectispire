@@ -1,7 +1,14 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ControlDeclaration, DeclarationRequest, OwaspGrid, OwaspReport } from '../api.models';
+import {
+    ControlDeclaration,
+    DeclarationRequest,
+    OwaspGrid,
+    OwaspReport,
+    OwaspWeeklyCoverage,
+    OwaspWeeklyQuery
+} from '../api.models';
 
 /**
  * OWASP: the fleet-wide coverage grid and its declarations, and one repository's review.
@@ -36,5 +43,19 @@ export class OwaspApi {
 
     owaspCoverage(): Observable<OwaspGrid> {
         return this.http.get<OwaspGrid>('/api/v1/owasp/coverage');
+    }
+
+    /**
+     * The grid week by week, over the reader's estate or one project or solution.
+     *
+     * Only what is set is sent: the server's defaults — the last twelve weeks, ending with the
+     * current one — are the server's, and restating them here would be a second copy to drift.
+     */
+    weeklyCoverage(query: OwaspWeeklyQuery = {}): Observable<OwaspWeeklyCoverage> {
+        let params = new HttpParams();
+        for (const [key, value] of Object.entries(query)) {
+            if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
+        }
+        return this.http.get<OwaspWeeklyCoverage>('/api/v1/owasp/coverage/weekly', { params });
     }
 }
