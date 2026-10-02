@@ -413,7 +413,7 @@ A service writes no SQL, and a repository holds no business rule;
 
 ## 6. The front end
 
-Angular 22 and TypeScript 6.0 with [Optimus UI](https://github.com/openng/optimus-ui) 2, the
+Angular 22 and TypeScript 6.0 with [Optimus UI](https://github.com/openng-org/optimus-ui) 2, the
 community fork of PrimeNG v21 — PrimeTek archived PrimeNG and moved v22 to a commercial
 license; Optimus 2 is that fork carried to Angular 22. The shell comes from the Sparked template
 (MIT), OpenNG's port of PrimeTek's Sakai onto Optimus, and its Tailwind utilities from

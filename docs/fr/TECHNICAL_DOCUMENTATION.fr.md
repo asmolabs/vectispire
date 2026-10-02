@@ -420,7 +420,7 @@ de base générique. Un service n'écrit aucun SQL, et un repository ne porte au
 
 ## 6. Le frontal
 
-Angular 22 et TypeScript 6.0 avec [Optimus UI](https://github.com/openng/optimus-ui) 2, le fork
+Angular 22 et TypeScript 6.0 avec [Optimus UI](https://github.com/openng-org/optimus-ui) 2, le fork
 communautaire de PrimeNG v21 — PrimeTek a archivé PrimeNG et fait passer la v22 sous licence
 commerciale ; Optimus 2 est ce fork porté sur Angular 22. La coque vient du gabarit Sparked
 (MIT), le portage par OpenNG du gabarit Sakai de PrimeTek sur Optimus, et ses utilitaires Tailwind de
