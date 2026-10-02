@@ -708,6 +708,30 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
 
     List<ScanEntity> findByContainerId(Long containerId);
 
+    /** The scans of these repositories — the licence tallies' recount of the targets that moved. */
+    List<ScanEntity> findByRepoIdIn(Collection<Long> repoIds);
+
+    List<ScanEntity> findByContainerIdIn(Collection<Long> containerIds);
+
+    /**
+     * How the scans of each target stand, as {@code [repoId, containerId, status, scans, newest id,
+     * scans holding an SBOM]} per target and status.
+     *
+     * <p>Columns and counts only: what the licence tallies compare to decide whether a target's
+     * inventory can have moved, without reading the payloads the inventory is made of. Whether the
+     * SBOM is null is read off the row, not off the document.
+     */
+    @Query("""
+            select s.repoId, s.containerId, s.status, count(s.id), max(s.id),
+                   sum(case when s.sbom is not null then 1 else 0 end)
+              from ScanEntity s
+             group by s.repoId, s.containerId, s.status""")
+    List<Object[]> censusByTargetAndStatus();
+
+    /** The scans holding an SBOM, as {@code [id, repoId, containerId]}, without the SBOM. */
+    @Query("select s.id, s.repoId, s.containerId from ScanEntity s where s.sbom is not null")
+    List<Object[]> idsAndTargetsWithSbom();
+
     List<ScanEntity> findByStatusInOrderByCreatedAtAsc(Collection<String> statuses);
 
     long countByStatusAndCreatedAtAfter(String status, Instant after);

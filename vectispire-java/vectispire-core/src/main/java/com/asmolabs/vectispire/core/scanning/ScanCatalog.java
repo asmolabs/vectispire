@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,6 +148,71 @@ public class ScanCatalog {
                 .sorted(Comparator.comparing(ScanEntity::getId).reversed())
                 .map(ScanView::of)
                 .toList();
+    }
+
+    /**
+     * How a target's scans stand: how many, the newest identifier, how many still hold an SBOM, and
+     * how many are in each status. Equal censuses of one target, read at two instants, mean the same
+     * scans in the same statuses with the same SBOMs present — for a table whose rows are only ever
+     * added for a live target, leave a running status once, and lose their SBOM to the retention
+     * purge and nothing else.
+     */
+    public record ScanCensus(long scans, long newestId, long withSbom, Map<String, Long> byStatus) {
+
+        ScanCensus plus(String status, long count, long newest, long sbom) {
+            Map<String, Long> statuses = new java.util.TreeMap<>(byStatus);
+            statuses.merge(String.valueOf(status), count, Long::sum);
+            return new ScanCensus(scans + count, Math.max(newestId, newest), withSbom + sbom, Map.copyOf(statuses));
+        }
+
+        static final ScanCensus NONE = new ScanCensus(0, 0, 0, Map.of());
+    }
+
+    /**
+     * Each target's {@link ScanCensus}, a scan attributed as {@link ScanOfTarget#target()} does —
+     * the repository when it names one — and a scan attached to neither left out. Unnarrowed: the
+     * caller narrows what it answers with, and only counts travel.
+     */
+    public Map<ScanTarget, ScanCensus> censusByTarget() {
+        Map<ScanTarget, ScanCensus> census = new HashMap<>();
+        for (Object[] row : scans.censusByTargetAndStatus()) {
+            ScanTarget target = new ScanOfTarget(0L, asLong(row[0]), asLong(row[1])).target();
+            if (target != null) {
+                census.put(target, census.getOrDefault(target, ScanCensus.NONE).plus(
+                        (String) row[2], asLong(row[3]), asLong(row[4]), asLong(row[5])));
+            }
+        }
+        return census;
+    }
+
+    /** The scans holding an SBOM, as identifier and target, without the SBOM. */
+    public List<ScanOfTarget> withSbom() {
+        return scans.idsAndTargetsWithSbom().stream()
+                .map(row -> new ScanOfTarget(((Number) row[0]).longValue(), asLong(row[1]), asLong(row[2])))
+                .toList();
+    }
+
+    /**
+     * Every scan naming one of these targets, in either column, in batches of {@link #LOOKUP_BATCH} —
+     * the targets are as many as the estate holds.
+     */
+    public List<ScanView> ofTargets(Collection<ScanTarget> targets) {
+        List<Long> repositories = targets.stream()
+                .map(target -> target instanceof ScanTarget.Repository repository ? repository.id() : null)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        List<Long> images = targets.stream()
+                .map(target -> target instanceof ScanTarget.Container container ? container.id() : null)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, ScanEntity> found = new LinkedHashMap<>();
+        for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
+            scans.findByRepoIdIn(repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())))
+                    .forEach(scan -> found.put(scan.getId(), scan));
+        }
+        for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
+            scans.findByContainerIdIn(images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())))
+                    .forEach(scan -> found.put(scan.getId(), scan));
+        }
+        return found.values().stream().map(ScanView::of).toList();
     }
 
     public List<LatestScanRow> latestPerRepository() {

@@ -16,7 +16,6 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -175,10 +174,11 @@ public class SecurityScorecardService {
      *
      * <p>The same three reads as the portfolio's, each once for the whole allowance and none bound
      * per target: the grading counts grouped by target (the allowance written into the statement,
-     * {@code IssueSpecifications.visible}), the completed scans' targets narrowed in Java, and the
-     * licence inventory — the portfolio's, which parses every SBOM the caller may see. That last
-     * one is the price of the licence term: without it a target's rank would disagree with its card
-     * by five points a violation.
+     * {@code IssueSpecifications.visible}), the completed scans' targets narrowed in Java, and each
+     * target's licence violations. Those are the inventory's own count, which parsed every SBOM of the
+     * estate at every load of the home page until the inventory kept a tally per target, recounted
+     * when the target's scans move ({@code LicenseGovernanceService.violationsByTarget}). Without the
+     * term a target's rank would disagree with its card by five points a violation.
      *
      * <p>A target holding neither an open issue nor a completed scan is absent from the map; a caller
      * listing one anyway — for what it closed — grades it {@link TargetGrade#UNOBSERVED}.
@@ -201,13 +201,7 @@ public class SecurityScorecardService {
             }
         });
 
-        Map<ScanTarget, Long> violations = new HashMap<>();
-        for (LicenseEntry entry : licenseService.getInventory(allowed, null, null)) {
-            ScanTarget target = targetOf(entry);
-            if (target != null && !entry.compliant()) {
-                violations.merge(target, 1L, Long::sum);
-            }
-        }
+        Map<ScanTarget, Long> violations = licenseService.violationsByTarget(allowed);
 
         Set<ScanTarget> graded = new LinkedHashSet<>(rows.keySet());
         graded.addAll(observed);
@@ -229,18 +223,6 @@ public class SecurityScorecardService {
     /** How many entries of an inventory the policy refuses: five points each on the score. */
     private static long violations(List<LicenseEntry> licenses) {
         return licenses.stream().filter(l -> !l.compliant()).count();
-    }
-
-    /** An inventory entry's target; {@code general} — a scan attached to neither — has none. */
-    private static ScanTarget targetOf(LicenseEntry entry) {
-        if (entry.targetId() == null) {
-            return null;
-        }
-        return switch (entry.targetKind()) {
-            case "repository" -> new ScanTarget.Repository(entry.targetId());
-            case "container" -> new ScanTarget.Container(entry.targetId());
-            default -> null;
-        };
     }
 
     /**
