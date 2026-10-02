@@ -130,4 +130,16 @@ describe('la barre du haut', () => {
 
         expect(named).toEqual(['Account', 'Password', 'Sign out']);
     });
+
+    it('opens the password change remembering the page it was on', () => {
+        vi.spyOn(router, 'url', 'get').mockReturnValue('/issues?is_kev=true');
+        const navigateByUrl = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+        const password = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(
+            (element) => element.getAttribute('aria-label') === 'Password'
+        );
+
+        password!.click();
+
+        expect(String(navigateByUrl.mock.lastCall?.[0])).toBe('/change-password?returnUrl=%2Fissues%3Fis_kev%3Dtrue');
+    });
 });

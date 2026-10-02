@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -6,6 +6,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { PasswordModule } from '@openng/optimus-ui/password';
 import { messageOf } from '../../core/api-error';
 import { AuthApi } from '../../core/api/auth.api';
+import { safeReturnUrl } from '../../core/auth.guard';
 import { SessionStore } from '../../core/session.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 
@@ -37,6 +38,14 @@ export class ChangePassword {
     readonly error = signal<string | null>(null);
     readonly imposed = computed(() => this.session.mustChangePassword());
 
+    /**
+     * The page to go back to, from the `returnUrl` query parameter (`withComponentInputBinding`): the
+     * one the guard turned away, or the one the topbar was on. Read through `safeReturnUrl` and never
+     * as it stands — it arrives in a URL anybody can write, and an address followed blindly after a
+     * password change is an open redirect at the moment the person trusts the page most.
+     */
+    readonly returnUrl = input<string | undefined>();
+
     currentPassword = '';
     newPassword = '';
     confirmation = '';
@@ -55,7 +64,7 @@ export class ChangePassword {
             next: () => {
                 this.loading.set(false);
                 this.session.clearMustChangePassword();
-                void this.router.navigate(['/dashboard']);
+                void this.router.navigateByUrl(safeReturnUrl(this.returnUrl() ?? null) ?? '/dashboard');
             },
             error: (response: { status: number; error?: { message?: string } }) => {
                 this.loading.set(false);

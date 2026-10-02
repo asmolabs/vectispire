@@ -8,7 +8,7 @@ import { PasswordModule } from '@openng/optimus-ui/password';
 import type { AuthenticatedUser, SignInMethods } from '../../core/api.models';
 import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
-import { safeReturnUrl } from '@/app/core/auth.guard';
+import { passwordChangePage, safeReturnUrl } from '@/app/core/auth.guard';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
@@ -137,10 +137,13 @@ export class Login {
      *
      * <p>A provisioned account changes its password first, whatever it had asked for: letting it
      * reach anything else would empty the flag of its meaning (the shell's guard refuses it too).
-     * Otherwise the page the guard turned away, and the dashboard when there was none.
+     * Otherwise the page the guard turned away, and the dashboard when there was none — and that page
+     * travels through the password change too, which returns to it once done.
      */
     private enter(user: AuthenticatedUser, replaceUrl = false): void {
-        const target = user.mustChangePassword ? '/change-password' : (this.returnUrl ?? '/dashboard');
+        const target = user.mustChangePassword
+            ? passwordChangePage(this.router, this.returnUrl ?? undefined)
+            : (this.returnUrl ?? '/dashboard');
         void this.router.navigateByUrl(target, { replaceUrl });
     }
 

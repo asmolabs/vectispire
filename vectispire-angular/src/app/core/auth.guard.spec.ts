@@ -51,12 +51,12 @@ describe('the shell, signed out', () => {
         expect(router.url).toBe('/login');
     });
 
-    it('keeps a provisioned account on the password change, wherever it tries to go', async () => {
+    it('keeps a provisioned account on the password change, wherever it tries to go, and remembers where', async () => {
         session.open('token', { username: 'x', role: 'ADMIN', mustChangePassword: true } as never);
         const harness = await RouterTestingHarness.create();
         await harness.navigateByUrl('/forbidden');
 
-        expect(router.url).toBe('/change-password');
+        expect(router.url).toBe('/change-password?returnUrl=%2Fforbidden');
     });
 
     it('lets a session in', async () => {
@@ -90,7 +90,15 @@ describe('the address to return to after signing in', () => {
     });
 
     it('refuses what has nothing to remember or would loop', () => {
-        for (const value of [null, '', '/', '/login', '/login?returnUrl=%2Fissues']) {
+        for (const value of [
+            null,
+            '',
+            '/',
+            '/login',
+            '/login?returnUrl=%2Fissues',
+            '/change-password',
+            '/change-password?returnUrl=%2Fissues'
+        ]) {
             expect(safeReturnUrl(value), String(value)).toBeNull();
         }
     });

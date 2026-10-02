@@ -6,6 +6,7 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { BrandingService } from '@/app/core/branding.service';
 import { AuthApi } from '@/app/core/api/auth.api';
+import { passwordChangePage } from '@/app/core/auth.guard';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
@@ -136,8 +137,8 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                     <button
                         type="button"
                         class="layout-topbar-action"
-                        routerLink="/change-password"
                         [attr.aria-label]="'topbar.password' | translate"
+                        (click)="changePassword()"
                     >
                         <i class="pi pi-key"></i>
                         <span>{{ 'topbar.password' | translate }}</span>
@@ -200,6 +201,14 @@ export class AppTopbar {
         this.session.close();
         this.signingOut.set(false);
         void this.router.navigate(['/login'], { replaceUrl: true });
+    }
+
+    /**
+     * The password change, remembering the page it was opened from: read at the click rather than
+     * bound in the template, since the bar stays mounted while the pages beneath it change.
+     */
+    changePassword(): void {
+        void this.router.navigateByUrl(passwordChangePage(this.router, this.router.url));
     }
 
     toggleDarkMode() {

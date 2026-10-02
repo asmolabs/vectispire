@@ -127,6 +127,11 @@
   first scan on screen until the second answered, and if the first answer came last it replaced the
   second: the address named scan 35 while the header, the plugins and the findings were scan 34's. The
   page now clears the previous scan and cancels its request when the address changes.
+- **Changing a password no longer ends on the dashboard.** An account whose password had been set by
+  an administrator, following a link it had been handed, signed in, was sent to change its password and
+  then to the dashboard, the link forgotten; the same happened to a change opened from the top bar or
+  the account page. The change now returns to the page asked for — or the one it was opened from — and
+  only to a page of Vectispire: an address pointing elsewhere is ignored.
 
 ## 0.10.0 — 2026-10-01
 

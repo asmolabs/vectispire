@@ -187,7 +187,9 @@ describe('the sign-in screen', () => {
         );
 
         // Letting it reach the dashboard would empty the flag of its meaning.
-        expect(navigate).toHaveBeenCalledWith('/change-password', { replaceUrl: false });
+        const [target, extras] = navigate.mock.lastCall ?? [];
+        expect(String(target)).toBe('/change-password');
+        expect(extras).toEqual({ replaceUrl: false });
     });
 
     it('sends no client id: the throttle keys on the address the server resolves', () => {
@@ -212,7 +214,8 @@ describe('the sign-in screen', () => {
             http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
                 asSchema('LoginResponse', { mfa_required: false, token: 't', user })
             );
-            return navigate.mock.lastCall?.[0];
+            // A string, or the tree of the password change: read as the address either way.
+            return String(navigate.mock.lastCall?.[0]);
         } finally {
             window.history.replaceState({}, '', '/');
         }
@@ -235,8 +238,12 @@ describe('the sign-in screen', () => {
         }
     });
 
-    it('sends a provisioned account to change its password even when it was going elsewhere', () => {
-        expect(signInReturningTo('/issues', { ...USER, mustChangePassword: true })).toBe('/change-password');
+    it('sends a provisioned account to change its password even when it was going elsewhere, and remembers where', () => {
+        // The page travels through the change, which returns to it: a handed-out link used to end on the dashboard.
+        expect(signInReturningTo('/issues?is_kev=true', { ...USER, mustChangePassword: true })).toBe(
+            '/change-password?returnUrl=%2Fissues%3Fis_kev%3Dtrue'
+        );
+        expect(signInReturningTo('//evil.example', { ...USER, mustChangePassword: true })).toBe('/change-password');
     });
     /** Opens `/login` with `search`, clicks through to the provider, and returns where the browser was sent. */
     function providerTargetFrom(search: string): string {

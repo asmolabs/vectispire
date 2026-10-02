@@ -139,6 +139,12 @@
   arrivait en dernier, elle remplaçait la seconde : l'adresse nommait l'analyse 35, l'en-tête, les
   plugins et les résultats étaient ceux de la 34. La page efface désormais l'analyse précédente et annule
   sa requête quand l'adresse change.
+- **Changer de mot de passe ne ramène plus au tableau de bord.** Un compte dont le mot de passe avait
+  été fixé par un administrateur, suivant un lien qu'on lui avait transmis, se connectait, était envoyé
+  changer son mot de passe puis vers le tableau de bord, le lien oublié ; il en allait de même d'un
+  changement ouvert depuis la barre du haut ou la page du compte. Le changement ramène désormais à la
+  page demandée — ou à celle d'où il a été ouvert — et seulement à une page de Vectispire : une adresse
+  qui mène ailleurs est ignorée.
 
 ## 0.10.0 — 1er octobre 2026
 

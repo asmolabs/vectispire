@@ -1,8 +1,8 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { Router, provideRouter } from '@angular/router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Account } from './account';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
@@ -75,6 +75,17 @@ describe('the account screen', () => {
         secret: 'JBSWY3DPEHPK3PXP',
         qrCodeUri: 'otpauth://totp/Vectispire:c.moreau?secret=JBSWY3DPEHPK3PXP',
         issuer: 'Vectispire'
+    });
+
+    it('opens the password change so that it comes back here', () => {
+        const navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+        const change = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+            button.textContent.includes('Change password')
+        );
+
+        change!.click();
+
+        expect(String(navigateByUrl.mock.lastCall?.[0])).toBe('/change-password?returnUrl=%2Faccount');
     });
 
     it('switches nothing on until the first code is verified', () => {
