@@ -153,12 +153,19 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
         ScanTarget.Repository target = repository("dropped");
         long scan = scan(target, null, sbom("a@1=GPL-3.0-only"));
         components(scan, "a@1");
-        assertThat(licences.violationsByTarget(Visibility.everything())).containsEntry(target, 1L);
+        // And a scan the inventory never indexed: nothing but the SBOM count says its document is gone.
+        ScanTarget.Repository unindexed = repository("unindexed");
+        long bare = scan(unindexed, null, sbom("a@1=GPL-3.0-only"));
+        assertThat(licences.violationsByTarget(Visibility.everything()))
+                .containsEntry(target, 1L)
+                .containsEntry(unindexed, 1L);
 
-        scans.dropPayloads(List.of(scan));
+        scans.dropPayloads(List.of(scan, bare));
 
-        // Unknown now, which the default policy allows.
-        assertThat(licences.violationsByTarget(Visibility.everything())).containsEntry(target, 0L);
+        // Unknown now, which the default policy allows; and nothing at all for the scan with no rows.
+        assertThat(licences.violationsByTarget(Visibility.everything()))
+                .containsEntry(target, 0L)
+                .containsEntry(unindexed, 0L);
     }
 
     @Test
