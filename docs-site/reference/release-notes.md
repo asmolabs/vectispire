@@ -99,6 +99,13 @@
 
 ### Fixed
 
+- **A `git://` repository its server does not serve was retried for a quarter of an hour before failing
+  as "the clone failed".** `git daemon` answers a path it does not have, or does not export, with a
+  refusal of its own, which was read as an unknown failure — transient — so the scan waited one minute,
+  then five, and spent its three attempts on the same answer. It now fails at its first attempt, as a
+  repository absent over HTTPS or SSH always has, with `git://… could not be found.` A host that does not
+  resolve, over `git://` or SSH, is still retried — the network may come back — and now says
+  `… could not reach its host.` where it said `The clone of … failed.`
 - **A checklist template whose workbook no sign-off could fill in was published, and found at the first
   sign-off.** A cell Vectispire writes — an answer or a comment of an item row, a header value — that
   holds the master of a shared formula (a helper filled down the comment column, typically) or an array

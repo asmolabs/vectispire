@@ -133,6 +133,95 @@ class CloneFailureKindTest {
         assertThat(failure.kind()).isEqualTo(Kind.NETWORK);
     }
 
+    /**
+     * What {@code git daemon} answers for a path it does not serve, byte for byte: one pkt-line, {@code
+     * ERR} and its sentence — measured with {@code GIT_TRACE_PACKET} against git 2.55's daemon, which
+     * sends the same line for an absent repository and for one it does not export (unless it runs with
+     * {@code --informative-errors}, which only rewords it). JGit raises a {@code RemoteRepositoryException}
+     * for it, a {@code TransportException} like every other failure of the transport.
+     */
+    static final class GitDaemonRefusing implements AutoCloseable {
+        private final ServerSocket socket = new ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress());
+
+        GitDaemonRefusing() throws java.io.IOException {
+            Thread.ofVirtual().start(() -> {
+                while (!socket.isClosed()) {
+                    try (java.net.Socket client = socket.accept()) {
+                        var in = client.getInputStream();
+                        int length = Integer.parseInt(new String(in.readNBytes(4), java.nio.charset.StandardCharsets.US_ASCII), 16);
+                        String request = new String(in.readNBytes(length - 4), java.nio.charset.StandardCharsets.UTF_8);
+                        // "git-upload-pack /missing.git\0host=…\0": the path is the request's first word after the service.
+                        String path = request.substring(request.indexOf(' ') + 1, request.indexOf('\0'));
+                        String refusal = "ERR access denied or repository not exported: " + path;
+                        client.getOutputStream().write(String.format("%04x%s", refusal.length() + 4, refusal)
+                                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        client.getOutputStream().flush();
+                    } catch (java.io.IOException | RuntimeException closed) {
+                        // The socket closed under accept(), or a client that hung up: either way, next.
+                    }
+                }
+            });
+        }
+
+        String url(String path) {
+            return "git://127.0.0.1:" + socket.getLocalPort() + "/" + path;
+        }
+
+        @Override
+        public void close() throws java.io.IOException {
+            socket.close();
+        }
+    }
+
+    private CloneFailureException cloning(String url) {
+        GitClone.Request request = new GitClone.Request(
+                url, "main", dir.resolve("clone-" + System.nanoTime()), null, Duration.ofSeconds(5),
+                new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE);
+        return catchThrowableOfType(CloneFailureException.class, () -> GitClone.clone(request));
+    }
+
+    @Test
+    @DisplayName("a repository git daemon does not serve is not found, permanent, and named")
+    void aRepositoryGitDaemonRefusesIsNotFound() throws Exception {
+        try (GitDaemonRefusing daemon = new GitDaemonRefusing()) {
+            CloneFailureException failure = cloning(daemon.url("missing.git"));
+
+            assertThat(failure).isNotNull();
+            assertThat(failure.kind()).isEqualTo(Kind.NOT_FOUND);
+            assertThat(failure.failureKind()).isEqualTo(FailureKind.PERMANENT);
+            assertThat(failure).hasMessage(daemon.url("missing.git") + " could not be found.");
+        }
+    }
+
+    @Test
+    @DisplayName("over SSH or HTTPS a forge's ERR line is its own words, and stays unclassified: it may be passing")
+    void aForgesErrLineElsewhereRetries() throws Exception {
+        Exception err = new TransportException("ssh://git@host/p.git: try again later",
+                new org.eclipse.jgit.errors.RemoteRepositoryException(new URIish("ssh://git@host/p.git"), "try again later"));
+
+        assertThat(GitClone.diagnose(request("main"), err, 0).kind()).isEqualTo(Kind.UNCLASSIFIED);
+    }
+
+    @Test
+    @DisplayName("a git:// host no resolver knows is the network, transient, and said to be unreachable")
+    void anUnknownGitDaemonHostIsTheNetwork() {
+        // JGit's git:// transport drops the UnknownHostException and keeps only its own sentence.
+        CloneFailureException failure = cloning("git://forge.vectispire.invalid/team/repo.git");
+
+        assertThat(failure.failureKind()).isEqualTo(FailureKind.TRANSIENT);
+        assertThat(failure).hasMessageContaining("could not reach its host");
+    }
+
+    @Test
+    @DisplayName("an SSH host no resolver knows is the network, transient")
+    void anUnknownSshHostIsTheNetwork() {
+        // MINA reports it as an UnresolvedAddressException, neither an UnknownHostException nor a SocketException.
+        CloneFailureException failure = cloning("ssh://git@forge.vectispire.invalid/team/repo.git");
+
+        assertThat(failure.kind()).isEqualTo(Kind.NETWORK);
+        assertThat(failure.failureKind()).isEqualTo(FailureKind.TRANSIENT);
+    }
+
     private static GitClone.Request request(String branch) {
         return new GitClone.Request("ssh://git@host/p.git", branch, Path.of("/tmp/unused"), "key", Duration.ofMinutes(1),
                 new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE);

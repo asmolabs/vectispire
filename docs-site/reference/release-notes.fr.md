@@ -106,6 +106,14 @@
 
 ### Corrigé
 
+- **Un dépôt `git://` que son serveur ne sert pas était retenté un quart d'heure avant d'échouer sur
+  « the clone failed ».** `git daemon` répond à un chemin qu'il n'a pas, ou n'exporte pas, par un refus
+  qui lui est propre, lu comme un échec inconnu — transitoire : l'analyse attendait une minute, puis
+  cinq, et dépensait ses trois tentatives sur la même réponse. Elle échoue désormais dès sa première
+  tentative, comme un dépôt absent en HTTPS ou en SSH l'a toujours fait, avec
+  `git://… could not be found.` Un hôte dont le nom ne se résout pas, en `git://` ou en SSH, est
+  toujours retenté — le réseau peut revenir — et dit désormais `… could not reach its host.` là où il
+  disait `The clone of … failed.`
 - **Un modèle de checklist dont aucune approbation ne pourrait remplir le classeur était publié, et
   découvert à la première approbation.** Une cellule que Vectispire écrit — une réponse ou un
   commentaire d'une ligne d'item, une valeur de l'en-tête — qui porte la cellule maîtresse d'une formule

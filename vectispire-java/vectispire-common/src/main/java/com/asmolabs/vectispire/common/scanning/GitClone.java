@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.channels.UnresolvedAddressException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.errors.NoRemoteRepositoryException;
+import org.eclipse.jgit.errors.RemoteRepositoryException;
 import org.eclipse.jgit.internal.JGitText;
 import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
@@ -520,6 +522,15 @@ public final class GitClone {
             if (cause instanceof NoRemoteRepositoryException || cause instanceof InvalidRemoteException) {
                 return Kind.NOT_FOUND;
             }
+            // **git daemon's refusal, on its own transport only.** It answers a path it does not
+            // serve — absent, not exported, a service it does not run — with an ERR line, which JGit
+            // raises as a RemoteRepositoryException, not as the NoRemoteRepositoryException above: a
+            // missing repository over git:// was retried three times, a quarter of an hour, before
+            // failing as "the clone failed". Over SSH or HTTPS an ERR line is whatever the forge chose
+            // to say, a passing condition among others, and stays unclassified.
+            if (cause instanceof RemoteRepositoryException && servedByGitDaemon(request)) {
+                return Kind.NOT_FOUND;
+            }
         }
         if (httpStatus == 401 || httpStatus == 403) {
             return Kind.AUTHENTICATION;
@@ -538,10 +549,17 @@ public final class GitClone {
         if (causes.stream().anyMatch(InterruptedIOException.class::isInstance)) {
             return Kind.TIMEOUT;
         }
-        if (causes.stream().anyMatch(cause -> cause instanceof UnknownHostException || cause instanceof SocketException)) {
+        // MINA reports a name that does not resolve as an UnresolvedAddressException, which is neither.
+        if (causes.stream().anyMatch(cause -> cause instanceof UnknownHostException || cause instanceof SocketException
+                || cause instanceof UnresolvedAddressException)) {
             return Kind.NETWORK;
         }
         return Kind.UNCLASSIFIED;
+    }
+
+    private static boolean servedByGitDaemon(Request request) {
+        // Lower case is the only form RepositoryUrl lets through: an upper-case scheme reads differently to JGit.
+        return request.url() != null && request.url().startsWith("git://");
     }
 
     /**
@@ -584,6 +602,12 @@ public final class GitClone {
         }
         if (failure instanceof TransportException && (message.contains("timeout") || message.contains("timed out"))) {
             return Kind.TIMEOUT;
+        }
+        // The git:// transport drops the UnknownHostException and keeps only JGit's own sentence, so
+        // the host nobody could resolve read "the clone failed".
+        if (causesOf(failure).stream().anyMatch(cause -> cause.getMessage() != null
+                && cause.getMessage().endsWith(": " + JGitText.get().unknownHost))) {
+            return Kind.NETWORK;
         }
         return Kind.UNCLASSIFIED;
     }
