@@ -134,7 +134,16 @@ public final class IssueAggregates {
      * @param opened first seen within the week
      * @param resolved resolved within the week — its latest resolution, or an earlier one a reopening
      *     recorded; an issue counts once
+     * @param reopened reopened within the week, by a reopening the triage history recorded; an issue counts
+     *     once. <b>Zero is not "none" for a week before V68</b>, whose reopenings wrote nothing: the reader
+     *     decides which weeks the history covers
      */
     public record WeeklyFlow(
-            java.time.Instant weekStart, String type, String owaspCategory, long openAtEnd, long opened, long resolved) {}
+            java.time.Instant weekStart,
+            String type,
+            String owaspCategory,
+            long openAtEnd,
+            long opened,
+            long resolved,
+            long reopened) {}
 }

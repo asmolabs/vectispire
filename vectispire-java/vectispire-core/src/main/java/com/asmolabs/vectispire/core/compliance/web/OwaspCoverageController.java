@@ -152,7 +152,11 @@ public class OwaspCoverageController {
             + "are counted from the issues' dates on every week — resolved includes an earlier resolution a reopening "
             + "recorded — placed as the grid places them, without the grid's measurement switches. Known limit: a "
             + "reopening before this release recorded nothing, so such an issue keeps only its latest resolution and "
-            + "counts as open in the weeks between an earlier resolution and that reopening.")
+            + "counts as open in the weeks between an earlier resolution and that reopening. reopened counts the issues "
+            + "placed in the category that a reopening recorded in the triage history brought back during the week; it "
+            + "is null on a week that began before reopenings were recorded (the migration's application, a day's "
+            + "margin aside), where zero would claim what nobody saw, and reopenedRecordedFrom names the first week "
+            + "that has it.")
     @ApiResponse(responseCode = "200", description = "Weeks returned")
     @GetMapping("/weekly")
     public OwaspWeeklyHistoryService.OwaspWeeklyCoverage weeklyCoverage(

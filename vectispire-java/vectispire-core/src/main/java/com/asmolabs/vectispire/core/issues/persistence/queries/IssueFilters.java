@@ -38,9 +38,9 @@ import java.util.stream.Collectors;
  *     repository identifiers since an image can be filed in a project (amendment of 2026-09-30 to
  *     decision 0023): a repository and an image may carry the same number, and each is matched by its
  *     own column
- * @param owaspCategory the issues the OWASP grid places in this category ({@code A01}…{@code A10}),
- *     by {@code OwaspCoverage.placementOf} — a vulnerability is {@code A06} with no column — or null for
- *     no such narrowing
+ * @param owaspPlacement the issues the OWASP grid places in one category ({@code A01}…{@code A10}) or
+ *     in any, by {@code OwaspCoverage.placementOf} — a vulnerability is {@code A06} with no column — or
+ *     null for no such narrowing
  * @param lifetime the dates an issue's life must cross, or null for none
  */
 public record IssueFilters(
@@ -59,11 +59,25 @@ public record IssueFilters(
         Instant touchingSince,
         boolean cveOnly,
         Set<ScanTarget> targetsWithin,
-        String owaspCategory,
+        OwaspPlacement owaspPlacement,
         Lifetime lifetime) {
 
     public IssueFilters {
         targetsWithin = targetsWithin == null ? null : Set.copyOf(targetsWithin);
+    }
+
+    /**
+     * Where in the OWASP Top 10 an issue must be placed, as {@code OwaspCoverage.placementOf} places it.
+     * A type and not a magic category code: a week's total is the issues placed in <em>some</em> category,
+     * and a list of every issue — licences and quality among them — would disagree with the bar it opened.
+     */
+    public sealed interface OwaspPlacement {
+
+        /** Placed in this category, {@code A01}…{@code A10}. */
+        record In(String category) implements OwaspPlacement {}
+
+        /** Placed in one of the ten, whichever — what a week's totals count. */
+        record Anywhere() implements OwaspPlacement {}
     }
 
     /**
@@ -77,14 +91,29 @@ public record IssueFilters(
      *     only its latest resolution
      * @param resolvedFrom with {@code resolvedBefore}, resolved within: its latest resolution, or an
      *     earlier one a reopening recorded
+     * @param reopenedFrom with {@code reopenedBefore}, reopened within: a reopening the triage history
+     *     recorded (origin {@code reopen}, V68) — one older than V68 recorded nothing, and lists nothing
      */
     public record Lifetime(
-            Instant openAt, Instant firstSeenFrom, Instant firstSeenBefore, Instant resolvedFrom, Instant resolvedBefore) {
+            Instant openAt,
+            Instant firstSeenFrom,
+            Instant firstSeenBefore,
+            Instant resolvedFrom,
+            Instant resolvedBefore,
+            Instant reopenedFrom,
+            Instant reopenedBefore) {
+
+        /** Every bound but the reopening's. */
+        public Lifetime(
+                Instant openAt, Instant firstSeenFrom, Instant firstSeenBefore, Instant resolvedFrom, Instant resolvedBefore) {
+            this(openAt, firstSeenFrom, firstSeenBefore, resolvedFrom, resolvedBefore, null, null);
+        }
 
         /** Whether anything is asked at all. */
         public boolean asksAnything() {
             return openAt != null || firstSeenFrom != null || firstSeenBefore != null
-                    || resolvedFrom != null || resolvedBefore != null;
+                    || resolvedFrom != null || resolvedBefore != null
+                    || reopenedFrom != null || reopenedBefore != null;
         }
     }
 
@@ -192,7 +221,7 @@ public record IssueFilters(
      */
     public IssueFilters touching(Instant windowStart) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin, owaspCategory, lifetime);
+                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin, owaspPlacement, lifetime);
     }
 
     /**
@@ -202,7 +231,7 @@ public record IssueFilters(
      */
     public IssueFilters onlyCves() {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin, owaspCategory, lifetime);
+                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin, owaspPlacement, lifetime);
     }
 
     /**
@@ -217,18 +246,18 @@ public record IssueFilters(
             narrowed = narrowed.stream().filter(targetsWithin::contains).collect(Collectors.toUnmodifiableSet());
         }
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed, owaspCategory, lifetime);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed, owaspPlacement, lifetime);
     }
 
-    /** The issues placed in this OWASP category, or every one when it is null. Replaces an earlier one. */
-    public IssueFilters placedIn(String category) {
+    /** The issues placed where {@code placement} says, or every one when it is null. Replaces an earlier one. */
+    public IssueFilters placedIn(OwaspPlacement placement) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, category, lifetime);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, placement, lifetime);
     }
 
     /** The issues whose dates say what {@code asked} asks, or every one when it is null. Replaces an earlier one. */
     public IssueFilters living(Lifetime asked) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspCategory, asked);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspPlacement, asked);
     }
 }

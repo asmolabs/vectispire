@@ -79,13 +79,17 @@ public class IssueQueryService {
      * @param projectId the issues of the repositories and images filed in this project now — see {@link #page}
      *     for what a reader who sees part of it, or none, is answered
      * @param solutionId the same over every project of the solution; with {@code projectId}, both hold
-     * @param owaspCategory {@code A01}…{@code A10}: the issues the OWASP grid places there — see {@link #page}
+     * @param owaspCategory {@code A01}…{@code A10}: the issues the OWASP grid places there; {@code any}: the
+     *     issues it places in one of the ten, whichever — see {@link #page}
      * @param openAt an ISO date: the issues open at the end of that day, UTC
      * @param firstSeenFrom an ISO date: first seen on that day or after, UTC
      * @param firstSeenTo an ISO date: first seen on that day or before, UTC
      * @param resolvedFrom an ISO date: resolved on that day or after, UTC — the latest resolution, or an
      *     earlier one a reopening recorded
      * @param resolvedTo an ISO date: resolved on that day or before, UTC, the same way
+     * @param reopenedFrom an ISO date: reopened on that day or after, UTC — by a reopening the triage
+     *     history recorded, which a reopening before V68 is not
+     * @param reopenedTo an ISO date: reopened on that day or before, UTC, the same way
      */
     public record BacklogQuery(
             String state,
@@ -108,7 +112,9 @@ public class IssueQueryService {
             String firstSeenFrom,
             String firstSeenTo,
             String resolvedFrom,
-            String resolvedTo) {
+            String resolvedTo,
+            String reopenedFrom,
+            String reopenedTo) {
 
         /** Every filter but the drill-down's, which none of these callers asks. */
         public BacklogQuery(
@@ -128,7 +134,7 @@ public class IssueQueryService {
                 int limit,
                 int offset) {
             this(state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId, onlyDirect,
-                    onlyKev, overdue, unsettled, search, limit, offset, null, null, null, null, null, null);
+                    onlyKev, overdue, unsettled, search, limit, offset, null, null, null, null, null, null, null, null);
         }
     }
 
@@ -170,7 +176,9 @@ public class IssueQueryService {
      * page of issues speaks for no more than its rows.
      *
      * <p><b>The weekly OWASP view's drill-down</b>: a category, and the dates of an issue's life. A
-     * category is placed as the grid places it ({@code OwaspCoverage.placementOf}). A date asks about the
+     * category is placed as the grid places it ({@code OwaspCoverage.placementOf}), and {@code any} is every
+     * issue placed in one of the ten — a week's totals, which a list of the whole backlog would exceed by
+     * its licence and quality findings. A date asks about the
      * past, and <b>with one the state defaults to every state, not to open</b>: "open at the end of that
      * Sunday" is mostly issues resolved since, "resolved that week" is only resolved ones, and "first seen
      * that week" is what the week's opened bar counted, resolved or not. Defaulting to open would answer
@@ -196,7 +204,7 @@ public class IssueQueryService {
                 query.overdue() || query.unsettled(),
                 query.overdue() ? sla.overdueThresholds() : Map.of(),
                 allowed)
-                .placedIn(owaspCategory(query.owaspCategory()))
+                .placedIn(owaspPlacement(query.owaspCategory()))
                 .living(lifetime);
         if (query.projectId() != null) {
             filters = filters.within(solutions.members(query.projectId())
@@ -238,18 +246,27 @@ public class IssueQueryService {
                         "Unknown state \"" + raw.trim() + "\". Expected open, resolved or all."));
     }
 
-    /** An OWASP Top 10 category, case aside; blank is no filter, and a code the grid does not hold is refused. */
-    private static String owaspCategory(String raw) {
+    /**
+     * An OWASP Top 10 category, or {@code any} for every one of them, case aside; blank is no filter, and a
+     * code the grid does not hold is refused.
+     */
+    private static IssueFilters.OwaspPlacement owaspPlacement(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         String value = raw.trim().toUpperCase(Locale.ROOT);
+        if (value.equals(ANY_OWASP_CATEGORY)) {
+            return new IssueFilters.OwaspPlacement.Anywhere();
+        }
         if (!OwaspCoverage.CATEGORIES.containsKey(value)) {
             throw new InvalidInputException("Unknown OWASP category \"" + raw.trim() + "\". Expected one of: "
-                    + String.join(", ", OwaspCoverage.CATEGORIES.keySet()) + ".");
+                    + String.join(", ", OwaspCoverage.CATEGORIES.keySet()) + ", or any.");
         }
-        return value;
+        return new IssueFilters.OwaspPlacement.In(value);
     }
+
+    /** The {@code owasp_category} that asks for every category, as compared once upper-cased. */
+    private static final String ANY_OWASP_CATEGORY = "ANY";
 
     /**
      * The dates of the query as instants, or null when none is given. A day is read in UTC — the cut
@@ -262,10 +279,13 @@ public class IssueQueryService {
         Instant firstSeenBefore = nextMidnight("first_seen_to", query.firstSeenTo());
         Instant resolvedFrom = midnight("resolved_from", query.resolvedFrom());
         Instant resolvedBefore = nextMidnight("resolved_to", query.resolvedTo());
+        Instant reopenedFrom = midnight("reopened_from", query.reopenedFrom());
+        Instant reopenedBefore = nextMidnight("reopened_to", query.reopenedTo());
         requireOrdered("first_seen", firstSeenFrom, firstSeenBefore);
         requireOrdered("resolved", resolvedFrom, resolvedBefore);
-        IssueFilters.Lifetime lifetime =
-                new IssueFilters.Lifetime(openAt, firstSeenFrom, firstSeenBefore, resolvedFrom, resolvedBefore);
+        requireOrdered("reopened", reopenedFrom, reopenedBefore);
+        IssueFilters.Lifetime lifetime = new IssueFilters.Lifetime(
+                openAt, firstSeenFrom, firstSeenBefore, resolvedFrom, resolvedBefore, reopenedFrom, reopenedBefore);
         return lifetime.asksAnything() ? lifetime : null;
     }
 

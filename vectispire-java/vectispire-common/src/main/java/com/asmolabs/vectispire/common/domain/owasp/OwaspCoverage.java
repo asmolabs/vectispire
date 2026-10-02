@@ -146,6 +146,15 @@ public final class OwaspCoverage {
     }
 
     /**
+     * The types {@link #categoryOf} places somewhere — every category's {@link #typesPlacedIn}, together.
+     * With {@link #DECLARES_ITS_CATEGORY} declaring one of {@link #CATEGORIES}, they are what {@link
+     * #placementOf} places at all: the backlog's {@code owasp_category=any}, the list a week's total opens.
+     */
+    public static Set<FindingType> typesPlacedAnywhere() {
+        return Set.copyOf(BY_TYPE.keySet());
+    }
+
+    /**
      * Where one issue lands in the Top 10, by the grid's placement and nothing else: its type's
      * category, or for code analysis the category its rule declared.
      *

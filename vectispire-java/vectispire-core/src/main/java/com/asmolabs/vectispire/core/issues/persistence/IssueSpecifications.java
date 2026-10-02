@@ -105,8 +105,11 @@ public final class IssueSpecifications {
         if (filters.cveOnly()) {
             predicates.add(builder.like(builder.upper(root.get("identifier")), "CVE-%"));
         }
-        if (filters.owaspCategory() != null) {
-            predicates.add(placedIn(root, builder, filters.owaspCategory()));
+        if (filters.owaspPlacement() != null) {
+            predicates.add(switch (filters.owaspPlacement()) {
+                case IssueFilters.OwaspPlacement.In in -> placedIn(root, builder, in.category());
+                case IssueFilters.OwaspPlacement.Anywhere anywhere -> placedAnywhere(root, builder);
+            });
         }
         if (filters.lifetime() != null) {
             lived(predicates, root, query, builder, filters.lifetime());
@@ -137,7 +140,28 @@ public final class IssueSpecifications {
     }
 
     /**
-     * The dates' clauses, each half open, through {@link #openAt} and {@link #resolvedWithin} — the rules
+     * The issues {@code OwaspCoverage.placementOf} puts in some category — a week's total, and the list
+     * it opens. The same two halves as {@link #placedIn}, over every category at once: a type placed
+     * somewhere, or the type that declares its category declaring one of the ten. A licence or a quality
+     * finding is in none, and listing it would make the list longer than the bar that opened it.
+     */
+    private static Predicate placedAnywhere(
+            jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder builder) {
+        List<Predicate> either = new ArrayList<>(2);
+        List<String> types = OwaspCoverage.typesPlacedAnywhere().stream().map(FindingType::wireName).sorted().toList();
+        if (!types.isEmpty()) {
+            either.add(root.get("type").in(types));
+        }
+        either.add(builder.and(
+                builder.equal(root.get("type"), OwaspCoverage.DECLARES_ITS_CATEGORY.wireName()),
+                root.get("owaspCategory").in(OwaspCoverage.CATEGORIES.keySet().stream().sorted().toList())));
+        return builder.or(either.toArray(Predicate[]::new));
+    }
+
+    /**
+     * The dates' clauses, each half open, through {@link #openAt}, {@link #resolvedWithin} and {@link
+     * #reopenedWithin} — the rules
      * the weekly reconstruction counts with, so that a figure and the list it opens agree.
      */
     private static void lived(
@@ -160,6 +184,11 @@ public final class IssueSpecifications {
             predicates.add(resolvedWithin(root, query, builder,
                     lifetime.resolvedFrom() == null ? null : new Bound.Value(lifetime.resolvedFrom()),
                     lifetime.resolvedBefore() == null ? null : new Bound.Value(lifetime.resolvedBefore())));
+        }
+        if (lifetime.reopenedFrom() != null || lifetime.reopenedBefore() != null) {
+            predicates.add(reopenedWithin(root, query, builder,
+                    lifetime.reopenedFrom() == null ? null : new Bound.Value(lifetime.reopenedFrom()),
+                    lifetime.reopenedBefore() == null ? null : new Bound.Value(lifetime.reopenedBefore())));
         }
     }
 
@@ -244,6 +273,27 @@ public final class IssueSpecifications {
         return builder.or(
                 within(builder, issue.get("resolvedAt"), from, before),
                 builder.exists(reopenings(issue, query, builder, (event, ended) -> within(builder, ended, from, before))));
+    }
+
+    /**
+     * Reopened within {@code [from, before)}: a reopening the triage history recorded at an instant of the
+     * interval (origin {@code reopen}, V68). Either bound may be null, and asks nothing. An issue is counted
+     * once, however many times it came back in the interval — the figure is the issues reopened in a week,
+     * as the opened one is the issues seen. A reopening older than V68 wrote no entry and is not here; the
+     * weekly view says so by answering no figure for a week before the entries began.
+     */
+    static Predicate reopenedWithin(
+            jakarta.persistence.criteria.Root<IssueEntity> issue,
+            jakarta.persistence.criteria.CommonAbstractCriteria query,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            Bound from,
+            Bound before) {
+        jakarta.persistence.criteria.Subquery<Long> reopening = query.subquery(Long.class);
+        jakarta.persistence.criteria.Root<TriageEventEntity> event = reopening.from(TriageEventEntity.class);
+        return builder.exists(reopening.select(event.get("id")).where(
+                builder.equal(event.get("issueId"), issue.get("id")),
+                builder.equal(event.get("origin"), TriageOrigin.REOPENING.wireName()),
+                within(builder, event.get("occurredAt"), from, before)));
     }
 
     private static Predicate within(

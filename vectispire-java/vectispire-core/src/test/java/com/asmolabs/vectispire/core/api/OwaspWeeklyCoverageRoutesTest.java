@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
@@ -72,6 +73,9 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
 
     @Autowired
     private TriageEventRepository events;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     // ------------------------------------------------------------------------------ the recorded week
 
@@ -262,6 +266,99 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
                 .isEqualTo(detailOf(notFound("solution_id=" + Long.MAX_VALUE, reader)));
     }
 
+    // ------------------------------------------------------------------------------ reopened
+
+    @Test
+    @DisplayName("reopened counts a recorded reopening in its week and category, once per issue, and lists what it counted")
+    void reopenedIsCountedAndListed() throws Exception {
+        long repo = repository();
+        long twice = issue(repo, FindingType.VULNERABILITY, null, EARLIER, null);
+        reopening(twice, Instant.parse("2025-03-04T09:00:00Z"));
+        reopening(twice, Instant.parse("2025-03-06T09:00:00Z"));
+        long secret = issue(repo, FindingType.SECRET, null, EARLIER, null);
+        reopening(secret, NEXT_WEEK);
+        long licence = issue(repo, FindingType.LICENSE, null, EARLIER, null);
+        reopening(licence, Instant.parse("2025-03-05T09:00:00Z"));
+        long decided = issue(repo, FindingType.VULNERABILITY, null, EARLIER, null);
+        TriageEventEntity decision = reopening(decided, Instant.parse("2025-03-05T09:00:00Z"));
+        decision.setOrigin(TriageOrigin.MANUAL.wireName());
+        events.save(decision);
+
+        recordingReopeningsSince("2025-01-01 00:00:00", () -> {
+            JsonNode answer = weekly("from=2025-03-03&to=2025-03-10", asAdmin());
+            assertThat(answer.path("reopenedRecordedFrom").asText()).as("the first Monday a day after V68").isEqualTo("2025-01-06");
+            JsonNode week = answer.path("weeks").get(0);
+            assertThat(category(week, "A06").path("reopened").asLong())
+                    .as("reopened twice that week, counted once; a decision is not a reopening").isEqualTo(1);
+            assertThat(category(week, "A07").path("reopened").asLong()).as("at the next Monday's midnight: the next week's").isZero();
+            assertThat(week.path("reopened").asLong()).as("a licence finding is in no category, nor in the total").isEqualTo(1);
+            assertThat(category(answer.path("weeks").get(1), "A07").path("reopened").asLong()).isEqualTo(1);
+
+            assertThat(listed("reopened_from=2025-03-03&reopened_to=2025-03-09&owasp_category=A06", asAdmin()))
+                    .as("the cell's list").containsExactly(twice);
+            assertThat(listed("reopened_from=2025-03-03&reopened_to=2025-03-09", asAdmin()))
+                    .as("every state, and every type without a category").containsExactlyInAnyOrder(twice, licence);
+            assertThat(listed("reopened_from=2025-03-10&reopened_to=2025-03-10", asAdmin())).containsExactly(secret);
+        });
+    }
+
+    @Test
+    @DisplayName("a week that began before reopenings were recorded answers no reopened figure — not zero")
+    void reopenedIsUnknownBeforeItWasRecorded() throws Exception {
+        long repo = repository();
+        reopening(issue(repo, FindingType.VULNERABILITY, null, EARLIER, null), Instant.parse("2025-03-12T09:00:00Z"));
+        reopening(issue(repo, FindingType.VULNERABILITY, null, EARLIER, null), Instant.parse("2025-03-19T09:00:00Z"));
+
+        // Applied on the Sunday at noon: known from the Monday at noon, a day's margin later — so from
+        // the Monday after, the week of the upgrade having begun before it.
+        recordingReopeningsSince("2025-03-09 12:00:00", () -> {
+            JsonNode answer = weekly("from=2025-03-03&to=2025-03-17", asAdmin());
+            assertThat(answer.path("reopenedRecordedFrom").asText()).isEqualTo("2025-03-17");
+            for (JsonNode before : List.of(answer.path("weeks").get(0), answer.path("weeks").get(1))) {
+                assertThat(before.path("reopened").isNull()).as(before.path("weekStart").asText()).isTrue();
+                assertThat(category(before, "A06").path("reopened").isNull()).isTrue();
+                assertThat(category(before, "A06").path("opened").isNull()).as("the other flows still are figures").isFalse();
+            }
+            JsonNode after = answer.path("weeks").get(2);
+            assertThat(after.path("reopened").asLong()).isEqualTo(1);
+            assertThat(category(after, "A01").path("reopened").asLong()).as("known, and none").isZero();
+        });
+    }
+
+    // ------------------------------------------------------------------------------ the week's total
+
+    @Test
+    @DisplayName("a week's total figures are the lengths of the lists owasp_category=any opens with the same dates")
+    void theTotalsOpenTheirLists() throws Exception {
+        long repo = repository();
+        aBoundaryBacklog(repo);
+        issue(repo, FindingType.LICENSE, null, Instant.parse("2025-03-05T12:00:00Z"), null);
+        issue(repo, FindingType.QUALITY, "A03", Instant.parse("2025-03-05T12:00:00Z"), Instant.parse("2025-03-06T12:00:00Z"));
+        reopening(issue(repo, FindingType.IAC, null, EARLIER, null), Instant.parse("2025-03-06T12:00:00Z"));
+        reopening(issue(repo, FindingType.SAST, "A11", EARLIER, null), Instant.parse("2025-03-06T12:00:00Z"));
+
+        recordingReopeningsSince("2025-01-01 00:00:00", () -> {
+            for (JsonNode week : weekly("from=2025-03-03&to=2025-03-10", asAdmin()).path("weeks")) {
+                LocalDate monday = LocalDate.parse(week.path("weekStart").asText());
+                String days = monday + "&%s_to=" + monday.plusDays(6);
+                assertThat(listed("owasp_category=any&first_seen_from=" + days.formatted("first_seen"), asAdmin()))
+                        .as("opened, " + monday).hasSize(week.path("opened").asInt());
+                assertThat(listed("owasp_category=any&resolved_from=" + days.formatted("resolved"), asAdmin()))
+                        .as("resolved, " + monday).hasSize(week.path("resolved").asInt());
+                assertThat(listed("owasp_category=any&reopened_from=" + days.formatted("reopened"), asAdmin()))
+                        .as("reopened, " + monday).hasSize(week.path("reopened").asInt());
+                assertThat(listed("owasp_category=any&open_at=" + monday.plusDays(6), asAdmin()))
+                        .as("open at the end, " + monday).hasSize(week.path("open").asInt());
+            }
+            JsonNode week = weekly("from=2025-03-03&to=2025-03-03", asAdmin()).path("weeks").get(0);
+            assertThat(week.path("opened").asInt()).as("not a vacuous agreement").isPositive();
+            assertThat(week.path("reopened").asInt()).isPositive();
+            assertThat(listed("first_seen_from=2025-03-03&first_seen_to=2025-03-09", asAdmin()))
+                    .as("without the filter, the licence, quality, unplaced and plugin findings join in")
+                    .hasSizeGreaterThan(week.path("opened").asInt());
+        });
+    }
+
     // ------------------------------------------------------------------------------ the drill-down
 
     @Nested
@@ -317,10 +414,31 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("owasp_category=any lists every issue the grid places in one of the ten, by the placement itself")
+        void anyCategory() throws Exception {
+            long repo = repository();
+            java.util.Set<Long> placed = new java.util.HashSet<>();
+            for (FindingType type : FindingType.values()) {
+                for (String declared : java.util.Arrays.asList(null, "A03", "A10", "A11", "")) {
+                    long id = issue(repo, type, declared, EARLIER, null);
+                    if (com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.placementOf(type, declared).isPresent()) {
+                        placed.add(id);
+                    }
+                }
+            }
+            assertThat(placed).as("not vacuous").isNotEmpty();
+            assertThat(listed("owasp_category=any", asAdmin())).containsExactlyInAnyOrderElementsOf(placed);
+            assertThat(listed("owasp_category=Any", asAdmin())).as("case aside").containsExactlyInAnyOrderElementsOf(placed);
+        }
+
+        @Test
         @DisplayName("refuses a category that does not exist, a date it cannot read and a range that runs backwards")
         void refusals() throws Exception {
             assertThat(listRefused("owasp_category=A11"))
-                    .isEqualTo("Unknown OWASP category \"A11\". Expected one of: A01, A02, A03, A04, A05, A06, A07, A08, A09, A10.");
+                    .isEqualTo("Unknown OWASP category \"A11\". Expected one of: A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, or any.");
+            assertThat(listRefused("reopened_from=2025-03-10&reopened_to=2025-03-09"))
+                    .isEqualTo("reopened_to comes before reopened_from.");
+            assertThat(listRefused("reopened_from=soon")).isEqualTo("reopened_from must be an ISO date, YYYY-MM-DD: \"soon\".");
             assertThat(listRefused("open_at=yesterday")).isEqualTo("open_at must be an ISO date, YYYY-MM-DD: \"yesterday\".");
             assertThat(listRefused("open_at=+10000-01-01")).isEqualTo("open_at must be a date between 1970 and 9998.");
             assertThat(listRefused("resolved_from=2025-03-10&resolved_to=2025-03-09"))
@@ -424,6 +542,39 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
         reopening.setOccurredAt(Instant.parse("2025-03-17T00:00:00Z"));
         events.save(reopening);
         return new Reopened(reopened, issue(repo, FindingType.VULNERABILITY, null, EARLIER, null));
+    }
+
+    /** A reopening entry of the history for this issue, at this instant, ending a resolution a week before. */
+    private TriageEventEntity reopening(long issueId, Instant at) {
+        TriageEventEntity reopening = new TriageEventEntity();
+        reopening.setIssueId(issueId);
+        reopening.setFromStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setOrigin(TriageOrigin.REOPENING.wireName());
+        reopening.setPreviousResolvedAt(at.minusSeconds(7 * 86_400));
+        reopening.setOccurredAt(at);
+        return events.save(reopening);
+    }
+
+    private interface Checks {
+        void run() throws Exception;
+    }
+
+    /**
+     * Runs {@code checks} as if V68 had been applied at {@code installedOn} — the instant Flyway's history
+     * holds, which the test database sets at the start of the run, after every week these cases read. The
+     * row is put back whatever happens: every later case of the run reads it.
+     */
+    private void recordingReopeningsSince(String installedOn, Checks checks) throws Exception {
+        java.sql.Timestamp applied = jdbc.queryForObject(
+                "select installed_on from flyway_schema_history where version = '68'", java.sql.Timestamp.class);
+        jdbc.update("update flyway_schema_history set installed_on = ? where version = '68'",
+                java.sql.Timestamp.valueOf(installedOn));
+        try {
+            checks.run();
+        } finally {
+            jdbc.update("update flyway_schema_history set installed_on = ? where version = '68'", applied);
+        }
     }
 
     private static void assertSameAsTheGrid(JsonNode week, JsonNode grid) {

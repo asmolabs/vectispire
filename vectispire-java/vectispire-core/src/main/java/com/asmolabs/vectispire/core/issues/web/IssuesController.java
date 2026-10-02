@@ -113,7 +113,7 @@ public class IssuesController {
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset,
             // **The weekly OWASP view's drill-down.** A category as the grid places it — a vulnerability
-            // is A06 without the column — and the dates of an issue's life, as ISO days in UTC, `_to`
+            // is A06 without the column; `any`, placed in one of the ten — and the dates of an issue's life, as ISO days in UTC, `_to`
             // included. With a date and no `state`, every state is listed: "open that Sunday" is mostly
             // issues resolved since, and the default `open` would hide them (`IssueQueryService.page`).
             @RequestParam(name = "owasp_category", required = false) String owaspCategory,
@@ -121,13 +121,17 @@ public class IssuesController {
             @RequestParam(name = "first_seen_from", required = false) String firstSeenFrom,
             @RequestParam(name = "first_seen_to", required = false) String firstSeenTo,
             @RequestParam(name = "resolved_from", required = false) String resolvedFrom,
-            @RequestParam(name = "resolved_to", required = false) String resolvedTo) {
+            @RequestParam(name = "resolved_to", required = false) String resolvedTo,
+            // A reopening the triage history recorded, as the weekly view's reopened figure counts it.
+            @RequestParam(name = "reopened_from", required = false) String reopenedFrom,
+            @RequestParam(name = "reopened_to", required = false) String reopenedTo) {
 
         return queries.page(
                 new IssueQueryService.BacklogQuery(
                         state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId,
                         onlyDirect, onlyKev, overdue, unsettled, search, limit, offset,
-                        owaspCategory, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo),
+                        owaspCategory, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo,
+                        reopenedFrom, reopenedTo),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));

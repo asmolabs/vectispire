@@ -43,6 +43,17 @@ class OwaspPlacementTest {
     }
 
     @Test
+    @DisplayName("the types placed anywhere are those placed in some category, and the only ones placed with no declaration")
+    void anywhere() {
+        for (FindingType type : FindingType.values()) {
+            boolean inSome = OwaspCoverage.CATEGORIES.keySet().stream()
+                    .anyMatch(category -> OwaspCoverage.typesPlacedIn(category).contains(type));
+            assertThat(OwaspCoverage.typesPlacedAnywhere().contains(type)).as(type.wireName()).isEqualTo(inSome);
+            assertThat(OwaspCoverage.placementOf(type, null).isPresent()).as(type.wireName()).isEqualTo(inSome);
+        }
+    }
+
+    @Test
     @DisplayName("agrees with the grid: every type the grid counts in a category is placed there")
     void agreesWithTheGrid() {
         for (FindingType type : FindingType.values()) {

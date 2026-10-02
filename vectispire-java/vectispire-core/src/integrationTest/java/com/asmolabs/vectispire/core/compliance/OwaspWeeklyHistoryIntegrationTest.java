@@ -36,13 +36,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /**
  * The weekly OWASP view's reads on a real engine: the reconstruction's conditional sums over bound
- * instants, the record summed per week and state, and the backlog's date filters.
+ * instants, the record summed per week and state, the backlog's date filters, and the instant Flyway's
+ * history holds for V68 — read natively, its type each driver's own.
  *
  * <p><b>What the engines could disagree on</b>: a {@code sum(case …)} over timestamp parameters, which
  * each driver binds its own way (MySQL's {@code datetime(6)} carries no zone); the half-open boundaries,
@@ -97,6 +99,9 @@ class OwaspWeeklyHistoryIntegrationTest {
     @Autowired
     private TriageEventRepository events;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     private long mine;
     private long theirs;
     private long resolvedAtTheEnd;
@@ -104,6 +109,7 @@ class OwaspWeeklyHistoryIntegrationTest {
     @BeforeEach
     void aBacklogOnTheBoundaries() {
         records.deleteAll();
+        events.deleteAll();
         issues.deleteAll();
         repositories.deleteAll();
         mine = repository("mine");
@@ -157,6 +163,53 @@ class OwaspWeeklyHistoryIntegrationTest {
         assertThat(listed(query("A06", "2025-03-16", null, null, null, null))).doesNotContain(reopened).hasSize(2);
         assertThat(listed(query("A06", "2025-03-17", null, null, null, null))).contains(reopened).hasSize(3);
         assertThat(listed(query(null, null, null, null, "2025-03-09", "2025-03-09"))).contains(reopened).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("reopened: a fourth correlated sum on the boundaries, null before Flyway's V68, and the lists it opens")
+    void reopened() {
+        long boundary = issue(mine, FindingType.VULNERABILITY, null, EARLIER, null);
+        reopening(boundary, NEXT_WEEK);
+        long lastSecond = issue(mine, FindingType.SAST, "A03", EARLIER, null);
+        reopening(lastSecond, NEXT_WEEK.minusSeconds(1));
+        reopening(issue(mine, FindingType.QUALITY, null, EARLIER, null), NEXT_WEEK.minusSeconds(1));
+
+        OwaspWeeklyHistoryService.Request march = new OwaspWeeklyHistoryService.Request("2025-03-03", "2025-03-10", null, null);
+        assertThat(weekly.weeks(march, everything()).weeks()).as("V68 applied by this run, after these weeks")
+                .allSatisfy(week -> assertThat(week.reopened()).isNull());
+
+        java.sql.Timestamp applied = jdbc.queryForObject(
+                "select installed_on from flyway_schema_history where version = '68'", java.sql.Timestamp.class);
+        jdbc.update("update flyway_schema_history set installed_on = ? where version = '68'",
+                java.sql.Timestamp.valueOf("2025-01-01 00:00:00"));
+        try {
+            OwaspWeeklyHistoryService.OwaspWeeklyCoverage answer = weekly.weeks(march, everything());
+            assertThat(answer.reopenedRecordedFrom()).hasToString("2025-01-06");
+            List<OwaspWeek> weeks = answer.weeks();
+            assertThat(line(weeks.get(0), "A03").reopened()).as("a second before the week's end").isEqualTo(1);
+            assertThat(line(weeks.get(0), "A06").reopened()).isZero();
+            assertThat(line(weeks.get(1), "A06").reopened()).as("at the next Monday's midnight").isEqualTo(1);
+            assertThat(weeks.get(0).reopened()).as("a quality finding is in no category").isEqualTo(1);
+
+            assertThat(listed(reopenedQuery("any", "2025-03-03", "2025-03-09"))).containsExactly(lastSecond);
+            assertThat(listed(reopenedQuery("any", "2025-03-10", "2025-03-16"))).containsExactly(boundary);
+            assertThat(listed(reopenedQuery(null, "2025-03-03", "2025-03-09"))).hasSize(2);
+        } finally {
+            jdbc.update("update flyway_schema_history set installed_on = ? where version = '68'", applied);
+        }
+    }
+
+    @Test
+    @DisplayName("owasp_category=any lists what some category holds, and the week's total opened is its length")
+    void anyCategory() {
+        issue(mine, FindingType.LICENSE, null, Instant.parse("2025-03-05T12:00:00Z"), null);
+        issue(mine, FindingType.SAST, null, Instant.parse("2025-03-05T12:00:00Z"), null);
+        issue(mine, FindingType.SAST, "A11", Instant.parse("2025-03-05T12:00:00Z"), null);
+        OwaspWeek week = weekly.weeks(
+                new OwaspWeeklyHistoryService.Request("2025-03-03", "2025-03-03", null, null), everything()).weeks().getFirst();
+
+        assertThat(listed(query("any", null, "2025-03-03", "2025-03-09", null, null))).hasSize((int) week.opened()).hasSize(2);
+        assertThat(listed(query("any", "2025-03-09", null, null, null, null))).hasSize((int) week.open());
     }
 
     @Test
@@ -219,7 +272,23 @@ class OwaspWeeklyHistoryIntegrationTest {
     private static IssueQueryService.BacklogQuery query(
             String category, String openAt, String firstSeenFrom, String firstSeenTo, String resolvedFrom, String resolvedTo) {
         return new IssueQueryService.BacklogQuery(null, null, null, null, null, null, null, null, false, false, false,
-                false, null, 500, 0, category, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo);
+                false, null, 500, 0, category, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo, null, null);
+    }
+
+    private static IssueQueryService.BacklogQuery reopenedQuery(String category, String from, String to) {
+        return new IssueQueryService.BacklogQuery(null, null, null, null, null, null, null, null, false, false, false,
+                false, null, 500, 0, category, null, null, null, null, null, from, to);
+    }
+
+    private void reopening(long issueId, Instant at) {
+        TriageEventEntity reopening = new TriageEventEntity();
+        reopening.setIssueId(issueId);
+        reopening.setFromStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setOrigin(TriageOrigin.REOPENING.wireName());
+        reopening.setPreviousResolvedAt(at.minusSeconds(86_400));
+        reopening.setOccurredAt(at);
+        events.save(reopening);
     }
 
     private List<Long> listed(IssueQueryService.BacklogQuery query) {

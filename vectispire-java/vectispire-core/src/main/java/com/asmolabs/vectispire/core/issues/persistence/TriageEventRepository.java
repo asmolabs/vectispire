@@ -66,6 +66,36 @@ public interface TriageEventRepository extends JpaRepository<TriageEventEntity, 
              where e.issueId = i.id and i.repoId = :repoId and e.origin <> :notADecision""")
     long countForRepository(@Param("repoId") long repoId, @Param("notADecision") String notADecision);
 
+    /**
+     * When the migration that began recording reopenings (V68) was applied here, as Flyway wrote it — the
+     * one fact that says from when a reopening left an entry. Nothing in the history itself can: before
+     * V68 a reopening wrote nothing, and a week without an entry reads the same whether nothing came back
+     * or nothing was recorded.
+     *
+     * <p>As stored: a timestamp in the server's or the session's zone depending on the engine, read by the
+     * caller with a margin rather than trusted to the hour ({@code ReopeningsRecord}).
+     * Empty where the row is missing or failed — no week is then known.
+     */
+    default List<java.time.Instant> reopeningMigrationInstalledOn() {
+        return reopeningMigrationInstalledOnAsStored().stream()
+                .<java.time.Instant>mapMulti((stored, into) -> {
+                    switch (stored) {
+                        case java.sql.Timestamp timestamp -> into.accept(timestamp.toInstant());
+                        case java.time.LocalDateTime local -> into.accept(local.atZone(java.time.ZoneId.systemDefault()).toInstant());
+                        case java.time.OffsetDateTime offset -> into.accept(offset.toInstant());
+                        case java.time.Instant instant -> into.accept(instant);
+                        // Anything else is not a date this reads, and leaves no week known.
+                        case null, default -> {}
+                    }
+                })
+                .toList();
+    }
+
+    /** The column as the driver hands it back: a {@code Timestamp}, or a {@code java.time} value on some. */
+    @Query(value = "select installed_on from flyway_schema_history where version = '68' and success = true",
+            nativeQuery = true)
+    List<Object> reopeningMigrationInstalledOnAsStored();
+
     @Transactional
     void deleteByIssueIdIn(Collection<Long> issueIds);
 }

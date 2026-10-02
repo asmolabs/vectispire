@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.compliance.persistence.OwaspWeeklyCoverageRepository;
 import com.asmolabs.vectispire.core.compliance.persistence.OwaspWeeklyStateCount;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.issues.ReopeningsRecord;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
@@ -49,6 +50,14 @@ import org.springframework.transaction.annotation.Transactional;
  * a cell and the list it opens agree. A reopening before V68 wrote nothing, and such an issue still reads
  * as open between that earlier resolution and its reopening — the limit the route states.
  *
+ * <h2>Reopened, from when it was recorded and not before</h2>
+ *
+ * <p>A week's {@code reopened} counts the issues a reopening entry of the history brought back in it —
+ * what makes {@code open} rise with no {@code opened} to match. Before V68 a reopening wrote nothing, and
+ * a week of that time reads zero whether nothing came back or nothing was recorded; so a week that began
+ * before the recording did ({@code ReopeningsRecord}: V68's application, with a day's
+ * margin) answers {@code reopened} null, and the response names the first week that has the figure.
+ *
  * <h2>Settled, in the past, is not known — and is not guessed</h2>
  *
  * <p>Since V68 every change of an issue's triage writes an entry, and for an issue whose whole life
@@ -78,13 +87,19 @@ public class OwaspWeeklyHistoryService {
 
     private final OwaspWeeklyCoverageRepository records;
     private final IssueCatalog issues;
+    private final ReopeningsRecord reopenings;
     private final SolutionQueryService solutions;
     private final Clock clock;
 
     public OwaspWeeklyHistoryService(
-            OwaspWeeklyCoverageRepository records, IssueCatalog issues, SolutionQueryService solutions, Clock clock) {
+            OwaspWeeklyCoverageRepository records,
+            IssueCatalog issues,
+            ReopeningsRecord reopenings,
+            SolutionQueryService solutions,
+            Clock clock) {
         this.records = records;
         this.issues = issues;
+        this.reopenings = reopenings;
         this.solutions = solutions;
         this.clock = clock;
     }
@@ -102,9 +117,12 @@ public class OwaspWeeklyHistoryService {
      * @param from the Monday (UTC) of the first week answered
      * @param to the Monday (UTC) of the last week answered
      * @param scope the project or solution asked for, or null for the reader's estate
+     * @param reopenedRecordedFrom the Monday of the first week whose {@code reopened} is known — every
+     *     reopening of it left an entry — whether or not it is in the window; null when no week is known
      * @param weeks every week of the window, oldest first, recorded or not
      */
-    public record OwaspWeeklyCoverage(LocalDate from, LocalDate to, OwaspWeeklyScope scope, List<OwaspWeek> weeks) {}
+    public record OwaspWeeklyCoverage(
+            LocalDate from, LocalDate to, OwaspWeeklyScope scope, LocalDate reopenedRecordedFrom, List<OwaspWeek> weeks) {}
 
     /**
      * @param kind {@code project} or {@code solution}
@@ -127,6 +145,7 @@ public class OwaspWeeklyHistoryService {
      * @param settled the categories' {@code settled}, summed; null when reconstructed
      * @param opened the categories' {@code opened}, summed
      * @param resolved the categories' {@code resolved}, summed
+     * @param reopened the categories' {@code reopened}, summed; null on a week before reopenings were recorded
      */
     public record OwaspWeek(
             LocalDate weekStart,
@@ -137,6 +156,7 @@ public class OwaspWeeklyHistoryService {
             Long settled,
             long opened,
             long resolved,
+            Long reopened,
             List<OwaspWeekCategory> categories) {}
 
     /**
@@ -152,6 +172,8 @@ public class OwaspWeeklyHistoryService {
      *     one, where the triage of that date is not known
      * @param opened issues placed here first seen during the week, from their dates, on every week
      * @param resolved issues placed here resolved during the week, from their dates, on every week
+     * @param reopened issues placed here a recorded reopening brought back during the week; <b>null on a
+     *     week that began before reopenings were recorded</b> (V68), where zero would claim what nobody saw
      */
     public record OwaspWeekCategory(
             String category,
@@ -160,7 +182,8 @@ public class OwaspWeeklyHistoryService {
             long open,
             Long settled,
             long opened,
-            long resolved) {}
+            long resolved,
+            Long reopened) {}
 
     /**
      * The weeks, for this reader.
@@ -186,16 +209,25 @@ public class OwaspWeeklyHistoryService {
                 .sumByWeekCategoryAndState(weeks.getFirst(), weeks.getLast(), allowed).stream()
                 .collect(Collectors.groupingBy(OwaspWeeklyStateCount::weekStart));
         Map<Instant, Map<String, Flow>> flows = flows(weeks, allowed);
+        Optional<Instant> reopenedFrom = reopenings.recordedSince().map(OwaspWeeklyHistoryService::firstWeekFrom);
 
         List<OwaspWeek> answered = weeks.stream()
-                .map(week -> week(week, recorded.getOrDefault(week, List.of()), flows.getOrDefault(week, Map.of())))
+                .map(week -> week(week, recorded.getOrDefault(week, List.of()), flows.getOrDefault(week, Map.of()),
+                        reopenedFrom.isPresent() && !week.isBefore(reopenedFrom.get())))
                 .toList();
         return new OwaspWeeklyCoverage(
                 day(weeks.getFirst()),
                 day(weeks.getLast()),
                 scope == null ? null : new OwaspWeeklyScope(
                         scope.kind().wireName(), scope.id(), scope.name(), scope.partial(), scope.targets().size()),
+                reopenedFrom.map(OwaspWeeklyHistoryService::day).orElse(null),
                 answered);
+    }
+
+    /** The first Monday at or after {@code instant}: a week that began before it missed some of it. */
+    private static Instant firstWeekFrom(Instant instant) {
+        Instant monday = CoverageWeek.startOf(instant);
+        return monday.equals(instant) ? monday : monday.plus(7, ChronoUnit.DAYS);
     }
 
     /** The Mondays asked for, oldest first. */
@@ -244,21 +276,24 @@ public class OwaspWeeklyHistoryService {
                     .flatMap(type -> OwaspCoverage.placementOf(type, row.owaspCategory()));
             category.ifPresent(placed -> flows
                     .computeIfAbsent(row.weekStart(), week -> new HashMap<>())
-                    .merge(placed, new Flow(row.openAtEnd(), row.opened(), row.resolved()), Flow::plus));
+                    .merge(placed, new Flow(row.openAtEnd(), row.opened(), row.resolved(), row.reopened()), Flow::plus));
         }
         return flows;
     }
 
-    private record Flow(long openAtEnd, long opened, long resolved) {
+    private record Flow(long openAtEnd, long opened, long resolved, long reopened) {
 
-        static final Flow NONE = new Flow(0, 0, 0);
+        static final Flow NONE = new Flow(0, 0, 0, 0);
 
         Flow plus(Flow other) {
-            return new Flow(openAtEnd + other.openAtEnd, opened + other.opened, resolved + other.resolved);
+            return new Flow(openAtEnd + other.openAtEnd, opened + other.opened, resolved + other.resolved,
+                    reopened + other.reopened);
         }
     }
 
-    private static OwaspWeek week(Instant week, List<OwaspWeeklyStateCount> recorded, Map<String, Flow> flows) {
+    /** @param reopeningsKnown every reopening of the week left an entry: its {@code reopened} is a figure */
+    private static OwaspWeek week(
+            Instant week, List<OwaspWeeklyStateCount> recorded, Map<String, Flow> flows, boolean reopeningsKnown) {
         boolean reconstructed = recorded.isEmpty();
         Map<String, List<OwaspWeeklyStateCount>> byCategory =
                 recorded.stream().collect(Collectors.groupingBy(OwaspWeeklyStateCount::category));
@@ -268,7 +303,8 @@ public class OwaspWeeklyHistoryService {
                     Flow flow = flows.getOrDefault(category.getKey(), Flow.NONE);
                     if (reconstructed) {
                         return new OwaspWeekCategory(category.getKey(), category.getValue(), null,
-                                flow.openAtEnd(), null, flow.opened(), flow.resolved());
+                                flow.openAtEnd(), null, flow.opened(), flow.resolved(),
+                                reopeningsKnown ? flow.reopened() : null);
                     }
                     // Summed per state in the database; combined here by the grid's rule, which needs the
                     // states apart — a never-scanned target's findings count only beside a measured one.
@@ -285,7 +321,8 @@ public class OwaspWeeklyHistoryService {
                             combined.map(OwaspCoverage.Split::open).orElse(0L),
                             combined.map(OwaspCoverage.Split::settled).orElse(0L),
                             flow.opened(),
-                            flow.resolved());
+                            flow.resolved(),
+                            reopeningsKnown ? flow.reopened() : null);
                 })
                 .toList();
 
@@ -301,6 +338,7 @@ public class OwaspWeeklyHistoryService {
                 reconstructed ? null : categories.stream().mapToLong(line -> line.settled() == null ? 0 : line.settled()).sum(),
                 categories.stream().mapToLong(OwaspWeekCategory::opened).sum(),
                 categories.stream().mapToLong(OwaspWeekCategory::resolved).sum(),
+                reopeningsKnown ? categories.stream().mapToLong(OwaspWeekCategory::reopened).sum() : null,
                 categories);
     }
 

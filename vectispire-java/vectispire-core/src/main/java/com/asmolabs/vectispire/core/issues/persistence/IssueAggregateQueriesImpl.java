@@ -262,10 +262,13 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
     }
 
     /**
-     * Weeks per statement. Each week is three conditional sums and six bound instants: thirteen weeks
+     * Weeks per statement. Each week is four conditional sums over two bound instants: thirteen weeks
      * — a quarter — keep the select list and the binds small on every engine, and a year is four reads.
      */
     static final int WEEKS_PER_STATEMENT = 13;
+
+    /** The conditional sums of one week, in the order they are selected. */
+    private static final int FIGURES = 4;
 
     @Override
     public List<WeeklyFlow> weeklyFlows(Specification<IssueEntity> filter, List<Instant> weekStarts) {
@@ -304,6 +307,8 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
                     builder.greaterThanOrEqualTo(firstSeen, start), builder.lessThan(firstSeen, end)))));
             columns.add(builder.sum(oneWhen(builder, IssueSpecifications.resolvedWithin(issue, query, builder,
                     new IssueSpecifications.Bound.Parameter(start), new IssueSpecifications.Bound.Parameter(end)))));
+            columns.add(builder.sum(oneWhen(builder, IssueSpecifications.reopenedWithin(issue, query, builder,
+                    new IssueSpecifications.Bound.Parameter(start), new IssueSpecifications.Bound.Parameter(end)))));
         }
         query.select(builder.array(columns.toArray(jakarta.persistence.criteria.Selection<?>[]::new))).groupBy(issue.get("type"), issue.get("owaspCategory"));
 
@@ -323,11 +328,13 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
         List<WeeklyFlow> flows = new java.util.ArrayList<>();
         for (Object[] row : typed.getResultList()) {
             for (int week = 0; week < weeks.size(); week++) {
-                long open = count(row[2 + 3 * week]);
-                long opened = count(row[3 + 3 * week]);
-                long closed = count(row[4 + 3 * week]);
-                if (open + opened + closed > 0) {
-                    flows.add(new WeeklyFlow(weeks.get(week), (String) row[0], (String) row[1], open, opened, closed));
+                long open = count(row[2 + FIGURES * week]);
+                long opened = count(row[3 + FIGURES * week]);
+                long closed = count(row[4 + FIGURES * week]);
+                long reopened = count(row[5 + FIGURES * week]);
+                if (open + opened + closed + reopened > 0) {
+                    flows.add(new WeeklyFlow(
+                            weeks.get(week), (String) row[0], (String) row[1], open, opened, closed, reopened));
                 }
             }
         }
