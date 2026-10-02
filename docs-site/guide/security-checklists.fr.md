@@ -165,6 +165,11 @@ mêmes mots dans une autre checklist sont une autre question.
 La révision quittée devient *remplacée* si elle était un brouillon ou soumise ; une révision approuvée
 reste approuvée. Dans les deux cas elle reste lisible.
 
+La version d'arrivée est d'abord essayée, comme l'approbation la remplirait : une version publiée avant
+la version qui suit la 0.10.0 dont aucune approbation ne pourrait remplir le classeur est refusée, ses
+cellules nommées ([quand le serveur refuse](#quand-le-serveur-refuse)). La version quittée n'est jamais
+essayée : une checklist bloquée sur une telle version peut toujours la quitter.
+
 ## Lignes mesurées
 
 Une ligne que le modèle lie à une règle — voir
@@ -449,14 +454,20 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 | Une ligne répond oui là où sa mesure échoue (`checklist-measurement-contradicted`) | La soumission est refusée ; les lignes sont nommées. Voir [lignes mesurées](#lignes-mesurees). |
 | Une mesure a changé (`checklist-measurement-changed`) | À l'approbation : la mesure d'une ligne n'est plus celle que la soumission a conservée — renvoyez la révision. Sur une réponse qui repose sur une mesure : ce n'est pas celle que vous avez lue — rechargez. |
 | Cette version n'est plus publiée / déjà sur cette version | Choisissez une autre version ; après une approbation, rouvrez plutôt. |
+| Aucune approbation ne pourrait remplir le classeur de la version choisie (`checklist-version-unrenderable`) | La version a été publiée avant que Vectispire ne contrôle les modèles pour cela, et une cellule que l'approbation écrit dans son classeur porte une formule dont d'autres cellules dépendent : les cellules sont nommées. Rien n'a été ouvert ni changé de version. Voir ci-dessous. |
 | Plus de réponse reportée en attente / preuve déjà retirée | Quelqu'un l'a fait avant vous. |
 
 Une approbation refusée parce qu'**une cellule du classeur du modèle porte une formule dont d'autres
 cellules dépendent** — la phrase nomme les cellules — ne peut pas réussir sur cette version : le
 classeur est celui du modèle, et une version publiée ne change jamais. Depuis la version qui suit la 0.10.0,
-une version est contrôlée avant sa publication. Demandez à qui gère les modèles une
+une version est contrôlée avant sa publication, et une checklist n'est plus **ouverte sur une version
+publiée plus tôt qui échoue au même contrôle, ni passée à celle-ci** : l'écran en nomme les cellules, et
+rien n'est ouvert, changé de version ni consigné — une checklist qui ne pourrait jamais être approuvée
+n'est pas commencée. Demandez à qui gère les modèles une
 [version corrigée](../administration/checklist-templates.fr.md#une-formule-dans-une-cellule-que-vectispire-ecrit),
-puis [passez-y](#7-passer-a-une-version-plus-recente) : vos réponses sont reportées.
+puis ouvrez la checklist sur celle-ci, ou [passez-y](#7-passer-a-une-version-plus-recente) : vos réponses
+sont reportées. **Quitter** une telle version n'est jamais refusé — c'est la sortie pour une checklist
+qui s'y trouve déjà.
 
 ## Ce qui est consigné
 

@@ -252,7 +252,10 @@ put aside.
 A version **published before this check** that has such a cell refuses every sign-off on it, in the
 same words. Publish a corrected version as above, and have the projects
 [move their checklists to it](../guide/security-checklists.md#7-move-to-a-newer-version): their
-answers are carried.
+answers are carried. Meanwhile no checklist is opened on such a version, nor moved to it — the same
+trial runs there and the screen names the cells (409 `checklist-version-unrenderable`) — while a
+checklist already on it always moves away. Retire it once the corrected one is published, so that it is
+no longer offered.
 
 With four-eyes on, the platform refuses to be left with a single account able to publish — see
 [four-eyes approval](four-eyes.md#switching-it-on-requires-that-a-second-person-exist).

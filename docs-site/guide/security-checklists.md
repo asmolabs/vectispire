@@ -158,6 +158,11 @@ another template carries nothing**: the same words in another checklist are anot
 The revision it leaves becomes *superseded* if it was a draft or submitted; a signed-off one stays
 signed off. Either way it stays readable.
 
+The version moved to is tried first, as a sign-off would fill it in: one published before 0.10.0's
+successor whose workbook no sign-off could fill in is refused, its cells named
+([when the server refuses](#when-the-server-refuses)). The version moved from is never tried, so a
+checklist stuck on such a version always moves away from it.
+
 ## Measured lines
 
 A line the template binds to a rule — see
@@ -427,14 +432,18 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 | A line is answered yes where its measurement fails (`checklist-measurement-contradicted`) | The submission is refused; the lines are named. See [measured lines](#measured-lines). |
 | A measurement changed (`checklist-measurement-changed`) | At the sign-off: a line's measurement is not what the submission stored — return the revision. On an answer resting on a measurement: it is not the one you read — reload. |
 | That version is no longer published / already on that version | Choose another version; after a sign-off, reopen instead. |
+| No sign-off could fill in the workbook of the version you chose (`checklist-version-unrenderable`) | The version was published before Vectispire checked templates for it, and a cell a sign-off writes in its workbook holds a formula other cells depend on: the cells are named. Nothing was opened or moved. See below. |
 | No carried answer awaiting confirmation / evidence already withdrawn | Somebody did it before you. |
 
 A sign-off refused because **a cell of the template's workbook carries a formula other cells depend
 on** — the sentence names the cells — cannot succeed on that version: the workbook is the template's,
 and a published version never changes. Since the release after 0.10.0, a version is checked for it before
-it is published. Ask whoever manages the templates for a
+it is published, and a checklist is no longer **opened on, or moved to**, a version published earlier
+that fails the same check: the screen names its cells, and nothing is opened, moved or recorded — a
+checklist that could never be signed is not started. Ask whoever manages the templates for a
 [corrected version](../administration/checklist-templates.md#a-formula-in-a-cell-vectispire-writes),
-then [move to it](#7-move-to-a-newer-version): your answers are carried.
+then open the checklist on it, or [move to it](#7-move-to-a-newer-version): your answers are carried.
+**Moving away** from such a version is never refused — it is the way out for a checklist already on it.
 
 ## What is recorded
 

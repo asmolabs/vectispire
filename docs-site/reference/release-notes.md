@@ -45,6 +45,10 @@
   `POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish` fills the workbook in once, as a
   sign-off would, and refuses a workbook no sign-off could be written into; the problem's `cells` member
   names each cell at fault (`cell`, `kind` — `shared` or `array` — and `range`). See *Fixed* below.
+  **Opening a project checklist, or moving one to another version, can answer 409
+  `checklist-version-unrenderable`** — `POST /api/v1/projects/{id}/checklists` runs the same trial on the
+  version opened on or moved to, and refuses one published earlier that fails it, with the same `cells`
+  member; nothing is stored or recorded. The version moved from is never tried.
 
 ### New
 
@@ -106,6 +110,11 @@
   the first. A version published before this release with such a cell still refuses its sign-offs:
   publish a corrected one and move the projects' checklists to it — see
   [a formula in a cell Vectispire writes](../administration/checklist-templates.md#a-formula-in-a-cell-vectispire-writes).
+  Nor is a checklist **opened on, or moved to**, such a version any more: the same trial runs there, the
+  cells are named on screen, and nothing is opened — no project starts a checklist that could never be
+  signed. Moving a checklist away from such a version is never refused: that is the way out —
+  [when the server refuses](../guide/security-checklists.md#when-the-server-refuses). The templates
+  screen and the project checklist screen both name the cells in the reader's language and say what to do.
 - **A reopened issue left no trace in its triage history.** When a scan or an import found a resolved
   issue again, it reopened it and cleared a `fixed` decision with no entry: the history showed `fixed` as
   the last word on an issue standing open under review again, and the resolution it had — from when to

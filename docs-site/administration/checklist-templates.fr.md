@@ -271,7 +271,10 @@ que vous aviez fixé sur le brouillon écarté.
 Une version **publiée avant ce contrôle** qui a une telle cellule refuse chaque approbation, dans les
 mêmes termes. Publiez une version corrigée comme ci-dessus, et faites
 [passer les checklists des projets sur celle-ci](../guide/security-checklists.fr.md#7-passer-a-une-version-plus-recente) :
-leurs réponses sont reportées.
+leurs réponses sont reportées. Entre-temps, aucune checklist n'est ouverte sur une telle version ni
+passée à celle-ci — le même essai y est exécuté et l'écran nomme les cellules (409
+`checklist-version-unrenderable`) — tandis qu'une checklist qui s'y trouve déjà peut toujours la quitter.
+Retirez-la une fois la version corrigée publiée, pour qu'elle ne soit plus proposée.
 
 Double validation active, la plateforme refuse de se retrouver avec un seul compte capable de
 publier — voir [double validation](four-eyes.fr.md#lactiver-demande-quune-seconde-personne-existe).
