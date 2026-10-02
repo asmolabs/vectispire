@@ -14,7 +14,9 @@ import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,25 +49,74 @@ public class OwaspCoverageService {
         this.settings = settings;
     }
 
-    @Transactional(readOnly = true)
-    public OwaspCoverage.Grid grid(Visibility allowed) {
-        Map<FindingType, Long> open = new EnumMap<>(FindingType.class);
-        for (FindingType type : FindingType.values()) {
-            OwaspCoverage.categoryOf(type).ifPresent(category -> open.put(type, countOpen(type, allowed)));
-        }
+    /**
+     * What a grid reads that does not depend on whose grid it is: the two settings, the rules'
+     * reach and their declared categories, and which targets have been scanned.
+     *
+     * <p><b>Read once and handed to every grid of a pass.</b> The weekly record builds one grid per
+     * target, and asking these per target would read every target's latest scan once for each target —
+     * a pass quadratic in the estate, for an answer that does not change between two targets.
+     *
+     * @param scanned every target with a scan, read from each one's latest
+     */
+    public record Reading(
+            boolean endOfLifeEnabled, boolean codeAnalysisReaches, Set<String> declaredByRules, Set<ScanTarget> scanned) {
 
-        return OwaspCoverage.assess(new OwaspCoverage.Measurement(
-                scanned(allowed),
+        public Reading {
+            declaredByRules = Set.copyOf(declaredByRules);
+            scanned = Set.copyOf(scanned);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Reading reading() {
+        return new Reading(
                 settings.isEnabled(Setting.EOL_ENABLED),
                 settings.isEnabled(Setting.SAST_ENABLED)
                         && ruleCoverage.assess().state() != RuleCoverage.State.UNCONFIGURED,
-                Map.copyOf(open),
                 // **What the installed rules declare, not what the findings carry.** Deriving the
                 // set of categories from the findings would drop a category out of the grid the day
                 // its last finding is fixed — that is, at the moment it most deserves to say
                 // "looked at, nothing to report".
                 ruleCoverage.declaredOwaspCategories(),
-                openByCategory(allowed)));
+                scanned());
+    }
+
+    @Transactional(readOnly = true)
+    public OwaspCoverage.Grid grid(Visibility allowed) {
+        return grid(allowed, reading(), true);
+    }
+
+    /**
+     * One target's grid, its open findings counted twice: as the grid counts them, and with the
+     * settled ones — which the weekly record keeps apart rather than dropping them.
+     *
+     * <p>The same {@link OwaspCoverage#assess} as the screen's grid, narrowed to the one target by the
+     * visibility every count already carries; nothing of the placement is restated here.
+     */
+    @Transactional(readOnly = true)
+    public List<OwaspCoverage.Split> ofTarget(ScanTarget target, Reading reading) {
+        Visibility only = Visibility.only(Set.of(target));
+        return OwaspCoverage.split(grid(only, reading, true), grid(only, reading, false));
+    }
+
+    private OwaspCoverage.Grid grid(Visibility allowed, Reading reading, boolean excludeSettled) {
+        Map<FindingType, Long> open = new EnumMap<>(FindingType.class);
+        for (FindingType type : FindingType.values()) {
+            OwaspCoverage.categoryOf(type).ifPresent(category -> open.put(type, countOpen(type, allowed, excludeSettled)));
+        }
+
+        return OwaspCoverage.assess(new OwaspCoverage.Measurement(
+                // **Asked of the estate and not of the deployment.** A restricted reader whose two
+                // repositories were never scanned must be told their categories are unmeasured, even
+                // where the rest of the estate is covered — otherwise the grid reports somebody else's
+                // evidence under their name.
+                reading.scanned().stream().anyMatch(allowed::permits),
+                reading.endOfLifeEnabled(),
+                reading.codeAnalysisReaches(),
+                Map.copyOf(open),
+                reading.declaredByRules(),
+                openByCategory(allowed, excludeSettled)));
     }
 
     /**
@@ -74,25 +125,18 @@ public class OwaspCoverageService {
      * <p>Grouped in the database: at most ten rows whatever the size of the backlog, and the
      * reader's visibility is carried by the same filter as everywhere else.
      */
-    private Map<String, Long> openByCategory(Visibility allowed) {
+    private Map<String, Long> openByCategory(Visibility allowed, boolean excludeSettled) {
         return issues.countOpenSastByOwaspCategory(new IssueFilters(
                         IssueState.OPEN.wireName(), null, null, null, null, null,
-                        false, false, null, true, Map.of(), allowed)).stream()
+                        false, false, null, excludeSettled, Map.of(), allowed)).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         IssueAggregates.OwaspCategoryCount::category,
                         IssueAggregates.OwaspCategoryCount::count,
                         Long::sum));
     }
 
-    /**
-     * Whether anything the caller may see has ever been scanned.
-     *
-     * <p><b>Asked of the estate and not of the deployment.</b> A restricted reader whose two
-     * repositories were never scanned must be told their categories are unmeasured, even where
-     * the rest of the estate is covered — otherwise the grid reports somebody else's evidence
-     * under their name.
-     */
-    private boolean scanned(Visibility allowed) {
+    /** Every target with a scan, from each one's latest. */
+    private Set<ScanTarget> scanned() {
         return java.util.stream.Stream.concat(
                         scans.latestPerRepository().stream()
                                 .filter(row -> row.targetId() != null)
@@ -100,12 +144,12 @@ public class OwaspCoverageService {
                         scans.latestPerContainer().stream()
                                 .filter(row -> row.targetId() != null)
                                 .<ScanTarget>map(row -> new ScanTarget.Container(row.targetId())))
-                .anyMatch(allowed::permits);
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
-    private long countOpen(FindingType type, Visibility allowed) {
+    private long countOpen(FindingType type, Visibility allowed, boolean excludeSettled) {
         return issues.count(new IssueFilters(
                         IssueState.OPEN.wireName(), null, type.wireName(), null, null, null,
-                        false, false, null, true, Map.of(), allowed));
+                        false, false, null, excludeSettled, Map.of(), allowed));
     }
 }

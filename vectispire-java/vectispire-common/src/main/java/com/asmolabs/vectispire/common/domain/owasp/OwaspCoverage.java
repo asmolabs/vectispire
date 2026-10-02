@@ -198,6 +198,38 @@ public final class OwaspCoverage {
                 (int) lines.stream().filter(line -> line.state() == State.NOT_MEASURED).count());
     }
 
+    /**
+     * One category of one grid, with the open findings whose triage is settled counted apart.
+     *
+     * @param state the state the grid reports — the one read without the settled findings, which is
+     *     the grid this product shows. A category whose every open finding is accepted reads
+     *     {@link State#NO_FINDING} here, and its {@code settled} says what that cost
+     * @param open open findings whose triage is not settled: the grid's own figure
+     * @param settled open findings whose triage is settled — accepted, not applicable, a false
+     *     positive. <b>Kept apart rather than dropped or added in</b>: dropped, an accepted risk
+     *     vanishes from the record; added in, it reads as work still to do
+     */
+    public record Split(String id, State state, long open, long settled) {}
+
+    /**
+     * The two readings of one estate side by side: {@code unsettled} counted as the grid counts,
+     * {@code all} with the settled findings included, both from {@link #assess}.
+     *
+     * <p><b>The difference of two grids, and not a third rule.</b> Settled findings are subject to
+     * the same placement as the others — a category nothing measures counts none of either — and
+     * computing them by a separate path is how the two figures would come to disagree about which
+     * categories a finding lands in. Never below zero: the two readings are separate statements, and a
+     * finding settled between them would otherwise be counted as minus one.
+     */
+    public static List<Split> split(Grid unsettled, Grid all) {
+        Map<String, Long> withSettled = new LinkedHashMap<>();
+        all.lines().forEach(line -> withSettled.put(line.id(), line.findings()));
+        return unsettled.lines().stream()
+                .map(line -> new Split(line.id(), line.state(), line.findings(),
+                        Math.max(0, withSettled.getOrDefault(line.id(), 0L) - line.findings())))
+                .toList();
+    }
+
     private static CoverageLine line(String id, String title, Measurement measurement) {
         List<FindingType> types = BY_TYPE.entrySet().stream()
                 .filter(entry -> entry.getValue().equals(id))

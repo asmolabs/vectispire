@@ -75,6 +75,8 @@ public interface MaintenanceTask {
         public static final int SLA_BREACHES = 510;
         public static final int WEEKLY_DIGEST = 600;
         public static final int COMPLIANCE_HISTORY = 700;
+        /** Beside the compliance capture, and after the expiry for the same reason. */
+        public static final int OWASP_WEEKLY_COVERAGE = 710;
         public static final int SESSION_CLEANUP = 800;
         public static final int GATE_VERDICTS = 810;
         public static final int COMPLIANCE_SNAPSHOTS = 820;

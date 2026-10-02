@@ -88,6 +88,9 @@ public abstract class VectispireContextTest {
             // would survive into the next test and the failure would read as a duplicate write.
             "t_control_declaration",
             "t_compliance_snapshot",
+            // No foreign key either (V67, common). Left out, one test's capture would make the next test's
+            // week "not due", and its rows would be counted in the next test's week.
+            "t_owasp_weekly_coverage",
             // A singleton row: left behind, it made the next SIEM test start "enabled".
             "t_siem_config",
             "t_processed_message",

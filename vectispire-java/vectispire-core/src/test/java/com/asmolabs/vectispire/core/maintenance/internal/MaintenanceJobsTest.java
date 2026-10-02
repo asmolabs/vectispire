@@ -17,9 +17,11 @@ import com.asmolabs.vectispire.core.access.internal.SessionCleanupTask;
 import com.asmolabs.vectispire.core.agents.CredentialedBacklog;
 import com.asmolabs.vectispire.core.agents.internal.CredentialedBacklogTask;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
+import com.asmolabs.vectispire.core.compliance.OwaspWeeklyCoverageService;
 import com.asmolabs.vectispire.core.compliance.internal.AbandonedReviewsTask;
 import com.asmolabs.vectispire.core.compliance.internal.ComplianceHistoryTask;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
+import com.asmolabs.vectispire.core.compliance.internal.OwaspWeeklyCoverageTask;
 import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.gate.internal.VerdictRetentionTask;
@@ -96,6 +98,7 @@ class MaintenanceJobsTest {
             SlaBreachTask.class,
             WeeklyDigestTask.class,
             ComplianceHistoryTask.class,
+            OwaspWeeklyCoverageTask.class,
             SessionCleanupTask.class,
             VerdictRetentionTask.class,
             SnapshotRetentionTask.class,
@@ -116,6 +119,7 @@ class MaintenanceJobsTest {
     private PostureDigestService digest;
     private TargetDeletionService targetDeletion;
     private ComplianceHistoryService complianceHistory;
+    private OwaspWeeklyCoverageService owaspWeekly;
     private GateVerdictRepository verdicts;
     private ComplianceSnapshotRepository snapshots;
     private OwaspReviewService reviews;
@@ -137,6 +141,7 @@ class MaintenanceJobsTest {
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
         complianceHistory = mock(ComplianceHistoryService.class);
+        owaspWeekly = mock(OwaspWeeklyCoverageService.class);
         verdicts = mock(GateVerdictRepository.class);
         snapshots = mock(ComplianceSnapshotRepository.class);
         reviews = mock(OwaspReviewService.class);
@@ -163,6 +168,7 @@ class MaintenanceJobsTest {
                 new SlaBreachTask(breaches),
                 new WeeklyDigestTask(digest),
                 new ComplianceHistoryTask(complianceHistory),
+                new OwaspWeeklyCoverageTask(owaspWeekly),
                 new SessionCleanupTask(sessions),
                 new VerdictRetentionTask(verdicts, settings, clock),
                 new SnapshotRetentionTask(snapshots, settings, clock),
@@ -203,7 +209,7 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, breaches, digest, complianceHistory,
-                sessions, verdicts, snapshots, reviews, feed, targetDeletion);
+                owaspWeekly, sessions, verdicts, snapshots, reviews, feed, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
@@ -214,6 +220,9 @@ class MaintenanceJobsTest {
         turn.verify(breaches).signalCrossings();
         turn.verify(digest).runOnce();
         turn.verify(complianceHistory).capture();
+        // The only caller of the weekly OWASP record: a week it does not run in is a week whose state
+        // nobody can recover afterwards. After the expiry, like the compliance capture.
+        turn.verify(owaspWeekly).capture();
         turn.verify(sessions).prune();
         turn.verify(verdicts).deleteBefore(any());
         turn.verify(snapshots).deleteBefore(any());

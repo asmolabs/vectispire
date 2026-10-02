@@ -19,6 +19,18 @@
   entry's timestamp is when it is written; the moment the result was accepted is in its description
   ("… at 2026-…"), with the delivery's id.
 
+### New
+
+- **A weekly record of the OWASP Top 10 coverage starts now.** Every six hours at most, the maintenance
+  turn records, for every repository and image — scanned or not — and for each of the ten categories,
+  the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings
+  it counts, and apart from them the open findings whose triage is settled, so that accepted risks can be
+  shown as such. The current week (Monday 00:00 UTC) is rewritten until it closes; a closed week keeps its
+  last capture. Nothing reads it yet: a weekly view comes in a later release. **Weeks before the upgrade
+  have no recorded state** — whether a category was covered or measured then depended on settings and
+  rules that have moved since, and that view will say "state not recorded" for them rather than guess.
+  A deleted target's rows go with it (migration V67).
+
 ### Fixed
 
 - **Concurrent audit writes could break the audit chain, and raise a false tampering alarm.** Two

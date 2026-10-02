@@ -20,6 +20,19 @@
   les deux. Son horodatage est celui de l'écriture ; le moment où le résultat a été accepté est dans sa
   description (« … at 2026-… »), avec l'identifiant de la livraison.
 
+### Nouveautés
+
+- **Un relevé hebdomadaire de la couverture OWASP Top 10 commence maintenant.** Toutes les six heures au
+  plus, le passage de maintenance enregistre, pour chaque dépôt et chaque image — analysés ou non — et pour
+  chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien
+  trouvé), les constats ouverts qu'elle compte, et à part les constats ouverts dont le triage est réglé,
+  pour que les risques acceptés puissent être montrés comme tels. La semaine en cours (lundi 00:00 UTC) est
+  réécrite jusqu'à sa clôture ; une semaine close garde son dernier relevé. Rien ne le lit encore : une vue
+  hebdomadaire viendra dans une version ultérieure. **Les semaines antérieures à la mise à jour n'ont pas
+  d'état enregistré** — qu'une catégorie ait alors été couverte ou mesurée dépendait de réglages et de
+  règles qui ont changé depuis, et cette vue affichera pour elles « état non enregistré » plutôt que de le
+  deviner. Les lignes d'une cible supprimée partent avec elle (migration V67).
+
 ### Corrigé
 
 - **Des écritures d'audit simultanées pouvaient casser la chaîne d'audit, et déclencher une fausse
