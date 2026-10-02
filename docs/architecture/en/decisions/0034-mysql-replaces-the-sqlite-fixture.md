@@ -111,5 +111,7 @@ A note after the record, not an edit of it.
   `vectispire.signing.key` answered 500: the key was created inside the bundle's read-only
   transaction, which SQLite ignored. And MySQL 9 honours an inline `references`, so on the
   `mysql:9.4` the suites run V1's inline foreign keys exist twice, InnoDB's beside V19's — the shipped
-  composition's `mysql:8` discards them. Recorded, not changed here.
+  composition's `mysql:8` discards them. Recorded here, then settled by V65 (2026-10-02): the 24
+  twins are dropped, and `t_mfa_challenge.user_id` — inline in V23, so never a key on MySQL 8 — gets
+  a named one; both majors now end with the same 33 keys.
 

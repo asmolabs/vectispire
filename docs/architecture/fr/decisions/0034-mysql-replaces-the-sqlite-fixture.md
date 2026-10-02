@@ -120,5 +120,8 @@ Une note après l'enregistrement, pas une modification de celui-ci.
   `vectispire.signing.key` répondait 500 : la clé était créée dans la transaction en lecture seule
   du lot, que SQLite ignorait. Et MySQL 9 honore un `references` en ligne : sur le `mysql:9.4` des
   suites, les clés étrangères en ligne de V1 existent deux fois, celles d'InnoDB à côté de celles de
-  V19 — le `mysql:8` de la composition livrée les écarte. Consigné, pas modifié ici.
+  V19 — le `mysql:8` de la composition livrée les écarte. Consigné ici, puis réglé par V65
+  (2026-10-02) : les 24 doublons sont supprimés, et `t_mfa_challenge.user_id` — en ligne dans V23,
+  donc jamais une clé sous MySQL 8 — reçoit une clé nommée ; les deux versions majeures finissent avec
+  les mêmes 33 clés.
 

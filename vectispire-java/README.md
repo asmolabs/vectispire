@@ -354,8 +354,8 @@ This native multi-dialect approach solves the impedance mismatches and table-rec
 historically experienced with abstractions:
 - PostgreSQL uses native `BIGINT GENERATED ALWAYS AS IDENTITY`, `TIMESTAMPTZ`, and `char(36)` UUIDs.
 - MySQL uses its native types (`BIT(1)`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`), and a foreign key
-  as a named constraint: MySQL 8 discards an inline one, and MySQL 9 keeps it — on the `mysql:9.4`
-  the suites run, V1's inline keys exist twice, InnoDB's name beside V19's. The declared
+  as a named constraint: MySQL 8 discards an inline one, and MySQL 9 keeps it — V1's inline keys
+  existed twice on MySQL 9 and V23's was no key on MySQL 8, both settled by V65. The declared
   precision is not decoration: a bare `DATETIME` truncates to the second, and the audit chain
   hashes a millisecond timestamp — see [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md).
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.

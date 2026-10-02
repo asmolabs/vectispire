@@ -9,8 +9,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -82,15 +80,17 @@ class MigrationsTest {
     }
 
     @Test
-    @DisplayName("the foreign keys really exist on MySQL, inline or not")
+    @DisplayName("the foreign keys really exist on MySQL, inline or not, and each exactly once")
     void foreignKeysArePresent() throws Exception {
         // MySQL 8 parses a column-level `references` and drops it without a word, so a key declared
         // only inline exists on PostgreSQL and not there: each must be a named `add constraint`
-        // (V19, V37 and their successors). MySQL 9 honours the inline form, so on the image pinned
-        // here V1's inline keys exist twice — InnoDB's `t_scan_ibfk_1` beside V19's `fk_scan_repo`.
-        // Counted as distinct references, which is the property: each key exists, whichever MySQL.
-        // Enforcement is `ForeignKeyEnforcementTest`'s.
-        Set<String> references = new TreeSet<>();
+        // (V19, V37, V65 and their successors). MySQL 9 honours the inline form, so on the image pinned
+        // here V1's inline keys existed twice — InnoDB's `t_scan_ibfk_1` beside V19's `fk_scan_repo`
+        // — until V65 dropped the twins; and `t_mfa_challenge.user_id`, inline in V23, was a key on
+        // MySQL 9 only, which this test could not see while it counted distinct references. Listed,
+        // not collected in a set: a key that exists twice fails here. Enforcement is
+        // `ForeignKeyEnforcementTest`'s.
+        List<String> references = new ArrayList<>();
         try (TestDatabase.Scratch database = TestDatabase.scratch()) {
             apply(database);
             try (Connection connection = connect(database)) {
@@ -137,7 +137,8 @@ class MigrationsTest {
                         "t_gate_verdict.container_id -> t_container",
                         "t_repository.project_id -> t_project",
                         "t_project.solution_id -> t_solution")
-                .hasSize(27);
+                .hasSize(27)
+                .doesNotHaveDuplicates();
     }
 
     @Test

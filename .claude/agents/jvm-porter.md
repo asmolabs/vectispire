@@ -403,8 +403,11 @@ and the method it documents — add the new one above the javadoc.
 
 **MySQL 8 ignores a column-level `REFERENCES`, and MySQL 9 honours it.** Declare a foreign key as a
 named `alter table … add constraint fk_… foreign key …` on MySQL and PostgreSQL (see V19, V37), and
-never inline as well: on the `mysql:9.4` the suites run, V1's inline keys exist twice — InnoDB's
-`t_scan_ibfk_1` beside V19's `fk_scan_repo` — while the shipped composition's `mysql:8` has one.
+never inline as well: an inline key is no key on the shipped composition's `mysql:8`, and a second
+key beside the named one on the `mysql:9.4` the suites run. Both happened — V1's keys existed twice
+on MySQL 9, and V23's `t_mfa_challenge.user_id` was no key at all on MySQL 8 — and V65
+settled them. `MigrationsTest` now fails on a key that exists twice; it cannot see one that MySQL 8
+alone is missing, because the suites run MySQL 9, so read your migration on both.
 
 **A dependency or a plugin you add or bump is not resolved until you record it.** Gradle checks
 every artifact against `gradle/verification-metadata.xml` — a signature by a key in
