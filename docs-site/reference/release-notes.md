@@ -168,6 +168,19 @@
   inventory diff ("AJOUTÉ", "SUPPRIMÉ"…), a notification channel's state ("Configuré", "Inactif"), the
   "UNPROTECTED" and "HIGH RISK" tags of the attack surface, and the badge image's alternative text.
 
+### Performance
+
+- **The dashboard's maturity ranking no longer reads the estate's SBOMs at every load.** Its licence
+  term — five points a refused licence, the same as on each target's scorecard — was counted from the
+  whole licence inventory each time the page opened: every scan's SBOM parsed and every component row
+  read, for a reader granted five targets as for an administrator. Measured on two hundred targets of two
+  scans and 250 components each, a load cost about 420 ms; it now costs 30 to 50 ms. Each target's
+  licences are counted once and counted again only when its scans change — a new scan, an SBOM removed by
+  the retention purge, a target deleted — and a licence policy change applies at the next load. The
+  ranking's scores are unchanged, with one precision: when two scans of a target declare the same
+  component under different licences, the newer scan's licence is now the one kept, on the ranking and
+  on the licence inventory alike, where it used to depend on the order the scans were read in.
+
 ## 0.10.0 — 2026-10-01
 
 Read **Before you upgrade** first: five of its points stop something working

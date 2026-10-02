@@ -189,6 +189,21 @@
   et « HIGH RISK » de la surface d'attaque — désormais « NON PROTÉGÉ » et « RISQUE ÉLEVÉ » — et le texte
   alternatif de l'image du badge.
 
+### Performances
+
+- **Le classement de maturité du tableau de bord ne relit plus les SBOM de tout le parc à chaque
+  affichage.** Son terme de licences — cinq points par licence refusée, comme sur la fiche de score de
+  chaque cible — était compté sur tout l'inventaire des licences à chaque ouverture de la page : le SBOM
+  de chaque analyse relu et chaque ligne de composant lue, pour un lecteur à qui cinq cibles sont
+  attribuées comme pour un administrateur. Mesuré sur deux cents cibles de deux analyses et 250
+  composants chacune, un affichage coûtait environ 420 ms ; il en coûte désormais 30 à 50. Les licences de
+  chaque cible sont comptées une fois, puis recomptées seulement quand ses analyses changent — une nouvelle
+  analyse, un SBOM retiré par la purge de rétention, une cible supprimée — et un changement de politique
+  de licences s'applique dès l'affichage suivant. Les scores du classement ne changent pas, à une
+  précision près : quand deux analyses d'une cible déclarent le même composant sous des licences
+  différentes, c'est désormais la licence de la plus récente qui est retenue, dans le classement comme
+  dans l'inventaire des licences, là où elle dépendait de l'ordre de lecture des analyses.
+
 ## 0.10.0 — 1er octobre 2026
 
 Lisez d'abord **Avant la mise à jour** : cinq de ses points arrêtent
