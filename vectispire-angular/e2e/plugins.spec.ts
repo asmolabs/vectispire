@@ -16,7 +16,7 @@ type Manifest = components['schemas']['PluginManifest'];
  * the defect the menu suite already watches for.
  *
  * <p><b>Ids carry a suffix and are never cleaned up</b>, because a plugin cannot be deleted: that is
- * the product's rule, not the suite's. The campaign's SQLite file is disposable.
+ * the product's rule, not the suite's. The campaign's database is disposable.
  */
 test.describe.configure({ mode: 'serial' });
 

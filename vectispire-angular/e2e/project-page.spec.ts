@@ -9,7 +9,7 @@ import { resetLoginThrottle } from './support/fixture';
  * links to both, that a project holding one image nobody has scanned reads as unmeasured — a dash, "No
  * data" — with its component list flagged incomplete, that the CycloneDX export saves a file through
  * the client, and that an unknown project is the not-found state. Names carry a suffix and are
- * deleted at the end, because the campaign's SQLite file survives a local re-run.
+ * deleted at the end, because the campaign's database survives a local re-run.
  */
 test.describe.configure({ mode: 'serial' });
 

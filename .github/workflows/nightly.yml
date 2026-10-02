@@ -88,13 +88,32 @@ jobs:
       # inherited from an earlier workflow had drifted thirteen minor versions, which nobody could
       # know because that workflow never ran.
       image: mcr.microsoft.com/playwright:v1.63.0-noble
+    # **On MySQL, the production default, with the schema validated (decision 0034).** A job service
+    # beside the Playwright container shares its network, so the control plane and the suite's
+    # helpers (`e2e/support/fixture.ts`, through `mysql2`) both reach `mysql:3306` with the variables
+    # below — one address for both, read by both. The image is `TestDatabase.IMAGE`'s and the
+    # campaign's `Engine.MYSQL`: one pin in several places, and a difference is a suite running on
+    # an engine the campaign does not.
+    services:
+      mysql:
+        image: mysql:9.4
+        env:
+          MYSQL_ROOT_PASSWORD: vectispire-ci
+          MYSQL_DATABASE: vectispire
+          MYSQL_USER: vectispire
+          MYSQL_PASSWORD: vectispire-ci
+        # Healthy only once the real server listens on TCP: the image's first-start server runs with
+        # networking off, so a ping over 127.0.0.1 does not answer before the control plane could
+        # connect — and Hikari fails fast rather than retrying.
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pvectispire-ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
     env:
-      VECTISPIRE_DB_URL: jdbc:sqlite:/tmp/e2e.db
-      # SQLite cannot boot under the shipped `ddl-auto: validate` — its affinities report a
-      # timestamp column back as FLOAT, which says something about SQLite and nothing about the
-      # mapping. Schema parity is the `databases` job's business.
-      SPRING_JPA_HIBERNATE_DDL_AUTO: none
-      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.community.dialect.SQLiteDialect
+      VECTISPIRE_DB_URL: jdbc:mysql://mysql:3306/vectispire
+      VECTISPIRE_DB_USER: vectispire
+      VECTISPIRE_DB_PASSWORD: vectispire-ci
       ENCRYPTION_KEY: ZTJlLXRlc3Qta2V5LW5vdC1hLXNlY3JldC0zMmI=
       VECTISPIRE_BOOTSTRAP_USERNAME: admin
       VECTISPIRE_BOOTSTRAP_PASSWORD: AdminVectispire2026!

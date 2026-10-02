@@ -120,7 +120,13 @@ thrown inside an `HttpTestingController.flush` subscriber is not a failed test b
 Error" that turns the run red: read the summary, not only the pass count.
 
 The Playwright suite needs a running control plane; reproduce the `e2e` job of
-`.github/workflows/ci.yml` (boot jar on SQLite, `VECTISPIRE_DB_URL` exported to Playwright too). The
+`.github/workflows/ci.yml`: a `mysql:9.4` container, the boot jar against it with `ddl-auto` left at
+`validate`, and `VECTISPIRE_DB_URL`/`_USER`/`_PASSWORD` exported to Playwright too — the helpers in
+`e2e/support/fixture.ts` reset the login throttle and seed a finding through `mysql2` with the
+control plane's own variables (decision 0034). A negative assertion straight after a save
+(`not.toHaveText('Ready')`) holds while the request is still in flight: wait for what the save's
+answer changes (its form closing) before the next click, or the answer lands on the next form — on
+SQLite this raced and won, on MySQL it lost every time.
 A `p-multiselect`'s `inputId` lands on a hidden input: Playwright times out clicking it — click the
 `p-multiselect` that has it (`page.locator('p-multiselect', { has: page.locator('#id') })`). The
 screenshot campaign (`screens-en`, `screens-fr` projects) regenerates `docs-site/assets/screens/`;

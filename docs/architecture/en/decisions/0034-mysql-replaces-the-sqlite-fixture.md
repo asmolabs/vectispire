@@ -45,6 +45,9 @@ own verification (0014). PostgreSQL stays in the campaign.
   `SqliteForeignKeys`, `SqliteWriteAheadLog`, and the `SQLITE_BUSY` workarounds once each is shown to
   be SQLite's alone. `MigrationLayoutTest` and `check-doc-facts.py` count two engines.
 - **The campaign keeps PostgreSQL and MySQL** under `integrationTestAll`; its SQLite leg is removed.
+- **The browser suite moves too** (2026-10-02): the `e2e` jobs of `ci.yml` and `nightly.yml` start
+  the control plane on a `services: mysql` under `validate`, and the suite's helpers
+  (`e2e/support/fixture.ts`) reach it through `mysql2` instead of opening the SQLite file.
 
 **H2 stays refused**, for 0014's reasons: replacing one engine nobody deploys by another would keep
 every cost above and add a compatibility mode that hides what the campaign looks for.

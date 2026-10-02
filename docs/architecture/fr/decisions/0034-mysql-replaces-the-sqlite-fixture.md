@@ -49,6 +49,9 @@ vérification de la chaîne d'audit (0014). PostgreSQL reste dans la campagne.
   `SQLITE_BUSY` une fois chacun montré propre à SQLite. `MigrationLayoutTest` et `check-doc-facts.py`
   comptent deux moteurs.
 - **La campagne garde PostgreSQL et MySQL** sous `integrationTestAll` ; sa jambe SQLite est retirée.
+- **La suite navigateur suit** (2026-10-02) : les jobs `e2e` de `ci.yml` et `nightly.yml` démarrent
+  le plan de contrôle sur un `services: mysql` sous `validate`, et les helpers de la suite
+  (`e2e/support/fixture.ts`) l'atteignent par `mysql2` au lieu d'ouvrir le fichier SQLite.
 
 **H2 reste refusé**, pour les raisons de 0014 : remplacer un moteur que personne ne déploie par un
 autre garderait tous les coûts ci-dessus et ajouterait un mode de compatibilité qui cache ce que la

@@ -80,6 +80,13 @@ whichever package is installed. jsdom was held at 26 because jsdom 30 renamed a 
 unchanged, in less time. Keep it at 20.8.9 or later: earlier versions carry published
 advisories, one of them a VM escape.
 
+**`mysql2`, exact-pinned, for the browser suite alone.** The Playwright suite runs the control
+plane on MySQL (decision 0034), and two helpers in `e2e/support/fixture.ts` write to that
+database directly — resetting the login throttle and seeding one finding — with the control
+plane's own `VECTISPIRE_DB_*` variables, so both reach the same base. It replaced `node:sqlite`
+when SQLite left the project. A development dependency: nothing in the bundle imports it. MIT,
+its dependencies MIT except `long` (Apache-2.0); read them again before raising it.
+
 ## Asset checking
 
 `npm test` starts with `scripts/check-assets.mjs`, which rejects any reference to a

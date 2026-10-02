@@ -10,7 +10,7 @@ import { expect, type Page } from '@playwright/test';
  * could know: the browser suite has never completed a run — the CI image was thirteen minor
  * versions behind Playwright and no browser launched at all.
  *
- * **Idempotent across runs on purpose.** The change is a one-way door and the SQLite file survives
+ * **Idempotent across runs on purpose.** The change is a one-way door and the database survives
  * a local re-run, so this tries the bootstrap password and falls back to the rotated one. A helper
  * that only worked on a fresh database would pass in CI and fail on the second local run, which is
  * the worst of both.

@@ -8,7 +8,7 @@ import { resetLoginThrottle } from './support/fixture';
  * <p>The unit spec pins the screen against fixtures; this pins it against the routes: that an
  * ordinary account reaches the tree through the sidebar and is offered no change, and that an
  * administrator's create, move, delete, the filing of an image and their confirmations go through. Names carry a suffix and are
- * deleted at the end, because the campaign's SQLite file survives a local re-run and names are
+ * deleted at the end, because the campaign's database survives a local re-run and names are
  * unique.
  */
 test.describe.configure({ mode: 'serial' });
