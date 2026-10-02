@@ -123,6 +123,10 @@
 - **The first evidence bundle of an installation without `vectispire.signing.key` answered 500.** The
   signing key created on first use joined the bundle's read-only transaction, which MySQL and PostgreSQL
   refuse to write in. It is now created outside it.
+- **Following a link from one scan to another could show the previous scan.** The scan page kept the
+  first scan on screen until the second answered, and if the first answer came last it replaced the
+  second: the address named scan 35 while the header, the plugins and the findings were scan 34's. The
+  page now clears the previous scan and cancels its request when the address changes.
 
 ## 0.10.0 — 2026-10-01
 

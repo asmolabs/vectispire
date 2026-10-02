@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, effect, inject, input, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -9,6 +9,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { DocumentsApi } from '../../core/api/documents.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { LatestRequest } from '../../core/latest-request';
 import { saveDocument } from '../../core/download';
 import type { ScanDetail, ScanSummary } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
@@ -56,6 +57,13 @@ export class ScanDetailPage {
     private readonly scansApi = inject(ScansApi);
     private readonly i18n = inject(I18nService);
 
+    /**
+     * The detail's request. Following a link from one scan to another keeps this screen and only
+     * changes `id`: without cancelling, the first scan's answer could land after the second's and
+     * put scan 34's findings under the address of scan 35.
+     */
+    private readonly detailRequest = new LatestRequest();
+
     readonly id = input.required<string>();
     readonly scan = signal<ScanDetail | null>(null);
     readonly error = signal<string | null>(null);
@@ -67,7 +75,7 @@ export class ScanDetailPage {
         // navigation from one scan to the next without leaving the screen.
         effect(() => {
             const id = Number(this.id());
-            if (Number.isFinite(id)) this.load(id);
+            if (Number.isFinite(id)) untracked(() => this.load(id));
         });
     }
 
@@ -157,7 +165,11 @@ export class ScanDetailPage {
     }
 
     private load(id: number): void {
-        this.scansApi.scan(id).subscribe({
+        // The previous scan is cleared first: left in place, it would stay on screen under the new
+        // address until the answer came — or for good, if the new one failed beside its error.
+        this.scan.set(null);
+        this.error.set(null);
+        this.detailRequest.run(this.scansApi.scan(id), {
             next: (detail) => this.scan.set(detail),
             error: (response) =>
                 this.error.set(

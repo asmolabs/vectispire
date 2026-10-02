@@ -134,6 +134,11 @@
 - **Le premier coffre de preuves d'une installation sans `vectispire.signing.key` répondait 500.** La clé
   de signature créée à la première utilisation rejoignait la transaction en lecture seule du coffre, dans
   laquelle MySQL et PostgreSQL refusent d'écrire. Elle est désormais créée hors de celle-ci.
+- **Suivre un lien d'une analyse à une autre pouvait afficher l'analyse précédente.** La page d'une
+  analyse gardait la première à l'écran jusqu'à la réponse de la seconde, et si la première réponse
+  arrivait en dernier, elle remplaçait la seconde : l'adresse nommait l'analyse 35, l'en-tête, les
+  plugins et les résultats étaient ceux de la 34. La page efface désormais l'analyse précédente et annule
+  sa requête quand l'adresse change.
 
 ## 0.10.0 — 1er octobre 2026
 

@@ -411,4 +411,47 @@ describe('the scan detail', () => {
 
         expect(fixture.nativeElement.textContent as string).not.toContain('Code analysis covers');
     });
+
+    /**
+     * Following a link from one scan to another keeps this component and changes only `id`. The
+     * two answers race: the slower first one used to land last and put the previous scan's target
+     * and findings under the new scan's address.
+     */
+    describe('moving from one scan to the next', () => {
+        const NEXT = { ...DETAIL, scan: { ...DETAIL.scan, id: 35, targetName: 'Billing Gateway' } };
+
+        async function moveTo(id: string): Promise<void> {
+            fixture.componentRef.setInput('id', id);
+            fixture.detectChanges();
+            await Promise.resolve();
+        }
+
+        it("shows the scan the address names when the previous scan's answer comes last", async () => {
+            await Promise.resolve();
+            const first = http.expectOne('/api/v1/scans/34');
+
+            await moveTo('35');
+            http.expectOne('/api/v1/scans/35').flush(NEXT);
+            // A request still open would deliver the old answer now; a cancelled one cannot.
+            if (!first.cancelled) first.flush(DETAIL);
+            fixture.detectChanges();
+            for (const coverage of http.match('/api/v1/rule-sets/coverage')) coverage.flush(COVERED);
+            fixture.detectChanges();
+
+            expect(first.cancelled).toBe(true);
+            const text = (fixture.nativeElement as HTMLElement).textContent;
+            expect(text).toContain('Billing Gateway');
+            expect(text).not.toContain('Arm Libs Spring');
+        });
+
+        it('takes the previous scan off the screen while the next one loads', async () => {
+            await load();
+            expect((fixture.nativeElement as HTMLElement).textContent).toContain('Arm Libs Spring');
+
+            await moveTo('35');
+
+            expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Arm Libs Spring');
+            http.expectOne('/api/v1/scans/35').flush(NEXT);
+        });
+    });
 });
