@@ -30,6 +30,16 @@ public interface OwaspWeeklyCoverageRepository
     int deleteWeek(@Param("week") Instant week);
 
     /**
+     * Every week that starts before this Monday — the evidence window's purge. One statement, as the
+     * other evidence purges are: once the window is reached it removes one week per hour at most, and the
+     * key's leading {@code week_start} bounds the range.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("delete from OwaspWeeklyCoverageEntity c where c.weekStart < :week")
+    int deleteWeeksBefore(@Param("week") Instant week);
+
+    /**
      * A target's rows, every week — in the deleting transaction. Flushed first and nothing cleared:
      * the other listeners of the purge share this persistence context.
      */

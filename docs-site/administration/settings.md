@@ -77,7 +77,8 @@ written stay until somebody answers over them, and answering as measured in one 
 
 ## Retention
 
-How long scans and their raw artefacts are kept. See
+How long scans and their raw artefacts are kept, and — apart from them — how long the evidence
+is: *Evidence kept for (days)* (`evidence_retention_days`). See
 [Rotation and purge](maintenance.md).
 
 ## Notifications

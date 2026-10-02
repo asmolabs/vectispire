@@ -22,6 +22,7 @@ import com.asmolabs.vectispire.core.compliance.internal.AbandonedReviewsTask;
 import com.asmolabs.vectispire.core.compliance.internal.ComplianceHistoryTask;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspWeeklyCoverageTask;
+import com.asmolabs.vectispire.core.compliance.internal.OwaspWeeklyRetentionTask;
 import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.gate.internal.VerdictRetentionTask;
@@ -102,6 +103,7 @@ class MaintenanceJobsTest {
             SessionCleanupTask.class,
             VerdictRetentionTask.class,
             SnapshotRetentionTask.class,
+            OwaspWeeklyRetentionTask.class,
             AbandonedReviewsTask.class,
             KevCatalogueSyncTask.class,
             EpssScoresSyncTask.class,
@@ -172,6 +174,7 @@ class MaintenanceJobsTest {
                 new SessionCleanupTask(sessions),
                 new VerdictRetentionTask(verdicts, settings, clock),
                 new SnapshotRetentionTask(snapshots, settings, clock),
+                new OwaspWeeklyRetentionTask(owaspWeekly, settings, clock),
                 new AbandonedReviewsTask(reviews),
                 new KevCatalogueSyncTask(feed),
                 new EpssScoresSyncTask(feed),
@@ -226,6 +229,9 @@ class MaintenanceJobsTest {
         turn.verify(sessions).prune();
         turn.verify(verdicts).deleteBefore(any());
         turn.verify(snapshots).deleteBefore(any());
+        // The only purge of the weekly record by age: without it the table grows by ten rows per target
+        // and week for as long as the install lives.
+        turn.verify(owaspWeekly).purgeEndedBefore(any());
         turn.verify(reviews).settleAbandoned();
         // The only thing that keeps the KEV catalogue from being as old as the last button press.
         turn.verify(feed).syncIfDue();

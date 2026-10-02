@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.compliance.OwaspWeeklyCoverageService;
+import com.asmolabs.vectispire.core.compliance.internal.OwaspWeeklyRetentionTask;
 import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
@@ -44,6 +46,8 @@ class EvidenceRetentionTest {
     private SettingsService settings;
     private VerdictRetentionTask verdictRetention;
     private SnapshotRetentionTask snapshotRetention;
+    private OwaspWeeklyCoverageService weekly;
+    private OwaspWeeklyRetentionTask weeklyRetention;
 
     @BeforeEach
     void wire() {
@@ -53,6 +57,8 @@ class EvidenceRetentionTest {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         verdictRetention = new VerdictRetentionTask(verdicts, settings, clock);
         snapshotRetention = new SnapshotRetentionTask(snapshots, settings, clock);
+        weekly = mock(OwaspWeeklyCoverageService.class);
+        weeklyRetention = new OwaspWeeklyRetentionTask(weekly, settings, clock);
     }
 
     @Test
@@ -83,9 +89,11 @@ class EvidenceRetentionTest {
 
         verdictRetention.run();
         snapshotRetention.run();
+        weeklyRetention.run();
 
         verify(verdicts, never()).deleteBefore(any());
         verify(snapshots, never()).deleteBefore(any());
+        verify(weekly, never()).purgeEndedBefore(any());
     }
 
     @Test
@@ -109,6 +117,27 @@ class EvidenceRetentionTest {
         // One dial for all evidence: a second window for the captures would be the drift the single
         // setting exists to prevent.
         verify(snapshots).deleteBefore(NOW.minus(Duration.ofDays(400)));
+    }
+
+    @Test
+    @DisplayName("purges the weekly OWASP record by the same dial")
+    void theWeeklyRecordFollowsTheSameDial() {
+        when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
+        when(settings.asInt(Setting.RETENTION_MAX_AGE_DAYS)).thenReturn(1);
+
+        weeklyRetention.run();
+
+        // The instant, not the week: which weeks it reaches is the service's rule, tested on a database.
+        verify(weekly).purgeEndedBefore(NOW.minus(Duration.ofDays(400)));
+    }
+
+    @Test
+    @DisplayName("a failing weekly purge is swallowed like the others")
+    void aFailingWeeklyPurgeIsSwallowed() {
+        when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
+        when(weekly.purgeEndedBefore(any())).thenThrow(new IllegalStateException("deadlock"));
+
+        weeklyRetention.run();
     }
 
     @Test

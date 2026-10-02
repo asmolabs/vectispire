@@ -83,7 +83,8 @@ mesuré » en un clic demeure.
 
 ## Rétention
 
-Combien de temps les scans et leurs artefacts bruts sont conservés. Voir
+Combien de temps les scans et leurs artefacts bruts sont conservés, et — à part — combien de
+temps les preuves le sont : *Evidence kept for (days)* (`evidence_retention_days`). Voir
 [Rotation et purge](maintenance.md).
 
 ## Notifications

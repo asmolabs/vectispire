@@ -53,6 +53,15 @@ Deux choses à mettre en balance :
 **Les blobs bruts sont la partie volumineuse.** Ce sont aussi les preuves dont quelqu'un a
 besoin pour re-dériver vos conclusions plutôt que de les prendre sur parole.
 
+**Les preuves ont une fenêtre à elles**, *Evidence kept for (days)* (`evidence_retention_days`,
+400 jours par défaut ; zéro les garde pour toujours) : les verdicts de la barrière, les relevés
+mensuels de conformité et le relevé hebdomadaire OWASP. Contrairement à un artefact brut, rien de
+cela ne se régénère : réglez-la sur la période qu'un auditeur vous demande de couvrir, plus le délai
+avant qu'il la lise, et non sur la fenêtre des artefacts. Le tour de maintenance horaire purge ce qui
+en est sorti. Une semaine du relevé OWASP est gardée tant qu'une partie d'elle est encore dans la
+fenêtre ; une fois purgée, la vue *Par semaine* la montre comme les semaines d'avant le début du
+relevé — reconstituée à partir des dates des issues, sans état relevé.
+
 **Purger un scan ne purge pas l'issue.** Les issues suivent les problèmes d'un scan à l'autre
 et portent leur propre historique et leurs décisions de triage. Le registre de ce qui a été
 décidé survit au registre de l'exécution qui l'a observé en premier.

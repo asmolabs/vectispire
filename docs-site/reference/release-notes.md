@@ -36,7 +36,10 @@
   last capture. **Weeks before the upgrade have no recorded state** — whether a category was covered or
   measured then depended on settings and rules that have moved since, and the weekly view below says
   "not recorded" for them rather than guess.
-  A deleted target's rows go with it (migration V67).
+  A deleted target's rows go with it (migration V67), and the record is purged by the evidence
+  window, *Evidence kept for (days)* (`evidence_retention_days`, 400 days by default, zero keeps it for
+  ever), as the gate's verdicts and the compliance captures are: a week is kept while any of it is
+  inside the window, and a purged week reads as reconstructed in the weekly view below.
 - **The OWASP Top 10, week by week: `GET /api/v1/owasp/coverage/weekly`.** Up to 52 ISO weeks (the
   last 12 by default), over the caller's estate or one project or solution, for the targets they may see
   (a scope they see nothing of answers 404, as an absent one does). Each week gives, per category, the

@@ -50,6 +50,14 @@ Two things to weigh:
 **The raw blobs are the bulky part.** They are also the evidence somebody needs to
 re-derive your conclusions rather than take them on trust.
 
+**Evidence has a window of its own**, *Evidence kept for (days)* (`evidence_retention_days`,
+400 days by default; zero keeps it for ever): the gate's verdicts, the monthly compliance captures
+and the weekly OWASP record. Unlike a payload none of it can be regenerated, so set it to the
+period an assessor asks you to cover plus the delay before they read it, and not to the payload
+window. The hourly maintenance turn purges what has left it. A week of the OWASP record is kept
+while any of it is still inside the window; once purged, the *By week* view shows it as it shows
+the weeks before the record began — reconstructed from the issues' dates, with no recorded state.
+
 **Purging a scan does not purge the issue.** Issues track problems across scans and carry
 their own history and triage decisions. The record of what was decided survives the record
 of the run that first observed it.

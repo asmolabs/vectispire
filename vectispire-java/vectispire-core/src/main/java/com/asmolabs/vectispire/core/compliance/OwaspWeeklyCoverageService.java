@@ -125,6 +125,24 @@ public class OwaspWeeklyCoverageService {
     }
 
     /**
+     * Removes every week that ended at or before {@code cutoff} — the evidence window's purge.
+     *
+     * <p><b>A week is kept while any of it lies inside the window.</b> A snapshot is kept when it was
+     * taken at or after the cutoff; a week is a span, and its last capture can sit up to its last hour.
+     * Cutting at the week's start would drop a week whose final days the window still covers — the days
+     * an assessor reading the window's oldest edge asks about — so the week the cutoff falls in stays,
+     * and only the weeks before it go. A purged week is not lost from the view: {@code
+     * OwaspWeeklyHistoryService} answers it as reconstructed, from the issues' dates, as it answers the
+     * weeks before the first capture. The current week can never be purged: the cutoff is in the past,
+     * so its week starts at or before the current one.
+     *
+     * @return how many rows went
+     */
+    public int purgeEndedBefore(Instant cutoff) {
+        return weeks.deleteWeeksBefore(CoverageWeek.startOf(cutoff));
+    }
+
+    /**
      * The week's rows replaced by these, in one transaction — or joined to the caller's, which is how
      * the campaign holds one writer open while another arrives. False when the week turned out to be
      * fresh once inside: another instance committed it while this one was reading.

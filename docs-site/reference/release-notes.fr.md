@@ -38,7 +38,11 @@
   réécrite jusqu'à sa clôture ; une semaine close garde son dernier relevé. **Les semaines antérieures à la
   mise à jour n'ont pas d'état enregistré** — qu'une catégorie ait alors été couverte ou mesurée dépendait
   de réglages et de règles qui ont changé depuis, et la vue hebdomadaire ci-dessous dit « non enregistré »
-  pour elles plutôt que de le deviner. Les lignes d'une cible supprimée partent avec elle (migration V67).
+  pour elles plutôt que de le deviner. Les lignes d'une cible supprimée partent avec elle (migration V67),
+  et le relevé est purgé par la fenêtre des preuves, *Evidence kept for (days)* (`evidence_retention_days`,
+  400 jours par défaut, zéro le garde pour toujours), comme les verdicts de la barrière et les relevés de
+  conformité : une semaine est gardée tant qu'une partie d'elle est dans la fenêtre, et une semaine purgée
+  se lit comme reconstituée dans la vue hebdomadaire ci-dessous.
 - **Le Top 10 OWASP, semaine par semaine : `GET /api/v1/owasp/coverage/weekly`.** Jusqu'à 52 semaines
   ISO (les 12 dernières par défaut), sur le parc de l'appelant ou sur un projet ou une solution, pour les
   cibles qu'il peut voir (un périmètre dont il ne voit rien répond 404, comme un périmètre absent). Chaque

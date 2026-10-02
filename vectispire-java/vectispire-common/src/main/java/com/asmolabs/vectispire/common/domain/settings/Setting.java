@@ -77,8 +77,10 @@ public enum Setting {
 
     EVIDENCE_RETENTION_DAYS("evidence_retention_days", SettingType.INTEGER, Section.RETENTION,
             "Evidence kept for (days)",
-            "Gate verdicts — every pass and every refusal the barrier returned. This is the only record that a "
-                    + "control **executed**, and unlike a payload it cannot be regenerated. Set it to the period an "
+            "Gate verdicts — every pass and every refusal the barrier returned — the monthly compliance captures "
+                    + "and the weekly OWASP record. This is the only record that a "
+                    + "control **executed**, and unlike a payload it cannot be regenerated. A week of the OWASP record "
+                    + "is kept while any of it is inside the window. Set it to the period an "
                     + "assessor asks you to cover, plus the delay before they read it; the default is twelve months "
                     + "and five weeks. Zero keeps them for ever. Kept deliberately apart from the payload window "
                     + "above: bounding disk growth and surviving an audit are different questions.",
