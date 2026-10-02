@@ -1928,6 +1928,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/owasp/coverage/weekly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * OWASP Top 10 coverage, week by week
+         * @description One entry per ISO week (Monday 00:00 UTC to the next, excluded), oldest first, ten categories each. from and to are ISO dates read as the Monday of their week; the default is the last 12 weeks to the current one, a to after the current week is read as the current week, and more than 52 weeks, a from after to, or both project_id and solution_id answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404. Figures cover the targets the caller sees, within the scope. A week the weekly record captured carries the recorded state (combined over the targets: FINDINGS if any, else NO_FINDING if any target was measured, NOT_COVERED if every target reads it, else NOT_MEASURED), open (unsettled, as the grid counts them at the week's last capture) and settled. A week before the record is reconstructed: state and settled are null, never computed now for then, and open counts every issue placed in the category that was first seen before the week's end and not resolved before it, whatever its triage — the triage of a past date is not known. opened and resolved are counted from the issues' dates on every week, placed as the grid places them, without the grid's measurement switches. Known limit: a reopened issue keeps only its latest resolution, so it counts as open in the weeks between an earlier resolution and its reopening.
+         */
+        get: operations["weeklyCoverage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/owasp/coverage/{category}/declaration": {
         parameters: {
             query?: never;
@@ -5959,6 +5979,55 @@ export interface components {
             /** Format: int32 */
             version?: number;
         };
+        OwaspWeek: {
+            /** Format: date-time */
+            capturedAt?: string;
+            categories?: components["schemas"]["OwaspWeekCategory"][];
+            /** Format: int32 */
+            categoriesMeasured?: number;
+            /** Format: int64 */
+            open: number;
+            /** Format: int64 */
+            opened: number;
+            reconstructed: boolean;
+            /** Format: int64 */
+            resolved: number;
+            /** Format: int64 */
+            settled?: number;
+            /** Format: date */
+            weekStart?: string;
+        };
+        OwaspWeekCategory: {
+            category?: string;
+            /** Format: int64 */
+            open: number;
+            /** Format: int64 */
+            opened: number;
+            /** Format: int64 */
+            resolved: number;
+            /** Format: int64 */
+            settled?: number;
+            /** @enum {string} */
+            state?: "FINDINGS" | "NOT_MEASURED" | "NOT_COVERED" | "NO_FINDING";
+            title?: string;
+        };
+        OwaspWeeklyCoverage: {
+            /** Format: date */
+            from?: string;
+            scope?: components["schemas"]["OwaspWeeklyScope"];
+            /** Format: date */
+            to?: string;
+            weeks?: components["schemas"]["OwaspWeek"][];
+        };
+        OwaspWeeklyScope: {
+            /** Format: int64 */
+            id: number;
+            kind?: string;
+            name?: string;
+            partial: boolean;
+            /** Format: int32 */
+            targetCount: number;
+        };
         PairingChange: {
             change?: string;
             control?: string;
@@ -9981,6 +10050,12 @@ export interface operations {
                 search?: string;
                 limit?: number;
                 offset?: number;
+                owasp_category?: string;
+                open_at?: string;
+                first_seen_from?: string;
+                first_seen_to?: string;
+                resolved_from?: string;
+                resolved_to?: string;
             };
             header?: never;
             path?: never;
@@ -10337,6 +10412,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DeclaredGrid"];
+                };
+            };
+        };
+    };
+    weeklyCoverage: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                project_id?: number;
+                solution_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Weeks returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OwaspWeeklyCoverage"];
                 };
             };
         };

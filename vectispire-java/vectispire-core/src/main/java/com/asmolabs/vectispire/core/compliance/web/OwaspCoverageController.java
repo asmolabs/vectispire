@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.compliance.OwaspCoverageService;
+import com.asmolabs.vectispire.core.compliance.OwaspWeeklyHistoryService;
 import com.asmolabs.vectispire.core.compliance.StatementOfApplicabilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -64,14 +66,17 @@ public class OwaspCoverageController {
     static final String FRAMEWORK = "OWASP_2021";
 
     private final OwaspCoverageService coverage;
+    private final OwaspWeeklyHistoryService weekly;
     private final VisibilityService visibility;
     private final StatementOfApplicabilityService declarations;
 
     public OwaspCoverageController(
             OwaspCoverageService coverage,
+            OwaspWeeklyHistoryService weekly,
             VisibilityService visibility,
             StatementOfApplicabilityService declarations) {
         this.coverage = coverage;
+        this.weekly = weekly;
         this.visibility = visibility;
         this.declarations = declarations;
     }
@@ -119,6 +124,47 @@ public class OwaspCoverageController {
                 grid.covered(),
                 grid.withFindings(),
                 grid.unmeasured());
+    }
+
+    /**
+     * The grid week by week — the heatmap's columns and the flow bars beneath them. The rules, the
+     * refusals included, are {@link OwaspWeeklyHistoryService}'s; the route maps the query string and the
+     * caller.
+     *
+     * <p><b>Who reads it is who reads the grid</b>: a signed-in account, over what it may see. No
+     * integration key, as for the grid — the record of an estate's coverage over a year is a screen's,
+     * and a pipeline that needs the current state has the gate.
+     */
+    @Operation(summary = "OWASP Top 10 coverage, week by week", description = "One entry per ISO week (Monday 00:00 UTC "
+            + "to the next, excluded), oldest first, ten categories each. from and to are ISO dates read as the Monday "
+            + "of their week; the default is the last " + OwaspWeeklyHistoryService.DEFAULT_WEEKS + " weeks to the "
+            + "current one, a to after the current week is read as the current week, and more than "
+            + OwaspWeeklyHistoryService.MAX_WEEKS + " weeks, a from after to, or both project_id and solution_id answer "
+            + "400. A project or a solution that does not exist and one the caller sees nothing of both answer 404. "
+            + "Figures cover the targets the caller sees, within the scope. A week the weekly record captured carries "
+            + "the recorded state (combined over the targets: FINDINGS if any, else NO_FINDING if any target was "
+            + "measured, NOT_COVERED if every target reads it, else NOT_MEASURED), open (unsettled, as the grid counts "
+            + "them at the week's last capture) and settled. A week before the record is reconstructed: state and "
+            + "settled are null, never computed now for then, and open counts every issue placed in the category "
+            + "that was first seen before the week's end and not resolved before it, whatever its triage — the triage "
+            + "of a past date is not known. opened and resolved are counted from the issues' dates on every week, "
+            + "placed as the grid places them, without the grid's measurement switches. Known limit: a reopened issue "
+            + "keeps only its latest resolution, so it counts as open in the weeks between an earlier resolution and "
+            + "its reopening.")
+    @ApiResponse(responseCode = "200", description = "Weeks returned")
+    @GetMapping("/weekly")
+    public OwaspWeeklyHistoryService.OwaspWeeklyCoverage weeklyCoverage(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(name = "project_id", required = false) Long projectId,
+            @RequestParam(name = "solution_id", required = false) Long solutionId) {
+        return weekly.weeks(new OwaspWeeklyHistoryService.Request(from, to, projectId, solutionId), allowanceOf(principal));
+    }
+
+    /** The caller's visibility with the projects it holds as such, which a project's or solution's scope reads. */
+    private VisibilityService.Allowance allowanceOf(VectispirePrincipal principal) {
+        return visibility.allowance(principal.user().orElse(null), principal.credentialRestriction());
     }
 
     /**

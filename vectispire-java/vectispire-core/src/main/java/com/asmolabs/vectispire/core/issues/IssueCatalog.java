@@ -143,6 +143,11 @@ public class IssueCatalog {
         return issues.countOpenSastByOwaspCategory(IssueSpecifications.of(filters));
     }
 
+    /** See {@code IssueAggregateQueries.weeklyFlows}: per week, the issues open at its end, opened and resolved in it. */
+    public List<IssueAggregates.WeeklyFlow> weeklyFlows(IssueFilters filters, List<Instant> weekStarts) {
+        return weekStarts.isEmpty() ? List.of() : issues.weeklyFlows(IssueSpecifications.of(filters), weekStarts);
+    }
+
     public List<IssueAggregates.PackageWeight> weighPackages(IssueFilters filters) {
         return issues.weighPackages(IssueSpecifications.of(filters));
     }

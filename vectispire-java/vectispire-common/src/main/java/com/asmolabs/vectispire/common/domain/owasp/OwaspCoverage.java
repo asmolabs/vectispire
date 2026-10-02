@@ -131,6 +131,69 @@ public final class OwaspCoverage {
     }
 
     /**
+     * The one type whose findings carry their category on the issue rather than in the type: code
+     * analysis, whose rules declare it ({@link OwaspTag}). The grid counts its findings by that column
+     * and no other type's — a plugin's or an import's finding carrying a category is not placed.
+     */
+    public static final FindingType DECLARES_ITS_CATEGORY = FindingType.SAST;
+
+    /** The types {@link #categoryOf} places in this category — empty for one only code analysis reaches. */
+    public static Set<FindingType> typesPlacedIn(String category) {
+        return BY_TYPE.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(category))
+                .map(Map.Entry::getKey)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * Where one issue lands in the Top 10, by the grid's placement and nothing else: its type's
+     * category, or for code analysis the category its rule declared.
+     *
+     * <p><b>Placement, not measurement.</b> The grid also asks whether a category is measured — end
+     * of life switched on, a rule reaching the estate's languages — and counts nothing where it is not.
+     * Those are settings of the moment; a reading of the past (the weekly flows, a drill-down to a
+     * category) knows the issue and not the settings that ruled the day it was found, so it places the
+     * issue and says no more. The backlog's {@code owasp_category} filter selects the same set.
+     *
+     * @param declaredCategory the issue's {@code owasp_category}, read for code analysis only
+     */
+    public static Optional<String> placementOf(FindingType type, String declaredCategory) {
+        Optional<String> byType = categoryOf(type);
+        if (byType.isPresent()) {
+            return byType;
+        }
+        return type == DECLARES_ITS_CATEGORY && declaredCategory != null && CATEGORIES.containsKey(declaredCategory)
+                ? Optional.of(declaredCategory)
+                : Optional.empty();
+    }
+
+    /**
+     * One category's state over several targets, from each target's recorded state — the weekly
+     * record kept per target, read for a project, a solution or a reader's estate.
+     *
+     * <p><b>The live grid's answer for the same targets</b>, which is what makes a heatmap's last
+     * column agree with the grid beside it: findings anywhere is {@link State#FINDINGS} (a target's
+     * state is that exactly when its count is above zero, so the sum is too); otherwise one target
+     * measured and clean makes {@link State#NO_FINDING}, as one scanned target makes the grid
+     * measured; a category nothing here covers is {@link State#NOT_COVERED} for every target, since
+     * that is a property of the deployment; anything else is {@link State#NOT_MEASURED}.
+     *
+     * @return empty when no target was recorded — never a state invented for nothing
+     */
+    public static Optional<State> acrossTargets(java.util.Collection<State> perTarget) {
+        if (perTarget.isEmpty()) {
+            return Optional.empty();
+        }
+        if (perTarget.contains(State.FINDINGS)) {
+            return Optional.of(State.FINDINGS);
+        }
+        if (perTarget.contains(State.NO_FINDING)) {
+            return Optional.of(State.NO_FINDING);
+        }
+        return Optional.of(perTarget.stream().allMatch(State.NOT_COVERED::equals) ? State.NOT_COVERED : State.NOT_MEASURED);
+    }
+
+    /**
      * What the deployment measures, as opposed to what it found.
      *
      * @param scanned a scan has completed somewhere in the caller's estate. Without one, every

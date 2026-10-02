@@ -13,10 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
  * The weekly OWASP record.
  *
  * <p><b>No visibility clause in what is here</b>, which writes and purges: the capture is of the
- * whole estate, like the compliance history. A read for a reader — lot B's — narrows by target, which
- * is what the per-target rows exist for.
+ * whole estate, like the compliance history. A read for a reader narrows by target, which is what the
+ * per-target rows exist for: {@link OwaspWeeklyCoverageQueries}.
  */
-public interface OwaspWeeklyCoverageRepository extends JpaRepository<OwaspWeeklyCoverageEntity, Long> {
+public interface OwaspWeeklyCoverageRepository
+        extends JpaRepository<OwaspWeeklyCoverageEntity, Long>, OwaspWeeklyCoverageQueries {
 
     /** When this week was last written, by any instance — the capture's gate. */
     @Query("select max(c.capturedAt) from OwaspWeeklyCoverageEntity c where c.weekStart = :week")

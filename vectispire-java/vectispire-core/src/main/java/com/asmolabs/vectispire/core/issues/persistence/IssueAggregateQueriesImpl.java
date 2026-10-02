@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.issues.persistence;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.OpenBacklog;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.OwaspCategoryCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.PackageDetail;
@@ -12,6 +13,7 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.T
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetResolutions;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetSeverityCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TypePackaging;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.WeeklyFlow;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -22,6 +24,7 @@ import jakarta.persistence.criteria.Root;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
@@ -248,12 +251,89 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
         query.select(builder.array(issue.get("owaspCategory"), builder.count(issue.get("id"))))
                 .groupBy(issue.get("owaspCategory"));
         restrict(query, filter, issue, builder,
-                builder.equal(issue.get("type"), FindingType.SAST.wireName()),
+                // The type the grid reads the column of, named where the placement is (`OwaspCoverage`),
+                // so the backlog's `owasp_category` filter and this count cannot name two.
+                builder.equal(issue.get("type"), OwaspCoverage.DECLARES_ITS_CATEGORY.wireName()),
                 builder.isNotNull(issue.get("owaspCategory")));
 
         return entityManager.createQuery(query).getResultList().stream()
                 .map(row -> new OwaspCategoryCount((String) row[0], count(row[1])))
                 .toList();
+    }
+
+    /**
+     * Weeks per statement. Each week is three conditional sums and six bound instants: thirteen weeks
+     * — a quarter — keep the select list and the binds small on every engine, and a year is four reads.
+     */
+    static final int WEEKS_PER_STATEMENT = 13;
+
+    @Override
+    public List<WeeklyFlow> weeklyFlows(Specification<IssueEntity> filter, List<Instant> weekStarts) {
+        List<Instant> weeks = weekStarts.stream().distinct().sorted().toList();
+        List<WeeklyFlow> flows = new java.util.ArrayList<>();
+        for (int from = 0; from < weeks.size(); from += WEEKS_PER_STATEMENT) {
+            flows.addAll(weeklyFlowsOf(filter, weeks.subList(from, Math.min(from + WEEKS_PER_STATEMENT, weeks.size()))));
+        }
+        return List.copyOf(flows);
+    }
+
+    private List<WeeklyFlow> weeklyFlowsOf(Specification<IssueEntity> filter, List<Instant> weeks) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+        Expression<Instant> firstSeen = issue.get("firstSeenAt");
+        Expression<Instant> resolved = issue.get("resolvedAt");
+
+        // **Parameters, not literals**: an instant written into the statement is rendered by each
+        // dialect its own way, and a timestamp literal is where the engines differ.
+        Map<String, Instant> bound = new java.util.LinkedHashMap<>();
+        List<jakarta.persistence.criteria.Selection<?>> columns = new java.util.ArrayList<>();
+        columns.add(issue.get("type"));
+        columns.add(issue.get("owaspCategory"));
+        for (int week = 0; week < weeks.size(); week++) {
+            Expression<Instant> start = builder.parameter(Instant.class, "start" + week);
+            Expression<Instant> end = builder.parameter(Instant.class, "end" + week);
+            bound.put("start" + week, weeks.get(week));
+            bound.put("end" + week, weeks.get(week).plus(java.time.Duration.ofDays(7)));
+            columns.add(builder.sum(oneWhen(builder, builder.and(
+                    builder.lessThan(firstSeen, end),
+                    builder.or(builder.isNull(resolved), builder.greaterThanOrEqualTo(resolved, end))))));
+            columns.add(builder.sum(oneWhen(builder, builder.and(
+                    builder.greaterThanOrEqualTo(firstSeen, start), builder.lessThan(firstSeen, end)))));
+            columns.add(builder.sum(oneWhen(builder, builder.and(
+                    builder.greaterThanOrEqualTo(resolved, start), builder.lessThan(resolved, end)))));
+        }
+        query.select(builder.array(columns.toArray(jakarta.persistence.criteria.Selection<?>[]::new))).groupBy(issue.get("type"), issue.get("owaspCategory"));
+
+        // Only the issues that can count in one of these weeks: seen before the last one ends, and not
+        // resolved before the first one starts.
+        Expression<Instant> firstStart = builder.parameter(Instant.class, "firstStart");
+        Expression<Instant> lastEnd = builder.parameter(Instant.class, "lastEnd");
+        bound.put("firstStart", weeks.getFirst());
+        bound.put("lastEnd", weeks.getLast().plus(java.time.Duration.ofDays(7)));
+        restrict(query, filter, issue, builder,
+                builder.lessThan(firstSeen, lastEnd),
+                builder.or(builder.isNull(resolved), builder.greaterThanOrEqualTo(resolved, firstStart)));
+
+        var typed = entityManager.createQuery(query);
+        bound.forEach(typed::setParameter);
+
+        List<WeeklyFlow> flows = new java.util.ArrayList<>();
+        for (Object[] row : typed.getResultList()) {
+            for (int week = 0; week < weeks.size(); week++) {
+                long open = count(row[2 + 3 * week]);
+                long opened = count(row[3 + 3 * week]);
+                long closed = count(row[4 + 3 * week]);
+                if (open + opened + closed > 0) {
+                    flows.add(new WeeklyFlow(weeks.get(week), (String) row[0], (String) row[1], open, opened, closed));
+                }
+            }
+        }
+        return flows;
+    }
+
+    private static Expression<Long> oneWhen(CriteriaBuilder builder, Predicate condition) {
+        return builder.<Long>selectCase().when(condition, 1L).otherwise(0L);
     }
 
     @Override

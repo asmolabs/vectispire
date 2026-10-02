@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.T
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetResolutions;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TargetSeverityCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.TypePackaging;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.WeeklyFlow;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -97,6 +98,18 @@ public interface IssueAggregateQueries {
     List<TypePackaging> countOpenByTypeAndPackaging(Specification<IssueEntity> filter);
 
     List<OwaspCategoryCount> countOpenSastByOwaspCategory(Specification<IssueEntity> filter);
+
+    /**
+     * For each of these weeks, the filtered issues open at its end, first seen in it and resolved in
+     * it, per {@code (type, owasp_category)} — see {@link WeeklyFlow} for the boundaries.
+     *
+     * <p><b>Grouped in the database, a few weeks per statement</b>: one conditional sum per week and
+     * figure, so a year of weeks reads the backlog four times rather than once per issue or per week.
+     * Pairs with nothing in any week are left out; the reader reads absent as zero.
+     *
+     * @param weekStarts each the Monday at 00:00 UTC of a week, in any order, each at most once
+     */
+    List<WeeklyFlow> weeklyFlows(Specification<IssueEntity> filter, List<Instant> weekStarts);
 
     /**
      * The vulnerable packages, weighted.

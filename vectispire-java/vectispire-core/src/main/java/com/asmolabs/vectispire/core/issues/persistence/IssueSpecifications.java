@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.issues.persistence;
 
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import jakarta.persistence.criteria.Predicate;
@@ -101,8 +103,65 @@ public final class IssueSpecifications {
         if (filters.cveOnly()) {
             predicates.add(builder.like(builder.upper(root.get("identifier")), "CVE-%"));
         }
+        if (filters.owaspCategory() != null) {
+            predicates.add(placedIn(root, builder, filters.owaspCategory()));
+        }
+        if (filters.lifetime() != null) {
+            lived(predicates, root, builder, filters.lifetime());
+        }
 
         return builder.and(predicates.toArray(Predicate[]::new));
+    }
+
+    /**
+     * The issues {@code OwaspCoverage.placementOf} puts in this category: of a type placed there, or of
+     * the type that declares its category and declaring this one. Both halves are read from {@code
+     * OwaspCoverage}, which the grid and the weekly flows place with, so the list a figure opens holds
+     * what the figure counted.
+     */
+    private static Predicate placedIn(
+            jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            String category) {
+        List<Predicate> either = new ArrayList<>(2);
+        List<String> types = OwaspCoverage.typesPlacedIn(category).stream().map(FindingType::wireName).sorted().toList();
+        if (!types.isEmpty()) {
+            either.add(root.get("type").in(types));
+        }
+        either.add(builder.and(
+                builder.equal(root.get("type"), OwaspCoverage.DECLARES_ITS_CATEGORY.wireName()),
+                builder.equal(root.get("owaspCategory"), category)));
+        return builder.or(either.toArray(Predicate[]::new));
+    }
+
+    /**
+     * The dates' clauses, each half open. Open at an instant is the weekly reconstruction's rule: seen
+     * before it, and not resolved before it — an issue resolved at that very instant was still open
+     * until then.
+     */
+    private static void lived(
+            List<Predicate> predicates,
+            jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            IssueFilters.Lifetime lifetime) {
+        jakarta.persistence.criteria.Path<Instant> firstSeen = root.get("firstSeenAt");
+        jakarta.persistence.criteria.Path<Instant> resolved = root.get("resolvedAt");
+        if (lifetime.openAt() != null) {
+            predicates.add(builder.lessThan(firstSeen, lifetime.openAt()));
+            predicates.add(builder.or(builder.isNull(resolved), builder.greaterThanOrEqualTo(resolved, lifetime.openAt())));
+        }
+        if (lifetime.firstSeenFrom() != null) {
+            predicates.add(builder.greaterThanOrEqualTo(firstSeen, lifetime.firstSeenFrom()));
+        }
+        if (lifetime.firstSeenBefore() != null) {
+            predicates.add(builder.lessThan(firstSeen, lifetime.firstSeenBefore()));
+        }
+        if (lifetime.resolvedFrom() != null) {
+            predicates.add(builder.greaterThanOrEqualTo(resolved, lifetime.resolvedFrom()));
+        }
+        if (lifetime.resolvedBefore() != null) {
+            predicates.add(builder.lessThan(resolved, lifetime.resolvedBefore()));
+        }
     }
 
     /**

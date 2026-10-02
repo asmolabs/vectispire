@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueOrdering;
@@ -18,6 +19,9 @@ import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -75,6 +79,12 @@ public class IssueQueryService {
      * @param projectId the issues of the repositories and images filed in this project now — see {@link #page}
      *     for what a reader who sees part of it, or none, is answered
      * @param solutionId the same over every project of the solution; with {@code projectId}, both hold
+     * @param owaspCategory {@code A01}…{@code A10}: the issues the OWASP grid places there — see {@link #page}
+     * @param openAt an ISO date: the issues open at the end of that day, UTC
+     * @param firstSeenFrom an ISO date: first seen on that day or after, UTC
+     * @param firstSeenTo an ISO date: first seen on that day or before, UTC
+     * @param resolvedFrom an ISO date: resolved on that day or after, UTC
+     * @param resolvedTo an ISO date: resolved on that day or before, UTC
      */
     public record BacklogQuery(
             String state,
@@ -91,7 +101,35 @@ public class IssueQueryService {
             boolean unsettled,
             String search,
             int limit,
-            int offset) {}
+            int offset,
+            String owaspCategory,
+            String openAt,
+            String firstSeenFrom,
+            String firstSeenTo,
+            String resolvedFrom,
+            String resolvedTo) {
+
+        /** Every filter but the drill-down's, which none of these callers asks. */
+        public BacklogQuery(
+                String state,
+                String severity,
+                String type,
+                String triageStatus,
+                Long repositoryId,
+                Long containerId,
+                Long projectId,
+                Long solutionId,
+                boolean onlyDirect,
+                boolean onlyKev,
+                boolean overdue,
+                boolean unsettled,
+                String search,
+                int limit,
+                int offset) {
+            this(state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId, onlyDirect,
+                    onlyKev, overdue, unsettled, search, limit, offset, null, null, null, null, null, null);
+        }
+    }
 
     public record IssuePage(List<BacklogEntry> items, long total, int limit, int offset) {}
 
@@ -129,13 +167,21 @@ public class IssueQueryService {
      * absent: the two are indistinguishable, and a 404 here would be the list's one filter that could.
      * The checklist refuses a partial project (404) because its answers speak for the whole of it; a
      * page of issues speaks for no more than its rows.
+     *
+     * <p><b>The weekly OWASP view's drill-down</b>: a category, and the dates of an issue's life. A
+     * category is placed as the grid places it ({@code OwaspCoverage.placementOf}). A date asks about the
+     * past, and <b>with one the state defaults to every state, not to open</b>: "open at the end of that
+     * Sunday" is mostly issues resolved since, "resolved that week" is only resolved ones, and "first seen
+     * that week" is what the week's opened bar counted, resolved or not. Defaulting to open would answer
+     * each with a page the figure it came from disagrees with. A state the caller names still holds.
      */
     public IssuePage page(BacklogQuery query, Visibility allowed) {
         int size = Math.clamp(query.limit(), 1, MAX_PAGE_SIZE);
         int from = Math.max(query.offset(), 0);
+        IssueFilters.Lifetime lifetime = lifetime(query);
 
         IssueFilters filters = new IssueFilters(
-                state(query.state()),
+                state(query.state(), lifetime != null),
                 severity(query.severity()),
                 type(query.type()),
                 query.triageStatus(),
@@ -148,7 +194,9 @@ public class IssueQueryService {
                 // not late, and a list that showed it would disagree with the figure that led here.
                 query.overdue() || query.unsettled(),
                 query.overdue() ? sla.overdueThresholds() : Map.of(),
-                allowed);
+                allowed)
+                .placedIn(owaspCategory(query.owaspCategory()))
+                .living(lifetime);
         if (query.projectId() != null) {
             filters = filters.within(solutions.members(query.projectId())
                     .map(SolutionQueryService.ProjectMembers::targets)
@@ -169,14 +217,15 @@ public class IssueQueryService {
      * The state filter, read against the two states that exist.
      *
      * <p>It has a default and the others do not: a backlog opens on what is open, and {@code all}
-     * asks explicitly for the opposite. <b>An unknown value is refused</b> — like the severity and
+     * asks explicitly for the opposite — unless the query asks a date, which asks about the past and
+     * defaults to every state ({@link #page}). <b>An unknown value is refused</b> — like the severity and
      * the type below. Each used to go into the query as typed, so {@code state=opne} or
      * {@code severity=HIGH} answered an empty page with a 200: a filter that matched nothing,
      * indistinguishable from a backlog with nothing in it.
      */
-    private static String state(String raw) {
+    private static String state(String raw, boolean datesAsked) {
         if (raw == null || raw.isBlank()) {
-            return IssueState.OPEN.wireName();
+            return datesAsked ? null : IssueState.OPEN.wireName();
         }
         String value = raw.trim().toLowerCase(Locale.ROOT);
         if (value.equals("all")) {
@@ -186,6 +235,71 @@ public class IssueQueryService {
                 .map(IssueState::wireName)
                 .orElseThrow(() -> new InvalidInputException(
                         "Unknown state \"" + raw.trim() + "\". Expected open, resolved or all."));
+    }
+
+    /** An OWASP Top 10 category, case aside; blank is no filter, and a code the grid does not hold is refused. */
+    private static String owaspCategory(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String value = raw.trim().toUpperCase(Locale.ROOT);
+        if (!OwaspCoverage.CATEGORIES.containsKey(value)) {
+            throw new InvalidInputException("Unknown OWASP category \"" + raw.trim() + "\". Expected one of: "
+                    + String.join(", ", OwaspCoverage.CATEGORIES.keySet()) + ".");
+        }
+        return value;
+    }
+
+    /**
+     * The dates of the query as instants, or null when none is given. A day is read in UTC — the cut
+     * the weekly view's weeks use — and a {@code _to} includes its day, so the bound is the next
+     * midnight, excluded. A range whose end comes before its start is refused rather than answered empty.
+     */
+    private static IssueFilters.Lifetime lifetime(BacklogQuery query) {
+        Instant openAt = nextMidnight("open_at", query.openAt());
+        Instant firstSeenFrom = midnight("first_seen_from", query.firstSeenFrom());
+        Instant firstSeenBefore = nextMidnight("first_seen_to", query.firstSeenTo());
+        Instant resolvedFrom = midnight("resolved_from", query.resolvedFrom());
+        Instant resolvedBefore = nextMidnight("resolved_to", query.resolvedTo());
+        requireOrdered("first_seen", firstSeenFrom, firstSeenBefore);
+        requireOrdered("resolved", resolvedFrom, resolvedBefore);
+        IssueFilters.Lifetime lifetime =
+                new IssueFilters.Lifetime(openAt, firstSeenFrom, firstSeenBefore, resolvedFrom, resolvedBefore);
+        return lifetime.asksAnything() ? lifetime : null;
+    }
+
+    private static void requireOrdered(String name, Instant from, Instant before) {
+        if (from != null && before != null && !from.isBefore(before)) {
+            throw new InvalidInputException(name + "_to comes before " + name + "_from.");
+        }
+    }
+
+    private static Instant midnight(String name, String raw) {
+        LocalDate day = day(name, raw);
+        return day == null ? null : day.atStartOfDay(ZoneOffset.UTC).toInstant();
+    }
+
+    private static Instant nextMidnight(String name, String raw) {
+        LocalDate day = day(name, raw);
+        return day == null ? null : day.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+    }
+
+    /** An ISO date, refused in words — {@code LocalDate.parse} on a caller's value is a 500 otherwise. */
+    private static LocalDate day(String name, String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            LocalDate day = LocalDate.parse(raw.trim());
+            // Bounded before MySQL's year 9999, and before the instant arithmetic a year past it would
+            // need: a date no issue can carry asks nothing a bounded one does not.
+            if (day.getYear() < 1970 || day.getYear() > 9998) {
+                throw new InvalidInputException(name + " must be a date between 1970 and 9998.");
+            }
+            return day;
+        } catch (DateTimeParseException unreadable) {
+            throw new InvalidInputException(name + " must be an ISO date, YYYY-MM-DD: \"" + raw.trim() + "\".");
+        }
     }
 
     /** A severity by its wire name, case aside; blank is no filter. */

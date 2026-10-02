@@ -5456,6 +5456,126 @@
         },
         "type" : "object"
       },
+      "OwaspWeek" : {
+        "properties" : {
+          "capturedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OwaspWeekCategory"
+            },
+            "type" : "array"
+          },
+          "categoriesMeasured" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "open" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "opened" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reconstructed" : {
+            "type" : "boolean"
+          },
+          "resolved" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "settled" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "weekStart" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "open", "opened", "reconstructed", "resolved" ],
+        "type" : "object"
+      },
+      "OwaspWeekCategory" : {
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "open" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "opened" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "resolved" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "settled" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "state" : {
+            "enum" : [ "FINDINGS", "NOT_MEASURED", "NOT_COVERED", "NO_FINDING" ],
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "open", "opened", "resolved" ],
+        "type" : "object"
+      },
+      "OwaspWeeklyCoverage" : {
+        "properties" : {
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "scope" : {
+            "$ref" : "#/components/schemas/OwaspWeeklyScope"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "weeks" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OwaspWeek"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "OwaspWeeklyScope" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "targetCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "id", "partial", "targetCount" ],
+        "type" : "object"
+      },
       "PairingChange" : {
         "properties" : {
           "change" : {
@@ -12965,6 +13085,48 @@
             "format" : "int32",
             "type" : "integer"
           }
+        }, {
+          "in" : "query",
+          "name" : "owasp_category",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "open_at",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "first_seen_from",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "first_seen_to",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "resolved_from",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "resolved_to",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -13426,6 +13588,57 @@
           }
         },
         "summary" : "OWASP Top 10 coverage",
+        "tags" : [ "OWASP coverage" ]
+      }
+    },
+    "/api/v1/owasp/coverage/weekly" : {
+      "get" : {
+        "description" : "One entry per ISO week (Monday 00:00 UTC to the next, excluded), oldest first, ten categories each. from and to are ISO dates read as the Monday of their week; the default is the last 12 weeks to the current one, a to after the current week is read as the current week, and more than 52 weeks, a from after to, or both project_id and solution_id answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404. Figures cover the targets the caller sees, within the scope. A week the weekly record captured carries the recorded state (combined over the targets: FINDINGS if any, else NO_FINDING if any target was measured, NOT_COVERED if every target reads it, else NOT_MEASURED), open (unsettled, as the grid counts them at the week's last capture) and settled. A week before the record is reconstructed: state and settled are null, never computed now for then, and open counts every issue placed in the category that was first seen before the week's end and not resolved before it, whatever its triage — the triage of a past date is not known. opened and resolved are counted from the issues' dates on every week, placed as the grid places them, without the grid's measurement switches. Known limit: a reopened issue keeps only its latest resolution, so it counts as open in the weeks between an earlier resolution and its reopening.",
+        "operationId" : "weeklyCoverage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "project_id",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "solution_id",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OwaspWeeklyCoverage"
+                }
+              }
+            },
+            "description" : "Weeks returned"
+          }
+        },
+        "summary" : "OWASP Top 10 coverage, week by week",
         "tags" : [ "OWASP coverage" ]
       }
     },

@@ -27,11 +27,25 @@
   chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien
   trouvé), les constats ouverts qu'elle compte, et à part les constats ouverts dont le triage est réglé,
   pour que les risques acceptés puissent être montrés comme tels. La semaine en cours (lundi 00:00 UTC) est
-  réécrite jusqu'à sa clôture ; une semaine close garde son dernier relevé. Rien ne le lit encore : une vue
-  hebdomadaire viendra dans une version ultérieure. **Les semaines antérieures à la mise à jour n'ont pas
-  d'état enregistré** — qu'une catégorie ait alors été couverte ou mesurée dépendait de réglages et de
-  règles qui ont changé depuis, et cette vue affichera pour elles « état non enregistré » plutôt que de le
-  deviner. Les lignes d'une cible supprimée partent avec elle (migration V67).
+  réécrite jusqu'à sa clôture ; une semaine close garde son dernier relevé. **Les semaines antérieures à la
+  mise à jour n'ont pas d'état enregistré** — qu'une catégorie ait alors été couverte ou mesurée dépendait
+  de réglages et de règles qui ont changé depuis, et la vue hebdomadaire ci-dessous dit « non enregistré »
+  pour elles plutôt que de le deviner. Les lignes d'une cible supprimée partent avec elle (migration V67).
+- **Le Top 10 OWASP, semaine par semaine : `GET /api/v1/owasp/coverage/weekly`.** Jusqu'à 52 semaines
+  ISO (les 12 dernières par défaut), sur le parc de l'appelant ou sur un projet ou une solution, pour les
+  cibles qu'il peut voir (un périmètre dont il ne voit rien répond 404, comme un périmètre absent). Chaque
+  semaine donne, par catégorie, l'état, les constats ouverts et réglés tels que le relevé hebdomadaire les
+  a capturés, et les issues ouvertes et résolues dans la semaine. **Une semaine antérieure au relevé est
+  reconstituée à partir des dates des issues** et le dit : son état et son chiffre de constats réglés valent
+  `null` plutôt que d'être devinés, et son chiffre d'ouverts compte toute issue ouverte à la fin de la
+  semaine, quel que soit son triage — le triage d'une date passée n'est pas connu. Une issue rouverte ne
+  garde que sa dernière résolution, et compte donc comme ouverte entre une résolution antérieure et sa
+  réouverture.
+- **De nouveaux filtres du backlog pour les chiffres de cette vue** : `owasp_category` (`A01`…`A10`,
+  rangée comme la grille range les issues — une vulnérabilité est `A06`), `open_at` (ouverte à la fin de
+  ce jour, UTC) et `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to`. **Avec une date
+  et sans `state`, `GET /api/v1/issues` liste tous les états**, puisque les issues ouvertes un jour passé
+  sont pour la plupart résolues depuis ; le défaut reste `open` sinon.
 
 ### Corrigé
 

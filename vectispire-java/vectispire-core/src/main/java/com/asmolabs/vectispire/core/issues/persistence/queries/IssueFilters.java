@@ -38,6 +38,10 @@ import java.util.stream.Collectors;
  *     repository identifiers since an image can be filed in a project (amendment of 2026-09-30 to
  *     decision 0023): a repository and an image may carry the same number, and each is matched by its
  *     own column
+ * @param owaspCategory the issues the OWASP grid places in this category ({@code A01}…{@code A10}),
+ *     by {@code OwaspCoverage.placementOf} — a vulnerability is {@code A06} with no column — or null for
+ *     no such narrowing
+ * @param lifetime the dates an issue's life must cross, or null for none
  */
 public record IssueFilters(
         String state,
@@ -54,10 +58,52 @@ public record IssueFilters(
         Visibility visibility,
         Instant touchingSince,
         boolean cveOnly,
-        Set<ScanTarget> targetsWithin) {
+        Set<ScanTarget> targetsWithin,
+        String owaspCategory,
+        Lifetime lifetime) {
 
     public IssueFilters {
         targetsWithin = targetsWithin == null ? null : Set.copyOf(targetsWithin);
+    }
+
+    /**
+     * What an issue's dates must say — the backlog's drill-down from the weekly OWASP view. Every
+     * bound is an instant, every interval half open ({@code from} included, {@code before} excluded),
+     * and each is optional: null asks nothing.
+     *
+     * @param openAt open at this instant: first seen before it, and not resolved before it — the rule
+     *     the weekly view reconstructs a week's end with, and with its limit: a reopened issue keeps only
+     *     its latest resolution
+     */
+    public record Lifetime(
+            Instant openAt, Instant firstSeenFrom, Instant firstSeenBefore, Instant resolvedFrom, Instant resolvedBefore) {
+
+        /** Whether anything is asked at all. */
+        public boolean asksAnything() {
+            return openAt != null || firstSeenFrom != null || firstSeenBefore != null
+                    || resolvedFrom != null || resolvedBefore != null;
+        }
+    }
+
+    /** Every criterion but the two the backlog's drill-down adds. */
+    public IssueFilters(
+            String state,
+            String severity,
+            String type,
+            String triageStatus,
+            Long repoId,
+            Long containerId,
+            boolean onlyDirect,
+            boolean onlyKev,
+            String search,
+            boolean excludeSettled,
+            Map<Severity, Instant> overdueBefore,
+            Visibility visibility,
+            Instant touchingSince,
+            boolean cveOnly,
+            Set<ScanTarget> targetsWithin) {
+        this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, null, null);
     }
 
     /** Every criterion but the narrowing to a project's or a solution's targets. */
@@ -143,7 +189,7 @@ public record IssueFilters(
      */
     public IssueFilters touching(Instant windowStart) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin);
+                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin, owaspCategory, lifetime);
     }
 
     /**
@@ -153,7 +199,7 @@ public record IssueFilters(
      */
     public IssueFilters onlyCves() {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin);
+                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin, owaspCategory, lifetime);
     }
 
     /**
@@ -168,6 +214,18 @@ public record IssueFilters(
             narrowed = narrowed.stream().filter(targetsWithin::contains).collect(Collectors.toUnmodifiableSet());
         }
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed, owaspCategory, lifetime);
+    }
+
+    /** The issues placed in this OWASP category, or every one when it is null. Replaces an earlier one. */
+    public IssueFilters placedIn(String category) {
+        return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, category, lifetime);
+    }
+
+    /** The issues whose dates say what {@code asked} asks, or every one when it is null. Replaces an earlier one. */
+    public IssueFilters living(Lifetime asked) {
+        return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspCategory, asked);
     }
 }

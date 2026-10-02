@@ -116,4 +116,23 @@ public final class IssueAggregates {
      *     category is not an empty one
      */
     public record OwaspCategoryCount(String category, long count) {}
+
+    /**
+     * One week's flow of the issues of one {@code (type, owasp_category)} pair, counted from their
+     * dates — the weekly OWASP view's reconstruction, and its opened and resolved bars on every week.
+     *
+     * <p>The week is {@code [weekStart, weekStart + 7 days)}, half open, so an instant belongs to one
+     * week only: an issue first seen at the next Monday's midnight was opened in the next week, and one
+     * resolved at that instant was still open at this week's end.
+     *
+     * @param owaspCategory the issue's column as stored, null included — the placement is the reader's
+     *     ({@code OwaspCoverage.placementOf}), never restated in the query
+     * @param openAtEnd first seen before the week's end and not resolved before it. <b>A reopened issue
+     *     keeps only its latest resolution</b>: the row stores one {@code resolved_at}, so the weeks
+     *     between an earlier resolution and its reopening count it open
+     * @param opened first seen within the week
+     * @param resolved resolved within the week
+     */
+    public record WeeklyFlow(
+            java.time.Instant weekStart, String type, String owaspCategory, long openAtEnd, long opened, long resolved) {}
 }

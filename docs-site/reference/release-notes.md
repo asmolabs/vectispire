@@ -26,10 +26,23 @@
   the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings
   it counts, and apart from them the open findings whose triage is settled, so that accepted risks can be
   shown as such. The current week (Monday 00:00 UTC) is rewritten until it closes; a closed week keeps its
-  last capture. Nothing reads it yet: a weekly view comes in a later release. **Weeks before the upgrade
-  have no recorded state** — whether a category was covered or measured then depended on settings and
-  rules that have moved since, and that view will say "state not recorded" for them rather than guess.
+  last capture. **Weeks before the upgrade have no recorded state** — whether a category was covered or
+  measured then depended on settings and rules that have moved since, and the weekly view below says
+  "not recorded" for them rather than guess.
   A deleted target's rows go with it (migration V67).
+- **The OWASP Top 10, week by week: `GET /api/v1/owasp/coverage/weekly`.** Up to 52 ISO weeks (the
+  last 12 by default), over the caller's estate or one project or solution, for the targets they may see
+  (a scope they see nothing of answers 404, as an absent one does). Each week gives, per category, the
+  state, the open and the settled findings as the weekly record captured them, and the issues opened and
+  resolved in the week. **A week before the record is reconstructed from the issues' dates** and says
+  so: its state and settled figure are `null` rather than guessed, and its open figure counts every issue
+  open at the week's end, whatever its triage — the triage of a past date is not known. A reopened issue
+  keeps only its latest resolution, so it counts as open between an earlier resolution and its reopening.
+- **New backlog filters for that view's figures**: `owasp_category` (`A01`…`A10`, placed as the grid
+  places issues — a vulnerability is `A06`), `open_at` (open at the end of that day, UTC) and
+  `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to`. **With a date and no `state`,
+  `GET /api/v1/issues` lists every state**, since the issues open on a past day are mostly resolved
+  since; the default stays `open` otherwise.
 
 ### Fixed
 

@@ -111,12 +111,23 @@ public class IssuesController {
             @RequestParam(required = false, defaultValue = "false") boolean unsettled,
             @RequestParam(required = false) String search,
             @RequestParam(required = false, defaultValue = "50") int limit,
-            @RequestParam(required = false, defaultValue = "0") int offset) {
+            @RequestParam(required = false, defaultValue = "0") int offset,
+            // **The weekly OWASP view's drill-down.** A category as the grid places it — a vulnerability
+            // is A06 without the column — and the dates of an issue's life, as ISO days in UTC, `_to`
+            // included. With a date and no `state`, every state is listed: "open that Sunday" is mostly
+            // issues resolved since, and the default `open` would hide them (`IssueQueryService.page`).
+            @RequestParam(name = "owasp_category", required = false) String owaspCategory,
+            @RequestParam(name = "open_at", required = false) String openAt,
+            @RequestParam(name = "first_seen_from", required = false) String firstSeenFrom,
+            @RequestParam(name = "first_seen_to", required = false) String firstSeenTo,
+            @RequestParam(name = "resolved_from", required = false) String resolvedFrom,
+            @RequestParam(name = "resolved_to", required = false) String resolvedTo) {
 
         return queries.page(
                 new IssueQueryService.BacklogQuery(
                         state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId,
-                        onlyDirect, onlyKev, overdue, unsettled, search, limit, offset),
+                        onlyDirect, onlyKev, overdue, unsettled, search, limit, offset,
+                        owaspCategory, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
