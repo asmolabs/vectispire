@@ -30,7 +30,7 @@ Effectue une analyse et un audit complet et approfondi du projet Vectispire en e
    - Backend Spring Boot 4.1 / JDK 25 (records, sealed classes, pattern matching, types immutables).
    - Isolation des couches et contrôle ArchUnit (ArchitectureTest : domain <- scanning <- persistence <- repositories <- services <- api).
    - Résilience et prévention de la perte silencieuse de données (règle ADR 0007 : Optional.empty() pour les scanners en échec, jamais de liste vide []).
-   - Portabilité et migration multi-SGBD Flyway sur 2 moteurs réels (PostgreSQL, MySQL (SQLite for tests)) avec validation de schéma stricte (ddl-auto: validate).
+   - Portabilité et migration multi-SGBD Flyway sur 2 moteurs réels (PostgreSQL, MySQL) avec validation de schéma stricte (ddl-auto: validate).
    - Moteur d'ingestion et déduplication multi-scanners avec IssueFingerprint. **Vérifier qu'un vecteur littéral est épinglé** : les propriétés relationnelles (déterminisme, version exclue, cibles séparées) survivent toutes à un réordonnancement des champs, qui change pourtant chaque empreinte du parc et perd tout le triage en silence. Établi le 26 août 2026 en permutant deux champs : aucun test n'a échoué.
    - Coût des lectures : chercher les points d'entrée HTTP qui chargent une table entière ou requêtent par élément (N+1). Mesurer avec les compteurs Hibernate (getEntityLoadCount, getQueryExecutionCount) plutôt que raisonner ; sept points d'entrée chargeaient t_finding en entier avant qu'on les compte.
    - Frontend Angular 22 et couverture de tests end-to-end Playwright (vectispire-angular/e2e/).
@@ -84,7 +84,7 @@ Perform a comprehensive, in-depth evaluation and security audit of the Vectispir
    - Backend Spring Boot 4.1 / JDK 25 modern patterns (records, sealed classes, pattern matching, immutable domain).
    - Enforced architectural layering via ArchUnit (ArchitectureTest: domain <- scanning <- persistence <- repositories <- services <- api).
    - Resilience against silent data loss (ADR 0007: Optional.empty() on scanner failures, never empty list []).
-   - Multi-engine Flyway migrations verified on 2 databases (PostgreSQL, MySQL (SQLite for tests)) with strict validation (ddl-auto: validate).
+   - Multi-engine Flyway migrations verified on 2 databases (PostgreSQL, MySQL) with strict validation (ddl-auto: validate).
    - Multi-scanner ingestion and deduplication via IssueFingerprint. **Check that a literal vector is pinned**: the relational properties (determinism, version excluded, targets separate) all survive a reordering of the fields, which nonetheless changes every fingerprint in the estate and loses all triage in silence. Established on 26 August 2026 by swapping two fields: no test failed.
    - Cost of reads: hunt for HTTP endpoints that load a whole table or query per item (N+1). Measure with the Hibernate counters (getEntityLoadCount, getQueryExecutionCount) rather than reasoning; seven endpoints were reading all of t_finding before anyone counted.
    - Frontend Angular 22 and automated Playwright E2E test suites (vectispire-angular/e2e/).

@@ -14,7 +14,7 @@
 | **Frontend Interface** | Node LTS 24 / Angular 22 / TypeScript 6.0 | npm Workspaces (`package.json` pinned `.nvmrc`) |
 | **Composants UI** | Optimus UI / Vanilla CSS | Tailwind CSS (Strict confirmations) |
 | **Tests d'Architecture** | ArchUnit 1.3 | Gradle `:vectispire-core:test` |
-| **Tests d'Intégration** | Testcontainers — PostgreSQL, MySQL, fixture SQLite | `./gradlew integrationTestAll` |
+| **Tests d'Intégration** | Testcontainers — PostgreSQL, MySQL | `./gradlew integrationTestAll` |
 
 ---
 
@@ -92,5 +92,5 @@ npm run start --workspace @vectispire/frontend
 ```bash
 cd vectispire-java && ./gradlew integrationTestAll
 ```
-*(Valide le comportement du plan de contrôle sur PostgreSQL et MySQL, avec SQLite comme fixture de
-test).*
+*(Valide le comportement du plan de contrôle sur PostgreSQL et MySQL ; les suites unitaires et HTTP
+de `./gradlew build` tournent elles aussi sur MySQL — ADR 0034).*

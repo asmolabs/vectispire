@@ -1,6 +1,6 @@
 ---
 name: jvm-porter
-description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4.1 / JDK 25, three modules, two deployable database engines and a SQLite test fixture. Use for any change to the Java control plane or the remote agent.
+description: Works on the Vectispire JVM backend in vectispire-java/ — Spring Boot 4.1 / JDK 25, three modules, two deployable database engines (MySQL, PostgreSQL), the unit and HTTP suites on MySQL. Use for any change to the Java control plane or the remote agent.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: opus
 ---
@@ -168,18 +168,18 @@ it retries three times. A new claim query carries `(s.notBefore is null or s.not
 
 **A failed claim statement is not a lost claim.** Where a key arbitrates between instances
 (`OneShotJobs.claim`), the loser's insert fails — and so does one that hit a lock timeout or a
-dropped connection, and on SQLite the key's refusal is not even a `DataIntegrityViolationException`.
-Read every failure as "taken elsewhere" and a claim that failed reports the job as run while nobody
-ran it. Let the transaction roll back, then ask the committed row (`OneShotJobs.hasRun`). And on
-SQLite a transaction that has already read cannot wait for the write lock — `SQLITE_BUSY` at once,
-the busy timeout never consulted — so a read-then-write (the audit chain's head, then its insert)
-beside another writer's open transaction fails in milliseconds: the audit entry is tried again on a
-lock refusal, and the test forces the writer to hold its transaction open (latches, as ever).
+dropped connection, and not every driver reports the key's refusal as a
+`DataIntegrityViolationException`. Read every failure as "taken elsewhere" and a claim that failed
+reports the job as run while nobody ran it. Let the transaction roll back, then ask the committed row
+(`OneShotJobs.hasRun`). And a read-then-write (the audit chain's head, then its insert) beside another
+writer's open transaction can be a deadlock victim or a lock-wait timeout: the audit entry is tried
+again on a lock refusal, and the test forces the writer to hold its transaction open (latches, as
+ever).
 
 **An `in (:list)` whose list the data sizes is a query that fails one day.** One bind parameter per
 element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side prepared
-statement too). The SQLite driver in use accepted 70,000 and 100,000 when measured, so a test past the
-limit proves the batching on PostgreSQL only — say so in its javadoc rather than claim all three. The claim's exclusion of every waiting repository carrying a
+statement too, though a client-side one accepts it). A test past the limit proves the batching on
+PostgreSQL only — say so in its javadoc rather than claim both engines. The claim's exclusion of every waiting repository carrying a
 credential failed at every poll on a large enough queue, and `findAllById` is the same statement. Walk
 in pages (`ScanQueue.eligible`, keyset on the order's own key) or batch the lookup
 (`TargetCatalog.carryingCredentials`, 1,000 at a time), and test past the limit on the engines.
@@ -219,16 +219,18 @@ where the engines differ. What there is, since decision 0027, is a table of type
 `${id}` (the whole identity column, `primary key` included, so `id ${id},`), `${bool}`, `${true}`,
 `${false}`, `${text}`, `${double}` — spelled once and visible. A migration from V40 on that differs
 only by types is written **once** under `db/migration/common`; one whose structure diverges — a
-foreign key (MySQL ignores an inline one, SQLite cannot add one later), a column change, date
-arithmetic, a data repair — is written **three times** under `db/migration/{postgresql,mysql,sqlite}/`,
-and forgetting one is a startup failure on that engine only. Never both, never one or two:
+foreign key (MySQL 8 ignores an inline one), a column change, date arithmetic, a data repair — is
+written **twice**, under `db/migration/{postgresql,mysql}/`, and forgetting one is a startup failure
+on that engine only (decision 0034 removed the SQLite set). Never both, never only one:
 `MigrationLayoutTest` fails the build, and refuses an engine token in `common`. **Never move or edit
 V1–V39**, even the identical ones: Flyway checks every applied checksum, and a changed file stops
 every existing installation. A placeholder's value is frozen once a common migration used it.
 
-Run `integrationTestAll` whenever you touch it. It covers **two deployable engines, PostgreSQL and
-MySQL, plus SQLite as a test fixture** — decision 0014, which replaced the earlier claim of four.
-SQLite is not a deployment target; do not add behaviour that only it can satisfy.
+Run `integrationTestAll` whenever you touch it. It covers **the two deployable engines, PostgreSQL
+and MySQL** — decision 0014, which replaced the earlier claim of four. The unit and HTTP suites run
+on MySQL too (decision 0034, `TestDatabase`): a container per test JVM, or the server
+`VECTISPIRE_TEST_DB_URL` names, as CI's `jvm` job does; without either they fail, never skip. SQLite
+is gone, and H2 stays refused: a test engine nobody deploys hides what the campaign looks for.
 
 **Every `@Modifying` query carries `@Transactional`**, and so does every derived `deleteBy…`.
 Spring Data does not add it. Without it the method works whenever a caller happens to have a
@@ -325,8 +327,8 @@ repository 1 does not, and the scan triggers once queued scans of any repository
 
 **Validate in the service, against the column.** A string reaching a bounded column is bounded
 before the write, a date is bounded before year 9999, an element of a request list may be null, and
-a foreign id is checked for existence *and* visibility (absent and hidden in the same words). SQLite
-enforces no length, so the HTTP suite passes where MySQL and PostgreSQL answer 500. An encrypted
+a foreign id is checked for existence *and* visibility (absent and hidden in the same words). The
+HTTP suite runs on MySQL, which refuses an over-long value as a 500: assert the 400 the guard gives. An encrypted
 column holds `v2:` + base64 of nonce, text and tag — size it for the ciphertext, not the secret.
 
 **A refusal is `InvalidInputException` (400) or `NotFoundException` (404)**, both in
@@ -360,8 +362,8 @@ authenticated caller. A name taken from a request body, an uploaded document or 
 goes into a comment, not into `triagedBy` or the audit actor — both have been spoofable before.
 
 **Audit entries are written after the transaction commits.** `AuditLogService.record` opens its own
-`REQUIRES_NEW` transaction; inside another write transaction it waits on SQLite's file lock until it
-times out. Use a `TransactionTemplate` for the writes and record afterwards
+`REQUIRES_NEW` transaction; inside another write transaction it would record an action that may
+still roll back, on a second connection held while the first keeps its locks. Use a `TransactionTemplate` for the writes and record afterwards
 (`ScimProvisioningService`, `VexIngestorService`). **An audited wrapper beside a public unaudited
 body is an unaudited route waiting to be written**: the EPSS sync called `syncThreatIntel()` while
 the threat-intelligence sync called `syncThreatIntel(actor)`, and one gesture left an entry from
@@ -399,8 +401,10 @@ wrong is why the next person does not break it. **Write them in English**, like 
 **`-Werror` includes dangling doc comments.** Never insert a method between an existing javadoc
 and the method it documents — add the new one above the javadoc.
 
-**MySQL ignores a column-level `REFERENCES`.** Declare a foreign key as a named
-`alter table … add constraint fk_… foreign key …` on MySQL and PostgreSQL (see V19, V37).
+**MySQL 8 ignores a column-level `REFERENCES`, and MySQL 9 honours it.** Declare a foreign key as a
+named `alter table … add constraint fk_… foreign key …` on MySQL and PostgreSQL (see V19, V37), and
+never inline as well: on the `mysql:9.4` the suites run, V1's inline keys exist twice — InnoDB's
+`t_scan_ibfk_1` beside V19's `fk_scan_repo` — while the shipped composition's `mysql:8` has one.
 
 **A dependency or a plugin you add or bump is not resolved until you record it.** Gradle checks
 every artifact against `gradle/verification-metadata.xml` — a signature by a key in
@@ -428,7 +432,7 @@ JUnit 5, AssertJ, Mockito. `./gradlew build` from `vectispire-java/` runs the un
 architecture suite and the HTTP suite.
 
 **A test that asserts through a mock proves the mock.** The HTTP suite (`ApiTestBase`) goes
-through `MockMvc` against a real SQLite database and the real security filter chain, because
+through `MockMvc` against a real MySQL database and the real security filter chain, because
 route paths, status codes and field names are what a frontend depends on and none of them is
 visible from calling a controller directly. It found three defects the day it was written,
 including one that made every authenticated route return null.

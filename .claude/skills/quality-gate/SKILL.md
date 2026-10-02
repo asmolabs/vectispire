@@ -23,7 +23,9 @@ engine-sensitive (see step 4), contract (a route's request or response shape), d
 cd vectispire-java && ./gradlew build
 ```
 
-Compile (with `-Werror` — a dangling doc comment fails it), unit, architecture and HTTP suites.
+Compile (with `-Werror` — a dangling doc comment fails it), unit, architecture and HTTP suites —
+the last two on MySQL (decision 0034): a Testcontainers container, so Docker must be running, or the
+server `VECTISPIRE_TEST_DB_URL` names; without either they fail, and that is not a flake.
 `ModularityTest` runs Spring Modulith's `verify()` (decision 0030): a cycle between modules, a reach
 into another module's internals, or a dependency the module's `package-info` does not list fails the
 build, and so does a module without a list or a line nothing uses. Its message names the edge; the
@@ -79,9 +81,9 @@ Migrations, any `core/<module>/persistence/`, `core/config/`, `src/integrationTe
 cd vectispire-java && ./gradlew integrationTestAll
 ```
 
-MySQL, PostgreSQL (Testcontainers, needs Docker) and the SQLite fixture. A migration is written once
-under `db/migration/common` with the type placeholders when only the types differ, or three times,
-one per dialect, when the structure does (decision 0027); `MigrationLayoutTest` in `./gradlew build`
+MySQL and PostgreSQL (Testcontainers, needs Docker). A migration is written once under
+`db/migration/common` with the type placeholders when only the types differ, or twice, one per
+dialect, when the structure does (decisions 0027, 0034); `MigrationLayoutTest` in `./gradlew build`
 refuses anything in between.
 
 ## 5. Contract — when a route's shape changed

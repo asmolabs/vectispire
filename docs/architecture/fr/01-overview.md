@@ -51,7 +51,7 @@ flowchart TB
     end
 
     UI["Interface Angular<br/>vectispire-angular/src/app/"]
-    DB[("Base de données<br/>PostgreSQL ou MySQL (SQLite pour les tests)")]
+    DB[("Base de données<br/>PostgreSQL ou MySQL")]
     DOCKER["Démon Docker<br/>conteneurs d'analyse éphémères"]
     AGENT["Agent distant<br/>protocole à quatre routes"]
     FEEDS["Flux publics<br/>EPSS, CISA KEV, endoflife.date"]

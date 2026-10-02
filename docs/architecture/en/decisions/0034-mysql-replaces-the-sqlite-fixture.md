@@ -1,6 +1,6 @@
 # 0034 — MySQL replaces SQLite as the fixture the unit and HTTP suites run on
 
-**Date:** 2026-10-01 · **Status:** accepted · **Amends:** [0014](0014-two-engines-and-a-test-fixture.md), [0027](0027-common-migrations-with-type-placeholders.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-01 · **Status:** accepted, done 2026-10-02 · **Amends:** [0014](0014-two-engines-and-a-test-fixture.md), [0027](0027-common-migrations-with-type-placeholders.md) · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -88,3 +88,28 @@ every cost above and add a compatibility mode that hides what the campaign looks
   runs on" no longer holds; the supported engines are unchanged.
 - [0027](0027-common-migrations-with-type-placeholders.md): a diverging migration is written twice,
   under `db/migration/{postgresql,mysql}/`.
+
+## Done (2026-10-02)
+
+A note after the record, not an edit of it.
+
+- **The suites.** The context and HTTP suites run on MySQL through `TestDatabase`: one `mysql:9.4`
+  container per test JVM, or the server `VECTISPIRE_TEST_DB_URL` names — CI's `jvm` job has it as a
+  service. `ddl-auto: validate`; without a server the suites fail with a sentence saying how to give
+  them one. `:vectispire-core:test`, measured on the same machine: 124 s on SQLite, 170 s on MySQL
+  (1.37×), under the stop at 2×.
+- **SQLite is gone**: `db/migration/sqlite` (41 files), `MigrationDialect.SQLITE`, `sqlite-jdbc` and
+  `hibernate-community-dialects`, `SqliteForeignKeys`, `SqliteWriteAheadLog`, the campaign's
+  `integrationTestSqlite`. `MigrationLayoutTest` and `check-doc-facts.py` count two engines, and the
+  second fails when the campaign's engines and the migration directories disagree.
+- **No `SQLITE_BUSY` workaround turned out to be SQLite's alone.** The audit entry's retry on a
+  refused lock also answers MySQL's deadlock victim and lock-wait timeout; the claim's row write and
+  the sync row's update take the row lock on both engines; an audit entry written after the commit
+  still keeps an entry from describing a write that rolls back. The logic stays and the comments give
+  the reason that holds.
+- **What the move found.** The first evidence bundle of an installation without
+  `vectispire.signing.key` answered 500: the key was created inside the bundle's read-only
+  transaction, which SQLite ignored. And MySQL 9 honours an inline `references`, so on the
+  `mysql:9.4` the suites run V1's inline foreign keys exist twice, InnoDB's beside V19's — the shipped
+  composition's `mysql:8` discards them. Recorded, not changed here.
+

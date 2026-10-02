@@ -1,6 +1,6 @@
 # 0034 — MySQL remplace SQLite comme fixture des suites unitaires et HTTP
 
-**Date :** 2026-10-01 · **Statut :** acceptée · **Amende :** [0014](0014-two-engines-and-a-test-fixture.md), [0027](0027-common-migrations-with-type-placeholders.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-10-01 · **Statut :** acceptée, réalisée le 2026-10-02 · **Amende :** [0014](0014-two-engines-and-a-test-fixture.md), [0027](0027-common-migrations-with-type-placeholders.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 
@@ -95,3 +95,30 @@ campagne cherche.
   la suite HTTP » ne tient plus ; les moteurs pris en charge ne changent pas.
 - [0027](0027-common-migrations-with-type-placeholders.md) : une migration qui diverge est écrite deux
   fois, sous `db/migration/{postgresql,mysql}/`.
+
+## Réalisée (2026-10-02)
+
+Une note après l'enregistrement, pas une modification de celui-ci.
+
+- **Les suites.** Les suites de contexte et HTTP tournent sur MySQL via `TestDatabase` : un
+  conteneur `mysql:9.4` par JVM de test, ou le serveur que nomme `VECTISPIRE_TEST_DB_URL` — le job
+  `jvm` de la CI l'a en service. `ddl-auto: validate` ; sans serveur, les suites échouent avec une
+  phrase qui dit comment leur en donner un. `:vectispire-core:test`, mesuré sur la même machine :
+  124 s sur SQLite, 170 s sur MySQL (1,37×), sous l'arrêt à 2×.
+- **SQLite est parti** : `db/migration/sqlite` (41 fichiers), `MigrationDialect.SQLITE`,
+  `sqlite-jdbc` et `hibernate-community-dialects`, `SqliteForeignKeys`, `SqliteWriteAheadLog`, la
+  branche `integrationTestSqlite` de la campagne. `MigrationLayoutTest` et `check-doc-facts.py`
+  comptent deux moteurs, et le second échoue quand les moteurs de la campagne et les répertoires de
+  migrations divergent.
+- **Aucun contournement de `SQLITE_BUSY` ne s'est révélé propre à SQLite.** La reprise d'une entrée
+  d'audit sur un verrou refusé répond aussi à la victime de deadlock et à l'expiration d'attente de
+  verrou de MySQL ; l'écriture de la ligne de l'agent et la mise à jour de la ligne de
+  synchronisation prennent le verrou de ligne sur les deux moteurs ; une entrée d'audit écrite après
+  la validation évite toujours de décrire une écriture annulée. La logique reste, et les commentaires
+  donnent la raison qui tient.
+- **Ce que le passage a trouvé.** Le premier lot de preuves d'une installation sans
+  `vectispire.signing.key` répondait 500 : la clé était créée dans la transaction en lecture seule
+  du lot, que SQLite ignorait. Et MySQL 9 honore un `references` en ligne : sur le `mysql:9.4` des
+  suites, les clés étrangères en ligne de V1 existent deux fois, celles d'InnoDB à côté de celles de
+  V19 — le `mysql:8` de la composition livrée les écarte. Consigné, pas modifié ici.
+

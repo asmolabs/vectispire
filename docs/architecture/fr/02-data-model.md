@@ -82,7 +82,8 @@ stateDiagram-v2
 ## Les migrations
 
 Gérées par Flyway dans `vectispire-java/vectispire-core/src/main/resources/db/migration/` : du SQL
-natif, lu dans `common/` puis dans le répertoire du moteur (`postgresql`, `mysql`, `sqlite`). À
+natif, lu dans `common/` puis dans le répertoire du moteur (`postgresql`, `mysql` ; le jeu `sqlite`
+est parti avec la fixture, [ADR 0034](decisions/0034-mysql-replaces-the-sqlite-fixture.md)). À
 partir de V40, une migration qui ne diffère que par les types de colonne s'écrit une fois dans
 `common/` avec les placeholders de type que `MigrationDialect` écrit par moteur ; celle dont la
 structure diverge s'écrit par moteur ([ADR 0027](decisions/0027-common-migrations-with-type-placeholders.md)).

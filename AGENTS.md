@@ -14,12 +14,12 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). SQLite is the test fixture, not a deployment ([0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md)) |
+| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container, or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
-cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL, MySQL, SQLite fixture
+cd vectispire-java && ./gradlew build                # compile, unit, architecture and HTTP suites (MySQL: needs Docker)
+cd vectispire-java && ./gradlew integrationTestAll   # PostgreSQL, MySQL
 
 npm ci                                            # respects the lockfile
 npm run build                                     # the Angular interface
@@ -168,9 +168,10 @@ accounts' data; the rest lose your own:
   hand in native SQL. From V40 on, a migration that differs only by column types is written
   **once** under `db/migration/common` with the type placeholders `MigrationDialect` spells per
   engine (`${ts}`, `${id}`, `${bool}`…); one whose structure diverges — a foreign key, a column
-  change, date arithmetic — is written **three times**, under
-  `db/migration/{postgresql,mysql,sqlite}/`, and forgetting one is a startup failure on that engine
-  only ([0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)).
+  change, date arithmetic — is written **twice**, under `db/migration/{postgresql,mysql}/`, and
+  forgetting one is a startup failure on that engine only
+  ([0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md),
+  [0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)).
   A version lives in exactly one of the two places, and `MigrationLayoutTest` fails the build
   otherwise. V1–V39 are never moved or edited: Flyway checks their checksums on every start.
   `SchemaParityIntegrationTest` checks on every engine the campaign runs that the entities agree

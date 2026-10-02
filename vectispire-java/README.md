@@ -5,11 +5,11 @@ The Angular interface lives in [`vectispire-angular/`](../vectispire-angular/) a
 HTTP.
 
 ```bash
-./gradlew build                      # compile + unit tests + architecture suite
+./gradlew build                      # compile + unit, architecture and HTTP suites (on MySQL: Docker)
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: mysql)
 ./gradlew integrationTest -Pdialect=postgres
-./gradlew integrationTestAll         # PostgreSQL, MySQL and the SQLite fixture
+./gradlew integrationTestAll         # PostgreSQL and MySQL
 ```
 
 ## Three modules, and why three
@@ -140,18 +140,18 @@ same name; decision records written before that date keep the names they had.
 | No file of a scanned repository can pin a worker in the API discovery: its patterns read within a budget per character, and the discovery within a deadline | `AnalysisBudgetTest`, `ApiDiscoveryScannerTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
-| Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
+| Entities agree with the schema, on both engines — and at every context start of the HTTP suite, on MySQL | `SchemaParityIntegrationTest` |
 | A migration version lives in `common` once or in every engine's directory, and a common one names no engine | `MigrationLayoutTest` |
 | Each type placeholder is what the engine declares and keeps (`datetime(6)`, identity never reused, bytes whole past 64 KiB) | `MigrationPlaceholdersIntegrationTest` |
-| A checklist template's workbook is kept byte for byte in the engine's binary type, never a large object, and every change to a version is a conditional statement on the revision its writer read | `ChecklistTemplateStorageIntegrationTest` (MySQL, PostgreSQL, SQLite) |
+| A checklist template's workbook is kept byte for byte in the engine's binary type, never a large object, and every change to a version is a conditional statement on the revision its writer read | `ChecklistTemplateStorageIntegrationTest` (MySQL, PostgreSQL) |
 | A checklist template version is a draft until a person confirms its layout, and, with four-eyes on, is published or retired by none of the accounts that wrote it, at the revision its publisher reviewed | `ChecklistTemplatesRoutesTest` |
 | A project's checklist is read and written only by a caller who sees the whole project — everything, the project granted as such, or every one of its repositories and at least one — and anybody else is answered "Project not found."; the guard is its service's, and its proof is minted by the guard alone | `ProjectChecklistsRoutesTest`, `RowVisibilityTest`, `ArchitectureTest.routesLeaveTheRefusalToTheirServices`, `ArchitectureTest.visibleTargetsAreMintedByTheGuard` |
 | A checklist's answers are never rewritten, every write names the edition its writer read, a carried answer onto a changed line waits for confirmation, and, with four-eyes on, none of a revision's authors signs it off | `ProjectChecklistsRoutesTest` |
-| One open checklist per project is a key on the engines, several closed revisions under it; its conditional statements arbitrate every transition; deleting a project takes its checklists, answers, proofs and files in its transaction | `ChecklistStorageIntegrationTest` (MySQL, PostgreSQL, SQLite) |
+| One open checklist per project is a key on the engines, several closed revisions under it; its conditional statements arbitrate every transition; deleting a project takes its checklists, answers, proofs and files in its transaction | `ChecklistStorageIntegrationTest` (MySQL, PostgreSQL) |
 | A checklist line's measurement is never a pass on data nobody looked at: no repository, a step absent in every scan within the age, scans from before `examined_types`, a plugin not applicable anywhere, stale evidence each answer "no data" with its reason, and one repository without data is enough; a threshold is judged on the whole backlog only, settled triage out and a status this version does not know in | `RuleEvaluationTest`, `ChecklistMeasurementsRoutesTest` |
-| A static analysis line (`builtin:sast`, `builtin:quality`, a plugin) counts a repository examined only where the scan it rests on read the tree's languages — by that scan's census, the languages of the SAST rules its task carried (written when the task is built) and the manifest it named; a source language no rule read, or languages unrecorded, is "no data", and Vectispire's automatic yes is withdrawn | `RuleEvaluationTest`, `ScanDispatcherTest`, `ChecklistAutomaticAnswersRoutesTest`, `DetectedLanguagesIntegrationTest` (MySQL, PostgreSQL, SQLite) |
+| A static analysis line (`builtin:sast`, `builtin:quality`, a plugin) counts a repository examined only where the scan it rests on read the tree's languages — by that scan's census, the languages of the SAST rules its task carried (written when the task is built) and the manifest it named; a source language no rule read, or languages unrecorded, is "no data", and Vectispire's automatic yes is withdrawn | `RuleEvaluationTest`, `ScanDispatcherTest`, `ChecklistAutomaticAnswersRoutesTest`, `DetectedLanguagesIntegrationTest` (MySQL, PostgreSQL) |
 | A binding is part of its line's digest and follows its key; a "yes" against a failing measurement is refused at submission, a "yes" without data needs a comment and a proof, an answer rests only on the measurement its person read, and a sign-off whose measurement changed since the submission is refused and freezes the rest | `ChecklistTemplatesRoutesTest`, `ChecklistMeasurementsRoutesTest` |
-| The owners' questions a measurement asks — the newest analysed scan and its SBOM, the scans within an age, each plugin's state, a scope's backlog, the import carrying a tool (its key escaped), an SBOM's components — answer past 70,000 identifiers | `MeasurementQueriesIntegrationTest` (MySQL, PostgreSQL, SQLite) |
+| The owners' questions a measurement asks — the newest analysed scan and its SBOM, the scans within an age, each plugin's state, a scope's backlog, the import carrying a tool (its key escaped), an SBOM's components — answer past 70,000 identifiers | `MeasurementQueriesIntegrationTest` (MySQL, PostgreSQL) |
 | An expired session, a reset password and a role change all close the sessions; a reset also revokes the account's integration keys | `AccountAdministrationService`, `ApiKeyIntegrationRoutesTest` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
@@ -329,19 +329,21 @@ pull request's Gradle code, the combination `release.yml` was split into two job
 
 The schema is managed by **Flyway** with native SQL, read from two locations:
 `vectispire-core/src/main/resources/db/migration/common/`, then the engine's own
-`db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`).
+`db/migration/{vendor}/` (`postgresql`, `mysql`).
 
-**Once, or three times — never in between** ([decision
-0027](../docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). From V40
+**Once, or twice — never in between** ([decision
+0027](../docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md), [decision
+0034](../docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md), which removed the
+SQLite set). From V40
 on, a migration that differs between engines only by its column types is written once in `common`,
 with the placeholders `MigrationDialect` spells per engine and `MigrationPlaceholders` hands to
-Flyway: `${ts}`, `${id}` (the whole identity column, `primary key` included — SQLite accepts
-`autoincrement` only on the exact phrase `integer primary key`), `${bool}`, `${true}`, `${false}`,
-`${text}`, `${double}`, `${bytes}` (a file's bytes: `longblob`, `bytea`, `blob` — mapped with an
+Flyway: `${ts}`, `${id}` (the whole identity column, `primary key` included — a shape the SQLite set
+needed and the common migrations since keep), `${bool}`, `${true}`, `${false}`,
+`${text}`, `${double}`, `${bytes}` (a file's bytes: `longblob`, `bytea` — mapped with an
 explicit JDBC type, never `@Lob`, which is an `oid` on PostgreSQL). A migration whose structure
 diverges — a foreign key, a column change, date arithmetic, a data repair — is written in each vendor
 directory. `MigrationLayoutTest` fails the
-build when a version sits in one or two vendor directories, in both places, or under a name Flyway
+build when a version sits in one vendor directory only, in both places, or under a name Flyway
 would skip, and refuses an engine token in `common`. **V1 to V39 stay where they are**: Flyway
 checks the checksum of every applied migration, and a moved or edited file stops every existing
 installation.
@@ -350,19 +352,21 @@ The vendor sets use each engine's native DDL:
 
 This native multi-dialect approach solves the impedance mismatches and table-recreation traps
 historically experienced with abstractions:
-- SQLite receives native DDL (`INTEGER PRIMARY KEY AUTOINCREMENT`, `NUMERIC` for epoch milliseconds, inline foreign keys).
 - PostgreSQL uses native `BIGINT GENERATED ALWAYS AS IDENTITY`, `TIMESTAMPTZ`, and `char(36)` UUIDs.
-- MySQL uses its native types (`BIT(1)`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`). The declared
+- MySQL uses its native types (`BIT(1)`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`), and a foreign key
+  as a named constraint: MySQL 8 discards an inline one, and MySQL 9 keeps it — on the `mysql:9.4`
+  the suites run, V1's inline keys exist twice, InnoDB's name beside V19's. The declared
   precision is not decoration: a bare `DATETIME` truncates to the second, and the audit chain
   hashes a millisecond timestamp — see [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md).
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
-`MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all sixty tables are created by name, and that the twenty-seven foreign keys of the
-seventeen tables that carry one really exist.
+`MigrationsTest` applies the Flyway migrations to a database of their own on the suite's MySQL
+(`TestDatabase.scratch`), asserting that all sixty tables are created by name, that the twenty-seven
+foreign keys of the seventeen tables that carry one really exist, and that a second run changes
+nothing.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
-PostgreSQL and MySQL through Testcontainers and on the SQLite fixture. `MigrationPlaceholdersIntegrationTest`
+PostgreSQL and MySQL through Testcontainers. `MigrationPlaceholdersIntegrationTest`
 applies a test-only common migration using every placeholder, through the application's own Flyway,
 and reads back on each engine the declared types and the behaviour — a millisecond kept, an identity
 never reused. **There is no "skip if Docker is missing" guard, deliberately** — a
@@ -374,8 +378,9 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 
 `./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against
 MySQL — one container per test JVM through Testcontainers, or the server `VECTISPIRE_TEST_DB_URL`
-names, and without either it fails rather than skips (decision 0034, `TestDatabase`). `./gradlew integrationTestAll` runs the schema and concurrency checks on
-PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs it in two places.
+names, as CI's `jvm` job does with a job service — and without either it fails rather than skips
+(decision 0034, `TestDatabase`). `./gradlew integrationTestAll` runs the schema and concurrency checks
+on PostgreSQL and MySQL through Testcontainers. CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
 **when anything engine-sensitive changed** — a migration, a module's `core/<module>/persistence/`
 (every query, `Specification` and entity lives there, which `ArchitectureTest` enforces),

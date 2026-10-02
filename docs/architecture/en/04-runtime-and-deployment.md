@@ -58,10 +58,11 @@ engine is selected by `VECTISPIRE_DB_URL` alone
 ([0014](decisions/0014-two-engines-and-a-test-fixture.md)).
 
 **SQLite is refused, and the refusal is worth stating because it used to be documented as
-supported.** Under the shipped `ddl-auto: validate` the application does not start on it: SQLite
-has type *affinities* rather than types, so it reports a timestamp column back as FLOAT and
-Hibernate rejects the mapping. It remains in the repository as the fixture the HTTP test suite
-runs on, and its migrations are maintained for that reason alone.
+supported.** Under the shipped `ddl-auto: validate` the application did not start on it: SQLite
+has type *affinities* rather than types, so it reported a timestamp column back as FLOAT and
+Hibernate rejected the mapping. It stayed in the repository as the fixture the HTTP test suite ran
+on until [0034](decisions/0034-mysql-replaces-the-sqlite-fixture.md) moved that suite to MySQL;
+its driver, its dialect and its migrations are gone, and a `jdbc:sqlite:` URL does not start.
 
 The schema belongs to the Flyway migrations, one native SQL set per dialect
 ([0013](decisions/0013-flyway-multi-dialect-migrations.md)). Hibernate validates and never
@@ -99,8 +100,9 @@ both found none, both ran, and both wrote one. `OneShotJobs.claim` inserts the j
 primary key lets one insert through, the other waits for that transaction and fails, and its
 instance writes nothing. A run that fails rolls its claim back with it, so the next start tries
 again. **Which of the two a failure was is the committed row's to say** (`OneShotJobs.hasRun`,
-read after the rollback), never the exception's: SQLite reports the key's refusal as an
-uncategorised error, and a lock timeout or a dropped connection fails the same insert — read as
+read after the rollback), never the exception's: a lock timeout or a dropped connection fails the
+same insert (and the SQLite fixture of the time reported the key's refusal as an uncategorised
+error) — read as
 "claimed elsewhere", each would report the job as run while nobody ran it.
 
 **Coordination is not the only thing they could have shared.** These four run on a scheduler of

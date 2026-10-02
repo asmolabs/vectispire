@@ -18,8 +18,10 @@ détient `ENCRYPTION_KEY`. Faites tourner un agent distant et posez
 téléchargées à la demande la première fois que chacune sert. Les scans suivants réutilisent le
 cache.
 
-**Puis-je utiliser SQLite ?** Non. PostgreSQL et MySQL 8 sont les moteurs supportés. SQLite
-n'existe dans la construction que comme fixture de test.
+**Puis-je utiliser SQLite ?** Non. PostgreSQL et MySQL 8 sont les moteurs supportés. SQLite a
+servi de fixture aux suites de tests jusqu'à leur passage sur MySQL ; il ne fait plus du tout
+partie de la construction, et une URL `jdbc:sqlite:` arrête le démarrage : aucun pilote n'est livré
+pour elle.
 
 **L'application refuse de démarrer : le chemin de la clé de chiffrement ne résout pas.**
 Délibéré. Démarrer sans clé reviendrait à refuser toute écriture de secret des heures plus

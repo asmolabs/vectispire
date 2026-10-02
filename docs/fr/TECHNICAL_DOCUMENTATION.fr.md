@@ -97,8 +97,9 @@ d'export. Il ne dépend que du JDK, de BouncyCastle et de Jackson.
 Le schéma appartient aux **migrations Flyway**, sous
 [`src/main/resources/db/migration/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — du SQL natif, écrit une
 fois dans `common/` avec des placeholders de type par moteur quand seuls les types de colonne
-diffèrent, et une fois par moteur (`postgresql`, `mysql`, `sqlite`) quand la structure diverge
-([ADR 0027](../architecture/fr/decisions/0027-common-migrations-with-type-placeholders.md)). `ddl-auto` vaut `validate`
+diffèrent, et une fois par moteur (`postgresql`, `mysql`) quand la structure diverge
+([ADR 0027](../architecture/fr/decisions/0027-common-migrations-with-type-placeholders.md) ; le jeu
+`sqlite` est parti avec la fixture, [ADR 0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). `ddl-auto` vaut `validate`
 et le reste : Hibernate ne doit jamais altérer le schéma à l'exécution.
 
 **Le moteur est choisi par `VECTISPIRE_DB_URL` et rien d'autre** — Hibernate et Flyway le lisent
@@ -250,7 +251,7 @@ Hors du modèle principal, et chacune porteuse :
 |---|---|---|
 | `user` | comptes, mot de passe **Argon2id**, rôle, `must_change_password` | — |
 | `session` | le **SHA-256** du jeton comme clé primaire — jamais le jeton, `created_at`, `last_seen_at`, `expires_at`, IP, agent utilisateur | une session **révocable** : un jeton qu'on ne peut pas invalider, et personne ne peut plus être déconnecté. Stocker le jeton lui-même ferait de chaque dump de cette table un jeu de sessions vivantes |
-| `team_webhook` | le canal de notification d'une équipe | sa propre table plutôt qu'une colonne sur `team` : une URL de webhook est une capacité porteuse qui n'a rien à faire dans chaque requête sur les équipes — et `addColumn` sur `team` détruit les clés étrangères des tables d'accès sur SQLite |
+| `team_webhook` | le canal de notification d'une équipe | sa propre table plutôt qu'une colonne sur `team` : une URL de webhook est une capacité porteuse qui n'a rien à faire dans chaque requête sur les équipes — et `addColumn` sur `team` détruisait les clés étrangères des tables d'accès sur la fixture SQLite d'alors |
 | `team` / `team_member` / `team_target` | les équipes, qui en fait partie, ce qu'elles possèdent | visibilité restreinte, rendue administrable : un compte voit l'union de ce que possèdent ses équipes et de ce qui lui a été assigné directement. La table par compte demeure pour l'exception qu'une équipe ne peut pas exprimer |
 | `login_attempt` | `counter_key`, `occurred_at` | anti-bourrage compté par utilisateur **et** par client ; un seul axe se contourne |
 | `api_key` | empreinte **Argon2id**, préfixe d'affichage, portées, restriction de cible, expiration | le secret brut est renvoyé une fois et jamais stocké. Le préfixe est ce qui rend ici une empreinte à coût mémoire abordable : il réduit la recherche à quelques lignes avant hachage |
@@ -446,14 +447,20 @@ livrées vides de cette façon.
 
 ## 7. Approche des tests
 
-La campagne unitaire tourne sans base : `npm test`.
+`./gradlew build` exécute les suites unitaires, d'architecture et HTTP ; les suites de contexte et
+HTTP tournent sur MySQL, le moteur que livre `docker-compose.yml` — un conteneur Testcontainers, donc
+Docker doit tourner, ou le serveur que nomme `VECTISPIRE_TEST_DB_URL`, comme le fait le job `jvm` de
+la CI avec un service. Sans l'un ni l'autre elles échouent plutôt que de s'ignorer, et Hibernate
+valide le schéma à chaque démarrage de contexte
+([ADR 0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). La suite de
+l'interface est `npm test`.
 
 Les campagnes d'intégration démarrent un moteur réel via **testcontainers**, appliquent toutes les
 migrations et annulent chaque test dans sa propre transaction — de sorte que le schéma sous test
 est celui que la production recevra, et que les cas ne peuvent pas se voir entre eux.
 
 ```bash
-cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres ou sqlite)
+cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres)
 cd vectispire-java && ./gradlew integrationTestAll             # les deux moteurs
 ```
 

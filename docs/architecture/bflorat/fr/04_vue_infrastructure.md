@@ -48,7 +48,6 @@ sous `src/main/resources/db/migration/common/` (placeholders de type par moteur)
 |---|---|---|---|
 | **PostgreSQL** | 14+ | `postgresql` | Production recommandée (Cluster d'Entreprise) |
 | **MySQL** | 8.0+ | `mysql` | Production alternative (Environnements Cloud / RDS) |
-| **SQLite** | 3.35+ | `sqlite` | **Non déployable.** La fixture sur laquelle tourne la suite de tests HTTP : sous le `ddl-auto: validate` livré, l'application refuse de démarrer, car les affinités de type de SQLite renvoient une colonne d'horodatage comme un FLOAT. Ses migrations sont maintenues pour la seule suite. |
 
 ### 2.1 Intégrité du Schéma & `ddl-auto`
 Le paramètre Hibernate `ddl-auto` est obligatoirement maintenu à `validate`. Seul Flyway détient

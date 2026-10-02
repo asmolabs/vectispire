@@ -64,10 +64,12 @@ moteur est choisi par la seule variable `VECTISPIRE_DB_URL`
 ([0014](decisions/0014-two-engines-and-a-test-fixture.md)).
 
 **SQLite est refusé, et le refus mérite d'être énoncé parce qu'il a été documenté comme
-supporté.** Sous le `ddl-auto: validate` livré, l'application ne démarre pas dessus : SQLite a des
-*affinités* de type plutôt que des types, il renvoie donc une colonne d'horodatage comme un FLOAT
-et Hibernate rejette la correspondance. Il demeure dans le dépôt comme la fixture sur laquelle
-tourne la suite de tests HTTP, et ses migrations sont maintenues pour cette seule raison.
+supporté.** Sous le `ddl-auto: validate` livré, l'application ne démarrait pas dessus : SQLite a
+des *affinités* de type plutôt que des types, il renvoyait donc une colonne d'horodatage comme un
+FLOAT et Hibernate rejetait la correspondance. Il est resté dans le dépôt comme la fixture de la
+suite de tests HTTP jusqu'à ce que [0034](decisions/0034-mysql-replaces-the-sqlite-fixture.md) fasse
+passer cette suite sur MySQL ; son pilote, son dialecte et ses migrations sont partis, et une URL
+`jdbc:sqlite:` ne démarre pas.
 
 Le schéma appartient aux migrations Flyway, un jeu SQL natif par dialecte
 ([0013](decisions/0013-flyway-multi-dialect-migrations.md)). Hibernate valide et ne réconcilie
@@ -107,9 +109,9 @@ tâche dans `t_one_shot_job` (depuis `V46`), première instruction de la transac
 travail ; la clé primaire laisse passer une insertion, l'autre attend cette transaction et échoue,
 et son instance n'écrit rien. Une exécution qui échoue annule sa réclamation avec elle, et le
 démarrage suivant réessaie. **Laquelle des deux était un échec, c'est la ligne validée qui le dit**
-(`OneShotJobs.hasRun`, lue après l'annulation), jamais l'exception : SQLite signale le refus de la
-clé comme une erreur non classée, et un verrou expiré ou une connexion perdue font échouer la même
-insertion — lus comme « réclamée ailleurs », chacun ferait passer la tâche pour exécutée alors que
+(`OneShotJobs.hasRun`, lue après l'annulation), jamais l'exception : un verrou expiré ou une
+connexion perdue font échouer la même insertion (et la fixture SQLite d'alors signalait le refus de
+la clé comme une erreur non classée) — lus comme « réclamée ailleurs », chacun ferait passer la tâche pour exécutée alors que
 personne ne l'a exécutée.
 
 **La coordination n'est pas la seule chose qu'elles auraient pu partager.** Ces quatre tâches

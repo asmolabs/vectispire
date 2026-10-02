@@ -8,7 +8,7 @@ This document covers everything needed to run Vectispire locally: prerequisites,
 |---|---|
 | **Node ≥ 24** | The workspace targets the current LTS. |
 | **Docker**, running and reachable | Vectispire runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers through the Docker socket. It is also what starts PostgreSQL in development and in the integration tests. |
-| **PostgreSQL or MySQL 8** | Both are supported and exercised by the integration campaign. SQLite is not — see the README for the measured reason. In development, a container is enough. |
+| **PostgreSQL or MySQL 8** | Both are supported and exercised by the integration campaign. SQLite is not, and is no longer in the build at all ([ADR 0034](../architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). In development, a container is enough. |
 | **Git** | To clone this repository, and used by Vectispire itself to clone what it scans. |
 
 ## 2. Install

@@ -126,7 +126,8 @@ ce que Modulith vérifiera plus tard parte d'un graphe sans exception connue :
   suppression, et chaque domaine propriétaire purge ses propres lignes dans un écouteur synchrone qui
   exige cette transaction — la purge et la suppression sont validées ensemble ou pas du tout. L'ordre
   est explicite, les enfants avant les parents (`TargetPurge.Phase`), pour que la purge ne dépende pas
-  d'une cascade que SQLite n'honore que tant qu'un pragma est émis. Écrire le test a révélé qu'un
+  d'une cascade qu'un moteur peut ne pas honorer — celle de SQLite sans son pragma, à l'époque, celle de
+  MySQL déclarée en ligne. Écrire le test a révélé qu'un
   dépôt portant le moindre historique de tri ne pouvait pas être supprimé ; c'est corrigé.
 - **`ReportCursor` a quitté `shared`** pour un domaine de fondation `reporting` ;
   `ReachabilityAnalyzer`, un service que rien n'appelait, a été supprimé.

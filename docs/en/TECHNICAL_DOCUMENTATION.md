@@ -95,8 +95,9 @@ It depends on nothing but the JDK, BouncyCastle and Jackson.
 The schema belongs to **Flyway migrations**, under
 [`src/main/resources/db/migration/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — native SQL, written once
 in `common/` with per-engine type placeholders when only the column types differ, and once per
-engine (`postgresql`, `mysql`, `sqlite`) when the structure does
-([ADR 0027](../architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). `ddl-auto` is `validate`
+engine (`postgresql`, `mysql`) when the structure does
+([ADR 0027](../architecture/en/decisions/0027-common-migrations-with-type-placeholders.md); the
+`sqlite` set went with the fixture, [ADR 0034](../architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). `ddl-auto` is `validate`
 and stays that way: Hibernate must never alter the schema at runtime.
 
 **The engine is chosen by `VECTISPIRE_DB_URL` and nothing else** — Hibernate and Flyway both read
@@ -247,7 +248,7 @@ Outside the main model, and each one load-bearing:
 |---|---|---|
 | `user` | accounts, **Argon2id** password, role, `must_change_password` | — |
 | `session` | the token's **SHA-256** as primary key — never the token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: a token that cannot be invalidated, so nobody could be logged out. Storing the token itself would make every dump of this table a set of live sessions |
-| `team_webhook` | one team's notification channel | its own table rather than a column on `team`: a webhook URL is a bearer capability that has no business being carried by every query over teams — and `addColumn` on `team` destroys the access tables' foreign keys on SQLite |
+| `team_webhook` | one team's notification channel | its own table rather than a column on `team`: a webhook URL is a bearer capability that has no business being carried by every query over teams — and `addColumn` on `team` destroyed the access tables' foreign keys on the SQLite fixture of the time |
 | `team` / `team_member` / `team_target` | teams, who is in them, what they own | restricted visibility, made administrable: an account sees the union of what its teams own and what was assigned to it directly. The per-account table stays for the exception a team cannot express |
 | `login_attempt` | `counter_key`, `occurred_at` | anti-stuffing counted per user **and** per client; one axis alone is defeatable |
 | `api_key` | **Argon2id** hash, prefix for display, scopes, target restriction, expiry | the raw secret is returned once and never stored. The prefix is what makes a memory-hard hash affordable here: it narrows the lookup to a handful of rows before hashing |
@@ -439,15 +440,20 @@ blank that way.
 
 ## 7. Testing approach
 
-The unit suite runs with no database: `npm test`.
+`./gradlew build` runs the unit, architecture and HTTP suites; the context and HTTP suites run on
+MySQL, the engine `docker-compose.yml` ships — a Testcontainers container, so Docker must be running,
+or the server `VECTISPIRE_TEST_DB_URL` names, as CI's `jvm` job does with a job service. Without
+either they fail rather than skip, and Hibernate validates the schema at every context start
+([ADR 0034](../architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). The interface's
+suite is `npm test`.
 
 The integration suites start a real engine through **testcontainers**, apply every
 migration, and roll each test back in its own transaction — so the schema under test is the
 one production will receive, and the cases cannot see each other.
 
 ```bash
-cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres or sqlite)
-cd vectispire-java && ./gradlew integrationTestAll             # all two engines
+cd vectispire-java && ./gradlew integrationTest                # MySQL (-Pdialect=postgres)
+cd vectispire-java && ./gradlew integrationTestAll             # both engines
 ```
 
 Two rules the harness enforces on itself:

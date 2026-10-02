@@ -120,8 +120,8 @@ Modulith would later verify started from a graph with no known exception:
   tables. It now publishes `TargetDeleted` inside the deletion transaction, and each owning domain
   purges its own rows in a synchronous listener that requires that transaction — the purge and the
   deletion commit together or not at all. The order is explicit, children before parents
-  (`TargetPurge.Phase`), so the purge does not depend on a cascade SQLite honours only while a pragma
-  is issued. Writing the test for it found that a repository with any triage history could not be
+  (`TargetPurge.Phase`), so the purge does not depend on a cascade an engine may not honour — SQLite's
+  without its pragma, as it then was, MySQL's declared inline. Writing the test for it found that a repository with any triage history could not be
   deleted; that is fixed.
 - **`ReportCursor` left `shared`** for a `reporting` foundation domain; `ReachabilityAnalyzer`, a
   service nothing called, was deleted.

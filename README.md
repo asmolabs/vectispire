@@ -181,10 +181,8 @@ npm --workspace @vectispire/frontend start            # UI on http://localhost:4
 The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/common/`, then `db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
 schema synthesised from the entities is not the one production will receive, and testing
 against it would let a faulty script through. `SchemaParityIntegrationTest` asks Hibernate
-to validate the entities against the schema Flyway really built, on both deployable engines. It
-runs against the SQLite fixture too, but with `validate` relaxed there — SQLite reports a
-timestamp column back as `FLOAT`, which says something about SQLite's type affinities and nothing
-about the mapping.
+to validate the entities against the schema Flyway really built, on both deployable engines, and
+the HTTP suite does the same on MySQL at every context start ([ADR 0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)).
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
@@ -361,27 +359,28 @@ The database file is not part of the repository (it holds password hashes and en
 
 ### Choosing a database
 
-**Two engines are deployable — PostgreSQL and MySQL — and SQLite is a test fixture, not a third
-option.** That distinction is [ADR 0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md),
-which superseded an earlier decision to support four; this page said "four" for five days after
-that reversal, which is how a register stops being the thing anybody reads. All three targets are
-exercised by the full integration campaign — the fixture included, because a fixture nobody runs
-is a fixture nobody can trust. Flyway applies native SQL migrations: once
+**Two engines are deployable — PostgreSQL and MySQL — and there is no third.** That is
+[ADR 0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md), which superseded an
+earlier decision to support four; this page said "four" for five days after that reversal, which is
+how a register stops being the thing anybody reads. ADR 0014 kept SQLite as the test suites'
+fixture; [ADR 0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md) moved
+those suites to MySQL and removed SQLite altogether. Both engines are exercised by the full
+integration campaign. Flyway applies native SQL migrations: once
 under `db/migration/common/`, with type placeholders spelled per engine, when only the column types
-differ, and per dialect under `db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`) when the
+differ, and per dialect under `db/migration/{vendor}/` (`postgresql`, `mysql`) when the
 structure does ([ADR 0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). Point `VECTISPIRE_DB_URL` at the engine; it is read from
 the URL, and MySQL is the default — the engine `docker-compose.yml` ships, so the shortest path
 and the documented one agree. A portability defect is invisible to reading and to a single
-engine; running the campaign across all three is the only way it gets found, and it found
+engine; running the campaign across both is the only way it gets found, and it found
 several.
 
-| | PostgreSQL | MySQL | SQLite *(test fixture)* |
-|---|---|---|---|
-| Transactional scan claim | yes | yes | **no** |
-| Complete claim batch under contention | yes | **no** | n/a |
-| Millisecond timestamps | yes | yes | yes |
-| `NULLS LAST` | yes | no | yes |
-| Concurrent writers | yes | yes | **no** |
+| | PostgreSQL | MySQL |
+|---|---|---|
+| Transactional scan claim | yes | yes |
+| Complete claim batch under contention | yes | **no** |
+| Millisecond timestamps | yes | yes |
+| `NULLS LAST` | yes | no |
+| Concurrent writers | yes | yes |
 
 Every "no" comes from a defect found by running, and **none of them raises an error**:
 
@@ -389,11 +388,6 @@ Every "no" comes from a defect found by running, and **none of them raises an er
   `LIMIT`, so a worker asking for two scans may get none while the queue is not empty. No
   row is ever handed to two workers — measured, not assumed — and the rest goes out on the
   next tick. It is a throughput characteristic, not a correctness defect.
-- **SQLite has a single writer.** A second instance on the same file would not be slow, it
-  would corrupt data. Its claim therefore falls back to a conditional `UPDATE` guarded by
-  the status column, which is correct for threads of one process. Its driver **refuses**
-  `FOR UPDATE` rather than ignoring it. A driver that drops the clause silently produces a
-  claim that looks transactional and hands the same scan to two processes.
 - **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
   second, which would make the audit chain fail its own verification and declare itself
   tampered with. `datetime(6)` is declared once in the migrations rather than
@@ -449,14 +443,14 @@ Two things to know:
 ## Tests
 
 ```bash
-cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites
-cd vectispire-java && ./gradlew integrationTest    # one engine, PostgreSQL via testcontainers
-cd vectispire-java && ./gradlew integrationTestAll # both engines + the fixture — needs Docker
+cd vectispire-java && ./gradlew build              # unit, architecture and HTTP suites — on MySQL, needs Docker
+cd vectispire-java && ./gradlew integrationTest    # one engine (MySQL; -Pdialect=postgres), via Testcontainers
+cd vectispire-java && ./gradlew integrationTestAll # both engines — needs Docker
 npm ci && npm run build && npm test                # the Angular interface
 ```
 
-The unit, architecture and HTTP suites run on every push; seven integration classes run against
-real servers, 29 cases on each of PostgreSQL, MySQL and SQLite. **No count is quoted here on
+The unit, architecture and HTTP suites run on every push, the last two on MySQL; the integration
+campaign runs against real servers, PostgreSQL and MySQL. **No count is quoted here on
 purpose** — this page said "around 840" long after the figure had passed 1300, because a number
 in prose is a number nothing re-reads. `scripts/check-doc-facts.py` pins the claims that *can* be
 checked against the tree, and a test count is not one of them: it changes with every commit,

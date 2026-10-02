@@ -14,7 +14,7 @@ Vectispire demonstrates an **exceptional architectural and security maturity**. 
 Security guarantees do not rely on implicit conventions; they are verified and locked by:
 1. **Compilation-level module boundaries** (physical JVM separation without JDBC leakage to remote agents).
 2. **Automated architecture tests (ArchUnit)** verifying layer boundaries.
-3. **Multi-engine integration test suites (PostgreSQL, MySQL, plus the SQLite fixture)** verifying schema parity and concurrency.
+3. **Multi-engine integration test suites (PostgreSQL, MySQL)** verifying schema parity and concurrency.
 4. **Strict, uncompromising Content Security Policy (CSP)** prohibiting dynamic script execution (`'unsafe-eval'` excluded).
 5. **Supply Chain Security** enforced via Sigstore keyless signing, Gradle dependency locking (`gradle.lockfile`), and SBOM audits.
 6. **Integrated Regulatory Compliance Engine** (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA) backed by a certified, cryptographically-sealed evidence vault (`EvidenceVaultService`).
@@ -127,7 +127,7 @@ flowchart TB
 | Area | Rating | Enforcement & Verification Mechanism |
 |---|---|---|
 | **Layered Hexagonal Architecture** | 🟢 Exemplary | ArchUnit (`ArchitectureTest.java`): Pure domain decoupled from framework dependencies |
-| **Multi-Engine Database Parity** | 🟢 Exemplary | Multi-dialect Flyway migrations tested on PostgreSQL, MySQL (SQLite for tests) (`SchemaParityIntegrationTest`) |
+| **Multi-Engine Database Parity** | 🟢 Exemplary | Multi-dialect Flyway migrations tested on PostgreSQL and MySQL (`SchemaParityIntegrationTest`) |
 | **Supply Chain & Dependency Locking** | 🟢 Exemplary | Gradle dependency locking (`gradle.lockfile`), Git pre-commit hook, Syft SBOM, Grype CVE scanner, Sigstore keyless signing |
 | **Fingerprint Determinism** | 🟢 Exemplary | NUL byte (`\0`) delimiter preventing separator collisions (`IssueFingerprintTest`) |
 | **Regulatory Compliance & Evidence** | 🟢 Exemplary | Automated NIS 2 / DORA / ISO 27001 / PCI-DSS evaluations + Certified Evidence Vault |

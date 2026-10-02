@@ -48,7 +48,6 @@ set that had said four. Migrations are native SQL under
 |---|---|---|---|
 | **PostgreSQL** | 14+ | `postgresql` | Recommended production (Enterprise Cluster) |
 | **MySQL** | 8.0+ | `mysql` | Alternative production (Cloud / RDS environments) |
-| **SQLite** | 3.35+ | `sqlite` | **Not deployable.** The fixture the HTTP test suite runs on: under the shipped `ddl-auto: validate` the application refuses to start, because SQLite's type affinities report a timestamp column back as FLOAT. Its migrations are maintained for the suite alone. |
 
 ### 2.1 Schema Integrity & `ddl-auto`
 Hibernate's `ddl-auto` setting is strictly set to `validate`. Flyway maintains sole authority over

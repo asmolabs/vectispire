@@ -16,8 +16,9 @@ the default is for. Beyond that, no: daemon access is root on the host, and that
 `zricethezav/gitleaks`, `bridgecrew/checkov`, `semgrep/semgrep` — are pulled on demand the
 first time each is used. Later scans reuse the cache.
 
-**Can I use SQLite?** No. PostgreSQL and MySQL 8 are the supported engines. SQLite exists
-in the build as a test fixture only.
+**Can I use SQLite?** No. PostgreSQL and MySQL 8 are the supported engines. SQLite was the
+test suites' fixture until those moved to MySQL; it is no longer in the build at all, and a
+`jdbc:sqlite:` URL stops the start: no driver for it is shipped.
 
 **The application will not start: the encryption key path does not resolve.** Deliberate.
 Starting with no key would mean refusing every secret write hours later, somewhere
