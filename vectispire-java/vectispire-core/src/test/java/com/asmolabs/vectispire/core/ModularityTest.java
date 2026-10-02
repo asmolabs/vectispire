@@ -187,6 +187,132 @@ class ModularityTest {
         softly.assertAll();
     }
 
+    /** The C4 model, from the module directory where Gradle runs a test. */
+    private static final Path WORKSPACE = Path.of("..", "..", "docs", "architecture", "c4", "workspace.dsl");
+
+    /** Set to {@code true} to rewrite the generated parts of {@link #WORKSPACE} instead of comparing them. */
+    private static final String WRITE_C4 = "vectispire.c4.write";
+
+    /**
+     * The C4 component level is the module model, not a drawing of it.
+     *
+     * <p>Its components were eight boxes drawn by hand when the control plane was packaged by layer —
+     * "API Controllers Layer", "ScanRunner Engine" — and the drift check compared the diagrams with the
+     * model file, never the model with the code: it stayed green while the code became thirty modules.
+     * The parts between the {@code BEGIN}/{@code END} markers are now what Modulith reads — one component
+     * per module, described by the first sentence of its {@code package-info}, and one relation per
+     * dependency between modules, those into the shared foundation left out. A module added, removed or
+     * newly depended on fails the build here until the model is regenerated.
+     */
+    @Test
+    @DisplayName("the C4 component level is the module model: one component per module, one relation per dependency")
+    void theC4ComponentsAreTheModules() throws IOException {
+        String written = Files.readString(WORKSPACE);
+        String generated = between(between(written, "modules", components()), "dependencies", dependencies());
+
+        if (Boolean.getBoolean(WRITE_C4)) {
+            Files.writeString(WORKSPACE, generated);
+            return;
+        }
+        assertThat(written)
+                .as("""
+                        The C4 component level no longer matches the module model.
+
+                        Regenerate it, then the diagrams, and commit all three:
+                          ./gradlew :vectispire-core:test --tests '*ModularityTest*' -D%s=true
+                          ./scripts/generate-c4-diagrams.sh
+                        """.formatted(WRITE_C4))
+                .isEqualTo(generated);
+    }
+
+    private static List<String> components() throws IOException {
+        Set<String> shared = modules.getSharedModules().stream()
+                .map(module -> module.getIdentifier().toString())
+                .collect(Collectors.toSet());
+        List<String> lines = new java.util.ArrayList<>();
+        for (ApplicationModule module : sorted()) {
+            String id = module.getIdentifier().toString();
+            lines.add("m_" + id + " = component \"" + id + "\" \"" + description(id) + "\" \"Spring Modulith module\""
+                    + (shared.contains(id) ? " \"Shared\"" : ""));
+        }
+        return lines;
+    }
+
+    private static List<String> dependencies() {
+        Set<String> shared = modules.getSharedModules().stream()
+                .map(module -> module.getIdentifier().toString())
+                .collect(Collectors.toSet());
+        List<String> lines = new java.util.ArrayList<>();
+        for (ApplicationModule module : sorted()) {
+            String id = module.getIdentifier().toString();
+            module.getDirectDependencies(modules).uniqueModules()
+                    .map(target -> target.getIdentifier().toString())
+                    .filter(target -> !target.equals(id) && !shared.contains(target))
+                    .distinct()
+                    .sorted()
+                    .forEach(target -> lines.add("m_" + id + " -> m_" + target + " \"uses\""));
+        }
+        return lines;
+    }
+
+    private static List<ApplicationModule> sorted() {
+        return modules.stream()
+                .sorted(java.util.Comparator.comparing(module -> module.getIdentifier().toString()))
+                .toList();
+    }
+
+    /**
+     * The first sentence of a module's {@code package-info} javadoc, as plain text: what the module's own
+     * author wrote it is, rather than a second description that would drift from the first.
+     */
+    private static String description(String module) throws IOException {
+        Path info = Path.of("src", "main", "java").resolve(CORE.replace('.', '/')).resolve(module).resolve("package-info.java");
+        if (!Files.exists(info)) {
+            // `config`, the one package outside every domain (ArchitectureTest.OUTSIDE_MODULES): Modulith
+            // sees it as a module, and it has no package-info to describe it.
+            return "The application's configuration, outside every domain module.";
+        }
+        String source = Files.readString(info);
+        int open = source.indexOf("/**");
+        int close = source.indexOf("*/", open + 3);
+        if (open < 0 || close < 0) {
+            return "";
+        }
+        String text = source.substring(open + 3, close).lines()
+                .map(line -> line.strip().replaceFirst("^\\*\\s?", ""))
+                .collect(Collectors.joining(" "))
+                .replaceAll("\\{@(?:code|link|linkplain|value)\\s+([^}]*)}", "$1")
+                .replaceAll("<[^>]+>", "")
+                .replaceAll("\\s+", " ")
+                .strip();
+        int end = text.indexOf(". ");
+        String sentence = end < 0 ? text : text.substring(0, end + 1);
+        return sentence.replace('"', '\'');
+    }
+
+    /** {@code dsl} with the lines between {@code # BEGIN marker} and {@code # END marker} replaced by {@code lines}. */
+    private static String between(String dsl, String marker, List<String> lines) {
+        List<String> source = dsl.lines().toList();
+        int begin = -1;
+        int end = -1;
+        for (int i = 0; i < source.size(); i++) {
+            String line = source.get(i).strip();
+            if (line.startsWith("# BEGIN " + marker + " ")) {
+                begin = i;
+            } else if (line.startsWith("# END " + marker) && begin >= 0) {
+                end = i;
+                break;
+            }
+        }
+        assertThat(begin).as("workspace.dsl carries the '# BEGIN %s' and '# END %s' markers", marker, marker).isNotNegative();
+        assertThat(end).as("workspace.dsl carries the '# END %s' marker after its BEGIN", marker).isGreaterThan(begin);
+        String indent = source.get(begin).substring(0, source.get(begin).indexOf('#'));
+        List<String> out = new java.util.ArrayList<>(source.subList(0, begin + 1));
+        lines.forEach(line -> out.add(indent + line));
+        out.addAll(source.subList(end, source.size()));
+        return String.join("\n", out) + "\n";
+    }
+
     @Test
     @DisplayName("writes its report, its component diagrams and its module canvases")
     void writesTheDocumentation() throws IOException {

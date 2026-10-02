@@ -8,6 +8,15 @@
 > Production carries Modulith's annotations and nothing else; `ModulithRuntimeInertTest` fails if more
 > of it reaches the jar or one of its beans becomes active. The layers inside a module stay
 > [`ArchitectureTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java)'s.
+>
+> **The C4 component level is this model** (2026-10-02). The components of
+> [`workspace.dsl`](../c4/workspace.dsl) are one per module, described by the first sentence of its
+> `package-info`, and its relations one per dependency between modules — those into the shared
+> foundation left out, the three that leave the control plane written by hand. They used to be eight
+> boxes drawn when the code was packaged by layer, and `c4-drift` compared the diagrams with the model
+> file, never the model with the code. `ModularityTest` now fails the build when the two differ;
+> `-Dvectispire.c4.write=true` rewrites the generated parts, then `scripts/generate-c4-diagrams.sh`
+> the diagrams.
 
 ## What Modulith detects: twenty-six domains and `config`
 

@@ -486,6 +486,10 @@ tasks.named<Test>("test") {
     systemProperty(
         "vectispire.openapi.write",
         providers.systemProperty("vectispire.openapi.write").getOrElse("false"))
+    // `ModularityTest` rewrites the generated parts of the C4 model instead of comparing them.
+    systemProperty(
+        "vectispire.c4.write",
+        providers.systemProperty("vectispire.c4.write").getOrElse("false"))
 
     // **Les fichiers que la suite lit hors du module doivent être déclarés, sinon elle ne
     // retourne pas quand ils changent.** `ApiReferenceTest` lit la référence REST et le contrat ;
@@ -495,7 +499,9 @@ tasks.named<Test>("test") {
     inputs.files(
         rootProject.file("../docs/en/api/rest_api_reference.md"),
         rootProject.file("../docs/fr/api/rest_api_reference.md"),
-        rootProject.file("../vectispire-angular/openapi.json"))
+        rootProject.file("../vectispire-angular/openapi.json"),
+        // `ModularityTest` compares the C4 component level with the module model.
+        rootProject.file("../docs/architecture/c4/workspace.dsl"))
         .withPropertyName("documentsTheSuiteReads")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 

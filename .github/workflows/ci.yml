@@ -148,7 +148,9 @@ jobs:
       #
       # Regenerating and diffing would be stronger and is possible here, unlike on GitLab where
       # the Structurizr image has no shell. Left as it is so the port changes no assertion; worth
-      # revisiting on its own, deliberately.
+      # revisiting on its own, deliberately. The model itself is checked against the code elsewhere:
+      # `ModularityTest`, in the `jvm` job, fails when the component level and the Spring Modulith
+      # module model differ.
       - name: the C4 diagrams are in step with the model
         run: |
           recorded="$(cat docs/architecture/c4/diagrams/.workspace.sha256)"
