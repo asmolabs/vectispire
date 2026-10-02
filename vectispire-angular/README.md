@@ -108,6 +108,16 @@ would have shown a missing image forever. Only asset positions are examined: `sr
 navigation the CSP does not govern — refusing all of those would make this the rule someone
 switches off.
 
+## Icon button checking
+
+`npm test` also runs `scripts/check-icon-buttons.mjs`, which refuses a button showing an icon —
+an `icon` attribute, or a `pi pi-…` element inside — with no accessible name: no `label`,
+`ariaLabel`, `aria-label` or `aria-labelledby` in any binding form, and no text of its own. The
+template lint cannot be trusted with it: `elements-content` reads native elements only, so an
+Optimus `<p-button>` is invisible to it; on a native `<button>` the `<i>` of the icon counts as
+content; and the inline templates of the layout are not linted at all. A `pTooltip` is not a
+name — shown on hover, read by nothing.
+
 **Every `pi-*` class must exist in the installed `openng-icons.css`.** Same failure, different
 asset: an unknown icon class renders an empty box and reports nothing. `pi-balance-scale`,
 `pi-file-code`, `pi-gitlab` and `pi-terminal` exist in no primeicons release and had been

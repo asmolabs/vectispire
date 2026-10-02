@@ -64,7 +64,8 @@ module.exports = tseslint.config(
             // it on purpose; the old file allowed it too.
             '@angular-eslint/template/eqeqeq': ['error', { allowNullOrUndefined: true }],
             // `pButton` renders its `label` as the button's text, which the rule cannot see; an
-            // icon-only button with neither a label nor an aria-label is still reported.
+            // icon-only button with neither a label nor an aria-label is still reported. An Optimus
+            // `<p-button>`, or an `<i>` icon alone inside a `<button>`, is not: scripts/check-icon-buttons.mjs.
             '@angular-eslint/template/elements-content': ['error', { allowList: ['label', 'ariaLabel', 'aria-label'] }]
         }
     }
