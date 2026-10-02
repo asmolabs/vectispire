@@ -75,7 +75,9 @@ and do not trust `eslint --fix` for `no-unnecessary-type-assertion`, which has r
 the type-checker needed.
 
 **An icon-only button has an accessible name** (`[ariaLabel]="'…' | translate"`): the template lint
-checks native elements, not `<p-button>`, so nothing catches the omission: look for it when you add one.
+checks native elements, not `<p-button>`; `scripts/check-icon-buttons.mjs`, run by `npm test`, covers
+`<p-button>`, `<button>` and `<a pButton>` in every template and fails on one without a name. A plural
+message is a `key_one`/`key_other` pair read with `t(key, { count })`, never "(s)" in the text.
 
 **Translation keys are literal.** `'prefix.' + value | translate` and `` t(`…${x}`) `` are invisible
 to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
