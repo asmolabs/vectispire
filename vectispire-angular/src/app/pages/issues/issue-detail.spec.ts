@@ -183,7 +183,8 @@ describe('the issue detail', () => {
                     occurredAt: '2026-03-07T14:30:00Z',
                     expiresAt: null,
                     scanId: 34,
-                    version: null
+                    version: null,
+                    previousResolvedAt: null
                 }
             ]
         });
@@ -192,6 +193,31 @@ describe('the issue detail', () => {
         expect(text.toLowerCase()).toContain('under review');
         expect(text.toLowerCase()).toContain('not affected');
         expect(text).toContain('Demonstration application.');
+    });
+
+    it('says a scan reopened the issue, and since when it had been resolved — never that it expired', async () => {
+        await load({
+            ...ISSUE,
+            decisions: [
+                {
+                    fromStatus: 'fixed',
+                    toStatus: 'under_review',
+                    justification: null,
+                    comment: null,
+                    actor: null,
+                    origin: 'reopen',
+                    occurredAt: '2026-06-07T14:30:00Z',
+                    expiresAt: null,
+                    scanId: 35,
+                    version: null,
+                    previousResolvedAt: '2026-05-02T09:00:00Z'
+                }
+            ]
+        });
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('reopened — found again by a scan or an import, resolved since 02/05/2026');
+        expect(text).not.toContain('expired automatically');
     });
 
     it('says "none published" rather than leaving the fix blank', async () => {

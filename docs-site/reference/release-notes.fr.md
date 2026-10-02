@@ -19,6 +19,12 @@
   résultat**, depuis l'outbox, au lieu de juste après — et ne se perd plus si le serveur s'arrête entre
   les deux. Son horodatage est celui de l'écriture ; le moment où le résultat a été accepté est dans sa
   description (« … at 2026-… »), avec l'identifiant de la livraison.
+- **L'historique de triage d'une issue reçoit des entrées d'origine `reopen`**, dans
+  `GET /api/v1/issues/{id}` (`decisions`) et dans l'historique d'une cible
+  (`GET /api/v1/history/repositories/{id}`), avec un nouveau champ, `previousResolvedAt` — `null` sur
+  toute autre entrée. Leur `actor` est `null`, comme sur une `expiry`. Le CSV de l'historique reçoit une
+  dernière colonne, `decision_previous_resolved_at` ; le compte `decisions` d'une cible n'inclut pas les
+  réouvertures.
 
 ### Nouveautés
 
@@ -49,6 +55,14 @@
 
 ### Corrigé
 
+- **Une issue rouverte ne laissait aucune trace dans son historique de triage.** Quand une analyse ou un
+  import retrouvait une issue résolue, il la rouvrait et effaçait une décision `fixed` sans aucune
+  entrée : l'historique montrait `fixed` comme dernier mot d'une issue de nouveau ouverte et en revue, et
+  la résolution qu'elle avait eue — de quand à quand — était perdue. La réouverture est désormais une
+  entrée à part entière : le triage qu'elle quitte (ou qu'elle garde, pour un jugement qui survit au
+  retour), le jour où la résolution qu'elle clôt avait commencé, et l'analyse qui a retrouvé l'issue ;
+  personne n'est nommé, puisque personne n'a décidé (migration V68). Une réouverture antérieure à la mise
+  à jour reste sans entrée.
 - **Des écritures d'audit simultanées pouvaient casser la chaîne d'audit, et déclencher une fausse
   alerte de falsification.** Deux entrées écrites au même instant — deux requêtes sur un serveur, ou deux
   serveurs — pouvaient se chaîner toutes deux sur le même prédécesseur ; la vérification déclarait alors

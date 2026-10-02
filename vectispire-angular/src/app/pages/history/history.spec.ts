@@ -132,7 +132,8 @@ describe('the history screen', () => {
                 occurredAt: '2026-03-07T14:30:00Z',
                 expiresAt: null,
                 scanId: 34,
-                version: '1.17.6'
+                version: '1.17.6',
+                previousResolvedAt: null
             }
         ]);
 
@@ -155,12 +156,35 @@ describe('the history screen', () => {
                 occurredAt: '2026-06-07T14:30:00Z',
                 expiresAt: null,
                 scanId: 34,
-                version: '1.17.6'
+                version: '1.17.6',
+                previousResolvedAt: null
             }
         ]);
 
         const text = fixture.nativeElement.textContent;
         expect(text.includes('expired automatically') || text.includes('history.expired_auto')).toBe(true);
+    });
+
+    it('names a reopening as a scan finding the issue again, with the resolution it ended — not as a lapse', () => {
+        load([
+            {
+                fromStatus: 'fixed',
+                toStatus: 'under_review',
+                justification: null,
+                comment: null,
+                actor: null,
+                origin: 'reopen',
+                occurredAt: '2026-06-07T14:30:00Z',
+                expiresAt: null,
+                scanId: 35,
+                version: '1.17.7',
+                previousResolvedAt: '2026-05-02T09:00:00Z'
+            }
+        ]);
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text.includes('resolved since 02/05/2026') || text.includes('history.reopened_since')).toBe(true);
+        expect(text.includes('expired automatically') || text.includes('history.expired_auto')).toBe(false);
     });
 
     it('exports through HttpClient, because a navigation carries no token', () => {

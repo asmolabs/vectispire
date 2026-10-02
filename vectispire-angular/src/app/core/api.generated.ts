@@ -5048,6 +5048,8 @@ export interface components {
             /** Format: date-time */
             occurredAt?: string;
             origin?: string;
+            /** Format: date-time */
+            previousResolvedAt?: string;
             /** Format: int64 */
             scanId?: number;
             toStatus?: string;

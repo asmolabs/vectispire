@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -132,7 +133,7 @@ public class HistoryQueryService {
                 history.size(),
                 history.stream().map(ScanView::createdAt).max(Comparator.naturalOrder()).orElse(null),
                 issues.countByStateAndRepository(IssueState.OPEN.wireName(), repository.id()),
-                events.countForRepository(repository.id()));
+                events.countForRepository(repository.id(), TriageOrigin.REOPENING.wireName()));
     }
 
     private List<TriageHistory.Scan> scanRows(long repositoryId, int limit) {
@@ -227,7 +228,8 @@ public class HistoryQueryService {
                                 event.getOccurredAt(),
                                 event.getExpiresAt(),
                                 event.getScanId(),
-                                event.getScanId() == null ? null : versionByScan.get(event.getScanId())))
+                                event.getScanId() == null ? null : versionByScan.get(event.getScanId()),
+                                event.getPreviousResolvedAt()))
                         .toList());
     }
 }

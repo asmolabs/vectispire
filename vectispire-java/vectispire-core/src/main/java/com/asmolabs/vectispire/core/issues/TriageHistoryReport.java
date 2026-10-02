@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.core.issues.TriageHistory.Decision;
 import com.asmolabs.vectispire.core.issues.TriageHistory.ObservedIssue;
 import com.asmolabs.vectispire.core.issues.TriageHistory.Scan;
@@ -149,11 +150,16 @@ public final class TriageHistoryReport {
             return;
         }
         for (Decision decision : issue.decisions()) {
-            String who = decision.actor() == null
-                    // The lapse of a deadline is not a person's decision, and naming one would be
-                    // attributing an action to somebody who did not take it.
-                    ? "expired automatically"
-                    : "by " + decision.actor();
+            // Neither the lapse of a deadline nor a scan or an import finding the issue again is a
+            // person's decision, and naming one would attribute an action to somebody who did not take
+            // it. The reopening says which resolution it ended: without it the line reads as a status
+            // that moved alone.
+            String who = TriageOrigin.REOPENING.wireName().equals(decision.origin())
+                    ? "reopened, found again"
+                            + (decision.previousResolvedAt() == null ? "" : " (resolved since " + DAY.format(decision.previousResolvedAt()) + ")")
+                    : decision.actor() == null
+                            ? "expired automatically"
+                            : "by " + decision.actor();
             String line = "      " + DAY.format(decision.occurredAt()) + " — "
                     + decision.fromStatus() + " -> " + decision.toStatus()
                     + (decision.justification() == null ? "" : " (" + decision.justification() + ")")

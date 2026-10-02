@@ -8,11 +8,14 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Clock;
@@ -57,6 +60,9 @@ class ExceptionReviewTest extends VectispireContextTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private TriageEventRepository events;
 
     @Test
     @DisplayName("records that somebody looked, when looking changed nothing")
@@ -138,6 +144,24 @@ class ExceptionReviewTest extends VectispireContextTest {
 
         assertThat(entry(issueId).expiresAt()).isEqualTo(newDate);
         assertThat(entry(issueId).lastReviewedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("keeps the grant's origin when a scan reopens the excepted issue — a reopening grants nothing")
+    void aReopeningIsNotTheGrant() {
+        long issueId = excepted();
+        // What `IssueSyncService` writes when a scan finds the resolved issue again: the exception
+        // survives the return, so the entry ends on its status, with nobody behind it.
+        TriageEventEntity reopening = new TriageEventEntity();
+        reopening.setIssueId(issueId);
+        reopening.setFromStatus(TriageStatus.NOT_AFFECTED.wireName());
+        reopening.setToStatus(TriageStatus.NOT_AFFECTED.wireName());
+        reopening.setOrigin(TriageOrigin.REOPENING.wireName());
+        reopening.setOccurredAt(clock.instant().plusSeconds(60));
+        reopening.setPreviousResolvedAt(clock.instant().plusSeconds(30));
+        events.save(reopening);
+
+        assertThat(entry(issueId).origin()).as("the person who granted it, not the scan").isEqualTo(TriageOrigin.MANUAL.wireName());
     }
 
     @Test

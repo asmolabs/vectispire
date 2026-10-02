@@ -97,5 +97,7 @@ an actively exploited high in a package you declared. That is the wrong afternoo
 Every transition is kept: from which status to which, by whom, with which justification,
 against which project version. An issue nobody triaged is printed in the exported history
 saying so — silence would otherwise pass for a decision that was merely never written down.
+A resolved issue that a scan finds again is reopened, and that too is a line of its history,
+with the date its resolution began; nobody is named, since nobody decided.
 
 See [History and evidence](history.md).

@@ -3,12 +3,15 @@ package com.asmolabs.vectispire.core.issues;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventRaised;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFinding;
 import java.time.Clock;
 import java.time.Instant;
@@ -48,12 +51,16 @@ public class IssueSyncService {
     private static final int FINGERPRINT_BATCH = 1_000;
 
     private final IssueRepository issues;
+    /** Where a reopening is written into the issue's triage history — see {@link Reopening}. */
+    private final TriageEventRepository history;
     private final Clock clock;
     /** Where a new leak is raised for the SIEM export — an event, so that this module does not depend on it (decision 0033). */
     private final ApplicationEventPublisher events;
 
-    public IssueSyncService(IssueRepository issues, Clock clock, ApplicationEventPublisher events) {
+    public IssueSyncService(
+            IssueRepository issues, TriageEventRepository history, Clock clock, ApplicationEventPublisher events) {
         this.issues = issues;
+        this.history = history;
         this.clock = clock;
         this.events = events;
     }
@@ -171,6 +178,7 @@ public class IssueSyncService {
 
         List<IssueEntity> created = new ArrayList<>();
         List<IssueEntity> reopened = new ArrayList<>();
+        List<Reopening> reopenings = new ArrayList<>();
         List<IssueEntity> touched = new ArrayList<>(byFingerprint.size());
 
         for (Map.Entry<String, List<Integer>> entry : byFingerprint.entrySet()) {
@@ -186,8 +194,11 @@ public class IssueSyncService {
                 created.add(issue);
             } else {
                 if (IssueState.RESOLVED.wireName().equals(issue.getState())) {
+                    // Read before the reopening clears them: they are what the history keeps of it.
+                    Reopening reopening = new Reopening(issue, issue.getTriageStatus(), issue.getResolvedAt());
                     reopen(issue);
                     reopened.add(issue);
+                    reopenings.add(reopening);
                 }
                 refresh(issue, finding, scanId, moment);
                 if (issue.getDescription() == null) {
@@ -206,6 +217,13 @@ public class IssueSyncService {
         Map<String, Long> idByFingerprint =
                 saved.stream().collect(Collectors.toMap(IssueEntity::getFingerprint, IssueEntity::getId, (a, b) -> a));
         List<Long> issueIds = fingerprints.stream().map(idByFingerprint::get).toList();
+
+        // In this transaction, with the issues it describes: a scan that rolls back reopened nothing,
+        // and one that commits cannot leave a reopening the history does not show. Nothing is written
+        // for an issue already open — a re-sync that reopens nothing adds no entry.
+        if (!reopenings.isEmpty()) {
+            history.saveAll(reopenings.stream().map(reopening -> reopening.entry(scanId, moment)).toList());
+        }
 
         // **Once per issue, at its creation.** A leak the next scan sees again is the same leak, and
         // one that comes back after being resolved reopens its issue: neither is announced again.
@@ -389,12 +407,49 @@ public class IssueSyncService {
     }
 
     /**
+     * A reopening, as the triage history records it.
+     *
+     * <p><b>Not a decision, and not silent either.</b> Clearing a {@code fixed} triage used to leave no
+     * entry: an auditor read "fixed by X" as the issue's last word while the issue stood open again under
+     * review, and the resolution it had — from {@code resolvedAt} to now — vanished with the column it was
+     * in. The entry says what changed and when: the triage it left ({@code fixed}, or a judgement that
+     * survives unchanged), the resolution it ended, and the scan that saw the issue again (none for an
+     * import). The actor is null, as on an expiry: naming a "system" user would put a person who does not
+     * exist into a compliance report.
+     *
+     * @param triageBefore the triage before the reopening — null on a row written before triage existed,
+     *     which the history reads as {@code under_review}, as every other entry does
+     * @param resolvedBefore when the resolution this reopening ends began; null only on a row resolved
+     *     before the instant was kept, which no reading of the past can then use
+     */
+    private record Reopening(IssueEntity issue, String triageBefore, Instant resolvedBefore) {
+
+        TriageEventEntity entry(Long scanId, Instant moment) {
+            TriageEventEntity entry = new TriageEventEntity();
+            entry.setIssueId(issue.getId());
+            entry.setFromStatus(orUnderReview(triageBefore));
+            entry.setToStatus(orUnderReview(issue.getTriageStatus()));
+            entry.setJustification(issue.getTriageJustification());
+            entry.setOrigin(TriageOrigin.REOPENING.wireName());
+            entry.setOccurredAt(moment);
+            entry.setPreviousResolvedAt(resolvedBefore);
+            entry.setScanId(scanId);
+            return entry;
+        }
+
+        private static String orUnderReview(String status) {
+            return status == null || status.isBlank() ? TriageStatus.UNDER_REVIEW.wireName() : status;
+        }
+    }
+
+    /**
      * Reopening a resolved issue that has come back.
      *
      * <p><b>Only a {@code fixed} triage is cleared.</b> It has just been factually contradicted,
      * and leaving it would hide a regression behind a stale decision. A {@code not_affected}
      * judgement is about the code's exposure, not about the package's presence — it survives,
-     * and stays visible in the triage history for review.
+     * and stays visible in the triage history for review. Either way the reopening is an entry of that
+     * history ({@link Reopening}).
      */
     private static void reopen(IssueEntity issue) {
         if (TriageStatus.FIXED.wireName().equals(issue.getTriageStatus())) {

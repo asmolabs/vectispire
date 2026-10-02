@@ -1179,15 +1179,20 @@ export type HistoryDecision = Refine<
         fromStatus: string;
         toStatus: string;
         occurredAt: string;
-        /** `manual` or `expiry`. */
+        /**
+         * `manual`, `approval` or `review` — somebody's; `expiry` — a deadline passed; `reopen` — a
+         * scan or an import found the resolved issue again.
+         */
         origin: string;
         justification: string | null;
         comment: string | null;
-        /** Null when nobody decided: the deadline passed. See `origin`. */
+        /** Null when nobody decided: a deadline passed, or the issue was reopened. See `origin`. */
         actor: string | null;
         expiresAt: string | null;
         scanId: number | null;
         version: string | null;
+        /** On a reopening only: when the resolution it ended began. Null on every decision. */
+        previousResolvedAt: string | null;
     }
 >;
 

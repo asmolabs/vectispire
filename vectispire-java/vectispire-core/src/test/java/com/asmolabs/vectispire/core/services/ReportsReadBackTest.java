@@ -76,7 +76,7 @@ class ReportsReadBackTest {
         @DisplayName("names the decision, who took it and the scan's reported failure")
         void decisionsAndFailuresArePrinted() throws Exception {
             Decision decision = new Decision("under_review", "not_affected", "vulnerable_code_not_present",
-                    "not compiled in", "alice", "manual", AT, null, 3L, "1.4.2");
+                    "not compiled in", "alice", "manual", AT, null, 3L, "1.4.2", null);
             ObservedIssue issue = new ObservedIssue(9L, "vulnerability", "CVE-2026-1234", "HIGH", "openssl", "3.0.1",
                     null, "open", "not_affected", AT, null, List.of(decision));
             Scan scan = new Scan(3L, "completed", "main", "1.4.2", "maven", AT, 1000L, 1, 1, 0,

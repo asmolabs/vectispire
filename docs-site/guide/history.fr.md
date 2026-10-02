@@ -12,6 +12,20 @@ Par dépôt, chaque scan, avec :
 - chaque **décision de triage** prise à leur sujet — de quel statut vers quel statut, par qui,
   avec quelle justification, et contre quelle version.
 
+## Les réouvertures
+
+Quand une analyse (ou un import) retrouve une issue résolue, l'issue est rouverte, et
+l'historique le dit sur une ligne à part : *rouvert — retrouvé par une analyse ou un import,
+résolu depuis le* jour où sa résolution avait commencé. Une décision `fixed` que ce retour
+contredit apparaît comme quittée pour *en revue* ; un jugement qui y survit — *non affecté* —
+apparaît comme maintenu. Personne n'est nommé, parce que personne n'a décidé : la ligne est un
+fait sur l'issue, pas une décision, et le compte des décisions de la cible ne l'inclut pas. Le
+CSV la porte dans `decision_origin` (`reopen`) et dans sa dernière colonne,
+`decision_previous_resolved_at`.
+
+Une réouverture antérieure à cette version n'a laissé aucune ligne, et la résolution qu'elle a
+close n'est pas connue.
+
 ## Les issues que personne n'a triées
 
 Une issue non triée est imprimée comme non triée, explicitement.

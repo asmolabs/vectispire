@@ -392,7 +392,8 @@ public class IssueQueryService {
                         event.getOccurredAt(),
                         event.getExpiresAt(),
                         event.getScanId(),
-                        null))
+                        null,
+                        event.getPreviousResolvedAt()))
                 .toList();
 
         return new IssueDetail(

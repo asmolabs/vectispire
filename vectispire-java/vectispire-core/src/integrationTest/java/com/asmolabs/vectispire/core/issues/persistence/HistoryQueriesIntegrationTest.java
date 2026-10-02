@@ -134,12 +134,17 @@ class HistoryQueriesIntegrationTest {
     @Test
     @DisplayName("counts a repository's decisions without a parameter the engine cannot type")
     void theDecisionCountRuns() {
-        assertThatCode(() -> events.countForRepository(repositoryId)).doesNotThrowAnyException();
-        assertThat(events.countForRepository(repositoryId)).isZero();
+        assertThatCode(() -> events.countForRepository(repositoryId, "reopen")).doesNotThrowAnyException();
+        assertThat(events.countForRepository(repositoryId, "reopen")).isZero();
 
         events.save(decision());
+        TriageEventEntity reopening = decision();
+        reopening.setOrigin("reopen");
+        reopening.setActor(null);
+        reopening.setPreviousResolvedAt(WHEN.plusSeconds(60));
+        events.save(reopening);
 
-        assertThat(events.countForRepository(repositoryId)).isEqualTo(1);
+        assertThat(events.countForRepository(repositoryId, "reopen")).as("a reopening is not a decision").isEqualTo(1);
     }
 
     @Test

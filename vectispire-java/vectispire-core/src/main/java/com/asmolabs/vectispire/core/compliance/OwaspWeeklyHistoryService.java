@@ -43,8 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <h2>Settled, in the past, is not known — and is not guessed</h2>
  *
  * <p>The triage history ({@code t_issue_triage_event}) records each decision, but not every change of an
- * issue's triage: a reopened issue's {@code fixed} is cleared by the scan that brings it back with no
- * entry, and decisions taken before the history existed have none. Reading "settled at that Sunday" from
+ * issue's triage: a reopening before V68 cleared the issue's {@code fixed} with no entry, and decisions
+ * taken before the history existed have none. Reading "settled at that Sunday" from
  * it would count a regression as settled for every week after its reopening. So a reconstructed week's
  * {@code settled} is null and its {@code open} counts every issue open at its end, whatever its triage —
  * a figure stated, rather than one corrected by a guess.

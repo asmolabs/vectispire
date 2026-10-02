@@ -185,7 +185,8 @@ class HistoryTest extends ApiTestBase {
                 "repository,repository_url,scan_id,scan_at,scan_status,branch,project_type,version,"
                         + "issue_id,issue_type,identifier,severity,component,location,issue_state,current_triage,"
                         + "first_seen_at,resolved_at,decision_at,decision_from,decision_to,decision_justification,"
-                        + "decision_actor,decision_origin,decision_expires_at,decision_comment");
+                        + "decision_actor,decision_origin,decision_expires_at,decision_comment,"
+                        + "decision_previous_resolved_at");
         assertThat(csv).contains("\"CVE-2026-1234\"");
         assertThat(csv).contains("\"under_review\",\"not_affected\"");
         // Every field quoted, comment included: a triage comment is free text and routinely
@@ -217,6 +218,47 @@ class HistoryTest extends ApiTestBase {
                 .andExpect(jsonPath("$.decisions[0].fromStatus").value("under_review"))
                 .andExpect(jsonPath("$.decisions[0].toStatus").value("not_affected"))
                 .andExpect(jsonPath("$.decisions[0].actor").value("alice"));
+    }
+
+    @Test
+    @DisplayName("a reopening reads as one wherever the trail is shown — and is not counted as a decision")
+    void aReopeningReadsAsOne() throws Exception {
+        long repositoryId = seedRepository();
+        long scanId = seedScan(repositoryId, "2.4.1", "maven");
+        long issueId = seedIssue(repositoryId, scanId);
+        TriageEventEntity reopening = new TriageEventEntity();
+        reopening.setIssueId(issueId);
+        reopening.setFromStatus(TriageStatus.FIXED.wireName());
+        reopening.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setOrigin("reopen");
+        reopening.setOccurredAt(DECIDED);
+        reopening.setPreviousResolvedAt(Instant.parse("2026-03-05T09:00:00Z"));
+        reopening.setScanId(scanId);
+        events.save(reopening);
+
+        mvc.perform(authenticated(get("/api/v1/issues/" + issueId), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decisions[0].origin").value("reopen"))
+                .andExpect(jsonPath("$.decisions[0].fromStatus").value("fixed"))
+                .andExpect(jsonPath("$.decisions[0].actor").doesNotExist())
+                .andExpect(jsonPath("$.decisions[0].previousResolvedAt").value("2026-03-05T09:00:00Z"));
+        mvc.perform(authenticated(get("/api/v1/history/repositories/" + repositoryId), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.repository.decisions").value(0))
+                .andExpect(jsonPath("$.scans[0].issues[0].decisions[0].previousResolvedAt").value("2026-03-05T09:00:00Z"));
+
+        byte[] pdf = mvc.perform(
+                        authenticated(get("/api/v1/history/repositories/" + repositoryId + "/export.pdf"), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+        String text;
+        try (PDDocument document = Loader.loadPDF(pdf)) {
+            text = new PDFTextStripper().getText(document);
+        }
+        assertThat(text).contains("fixed -> under_review reopened, found again (resolved since 2026-03-05)");
+        assertThat(text).doesNotContain("expired automatically");
     }
 
     @Test

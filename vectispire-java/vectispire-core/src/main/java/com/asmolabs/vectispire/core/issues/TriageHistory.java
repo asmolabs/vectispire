@@ -75,9 +75,18 @@ public final class TriageHistory {
             List<Decision> decisions) {}
 
     /**
+     * One entry of an issue's triage history: a decision, or a fact about the issue that changed what
+     * its triage says.
+     *
      * @param actor null when nobody decided — see {@code origin}
-     * @param origin {@code manual} or {@code expiry}: whether somebody decided, or a deadline
-     *     passed. A report showing both as decisions would credit a person with a lapse
+     * @param origin one of {@code TriageOrigin}: {@code manual}, {@code approval} and {@code review} are
+     *     somebody's; {@code expiry} is a deadline that passed, and {@code reopen} a scan or an import that
+     *     found a resolved issue again. A report showing the last two as decisions would credit a person
+     *     with a lapse or a regression
+     * @param scanId the target's last scan at that moment; on a reopening, the scan that saw the issue
+     *     again, null for an import
+     * @param previousResolvedAt on a reopening only: when the resolution it ended began. Null on every
+     *     other entry
      */
     public record Decision(
             String fromStatus,
@@ -89,7 +98,8 @@ public final class TriageHistory {
             Instant occurredAt,
             Instant expiresAt,
             Long scanId,
-            String version) {}
+            String version,
+            Instant previousResolvedAt) {}
 
     /** A whole dossier: one target, its scans, and what was decided. */
     public record Dossier(Repository repository, List<Scan> scans, Instant generatedAt) {}

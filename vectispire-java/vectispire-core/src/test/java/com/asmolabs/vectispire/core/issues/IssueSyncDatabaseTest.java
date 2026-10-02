@@ -6,12 +6,15 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -47,6 +50,9 @@ class IssueSyncDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private ScanRepository scans;
+
+    @Autowired
+    private TriageEventRepository events;
 
     @Autowired
     private GitRepositoryRepository repositories;
@@ -159,6 +165,64 @@ class IssueSyncDatabaseTest extends VectispireContextTest {
         // scanner saw the component again. Only "fixed" is contradicted by its return.
         assertThat(issues.findAll().getFirst().getTriageStatus())
                 .isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+    }
+
+    @Test
+    @DisplayName("a reopening is an entry of the issue's history: the triage it left, the resolution it ended, the scan")
+    void aReopeningIsRecorded() {
+        ScanEntity first = scan(repositoryId);
+        reconcile(first, List.of(vulnerability(first, "CVE-1")), Set.of(FindingType.VULNERABILITY));
+        IssueEntity fixed = issues.findAll().getFirst();
+        fixed.setTriageStatus(TriageStatus.FIXED.wireName());
+        fixed.setTriagedBy("alice");
+        issues.save(fixed);
+
+        reconcile(scan(repositoryId), List.of(), Set.of(FindingType.VULNERABILITY));
+        IssueEntity resolved = issues.findAll().getFirst();
+        assertThat(resolved.getResolvedAt()).isNotNull();
+        assertThat(events.findByIssueIdOrderByOccurredAtAscIdAsc(resolved.getId()))
+                .as("a resolution leaves no entry: the issue's own instant carries it").isEmpty();
+
+        ScanEntity third = scan(repositoryId);
+        reconcile(third, List.of(vulnerability(third, "CVE-1")), Set.of(FindingType.VULNERABILITY));
+
+        List<TriageEventEntity> history = events.findByIssueIdOrderByOccurredAtAscIdAsc(resolved.getId());
+        assertThat(history).singleElement().satisfies(entry -> {
+            assertThat(entry.getOrigin()).isEqualTo(TriageOrigin.REOPENING.wireName());
+            assertThat(entry.getFromStatus()).as("the decision the return contradicted").isEqualTo(TriageStatus.FIXED.wireName());
+            assertThat(entry.getToStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
+            assertThat(entry.getActor()).as("nobody decided").isNull();
+            assertThat(entry.getPreviousResolvedAt()).as("the resolution it ended").isEqualTo(resolved.getResolvedAt());
+            assertThat(entry.getScanId()).as("the scan that saw it again").isEqualTo(third.getId());
+            assertThat(entry.getOccurredAt()).isAfterOrEqualTo(resolved.getResolvedAt());
+        });
+        assertThat(issues.findAll().getFirst().getResolvedAt()).isNull();
+
+        ScanEntity fourth = scan(repositoryId);
+        reconcile(fourth, List.of(vulnerability(fourth, "CVE-1")), Set.of(FindingType.VULNERABILITY));
+        assertThat(events.findByIssueIdOrderByOccurredAtAscIdAsc(resolved.getId()))
+                .as("a sync that reopens nothing writes nothing").hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a judgement that survives the return is recorded as kept, with its justification")
+    void aSurvivingJudgementIsRecordedAsKept() {
+        ScanEntity first = scan(repositoryId);
+        reconcile(first, List.of(vulnerability(first, "CVE-1")), Set.of(FindingType.VULNERABILITY));
+        IssueEntity stored = issues.findAll().getFirst();
+        stored.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
+        stored.setTriageJustification("component_not_present");
+        issues.save(stored);
+        reconcile(scan(repositoryId), List.of(), Set.of(FindingType.VULNERABILITY));
+
+        ScanEntity third = scan(repositoryId);
+        reconcile(third, List.of(vulnerability(third, "CVE-1")), Set.of(FindingType.VULNERABILITY));
+
+        assertThat(events.findByIssueIdOrderByOccurredAtAscIdAsc(stored.getId())).singleElement().satisfies(entry -> {
+            assertThat(entry.getFromStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+            assertThat(entry.getToStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+            assertThat(entry.getJustification()).isEqualTo("component_not_present");
+        });
     }
 
     @Test

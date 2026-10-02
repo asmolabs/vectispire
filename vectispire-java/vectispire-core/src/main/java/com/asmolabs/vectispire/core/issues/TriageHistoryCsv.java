@@ -46,7 +46,10 @@ public final class TriageHistoryCsv {
             "decision_actor",
             "decision_origin",
             "decision_expires_at",
-            "decision_comment");
+            "decision_comment",
+            // Last, so that a sheet reading the columns by position before it was added reads the same
+            // cells: a reopening's ended resolution, empty on every decision.
+            "decision_previous_resolved_at");
 
     public static String render(TriageHistory.Repository repository, List<Scan> scans) {
         StringBuilder csv = new StringBuilder();
@@ -94,7 +97,8 @@ public final class TriageHistoryCsv {
                 quote(decision == null ? "" : decision.actor()),
                 quote(decision == null ? "" : decision.origin()),
                 quote(decision == null ? "" : stamp(decision.expiresAt())),
-                quote(decision == null ? "" : decision.comment()));
+                quote(decision == null ? "" : decision.comment()),
+                quote(decision == null ? "" : stamp(decision.previousResolvedAt())));
     }
 
     private static String component(ObservedIssue issue) {

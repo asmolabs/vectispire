@@ -18,6 +18,11 @@
   the outbox, instead of just after it — and is no longer lost when the server stops in between. The
   entry's timestamp is when it is written; the moment the result was accepted is in its description
   ("… at 2026-…"), with the delivery's id.
+- **An issue's triage history gains entries of origin `reopen`**, on `GET /api/v1/issues/{id}`
+  (`decisions`) and in a target's history (`GET /api/v1/history/repositories/{id}`), with a new field,
+  `previousResolvedAt` — null on every other entry. Their `actor` is null, as on an `expiry`. The history
+  CSV gains a last column, `decision_previous_resolved_at`; a target's `decisions` count leaves reopenings
+  out.
 
 ### New
 
@@ -46,6 +51,13 @@
 
 ### Fixed
 
+- **A reopened issue left no trace in its triage history.** When a scan or an import found a resolved
+  issue again, it reopened it and cleared a `fixed` decision with no entry: the history showed `fixed` as
+  the last word on an issue standing open under review again, and the resolution it had — from when to
+  when — was lost. The reopening is now an entry of its own: the triage it left (or kept, for a
+  judgement that survives the return), the date the resolution it ended began, and the scan that found
+  the issue again; nobody is named, since nobody decided (migration V68). A reopening before the upgrade
+  stays without an entry.
 - **Concurrent audit writes could break the audit chain, and raise a false tampering alarm.** Two
   entries written at the same moment — two requests on one server, or two servers — could both chain
   onto the same predecessor; the verification then reported the chain broken, and the SIEM received

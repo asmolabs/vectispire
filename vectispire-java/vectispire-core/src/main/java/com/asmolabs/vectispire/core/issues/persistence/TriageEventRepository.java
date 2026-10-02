@@ -45,6 +45,11 @@ public interface TriageEventRepository extends JpaRepository<TriageEventEntity, 
     /**
      * How many decisions were ever taken on one repository's issues.
      *
+     * <p><b>A reopening is not one</b> ({@code notADecision}, the origin {@code reopen}): it is an entry of
+     * the history, and a dossier counting it would answer "decisions recorded: 1" for a target nobody has
+     * ever triaged — the sentence the report prints when nothing was decided is the one it would then
+     * withhold.
+     *
      * <p><b>A count, and no date window.</b> The first version took a nullable {@code from}/{@code
      * to} pair written as {@code (:from is null or e.occurredAt >= :from)}. That ran on SQLite —
      * which is what the HTTP suite then used — and fails on PostgreSQL with <i>could not determine data
@@ -58,8 +63,8 @@ public interface TriageEventRepository extends JpaRepository<TriageEventEntity, 
      */
     @Query("""
             select count(e.id) from TriageEventEntity e, IssueEntity i
-             where e.issueId = i.id and i.repoId = :repoId""")
-    long countForRepository(@Param("repoId") long repoId);
+             where e.issueId = i.id and i.repoId = :repoId and e.origin <> :notADecision""")
+    long countForRepository(@Param("repoId") long repoId, @Param("notADecision") String notADecision);
 
     @Transactional
     void deleteByIssueIdIn(Collection<Long> issueIds);

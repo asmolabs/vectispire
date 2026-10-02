@@ -59,7 +59,7 @@ class IssueSyncServiceTest {
         issues = mock(IssueRepository.class);
         findings = mock(FindingRepository.class);
         siem = mock(org.springframework.context.ApplicationEventPublisher.class);
-        service = new IssueSyncService(issues, Clock.fixed(NOW, ZoneOffset.UTC), siem);
+        service = new IssueSyncService(issues, mock(com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository.class), Clock.fixed(NOW, ZoneOffset.UTC), siem);
 
         stored.clear();
         // `saveAll` assigns identifiers, because the service depends on them being there

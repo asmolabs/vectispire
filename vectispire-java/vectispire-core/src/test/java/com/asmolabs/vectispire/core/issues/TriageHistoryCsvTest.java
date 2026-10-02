@@ -27,7 +27,7 @@ class TriageHistoryCsvTest {
                 "@main", null, null, 1, AT, 1, 1);
         Decision decision = new Decision(
                 "under_review", "not_affected", "component_not_present",
-                "+cmd|'/c calc'!A1", "alice", "manual", AT, null, 10L, null);
+                "+cmd|'/c calc'!A1", "alice", "manual", AT, null, 10L, null, null);
         ObservedIssue issue = new ObservedIssue(
                 5L, "vulnerability", "-2+3", "HIGH", "pkg", "1.0", null,
                 "open", "not_affected", AT, null, List.of(decision));

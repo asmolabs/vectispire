@@ -2994,6 +2994,10 @@
           "origin" : {
             "type" : "string"
           },
+          "previousResolvedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
           "scanId" : {
             "format" : "int64",
             "type" : "integer"

@@ -1109,6 +1109,8 @@
     "state": "State",
     "triage": "Triage",
     "expired_auto": "expired automatically",
+    "reopened": "reopened — found again by a scan or an import",
+    "reopened_since": "reopened — found again by a scan or an import, resolved since {{date}}",
     "by": "by",
     "on": "on",
     "unknown_version": "unknown",

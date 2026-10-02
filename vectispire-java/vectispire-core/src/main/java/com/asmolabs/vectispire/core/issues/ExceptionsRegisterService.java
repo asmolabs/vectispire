@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -39,7 +40,7 @@ public class ExceptionsRegisterService {
     public static final int MAX_ENTRIES = 500;
 
     /** The origin {@code IssueTriageService} writes for a periodic review. */
-    private static final String REVIEW = "review";
+    private static final String REVIEW = TriageOrigin.REVIEW.wireName();
 
     /** The decisions that are exceptions: granted, and awaiting a second pair of eyes. */
     private static final List<String> DECISIONS =
@@ -219,6 +220,11 @@ public class ExceptionsRegisterService {
         for (TriageEventEntity event : history) {
             if (REVIEW.equals(event.getOrigin())) {
                 reviewed = event;
+            } else if (TriageOrigin.REOPENING.wireName().equals(event.getOrigin())) {
+                // A reopening keeps a `not_affected` as it was, so its entry ends on the exception's
+                // status — and read as the grant, it would date the exception to the day a scanner saw
+                // the package again and name no one for it. Nobody granted anything that day.
+                continue;
             } else if (issue.getTriageStatus() != null
                     && issue.getTriageStatus().equals(event.getToStatus())) {
                 granted = event;

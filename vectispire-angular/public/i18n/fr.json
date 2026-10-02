@@ -1109,6 +1109,8 @@
     "state": "État",
     "triage": "Arbitrage",
     "expired_auto": "expiré automatiquement",
+    "reopened": "rouvert — retrouvé par une analyse ou un import",
+    "reopened_since": "rouvert — retrouvé par une analyse ou un import, résolu depuis le {{date}}",
     "by": "par",
     "on": "sur",
     "unknown_version": "inconnue",

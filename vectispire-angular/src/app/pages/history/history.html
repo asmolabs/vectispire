@@ -178,7 +178,19 @@
                                             @if (decision.justification) {
                                                 ({{ decision.justification }})
                                             }
-                                            @if (decision.actor) {
+                                            @if (decision.origin === 'reopen') {
+                                                <em>{{
+                                                    decision.previousResolvedAt
+                                                        ? ('history.reopened_since'
+                                                          | translate
+                                                              : {
+                                                                    date:
+                                                                        (decision.previousResolvedAt
+                                                                            | date: 'dd/MM/yyyy') ?? ''
+                                                                })
+                                                        : ('history.reopened' | translate)
+                                                }}</em>
+                                            } @else if (decision.actor) {
                                                 {{ 'history.by' | translate }} {{ decision.actor }}
                                             } @else {
                                                 <em>{{ 'history.expired_auto' | translate }}</em>

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.issues;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
@@ -25,11 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class IssueTriageService {
 
     /** What took the decision, for a report that must not attribute a lapse to a person. */
-    private static final String MANUAL = "manual";
+    private static final String MANUAL = TriageOrigin.MANUAL.wireName();
 
-    private static final String APPROVAL = "approval";
+    private static final String APPROVAL = TriageOrigin.APPROVAL.wireName();
 
-    private static final String EXPIRY = "expiry";
+    private static final String EXPIRY = TriageOrigin.EXPIRY.wireName();
 
     /**
      * A periodic review of an exception, which may change nothing.
@@ -41,7 +42,7 @@ public class IssueTriageService {
      * cannot tell a decision revisited quarterly from one nobody has opened since — and the
      * difference between those two is the whole of clause 8.1.
      */
-    private static final String REVIEW = "review";
+    private static final String REVIEW = TriageOrigin.REVIEW.wireName();
 
     private final IssueRepository issues;
     private final TriageEventRepository events;

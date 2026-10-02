@@ -103,5 +103,8 @@ Chaque transition est conservée : de quel statut vers quel statut, par qui, ave
 justification, contre quelle version du projet. Une issue que personne n'a triée est imprimée
 dans l'historique exporté en le disant — sinon, le silence passerait pour une décision qui n'a
 simplement jamais été écrite.
+Une issue résolue qu'une analyse retrouve est rouverte, et c'est aussi une ligne de son
+historique, avec le jour où sa résolution avait commencé ; personne n'est nommé, puisque
+personne n'a décidé.
 
 Voir [Historique et preuves](history.md).

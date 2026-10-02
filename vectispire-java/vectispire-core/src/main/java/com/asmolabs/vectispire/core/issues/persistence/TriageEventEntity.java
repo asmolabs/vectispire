@@ -61,6 +61,13 @@ public class TriageEventEntity {
     @Column(name = "scan_id")
     private Long scanId;
 
+    /**
+     * On a reopening ({@code origin = reopen}) only: when the resolution it ended began — the issue was
+     * resolved from this instant to {@link #occurredAt}. Null on every decision.
+     */
+    @Column(name = "previous_resolved_at")
+    private Instant previousResolvedAt;
+
     public Long getId() {
         return id;
     }
@@ -147,5 +154,13 @@ public class TriageEventEntity {
 
     public void setScanId(Long scanId) {
         this.scanId = scanId;
+    }
+
+    public Instant getPreviousResolvedAt() {
+        return previousResolvedAt;
+    }
+
+    public void setPreviousResolvedAt(Instant previousResolvedAt) {
+        this.previousResolvedAt = previousResolvedAt;
     }
 }
