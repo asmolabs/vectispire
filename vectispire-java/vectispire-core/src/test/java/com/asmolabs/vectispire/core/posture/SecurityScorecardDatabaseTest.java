@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.posture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
@@ -354,9 +353,9 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         LicenseEntry violation = licence(repository.getId(), "repository", false);
         when(licences.getInventory(checked(new ScanTarget.Repository(repository.getId()))))
                 .thenReturn(List.of(violation, licence(repository.getId(), "repository", true)));
-        // The ranking reads the portfolio's inventory once, rather than one per target.
-        when(licences.getInventory(any(Visibility.class), isNull(), isNull()))
-                .thenReturn(List.of(violation, licence(repository.getId(), "repository", true)));
+        // The ranking reads the inventory's per-target count once, rather than one inventory per target.
+        when(licences.violationsByTarget(any(Visibility.class)))
+                .thenReturn(Map.of(new ScanTarget.Repository(repository.getId()), 1L));
 
         ContainerEntity container = new ContainerEntity();
         container.setImageName("registry.example.invalid/shop");
