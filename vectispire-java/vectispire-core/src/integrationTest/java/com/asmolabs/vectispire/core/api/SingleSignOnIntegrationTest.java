@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
@@ -77,7 +76,7 @@ class SingleSignOnIntegrationTest {
     private static final String PASSWORD = "correct horse battery staple";
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> DATABASE = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> DATABASE = ENGINE.container();
 
     @SuppressWarnings("resource")
     private static final GenericContainer<?> KEYCLOAK_SERVER = new GenericContainer<>(KEYCLOAK)
@@ -95,14 +94,14 @@ class SingleSignOnIntegrationTest {
 
     @BeforeAll
     static void start() {
-        DATABASE.ifPresent(JdbcDatabaseContainer::start);
+        DATABASE.start();
         KEYCLOAK_SERVER.start();
     }
 
     @AfterAll
     static void stop() {
         KEYCLOAK_SERVER.stop();
-        DATABASE.ifPresent(JdbcDatabaseContainer::stop);
+        DATABASE.stop();
     }
 
     @DynamicPropertySource

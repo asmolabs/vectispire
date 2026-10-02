@@ -11,7 +11,6 @@ import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,23 +29,23 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * list, the page a {@code Limit} over an identifier keyset, and the mark a {@code ${ts}} column V64
  * added: each a place where an engine has answered differently before — a fractional second dropped
  * on one side of a comparison, an empty page read as the last. More issues than one page, so the
- * keyset is walked; the SQLite fixture's {@code SiemBacklogSignalsTest} owns the rule's cases.
+ * keyset is walked; the unit suite's {@code SiemBacklogSignalsTest} owns the rule's cases.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the SLA breach signal, on the engine")
 class SlaBreachSignalsIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

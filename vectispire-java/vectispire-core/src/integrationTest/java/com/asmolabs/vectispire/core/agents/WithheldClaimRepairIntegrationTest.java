@@ -31,7 +31,6 @@ import java.lang.reflect.Proxy;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -67,16 +66,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class WithheldClaimRepairIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -243,7 +242,7 @@ class WithheldClaimRepairIntegrationTest {
      * entry yet and both pass the only check there used to be. Latches, not luck — left to timing,
      * the first finishes before the second starts and the test proves nothing. And the first records
      * while the second's refused transaction is still open, the interleaving that lost the entry on
-     * CI's SQLite and that timing alone produced there one run in a few.
+     * CI's SQLite fixture, as it then was, and that timing alone produced there one run in a few.
      */
     @Test
     @DisplayName("two instances starting together: one runs it and writes the entry, the other writes nothing")
@@ -257,10 +256,11 @@ class WithheldClaimRepairIntegrationTest {
         CountDownLatch firstDone = new CountDownLatch(1);
         // The first instance pauses right after its claim, before its work and its commit; and once
         // committed, it records its entry only when the second has been refused and still holds its
-        // transaction open. That is the moment CI hit on SQLite: the refused insert keeps the file's
-        // write lock until its rollback, the entry's transaction had already read the chain's head,
-        // and SQLite answers such an upgrade SQLITE_BUSY at once, without its busy timeout — the
-        // repair ran and its entry was lost, logged and swallowed.
+        // transaction open. That is the moment CI hit on the SQLite fixture of the time: the refused
+        // insert kept the file's write lock until its rollback, the entry's transaction had already
+        // read the chain's head, and SQLite answered that upgrade SQLITE_BUSY at once — the repair
+        // ran and its entry was lost, logged and swallowed. The engines wait or pick a victim there,
+        // and the entry is tried again either way.
         AgentRepository pausing = (AgentRepository) Proxy.newProxyInstance(
                 AgentRepository.class.getClassLoader(), new Class<?>[] {AgentRepository.class},
                 (proxy, method, args) -> {

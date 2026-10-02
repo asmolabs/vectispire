@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterAll;
@@ -36,27 +35,27 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  *
  * <p>The identifiers come from a project's repositories, which the data sizes: one bind parameter
  * each, so {@link ReportImportCatalog} batches them. PostgreSQL is the engine that refuses the
- * unbatched statement ("at most 65 535 parameters"); MySQL's client-side statements and the SQLite
- * driver's build accept it, so a green run on those two alone says nothing of the batching. The
- * correlated {@code max(id)} and the purge's subquery are what the other two engines check.
+ * unbatched statement ("at most 65 535 parameters"); MySQL's client-side statements accept it, so a
+ * green run on MySQL alone says nothing of the batching. The correlated {@code max(id)} and the
+ * purge's subquery are what MySQL checks.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("coverage and test-report imports on the engine")
 class ReportImportsIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     private static final Instant AT = Instant.parse("2026-09-28T10:00:00Z");
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterAll;
@@ -36,24 +35,23 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * <p>The identifiers are the estate's, which the data sizes: one bind parameter each, so a statement
  * past 65,535 fails unless the catalogue batches — this asks for seventy thousand. PostgreSQL is the
  * engine that refuses the unbatched statement ("at most 65 535 parameters"); MySQL's client-side
- * statements and the SQLite driver accept it, so a green run on those two alone says nothing of the
- * batching.
+ * statements accept it, so a green run on MySQL alone says nothing of the batching.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the languages of each repository's newest completed scan")
 class DetectedLanguagesIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

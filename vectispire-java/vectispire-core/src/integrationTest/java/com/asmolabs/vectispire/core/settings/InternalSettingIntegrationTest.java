@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,16 +28,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class InternalSettingIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

@@ -30,7 +30,6 @@ import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -52,15 +51,15 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * own way. And the targets are sized by the data: one bind parameter each, so the catalogue asks a
  * thousand at a time, and this hands it seventy thousand repositories and seventy thousand images. That
  * limit is <b>PostgreSQL's alone</b> — the driver refuses a statement past 65,535 parameters; MySQL's
- * client-side statements and the SQLite driver accepted such a statement when measured — so a green run
- * on those two proves the queries, not the batching.
+ * client-side statements accepted such a statement when measured — so a green run on MySQL proves the
+ * queries, not the batching.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("a project's scope and consolidated inventory, on the engine")
 class ProjectScopeIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** Seventy thousand identifiers no row carries — past the PostgreSQL driver's 65,535. */
     private static final List<Long> NOBODY = LongStream.rangeClosed(8_000_000, 8_070_000).boxed().toList();
@@ -69,12 +68,12 @@ class ProjectScopeIntegrationTest {
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

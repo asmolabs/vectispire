@@ -2,62 +2,60 @@ package com.asmolabs.vectispire.core.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.core.TestDatabase;
 import com.asmolabs.vectispire.core.config.MigrationDialect;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The schema migrations, executed rather than read.
  *
- * <p>A SQL file that parses is not a schema. This runs the whole thing against SQLite — the one
- * engine that needs no daemon — so a typo in a type, a column named twice, or a foreign key
- * pointing at a table declared later fails here, in a second, instead of in the integration
- * campaign minutes later or in a deployment.
+ * <p>A SQL file that parses is not a schema. This runs the whole set against MySQL, the engine the
+ * suite runs on (decision 0034), in a database of its own, so a typo in a type, a column named twice,
+ * or a foreign key pointing at a table declared later fails in the build instead of in the campaign
+ * or a deployment.
  *
- * <p>It proves the migrations are <em>coherent</em>, not that they are <em>portable</em>. Portability
- * is what {@code SchemaParityIntegrationTest} is for, on both deployable engines and the
- * fixture, because the places the engines disagree are exactly the places SQLite is most
- * forgiving about.
+ * <p>It proves the migrations are <em>coherent</em> on one engine, not that they are
+ * <em>portable</em>: PostgreSQL is {@code SchemaParityIntegrationTest}'s, in the campaign.
  */
 @DisplayName("the schema migrations (Flyway)")
 class MigrationsTest {
 
-    @TempDir
-    Path scratch;
-
-    private static void apply(Path database) {
+    private static void apply(TestDatabase.Scratch database) {
         // The locations and the placeholders the application uses on this engine, from the one
-        // place that spells them: a hand-written `db/migration/sqlite` here would apply V1 to V39
+        // place that spells them: a hand-written `db/migration/mysql` here would apply V1 to V39
         // and silently skip every common migration from V40 on.
         Flyway flyway = Flyway.configure()
-                .dataSource("jdbc:sqlite:" + database, "", "")
-                .locations(MigrationDialect.SQLITE.locations().toArray(String[]::new))
-                .placeholders(MigrationDialect.SQLITE.placeholders())
+                .dataSource(database.url(), database.user(), database.password())
+                .locations(MigrationDialect.MYSQL.locations().toArray(String[]::new))
+                .placeholders(MigrationDialect.MYSQL.placeholders())
                 .load();
         flyway.migrate();
     }
 
-    private List<String> applyMigrations() throws Exception {
-        Path database = scratch.resolve("vectispire.db");
-        Files.createDirectories(database.getParent());
-        apply(database);
+    private static Connection connect(TestDatabase.Scratch database) throws Exception {
+        return DriverManager.getConnection(database.url(), database.user(), database.password());
+    }
 
-        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
-                ResultSet rows = connection.getMetaData().getTables(null, null, "t\\_%", null)) {
-            List<String> tables = new ArrayList<>();
-            while (rows.next()) {
-                tables.add(rows.getString("TABLE_NAME"));
+    private List<String> applyMigrations() throws Exception {
+        try (TestDatabase.Scratch database = TestDatabase.scratch()) {
+            apply(database);
+            try (Connection connection = connect(database);
+                    ResultSet rows = connection.getMetaData().getTables(connection.getCatalog(), null, "t\\_%", null)) {
+                List<String> tables = new ArrayList<>();
+                while (rows.next()) {
+                    tables.add(rows.getString("TABLE_NAME"));
+                }
+                return tables;
             }
-            return tables;
         }
     }
 
@@ -84,29 +82,31 @@ class MigrationsTest {
     }
 
     @Test
-    @DisplayName("the foreign keys really exist on SQLite, which is why they are inline")
+    @DisplayName("the foreign keys really exist on MySQL, inline or not")
     void foreignKeysArePresent() throws Exception {
-        // The point of declaring them inline. SQLite has no `alter table … add constraint`,
-        // so a key that is not in the `create table` never exists on the fixture the HTTP
-        // suite runs on, while the deployable engines have it. Enforcement is a separate
-        // matter — the per-connection pragma, which `ForeignKeyEnforcementTest` guards.
-        Path database = scratch.resolve("fk.db");
-        apply(database);
-
-        List<String> references = new ArrayList<>();
-        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database)) {
-            // Every table with a foreign key, listed. A table added here and forgotten in the
-            // list below would make this test pass while checking one table fewer — which is how
-            // a suite comes to prove less than its name says.
-            for (String table : List.of(
-                    "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
-                    "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
-                    "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket",
-                    "t_mfa_challenge", "t_gate_verdict", "t_project")) {
-                try (ResultSet rows = connection.getMetaData().getImportedKeys(null, null, table)) {
-                    while (rows.next()) {
-                        references.add(table + "." + rows.getString("FKCOLUMN_NAME")
-                                + " -> " + rows.getString("PKTABLE_NAME"));
+        // MySQL 8 parses a column-level `references` and drops it without a word, so a key declared
+        // only inline exists on PostgreSQL and not there: each must be a named `add constraint`
+        // (V19, V37 and their successors). MySQL 9 honours the inline form, so on the image pinned
+        // here V1's inline keys exist twice — InnoDB's `t_scan_ibfk_1` beside V19's `fk_scan_repo`.
+        // Counted as distinct references, which is the property: each key exists, whichever MySQL.
+        // Enforcement is `ForeignKeyEnforcementTest`'s.
+        Set<String> references = new TreeSet<>();
+        try (TestDatabase.Scratch database = TestDatabase.scratch()) {
+            apply(database);
+            try (Connection connection = connect(database)) {
+                // Every table with a foreign key, listed. A table added here and forgotten in the
+                // list below would make this test pass while checking one table fewer — which is how
+                // a suite comes to prove less than its name says.
+                for (String table : List.of(
+                        "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
+                        "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
+                        "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket",
+                        "t_mfa_challenge", "t_gate_verdict", "t_project")) {
+                    try (ResultSet rows = connection.getMetaData().getImportedKeys(connection.getCatalog(), null, table)) {
+                        while (rows.next()) {
+                            references.add(table + "." + rows.getString("FKCOLUMN_NAME")
+                                    + " -> " + rows.getString("PKTABLE_NAME"));
+                        }
                     }
                 }
             }
@@ -146,9 +146,9 @@ class MigrationsTest {
         // Every instance runs the migrations on boot. If a second application were not a no-op,
         // the second pod to start would fail — and the failure would look like a race rather
         // than like a migration that cannot be replayed.
-        Path database = scratch.resolve("twice.db");
-
-        apply(database);
-        apply(database);
+        try (TestDatabase.Scratch database = TestDatabase.scratch()) {
+            apply(database);
+            apply(database);
+        }
     }
 }

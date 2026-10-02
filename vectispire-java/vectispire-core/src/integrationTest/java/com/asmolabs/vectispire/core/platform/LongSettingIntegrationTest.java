@@ -8,7 +8,6 @@ import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +24,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * <p><b>Only a real engine can say this.</b> {@code t_setting.value} was {@code varchar(255)} and
  * every credential stored in it is encrypted, so an Atlassian token of 192 characters became a
  * ciphertext of about 300 and MySQL and PostgreSQL refused the row: a 500 on the settings screen.
- * SQLite, which the HTTP suite runs on, does not enforce a varchar length, and saw nothing. V38 made
+ * SQLite, which the HTTP suite then ran on, did not enforce a varchar length, and saw nothing. V38 made
  * the column {@code text}; this writes both kinds of value at their ceilings and reads them back.
  */
 @SpringBootTest(classes = VectispireApplication.class)
@@ -33,16 +32,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class LongSettingIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

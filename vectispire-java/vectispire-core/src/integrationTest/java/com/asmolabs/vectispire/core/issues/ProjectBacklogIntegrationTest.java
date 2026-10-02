@@ -26,7 +26,6 @@ import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
@@ -49,8 +48,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * the last sit in different lists; the second case hands the predicate seventy thousand identifiers.
  * Bound as parameters, that statement failed here on PostgreSQL ("at most 65 535 parameters") — the
  * case that kills a return to {@code in(collection)}. <b>That limit is PostgreSQL's alone</b>: MySQL's
- * client-side statements and the SQLite driver accepted the bound statement, so a green run on those
- * two says nothing of the binding — they check the rest, a subquery for the solution, an {@code or} of
+ * client-side statements accepted the bound statement, so a green run on MySQL says nothing of the
+ * binding — it checks the rest, a subquery for the solution, an {@code or} of
  * {@code in} lists and a statement text of several hundred kilobytes, each read by the engine.
  *
  * <p>Images filed in a project (the amendment of 2026-09-30 to decision 0023) are narrowed by their own
@@ -62,7 +61,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class ProjectBacklogIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     private static final int FILED = 1_500;
 
@@ -71,19 +70,20 @@ class ProjectBacklogIntegrationTest {
 
     /**
      * Where the images' half of {@link #NOBODY} starts. Seventy thousand in all, still past the PostgreSQL
-     * driver's ceiling when bound, and not seventy thousand of each: SQLite refuses a statement text past
-     * a million bytes (SQLITE_TOOBIG), which a hundred and forty thousand literals exceed.
+     * driver's ceiling when bound, and not seventy thousand of each: the SQLite fixture the campaign then
+     * also ran refused a statement text past a million bytes, which a hundred and forty thousand literals
+     * exceed.
      */
     private static final int HALF = NOBODY.size() / 2;
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

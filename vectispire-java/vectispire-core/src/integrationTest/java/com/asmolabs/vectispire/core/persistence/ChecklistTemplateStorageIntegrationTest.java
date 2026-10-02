@@ -17,7 +17,6 @@ import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -34,9 +33,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * whole in {@code ${bytes}}, the template's words kept as written, the listing's projection, the
  * conditional statements that arbitrate every change, and the keys that arbitrate two drafts.
  *
- * <p>{@code SchemaParityIntegrationTest} validates the mappings against the schema on the typed
- * engines; this writes and reads back through them, which is what proves them on SQLite and what
- * shows on the others whether a mapping that validates also carries the value — a {@code byte[]}
+ * <p>{@code SchemaParityIntegrationTest} validates the mappings against the schema; this writes and
+ * reads back through them, which is what shows whether a mapping that validates also carries the value — a {@code byte[]}
  * mapped as a large object validates nowhere, and one read through a character set would change
  * some bytes on the way.
  */
@@ -45,18 +43,18 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class ChecklistTemplateStorageIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     private static final Instant NOW = Instant.parse("2026-09-28T10:15:30.123Z");
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -104,7 +102,6 @@ class ChecklistTemplateStorageIntegrationTest {
             case MYSQL -> assertThat(type).isEqualTo("longblob");
             // `oid` is what `@Lob` would have made the entity expect.
             case POSTGRES -> assertThat(type).isEqualTo("bytea");
-            case SQLITE -> assertThat(type).isEqualTo("blob");
         }
     }
 

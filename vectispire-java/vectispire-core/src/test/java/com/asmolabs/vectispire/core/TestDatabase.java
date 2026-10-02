@@ -108,6 +108,32 @@ public final class TestDatabase {
     }
 
     /**
+     * A database of its own on the suite's server, for a test that migrates one from nothing; dropped
+     * when closed. The shared one is already migrated, and a migration test run on it proves nothing.
+     */
+    public record Scratch(String url, String user, String password) implements AutoCloseable {
+
+        @Override
+        public void close() {
+            Database opened = database();
+            drop(opened.server(), url.substring(url.lastIndexOf('/') + 1));
+        }
+    }
+
+    /** A fresh, empty database for one test — see {@link Scratch}. */
+    public static Scratch scratch() {
+        Database opened = database();
+        String name = "vectispire_scratch_" + HexFormat.of().toHexDigits(ThreadLocalRandom.current().nextLong());
+        try (Connection connection = opened.server().connect("");
+             Statement statement = connection.createStatement()) {
+            statement.execute("create database " + name);
+        } catch (SQLException failed) {
+            throw new IllegalStateException("Could not create a scratch database on " + opened.server().url(), failed);
+        }
+        return new Scratch(opened.server().url() + "/" + name, opened.server().user(), opened.server().password());
+    }
+
+    /**
      * Empties the tables before a context starts on the database another one used.
      *
      * <p>A context runs code at start-up — the repairs and resumptions an {@code

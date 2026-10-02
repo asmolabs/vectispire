@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,24 +31,24 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * <p>The search hands it the scans of one page, at most the cap and one; the catalogue takes any
  * collection, so it asks a thousand at a time like every lookup there, and this hands it seventy
  * thousand identifiers. The limit is <b>PostgreSQL's alone</b> — its driver refuses a statement past
- * 65,535 parameters; MySQL's client-side statements and the SQLite driver accept one — so a green run on
- * those two proves the query, not the batching.
+ * 65,535 parameters; MySQL's client-side statements accept one — so a green run on MySQL proves the
+ * query, not the batching.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("each scan's branch and project version, by scan id")
 class ScanLabelsIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

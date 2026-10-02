@@ -564,7 +564,7 @@ jobs:
             echo "touched=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # What can behave differently on MySQL, PostgreSQL and SQLite:
+          # What can behave differently on MySQL and PostgreSQL:
           #   db/migration/      the schema: common/ once with type placeholders, or per engine
           #   core/<module>/persistence/  the query layer — JPQL, native queries, Specifications
           #                      (`issues`' IssueSpecifications included), locking — and the entity
@@ -573,8 +573,8 @@ jobs:
           #                      there (decisions 0028, 0029): `core/repositories/` and
           #                      `core/persistence/` are gone, and the optional segment still matches
           #                      the unit suite's `core/persistence/` tests of the migrations
-          #   core/config/       the datasource and per-engine setup (SQLite's WAL, foreign keys,
-          #                      the migration type placeholders)
+          #   core/config/       the datasource and per-engine setup (the migration type
+          #                      placeholders)
           #   src/integrationTest/  the campaign itself
           #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
           #   verification-metadata.xml, verification-keyring.keys  what may be resolved at all:

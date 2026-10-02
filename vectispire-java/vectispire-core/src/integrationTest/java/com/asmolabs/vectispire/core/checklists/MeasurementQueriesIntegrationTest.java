@@ -28,7 +28,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterAll;
@@ -47,8 +46,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * asked for seventy thousand repositories or scans — a project's repositories are sized by the data.
  *
  * <p>PostgreSQL is the engine that refuses an unbatched statement here ("at most 65 535 parameters");
- * MySQL's client-side statements and the SQLite driver's build accept one, so a green run on those two
- * alone says nothing of the batching. What the other two engines check is the rest: a {@code case} in a
+ * MySQL's client-side statements accept one, so a green run on MySQL alone says nothing of the
+ * batching. What MySQL checks is the rest: a {@code case} in a
  * constructor expression, {@code like … escape '!'} over a long-text column, {@code concat} with a null,
  * a {@code sum} over a {@code case}, the group by over a {@code not in} — each an engine's own spelling.
  */
@@ -57,7 +56,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class MeasurementQueriesIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     private static final Instant SINCE = Instant.parse("2026-09-01T00:00:00Z");
 
@@ -66,12 +65,12 @@ class MeasurementQueriesIntegrationTest {
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

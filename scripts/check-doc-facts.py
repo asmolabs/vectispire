@@ -104,18 +104,17 @@ def prose(text: str) -> str:
 # --------------------------------------------------------------------------------------
 
 def deployable_engines() -> list[str]:
-    """The engines Gradle actually runs the campaign against, minus the test fixture.
+    """The engines Gradle actually runs the campaign against.
 
-    ADR 0014: SQLite is a fixture, not a deployable engine. The campaign runs against all
-    three; only two are on offer to an operator, and conflating the two is the exact defect
-    this file was written for.
+    ADR 0014 kept SQLite as a fixture beside the two deployable engines, and this filtered it out:
+    conflating a fixture with an offer was the exact defect this file was written for. ADR 0034
+    removed the fixture, its campaign leg and its migrations, so the campaign's list is the offer.
     """
     gradle = read(ROOT / "vectispire-java/vectispire-core/build.gradle.kts")
     match = re.search(r"val\s+engines\s*=\s*listOf\(([^)]*)\)", gradle)
     if not match:
         raise LookupError("build.gradle.kts no longer declares `val engines = listOf(...)`")
-    engines = re.findall(r'"([a-z]+)"', match.group(1))
-    return [e for e in engines if e != "sqlite"]
+    return re.findall(r'"([a-z]+)"', match.group(1))
 
 
 def migration_vendors() -> list[str]:
@@ -332,6 +331,13 @@ def main() -> int:
 
     engines = deployable_engines()
     vendors = migration_vendors()
+    # Two sources of one fact since ADR 0034: an engine with no SQL, or SQL for an engine nobody
+    # runs — a migration set left behind, the way the SQLite one could have been — is a tree that
+    # contradicts itself before any document does.
+    if len(engines) != len(vendors):
+        print(f"The campaign runs {len(engines)} engines ({', '.join(engines)}) and the tree carries "
+              f"migrations for {len(vendors)} ({', '.join(vendors)}).", file=sys.stderr)
+        return 1
     adrs = adr_numbers()
     counts = compliance_counts()
     print(f"{len(DOCUMENTS)} documents, {inspected} numeric claims checked, none contradicted.")

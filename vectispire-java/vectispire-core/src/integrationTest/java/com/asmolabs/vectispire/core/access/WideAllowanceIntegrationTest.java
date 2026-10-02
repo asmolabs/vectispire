@@ -43,7 +43,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -71,8 +70,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * thousand grants, all real rows, so the path runs from the grant table through {@link
  * VisibilityService}, as a request does.
  *
- * <p><b>The limit is PostgreSQL's alone</b>: MySQL's client-side statements and the SQLite driver
- * accept the bound statements, so on those two this checks the rest — statement texts of several
+ * <p><b>The limit is PostgreSQL's alone</b>: MySQL's client-side statements accept the bound
+ * statements, so on MySQL this checks the rest — statement texts of several
  * hundred kilobytes, {@code or}-ed {@code in} lists over both target columns, and the narrowing itself:
  * the granted repository's and image's rows appear, the hidden repository's never do.
  */
@@ -81,7 +80,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class WideAllowanceIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** Seventy thousand repositories no row carries — past the PostgreSQL driver's 65,535. */
     private static final List<Long> NOBODY = LongStream.rangeClosed(9_000_000, 9_070_000).boxed().toList();
@@ -95,12 +94,12 @@ class WideAllowanceIntegrationTest {
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
         estate = null;
     }
 

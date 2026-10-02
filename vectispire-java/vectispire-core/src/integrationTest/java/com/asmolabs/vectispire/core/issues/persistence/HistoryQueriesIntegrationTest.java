@@ -38,7 +38,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  *
  * <p><b>This suite exists because its absence shipped a broken page.</b> The history page's
  * decision count was written as {@code (:from is null or e.occurredAt >= :from)} — a nullable
- * parameter compared to a column. SQLite, which the HTTP suite runs on, accepts it. PostgreSQL
+ * parameter compared to a column. SQLite, which the HTTP suite then ran on, accepted it. PostgreSQL
  * refuses it outright: <i>could not determine data type of parameter $2</i>, because an untyped
  * null in a comparison leaves the driver nothing to infer from. Every test was green and the
  * page returned 500 on the only engine anybody deploys.
@@ -53,17 +53,17 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class HistoryQueriesIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
     private static final Instant WHEN = Instant.parse("2026-03-03T08:00:00Z");
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

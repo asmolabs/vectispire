@@ -26,8 +26,8 @@ import org.springframework.core.io.ClassPathResource;
  * Where a migration may live, and what a migration written once may say (decision 0027).
  *
  * <p><b>Each rule below closes a failure that is silent on at least one engine.</b> Flyway reads
- * {@code common} and then the engine's directory, so a version written for MySQL and PostgreSQL
- * but forgotten for SQLite applies on two engines and is missing on the third without an error; a
+ * {@code common} and then the engine's directory, so a version written for MySQL but forgotten for
+ * PostgreSQL applies on one engine and is missing on the other without an error; a
  * version in both {@code common} and a vendor directory fails at startup on that vendor only; a
  * file named {@code v40_x.sql} is ignored outright, because Flyway does not validate names it does
  * not recognise. And a type spelled for one engine inside a file every engine runs is the defect
@@ -48,7 +48,7 @@ class MigrationLayoutTest {
     private static final String COMMON = "common";
 
     /**
-     * The last version written before the rule, in all three vendor directories. They are never
+     * The last version written before the rule, in every vendor directory. They are never
      * moved into {@code common} nor edited to use placeholders, even the thirteen that are
      * identical across engines: Flyway validates the checksum of every applied migration, and a
      * changed file refuses to start every existing installation.
@@ -81,21 +81,21 @@ class MigrationLayoutTest {
             Forbidden.of("\\bbytea\\b|\\b(long|medium|tiny)?blob\\b|\\b(var)?binary\\b|\\boid\\b",
                     "write ${bytes}: MySQL's blob stops at 64 KiB, and PostgreSQL's large object is not a column"),
             Forbidden.of("\\breferences\\b",
-                    "a foreign key diverges: MySQL discards an inline one and SQLite cannot add one"
-                            + " afterwards — write it in the three vendor directories"),
+                    "a foreign key diverges: MySQL discards an inline one — write it in both vendor"
+                            + " directories, as a named constraint"),
             Forbidden.of("\\bmodify\\b|\\balter\\s+column\\b|\\bchange\\s+column\\b",
                     "a column change diverges (MODIFY, ALTER COLUMN … TYPE, a table rebuild) — write"
-                            + " it in the three vendor directories"),
+                            + " it in both vendor directories"),
             Forbidden.of("\\bnow\\s*\\(|\\bcurrent_timestamp\\b|\\binterval\\b|\\bdate_(add|sub)\\b"
                     + "|\\bjulianday\\b|\\bstrftime\\b|\\bextract\\s*\\(",
-                    "date arithmetic diverges — write it in the three vendor directories"),
+                    "date arithmetic diverges — write it in both vendor directories"),
             Forbidden.of("\\bdrop\\s+index\\b|\\bindex\\s+if\\s+not\\s+exists\\b",
                     "index syntax diverges (MySQL's drop index names the table) — write it in the"
-                            + " three vendor directories"),
+                            + " both vendor directories"),
             Forbidden.of("\\bon\\s+conflict\\b|\\bon\\s+duplicate\\s+key\\b|\\binsert\\s+(ignore|or)\\b"
-                    + "|\\breplace\\s+into\\b", "an upsert diverges — write it in the three vendor directories"),
+                    + "|\\breplace\\s+into\\b", "an upsert diverges — write it in both vendor directories"),
             Forbidden.of("\\bpragma\\b|\\bengine\\s*=|\\bunsigned\\b|\\bjsonb?\\b",
-                    "engine-specific — write it in the three vendor directories"),
+                    "engine-specific — write it in both vendor directories"),
             Forbidden.of("`|\"|::|\\$",
                     "quoting, casts and dollar bodies are engine-specific — plain identifiers only"));
 
@@ -225,9 +225,9 @@ class MigrationLayoutTest {
 
     @Test
     @DisplayName("a new migration identical on every engine is written once, in common")
-    void anIdenticalTripleBelongsInCommon() throws IOException {
-        // The rule's other half. Three byte-identical copies are the duplication decision 0027
-        // exists to end; the next change to them is the one that updates two of the three.
+    void anIdenticalPairBelongsInCommon() throws IOException {
+        // The rule's other half. Byte-identical copies are the duplication decision 0027 exists to
+        // end; the next change to them is the one that updates one of the two.
         Map<String, List<String>> files = filesByDirectory();
         List<String> identical = new ArrayList<>();
         for (String file : files.get(VENDORS.getFirst())) {
@@ -311,8 +311,8 @@ class MigrationLayoutTest {
 
         assertThat(String.valueOf(locations).split("\\s*,\\s*"))
                 .containsExactly(MigrationDialect.COMMON_LOCATION, "classpath:db/migration/{vendor}");
-        assertThat(MigrationDialect.SQLITE.locations())
-                .containsExactly(MigrationDialect.COMMON_LOCATION, "classpath:db/migration/sqlite");
+        assertThat(MigrationDialect.MYSQL.locations())
+                .containsExactly(MigrationDialect.COMMON_LOCATION, "classpath:db/migration/mysql");
     }
 
     private static Set<String> without(Map<String, ?> places, String excluded) {

@@ -68,7 +68,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class EpssScoresIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** FIRST's file on 27 September 2026: 380,066 rows. */
     private static final int ROWS = 380_066;
@@ -77,12 +77,12 @@ class EpssScoresIntegrationTest {
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -117,8 +117,7 @@ class EpssScoresIntegrationTest {
         jdbc.execute("delete from t_issue");
         jdbc.execute("delete from t_threat_intel_sync");
         // The row V43 leaves on every installation. Not left for the feed to create: four instances
-        // creating it at once is a race no deployment runs, and on SQLite it is a lock upgrade that
-        // fails instead of waiting.
+        // creating it at once is a race no deployment runs.
         syncs.save(new ThreatIntelSyncEntity());
         when(source.location()).thenReturn("https://epss.example.invalid/");
     }

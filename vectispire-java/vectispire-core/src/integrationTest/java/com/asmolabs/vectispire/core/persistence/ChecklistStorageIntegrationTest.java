@@ -24,7 +24,6 @@ import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,7 +42,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * any script, the conditional statements that arbitrate every write, and the purge a project's
  * deletion runs in its own transaction, subqueries included.
  *
- * <p>The HTTP suite runs on SQLite only; what an engine decides — whether a unique key admits two
+ * <p>The HTTP suite runs on MySQL only; what an engine decides — whether a unique key admits two
  * nulls, whether a delete may read another table in its subquery, how a binary column carries a byte
  * — is decided here, on each engine the campaign runs.
  */
@@ -52,19 +51,19 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class ChecklistStorageIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     private static final Instant NOW = Instant.parse("2026-09-28T10:15:30.123Z");
     private static final RequestActor ACTOR = new RequestActor("integration", null, null);
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -218,7 +217,6 @@ class ChecklistStorageIntegrationTest {
         switch (ENGINE) {
             case MYSQL -> assertThat(type).isEqualTo("longblob");
             case POSTGRES -> assertThat(type).isEqualTo("bytea");
-            case SQLITE -> assertThat(type).isEqualTo("blob");
         }
 
         long checklistId = checklists.save(checklist(project, 1, "draft", 1)).getId();
@@ -257,7 +255,6 @@ class ChecklistStorageIntegrationTest {
         switch (ENGINE) {
             case MYSQL -> assertThat(type).isEqualTo("longblob");
             case POSTGRES -> assertThat(type).isEqualTo("bytea");
-            case SQLITE -> assertThat(type).isEqualTo("blob");
         }
     }
 

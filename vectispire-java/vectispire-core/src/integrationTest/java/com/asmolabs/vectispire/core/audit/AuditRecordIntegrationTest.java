@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,8 +28,9 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 /**
  * Audit entries whose values exceed their columns, written to a real engine.
  *
- * <p><b>Only a real engine can say this.</b> SQLite, which the HTTP suite runs on, stores a string
- * of any length in a {@code varchar(255)}; MySQL and PostgreSQL refuse the row. The resource id of
+ * <p><b>Only a real engine can say this.</b> MySQL and PostgreSQL refuse a row whose string exceeds
+ * its {@code varchar(255)}; the SQLite fixture the HTTP suite once ran on stored it whatever its
+ * length. The resource id of
  * a settings write is the joined list of its keys, and the one of a refused request is its URI —
  * neither has a length anybody bounded, and an over-long one made {@code record} throw at its
  * commit and lose the entry, on the engines deployments run and on no test.
@@ -40,16 +40,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class AuditRecordIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

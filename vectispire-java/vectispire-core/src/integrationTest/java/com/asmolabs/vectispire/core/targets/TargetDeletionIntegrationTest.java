@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -27,9 +26,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 /**
  * Deleting a target on a real engine, with the foreign keys the migrations declare.
  *
- * <p><b>What this adds to the unit suite.</b> {@code TargetDeletionTest} runs on SQLite, whose keys
- * hold only because the pool issues a pragma; here they are MySQL's and PostgreSQL's own, declared by
- * V19 and the migrations after it. A purge that deleted a parent before a child the schema does not
+ * <p><b>What this adds to the unit suite.</b> {@code TargetDeletionTest} runs on MySQL; here the keys
+ * are PostgreSQL's too, declared by V19 and the migrations after it. A purge that deleted a parent before a child the schema does not
  * cascade, or left a row the schema would refuse to orphan, fails here on the engine that refuses it
  * — which is where an operator would otherwise have found it.
  */
@@ -38,16 +36,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class TargetDeletionIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -107,8 +105,8 @@ class TargetDeletionIntegrationTest {
     /**
      * Past the PostgreSQL driver's 65,535 bind parameters — the ceiling each purge listener's delete met
      * with one parameter per issue. The rows are written as SQL, a thousand to a statement, since seventy
-     * thousand entities saved one by one are minutes; only their identifiers are read back. On MySQL and
-     * SQLite, whose drivers accept the bound statement, this checks only that the batches take every row.
+     * thousand entities saved one by one are minutes; only their identifiers are read back. On MySQL,
+     * whose driver accepts the bound statement, this checks only that the batches take every row.
      */
     @Test
     @DisplayName("a repository whose issues outgrow one statement: seventy thousand, every one taken")

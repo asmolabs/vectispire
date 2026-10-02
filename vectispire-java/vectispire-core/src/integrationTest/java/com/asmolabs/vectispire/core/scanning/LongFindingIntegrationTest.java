@@ -19,7 +19,6 @@ import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -36,8 +35,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  *
  * <p><b>What this is for.</b> A purl, a path, a fix-version list or an advisory link past its
  * column failed the flush of the whole scan on MySQL and PostgreSQL — every finding of every type
- * lost for one long value. SQLite enforces no length, so the unit suite could only check that the
- * values are clipped; this checks that the flush now goes through where it used to fail.
+ * lost for one long value. The unit suite, on SQLite then, could only check that the values are
+ * clipped; this checks that the flush now goes through where it used to fail, on both engines.
  *
  * <p><b>Through the whole ingestion</b>, since the two tables are clipped by two modules: the scan's
  * findings by {@code scanning}, the issues by the backlog, each after the fingerprint was computed on
@@ -48,16 +47,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class LongFindingIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

@@ -28,15 +28,11 @@ import java.util.SequencedMap;
  *       {@code datetime} truncates to the second, and the audit chain hashes a timestamp
  *       canonicalised to the millisecond: a truncated column makes the log fail its own
  *       integrity verification — a control reporting tampering that never happened. PostgreSQL's
- *       {@code timestamp with time zone} keeps microseconds; SQLite has affinities rather than
- *       types (decision 0014), and {@code numeric} is the spelling its existing set uses.
+ *       {@code timestamp with time zone} keeps microseconds.
  *   <li>{@code id} is the whole identity column, {@code primary key} included, so a migration
- *       writes {@code id ${id},} and nothing more. It has to include the key because of SQLite:
- *       only the exact spelling {@code integer primary key} makes the column the rowid, and
- *       {@code autoincrement} is refused anywhere else — {@code bigint primary key autoincrement}
- *       is a syntax error, and {@code integer primary key} without it reuses the id of a deleted
- *       last row. SQLite's integer is 64 bits, so {@code integer} there is MySQL's and
- *       PostgreSQL's {@code bigint}.
+ *       writes {@code id ${id},} and nothing more. It included the key for the SQLite fixture,
+ *       which could declare its row id in one exact spelling only; the fixture is gone (decision
+ *       0034), and the shape stays, since the common migrations already written use it.
  *   <li>{@code bool} is MySQL's {@code bit(1)} — the type Hibernate maps a boolean to on that
  *       engine, so validation compares like with like — whose literals are {@code b'1'} and
  *       {@code b'0'}; hence {@code true} and {@code false} are placeholders too.
@@ -76,16 +72,7 @@ public enum MigrationDialect {
             "boolean", "true", "false",
             "text",
             "double precision",
-            "bytea")),
-
-    /** The test fixture (decision 0014): its copy must apply, but nothing is offered on it. */
-    SQLITE("sqlite", placeholders(
-            "numeric",
-            "integer primary key autoincrement",
-            "boolean", "1", "0",
-            "text",
-            "double",
-            "blob"));
+            "bytea"));
 
     /** Read before the vendor's own directory; holds nothing below V40 — see decision 0027. */
     public static final String COMMON_LOCATION = "classpath:db/migration/common";

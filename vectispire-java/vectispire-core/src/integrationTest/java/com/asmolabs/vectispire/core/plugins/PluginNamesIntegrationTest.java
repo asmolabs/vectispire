@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -36,27 +35,26 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * looked up for seventy thousand identifiers on a real engine: the rows are sized by the data.
  *
  * <p>PostgreSQL is the engine that refuses an unbatched statement here ("at most 65 535 parameters");
- * MySQL's client-side statements and the SQLite driver's build accept one, so a green run on those two
- * alone says nothing of the batching.
+ *  * MySQL's client-side statements accept one, so a green run on MySQL alone says nothing of the batching.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the plugin lists' names on the engine")
 class PluginNamesIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** Seventy thousand identifiers no row carries — past the PostgreSQL driver's 65,535. */
     private static final List<Long> NOBODY = LongStream.rangeClosed(5_000_000, 5_070_000).boxed().toList();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

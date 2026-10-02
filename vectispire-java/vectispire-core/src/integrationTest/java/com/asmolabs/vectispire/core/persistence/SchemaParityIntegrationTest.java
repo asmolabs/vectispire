@@ -12,7 +12,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -49,41 +48,24 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class SchemaParityIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
-        CONTAINER.ifPresentOrElse(
-                container -> {
-                    registry.add("spring.datasource.url", container::getJdbcUrl);
-                    registry.add("spring.datasource.username", container::getUsername);
-                    registry.add("spring.datasource.password", container::getPassword);
-                    registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
-                },
-                () -> {
-                    // Once, outside the supplier: it deletes the file, and the property is read
-                    // more than once — see `Engine.configure`.
-                    java.nio.file.Path file = Engine.sqliteFile();
-                    registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
-                    registry.add("spring.datasource.username", () -> "");
-                    registry.add("spring.datasource.password", () -> "");
-                    registry.add("spring.jpa.database-platform",
-                            () -> "org.hibernate.community.dialect.SQLiteDialect");
-                    // Not `validate` here, and the reason is in `Engine`: SQLite has affinities
-                    // rather than types, so the comparison would be about naming. The round trip
-                    // below is what proves the mapping on this engine.
-                    registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
-                });
+        registry.add("spring.datasource.url", CONTAINER::getJdbcUrl);
+        registry.add("spring.datasource.username", CONTAINER::getUsername);
+        registry.add("spring.datasource.password", CONTAINER::getPassword);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     }
 
     @Autowired
@@ -93,9 +75,9 @@ class SchemaParityIntegrationTest {
     private DataSource dataSource;
 
     @Test
-    @DisplayName("every entity is mapped, and on a typed engine validated against the schema")
+    @DisplayName("every entity is mapped, and validated against the schema")
     void entitiesMatchTheSchema() {
-        // On the three typed engines, reaching this line *is* the assertion: Hibernate validated
+        // On both engines, reaching this line *is* the assertion: Hibernate validated
         // every entity while the context came up. What remains is to stop the test passing on an
         // empty metamodel, which is how a check reports green having looked at nothing.
         //
@@ -124,9 +106,9 @@ class SchemaParityIntegrationTest {
         // that waits on it, so an index this test defends can be argued with rather than merely
         // obeyed.
         //
-        // Read through `DatabaseMetaData` rather than a catalog query: `pg_indexes`,
-        // `information_schema.statistics` and `pragma index_list` are three different questions,
-        // and the campaign exists to ask one question of three engines.
+        // Read through `DatabaseMetaData` rather than a catalog query: `pg_indexes` and
+        // `information_schema.statistics` are different questions, and the campaign exists to ask
+        // one question of every engine.
 
         assertThat(indexedFirstColumns("t_issue"))
                 .as("the gate reads one target's open issues on every build, and the compliance "
@@ -203,12 +185,10 @@ class SchemaParityIntegrationTest {
         // **Twenty-four of these were decoration on MySQL for the life of the project.** They are
         // written `references t_x(id) on delete cascade` inline, inside the column definition — a
         // form MySQL parses and discards, leaving no constraint, no index and no cascade. V19 adds
-        // them as real table-level constraints; PostgreSQL had them from the inline form all along
-        // and SQLite records them without enforcing them until the pragma is issued.
+        // them as real table-level constraints; PostgreSQL had them from the inline form all along.
         //
-        // So what this asserts is that the engine has been *told*, which is the part the three
-        // agree on and the part a migration can lose. That SQLite then acts on it is
-        // `ForeignKeyEnforcementTest`, in the unit suite where that engine lives.
+        // So what this asserts is that the engine has been *told*, which is the part a migration
+        // can lose. That MySQL then acts on it is `ForeignKeyEnforcementTest`, in the unit suite.
 
         assertThat(referencedParents("t_scan"))
                 .as("a scan belongs to a repository or an image, and outlives neither")
@@ -255,7 +235,7 @@ class SchemaParityIntegrationTest {
      * The parent tables {@code table} declares a foreign key into, lowercased.
      *
      * <p>{@code getImportedKeys} rather than a catalog query, for the reason the index reader
-     * gives: three engines, three catalogs, one question.
+     * gives: one question, whatever the engine's catalog.
      */
     private Set<String> referencedParents(String table) throws Exception {
         Set<String> parents = new HashSet<>();
@@ -311,13 +291,13 @@ class SchemaParityIntegrationTest {
         // code has been tolerating what this constraint forbids; two overlapping scans of one
         // target could each look up a fingerprint, each find nothing, and each insert.
         //
-        // Read through `DatabaseMetaData` because `pg_indexes`, `information_schema.statistics`
-        // and `pragma index_list` are three different questions and the campaign asks one.
+        // Read through `DatabaseMetaData` because `pg_indexes` and `information_schema.statistics`
+        // are different questions and the campaign asks one.
         //
         // **`NON_UNIQUE` is read rather than trusting the `unique` argument, and that is not
         // belt-and-braces.** The first version of this test passed `unique = true` and passed
-        // with no unique index at all: the SQLite driver ignores the flag and returns every
-        // index regardless. Found by running it against the engine with the constraint removed —
+        // with no unique index at all: the SQLite driver the campaign then also ran ignored the flag
+        // and returned every index regardless. Found by running it against the engine with the constraint removed —
         // an assertion that cannot fail is the failure mode this campaign exists to catch, and
         // it caught one of its own.
         boolean unique = false;
@@ -349,7 +329,7 @@ class SchemaParityIntegrationTest {
     @DisplayName("a row survives the round trip, types included")
     void rowRoundTrips() {
         // What strict validation cannot say, on any engine: that the values come back as they
-        // went in. The three columns below are the ones the engines disagree about — an
+        // went in. The three columns below are the ones engines disagree about — an
         // instant, a boolean, and a UUID stored as text.
         AgentEntity agent = new AgentEntity();
         agent.setName("campaign");
@@ -368,8 +348,9 @@ class SchemaParityIntegrationTest {
 
         AgentEntity reloaded = entityManager.find(AgentEntity.class, id);
         assertThat(reloaded.getName()).isEqualTo("campaign");
-        // A boolean is `boolean` on two engines, `tinyint(1)` on one and `tinyint` on another.
-        // Reading it back as `true` is the only claim that means the same thing on all four.
+        // A boolean is `boolean` on PostgreSQL and a `bit(1)` or `tinyint(1)` on MySQL, by the age
+        // of its migration. Reading it back as `true` is the only claim that means the same thing
+        // on both.
         assertThat(reloaded.getEnabled()).isTrue();
         // Truncated to the millisecond going in, so this compares the value and not the
         // engine's fractional-second precision.

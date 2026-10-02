@@ -17,7 +17,6 @@ import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,8 +36,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * severity, type, isKev)} plus one read of the SLA breaches. That query returns {@code Object[]}
  * rows the service casts — a {@code Long} id, a {@code String} severity, a boolean flag, a
  * {@code Number} count — and <b>a projection is exactly the kind of statement whose column types
- * differ by driver</b>. The storage differs: MySQL keeps the flag as a {@code tinyint}, SQLite as a
- * numeric affinity, PostgreSQL as a real boolean.
+ * differ by driver</b>. The storage differs: MySQL keeps the flag as a {@code tinyint}, PostgreSQL as
+ * a real boolean.
  *
  * <p><b>What this suite measured, against the expectation that wrote it.</b> Those differences do
  * not reach the service: the projection selects mapped entity attributes, so Hibernate normalises
@@ -50,7 +49,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * each engine and that the counts it produces are attributed correctly. A statement that reads
  * fine and is wrong in SQL is what {@code HistoryQueriesIntegrationTest} was written for.
  *
- * <p>Until now the only coverage was the HTTP suite, which runs on SQLite, so a wrong cast would
+ * <p>Until then the only coverage was the HTTP suite, which ran on SQLite, so a wrong cast would
  * have surfaced as a 500 on the compliance page of whichever engine the deployment actually
  * uses — in production, with every test green. That is the same shape as the defect
  * {@code HistoryQueriesIntegrationTest} was written for, and the reason it says depth is not the
@@ -66,16 +65,16 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class ComplianceSummaryIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

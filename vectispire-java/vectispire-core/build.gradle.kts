@@ -24,9 +24,9 @@ plugins {
  * timestamp precision — has to sit where a portability suite can reach it, and that is there. A
  * service writing a query fails `ArchitectureTest`.
  *
- * The four drivers are `runtimeOnly`. They must be in the image, and no compiled class may
+ * The two drivers are `runtimeOnly`. They must be in the image, and no compiled class may
  * name one: a class importing `org.postgresql` is a class that stopped working on the other
- * three, which is a failure a portability campaign should catch before an operator does.
+ * engine, which is a failure a portability campaign should catch before an operator does.
  */
 /**
  * The interface, bundled into the jar.
@@ -164,11 +164,6 @@ dependencies {
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.mysql)
-    runtimeOnly(libs.sqlite)
-    // SQLite is not one of Hibernate's own dialects. It is a first-class engine here, so the
-    // community dialect is not optional — without it the schema check simply cannot run on the
-    // one engine that needs no daemon.
-    runtimeOnly(libs.hibernate.community.dialects)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -176,11 +171,6 @@ dependencies {
     testImplementation(libs.archunit.junit5)
     testImplementation(platform(libs.spring.modulith.bom))
     testImplementation(libs.spring.modulith.starter.test)
-    // SQLite on the unit-test classpath, not only at runtime: it is the one engine that needs
-    // no daemon, so the migrations can be executed for real in a plain unit test. PostgreSQL
-    // and MySQL are the integration campaign's business.
-    testRuntimeOnly(libs.sqlite)
-    testImplementation(libs.sqlite)
     // The MySQL the context and HTTP suites run on (decision 0034): a container per test JVM, unless
     // `VECTISPIRE_TEST_DB_URL` names a server — see `TestDatabase`. The version is the Spring Boot
     // BOM's, as for the campaign, which inherits this line.
@@ -236,14 +226,13 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
 }
 
 /**
- * The two supported engines, plus the fixture the unit suite runs on.
+ * The two supported engines.
  *
  * A portability defect only shows up by running them — PostgreSQL and MySQL have each produced
- * one that was invisible on the other. SQLite is here for a different reason: it is what the HTTP
- * suite uses, so its migrations have to apply even though **it is not a deployable engine** —
- * see decision 0014.
+ * one that was invisible on the other. The SQLite fixture had a leg here while the HTTP suite ran
+ * on it; that suite runs on MySQL now, and the leg went with the engine (decision 0034).
  */
-val engines = listOf("postgres", "mysql", "sqlite")
+val engines = listOf("postgres", "mysql")
 
 engines.forEach { engine ->
     tasks.register<Test>("integrationTest${engine.replaceFirstChar { it.uppercase() }}") {
@@ -311,7 +300,7 @@ tasks.named<Test>("test") {
 }
 
 tasks.register("integrationTestAll") {
-    description = "Runs the campaign on both supported engines and the SQLite fixture."
+    description = "Runs the campaign on both supported engines."
     group = "verification"
     dependsOn(engines.map { "integrationTest${it.replaceFirstChar { c -> c.uppercase() }}" })
 }

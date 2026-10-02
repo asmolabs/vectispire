@@ -17,13 +17,12 @@ following components. Their own licenses apply to them, not Vectispire's.
 Apache License 2.0
   org.springframework.boot:*                Spring Boot 4.1
   org.springframework:*                     Spring Framework
-  org.hibernate.orm:*                       Hibernate ORM and community dialects
+  org.hibernate.orm:*                       Hibernate ORM
   com.fasterxml.jackson.core:*              Jackson
   org.apache.pdfbox:pdfbox                  PDFBox
   org.apache.httpcomponents.client5:*       Apache HttpClient 5
   org.flywaydb:*                            Flyway
   com.github.docker-java:*                  docker-java
-  org.xerial:sqlite-jdbc                    SQLite JDBC driver
 
 BSD 3-Clause / Eclipse Distribution License 1.0
   org.eclipse.jgit:*                        JGit and its Apache SSH transport

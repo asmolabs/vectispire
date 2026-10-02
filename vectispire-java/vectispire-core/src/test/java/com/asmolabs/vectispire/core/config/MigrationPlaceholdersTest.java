@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.util.Map;
@@ -14,18 +13,9 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 @DisplayName("the migration placeholders are chosen by the engine Flyway migrates")
 class MigrationPlaceholdersTest {
-
-    @TempDir
-    Path scratch;
-
-    private DataSource sqlite() {
-        return new DriverManagerDataSource("jdbc:sqlite:" + scratch.resolve("placeholders.db"));
-    }
 
     private static DataSource reporting(String url) throws Exception {
         DataSource dataSource = mock(DataSource.class);
@@ -44,20 +34,29 @@ class MigrationPlaceholdersTest {
                 .isEqualTo(MigrationDialect.MYSQL);
         assertThat(MigrationPlaceholders.dialectOf(reporting("jdbc:postgresql://db:5432/vectispire")))
                 .isEqualTo(MigrationDialect.POSTGRESQL);
-        assertThat(MigrationPlaceholders.dialectOf(sqlite())).isEqualTo(MigrationDialect.SQLITE);
+    }
+
+    @Test
+    @DisplayName("SQLite has no migrations any more, and says so at start")
+    void sqliteIsRefused() throws Exception {
+        // The fixture it was kept for is gone (decision 0034): a deployment pointed at a file would
+        // otherwise find no directory, apply nothing and report an empty schema "up to date".
+        assertThatThrownBy(() -> MigrationPlaceholders.dialectOf(reporting("jdbc:sqlite:/var/lib/vectispire.db")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("\"sqlite\"");
     }
 
     @Test
     @DisplayName("the placeholders reach Flyway's configuration, next to any other placeholder")
-    void thePlaceholdersReachFlyway() {
+    void thePlaceholdersReachFlyway() throws Exception {
         FluentConfiguration configuration = Flyway.configure()
-                .dataSource(sqlite())
+                .dataSource(reporting("jdbc:postgresql://db:5432/vectispire"))
                 .placeholders(Map.of("tenant", "acme"));
 
         new MigrationPlaceholders().customize(configuration);
 
         assertThat(configuration.getPlaceholders())
-                .containsAllEntriesOf(MigrationDialect.SQLITE.placeholders())
+                .containsAllEntriesOf(MigrationDialect.POSTGRESQL.placeholders())
                 .containsEntry("tenant", "acme");
     }
 

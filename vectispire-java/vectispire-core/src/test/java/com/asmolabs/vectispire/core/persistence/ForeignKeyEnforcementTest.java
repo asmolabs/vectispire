@@ -23,8 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  *
  * <p><b>MySQL discards a column-level {@code references}</b>, so a key that exists only inline in a
  * migration exists on PostgreSQL and nowhere else; on SQLite, which this suite ran on until decision
- * 0034, none is enforced without a pragma on each connection ({@code SqliteForeignKeysTest}). Either
- * way the failure is silent:
+ * 0034, none was enforced without a pragma on each connection. Either way the failure is silent:
  * nothing errors, the constraints simply stop being checked and orphans start accumulating in tables
  * nothing reads. The one existing test that fabricated a {@code scan_id} out of a literal passed
  * happily for as long as the keys were absent, which is exactly how this reads when it regresses.

@@ -3,8 +3,6 @@ package com.asmolabs.vectispire.core.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.core.config.MigrationDialect;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -13,7 +11,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Optional;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -40,27 +37,19 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class ScanFactCopiesIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** Microseconds, which MySQL's {@code datetime(6)} keeps and a bare {@code datetime} would not. */
     private static final Instant SCANNED = Instant.parse("2026-09-01T10:00:00.123456Z");
 
-    private static Path sqlite;
-
     @BeforeAll
-    static void start() throws Exception {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
-        if (CONTAINER.isEmpty()) {
-            sqlite = Files.createTempFile("vectispire-scan-facts", ".db");
-        }
+    static void start() {
+        CONTAINER.start();
     }
 
     @AfterAll
-    static void stop() throws Exception {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
-        if (sqlite != null) {
-            Files.deleteIfExists(sqlite);
-        }
+    static void stop() {
+        CONTAINER.stop();
     }
 
     @Test
@@ -96,11 +85,9 @@ class ScanFactCopiesIntegrationTest {
                     .isEqualTo(new Copied(repository, null, createdAt(connection, repositoryScan)));
             assertThat(copied(connection, imageScan)).as("the image scan's component")
                     .isEqualTo(new Copied(null, image, createdAt(connection, imageScan)));
-            if (ENGINE != Engine.SQLITE) {
-                // SQLite's driver writes a timestamp as its milliseconds; the typed engines keep the
-                // microseconds, and the copy must too, or the search's order would tie scans apart.
-                assertThat(createdAt(connection, repositoryScan)).isEqualTo(SCANNED);
-            }
+            // The engines keep the microseconds, and the copy must too, or the search's order would
+            // tie scans apart.
+            assertThat(createdAt(connection, repositoryScan)).isEqualTo(SCANNED);
             try (Statement statement = connection.createStatement();
                     ResultSet rows = statement.executeQuery("select scan_id, repo_id from t_ai_review_result")) {
                 assertThat(rows.next()).isTrue();
@@ -182,14 +169,11 @@ class ScanFactCopiesIntegrationTest {
         MigrationDialect dialect = switch (ENGINE) {
             case POSTGRES -> MigrationDialect.POSTGRESQL;
             case MYSQL -> MigrationDialect.MYSQL;
-            case SQLITE -> MigrationDialect.SQLITE;
         };
         var configuration = Flyway.configure()
                 .locations(dialect.locations().toArray(String[]::new))
                 .placeholders(dialect.placeholders());
-        CONTAINER.ifPresentOrElse(
-                started -> configuration.dataSource(started.getJdbcUrl(), started.getUsername(), started.getPassword()),
-                () -> configuration.dataSource("jdbc:sqlite:" + sqlite, "", ""));
+        configuration.dataSource(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword());
         if (target != null) {
             configuration.target(target);
         }
@@ -197,9 +181,6 @@ class ScanFactCopiesIntegrationTest {
     }
 
     private static Connection connect() throws SQLException {
-        return CONTAINER.isPresent()
-                ? DriverManager.getConnection(CONTAINER.get().getJdbcUrl(), CONTAINER.get().getUsername(),
-                        CONTAINER.get().getPassword())
-                : DriverManager.getConnection("jdbc:sqlite:" + sqlite);
+        return DriverManager.getConnection(CONTAINER.getJdbcUrl(), CONTAINER.getUsername(), CONTAINER.getPassword());
     }
 }

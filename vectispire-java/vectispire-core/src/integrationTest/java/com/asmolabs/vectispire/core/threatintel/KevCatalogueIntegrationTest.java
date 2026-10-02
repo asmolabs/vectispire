@@ -29,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,7 +66,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 class KevCatalogueIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** CISA's catalogue in September 2026 lists some 1,500 CVE. */
     private static final int LISTED = 1_500;
@@ -82,12 +81,12 @@ class KevCatalogueIntegrationTest {
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -224,7 +223,7 @@ class KevCatalogueIntegrationTest {
             Future<ThreatIntelSyncStatus> two = second.submit(this::synchronise);
             // Under the lock the second cannot reach its first page's write while the first is held;
             // without it, it gets there at once. Waited for, not assumed — and the first released
-            // either way, under SQLite's busy timeout.
+            // either way, before the engine's lock wait could time out.
             boolean overtook = secondReached.await(1, TimeUnit.SECONDS);
             releaseFirst.countDown();
 

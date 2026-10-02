@@ -6,7 +6,6 @@ import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -23,27 +22,27 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  *
  * <p>The condition compares a nullable {@code bigint} and a string in one {@code where}: three-valued
  * logic on a null generation, and a generation — epoch milliseconds — past what a 32-bit column
- * holds. SQLite, which the HTTP suite runs on, stores any integer in any column and reads nothing
- * of the declared width, so only the two deployable engines can say the comparison holds.
+ * holds. Both deployable engines are asked, since they read the declared width differently and only
+ * they can say the comparison holds.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("accepting a sealing key on a real engine")
 class AgentSealingKeyIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     /** 2026-09-26 in epoch milliseconds: larger than an int, which is the point. */
     private static final long NOW = 1_790_380_800_000L;
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource

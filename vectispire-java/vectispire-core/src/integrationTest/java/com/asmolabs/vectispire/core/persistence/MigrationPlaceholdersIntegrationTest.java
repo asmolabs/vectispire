@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -37,25 +36,24 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  *
  * <p>Two kinds of assertion, because each misses what the other sees. The declared types are read
  * from each engine's catalog: that is where {@code datetime} and {@code datetime(6)} differ, which
- * decision 0013 is about. The behaviour is then written and read back: that is where an
- * {@code integer primary key} without {@code autoincrement} would reuse a deleted id on SQLite
- * while declaring nothing a catalog shows as wrong.
+ * decision 0013 is about. The behaviour is then written and read back: that is where an identity
+ * that reuses a deleted id would show, while declaring nothing a catalog shows as wrong.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the migration placeholders, on a real engine")
 class MigrationPlaceholdersIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
@@ -93,15 +91,6 @@ class MigrationPlaceholdersIntegrationTest {
                     .containsEntry("score", "double precision")
                     // A column, not an `oid` pointing into pg_largeobject.
                     .containsEntry("payload", "bytea");
-            case SQLITE -> assertThat(declared)
-                    // Only this exact spelling aliases the rowid; `autoincrement` is proven below.
-                    .containsEntry("id", "integer pk")
-                    .containsEntry("observed_at", "numeric")
-                    .containsEntry("unset_flag", "boolean")
-                    .containsEntry("set_flag", "boolean")
-                    .containsEntry("body", "text")
-                    .containsEntry("score", "double")
-                    .containsEntry("payload", "blob");
         }
     }
 
@@ -118,18 +107,8 @@ class MigrationPlaceholdersIntegrationTest {
 
             assertThat(second).isGreaterThan(first);
             assertThat(third)
-                    .as("an id handed out once must not come back: SQLite's `integer primary key` "
-                            + "without `autoincrement` gives the deleted last row's id to the next")
+                    .as("an id handed out once must not come back to the next row")
                     .isGreaterThan(second);
-
-            if (ENGINE == Engine.SQLITE) {
-                try (Statement statement = connection.createStatement();
-                        ResultSet rows = statement.executeQuery(
-                                "select count(*) from sqlite_sequence where name = 't_placeholder_probe'")) {
-                    rows.next();
-                    assertThat(rows.getInt(1)).as("autoincrement keeps its counter here").isEqualTo(1);
-                }
-            }
         }
     }
 
@@ -219,8 +198,6 @@ class MigrationPlaceholdersIntegrationTest {
             case POSTGRES -> "select column_name, concat_ws(' ', data_type,"
                     + " case when is_identity = 'YES' then 'identity' end, lower(identity_generation))"
                     + " from information_schema.columns where table_name = 't_placeholder_probe'";
-            case SQLITE -> "select name, lower(type) || case when pk = 1 then ' pk' else '' end"
-                    + " from pragma_table_info('t_placeholder_probe')";
         };
         Map<String, String> types = new TreeMap<>();
         List<String> seen = new ArrayList<>();

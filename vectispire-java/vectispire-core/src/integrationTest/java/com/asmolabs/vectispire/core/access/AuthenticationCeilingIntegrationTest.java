@@ -12,7 +12,6 @@ import com.asmolabs.vectispire.core.persistence.Engine;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,25 +32,25 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  *
  * <p>The ceiling holds because each attempt commits its failure before it counts, and whether a
  * committed row is visible to a count that starts afterwards is the engine's isolation — MySQL's
- * default is repeatable read, PostgreSQL's read committed. The unit suite shows it on SQLite, whose
- * single writer serialises everything; this is the proof on the engines deployments run.
+ * default is repeatable read, PostgreSQL's read committed. The unit suite shows it on MySQL; this is
+ * the proof on both engines deployments run.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("the sign-in ceiling under a burst, on a real engine")
 class AuthenticationCeilingIntegrationTest {
 
     private static final Engine ENGINE = Engine.selected();
-    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+    private static final JdbcDatabaseContainer<?> CONTAINER = ENGINE.container();
     private static final int BURST = 16;
 
     @BeforeAll
     static void start() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+        CONTAINER.start();
     }
 
     @AfterAll
     static void stop() {
-        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+        CONTAINER.stop();
     }
 
     @DynamicPropertySource
