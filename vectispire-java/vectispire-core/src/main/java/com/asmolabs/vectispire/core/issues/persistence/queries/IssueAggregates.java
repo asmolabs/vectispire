@@ -127,11 +127,13 @@ public final class IssueAggregates {
      *
      * @param owaspCategory the issue's column as stored, null included — the placement is the reader's
      *     ({@code OwaspCoverage.placementOf}), never restated in the query
-     * @param openAtEnd first seen before the week's end and not resolved before it. <b>A reopened issue
-     *     keeps only its latest resolution</b>: the row stores one {@code resolved_at}, so the weeks
-     *     between an earlier resolution and its reopening count it open
+     * @param openAtEnd first seen before the week's end, not resolved before it, and not inside an
+     *     earlier resolution a reopening recorded in the triage history (V68). <b>A reopening older than
+     *     V68 recorded nothing</b>: the row stores one {@code resolved_at}, so the weeks between such an
+     *     earlier resolution and its reopening count the issue open
      * @param opened first seen within the week
-     * @param resolved resolved within the week
+     * @param resolved resolved within the week — its latest resolution, or an earlier one a reopening
+     *     recorded; an issue counts once
      */
     public record WeeklyFlow(
             java.time.Instant weekStart, String type, String owaspCategory, long openAtEnd, long opened, long resolved) {}

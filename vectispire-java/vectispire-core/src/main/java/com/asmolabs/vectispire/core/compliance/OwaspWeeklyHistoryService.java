@@ -40,14 +40,26 @@ import org.springframework.transaction.annotation.Transactional;
  * the settings and rules that decided it have moved since and a state computed with today's would be
  * invented. The opened and resolved flows are counted from the dates on every week.
  *
+ * <h2>A reopened issue's earlier resolutions count</h2>
+ *
+ * <p>The issue keeps only its latest resolution; a reopening writes the one it ended into the triage
+ * history (origin {@code reopen}, V68), and the reconstruction reads it: an issue is not open at a week's
+ * end inside {@code [previous resolved_at, reopened at)}, and that earlier resolution is a resolution of
+ * its week. The clauses are the backlog's ({@code IssueSpecifications.openAt}, {@code resolvedWithin}), so
+ * a cell and the list it opens agree. A reopening before V68 wrote nothing, and such an issue still reads
+ * as open between that earlier resolution and its reopening — the limit the route states.
+ *
  * <h2>Settled, in the past, is not known — and is not guessed</h2>
  *
- * <p>The triage history ({@code t_issue_triage_event}) records each decision, but not every change of an
- * issue's triage: a reopening before V68 cleared the issue's {@code fixed} with no entry, and decisions
- * taken before the history existed have none. Reading "settled at that Sunday" from
- * it would count a regression as settled for every week after its reopening. So a reconstructed week's
- * {@code settled} is null and its {@code open} counts every issue open at its end, whatever its triage —
- * a figure stated, rather than one corrected by a guess.
+ * <p>Since V68 every change of an issue's triage writes an entry, and for an issue whose whole life
+ * followed the upgrade the triage of a date could be read from them. A week's figure is not made of such
+ * issues alone: an older issue's history may miss a decision taken before the history existed (V3) or a
+ * reopening before V68 that cleared a {@code fixed}, and when such a decision was undone before the
+ * history began nothing on the row shows the gap — the chain of entries looks whole. A settled figure
+ * exact for some issues and guessed for the rest is a guess; restricted to the issues first seen after the
+ * upgrade, it would be a part of the backlog presented as the week's, for every week holding an older
+ * issue. So a reconstructed week's {@code settled} is null and its {@code open} counts every issue open
+ * at its end, whatever its triage — a figure stated, rather than one corrected by a guess.
  *
  * <h2>Who sees what</h2>
  *
@@ -134,7 +146,8 @@ public class OwaspWeeklyHistoryService {
      *     says; <b>null when not recorded</b>, never one computed now for then
      * @param open on a recorded week, the open issues whose triage is not settled, as the grid counts
      *     them at the week's last capture; on a reconstructed week, every issue placed here that was open
-     *     at the week's end, whatever its triage. A reopened issue keeps only its latest resolution
+     *     at the week's end, whatever its triage — outside an earlier resolution a reopening recorded, and
+     *     with only its latest resolution for a reopening older than V68
      * @param settled on a recorded week, the open issues whose triage is settled; null on a reconstructed
      *     one, where the triage of that date is not known
      * @param opened issues placed here first seen during the week, from their dates, on every week

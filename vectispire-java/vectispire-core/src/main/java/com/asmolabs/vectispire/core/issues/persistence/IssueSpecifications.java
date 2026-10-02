@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.issues.persistence;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -27,12 +28,13 @@ public final class IssueSpecifications {
 
     /** The criteria as the predicate every query over the issues applies. */
     public static Specification<IssueEntity> of(IssueFilters filters) {
-        return (root, query, builder) -> predicate(filters, root, builder);
+        return (root, query, builder) -> predicate(filters, root, query, builder);
     }
 
     private static Predicate predicate(
             IssueFilters filters,
             jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CommonAbstractCriteria query,
             jakarta.persistence.criteria.CriteriaBuilder builder) {
         List<Predicate> predicates = new ArrayList<>();
 
@@ -107,7 +109,7 @@ public final class IssueSpecifications {
             predicates.add(placedIn(root, builder, filters.owaspCategory()));
         }
         if (filters.lifetime() != null) {
-            lived(predicates, root, builder, filters.lifetime());
+            lived(predicates, root, query, builder, filters.lifetime());
         }
 
         return builder.and(predicates.toArray(Predicate[]::new));
@@ -135,20 +137,18 @@ public final class IssueSpecifications {
     }
 
     /**
-     * The dates' clauses, each half open. Open at an instant is the weekly reconstruction's rule: seen
-     * before it, and not resolved before it — an issue resolved at that very instant was still open
-     * until then.
+     * The dates' clauses, each half open, through {@link #openAt} and {@link #resolvedWithin} — the rules
+     * the weekly reconstruction counts with, so that a figure and the list it opens agree.
      */
     private static void lived(
             List<Predicate> predicates,
             jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CommonAbstractCriteria query,
             jakarta.persistence.criteria.CriteriaBuilder builder,
             IssueFilters.Lifetime lifetime) {
         jakarta.persistence.criteria.Path<Instant> firstSeen = root.get("firstSeenAt");
-        jakarta.persistence.criteria.Path<Instant> resolved = root.get("resolvedAt");
         if (lifetime.openAt() != null) {
-            predicates.add(builder.lessThan(firstSeen, lifetime.openAt()));
-            predicates.add(builder.or(builder.isNull(resolved), builder.greaterThanOrEqualTo(resolved, lifetime.openAt())));
+            predicates.add(openAt(root, query, builder, new Bound.Value(lifetime.openAt())));
         }
         if (lifetime.firstSeenFrom() != null) {
             predicates.add(builder.greaterThanOrEqualTo(firstSeen, lifetime.firstSeenFrom()));
@@ -156,12 +156,128 @@ public final class IssueSpecifications {
         if (lifetime.firstSeenBefore() != null) {
             predicates.add(builder.lessThan(firstSeen, lifetime.firstSeenBefore()));
         }
-        if (lifetime.resolvedFrom() != null) {
-            predicates.add(builder.greaterThanOrEqualTo(resolved, lifetime.resolvedFrom()));
+        if (lifetime.resolvedFrom() != null || lifetime.resolvedBefore() != null) {
+            predicates.add(resolvedWithin(root, query, builder,
+                    lifetime.resolvedFrom() == null ? null : new Bound.Value(lifetime.resolvedFrom()),
+                    lifetime.resolvedBefore() == null ? null : new Bound.Value(lifetime.resolvedBefore())));
         }
-        if (lifetime.resolvedBefore() != null) {
-            predicates.add(builder.lessThan(resolved, lifetime.resolvedBefore()));
+    }
+
+    /**
+     * An instant a clause compares a column with: a value the criteria bind themselves (the backlog's
+     * filters), or a parameter the statement binds (the weekly flows, thirteen weeks in one select). Never
+     * a literal: a timestamp written into the statement is rendered by each dialect its own way, and that
+     * is where the engines differ.
+     */
+    sealed interface Bound {
+
+        /** The column is before the bound: {@code column < bound}. */
+        Predicate isBefore(jakarta.persistence.criteria.CriteriaBuilder builder, jakarta.persistence.criteria.Expression<Instant> column);
+
+        /** The column is at or after the bound: {@code column >= bound}. */
+        Predicate isNotBefore(jakarta.persistence.criteria.CriteriaBuilder builder, jakarta.persistence.criteria.Expression<Instant> column);
+
+        record Value(Instant instant) implements Bound {
+            @Override
+            public Predicate isBefore(jakarta.persistence.criteria.CriteriaBuilder builder, jakarta.persistence.criteria.Expression<Instant> column) {
+                return builder.lessThan(column, instant);
+            }
+
+            @Override
+            public Predicate isNotBefore(jakarta.persistence.criteria.CriteriaBuilder builder, jakarta.persistence.criteria.Expression<Instant> column) {
+                return builder.greaterThanOrEqualTo(column, instant);
+            }
         }
+
+        record Parameter(jakarta.persistence.criteria.Expression<Instant> parameter) implements Bound {
+            @Override
+            public Predicate isBefore(jakarta.persistence.criteria.CriteriaBuilder builder, jakarta.persistence.criteria.Expression<Instant> column) {
+                return builder.lessThan(column, parameter);
+            }
+
+            @Override
+            public Predicate isNotBefore(jakarta.persistence.criteria.CriteriaBuilder builder, jakarta.persistence.criteria.Expression<Instant> column) {
+                return builder.greaterThanOrEqualTo(column, parameter);
+            }
+        }
+    }
+
+    /**
+     * Open at an instant — the weekly reconstruction's rule, and the backlog's {@code open_at}: seen
+     * before it, not resolved before it, and <b>not inside an earlier resolution</b> either.
+     *
+     * <p>An issue resolved at that very instant was still open until then; the intervals are half open
+     * the same way, so an issue counts as not open at {@code at} when a resolution began before it and
+     * the reopening that ended it came at or after it — {@code [previous resolved_at, reopened at)}.
+     *
+     * <p><b>The earlier resolutions come from the triage history</b>: a reopening is an entry of origin
+     * {@code reopen} carrying the resolution it ended (V68). The issue itself keeps only its latest
+     * resolution, so before V68 a reopened issue read as open from its first sighting on — and still does
+     * for a reopening older than V68, which left no entry. One correlated {@code not exists} per instant,
+     * on the history's index by issue: the rule is the same clause in the list and in the grouped count,
+     * never a correction applied to one of them.
+     */
+    static Predicate openAt(
+            jakarta.persistence.criteria.Root<IssueEntity> issue,
+            jakarta.persistence.criteria.CommonAbstractCriteria query,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            Bound at) {
+        jakarta.persistence.criteria.Path<Instant> resolved = issue.get("resolvedAt");
+        return builder.and(
+                at.isBefore(builder, issue.get("firstSeenAt")),
+                builder.or(builder.isNull(resolved), at.isNotBefore(builder, resolved)),
+                builder.not(builder.exists(reopenings(issue, query, builder, (event, ended) -> builder.and(
+                        at.isBefore(builder, ended), at.isNotBefore(builder, event.get("occurredAt")))))));
+    }
+
+    /**
+     * Resolved within {@code [from, before)} — its latest resolution, or one a reopening ended. Either
+     * bound may be null, and asks nothing. An issue is counted once, however many of its resolutions fall
+     * in the interval: the figure is the issues resolved in a week, as the opened one is the issues seen.
+     */
+    static Predicate resolvedWithin(
+            jakarta.persistence.criteria.Root<IssueEntity> issue,
+            jakarta.persistence.criteria.CommonAbstractCriteria query,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            Bound from,
+            Bound before) {
+        return builder.or(
+                within(builder, issue.get("resolvedAt"), from, before),
+                builder.exists(reopenings(issue, query, builder, (event, ended) -> within(builder, ended, from, before))));
+    }
+
+    private static Predicate within(
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            jakarta.persistence.criteria.Expression<Instant> column,
+            Bound from,
+            Bound before) {
+        List<Predicate> bounds = new ArrayList<>(3);
+        // Null is no resolution: `>=` and `<` say so on their own, and a bound-less call says it here.
+        bounds.add(builder.isNotNull(column));
+        if (from != null) {
+            bounds.add(from.isNotBefore(builder, column));
+        }
+        if (before != null) {
+            bounds.add(before.isBefore(builder, column));
+        }
+        return builder.and(bounds.toArray(Predicate[]::new));
+    }
+
+    /** The issue's reopenings that satisfy {@code condition}, given the entry and the resolution it ended. */
+    private static jakarta.persistence.criteria.Subquery<Long> reopenings(
+            jakarta.persistence.criteria.Root<IssueEntity> issue,
+            jakarta.persistence.criteria.CommonAbstractCriteria query,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            java.util.function.BiFunction<jakarta.persistence.criteria.Root<TriageEventEntity>,
+                    jakarta.persistence.criteria.Path<Instant>, Predicate> condition) {
+        jakarta.persistence.criteria.Subquery<Long> reopening = query.subquery(Long.class);
+        jakarta.persistence.criteria.Root<TriageEventEntity> event = reopening.from(TriageEventEntity.class);
+        jakarta.persistence.criteria.Path<Instant> ended = event.get("previousResolvedAt");
+        return reopening.select(event.get("id")).where(
+                builder.equal(event.get("issueId"), issue.get("id")),
+                builder.equal(event.get("origin"), TriageOrigin.REOPENING.wireName()),
+                builder.isNotNull(ended),
+                condition.apply(event, ended));
     }
 
     /**

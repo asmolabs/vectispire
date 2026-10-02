@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.owasp.CoverageWeek;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
@@ -17,6 +18,8 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.compliance.OwaspWeeklyCoverageService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -66,6 +69,9 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
 
     @Autowired
     private OwaspWeeklyCoverageService record;
+
+    @Autowired
+    private TriageEventRepository events;
 
     // ------------------------------------------------------------------------------ the recorded week
 
@@ -143,6 +149,30 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
         assertThat(week.path("opened").asLong())
                 .as("an unplaced code finding and a plugin's are in no category, nor in the total")
                 .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("an earlier resolution a reopening recorded is not open, and is its week's resolution — a reopening that recorded nothing reads as before")
+    void anEarlierResolutionIsNotOpen() throws Exception {
+        long repo = repository();
+        Reopened backlog = aReopenedBacklog(repo);
+
+        JsonNode weeks = weekly("from=2025-03-03&to=2025-03-17", asAdmin()).path("weeks");
+        assertThat(counts(weeks.get(0), "A06"))
+                .as("resolved mid-week and not reopened before the week's end: not open, and resolved this week")
+                .containsExactly(1L, 0L, 1L);
+        assertThat(counts(weeks.get(1), "A06"))
+                .as("reopened at the next Monday's midnight: still resolved at this week's end")
+                .containsExactly(1L, 0L, 0L);
+        assertThat(counts(weeks.get(2), "A06")).as("open again").containsExactly(2L, 0L, 0L);
+
+        assertThat(listed("open_at=2025-03-09&owasp_category=A06", asAdmin()))
+                .as("the cell's list: the issue whose reopening recorded nothing, alone").containsExactly(backlog.unrecorded());
+        assertThat(listed("open_at=2025-03-17&owasp_category=A06", asAdmin()))
+                .containsExactlyInAnyOrder(backlog.unrecorded(), backlog.reopened());
+        assertThat(listed("resolved_from=2025-03-03&resolved_to=2025-03-09", asAdmin()))
+                .as("open today, and resolved that week").containsExactly(backlog.reopened());
+        assertThat(listed("resolved_from=2025-03-10", asAdmin())).as("its resolution began before").isEmpty();
     }
 
     @Test
@@ -332,6 +362,27 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
                 issue(repo, FindingType.SAST, "A03", midWeek, null),
                 issue(repo, FindingType.SAST, null, midWeek, null),
                 issue(repo, FindingType.PLUGIN, "A03", midWeek, null));
+    }
+
+    /**
+     * @param reopened a vulnerability first seen long before, resolved on the week's Wednesday and found
+     *     again at the Monday two weeks on, at midnight — open today, its earlier resolution in the history
+     * @param unrecorded a vulnerability first seen long before and open today, with no entry: a reopening
+     *     before the history recorded them reads as an issue open throughout
+     */
+    private record Reopened(long reopened, long unrecorded) {}
+
+    private Reopened aReopenedBacklog(long repo) {
+        long reopened = issue(repo, FindingType.VULNERABILITY, null, EARLIER, null);
+        TriageEventEntity reopening = new TriageEventEntity();
+        reopening.setIssueId(reopened);
+        reopening.setFromStatus(TriageStatus.FIXED.wireName());
+        reopening.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setOrigin(TriageOrigin.REOPENING.wireName());
+        reopening.setPreviousResolvedAt(Instant.parse("2025-03-05T00:00:00Z"));
+        reopening.setOccurredAt(Instant.parse("2025-03-17T00:00:00Z"));
+        events.save(reopening);
+        return new Reopened(reopened, issue(repo, FindingType.VULNERABILITY, null, EARLIER, null));
     }
 
     private static void assertSameAsTheGrid(JsonNode week, JsonNode grid) {

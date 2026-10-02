@@ -146,11 +146,12 @@ public class OwaspCoverageController {
             + "measured, NOT_COVERED if every target reads it, else NOT_MEASURED), open (unsettled, as the grid counts "
             + "them at the week's last capture) and settled. A week before the record is reconstructed: state and "
             + "settled are null, never computed now for then, and open counts every issue placed in the category "
-            + "that was first seen before the week's end and not resolved before it, whatever its triage — the triage "
-            + "of a past date is not known. opened and resolved are counted from the issues' dates on every week, "
-            + "placed as the grid places them, without the grid's measurement switches. Known limit: a reopened issue "
-            + "keeps only its latest resolution, so it counts as open in the weeks between an earlier resolution and "
-            + "its reopening.")
+            + "that was first seen before the week's end, not resolved before it and not inside an earlier resolution a "
+            + "reopening recorded, whatever its triage — the triage of a past date is not known. opened and resolved "
+            + "are counted from the issues' dates on every week — resolved includes an earlier resolution a reopening "
+            + "recorded — placed as the grid places them, without the grid's measurement switches. Known limit: a "
+            + "reopening before this release recorded nothing, so such an issue keeps only its latest resolution and "
+            + "counts as open in the weeks between an earlier resolution and that reopening.")
     @ApiResponse(responseCode = "200", description = "Weeks returned")
     @GetMapping("/weekly")
     public OwaspWeeklyHistoryService.OwaspWeeklyCoverage weeklyCoverage(

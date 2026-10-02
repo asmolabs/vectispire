@@ -71,9 +71,12 @@ public record IssueFilters(
      * bound is an instant, every interval half open ({@code from} included, {@code before} excluded),
      * and each is optional: null asks nothing.
      *
-     * @param openAt open at this instant: first seen before it, and not resolved before it — the rule
-     *     the weekly view reconstructs a week's end with, and with its limit: a reopened issue keeps only
-     *     its latest resolution
+     * @param openAt open at this instant: first seen before it, not resolved before it, and not inside an
+     *     earlier resolution a reopening recorded — the rule the weekly view reconstructs a week's end
+     *     with, and with its limit: a reopening older than V68 recorded nothing, and such an issue keeps
+     *     only its latest resolution
+     * @param resolvedFrom with {@code resolvedBefore}, resolved within: its latest resolution, or an
+     *     earlier one a reopening recorded
      */
     public record Lifetime(
             Instant openAt, Instant firstSeenFrom, Instant firstSeenBefore, Instant resolvedFrom, Instant resolvedBefore) {

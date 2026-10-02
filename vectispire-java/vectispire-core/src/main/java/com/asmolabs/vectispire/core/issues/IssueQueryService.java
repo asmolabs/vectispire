@@ -83,8 +83,9 @@ public class IssueQueryService {
      * @param openAt an ISO date: the issues open at the end of that day, UTC
      * @param firstSeenFrom an ISO date: first seen on that day or after, UTC
      * @param firstSeenTo an ISO date: first seen on that day or before, UTC
-     * @param resolvedFrom an ISO date: resolved on that day or after, UTC
-     * @param resolvedTo an ISO date: resolved on that day or before, UTC
+     * @param resolvedFrom an ISO date: resolved on that day or after, UTC — the latest resolution, or an
+     *     earlier one a reopening recorded
+     * @param resolvedTo an ISO date: resolved on that day or before, UTC, the same way
      */
     public record BacklogQuery(
             String state,

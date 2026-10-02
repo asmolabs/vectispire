@@ -295,13 +295,15 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
             Expression<Instant> end = builder.parameter(Instant.class, "end" + week);
             bound.put("start" + week, weeks.get(week));
             bound.put("end" + week, weeks.get(week).plus(java.time.Duration.ofDays(7)));
-            columns.add(builder.sum(oneWhen(builder, builder.and(
-                    builder.lessThan(firstSeen, end),
-                    builder.or(builder.isNull(resolved), builder.greaterThanOrEqualTo(resolved, end))))));
+            // Open at the end and resolved within: the backlog's own clauses (`IssueSpecifications`), so
+            // the cell and the list it opens cannot disagree — an earlier resolution a reopening recorded
+            // included, on both.
+            columns.add(builder.sum(oneWhen(builder,
+                    IssueSpecifications.openAt(issue, query, builder, new IssueSpecifications.Bound.Parameter(end)))));
             columns.add(builder.sum(oneWhen(builder, builder.and(
                     builder.greaterThanOrEqualTo(firstSeen, start), builder.lessThan(firstSeen, end)))));
-            columns.add(builder.sum(oneWhen(builder, builder.and(
-                    builder.greaterThanOrEqualTo(resolved, start), builder.lessThan(resolved, end)))));
+            columns.add(builder.sum(oneWhen(builder, IssueSpecifications.resolvedWithin(issue, query, builder,
+                    new IssueSpecifications.Bound.Parameter(start), new IssueSpecifications.Bound.Parameter(end)))));
         }
         query.select(builder.array(columns.toArray(jakarta.persistence.criteria.Selection<?>[]::new))).groupBy(issue.get("type"), issue.get("owaspCategory"));
 

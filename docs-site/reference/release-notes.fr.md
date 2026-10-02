@@ -44,12 +44,15 @@
   a capturés, et les issues ouvertes et résolues dans la semaine. **Une semaine antérieure au relevé est
   reconstituée à partir des dates des issues** et le dit : son état et son chiffre de constats réglés valent
   `null` plutôt que d'être devinés, et son chiffre d'ouverts compte toute issue ouverte à la fin de la
-  semaine, quel que soit son triage — le triage d'une date passée n'est pas connu. Une issue rouverte ne
-  garde que sa dernière résolution, et compte donc comme ouverte entre une résolution antérieure et sa
-  réouverture.
+  semaine, quel que soit son triage — le triage d'une date passée n'est pas connu. La résolution
+  antérieure d'une issue rouverte compte — pas ouverte de cette résolution à la réouverture, et une
+  résolution de sa semaine — d'après les entrées de réouverture de l'historique de triage ; une
+  réouverture antérieure à cette version n'en a laissé aucune, et une telle issue compte encore comme
+  ouverte entre cette résolution antérieure et sa réouverture.
 - **De nouveaux filtres du backlog pour les chiffres de cette vue** : `owasp_category` (`A01`…`A10`,
   rangée comme la grille range les issues — une vulnérabilité est `A06`), `open_at` (ouverte à la fin de
-  ce jour, UTC) et `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to`. **Avec une date
+  ce jour, UTC) et `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` et
+  l'intervalle de résolution lisent de même les résolutions antérieures d'une issue rouverte. **Avec une date
   et sans `state`, `GET /api/v1/issues` liste tous les états**, puisque les issues ouvertes un jour passé
   sont pour la plupart résolues depuis ; le défaut reste `open` sinon.
 

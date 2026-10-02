@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -18,6 +19,8 @@ import com.asmolabs.vectispire.core.compliance.persistence.OwaspWeeklyCoverageRe
 import com.asmolabs.vectispire.core.issues.IssueQueryService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
@@ -91,6 +94,9 @@ class OwaspWeeklyHistoryIntegrationTest {
     @Autowired
     private GitRepositoryRepository repositories;
 
+    @Autowired
+    private TriageEventRepository events;
+
     private long mine;
     private long theirs;
     private long resolvedAtTheEnd;
@@ -125,6 +131,32 @@ class OwaspWeeklyHistoryIntegrationTest {
         assertThat(counts(weeks.get(1), "A07")).containsExactly(1L, 1L, 0L);
         assertThat(line(weeks.get(0), "A06").state()).isNull();
         assertThat(line(weeks.get(0), "A06").settled()).isNull();
+    }
+
+    @Test
+    @DisplayName("an earlier resolution a reopening recorded: not open, its week's resolution — a correlated subquery in each sum")
+    void anEarlierResolution() {
+        long reopened = issue(mine, FindingType.VULNERABILITY, null, EARLIER, null);
+        TriageEventEntity reopening = new TriageEventEntity();
+        reopening.setIssueId(reopened);
+        reopening.setFromStatus(TriageStatus.FIXED.wireName());
+        reopening.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
+        reopening.setOrigin(TriageOrigin.REOPENING.wireName());
+        // Resolved a second before the week's end, found again at the next week's end: on both
+        // boundaries a timestamp rounded by a column type would move it.
+        reopening.setPreviousResolvedAt(NEXT_WEEK.minusSeconds(1));
+        reopening.setOccurredAt(NEXT_WEEK.plusSeconds(7 * 86_400));
+        events.save(reopening);
+
+        List<OwaspWeek> weeks = weekly.weeks(
+                new OwaspWeeklyHistoryService.Request("2025-03-03", "2025-03-17", null, null), everything()).weeks();
+        assertThat(counts(weeks.get(0), "A06")).as("the setup's three, and not this one").containsExactly(3L, 1L, 2L);
+        assertThat(counts(weeks.get(1), "A06")).containsExactly(2L, 0L, 1L);
+        assertThat(counts(weeks.get(2), "A06")).as("open again").containsExactly(3L, 0L, 0L);
+
+        assertThat(listed(query("A06", "2025-03-16", null, null, null, null))).doesNotContain(reopened).hasSize(2);
+        assertThat(listed(query("A06", "2025-03-17", null, null, null, null))).contains(reopened).hasSize(3);
+        assertThat(listed(query(null, null, null, null, "2025-03-09", "2025-03-09"))).contains(reopened).hasSize(2);
     }
 
     @Test

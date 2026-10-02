@@ -41,11 +41,15 @@
   state, the open and the settled findings as the weekly record captured them, and the issues opened and
   resolved in the week. **A week before the record is reconstructed from the issues' dates** and says
   so: its state and settled figure are `null` rather than guessed, and its open figure counts every issue
-  open at the week's end, whatever its triage — the triage of a past date is not known. A reopened issue
-  keeps only its latest resolution, so it counts as open between an earlier resolution and its reopening.
+  open at the week's end, whatever its triage — the triage of a past date is not known. An earlier
+  resolution of a reopened issue counts — not open from that resolution to the reopening, and a
+  resolution of its week — from the reopening entries of the triage history; a reopening before this
+  release left none, and such an issue still counts as open between that earlier resolution and its
+  reopening.
 - **New backlog filters for that view's figures**: `owasp_category` (`A01`…`A10`, placed as the grid
   places issues — a vulnerability is `A06`), `open_at` (open at the end of that day, UTC) and
-  `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to`. **With a date and no `state`,
+  `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` and the resolved range
+  read a reopened issue's earlier resolutions the same way. **With a date and no `state`,
   `GET /api/v1/issues` lists every state**, since the issues open on a past day are mostly resolved
   since; the default stays `open` otherwise.
 
