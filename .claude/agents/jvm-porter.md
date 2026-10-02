@@ -165,6 +165,11 @@ found by `FailureKind.of`, `CloneFailureException.Kind` from MINA's disconnect r
 exceptions, the HTTP status read off the connection — never from a message's words, which choose the
 sentence only; absent or unknown is transient. A new way for a scan not to run declares its kind, or
 it retries three times. A new claim query carries `(s.notBefore is null or s.notBefore <= :asOf)`.
+**JGit raises a different type per transport**, so a kind is measured on each one the URL allows
+(`https`, `ssh`, `git`): an absent repository is a `NoRemoteRepositoryException` over HTTPS and SSH,
+and over `git://` the daemon's `ERR` line, a `RemoteRepositoryException` — read as unknown, it was
+retried for a quarter of an hour (`CloneFailureKindTest`, `CloneFailureFateTest`, and the composition
+check's last two cases).
 
 **A failed claim statement is not a lost claim.** Where a key arbitrates between instances
 (`OneShotJobs.claim`), the loser's insert fails — and so does one that hit a lock timeout or a
