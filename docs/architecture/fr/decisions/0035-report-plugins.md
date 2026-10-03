@@ -604,7 +604,7 @@ ouverts ou énonçait sans précision. Le code est dans `core.reportplugins` (`P
 ## Construit en R2 (2026-10-03) : là où le code en dit plus que le §4
 
 Le lot R2 — le registre — a tranché ces points que le §4 laissait ouverts. Le code est dans
-`core.reportplugins` (`ReportPluginService`, migration V70) et `common/domain/reportplugins`
+`core.reportplugins` (`ReportPluginService`, migration V72) et `common/domain/reportplugins`
 (`ReportPluginManifest`, `ReportMediaType`, `ReportPluginManifestStatus`) ; ce que les deux registres
 imposent pareillement (identifiant, nom, arguments, nom de sortie) est passé dans
 `common/domain/plugins/ManifestRules`, partagé comme code avec le manifeste de la 0017, dont les messages et

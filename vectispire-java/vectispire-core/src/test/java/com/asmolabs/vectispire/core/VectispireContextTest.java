@@ -75,7 +75,7 @@ public abstract class VectispireContextTest {
             "t_plugin_activation",
             "t_plugin_manifest",
             "t_plugin",
-            // The report plugins' registry (V70, common, no foreign key). Left out, a report plugin registered by
+            // The report plugins' registry (V72, common, no foreign key). Left out, a report plugin registered by
             // one test would conflict with the next test's registration of the same id.
             "t_report_plugin_activation",
             "t_report_plugin_manifest",

@@ -558,7 +558,7 @@ loosely. The code is in `core.reportplugins` (`ProjectExportService`) and
 ## Built in R2 (2026-10-03): where the code says more than §4
 
 Lot R2 — the registry — settled these points §4 left open. The code is in `core.reportplugins`
-(`ReportPluginService`, migration V70) and `common/domain/reportplugins` (`ReportPluginManifest`,
+(`ReportPluginService`, migration V72) and `common/domain/reportplugins` (`ReportPluginManifest`,
 `ReportMediaType`, `ReportPluginManifestStatus`); what both registries enforce alike (id, name, arguments,
 output name) moved to `common/domain/plugins/ManifestRules`, shared as code with 0017's manifest, whose
 messages and digest are unchanged.
