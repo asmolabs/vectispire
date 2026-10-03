@@ -135,7 +135,8 @@ public class ForgeReviewService {
         if (wanted.isEmpty()) {
             return 0;
         }
-        Map<Long, Link> linked = links(wanted.stream().map(ChangeReviewDemand.Wanted::repositoryId).distinct().toList());
+        // Only once a reading is due: matching by URL walks every snapshot, and most turns read nothing.
+        Map<Long, Link> linked = null;
         int written = 0;
         for (ChangeReviewDemand.Wanted want : wanted) {
             Instant now = clock.instant();
@@ -145,8 +146,13 @@ public class ForgeReviewService {
                 break;
             }
             Optional<ForgeReviewReadingEntity> claimed = claim(want, now);
-            if (claimed.isPresent() && read(claimed.get(), want, Optional.ofNullable(linked.get(want.repositoryId())),
-                    turnEnds)) {
+            if (claimed.isEmpty()) {
+                continue;
+            }
+            if (linked == null) {
+                linked = links(wanted.stream().map(ChangeReviewDemand.Wanted::repositoryId).distinct().toList());
+            }
+            if (read(claimed.get(), want, Optional.ofNullable(linked.get(want.repositoryId())), turnEnds)) {
                 written++;
             }
         }
