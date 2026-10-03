@@ -47,8 +47,8 @@ import java.util.function.Function;
  * </ul>
  *
  * <p><b>The output is not checked here.</b> Its bytes come back as the plugin wrote them, read as a regular
- * file up to the ceiling; checking them against the declared type, and signing them, is the caller's next step
- * (lot R4). Until then nothing serves them.
+ * file up to the ceiling; checking them against the declared type ({@code ReportOutputCheck}), and signing
+ * them, is the caller's next step, and nothing is served that has not passed both.
  */
 public final class ReportPluginRenderer {
 

@@ -12,8 +12,8 @@ import java.util.Optional;
  * What a report plugin may produce — the closed list of decision 0035 §3, each with the extension its
  * output file carries.
  *
- * <p><b>Closed, and checked on the bytes later.</b> The manifest declares one of these; the executor (lot R4)
- * checks the file against it before the platform signs anything. HTML is not here — a document served from
+ * <p><b>Closed, and checked on the bytes.</b> The manifest declares one of these; {@link ReportOutputCheck}
+ * holds the file to it before the platform signs anything. HTML is not here — a document served from
  * the product's origin would run in it — nor the legacy binary Office formats, nor a macro-enabled package,
  * whatever its extension. A type added here is a type the platform will sign; it comes with its check.
  *
