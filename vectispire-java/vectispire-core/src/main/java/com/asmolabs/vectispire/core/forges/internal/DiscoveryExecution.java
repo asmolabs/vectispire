@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.forges.DiscoveredRepository;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
+import com.asmolabs.vectispire.common.domain.forges.UnreadableNamespace;
 import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -63,7 +64,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * address, a forge that does not answer end it {@code failed}. A next page on another origin, or an address the
  * guard refuses, ends it {@code failed} <em>and</em> is recorded {@code FORGE_CONNECTION_REFUSED} — signalled {@code
  * VECTI-SEC-036} — in the requester's name: it is how a forge pointing the token elsewhere, or a name rebound to
- * the internal network, shows itself. Only {@code completed} marks gone what the run did not list.
+ * the internal network, shows itself. Only {@code completed} marks gone what the run did not list — and not even
+ * that in a namespace the token could not read ({@link ForgeLister.Listing#unreadable}), nor, when the forge
+ * withheld namespaces without naming them, outside the namespaces the run read.
  */
 @Component
 public class DiscoveryExecution {
@@ -72,6 +75,9 @@ public class DiscoveryExecution {
 
     /** How often, at most, a run renews its lease between pages: before a request, when this long has passed. */
     static final Duration RENEWAL = Duration.ofSeconds(15);
+
+    /** Namespaces per statement when the gone marks are confined or taken back: far under every bind limit. */
+    static final int NAMESPACE_BATCH = 1_000;
 
     private final ForgeDiscoveryRepository discoveries;
     private final ForgeRepositoryRepository repositories;
@@ -184,6 +190,9 @@ public class DiscoveryExecution {
         private final Set<String> namespaces = new HashSet<>();
         private final Set<String> listed = new HashSet<>();
         private final Set<String> languages = new LinkedHashSet<>();
+        /** By lower-case path: GitHub's logins are case-insensitive, and an owner may be typed in either case. */
+        private final Map<String, UnreadableNamespace> unreadable = new LinkedHashMap<>();
+        private final List<UnreadableNamespace> withheld = new ArrayList<>();
         private final List<OutboundPager> pagers = new ArrayList<>();
         private ForgeClient.Target target;
         private String token;
@@ -256,6 +265,19 @@ public class DiscoveryExecution {
             if (path != null) {
                 namespaces.add(path);
             }
+        }
+
+        @Override
+        public void unreadable(String path, String reason) {
+            if (path != null) {
+                namespaces.add(path);
+                unreadable.putIfAbsent(path.toLowerCase(Locale.ROOT), new UnreadableNamespace(path, reason));
+            }
+        }
+
+        @Override
+        public void namespacesIncomplete(String reason) {
+            withheld.add(new UnreadableNamespace(null, reason));
         }
 
         @Override
@@ -350,8 +372,14 @@ public class DiscoveryExecution {
             repositories.saveAll(rows);
         }
 
-        /** The listing's facts onto the row — the language aside: it is asked after the listing, or kept. */
+        /**
+         * The listing's facts onto the row. The language only when the listing carries one — GitHub's does; GitLab's
+         * is asked after the listing — and kept otherwise.
+         */
         private void apply(ForgeRepositoryEntity row, DiscoveredRepository repository) {
+            if (repository.language() != null) {
+                row.setLanguage(repository.language());
+            }
             row.setFullPath(repository.fullPath());
             row.setNamespacePath(repository.namespacePath());
             row.setPersonal(repository.personal());
@@ -365,6 +393,55 @@ public class DiscoveryExecution {
             row.setHttpUrl(repository.httpUrl());
             row.setSshUrl(repository.sshUrl());
             row.setWebUrl(repository.webUrl());
+        }
+
+        /**
+         * Marks gone what this completed run did not list: everything, as for any forge, but what lay in a namespace
+         * it could not read; only within the namespaces it read when the forge withheld some unnamed. How many.
+         */
+        private int markGone(Instant now) {
+            if (!withheld.isEmpty()) {
+                List<String> read = namespaces.stream().map(path -> path.toLowerCase(Locale.ROOT))
+                        .filter(path -> !unreadable.containsKey(path)).distinct().toList();
+                int gone = 0;
+                for (int from = 0; from < read.size(); from += NAMESPACE_BATCH) {
+                    gone += repositories.markGoneWithin(connectionId, id, now,
+                            read.subList(from, Math.min(read.size(), from + NAMESPACE_BATCH)));
+                }
+                return gone;
+            }
+            int gone = repositories.markGone(connectionId, id, now);
+            List<String> refused = List.copyOf(unreadable.keySet());
+            for (int from = 0; from < refused.size(); from += NAMESPACE_BATCH) {
+                gone -= repositories.unmarkGone(connectionId, id,
+                        refused.subList(from, Math.min(refused.size(), from + NAMESPACE_BATCH)));
+            }
+            return gone;
+        }
+
+        private List<UnreadableNamespace> recorded() {
+            List<UnreadableNamespace> all = new ArrayList<>(unreadable.values());
+            all.addAll(withheld);
+            return all;
+        }
+
+        /**
+         * The outcome's sentence; for a run that otherwise completed, what it could not read — so that a screen
+         * reading the detail alone does not take a refused organisation for an empty one.
+         */
+        private String detail(Outcome outcome) {
+            if (outcome.detail() != null) {
+                return outcome.detail();
+            }
+            List<UnreadableNamespace> all = recorded();
+            if (all.isEmpty()) {
+                return null;
+            }
+            return all.size() + (all.size() == 1 ? " namespace" : " namespaces") + " could not be read with this "
+                    + "token, and none of their repositories is marked gone: " + all.stream()
+                            .map(namespace -> namespace.path() == null ? namespace.reason()
+                                    : namespace.path() + " — " + namespace.reason())
+                            .collect(Collectors.joining("; "));
         }
 
         /** Before every request: the lease renewed, and the progress written, when {@link #RENEWAL} has passed. */
@@ -398,15 +475,14 @@ public class DiscoveryExecution {
         boolean finish(Outcome outcome) {
             Instant now = clock.instant();
             Boolean ended = transactions.execute(status -> {
-                Integer gone = outcome.state() == DiscoveryState.COMPLETED
-                        ? repositories.markGone(connectionId, id, now) : null;
+                Integer gone = outcome.state() == DiscoveryState.COMPLETED ? markGone(now) : null;
                 int newCount = (int) repositories.countByConnectionIdAndFirstSeenBy(connectionId, id);
                 int changedCount = (int) repositories.countByConnectionIdAndChangedBy(connectionId, id);
                 int finished = discoveries.finish(id, DiscoveryState.RUNNING.wireName(), owner,
                         outcome.state().wireName(), outcome.reason() == null ? null : outcome.reason().wireName(),
-                        outcome.detail() == null ? null : BoundedText.clip(outcome.detail(), 2000), now,
+                        BoundedText.clip(detail(outcome), 2000), now,
                         namespaces.size(), listed.size(), skipped, requests(), waitedSeconds(),
-                        outcome.rateLimitResetAt(), newCount, changedCount, gone);
+                        outcome.rateLimitResetAt(), newCount, changedCount, gone, UnreadableNamespace.encode(recorded()));
                 if (finished != 1) {
                     status.setRollbackOnly();
                     return false;

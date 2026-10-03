@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
+import com.asmolabs.vectispire.common.domain.forges.UnreadableNamespace;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -123,7 +124,7 @@ public class ForgeDiscoveryService {
         ForgeKind kind = ForgeKind.parse(connection.getKind());
         if (!execution.lists(kind)) {
             throw new ForgeDiscoveryConflict(ForgeDiscoveryConflict.Cause.UNSUPPORTED, "This version does not discover "
-                    + "the repositories of a " + kind.wireName() + " connection yet; GitLab's are discovered.");
+                    + "the repositories of a " + kind.wireName() + " connection yet.");
         }
         String key = connectionId.toString();
         ForgeDiscoveryEntity saved;
@@ -229,7 +230,7 @@ public class ForgeDiscoveryService {
                 run.getRequestedBy(), run.getAttempts(), run.getStartedAt(), run.getFinishedAt(), run.getNamespacesSeen(),
                 run.getRepositoriesSeen(), run.getRepositoriesSkipped(), run.getRequestsMade(),
                 run.getRateLimitWaitSeconds(), run.getRateLimitResetAt(), run.getNewCount(), run.getChangedCount(),
-                run.getGoneCount());
+                run.getGoneCount(), UnreadableNamespace.decode(run.getUnreadableNamespaces()));
     }
 
     static ForgeRepositoryView view(ForgeRepositoryEntity row) {

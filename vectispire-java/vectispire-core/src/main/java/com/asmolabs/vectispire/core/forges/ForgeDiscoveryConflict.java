@@ -12,7 +12,10 @@ public class ForgeDiscoveryConflict extends ConflictException {
     public enum Cause {
         /** A discovery of this connection is pending or running: it is the one to poll; {@code discoveryId} names it. */
         IN_PROGRESS("forge-discovery-in-progress"),
-        /** This version lists no repositories of this forge yet — GitHub's adapter is lot D4. */
+        /**
+         * This version lists no repositories of this forge — no adapter for its kind. GitLab and GitHub both have
+         * one; kept for the forge a later lot adds (Bitbucket, D8), whose connections may exist before its listing.
+         */
         UNSUPPORTED("forge-discovery-unsupported"),
         /**
          * Repositories are selected and imported from a discovery that ended with something to choose from —

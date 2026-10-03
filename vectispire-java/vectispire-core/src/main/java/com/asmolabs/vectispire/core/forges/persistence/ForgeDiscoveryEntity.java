@@ -99,6 +99,11 @@ public class ForgeDiscoveryEntity {
     @Column(name = "gone_count")
     private Integer goneCount;
 
+    /** {@code UnreadableNamespace.encode}'s text: what the run could not read, and why; null when it read everything. */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "unreadable_namespaces")
+    private String unreadableNamespaces;
+
     public Long getId() {
         return id;
     }
@@ -276,5 +281,13 @@ public class ForgeDiscoveryEntity {
 
     public void setGoneCount(Integer goneCount) {
         this.goneCount = goneCount;
+    }
+
+    public String getUnreadableNamespaces() {
+        return unreadableNamespaces;
+    }
+
+    public void setUnreadableNamespaces(String unreadableNamespaces) {
+        this.unreadableNamespaces = unreadableNamespaces;
     }
 }

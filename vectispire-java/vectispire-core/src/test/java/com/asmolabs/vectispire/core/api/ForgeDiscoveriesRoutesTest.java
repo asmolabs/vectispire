@@ -514,32 +514,10 @@ class ForgeDiscoveriesRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("refuses in words: an unknown connection 404, a GitHub connection 409 until its adapter lands, a bad change 400")
+    @DisplayName("refuses in words: an unknown connection 404, a bad change 400")
     void refusedInWords() throws Exception {
         assertThat(detailOf(request(UUID.randomUUID().toString(), asAdmin()).andExpect(status().isNotFound()).andReturn()))
                 .isEqualTo("Forge connection not found.");
-
-        ForgeStub github = ForgeStub.start();
-        try {
-            github.route("/api/v3/users/acme", Reply.json("{\"login\":\"acme\"}")
-                    .with("X-GitHub-Enterprise-Version", "3.14.2"));
-            Map<String, Object> body = new HashMap<>();
-            body.put("name", "Internal GitHub");
-            body.put("kind", "github");
-            body.put("baseUrl", github.baseUrl());
-            body.put("owner", "acme");
-            body.put("internalNetwork", true);
-            body.put("caPem", github.caPem);
-            body.put("token", "github_pat_11DISCOVERY000000000000_x"); // gitleaks:allow
-            String id = json.readTree(mvc.perform(authenticated(post("/api/v1/forge-connections"), asAdmin())
-                            .contentType(MediaType.APPLICATION_JSON).content(write(body)))
-                    .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).at("/id").asText();
-            JsonNode refused = json.readTree(request(id, asAdmin()).andExpect(status().isConflict())
-                    .andReturn().getResponse().getContentAsString());
-            assertThat(refused.at("/type").asText()).endsWith("forge-discovery-unsupported");
-        } finally {
-            github.close();
-        }
 
         String connectionId = connection();
         JsonNode run = json.readTree(request(connectionId, asAdmin()).andReturn().getResponse().getContentAsString());

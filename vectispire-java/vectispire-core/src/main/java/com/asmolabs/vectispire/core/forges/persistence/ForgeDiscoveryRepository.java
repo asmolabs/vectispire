@@ -38,7 +38,7 @@ public interface ForgeDiscoveryRepository extends JpaRepository<ForgeDiscoveryEn
                set d.state = :running, d.claimedBy = :owner, d.leaseExpiresAt = :leaseExpiresAt,
                    d.startedAt = :startedAt, d.attempts = d.attempts + 1,
                    d.namespacesSeen = 0, d.repositoriesSeen = 0, d.repositoriesSkipped = 0, d.requestsMade = 0,
-                   d.rateLimitWaitSeconds = 0
+                   d.rateLimitWaitSeconds = 0, d.unreadableNamespaces = null
              where d.id = :id and d.state = :pending""")
     int take(
             @Param("id") long id,
@@ -81,7 +81,7 @@ public interface ForgeDiscoveryRepository extends JpaRepository<ForgeDiscoveryEn
                    d.namespacesSeen = :namespaces, d.repositoriesSeen = :repositories,
                    d.repositoriesSkipped = :skipped, d.requestsMade = :requests, d.rateLimitWaitSeconds = :waited,
                    d.rateLimitResetAt = :resetAt, d.newCount = :newCount, d.changedCount = :changedCount,
-                   d.goneCount = :goneCount
+                   d.goneCount = :goneCount, d.unreadableNamespaces = :unreadable
              where d.id = :id and d.state = :running and d.claimedBy = :owner""")
     int finish(
             @Param("id") long id,
@@ -99,7 +99,8 @@ public interface ForgeDiscoveryRepository extends JpaRepository<ForgeDiscoveryEn
             @Param("resetAt") Instant resetAt,
             @Param("newCount") Integer newCount,
             @Param("changedCount") Integer changedCount,
-            @Param("goneCount") Integer goneCount);
+            @Param("goneCount") Integer goneCount,
+            @Param("unreadable") String unreadableNamespaces);
 
     /** The runs whose instance stopped answering: running, their lease lapsed. */
     @Query("select d.id from ForgeDiscoveryEntity d where d.state = :running and d.leaseExpiresAt < :asOf order by d.id")

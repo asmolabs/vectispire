@@ -2,7 +2,9 @@ package com.asmolabs.vectispire.core.forges;
 
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
+import com.asmolabs.vectispire.common.domain.forges.UnreadableNamespace;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -19,6 +21,10 @@ import java.util.UUID;
  *     until it ends
  * @param goneCount repositories no longer listed — written by a completed run only, null for any other: a partial
  *     listing proves nothing about what it did not reach
+ * @param unreadableNamespaces the namespaces the token could not read — an organisation behind single sign-on, an
+ *     IP allow list, a policy refusing the token — each with its reason; a path of {@code null} for namespaces the
+ *     forge withheld without naming them. None of their repositories is marked gone by this run. Empty when the
+ *     run read everything it was shown
  */
 public record ForgeDiscoveryView(
         long id,
@@ -39,4 +45,5 @@ public record ForgeDiscoveryView(
         Instant rateLimitResetAt,
         Integer newCount,
         Integer changedCount,
-        Integer goneCount) {}
+        Integer goneCount,
+        List<UnreadableNamespace> unreadableNamespaces) {}

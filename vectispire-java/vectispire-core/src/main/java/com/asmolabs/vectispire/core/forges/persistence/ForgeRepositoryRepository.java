@@ -34,6 +34,33 @@ public interface ForgeRepositoryRepository extends JpaRepository<ForgeRepository
              where r.connectionId = :connectionId and r.lastSeenBy <> :discoveryId and r.goneBy is null""")
     int markGone(@Param("connectionId") UUID connectionId, @Param("discoveryId") long discoveryId, @Param("at") Instant at);
 
+    /**
+     * Marks gone, as {@link #markGone} does, only the repositories of these namespaces (lower case): for a run that
+     * could not learn every namespace the token sees, and so proves nothing about a namespace it did not read. A
+     * batch of namespaces at a time — the caller's, under the bind limit.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ForgeRepositoryEntity r set r.goneBy = :discoveryId, r.goneAt = :at
+             where r.connectionId = :connectionId and r.lastSeenBy <> :discoveryId and r.goneBy is null
+               and lower(r.namespacePath) in :namespaces""")
+    int markGoneWithin(@Param("connectionId") UUID connectionId, @Param("discoveryId") long discoveryId,
+            @Param("at") Instant at, @Param("namespaces") Collection<String> namespaces);
+
+    /**
+     * Takes back what {@link #markGone} just marked in namespaces the run could not read (lower case): a refusal is
+     * not an absence. Only this run's marks — a repository an earlier run found gone stays so. A batch at a time.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ForgeRepositoryEntity r set r.goneBy = null, r.goneAt = null
+             where r.connectionId = :connectionId and r.goneBy = :discoveryId
+               and lower(r.namespacePath) in :namespaces""")
+    int unmarkGone(@Param("connectionId") UUID connectionId, @Param("discoveryId") long discoveryId,
+            @Param("namespaces") Collection<String> namespaces);
+
     /** The language a run asked for after listing, or unknown. */
     @Transactional
     @Modifying(clearAutomatically = true)

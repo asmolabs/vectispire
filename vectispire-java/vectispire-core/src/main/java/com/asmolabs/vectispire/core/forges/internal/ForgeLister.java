@@ -11,6 +11,11 @@ import java.util.Map;
  * written against: the job, the snapshot and its comparison are written once, each adapter maps. GitLab's is lot
  * D3's; GitHub's is D4's.
  *
+ * <p><b>A namespace the token cannot read is not a failed run</b> (§3): where a forge lists per namespace, a 403 on
+ * one of them is {@link Listing#unreadable}, and the run goes on with the others. Where a forge withholds
+ * namespaces without naming them, {@link Listing#namespacesIncomplete} says so. Either way the run marks none of
+ * the repositories it could not see gone — a refusal is not an absence.
+ *
  * <p><b>Every request goes through the {@link OutboundPager} the listing hands out</b> — opened on the
  * connection's API origin, with the run's deadline, its rate-limit bound and its lease renewal — and never
  * through a client of the adapter's own.
@@ -41,6 +46,19 @@ public interface ForgeLister {
 
         /** A namespace seen; counted once whatever the number of times it is named. */
         void namespace(String path);
+
+        /**
+         * A namespace the token could not read: recorded on the run with the reason, counted as seen, and none of
+         * its repositories marked gone by this run. What was read of it before the refusal is kept.
+         */
+        void unreadable(String path, String reason);
+
+        /**
+         * The forge withheld namespaces without naming them — or would not say which namespaces the token sees at
+         * all: recorded on the run with the reason, and this run marks gone only repositories of the namespaces it
+         * read.
+         */
+        void namespacesIncomplete(String reason);
 
         /**
          * A page of repositories, kept in the snapshot and compared with it.
