@@ -266,7 +266,9 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   sans renouvellement. Une exécution produite garde l'export qu'elle a reçu, purgé par la fenêtre
   des preuves ; rien d'autre n'est gardé d'une exécution qui n'a pas produit. **Une installation dont le
   worker intégré est coupé ne peut pas exécuter de plugins de rapport** dans cette version : 409
-  `report-executor-unavailable`. Journalisé `REPORT_REQUESTED`, `PROJECT_EXPORTED` (`VECTI-SEC-032`, l'export
+  `report-executor-unavailable` ; une exécution mise en file avant la coupure du worker passe en échec
+  `executor_unavailable` quand rien ne l'a prise en charge pendant dix-sept minutes alors qu'aucun exécuteur
+  ne travaillait, plutôt que de rester en attente pour toujours. Journalisé `REPORT_REQUESTED`, `PROJECT_EXPORTED` (`VECTI-SEC-032`, l'export
   atteignant un plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` — ce dernier envoyé au SIEM
   comme le nouveau `VECTI-SEC-033`. **Le document n'est pas encore servi** : sa vérification contre son type
   déclaré, sa signature et son téléchargement sont le lot suivant, et d'ici là ses octets ne sont pas

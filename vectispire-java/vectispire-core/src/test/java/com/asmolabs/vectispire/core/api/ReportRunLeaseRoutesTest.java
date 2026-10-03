@@ -17,11 +17,14 @@ import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportQueue;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportRunSweepTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportWorker;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,13 +33,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * A report run's lease, in real time (decision 0035 §2, lot R3): renewed while its executor carries it out, so a
- * run longer than the lease is not failed as lost; and still lapsing once nobody renews it.
+ * run longer than the lease is not failed as lost; still lapsing once nobody renews it; and a run nobody claims for
+ * a whole lease, while no executor works, failed rather than left waiting for ever.
  *
  * <p><b>A lease of three seconds</b>, so that a run can outlive it within a test: the renewal is a heartbeat on a
  * clock of its own, which no stand-in for the database's clock would move. The stand-in for the container is
@@ -63,6 +68,12 @@ class ReportRunLeaseRoutesTest extends ApiTestBase {
 
     @Autowired
     private ReportQueue queue;
+
+    @Autowired
+    private ReportRunSweepTask sweep;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     private long project;
     private long otherProject;
@@ -153,5 +164,51 @@ class ReportRunLeaseRoutesTest extends ApiTestBase {
         assertThat(queue.renew(runId, "dead-instance")).as("too late: the run was failed as lost").isFalse();
         assertThat(entries(AuditOperation.REPORT_FAILED)).singleElement()
                 .satisfies(entry -> assertThat(entry.getDescription()).contains("executor_lost"));
+    }
+
+    @Test
+    @DisplayName("a run nobody claimed for a whole lease, while no executor ran anything, fails executor_unavailable")
+    void unclaimed() throws Exception {
+        long runId = idOf(request(project).andExpect(status().isAccepted()));
+        sweep.run();
+        assertThat(run(project, runId).at("/state").asText()).as("within its lease it waits").isEqualTo("pending");
+
+        Thread.sleep(LEASE.plusMillis(500).toMillis());
+        sweep.run();
+        JsonNode failed = run(project, runId);
+        assertThat(failed.at("/state").asText()).isEqualTo("failed");
+        assertThat(failed.at("/reason").asText()).isEqualTo("executor_unavailable");
+        assertThat(failed.at("/detail").asText()).contains("No executor claimed this run");
+        assertThat(entries(AuditOperation.REPORT_FAILED)).singleElement()
+                .satisfies(entry -> assertThat(entry.getDescription()).contains("executor_unavailable"));
+        request(project).andExpect(status().isAccepted());
+    }
+
+    @Test
+    @DisplayName("but not while an executor holds a run, nor when one started a run within the lease")
+    void notWhileAnExecutorWorks() throws Exception {
+        long busy = idOf(request(otherProject).andExpect(status().isAccepted()));
+        assertThat(queue.claim("busy-instance")).contains(busy);
+        long waiting = idOf(request(project).andExpect(status().isAccepted()));
+        // A day back: the driver may read the timestamp in the JVM's zone, and an hour's offset must not leave it
+        // inside the lease.
+        jdbc.update("update t_report_run set requested_at = ? where id = ?",
+                Timestamp.from(Instant.now().minusSeconds(86_400)), waiting);
+
+        // Busy: the other run is in hand and its lease alive — the queue is long, not abandoned.
+        sweep.run();
+        assertThat(run(project, waiting).at("/state").asText()).isEqualTo("pending");
+
+        // It ended a moment ago: an executor is there, between two claims.
+        jdbc.update("update t_report_run set state = 'produced', active_key = null, claimed_by = null, "
+                + "lease_expires_at = null, started_at = ? where id = ?", Timestamp.from(Instant.now()), busy);
+        sweep.run();
+        assertThat(run(project, waiting).at("/state").asText()).isEqualTo("pending");
+
+        // Nothing started within the lease: nobody is there.
+        jdbc.update("update t_report_run set started_at = ? where id = ?",
+                Timestamp.from(Instant.now().minusSeconds(86_400)), busy);
+        sweep.run();
+        assertThat(run(project, waiting).at("/reason").asText()).isEqualTo("executor_unavailable");
     }
 }

@@ -6,11 +6,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportRunSweepTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportWorker;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +44,12 @@ class ReportExecutorUnavailableRoutesTest extends ApiTestBase {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private ReportRunSweepTask sweep;
+
+    @Autowired
+    private AuditLogRepository auditLog;
 
     @Test
     @DisplayName("409 report-executor-unavailable, after the project and the role, and nothing queued")
@@ -71,5 +82,31 @@ class ReportExecutorUnavailableRoutesTest extends ApiTestBase {
 
         assertThat(jdbc.queryForObject("select count(*) from t_report_run", Long.class)).isZero();
         assertThat(worker.drain()).as("and the turn claims nothing it could not run").isZero();
+    }
+
+    @Test
+    @DisplayName("restarted with the worker off, the runs queued and claimed before are failed, not kept for ever")
+    void sweptWithoutAnExecutor() {
+        // What an instance with an executor left before the restart: a run waiting, and one in hand whose
+        // executor is gone. A day back, beyond any lease, whatever zone the driver reads a timestamp in.
+        Timestamp dayAgo = Timestamp.from(Instant.now().minusSeconds(86_400));
+        jdbc.update("insert into t_report_run (project_id, plugin_id, state, active_key, requested_at, requested_by, "
+                + "requested_by_id) values (1, 'summary', 'pending', 'summary@1', ?, 'ada', 1)", dayAgo);
+        jdbc.update("insert into t_report_run (project_id, plugin_id, state, active_key, requested_at, requested_by, "
+                + "requested_by_id, claimed_by, started_at, lease_expires_at) values (2, 'summary', 'running', "
+                + "'summary@2', ?, 'ada', 1, 'gone-instance', ?, ?)", dayAgo, dayAgo, dayAgo);
+        assertThat(worker.drain()).as("the worker's turn is idle here").isZero();
+        assertThat(jdbc.queryForList("select state from t_report_run", String.class)).containsOnly("pending", "running");
+
+        sweep.run();
+
+        assertThat(jdbc.queryForList("select reason from t_report_run where project_id = 1", String.class))
+                .containsExactly("executor_unavailable");
+        assertThat(jdbc.queryForList("select reason from t_report_run where project_id = 2", String.class))
+                .containsExactly("executor_lost");
+        assertThat(jdbc.queryForObject("select count(*) from t_report_run where active_key is not null", Long.class))
+                .as("each plugin's turn for its project is free again").isZero();
+        assertThat(auditLog.findAll()).filteredOn(entry -> AuditOperation.REPORT_FAILED.wireName()
+                .equals(entry.getOperationType())).hasSize(2);
     }
 }

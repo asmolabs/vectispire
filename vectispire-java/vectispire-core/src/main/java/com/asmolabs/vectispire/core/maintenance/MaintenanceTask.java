@@ -66,6 +66,8 @@ public interface MaintenanceTask {
         public static final int SCHEDULING_TICK = 20;
         /** Beside the scheduling tick, on its minute: whether scans needing a credential have anyone to take them. */
         public static final int CREDENTIALED_BACKLOG = 30;
+        /** On the scheduler's minute too: the report runs no executor holds or will claim. */
+        public static final int REPORT_RUN_SWEEP = 40;
         public static final int SCAN_RETENTION = 100;
         public static final int SENT_MESSAGES = 200;
         public static final int TICKET_SWEEP = 300;

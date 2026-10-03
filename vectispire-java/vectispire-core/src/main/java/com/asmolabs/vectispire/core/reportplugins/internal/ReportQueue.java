@@ -34,6 +34,14 @@ import org.springframework.stereotype.Component;
  * again later would describe another instant than the one they asked for. They ask again. Every instance with an
  * executor looks for such runs at each turn, which covers a start-up as well as a sibling gone.
  *
+ * <p><b>A run nobody can claim is failed too</b> ({@link #failUnclaimed}), {@code executor_unavailable}: one still
+ * waiting a whole lease after it was asked, while no run is running and none was started within that lease — so no
+ * executor is there, which a busy one would contradict by the runs it holds. A request is refused where this
+ * instance has no executor, but a run queued before the built-in worker was switched off, or while a sibling with
+ * one was still up, would otherwise wait for ever, holding its plugin's turn for the project. Both sweeps are
+ * {@code ReportRunSweepTask}'s on every instance, executor or not: the worker's turn, which fails the lapsed runs
+ * too, does not run where there is no executor — which is where they are.
+ *
  * <p>{@code vectispire.reports.lease} shortens the lease for the suite that waits for one to lapse; the default is
  * the decision's, and an operator has no reason to move it.
  */
@@ -84,6 +92,36 @@ public class ReportQueue {
      */
     public boolean renew(long runId, String owner) {
         return runs.renew(runId, ReportRunState.RUNNING.wireName(), owner, clock.instant().plus(lease)) == 1;
+    }
+
+    /**
+     * Fails every run still waiting a whole lease after it was asked while no executor ran or started anything
+     * within that lease, {@code executor_unavailable}, each audited {@code REPORT_FAILED} in its requester's name:
+     * the ids it failed.
+     */
+    public List<Long> failUnclaimed() {
+        Instant now = clock.instant();
+        Instant since = now.minus(lease);
+        if (runs.executorsSeenSince(ReportRunState.RUNNING.wireName(), since) > 0) {
+            return List.of();
+        }
+        long minutes = Math.max(1, lease.toMinutes());
+        List<Long> failed = new ArrayList<>();
+        for (Long id : runs.unclaimed(ReportRunState.PENDING.wireName(), since)) {
+            int ended = runs.failUnclaimed(id, ReportRunState.PENDING.wireName(), ReportRunState.FAILED.wireName(),
+                    ReportRunReason.EXECUTOR_UNAVAILABLE.wireName(), "No executor claimed this run in the " + minutes
+                            + " minute(s) after it was asked, and none ran anything meanwhile: no instance of the control "
+                            + "plane with a container endpoint — the built-in worker — was there to run it. Nothing was "
+                            + "run. Request the report again once one is.", now);
+            if (ended == 1) {
+                failed.add(id);
+                runs.findById(id).ifPresent(run -> audit.record(new RequestActor(run.getRequestedBy(), null, null).entry(
+                        AuditOperation.REPORT_FAILED, String.valueOf(id), "Report run " + id + " of report plugin \""
+                                + run.getPluginId() + "\" for project " + run.getProjectId() + " failed, "
+                                + "executor_unavailable: no executor claimed it.")));
+            }
+        }
+        return failed;
     }
 
     /**

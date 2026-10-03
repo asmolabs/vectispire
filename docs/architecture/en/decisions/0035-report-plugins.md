@@ -618,6 +618,13 @@ Lot R3 — the executor — settled these points §2 left open. The code is in `
   run past it is failed `executor_lost` by any instance's next turn, at a start-up or otherwise, and **not retried**: a report
   describes the instant it was asked for. Every write after the take names the claimant, so an executor whose
   lease lapsed records nothing — nor stores its export.
+- **A run nobody can claim is failed, `executor_unavailable`**: one still pending a whole lease after it was
+  asked, while no run is running and none was started within that lease — a busy executor holds runs, an idle
+  one claims within ten seconds, so neither is there. A request is refused where there is no executor, but a
+  run queued before the built-in worker was switched off, and restarted without it, stayed pending for ever,
+  holding the plugin's turn for the project, and one in hand stayed running: the worker's turn, the only
+  sweep, is idle without an executor. Both sweeps are a maintenance task on the scheduler's minute
+  (`ReportRunSweepTask`), on every instance, each a conditional update audited `REPORT_FAILED`.
 - **The claim settles again what the request settled**: a plugin switched off for the project, disabled or
   left without an approved manifest fails the run `plugin_unavailable`; a requester deactivated, demoted, or no
   longer seeing the whole project fails it `requester_not_allowed` — the export is built for them alone, their
@@ -627,7 +634,7 @@ Lot R3 — the executor — settled these points §2 left open. The code is in `
   produced is refused `export_schema_unavailable`.
 - **Failure reasons are closed**: `exit_code`, `timeout`, `output_full` (a full directory, `SIGXFSZ`, or a file
   over the ceiling), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`,
-  `plugin_unavailable`, `executor_lost`, `executor_error`; refusals `unsigned`, `signature_unverified`,
+  `plugin_unavailable`, `executor_lost`, `executor_unavailable`, `executor_error`; refusals `unsigned`, `signature_unverified`,
   `registry_authentication_required`, `export_schema_unavailable`. A verifier that could not start said nothing
   of the image, so it is `executor_error`, not a refusal — 0017's rule.
 - **What R3 keeps, and what it does not.** A produced run keeps the export it was given (`t_report_export`,

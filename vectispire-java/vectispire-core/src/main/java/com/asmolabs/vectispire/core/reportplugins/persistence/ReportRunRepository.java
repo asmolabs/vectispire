@@ -124,6 +124,36 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
             @Param("detail") String detail,
             @Param("asOf") Instant asOf);
 
+    /**
+     * Whether any executor is at work, or was lately — the runs running, or started after {@code since}; none
+     * means none. An
+     * executor that is there claims a waiting run within its interval, and one too busy to has runs in hand.
+     */
+    @Query("select count(r) from ReportRunEntity r where r.state = :running or r.startedAt > :since")
+    long executorsSeenSince(@Param("running") String running, @Param("since") Instant since);
+
+    /** The runs still waiting that were asked before {@code before}. */
+    @Query("select r.id from ReportRunEntity r where r.state = :pending and r.requestedAt < :before order by r.id")
+    List<Long> unclaimed(@Param("pending") String pending, @Param("before") Instant before);
+
+    /**
+     * Fails a run nobody claimed — and only while nobody has: a take that won the race keeps the run.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ReportRunEntity r
+               set r.state = :failed, r.reason = :reason, r.detail = :detail, r.finishedAt = :asOf,
+                   r.activeKey = null
+             where r.id = :id and r.state = :pending""")
+    int failUnclaimed(
+            @Param("id") long id,
+            @Param("pending") String pending,
+            @Param("failed") String failed,
+            @Param("reason") String reason,
+            @Param("detail") String detail,
+            @Param("asOf") Instant asOf);
+
     /** Whether a run of this plugin for this project is pending or running — what the active key holds. */
     boolean existsByActiveKey(String activeKey);
 

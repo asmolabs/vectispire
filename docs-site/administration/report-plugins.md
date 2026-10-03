@@ -106,7 +106,10 @@ for a person.
 built-in worker uses (`VECTISPIRE_DOCKER_HOST` or `DOCKER_HOST` — the socket proxy in the shipped
 composition). An installation whose built-in worker is switched off (`VECTISPIRE_EMBEDDED_WORKER=false`,
 every scan on agents) **cannot run report plugins in this version**: a request is refused, 409
-`report-executor-unavailable`, rather than queued for nobody. Running on an agent is a later lot.
+`report-executor-unavailable`, rather than queued for nobody. Running on an agent is a later lot. The runs
+queued before the worker was switched off are not left waiting: one nothing claims for seventeen minutes,
+while no executor runs or starts anything, is failed `executor_unavailable`, and a run that was in hand is
+failed `executor_lost` once its lease lapses — every instance looks for both every minute.
 
 **What the claim does**, in order:
 
@@ -133,7 +136,7 @@ A run is in exactly one state:
 | `pending` | Requested, waiting for the executor. |
 | `running` | Claimed. Its executor renews its lease while it runs, however long the pull and the signature check take. A run whose lease lapses — the longest timeout a manifest may declare, the verifier's two minutes and ten minutes, seventeen minutes without a renewal — was left by an executor that stopped: it is failed, `executor_lost`, and not retried. Ask again. |
 | `produced` | The plugin exited 0 and wrote its file within its bounds. The export it was given is kept with the run. |
-| `failed` | `exit_code`, `timeout`, `output_full` (the directory filled or a file outgrew the ceiling), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` — with the detail, the plugin's own words for an exit code. |
+| `failed` | `exit_code`, `timeout`, `output_full` (the directory filled or a file outgrew the ceiling), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_unavailable` (nothing claimed it for seventeen minutes while no executor worked), `executor_error` — with the detail, the plugin's own words for an exit code. |
 | `refused` | Not started: `signature_unverified`, `unsigned`, `registry_authentication_required`, or `export_schema_unavailable` (the manifest reads an export major this installation no longer produces). The fix is the image's provenance or its version, not its code. |
 
 **One run of a plugin per project at a time**: a second request while one is pending or running is

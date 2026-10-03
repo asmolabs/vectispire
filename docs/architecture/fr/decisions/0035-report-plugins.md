@@ -675,6 +675,14 @@ migration V75) et `common/scanning/scanners/ReportPluginRenderer`, qui exécute 
   nouvelle tentative** : un rapport décrit l'instant pour lequel il a été demandé. Chaque écriture après la
   prise nomme celui qui l'a prise : un exécuteur dont le bail a expiré n'enregistre rien — ni ne stocke son
   export.
+- **Une exécution que personne ne peut prendre passe en échec, `executor_unavailable`** : celle encore en
+  attente un bail entier après sa demande, alors qu'aucune exécution ne tourne et qu'aucune n'a démarré dans ce
+  bail — un exécuteur occupé tient des exécutions, un exécuteur oisif prend en charge en dix secondes, donc
+  aucun n'est là. Une demande est refusée là où il n'y a pas d'exécuteur, mais une exécution mise en file avant
+  la coupure du worker intégré, puis un redémarrage sans lui, restait en attente pour toujours, bloquant le tour
+  du plugin pour le projet, et celle en cours restait `running` : le tour du worker, seul balayage, est inactif
+  sans exécuteur. Les deux balayages sont une tâche de maintenance à la minute du planificateur
+  (`ReportRunSweepTask`), sur chaque instance, chacun une mise à jour conditionnelle journalisée `REPORT_FAILED`.
 - **La prise re-tranche ce que la demande avait tranché** : un plugin désactivé pour le projet, désactivé ou
   laissé sans manifeste approuvé met l'exécution en échec `plugin_unavailable` ; un demandeur désactivé,
   rétrogradé, ou qui ne voit plus le projet entier la met en échec `requester_not_allowed` — l'export est
@@ -685,7 +693,7 @@ migration V75) et `common/scanning/scanners/ReportPluginRenderer`, qui exécute 
   `export_schema_unavailable`.
 - **Les motifs d'échec sont fermés** : `exit_code`, `timeout`, `output_full` (un répertoire plein, `SIGXFSZ`,
   ou un fichier au-delà du plafond), `output_missing`, `output_not_regular`, `export_too_large`,
-  `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` ; les refus `unsigned`,
+  `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_unavailable`, `executor_error` ; les refus `unsigned`,
   `signature_unverified`, `registry_authentication_required`, `export_schema_unavailable`. Un vérificateur qui
   n'a pas pu démarrer n'a rien dit de l'image : c'est `executor_error`, pas un refus — la règle de la 0017.
 - **Ce que R3 garde, et ce qu'il ne garde pas.** Une exécution produite garde l'export qu'elle a reçu

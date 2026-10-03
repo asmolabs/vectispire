@@ -7029,7 +7029,7 @@ export interface components {
             projectId?: number;
             projectName?: string;
             /** @enum {string} */
-            reason?: "unsigned" | "signature_unverified" | "registry_authentication_required" | "export_schema_unavailable" | "exit_code" | "timeout" | "output_full" | "output_missing" | "output_not_regular" | "export_too_large" | "requester_not_allowed" | "plugin_unavailable" | "executor_lost" | "executor_error";
+            reason?: "unsigned" | "signature_unverified" | "registry_authentication_required" | "export_schema_unavailable" | "exit_code" | "timeout" | "output_full" | "output_missing" | "output_not_regular" | "export_too_large" | "requester_not_allowed" | "plugin_unavailable" | "executor_lost" | "executor_unavailable" | "executor_error";
             /** Format: date-time */
             requestedAt?: string;
             requestedBy?: string;

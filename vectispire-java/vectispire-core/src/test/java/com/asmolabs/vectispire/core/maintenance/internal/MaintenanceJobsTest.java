@@ -40,6 +40,8 @@ import com.asmolabs.vectispire.core.outbox.internal.SentMessagesTask;
 import com.asmolabs.vectispire.core.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.posture.internal.WeeklyDigestTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportExportRetentionTask;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportQueue;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportRunSweepTask;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.scanning.RetentionService;
 import com.asmolabs.vectispire.core.scanning.SchedulerService;
@@ -95,6 +97,7 @@ class MaintenanceJobsTest {
             NotificationRelayTask.class,
             SchedulingTickTask.class,
             CredentialedBacklogTask.class,
+            ReportRunSweepTask.class,
             ScanRetentionTask.class,
             SentMessagesTask.class,
             TicketSweepTask.class,
@@ -134,6 +137,7 @@ class MaintenanceJobsTest {
     private OwaspReviewService reviews;
     private ThreatIntelFeedService feed;
     private ReportExportRepository reportExports;
+    private ReportQueue reportQueue;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -158,6 +162,7 @@ class MaintenanceJobsTest {
         reviews = mock(OwaspReviewService.class);
         feed = mock(ThreatIntelFeedService.class);
         reportExports = mock(ReportExportRepository.class);
+        reportQueue = mock(ReportQueue.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
@@ -172,6 +177,7 @@ class MaintenanceJobsTest {
                 new NotificationRelayTask(outbox),
                 new SchedulingTickTask(scheduler),
                 new CredentialedBacklogTask(backlog, clock),
+                new ReportRunSweepTask(reportQueue),
                 new ScanRetentionTask(retention),
                 new SentMessagesTask(outbox),
                 new TicketSweepTask(tickets),
@@ -265,6 +271,7 @@ class MaintenanceJobsTest {
         verify(outbox, never()).relay(anyInt());
         verify(scheduler, never()).runOnce();
         verify(backlog, never()).unserved();
+        verify(reportQueue, never()).failUnclaimed();
     }
 
     @Test
@@ -316,6 +323,10 @@ class MaintenanceJobsTest {
         // On the scheduler's minute: the scans needing a credential that nobody able to be handed it
         // can take, which only a log line and a gauge would otherwise ever say.
         verify(backlog).unserved();
+        // On that minute too, and on every instance: the only sweep of the report runs where no executor is — a
+        // control plane restarted with its built-in worker off kept them pending and running for ever.
+        verify(reportQueue).failLapsed();
+        verify(reportQueue).failUnclaimed();
         verify(retention, never()).prune();
     }
 

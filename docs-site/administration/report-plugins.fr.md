@@ -110,7 +110,10 @@ Docker qu'utilise le worker intégré (`VECTISPIRE_DOCKER_HOST` ou `DOCKER_HOST`
 composition livrée). Une installation dont le worker intégré est coupé (`VECTISPIRE_EMBEDDED_WORKER=false`,
 toutes les analyses sur des agents) **ne peut pas exécuter de plugins de rapport dans cette version** : une
 demande est refusée, 409 `report-executor-unavailable`, plutôt que mise en file pour personne. L'exécution
-sur un agent est un lot ultérieur.
+sur un agent est un lot ultérieur. Les exécutions mises en file avant la coupure du worker ne restent pas en
+attente : celle que rien ne prend en charge pendant dix-sept minutes, alors qu'aucun exécuteur n'exécute ni ne
+démarre rien, passe en échec `executor_unavailable`, et celle qui était en cours passe en échec
+`executor_lost` quand son bail expire — chaque instance cherche les deux chaque minute.
 
 **Ce que fait la prise en charge**, dans l'ordre :
 
@@ -139,7 +142,7 @@ Une exécution est dans exactement un état :
 | `pending` | Demandée, en attente de l'exécuteur. |
 | `running` | Prise en charge. Son exécuteur renouvelle son bail tant qu'elle tourne, quelle que soit la durée du pull et de la vérification de la signature. Une exécution dont le bail expire — le plus long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et dix minutes, dix-sept minutes sans renouvellement — a été laissée par un exécuteur arrêté : elle passe en échec, `executor_lost`, sans nouvelle tentative. Redemandez-la. |
 | `produced` | Le plugin est sorti avec 0 et a écrit son fichier dans ses limites. L'export qu'il a reçu est conservé avec l'exécution. |
-| `failed` | `exit_code`, `timeout`, `output_full` (le répertoire s'est rempli ou un fichier a dépassé le plafond), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` — avec le détail, les propres mots du plugin pour un code de sortie. |
+| `failed` | `exit_code`, `timeout`, `output_full` (le répertoire s'est rempli ou un fichier a dépassé le plafond), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_unavailable` (rien ne l'a prise en charge pendant dix-sept minutes alors qu'aucun exécuteur ne travaillait), `executor_error` — avec le détail, les propres mots du plugin pour un code de sortie. |
 | `refused` | Pas démarrée : `signature_unverified`, `unsigned`, `registry_authentication_required`, ou `export_schema_unavailable` (le manifeste lit une version majeure d'export que cette installation ne produit plus). La correction porte sur la provenance de l'image ou sa version, pas sur son code. |
 
 **Une exécution d'un plugin par projet à la fois** : une seconde demande pendant qu'une autre est en attente

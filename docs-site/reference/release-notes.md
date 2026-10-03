@@ -248,7 +248,9 @@ another branch, is another target and is accepted as before.
   failed `executor_lost` once the lease lapses — seventeen minutes without a renewal. A
   produced run keeps the export it was given, purged by the evidence window; nothing else is kept of a run
   that did not produce. **An installation whose built-in worker is switched off cannot run report plugins**
-  in this version: 409 `report-executor-unavailable`. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`
+  in this version: 409 `report-executor-unavailable`; a run queued before the worker was switched off is
+  failed `executor_unavailable` once nothing has claimed it for seventeen minutes while no executor worked,
+  rather than left pending for ever. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`
   (`VECTI-SEC-032`, the export reaching a plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` —
   the last sent to the SIEM as the new `VECTI-SEC-033`. **The document is not served yet**: checking it
   against its declared type, signing it and its download are the next lot, and until then its bytes are

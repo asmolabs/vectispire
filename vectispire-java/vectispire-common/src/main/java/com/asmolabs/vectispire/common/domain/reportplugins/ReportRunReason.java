@@ -42,6 +42,12 @@ public enum ReportRunReason {
     PLUGIN_UNAVAILABLE("plugin_unavailable", ReportRunState.FAILED),
     /** The executor holding the run stopped answering: its lease lapsed. */
     EXECUTOR_LOST("executor_lost", ReportRunState.FAILED),
+    /**
+     * Nothing claimed the run for a whole lease after it was asked, while no executor ran or started anything:
+     * no instance with a container endpoint was there to run it — the built-in worker switched off since, or
+     * every instance stopped. Failed rather than left pending for ever, holding its plugin's turn for the project.
+     */
+    EXECUTOR_UNAVAILABLE("executor_unavailable", ReportRunState.FAILED),
     /** The executor could not do its part — the daemon, the pull, the verifier, the host — whatever the plugin did. */
     EXECUTOR_ERROR("executor_error", ReportRunState.FAILED);
 
