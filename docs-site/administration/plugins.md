@@ -600,7 +600,8 @@ repository** that states the scan's branch, or no branch:
   an unchanged tree keeps the build's versions. Older scans keep what they were given. A newer SBOM
   that no longer lists a package gives the scanner's row back.
 - **Not a scan.** A scan whose SBOM step failed is not completed: the build's word completes a
-  scanner's inventory, it does not stand in for a scan that did not look. Vulnerability matching still
+  scanner's inventory, it does not stand in for a scan that did not look. One whose SBOM the retention
+  purged after its inventory was written still holds the scanner's rows, and is completed. Vulnerability matching still
   runs on the scanner's SBOM, inside the scan, and **an SBOM opens and resolves no issue**.
 
 Every reader reads the same completed rows: the **component search** shows each row's source —

@@ -621,7 +621,8 @@ de son dépôt** qui déclare la branche du scan, ou aucune branche :
   scan nocturne d'une arborescence inchangée garde les versions du build. Les scans plus anciens
   gardent ce qu'ils ont reçu. Un SBOM plus récent qui ne liste plus un paquet rend la ligne du scanner.
 - **Pas un scan.** Un scan dont l'étape SBOM a échoué n'est pas complété : la parole du build complète
-  l'inventaire d'un scanner, elle ne remplace pas un scan qui n'a pas regardé. La correspondance des
+  l'inventaire d'un scanner, elle ne remplace pas un scan qui n'a pas regardé. Celui dont la rétention a
+  purgé le SBOM après l'écriture de son inventaire garde les lignes du scanner, et il est complété. La correspondance des
   vulnérabilités tourne toujours sur le SBOM du scanner, dans le scan, et **un SBOM n'ouvre ni ne
   résout aucune issue**.
 

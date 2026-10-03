@@ -376,6 +376,32 @@ class BuildSbomImportRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a scan whose payload the retention purged after indexing is completed; one that kept nothing is not")
+        void purgedPayloads() throws Exception {
+            long indexed = scan(ledger, "main", hoursAgo(3));
+            ScanEntity purged = scans.findById(indexed).orElseThrow();
+            purged.setSbom(null);
+            scans.save(purged);
+            Key key = sbomKey();
+            upload(key, ledger, fixture("cyclonedx-maven-ledger.json")).andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.completedScanId").value(indexed));
+            assertThat(inventory(indexed)).containsEntry("snakeyaml", "2.2 build");
+
+            ScanEntity failed = new ScanEntity();
+            failed.setRepoId(ledger);
+            failed.setBranch("main");
+            failed.setStatus(ScanStatus.COMPLETED.wireName());
+            failed.setCreatedAt(hoursAgo(1));
+            failed.setAttempts(1);
+            failed.setExaminedTypes("secret");
+            long nothing = scans.save(failed).getId();
+            upload(key, ledger, fixture("cyclonedx-maven-ledger.json")).andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.completedScanId").value(Matchers.nullValue()));
+            assertThat(components.findByScanId(nothing)).as("the build does not stand in for a scan that kept nothing")
+                    .isEmpty();
+        }
+
+        @Test
         @DisplayName("an SBOM with no completed scan to complete is kept, and the first scan is completed by it")
         void beforeAnyScan() throws Exception {
             upload(sbomKey(), ledger, fixture("cyclonedx-maven-ledger.json")).andExpect(status().isCreated())

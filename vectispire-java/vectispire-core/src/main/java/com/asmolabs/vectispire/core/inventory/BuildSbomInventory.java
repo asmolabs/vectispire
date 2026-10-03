@@ -49,10 +49,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Older scans keep what they were given.</b> A scan's inventory is history: scan 12, completed by
  * import 3, still says so after import 4 completed scan 13. Only the newest scan moves on an import.
  *
- * <p><b>A scan whose scanner listed nothing it could keep is not completed</b> — one whose SBOM step
- * failed, or whose SBOM the payload retention purged before it was read. The build's word completes a
- * scanner's inventory; it does not stand in for a scan that did not look (decision 0007), and the
- * inventory keeps saying "absent" where it did.
+ * <p><b>A scan that kept no inventory is not completed</b> — one whose SBOM step failed, or whose SBOM
+ * the payload retention purged before it was indexed. The build's word completes a scanner's inventory;
+ * it does not stand in for a scan that did not look (decision 0007), and the inventory keeps saying
+ * "absent" where it did. A scan whose payload was purged <em>after</em> its inventory was written still
+ * holds the scanner's rows, which the component rules read, and is completed like any other.
  *
  * <p>Nothing here opens or resolves an issue, and nothing is matched against advisories: the
  * vulnerability matcher runs inside the scan, on the scanner's SBOM.
@@ -119,8 +120,9 @@ public class BuildSbomInventory {
     }
 
     /**
-     * Completes the repository's newest completed scan holding an SBOM with the newest build SBOM that may
-     * speak for it, and answers that scan — empty when there is none.
+     * Completes the repository's newest completed scan with the newest build SBOM that may speak for it,
+     * and answers that scan — empty when there is none, or when that scan kept no inventory: neither its
+     * SBOM nor a component row.
      *
      * <p>Called again by the import after its commit: a scan whose ingestion read the imports just before
      * this one committed, and committed just after the import's own completion chose the scan before it,
@@ -130,7 +132,9 @@ public class BuildSbomInventory {
     public Optional<Long> completeNewest(long repositoryId) {
         NewestCompletedScanRow newest = scans.newestCompleted(List.of(new ScanTarget.Repository(repositoryId)))
                 .get(new ScanTarget.Repository(repositoryId));
-        if (newest == null || !newest.sbomStored()) {
+        // The SBOM stored, or the rows it left: the retention purges the payload and keeps the inventory,
+        // which the component rules go on reading — a scan purged after indexing is completed as well.
+        if (newest == null || !newest.sbomStored() && components.countByScanIdIn(List.of(newest.scanId())) == 0) {
             return Optional.empty();
         }
         complete(new ScanOrigin(newest.scanId(), repositoryId, null, newest.createdAt()));

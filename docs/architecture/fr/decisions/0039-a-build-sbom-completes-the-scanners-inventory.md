@@ -85,9 +85,11 @@ complétion d'un plus ancien : ce que l'ancien avait ajouté s'en va, et une lig
 retrouve la version et le purl du scanner (`scanned_version`, `scanned_purl`).
 
 **Les scans plus anciens gardent ce qu'ils ont reçu.** L'inventaire d'un scan est de l'histoire : seul
-le scan le plus récent bouge à un import. **Un scan dont le scanner n'a gardé aucun inventaire n'est pas
-complété** — son étape SBOM a échoué, ou la rétention des charges a purgé le SBOM avant sa lecture : la
-parole du build complète l'inventaire d'un scanner, elle ne remplace pas un scan qui n'a pas regardé.
+le scan le plus récent bouge à un import. **Un scan qui n'a gardé aucun inventaire n'est pas complété**
+— son étape SBOM a échoué, ou la rétention des charges a purgé le SBOM avant son indexation : la parole
+du build complète l'inventaire d'un scanner, elle ne remplace pas un scan qui n'a pas regardé. Un scan
+dont la charge a été purgée *après* l'écriture de son inventaire garde les lignes du scanner, que lisent
+les règles de composants, et il est complété.
 
 **La provenance sur chaque ligne.** `t_component.origin` est nul pour le scanner (toute ligne écrite
 avant V82 et toute ligne qu'un scan écrit), `build` pour un composant que seul le build a listé, `both`
@@ -105,7 +107,7 @@ peut contredire un autre.
 | La recherche de composants, `GET /api/v1/inventory/search` | les lignes de chaque scan, chacune avec `source` (`scanner`, `build`, `both`) et, pour `both`, `scannerVersion` |
 | L'inventaire consolidé du projet et son export CycloneDX | le scan terminé le plus récent de chaque cible, complété ; chaque composant fusionné avec `sources` |
 | L'export de projet ([0035](0035-report-plugins.md) §1) | la même chose, `inventory.components[].sources` — un champ facultatif, schéma **1.1** |
-| Les règles de checklist `component_versions` et `component_present` | les composants du scan le plus récent de chaque dépôt où l'étape de dépendances a produit (`ComponentCatalog.componentsOf`, la lecture que les deux règles partagent), **complétés par le SBOM de build le plus récent de la branche de ce scan** : les versions du build à la place d'`UNKNOWN`, les bibliothèques transitives présentes. Le scan qu'elles lisent ne change pas ; un SBOM de build seul n'est pas un scan, et une règle qui exige que ce scan garde son SBOM l'exige toujours |
+| Les règles de checklist `component_versions` et `component_present` | les composants du scan le plus récent de chaque dépôt où l'étape de dépendances a produit (`ComponentCatalog.componentsOf`, la lecture que les deux règles partagent), **complétés par le SBOM de build le plus récent de la branche de ce scan** : les versions du build à la place d'`UNKNOWN`, les bibliothèques transitives présentes. Le scan qu'elles lisent ne change pas, ni ce qu'elles répondent quand il n'a gardé aucun inventaire (`inventory_absent`) ; un SBOM de build seul n'est pas un scan |
 | L'inventaire des licences et ses décomptes | le SBOM du scanner et les lignes de composants, comme avant ; une ligne complétée remplace l'entrée que le SBOM du scanner donnait sous sa propre version, avec la licence déclarée par le build (sinon celle du scanner). Le tampon des décomptes compte les lignes complétées par un build et l'import le plus récent parmi elles, si bien qu'un SBOM qui arrive les fait recompter sans qu'aucun scan ne bouge |
 | Le diff de SBOM entre deux scans | les lignes des deux scans, complétées comme chacun l'a été |
 | La correspondance des vulnérabilités | **inchangée** : Grype tourne dans le scan sur le SBOM du scanner. Un SBOM de build n'ouvre ni ne résout aucun problème |
