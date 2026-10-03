@@ -152,7 +152,7 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
                 List<LicenseEntry> seen = estate.stream().filter(entry -> allowed.permits(ownerOf(entry))).toList();
 
                 assertThat(licences.getInventory(allowed, null, null)).containsExactlyInAnyOrderElementsOf(seen);
-                assertThat(scorecards.getGlobalScorecard(allowed).licenseViolationCount())
+                assertThat(scorecards.getPortfolioScorecard(allowed).licenseViolationCount())
                         .isEqualTo(seen.stream().filter(entry -> !entry.compliant()).count());
                 assertThat(licences.violationsWithin(allowed))
                         .isEqualTo(seen.stream().filter(entry -> !entry.compliant()).count());

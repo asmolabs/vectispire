@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.scorecard.PortfolioScorecard;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -81,12 +82,21 @@ public class ScorecardController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target not found."));
     }
 
-    @Operation(summary = "Get global scorecard", description = "Calculates cross-organizational aggregate security posture grade.")
-    @ApiResponse(responseCode = "200", description = "Global scorecard retrieved successfully")
+    /**
+     * The estate the caller sees, with no grade of its own since 0.11.0 (decision 0036): it carried a
+     * {@code score} and a {@code grade} computed over the summed backlog, which an estate's size alone
+     * sent to F. The fields are gone rather than kept with another meaning — an integration reading
+     * them reads nothing, which is the honest answer, rather than a figure that no longer means what
+     * it did.
+     */
+    @Operation(summary = "Get the portfolio's scorecard",
+            description = "How many of the targets the caller sees read each grade (no data included), the weakest of "
+                    + "them, and the risk points of everything open. The portfolio has no single grade since 0.11.0.")
+    @ApiResponse(responseCode = "200", description = "Portfolio scorecard retrieved successfully")
     @GetMapping("/global")
     @RequiresAccount
-    public SecurityScorecard getGlobalScorecard(@AuthenticationPrincipal VectispirePrincipal principal) {
-        return scorecardService.getGlobalScorecard(
+    public PortfolioScorecard getGlobalScorecard(@AuthenticationPrincipal VectispirePrincipal principal) {
+        return scorecardService.getPortfolioScorecard(
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
@@ -100,13 +110,13 @@ public class ScorecardController {
      * figure anyone acts on — and still narrowed to the caller's allowance like every figure of the
      * estate, so that the day the marker admits a narrower role the route does not leak.
      */
-    @Operation(summary = "Simulate a candidate scorecard formula (experimental)",
+    @Operation(summary = "Simulate other scorecard weights (experimental)",
             description = "Lists every visible target's, project's and solution's current score and grade beside the candidate's, "
                     + "100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an "
                     + "exploited issue capping the grade at D, with the weighted total (the risk points), "
                     + "and the targets' grade distribution under each. A scope's candidate counts each issue and licence "
-                    + "entry once, where its current card counts twice the licences of a scan naming one of its "
-                    + "images and one of its repositories. Parameters left out take the proposed values. "
+                    + "entry once, as its card does since 0.11.0. With every parameter left out the candidate is the "
+                    + "production formula, so the current and candidate columns agree. "
                     + "Experimental: nothing is stored and no card, badge or ranking changes.")
     @ApiResponse(responseCode = "200", description = "Both formulas over the caller's estate")
     @ApiResponse(responseCode = "400", description = "A weight that is negative or not finite, or a k that is not positive")

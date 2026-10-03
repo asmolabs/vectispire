@@ -32,11 +32,15 @@ public final class PostureScoreboards {
     private PostureScoreboards() {}
 
     /**
-     * Graded first, best score first; after them the targets with no grade. Ties keep the order the
-     * targets were listed in — repositories, then images, each by id — rather than a hash map's.
+     * Graded first, best score first; after them the targets with no grade. Of one score, the fewer
+     * risk points first (decision 0036): inside F every score is held at one, and the exploited cap
+     * holds many at 54, while the points still tell a backlog of ten from one of a thousand. Remaining
+     * ties keep the order the targets were listed in — repositories, then images, each by id — rather
+     * than a hash map's.
      */
-    private static final Comparator<TargetMaturityScore> RANKING = Comparator.comparing(
-            TargetMaturityScore::securityScore, Comparator.nullsLast(Comparator.<Integer>reverseOrder()));
+    private static final Comparator<TargetMaturityScore> RANKING = Comparator
+            .comparing(TargetMaturityScore::securityScore, Comparator.nullsLast(Comparator.<Integer>reverseOrder()))
+            .thenComparing(TargetMaturityScore::riskPoints, Comparator.nullsLast(Comparator.<Double>naturalOrder()));
 
     private static final Comparator<ScanTarget> LISTING = Comparator
             .comparing((ScanTarget target) -> target instanceof ScanTarget.Container)
@@ -107,7 +111,8 @@ public final class PostureScoreboards {
                         ? null
                         : PostureTrendAnalytics.roundDays(closed.averageSeconds() / 86400.0),
                 grade.score(),
-                grade.grade());
+                grade.grade(),
+                grade.riskPoints());
     }
 
     private static long idOf(ScanTarget target) {

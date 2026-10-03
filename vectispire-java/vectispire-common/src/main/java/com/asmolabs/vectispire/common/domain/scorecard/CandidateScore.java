@@ -3,16 +3,16 @@ package com.asmolabs.vectispire.common.domain.scorecard;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 
 /**
- * <b>Experimental, and wired to nothing that grades.</b> A candidate replacement for the scorecard's
- * score, kept beside the one in production so that the product owner can compare the two on a real
- * estate before deciding (the score simulation route) — no card, badge or ranking reads it. Its
- * defaults ({@link Weights#PROPOSED}) are the calibration the product owner validated on 2026-10-03;
- * switching the production formula to it is decision 0036, proposed.
+ * <b>The scorecard's formula since 0.11.0</b> (decision 0036, accepted 2026-10-03): every card, the
+ * ranking and the public badge read it through {@code SecurityScorecardService}, with {@link
+ * Weights#PROPOSED}. The name is the one it was simulated under; it moves into the scorecard's own
+ * vocabulary when the simulation route that still compares other weights is retired, the release
+ * after.
  *
- * <p><b>Why a candidate at all.</b> The production score is a hundred less a fixed charge per issue
- * (KEV 25, critical 8, high 4, a disallowed licence 5), plus five for a completed scan, clamped at
- * zero: twenty-seven highs or four exploited criticals already read 0, F, and since mediums and lows
- * weigh nothing, fifty and five hundred open issues read the same grade. The scale saturates where
+ * <p><b>What it replaced.</b> The score was a hundred less a fixed charge per issue (KEV 25,
+ * critical 8, high 4, a disallowed licence 5), plus five for a completed scan, clamped at zero:
+ * twenty-seven highs or four exploited criticals already read 0, F, and since mediums and lows
+ * weighed nothing, fifty and five hundred open issues read the same grade. The scale saturated where
  * the estates that most need telling apart sit.
  *
  * <p><b>The formula</b>: {@code 100 × exp(−Σ wₛ·nₛ / k)}. Each issue removes the same <em>share</em>
@@ -27,18 +27,18 @@ import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
  *
  * <p><b>The cap.</b> An actively exploited issue (CISA KEV) caps the grade at D whatever else the
  * backlog holds: under the formula alone one exploited issue in an otherwise clean target reads C,
- * and the production grade's own description of D is "unresolved critical vulnerabilities or KEV
+ * and the grade's own description of D is "unresolved critical vulnerabilities or KEV
  * threats". The score is capped with it (at 54, D's top) so that the number and the letter agree.
  *
- * <p><b>Exploited is a class of its own, whatever the severity.</b> The production score charges KEV
- * on top of the severity, for any severity; reading only exploited <em>criticals</em> as exploited
+ * <p><b>Exploited is a class of its own, whatever the severity.</b> The old score charged KEV on top
+ * of the severity, for any severity; reading only exploited <em>criticals</em> as exploited
  * would make an exploited high weigh less than an unexploited critical. An exploited issue is
  * counted in {@link Counts#exploited} and in no severity.
  *
  * <p><b>Licences weigh like a high, and observing earns nothing.</b> A disallowed licence is a term
- * of the backlog — the production formula already charges it — counted exactly as the card counts it
- * (the caller passes that count, never one of its own). The production bonus of five points for a
- * completed scan is not carried over: it is the condition for being graded at all (a target never
+ * of the backlog — the old formula charged it too — counted exactly as the card counts it (the
+ * caller passes that count, never one of its own). The old bonus of five points for a completed scan
+ * was not carried over: it is the condition for being graded at all (a target never
  * scanned is {@code NO_DATA}, decided before any score), so as a term it only lifted every graded
  * target by the same five points and let a clean target's hundred absorb one high.
  *
@@ -67,8 +67,10 @@ public final class CandidateScore {
             double exploited, double critical, double high, double medium, double low, double licence, double k) {
 
         /**
-         * The calibration the product owner validated on 2026-10-03: exploited 25, critical 10, high
-         * 4, medium 0.5, low 0.125, a disallowed licence 4 (a high's), {@code k = 55}. One critical
+         * The production weights — the calibration the product owner validated on 2026-10-03, and a
+         * contract since: any change moves every badge overnight, and is a decision recorded in 0036.
+         * Exploited 25, critical 10, high 4, medium 0.5, low 0.125, a disallowed licence 4 (a high's),
+         * {@code k = 55}. One critical
          * reads B (83), one exploited critical D (63 by the formula, capped at 54), fifty mediums C
          * (63), one disallowed licence A (93). With a medium weighing 1 no {@code k} gives both one
          * critical a B and fifty mediums a C — B needs {@code k < 61.5}, C needs {@code k ≥ 83.6} —
@@ -142,7 +144,7 @@ public final class CandidateScore {
     }
 
     /**
-     * The score a card would show, its grade under the production bands, and its risk points.
+     * The score a card would show, its grade under the bands, and its risk points.
      *
      * <p><b>Never zero.</b> Rounded, then held at one at least: zero reads as "nothing left to lose",
      * which is the saturation this formula exists to remove. A backlog large enough to round to one

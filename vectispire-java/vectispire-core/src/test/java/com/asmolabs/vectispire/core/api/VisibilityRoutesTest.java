@@ -569,19 +569,24 @@ class VisibilityRoutesTest extends ApiTestBase {
         issue(theirs, "CVE-2026-3");
         String reader = assignedReader(mine);
 
-        // A completed scan on the neighbour's repository and none on the reader's: the
-        // attestation flag goes through the same target filter the licence entries do, and is
-        // the half of it a fixture without SBOM payloads can actually observe.
+        // A completed scan on the neighbour's repository and none on the reader's: what is observed
+        // goes through the same target filter the licence entries do, and is the half of it a
+        // fixture without SBOM payloads can actually observe — and the weakest target named must
+        // never be one the reader was not given.
         scan(theirs);
 
         mvc.perform(authenticated(get("/api/v1/scorecards/global"), reader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openHighCount").value(1))
-                .andExpect(jsonPath("$.hasAttestation").value(false));
+                .andExpect(jsonPath("$.totalTargets").value(1))
+                .andExpect(jsonPath("$.observedTargets").value(0))
+                .andExpect(jsonPath("$.weakestTarget").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.riskPoints").value(4.0));
 
         mvc.perform(authenticated(get("/api/v1/scorecards/global"), asAdmin()))
                 .andExpect(jsonPath("$.openHighCount").value(3))
-                .andExpect(jsonPath("$.hasAttestation").value(true));
+                .andExpect(jsonPath("$.observedTargets").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.weakestTarget.targetId").value(theirs));
     }
 
     @Test

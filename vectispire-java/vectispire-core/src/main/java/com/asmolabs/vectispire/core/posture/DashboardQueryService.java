@@ -17,12 +17,14 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.posture.internal.PostureScoreboards;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +62,7 @@ public class DashboardQueryService {
     private final TargetNaming naming;
     private final SlaService sla;
     private final SecurityScorecardService scorecards;
+    private final SettingsService settings;
 
     /** Injected rather than {@code Instant.now()}, so a test can pin what "today" means. */
     private final Clock clock;
@@ -71,6 +74,7 @@ public class DashboardQueryService {
             TargetNaming naming,
             SlaService sla,
             SecurityScorecardService scorecards,
+            SettingsService settings,
             Clock clock) {
         this.gate = gate;
         this.issues = issues;
@@ -78,6 +82,7 @@ public class DashboardQueryService {
         this.naming = naming;
         this.sla = sla;
         this.scorecards = scorecards;
+        this.settings = settings;
         this.clock = clock;
     }
 
@@ -138,11 +143,38 @@ public class DashboardQueryService {
      * @param resolvedInWindow the population behind the mean, so a reader can see whether it rests
      *     on three issues or three hundred — an average with no denominator is a number people
      *     quote and should not
+     * @param scoreFormulaChangedOn the day, UTC, this installation's grades changed formula (decision
+     *     0036, 0.11.0) — the upgrade's day, written by migration V69; null on an installation that
+     *     had no grade to change. Whether it falls in the window is the chart's to decide: the series
+     *     here are the backlog's, which the formula does not move, and the line is for the reader who
+     *     sets a grade beside them
      */
     public record Trends(
             List<TrendPoint> points,
             @JsonProperty("mean_days_to_resolve") Double meanDaysToResolve,
-            @JsonProperty("resolved_in_window") int resolvedInWindow) {}
+            @JsonProperty("resolved_in_window") int resolvedInWindow,
+            @JsonProperty("score_formula_changed_on") String scoreFormulaChangedOn) {}
+
+    /** The internal row migration V69 writes at the upgrade to 0.11.0, where there were grades. */
+    static final String SCORE_FORMULA_CHANGED_ON = "internal.scorecard_formula_changed_on";
+
+    /**
+     * The day the grades changed formula here, or null. A row that does not read as a date — edited
+     * by hand — draws no line rather than taking the chart down or drawing one on a wrong day.
+     */
+    private String scoreFormulaChangedOn() {
+        return settings.internalValue(SCORE_FORMULA_CHANGED_ON)
+                .map(String::trim)
+                .filter(value -> {
+                    try {
+                        LocalDate.parse(value);
+                        return true;
+                    } catch (DateTimeParseException notADate) {
+                        return false;
+                    }
+                })
+                .orElse(null);
+    }
 
     /**
      * The backlog over time — see {@code DashboardController#trends} for why the arithmetic is
@@ -175,7 +207,8 @@ public class DashboardQueryService {
                                 point.day().toString(), point.open(), point.opened(), point.resolved()))
                         .toList(),
                 series.meanDaysToResolve().orElse(null),
-                series.resolvedInWindow());
+                series.resolvedInWindow(),
+                scoreFormulaChangedOn());
     }
 
     public PostureTrendAnalytics postureAnalytics(int days, Visibility allowed) {

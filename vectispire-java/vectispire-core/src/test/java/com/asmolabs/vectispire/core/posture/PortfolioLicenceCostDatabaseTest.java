@@ -24,7 +24,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * The portfolio scorecard ({@code GET /api/v1/scorecards/global}) reads the licence tallies the
  * ranking keeps, and must not read the estate's history to do it.
  *
- * <p><b>The defect this closes.</b> {@code getGlobalScorecard} took its licence term from the estate's
+ * <p><b>The defect this closes.</b> {@code getGlobalScorecard} (now {@code getPortfolioScorecard}) took its licence term from the estate's
  * inventory, narrowed to the reader afterwards: every scan with its SBOM, every component row and
  * every licence finding of the deployment, for an administrator and for a reader granted five targets
  * alike. Measured on {@link LicenceEstate} with 250 components an SBOM and a scan attached to no
@@ -124,6 +124,6 @@ class PortfolioLicenceCostDatabaseTest extends VectispireContextTest {
     }
 
     private Reads load(Visibility allowed) {
-        return Reads.of(entityManagerFactory, () -> scorecards.getGlobalScorecard(allowed));
+        return Reads.of(entityManagerFactory, () -> scorecards.getPortfolioScorecard(allowed));
     }
 }

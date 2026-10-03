@@ -51,9 +51,10 @@ class ScorecardRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/scorecards/repositories/" + repo.getId()), adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.grade").value("A_PLUS"))
-                .andExpect(jsonPath("$.score").value(100));
+                .andExpect(jsonPath("$.score").value(100))
+                .andExpect(jsonPath("$.riskPoints").value(0.0));
 
-        // 2. Add an active KEV issue -> Grade D or F
+        // 2. Add an active KEV issue -> 25 risk points, 63 by the formula, held at D's 54 (decision 0036)
         IssueEntity kevIssue = new IssueEntity();
         kevIssue.setRepoId(repo.getId());
         kevIssue.setType("cve");
@@ -70,7 +71,10 @@ class ScorecardRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/scorecards/repositories/" + repo.getId()), adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openKevCount").value(1))
-                .andExpect(jsonPath("$.openCriticalCount").value(1));
+                .andExpect(jsonPath("$.openCriticalCount").value(1))
+                .andExpect(jsonPath("$.riskPoints").value(25.0))
+                .andExpect(jsonPath("$.score").value(54))
+                .andExpect(jsonPath("$.grade").value("D"));
 
         // 3. The badge, once published — and only once published. It used to be served under the
         //    repository's id to anyone at all, which is how a caller with no account could read
@@ -87,7 +91,12 @@ class ScorecardRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("image/svg+xml"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("<svg")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("security grade")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("security grade")))
+                // The letter, and nothing of the figures behind it: the badge is anonymous, and the
+                // risk points would say how much is open, and when it moves (decision 0036).
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("aria-label=\"security grade: D\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(">54<"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(">25<"))));
     }
 
     /**

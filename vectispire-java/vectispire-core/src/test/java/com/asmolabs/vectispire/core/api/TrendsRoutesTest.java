@@ -50,6 +50,9 @@ class TrendsRoutesTest extends ApiTestBase {
     @Autowired
     private ScanRepository scans;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test
     @DisplayName("the window is a day per point, and the series counts what is open")
     void drawsTheWindow() throws Exception {
@@ -142,13 +145,14 @@ class TrendsRoutesTest extends ApiTestBase {
         triaged(target, "CVE-T-5", "untriaged");
         scanned(target, "completed");
 
-        // The scorecard's weights: three highs at four points each, and five for the completed
-        // scan — 93, A. Counting the settled two made it 85.
+        // The scorecard's weights: three highs at four risk points each, 12 — 80, B. Counting the
+        // settled two made it 20 points, 70.
         mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.targetScoreboard[0].openHigh").value(3))
-                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(93))
-                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A"));
+                .andExpect(jsonPath("$.targetScoreboard[0].riskPoints").value(12.0))
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(80))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("B"));
     }
 
     @Test
@@ -168,12 +172,13 @@ class TrendsRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.targetScoreboard.length()").value(2))
                 .andExpect(jsonPath("$.targetScoreboard[0].targetId").value(scanned))
-                // One high, four points, and five for the scan: the card's 100, A+.
-                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(100))
-                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A_PLUS"))
+                // One high, four risk points: the card's 93, A.
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(93))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A"))
                 .andExpect(jsonPath("$.targetScoreboard[1].targetId").value(unscanned))
                 .andExpect(jsonPath("$.targetScoreboard[1].maturityGrade").value("NO_DATA"))
                 .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(nullValue()))
+                .andExpect(jsonPath("$.targetScoreboard[1].riskPoints").value(nullValue()))
                 // The counts stay, being true of what was read.
                 .andExpect(jsonPath("$.targetScoreboard[1].totalResolved").value(1));
     }
@@ -188,8 +193,9 @@ class TrendsRoutesTest extends ApiTestBase {
         issueOf(mixed, "CVE-M-2", Severity.HIGH, false);
         issueOf(mixed, "CVE-M-3", Severity.MEDIUM, false);
         scanned(mixed, "completed");
-        // Both read 0, F, on the old ranking — a hundred less ten points a high — beside cards of
-        // 65 and 25: the heavy backlogs are where the two disagreed most.
+        // Both read 0, F, on the ranking of old — a hundred less ten points a high — beside cards
+        // that read 65 and 25 then: the heavy backlogs are where the two disagreed most. Under the
+        // formula of decision 0036 they read 48 and 23, the second still lower than the first.
         long tenHighs = repository("https://example.invalid/ten-highs.git");
         long twentyHighs = repository("https://example.invalid/twenty-highs.git");
         for (int i = 0; i < 20; i++) {
@@ -211,15 +217,18 @@ class TrendsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(100))
                 .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("A_PLUS"))
                 .andExpect(jsonPath("$.targetScoreboard[0].openHigh").value(0))
-                // 100 - 25 (KEV) - 8 (critical) - 4 (high) + 5; the medium weighs nothing on a card.
+                // 25 (the exploited critical, in no severity) + 4 (high) + 0.5 (medium) = 29.5 risk
+                // points, 58 by the formula, held at D's 54 by the exploited issue.
                 .andExpect(jsonPath("$.targetScoreboard[1].targetId").value(mixed))
-                .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(68))
-                .andExpect(jsonPath("$.targetScoreboard[1].maturityGrade").value("C"))
+                .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(54))
+                .andExpect(jsonPath("$.targetScoreboard[1].maturityGrade").value("D"))
+                .andExpect(jsonPath("$.targetScoreboard[1].riskPoints").value(29.5))
                 .andExpect(jsonPath("$.targetScoreboard[1].openMedium").value(1))
                 .andExpect(jsonPath("$.targetScoreboard[2].targetId").value(tenHighs))
-                .andExpect(jsonPath("$.targetScoreboard[2].securityScore").value(65))
+                .andExpect(jsonPath("$.targetScoreboard[2].securityScore").value(48))
                 .andExpect(jsonPath("$.targetScoreboard[3].targetId").value(twentyHighs))
-                .andExpect(jsonPath("$.targetScoreboard[3].securityScore").value(25))
+                .andExpect(jsonPath("$.targetScoreboard[3].securityScore").value(23))
+                .andExpect(jsonPath("$.targetScoreboard[3].riskPoints").value(80.0))
                 .andExpect(jsonPath("$.targetScoreboard[3].maturityGrade").value("F"))
                 .andExpect(jsonPath("$.targetScoreboard[4].targetId").value(unscanned))
                 .andExpect(jsonPath("$.targetScoreboard[4].maturityGrade").value("NO_DATA"))
@@ -238,6 +247,7 @@ class TrendsRoutesTest extends ApiTestBase {
                     .andReturn().getResponse().getContentAsString());
             assertThat(row.path("securityScore")).as("score of %s", row.path("targetId")).isEqualTo(card.path("score"));
             assertThat(row.path("maturityGrade").asText()).isEqualTo(card.path("grade").asText());
+            assertThat(row.path("riskPoints")).as("risk points of %s", row.path("targetId")).isEqualTo(card.path("riskPoints"));
             assertThat(row.path("openCritical").asLong()).isEqualTo(card.path("openCriticalCount").asLong());
             assertThat(row.path("openHigh").asLong()).isEqualTo(card.path("openHighCount").asLong());
         }
@@ -281,6 +291,63 @@ class TrendsRoutesTest extends ApiTestBase {
         scan.setStatus(status);
         scan.setCreatedAt(Instant.now());
         scans.save(scan);
+    }
+
+    /**
+     * Two targets held at the same score — both at D's 54 by an exploited issue — rank by their risk
+     * points, the fewer first (decision 0036), whichever was registered first. Inside F every score is
+     * held at one, and without the points a team that fixed half its backlog would not move.
+     */
+    @Test
+    @DisplayName("two targets of one score rank by their risk points, the fewer first")
+    void tiesRankByRiskPoints() throws Exception {
+        long heavier = repository("https://example.invalid/heavier.git");
+        issueOf(heavier, "CVE-H-1", Severity.CRITICAL, true);
+        issueOf(heavier, "CVE-H-2", Severity.HIGH, false);
+        scanned(heavier, "completed");
+        long lighter = repository("https://example.invalid/lighter.git");
+        issueOf(lighter, "CVE-L-1", Severity.CRITICAL, true);
+        scanned(lighter, "completed");
+
+        mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetScoreboard[0].targetId").value(lighter))
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(54))
+                .andExpect(jsonPath("$.targetScoreboard[0].riskPoints").value(25.0))
+                .andExpect(jsonPath("$.targetScoreboard[1].targetId").value(heavier))
+                .andExpect(jsonPath("$.targetScoreboard[1].securityScore").value(54))
+                .andExpect(jsonPath("$.targetScoreboard[1].riskPoints").value(29.0));
+    }
+
+    /**
+     * The day the grades changed formula on this installation, for the chart to mark: migration V69
+     * writes it at the upgrade, where there were grades to change. The route hands it as stored, and
+     * a value that is not a date draws no line rather than a wrong one.
+     */
+    @Test
+    @DisplayName("the series carries the day the score formula changed here, and nothing when it did not")
+    void theScoreFormulaChange() throws Exception {
+        jdbc.update("delete from t_setting where " + keyColumn() + " = 'internal.scorecard_formula_changed_on'");
+        mvc.perform(authenticated(get("/api/v1/dashboard/trends?days=30"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score_formula_changed_on").value(nullValue()));
+
+        jdbc.update("insert into t_setting (" + keyColumn() + ", value) values ('internal.scorecard_formula_changed_on', '2026-10-20')");
+        mvc.perform(authenticated(get("/api/v1/dashboard/trends?days=30"), asAdmin()))
+                .andExpect(jsonPath("$.score_formula_changed_on").value("2026-10-20"));
+
+        jdbc.update("update t_setting set value = 'soon' where " + keyColumn() + " = 'internal.scorecard_formula_changed_on'");
+        mvc.perform(authenticated(get("/api/v1/dashboard/trends?days=30"), asAdmin()))
+                .andExpect(jsonPath("$.score_formula_changed_on").value(nullValue()));
+    }
+
+    /** {@code key} is a reserved word on MySQL, and a plain identifier on PostgreSQL. */
+    private String keyColumn() throws Exception {
+        try (java.sql.Connection connection = jdbc.getDataSource().getConnection()) {
+            return connection.getMetaData().getDatabaseProductName().toLowerCase(java.util.Locale.ROOT).contains("mysql")
+                    ? "`key`"
+                    : "\"key\"";
+        }
     }
 
     private void triaged(long repoId, String identifier, String triageStatus) {

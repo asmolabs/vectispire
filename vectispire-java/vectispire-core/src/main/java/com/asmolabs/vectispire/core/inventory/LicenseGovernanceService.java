@@ -412,19 +412,39 @@ public class LicenseGovernanceService {
 
     /**
      * How many entries of the inventory {@code allowed} sees the policy refuses — the portfolio
-     * scorecard's licence term, equal to counting the refused entries of {@link #getInventory(Visibility,
-     * Long, Long)} with no target, and read off the tallies {@link #violationsByTarget} keeps.
+     * scorecard's licence term ({@link #violations}'s {@code total}), equal to counting the refused
+     * entries of {@link #getInventory(Visibility, Long, Long)} with no target, and read off the tallies
+     * {@link #violationsByTarget} keeps.
      *
      * <p>The scans attached to no target count for a reader who sees the whole estate, as their entries
      * do in that inventory, and for nobody else.
      */
     public long violationsWithin(Visibility allowed) {
+        return violations(allowed).total();
+    }
+
+    /**
+     * Both counts the portfolio scorecard reads, from one read of the tallies: each target's, as
+     * {@link #violationsByTarget} gives them, and the whole allowance's, as {@link #violationsWithin}
+     * does — the scans attached to no target included for a reader of the whole estate.
+     *
+     * @param total at least the sum of {@code byTarget}
+     */
+    public record Violations(Map<ScanTarget, Long> byTarget, long total) {}
+
+    /** {@link #violationsByTarget} and {@link #violationsWithin} at once, the census read once. */
+    public Violations violations(Visibility allowed) {
         LicensePolicy policy = getPolicy();
-        long refused = 0;
-        for (Tally tally : talliesWithin(allowed, policy).values()) {
-            refused += tally.refusedBy(policy);
+        Map<ScanTarget, Long> byTarget = new HashMap<>();
+        long total = 0;
+        for (Map.Entry<Owner, Tally> tally : talliesWithin(allowed, policy).entrySet()) {
+            long refused = tally.getValue().refusedBy(policy);
+            total += refused;
+            if (tally.getKey().target() != null) {
+                byTarget.put(tally.getKey().target(), refused);
+            }
         }
-        return refused;
+        return new Violations(byTarget, total);
     }
 
     /**

@@ -3267,8 +3267,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get global scorecard
-         * @description Calculates cross-organizational aggregate security posture grade.
+         * Get the portfolio's scorecard
+         * @description How many of the targets the caller sees read each grade (no data included), the weakest of them, and the risk points of everything open. The portfolio has no single grade since 0.11.0.
          */
         get: operations["getGlobalScorecard"];
         put?: never;
@@ -3326,8 +3326,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Simulate a candidate scorecard formula (experimental)
-         * @description Lists every visible target's, project's and solution's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the targets' grade distribution under each. A scope's candidate counts each issue and licence entry once, where its current card counts twice the licences of a scan naming one of its images and one of its repositories. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.
+         * Simulate other scorecard weights (experimental)
+         * @description Lists every visible target's, project's and solution's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the targets' grade distribution under each. A scope's candidate counts each issue and licence entry once, as its card does since 0.11.0. With every parameter left out the candidate is the production formula, so the current and candidate columns agree. Experimental: nothing is stored and no card, badge or ranking changes.
          */
         get: operations["simulateScores"];
         put?: never;
@@ -5495,6 +5495,12 @@ export interface components {
             /** Format: int32 */
             unauthenticatedEndpoints: number;
         };
+        GradeCount: {
+            /** @enum {string} */
+            grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: int64 */
+            targets: number;
+        };
         GraphEdge: {
             relationship?: string;
             source?: string;
@@ -6244,6 +6250,26 @@ export interface components {
             include_plugins?: boolean;
             include_triaged?: boolean;
             note?: string;
+        };
+        PortfolioScorecard: {
+            grades?: components["schemas"]["GradeCount"][];
+            /** Format: int64 */
+            licenseViolationCount: number;
+            /** Format: int32 */
+            observedTargets: number;
+            /** Format: int64 */
+            openCriticalCount: number;
+            /** Format: int64 */
+            openHighCount: number;
+            /** Format: int64 */
+            openKevCount: number;
+            /** Format: int64 */
+            overdueCount: number;
+            /** Format: double */
+            riskPoints: number;
+            /** Format: int32 */
+            totalTargets: number;
+            weakestTarget?: components["schemas"]["WeakestTarget"];
         };
         Posture: {
             /** Format: int32 */
@@ -7200,6 +7226,8 @@ export interface components {
             /** Format: int64 */
             overdueCount: number;
             recommendations?: string[];
+            /** Format: double */
+            riskPoints?: number;
             /** Format: int32 */
             score?: number;
             /** Format: int64 */
@@ -7208,6 +7236,7 @@ export interface components {
             targetName?: string;
             /** Format: int32 */
             totalTargets: number;
+            weakestTarget?: components["schemas"]["WeakestTarget"];
         };
         Series: {
             comparable: boolean;
@@ -7453,6 +7482,8 @@ export interface components {
             openLow: number;
             /** Format: int64 */
             openMedium: number;
+            /** Format: double */
+            riskPoints?: number;
             /** Format: int32 */
             securityScore?: number;
             /** Format: int64 */
@@ -7640,6 +7671,7 @@ export interface components {
             points?: components["schemas"]["TrendPoint"][];
             /** Format: int32 */
             resolved_in_window: number;
+            score_formula_changed_on?: string;
         };
         TriageImpact: {
             /** Format: int32 */
@@ -7821,6 +7853,18 @@ export interface components {
             ratings?: components["schemas"]["Rating"][];
             recommendation?: string;
             source?: components["schemas"]["Source"];
+        };
+        WeakestTarget: {
+            /** @enum {string} */
+            grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: double */
+            riskPoints: number;
+            /** Format: int32 */
+            score: number;
+            /** Format: int64 */
+            targetId: number;
+            targetKind?: string;
+            targetName?: string;
         };
         WebhookRequest: {
             url?: string;
@@ -12698,13 +12742,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Global scorecard retrieved successfully */
+            /** @description Portfolio scorecard retrieved successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["SecurityScorecard"];
+                    "*/*": components["schemas"]["PortfolioScorecard"];
                 };
             };
         };

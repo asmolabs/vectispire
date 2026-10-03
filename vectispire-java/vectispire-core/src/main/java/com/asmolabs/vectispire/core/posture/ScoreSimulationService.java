@@ -26,29 +26,34 @@ import org.springframework.stereotype.Service;
  * shows — they read {@link SecurityScorecardService} alone — and nothing is written: the parameters
  * live in the request and the answer is computed from the backlog as it stands.
  *
+ * <p><b>Since 0.11.0 the production score is the candidate</b> (decision 0036, accepted): with every
+ * parameter left out, a target's {@code current…} and {@code candidate…} columns agree, and a scope's
+ * {@code current…} and {@code weakest…} do — the card grades a scope by its weakest link now. The
+ * route stays for one release, for whoever still wants to try other weights on the estate, and is
+ * retired in the next with the candidate's name.
+ *
  * <p>Every target the caller may see that its card grades ({@link SecurityScorecardService#gradeEach})
  * is listed with both scores. The current one is that computation's, not a copy of it; the candidate
  * is {@link CandidateScore} over the same open, unsettled issues. A target its card reads {@code
  * NO_DATA} is {@code NO_DATA} under both — the candidate changes the arithmetic, not what counts as
- * observed. The candidate weighs the disallowed licences the card counts, as a term of the backlog,
- * and drops the production bonus for a completed scan: the counts beside each row are what it weighs,
- * and the risk points their weighted sum.
+ * observed. The candidate weighs the disallowed licences the card counts, as a term of the backlog:
+ * the counts beside each row are what it weighs, and the risk points their weighted sum.
  *
  * <p><b>Every project and solution the caller sees is listed too</b>, as the tree would list it: the
  * current score its scope card gives ({@link SecurityScorecardService#getScopeScorecard}) beside the
- * candidate over the scope's backlog, with the card's coverage cap and {@code NO_DATA}. The candidate
- * counts a scope's licences once ({@link SecurityScorecardService#candidateScopes}); the card counts
- * twice those of a scan naming one of the scope's images and one of its repositories, and the row says
- * so, so that the switch fixes it knowingly.
+ * candidate over the scope's backlog, with the card's coverage cap and {@code NO_DATA}. Both count a
+ * scope's licences once ({@link SecurityScorecardService#candidateScopes}); until 0.11.0 the card
+ * counted twice those of a scan naming one of the scope's images and one of its repositories, and
+ * {@code currentDoubleCounted} said so — it reads false since the switch fixed it.
  *
- * <p><b>Two aggregations of a scope are on the table</b> (decision 0036), and each row carries both.
- * The <em>sum</em> ({@code candidate…}) scores the scope's summed backlog, so a scope of many
- * reasonable targets reads lower than each of them — its grade depends on its size. The <em>weakest
- * link</em> ({@code weakest…}) is the score of the scope's lowest-scoring observed target, exactly as
- * that target's own row reads it, then held at the scope's observed share like the sum: a scope is no
- * safer than its most exposed target, and ten clean targets do not hide the one with an exploited
- * critical. The risk points stay the sum's under both — each issue and each licence once — since they
- * state what is open in the scope, not how it is graded.
+ * <p><b>Both aggregations of a scope stay on each row</b>, as they were when decision 0036 chose
+ * between them. The <em>sum</em> ({@code candidate…}, rejected) scores the scope's summed backlog, so a
+ * scope of many reasonable targets reads lower than each of them — its grade depends on its size. The
+ * <em>weakest link</em> ({@code weakest…}, the card's since 0.11.0) is the score of the scope's
+ * lowest-scoring observed target, exactly as that target's own row reads it, then held at the scope's
+ * observed share like the sum: a scope is no safer than its most exposed target, and ten clean targets
+ * do not hide the one with an exploited critical. The risk points are the sum's under both — each issue
+ * and each licence once — since they state what is open in the scope, not how it is graded.
  */
 @Service
 public class ScoreSimulationService {
@@ -109,15 +114,16 @@ public class ScoreSimulationService {
      * @param candidateRiskPoints uncapped; null with no data
      * @param licences the scope's disallowed licence entries, each counted once — the candidate's term
      * @param currentLicences the same entries as the scope card counts them today
-     * @param currentDoubleCounted the card's licence count differs from the candidate's: it sums its
-     *     targets' inventories, and an image's includes the entries of scans naming a repository too,
-     *     which that repository's inventory lists as well — or, its repository outside the scope, which
-     *     the candidate leaves to the repository they belong to. The switch to the candidate fixes it
+     * @param currentDoubleCounted the card's licence count differs from the candidate's. Until 0.11.0
+     *     the card summed its targets' inventories, and an image's includes the entries of scans naming
+     *     a repository too, which that repository's inventory lists as well. False since the switch,
+     *     which made the card count as the candidate does; kept so that a regression would show here
      * @param weakestScore the weakest-link variant: the lowest candidate score among the scope's
      *     observed visible targets, held at the observed share as {@code candidateScore} is; null
      *     exactly when {@code weakestGrade} is {@code NO_DATA}, which is when nothing is observed
      * @param weakestTarget the target that score is read from; null with no data. Among targets of one
-     *     score, the first in the {@code targets} order
+     *     score, the one with the more risk points, as the card chooses; then the first in the {@code
+     *     targets} order
      */
     public record ScoreSimulationScope(
             String kind,
@@ -266,8 +272,9 @@ public class ScoreSimulationService {
      * a target the scope's tree knows and the caller was not given.
      *
      * <p>Compared on the rounded, capped score, not the exact one: an exploited issue holds a target
-     * at 54 whatever its exponent says, and the weakest link is the score a reader sees. A tie keeps
-     * the first in the listing's order, so the answer does not move from one call to the next.
+     * at 54 whatever its exponent says, and the weakest link is the score a reader sees. A tie goes to
+     * the target with the more risk points, as the scope's card breaks it, then to the first in the
+     * listing's order, so the answer does not move from one call to the next.
      */
     private static Optional<ScoreSimulationTarget> weakestOf(
             VisibleScope scope, Map<ScanTarget, ScoreSimulationTarget> targetRows) {
@@ -277,7 +284,10 @@ public class ScoreSimulationService {
             if (!scope.targets().contains(entry.getKey()) || row.candidateScore() == null) {
                 continue;
             }
-            if (weakest == null || row.candidateScore() < weakest.candidateScore()) {
+            if (weakest == null
+                    || row.candidateScore() < weakest.candidateScore()
+                    || (row.candidateScore().equals(weakest.candidateScore())
+                            && row.candidateRiskPoints() > weakest.candidateRiskPoints())) {
                 weakest = row;
             }
         }

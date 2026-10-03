@@ -4026,6 +4026,20 @@
         "required" : [ "internalEndpoints", "publicEndpoints", "sensitiveUnprotectedEndpoints", "shadowEndpoints", "totalEndpoints", "unauthenticatedEndpoints" ],
         "type" : "object"
       },
+      "GradeCount" : {
+        "properties" : {
+          "grade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "targets" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "targets" ],
+        "type" : "object"
+      },
       "GraphEdge" : {
         "properties" : {
           "relationship" : {
@@ -6013,6 +6027,53 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "PortfolioScorecard" : {
+        "properties" : {
+          "grades" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GradeCount"
+            },
+            "type" : "array"
+          },
+          "licenseViolationCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "observedTargets" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "openCriticalCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "openHighCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "openKevCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "overdueCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "riskPoints" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "totalTargets" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "weakestTarget" : {
+            "$ref" : "#/components/schemas/WeakestTarget"
+          }
+        },
+        "required" : [ "licenseViolationCount", "observedTargets", "openCriticalCount", "openHighCount", "openKevCount", "overdueCount", "riskPoints", "totalTargets" ],
         "type" : "object"
       },
       "Posture" : {
@@ -8571,6 +8632,10 @@
             },
             "type" : "array"
           },
+          "riskPoints" : {
+            "format" : "double",
+            "type" : "number"
+          },
           "score" : {
             "format" : "int32",
             "type" : "integer"
@@ -8588,6 +8653,9 @@
           "totalTargets" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "weakestTarget" : {
+            "$ref" : "#/components/schemas/WeakestTarget"
           }
         },
         "required" : [ "hasAttestation", "licenseViolationCount", "observedTargets", "openCriticalCount", "openHighCount", "openKevCount", "overdueCount", "totalTargets" ],
@@ -9244,6 +9312,10 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "riskPoints" : {
+            "format" : "double",
+            "type" : "number"
+          },
           "securityScore" : {
             "format" : "int32",
             "type" : "integer"
@@ -9714,6 +9786,9 @@
           "resolved_in_window" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "score_formula_changed_on" : {
+            "type" : "string"
           }
         },
         "required" : [ "resolved_in_window" ],
@@ -10225,6 +10300,34 @@
             "$ref" : "#/components/schemas/Source"
           }
         },
+        "type" : "object"
+      },
+      "WeakestTarget" : {
+        "properties" : {
+          "grade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "riskPoints" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "riskPoints", "score", "targetId" ],
         "type" : "object"
       },
       "WebhookRequest" : {
@@ -16959,21 +17062,21 @@
     },
     "/api/v1/scorecards/global" : {
       "get" : {
-        "description" : "Calculates cross-organizational aggregate security posture grade.",
+        "description" : "How many of the targets the caller sees read each grade (no data included), the weakest of them, and the risk points of everything open. The portfolio has no single grade since 0.11.0.",
         "operationId" : "getGlobalScorecard",
         "responses" : {
           "200" : {
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/SecurityScorecard"
+                  "$ref" : "#/components/schemas/PortfolioScorecard"
                 }
               }
             },
-            "description" : "Global scorecard retrieved successfully"
+            "description" : "Portfolio scorecard retrieved successfully"
           }
         },
-        "summary" : "Get global scorecard",
+        "summary" : "Get the portfolio's scorecard",
         "tags" : [ "Scorecards" ]
       }
     },
@@ -17092,7 +17195,7 @@
     },
     "/api/v1/scorecards/simulation" : {
       "get" : {
-        "description" : "Lists every visible target's, project's and solution's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the targets' grade distribution under each. A scope's candidate counts each issue and licence entry once, where its current card counts twice the licences of a scan naming one of its images and one of its repositories. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.",
+        "description" : "Lists every visible target's, project's and solution's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the targets' grade distribution under each. A scope's candidate counts each issue and licence entry once, as its card does since 0.11.0. With every parameter left out the candidate is the production formula, so the current and candidate columns agree. Experimental: nothing is stored and no card, badge or ranking changes.",
         "operationId" : "simulateScores",
         "parameters" : [ {
           "description" : "Weight of an actively exploited (CISA KEV) issue, any severity",
@@ -17180,7 +17283,7 @@
             "description" : "A weight that is negative or not finite, or a k that is not positive"
           }
         },
-        "summary" : "Simulate a candidate scorecard formula (experimental)",
+        "summary" : "Simulate other scorecard weights (experimental)",
         "tags" : [ "Scorecards" ]
       }
     },

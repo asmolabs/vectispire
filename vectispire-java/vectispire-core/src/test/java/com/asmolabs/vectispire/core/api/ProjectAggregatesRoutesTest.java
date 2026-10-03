@@ -265,8 +265,15 @@ class ProjectAggregatesRoutesTest extends ApiTestBase {
             assertThat(scoped.at("/scorecard/openCriticalCount").asLong(-1)).isZero();
             assertThat(scoped.at("/scorecard/targetKind").asText()).isEqualTo("project");
             assertThat(scoped.at("/scorecard/targetId").asLong()).isEqualTo(project);
-            assertThat(scoped.at("/scorecard/score").asInt())
-                    .isGreaterThan(read(get("/api/v1/scorecards/global"), asAdmin()).path("score").asInt());
+            assertThat(scoped.at("/scorecard/score").asInt()).isEqualTo(100);
+            assertThat(scoped.at("/scorecard/riskPoints").asDouble(-1)).isZero();
+            assertThat(scoped.at("/scorecard/weakestTarget/targetId").asLong()).isEqualTo(clean);
+            // The portfolio has no score to compare with since 0.11.0: its weakest target is the dirty
+            // repository's two criticals (20 risk points, 70) or worse, and its risk points hold them.
+            JsonNode portfolio = read(get("/api/v1/scorecards/global"), asAdmin());
+            assertThat(portfolio.has("score")).as("the portfolio has no single grade").isFalse();
+            assertThat(portfolio.at("/weakestTarget/score").asInt(100)).isLessThanOrEqualTo(70);
+            assertThat(portfolio.path("riskPoints").asDouble()).isGreaterThanOrEqualTo(20);
 
             // The solution holding it is as clean; the unfiled dirty repository is in neither.
             JsonNode ofSolution = read(get("/api/v1/solutions/" + solution + "/compliance"), asAdmin());

@@ -40,9 +40,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * The experimental score simulation: administrators only, narrowed to the caller's allowance, and
- * the two formulas side by side over seeded estates whose current grades are the backlog item's
- * complaint — fifty and five hundred mediums both A+, twenty-seven highs and four exploited
- * criticals both 0 — and estates holding disallowed licences, which the candidate weighs as highs.
+ * the two formulas side by side over seeded estates whose grades under the old formula were the
+ * backlog item's complaint — fifty and five hundred mediums both A+, twenty-seven highs and four
+ * exploited criticals both 0 — and estates holding disallowed licences, which the candidate weighs as
+ * highs.
+ *
+ * <p><b>Since 0.11.0 the production formula is the candidate</b> (decision 0036): with the proposed
+ * weights, every {@code current…} column here reads what the {@code candidate…} one does for a target,
+ * and what the {@code weakest…} one does for a scope. The figures the old formula gave are in the
+ * decision's tables; what is pinned here is that the card and the simulation now agree.
  */
 @DisplayName("the score simulation route (experimental)")
 class ScoreSimulationRoutesTest extends ApiTestBase {
@@ -83,19 +89,21 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         body.path("targets").forEach(row -> byName.put(row.path("targetName").asText(), row));
         assertThat(byName).containsKeys(ids.keySet().toArray(String[]::new));
 
-        // name -> current score, current grade, candidate score, candidate grade, risk points
+        // name -> current score, current grade, candidate score, candidate grade, risk points. The old
+        // formula read, in this order: 100 A+, 97 A+, 72 B, 100 A+, 100 A+, 0 F, 0 F, 65 C, 100 A+, 92 A,
+        // 55 C — decision 0036's table.
         assertRow(byName.get("estate/clean"), 100, "A_PLUS", 100, "A_PLUS", 0);
-        assertRow(byName.get("estate/one-critical"), 97, "A_PLUS", 83, "B", 10);
-        assertRow(byName.get("estate/one-exploited-critical"), 72, "B", 54, "D", 25);
-        assertRow(byName.get("estate/fifty-mediums"), 100, "A_PLUS", 63, "C", 25);
-        assertRow(byName.get("estate/five-hundred-mediums"), 100, "A_PLUS", 1, "F", 250);
-        assertRow(byName.get("estate/twenty-seven-highs"), 0, "F", 14, "F", 108);
-        assertRow(byName.get("estate/four-exploited-criticals"), 0, "F", 16, "F", 100);
-        assertRow(byName.get("estate/mixed"), 65, "C", 24, "F", 79);
+        assertRow(byName.get("estate/one-critical"), 83, "B", 83, "B", 10);
+        assertRow(byName.get("estate/one-exploited-critical"), 54, "D", 54, "D", 25);
+        assertRow(byName.get("estate/fifty-mediums"), 63, "C", 63, "C", 25);
+        assertRow(byName.get("estate/five-hundred-mediums"), 1, "F", 1, "F", 250);
+        assertRow(byName.get("estate/twenty-seven-highs"), 14, "F", 14, "F", 108);
+        assertRow(byName.get("estate/four-exploited-criticals"), 16, "F", 16, "F", 100);
+        assertRow(byName.get("estate/mixed"), 24, "F", 24, "F", 79);
         // The licence term: the card's own count, weighing a high's 4 — and no +5 for the scan.
-        assertRow(byName.get("estate/one-disallowed-licence"), 100, "A_PLUS", 93, "A", 4);
-        assertRow(byName.get("estate/one-critical-one-licence"), 92, "A", 78, "B", 14);
-        assertRow(byName.get("estate/ten-disallowed-licences"), 55, "C", 48, "D", 40);
+        assertRow(byName.get("estate/one-disallowed-licence"), 93, "A", 93, "A", 4);
+        assertRow(byName.get("estate/one-critical-one-licence"), 78, "B", 78, "B", 14);
+        assertRow(byName.get("estate/ten-disallowed-licences"), 48, "D", 48, "D", 40);
         assertThat(byName.get("estate/ten-disallowed-licences").path("licences").asLong()).isEqualTo(10);
         assertThat(byName.get("estate/never-scanned").path("currentGrade").asText()).isEqualTo("NO_DATA");
         assertThat(byName.get("estate/never-scanned").path("candidateGrade").asText()).isEqualTo("NO_DATA");
@@ -115,13 +123,13 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
                 g.path("grade").asText(), new long[] {g.path("current").asLong(), g.path("candidate").asLong()}));
         assertThat(grades).containsOnlyKeys(
                 java.util.Arrays.stream(SecurityGrade.values()).map(Enum::name).toArray(String[]::new));
-        // grade -> {current, candidate}
-        assertThat(grades.get("A_PLUS")).containsExactly(5, 1);
+        // grade -> {current, candidate}; under the old formula the current column read 5, 1, 1, 2, 0, 2, 1.
+        assertThat(grades.get("A_PLUS")).containsExactly(1, 1);
         assertThat(grades.get("A")).containsExactly(1, 1);
-        assertThat(grades.get("B")).containsExactly(1, 2);
-        assertThat(grades.get("C")).containsExactly(2, 1);
-        assertThat(grades.get("D")).containsExactly(0, 2);
-        assertThat(grades.get("F")).containsExactly(2, 4);
+        assertThat(grades.get("B")).containsExactly(2, 2);
+        assertThat(grades.get("C")).containsExactly(1, 1);
+        assertThat(grades.get("D")).containsExactly(2, 2);
+        assertThat(grades.get("F")).containsExactly(4, 4);
         assertThat(grades.get("NO_DATA")).containsExactly(1, 1);
 
         printTable(body);
@@ -265,41 +273,43 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         body.path("scopes").forEach(row -> byName.put(row.path("name").asText(), row));
 
         JsonNode twenty = byName.get("twenty-mediums");
-        // Current: mediums weigh nothing, 100 + 5 held at 100. Sum: 80 × 0.5 = 40 points, 48 D.
-        assertScope(twenty, 100, "A_PLUS", 48, "D", 40);
+        // Current, the card's weakest link since 0.11.0: 96 A+ (100 A+ under the old formula, where
+        // mediums weighed nothing). Sum: 80 × 0.5 = 40 points, 48 D.
+        assertScope(twenty, 96, "A_PLUS", 48, "D", 40);
         assertThat(twenty.path("targetCount").asInt()).isEqualTo(20);
         assertThat(twenty.path("medium").asLong()).isEqualTo(80);
         // Every target ties at 96: the first listed is named.
         assertWeakest(twenty, 96, "A_PLUS", "size/mediums-01");
 
         JsonNode exploited = byName.get("ten-clean-one-exploited");
-        // Current: 100 − 25 − 8 + 5 = 72 B. Sum: 25 points, 63 capped at 54, D.
-        assertScope(exploited, 72, "B", 54, "D", 25);
+        // Current: the exploited repository's 54 D (72 B under the old formula). Sum: 25 points, 63
+        // capped at 54, D.
+        assertScope(exploited, 54, "D", 54, "D", 25);
         assertThat(exploited.path("targetCount").asInt()).isEqualTo(11);
         assertWeakest(exploited, 54, "D", "size/exploited");
 
         // Both projects: 65 points summed, 31 F; the weakest link is the exploited repository's 54 D.
         JsonNode size = byName.get("size");
-        assertScope(size, 72, "B", 31, "F", 65);
+        assertScope(size, 54, "D", 31, "F", 65);
         assertWeakest(size, 54, "D", "size/exploited");
 
         printScopes(body);
     }
 
     /**
-     * Every project and solution under both formulas — and the double count the scope card makes
-     * today, which the candidate does not.
+     * Every project and solution under both formulas — and the double count the scope card made until
+     * 0.11.0, fixed by the switch.
      *
-     * <p><b>The double count.</b> A scope card sums its targets' inventories, and an image's inventory
-     * holds the components and licence findings of every scan naming it <em>and</em> a repository,
-     * keyed to the repository, whose inventory holds them as well. {@code repo-and-image} files both
-     * targets of such a scan, carrying three disallowed licences: the card — its project's compliance
-     * route, the production path — counts six, the candidate three, which is what each target's own
-     * card adds up to (three on the repository, none on the image). The issue that scan raised names
-     * both targets and is counted once by both formulas.
+     * <p><b>The double count.</b> The scope card summed its targets' inventories, and an image's
+     * inventory holds the components and licence findings of every scan naming it <em>and</em> a
+     * repository, keyed to the repository, whose inventory holds them as well. {@code repo-and-image}
+     * files both targets of such a scan, carrying three disallowed licences: the card — its project's
+     * compliance route, the production path — counted six. It counts three now, as the candidate does
+     * and as each target's own card adds up to (three on the repository, none on the image). The issue
+     * that scan raised names both targets and is counted once by both formulas.
      */
     @Test
-    @DisplayName("lists every project and solution under both formulas, each licence counted once by the candidate")
+    @DisplayName("lists every project and solution under both formulas, each licence counted once by the card as by the candidate")
     void scopesUnderBothFormulas() throws Exception {
         Scopes seeded = seedScopes();
 
@@ -316,10 +326,11 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
                 "project:twenty-mediums", "solution:group", "solution:half", "solution:shared", "solution:size",
                 "solution:unseen");
 
-        // name -> current score, current grade, candidate score, candidate grade, risk points
+        // name -> current score, current grade, candidate score, candidate grade, risk points. Current
+        // is the card's weakest link (77 B under the old formula, for the two summed backlogs).
         assertScope(byName.get("one-clean-repo"), 100, "A_PLUS", 100, "A_PLUS", 0);
-        assertScope(byName.get("critical-and-mediums"), 77, "B", 30, "F", 66.5);
-        assertScope(byName.get("group"), 77, "B", 30, "F", 66.5);
+        assertScope(byName.get("critical-and-mediums"), 54, "D", 30, "F", 66.5);
+        assertScope(byName.get("group"), 54, "D", 30, "F", 66.5);
         // The coverage cap, the card's own: one target of two observed holds both formulas at 50.
         assertScope(byName.get("half-scanned"), 50, "D", 50, "D", 0);
         assertScope(byName.get("half"), 50, "D", 50, "D", 0);
@@ -331,18 +342,20 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         assertThat(empty.path("candidateScore").isNull()).isTrue();
         assertThat(empty.path("candidateRiskPoints").isNull()).isTrue();
 
-        // The double count: six licences on the card, three under the candidate — the high once in both.
-        // Current: 100 − 4 (high) − 6 × 5 + 5 = 71, B. Candidate: 4 + 3 × 4 = 16 points, 75, B; with the
-        // card's six it would read 28 points, 60, C.
+        // The double count, fixed: three licences on the card as under the candidate — the high once
+        // in both. The card read six until 0.11.0, and 100 − 4 (high) − 6 × 5 + 5 = 71, B. Now: 4 + 3 × 4
+        // = 16 points, 75, B, for the scope and for its weakest target alike; with six it would read 28
+        // points, 60, C.
         for (String name : List.of("repo-and-image", "shared")) {
             JsonNode shared = byName.get(name);
-            assertScope(shared, 71, "B", 75, "B", 16);
-            assertThat(shared.path("currentLicences").asLong()).as(name).isEqualTo(6);
+            assertScope(shared, 75, "B", 75, "B", 16);
+            assertThat(shared.path("currentLicences").asLong()).as(name).isEqualTo(3);
             assertThat(shared.path("licences").asLong()).as(name).isEqualTo(3);
-            assertThat(shared.path("currentDoubleCounted").asBoolean()).as(name).isTrue();
             assertThat(shared.path("high").asLong()).as(name).isEqualTo(1);
         }
-        for (String name : List.of("one-clean-repo", "critical-and-mediums", "group", "half-scanned", "half", "empty")) {
+        for (String name : List.of(
+                "one-clean-repo", "critical-and-mediums", "group", "half-scanned", "half", "empty",
+                "repo-and-image", "shared")) {
             assertThat(byName.get(name).path("currentDoubleCounted").asBoolean()).as(name).isFalse();
         }
 
@@ -382,12 +395,14 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
             }
         });
 
-        // The production path itself, as the project's page reads it: six.
+        // The production path itself, as the project's page reads it: three, where it read six.
         JsonNode card = read(mvc.perform(authenticated(get("/api/v1/projects/" + seeded.sharedProject() + "/compliance"), asAdmin()))
                 .andExpect(status().isOk())
                 .andReturn());
-        assertThat(card.at("/scorecard/licenseViolationCount").asLong()).isEqualTo(6);
-        assertThat(card.at("/scorecard/score").asInt()).isEqualTo(71);
+        assertThat(card.at("/scorecard/licenseViolationCount").asLong()).isEqualTo(3);
+        assertThat(card.at("/scorecard/riskPoints").asDouble()).isEqualTo(16);
+        assertThat(card.at("/scorecard/score").asInt()).isEqualTo(75);
+        assertThat(card.at("/scorecard/weakestTarget/targetName").asText()).isEqualTo("scopes/shared");
         // And each target's own card: three on the repository, none on the image — the candidate's sum.
         Map<Long, JsonNode> targets = new HashMap<>();
         body.path("targets").forEach(row -> targets.put(row.path("targetId").asLong() * 2

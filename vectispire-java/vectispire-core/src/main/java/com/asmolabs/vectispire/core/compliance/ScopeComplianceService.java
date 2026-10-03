@@ -18,9 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
  * every input by it — the targets and their posture, the open counts, the overdue ones, the inventory,
  * the resolutions the MTTR averages — so the scope's is the estate's asked with the scope's visible
  * targets as the allowance: the same controls, the same coverage and freshness caps, the same {@code
- * NO_DATA} when none of those targets was scanned. The score is the portfolio scorecard's in the same
- * way ({@link SecurityScorecardService#getScopeScorecard}). A second copy of either would be a second
- * answer to "is this product compliant", and the two would drift.
+ * NO_DATA} when none of those targets was scanned. The score is the scorecard's in the same way
+ * ({@link SecurityScorecardService#getScopeScorecard}: the scope's weakest scanned target, decision
+ * 0036). A second copy of either would be a second answer to "is this product compliant", and the two
+ * would drift.
  *
  * <p><b>A partly visible scope is computed over its visible part and says {@code partial}</b> rather than
  * being refused. Every input is narrowed to the visible targets, so the figures carry nothing of the

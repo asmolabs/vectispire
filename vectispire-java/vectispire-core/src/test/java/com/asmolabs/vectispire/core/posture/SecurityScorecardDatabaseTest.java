@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
+import com.asmolabs.vectispire.common.domain.scorecard.PortfolioScorecard;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -37,7 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * How a target's grade is computed, against the database.
  *
  * <p>The routes checked that a clean repository scores 100 and that a KEV shows up in the counts;
- * the weights themselves — the numbers a badge in somebody's README is made of — and which issues
+ * the weights themselves — decision 0036's since 0.11.0 — — the numbers a badge in somebody's README is made of — and which issues
  * are allowed to weigh on it had no test. The licence inventory is replaced because it is read
  * from SBOM payloads, which would make each case here a scan fixture rather than a scorecard one.
  */
@@ -75,6 +76,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         repository.setBranch("main");
         repository = repositories.save(repository);
         when(licences.getInventory(any(VisibleTarget.class))).thenReturn(List.of());
+        when(licences.violations(any(Visibility.class))).thenReturn(new LicenseGovernanceService.Violations(Map.of(), 0));
     }
 
     @Test
@@ -86,6 +88,8 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         // never scanned: the formula subtracts what it finds from a hundred, and nobody had looked.
         assertThat(card.grade()).isEqualTo(SecurityGrade.NO_DATA);
         assertThat(card.score()).isNull();
+        // The risk points go with the score: a figure of a grade that does not exist is not stated.
+        assertThat(card.riskPoints()).isNull();
         assertThat(card.totalTargets()).isEqualTo(1);
         assertThat(card.observedTargets()).isZero();
         assertThat(card.hasAttestation()).isFalse();
@@ -167,20 +171,102 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("the portfolio counts the targets the caller sees, and is capped by the ones never scanned")
+    @DisplayName("a scope is graded by its weakest observed target, named, and its risk points are the scope's, each issue once")
+    void aScopeIsItsWeakestLink() {
+        completedScan();
+        issue("critical", false, "open"); // 10 points: 83, B
+        RepositoryEntity mediums = anotherRepository("corp/mediums");
+        scan(mediums.getId(), null, "completed");
+        for (int i = 0; i < 4; i++) {
+            onRepository(issue("medium", false, "open"), mediums); // 2 points: 96, A+
+        }
+        // Never scanned, and holding what an import left: it lends the scope no grade, its issue
+        // still counts among what is open.
+        RepositoryEntity imported = anotherRepository("corp/imported");
+        onRepository(issue("high", false, "open"), imported);
+
+        SecurityScorecard card = scorecards.getScopeScorecard(scopeOf(
+                new ScanTarget.Repository(mediums.getId()), new ScanTarget.Repository(repository.getId())));
+
+        // The summed backlog would read 12 points, 80; the weakest target reads 83 on its own card.
+        assertThat(card.score()).isEqualTo(83);
+        assertThat(card.grade()).isEqualTo(SecurityGrade.B);
+        assertThat(card.weakestTarget()).isEqualTo(new SecurityScorecard.WeakestTarget(
+                "repository", repository.getId(), "corp/payments", 83, SecurityGrade.B, 10.0));
+        assertThat(card.riskPoints()).isEqualTo(12.0);
+
+        SecurityScorecard withTheImported = scorecards.getScopeScorecard(scopeOf(
+                new ScanTarget.Repository(mediums.getId()), new ScanTarget.Repository(imported.getId())));
+        // The unscanned target caps the scope at its observed half, and is never its weakest link.
+        assertThat(withTheImported.score()).isEqualTo(50);
+        assertThat(withTheImported.weakestTarget().targetId()).isEqualTo(mediums.getId());
+        assertThat(withTheImported.riskPoints()).isEqualTo(6.0);
+    }
+
+    @Test
+    @DisplayName("of two weakest targets of one score, the one with more risk points is the scope's")
+    void aTieGoesToTheMoreRiskPoints() {
+        completedScan();
+        issue("critical", true, "open"); // exploited: 25 points, held at 54
+        RepositoryEntity heavier = anotherRepository("corp/heavier");
+        scan(heavier.getId(), null, "completed");
+        onRepository(issue("critical", true, "open"), heavier);
+        onRepository(issue("high", false, "open"), heavier); // 29 points, held at 54 too
+
+        SecurityScorecard card = scorecards.getScopeScorecard(scopeOf(
+                new ScanTarget.Repository(repository.getId()), new ScanTarget.Repository(heavier.getId())));
+
+        assertThat(card.score()).isEqualTo(54);
+        assertThat(card.weakestTarget().targetId()).isEqualTo(heavier.getId());
+        assertThat(card.weakestTarget().riskPoints()).isEqualTo(29.0);
+    }
+
+    @Test
+    @DisplayName("the portfolio has no grade: the targets the caller sees by grade, its weakest, and its risk points")
     void thePortfolio() {
         RepositoryEntity unscanned = anotherRepository("corp/unscanned");
         completedScan();
+        issue("high", false, "open");
+        RepositoryEntity hidden = anotherRepository("corp/hidden");
+        scan(hidden.getId(), null, "completed");
+        onRepository(issue("critical", true, "open"), hidden);
         Visibility both = Visibility.only(List.of(
                 new ScanTarget.Repository(repository.getId()), new ScanTarget.Repository(unscanned.getId())));
 
-        SecurityScorecard card = scorecards.getGlobalScorecard(both);
+        PortfolioScorecard card = scorecards.getPortfolioScorecard(both);
 
         assertThat(card.totalTargets()).isEqualTo(2);
         assertThat(card.observedTargets()).isEqualTo(1);
-        assertThat(card.score()).isEqualTo(50);
-        assertThat(scorecards.getGlobalScorecard(Visibility.only(List.of(new ScanTarget.Repository(unscanned.getId()))))
-                .grade()).isEqualTo(SecurityGrade.NO_DATA);
+        assertThat(card.grades()).extracting(PortfolioScorecard.GradeCount::grade)
+                .containsExactly(SecurityGrade.values());
+        assertThat(card.grades()).filteredOn(row -> row.targets() > 0).containsExactly(
+                new PortfolioScorecard.GradeCount(SecurityGrade.A, 1),
+                new PortfolioScorecard.GradeCount(SecurityGrade.NO_DATA, 1));
+        assertThat(card.weakestTarget()).isEqualTo(new SecurityScorecard.WeakestTarget(
+                "repository", repository.getId(), "corp/payments", 93, SecurityGrade.A, 4.0));
+        assertThat(card.riskPoints()).isEqualTo(4.0);
+        assertThat(card.openHighCount()).isEqualTo(1);
+        assertThat(card.openKevCount()).isZero();
+
+        PortfolioScorecard everything = scorecards.getPortfolioScorecard(Visibility.everything());
+        assertThat(everything.weakestTarget().targetId()).isEqualTo(hidden.getId());
+        assertThat(everything.riskPoints()).isEqualTo(29.0);
+
+        // Two targets held at D's 54 by an exploited issue: the one with more risk points is the
+        // weakest, as the ranking puts it last of the two.
+        RepositoryEntity heavier = anotherRepository("corp/heavier");
+        scan(heavier.getId(), null, "completed");
+        onRepository(issue("critical", true, "open"), heavier);
+        onRepository(issue("high", false, "open"), heavier);
+        assertThat(scorecards.getPortfolioScorecard(Visibility.everything()).weakestTarget())
+                .isEqualTo(new SecurityScorecard.WeakestTarget(
+                        "repository", heavier.getId(), "corp/heavier", 54, SecurityGrade.D, 29.0));
+
+        PortfolioScorecard nothingScanned =
+                scorecards.getPortfolioScorecard(Visibility.only(List.of(new ScanTarget.Repository(unscanned.getId()))));
+        assertThat(nothingScanned.weakestTarget()).isNull();
+        assertThat(nothingScanned.grades()).filteredOn(row -> row.targets() > 0)
+                .containsExactly(new PortfolioScorecard.GradeCount(SecurityGrade.NO_DATA, 1));
     }
 
     @Test
@@ -211,29 +297,36 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
 
         assertThat(card.overdueCount()).isEqualTo(2);
         assertThat(card.recommendations()).anySatisfy(line -> assertThat(line).startsWith("Resolve 2 issue(s) past"));
-        // 100 - 8 (the unsettled critical) - 4 - 4 (two highs) + 5: lateness is not scored.
-        assertThat(card.score()).isEqualTo(89);
-        assertThat(scorecards.getGlobalScorecard(Visibility.everything()).overdueCount()).isEqualTo(3);
+        // The unsettled critical and two highs, 18 points: lateness is not scored.
+        assertThat(card.score()).isEqualTo(72);
+        assertThat(scorecards.getPortfolioScorecard(Visibility.everything()).overdueCount()).isEqualTo(3);
     }
 
     @Test
-    @DisplayName("each weight applies as documented: KEV 25, critical 8, high 4, licence 5, evidence +5")
+    @DisplayName("each weight applies as decision 0036 sets it: exploited 25, critical 10, high 4, medium 0.5, low 0.125, licence 4, k 55")
     void theWeights() {
         completedScan();
         // Marked reachable in the dormant column, as a hand edit or a future import would: it
         // cost 15 instead of 8 while the scorecard read the column, on a claim nothing established.
-        markedReachable(issue("critical", false, "open")); // -8
-        issue("critical", false, "open"); // -8
-        issue("high", false, "open"); // -4
-        issue("medium", true, "open"); // -25, and a KEV is counted whatever its severity
+        markedReachable(issue("critical", false, "open")); // 10
+        issue("critical", false, "open"); // 10
+        issue("high", false, "open"); // 4
+        issue("medium", true, "open"); // 25: exploited, whatever its severity, and not also a medium
+        issue("medium", false, "open"); // 0.5
+        issue(null, false, "open"); // 0.5: no severity is a medium
+        for (int i = 0; i < 4; i++) {
+            issue("low", false, "open"); // 0.125 each
+        }
         when(licences.getInventory(checked(new ScanTarget.Repository(repository.getId())))).thenReturn(List.of(
                 licence(repository.getId(), "repository", false), licence(repository.getId(), "repository", true)));
 
         SecurityScorecard card = scorecard();
 
-        // 100 - 8 - 8 - 4 - 25 - 5 + 5
-        assertThat(card.score()).isEqualTo(55);
-        assertThat(card.grade()).isEqualTo(SecurityGrade.C);
+        // 10 + 10 + 4 + 25 + 0.5 + 0.5 + 4 × 0.125 + 4 (the one refused licence) = 54.5;
+        // 100 × e^(−54.5/55) = 37.1, and no bonus for the completed scan.
+        assertThat(card.riskPoints()).isEqualTo(54.5);
+        assertThat(card.score()).isEqualTo(37);
+        assertThat(card.grade()).isEqualTo(SecurityGrade.F);
         assertThat(card.openCriticalCount()).isEqualTo(2);
         assertThat(card.openHighCount()).isEqualTo(1);
         assertThat(card.openKevCount()).isEqualTo(1);
@@ -254,9 +347,10 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
 
         SecurityScorecard card = scorecard();
 
-        // 100 - 4 - 4 - 8 + 5: the two settled criticals and the KEV among them are gone from the
-        // score and from the counts alike; the unreadable one is not.
-        assertThat(card.score()).isEqualTo(89);
+        // 4 + 4 + 10, 72: the two settled criticals and the KEV among them are gone from the score
+        // and from the counts alike; the unreadable one is not.
+        assertThat(card.score()).isEqualTo(72);
+        assertThat(card.riskPoints()).isEqualTo(18.0);
         assertThat(card.openCriticalCount()).isEqualTo(1);
         assertThat(card.openKevCount()).isZero();
         assertThat(card.openHighCount()).isEqualTo(2);
@@ -294,17 +388,35 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("the score floors at zero rather than going negative")
+    @DisplayName("the score is held at one, never zero, while the risk points keep counting")
     void theScoreFloors() {
         completedScan();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 20; i++) {
             issue("critical", true, "open");
         }
 
         SecurityScorecard card = scorecard();
 
-        assertThat(card.score()).isZero();
+        assertThat(card.score()).isEqualTo(1);
         assertThat(card.grade()).isEqualTo(SecurityGrade.F);
+        assertThat(card.riskPoints()).isEqualTo(500.0);
+
+        issue("critical", true, "open");
+        // A team fixing — or adding — one more deep in F sees it move here, not on the score.
+        assertThat(scorecard().score()).isEqualTo(1);
+        assertThat(scorecard().riskPoints()).isEqualTo(525.0);
+    }
+
+    @Test
+    @DisplayName("one exploited issue caps the grade at D, the highest score of D")
+    void anExploitedIssueCapsAtD() {
+        completedScan();
+        issue("low", true, "open"); // 25 points: 63 by the formula, a C
+
+        SecurityScorecard card = scorecard();
+
+        assertThat(card.score()).isEqualTo(54);
+        assertThat(card.grade()).isEqualTo(SecurityGrade.D);
     }
 
     @Test
@@ -326,8 +438,9 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         SecurityScorecard card = scorecards.getContainerScorecard(container.getId(), Visibility.everything()).orElseThrow();
 
         assertThat(card.targetName()).isEqualTo("registry.example.invalid/shop:1.4.2");
-        // 100 - 4 - 4 + 5: scanned, so observed and attested.
-        assertThat(card.score()).isEqualTo(97);
+        // Two highs, 8 points: scanned, so observed and attested — and no bonus for it.
+        assertThat(card.score()).isEqualTo(86);
+        assertThat(card.riskPoints()).isEqualTo(8.0);
         assertThat(card.openHighCount()).isEqualTo(2);
         assertThat(card.openCriticalCount()).isZero();
     }
@@ -382,7 +495,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
                 new ScanTarget.Repository(clean.getId()),
                 new ScanTarget.Repository(unscanned.getId()));
         assertAgrees(grades.get(new ScanTarget.Repository(repository.getId())), scorecard());
-        assertThat(grades.get(new ScanTarget.Repository(repository.getId())).score()).isEqualTo(55);
+        assertThat(grades.get(new ScanTarget.Repository(repository.getId())).score()).isEqualTo(38);
         assertAgrees(grades.get(new ScanTarget.Container(container.getId())),
                 scorecards.getContainerScorecard(container.getId(), Visibility.everything()).orElseThrow());
         assertAgrees(grades.get(new ScanTarget.Repository(clean.getId())),
@@ -391,11 +504,13 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         assertAgrees(grades.get(new ScanTarget.Repository(unscanned.getId())),
                 scorecards.getRepositoryScorecard(unscanned.getId(), Visibility.everything()).orElseThrow());
         assertThat(grades.get(new ScanTarget.Repository(unscanned.getId())).grade()).isEqualTo(SecurityGrade.NO_DATA);
+        assertThat(grades.get(new ScanTarget.Repository(unscanned.getId())).riskPoints()).isNull();
     }
 
     private static void assertAgrees(SecurityScorecardService.TargetGrade ranked, SecurityScorecard card) {
         assertThat(ranked.score()).as("score of %s", card.targetName()).isEqualTo(card.score());
         assertThat(ranked.grade()).as("grade of %s", card.targetName()).isEqualTo(card.grade());
+        assertThat(ranked.riskPoints()).as("risk points of %s", card.targetName()).isEqualTo(card.riskPoints());
         assertThat(ranked.critical()).isEqualTo(card.openCriticalCount());
         assertThat(ranked.high()).isEqualTo(card.openHighCount());
     }
@@ -416,6 +531,11 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         scan.setStatus(status);
         scan.setCreatedAt(Instant.now());
         scans.save(scan);
+    }
+
+    private IssueEntity onRepository(IssueEntity issue, RepositoryEntity target) {
+        issue.setRepoId(target.getId());
+        return issues.save(issue);
     }
 
     private RepositoryEntity anotherRepository(String name) {

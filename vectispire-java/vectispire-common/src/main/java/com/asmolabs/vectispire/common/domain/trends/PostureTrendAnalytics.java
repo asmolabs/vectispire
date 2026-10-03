@@ -49,12 +49,15 @@ public record PostureTrendAnalytics(
      * while the card and the public badge of the same target showed another number and another
      * letter. It is now the card's, computed by the scorecard's service; this record only carries it.
      *
-     * @param openCritical the counts the card grades on, among the others it does not weigh: open
-     *     means neither closed nor resolved, settled triage left out, as on the card
+     * @param openCritical the counts the card grades on: open means neither closed nor resolved,
+     *     settled triage left out, as on the card
      * @param totalResolved all time, like {@code targetMttrDays}; neither enters the score
-     * @param securityScore 0 to 100; null exactly when {@code maturityGrade} is
+     * @param securityScore 1 to 100; null exactly when {@code maturityGrade} is
      *     {@link SecurityGrade#NO_DATA} — the target holds no completed scan (decision 0007), and it
      *     ranks after every graded target
+     * @param riskPoints the card's (decision 0036); null exactly when {@code securityScore} is. Two
+     *     targets of one score — both at one deep in F, both at the exploited cap — rank by them, the
+     *     fewer first
      */
     public record TargetMaturityScore(
             Long targetId,
@@ -67,7 +70,8 @@ public record PostureTrendAnalytics(
             long totalResolved,
             Double targetMttrDays,
             Integer securityScore,
-            SecurityGrade maturityGrade) {}
+            SecurityGrade maturityGrade,
+            Double riskPoints) {}
 
     /**
      * The instant the window opens. Public because a caller filtering in SQL has to compute the
