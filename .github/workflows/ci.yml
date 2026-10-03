@@ -210,6 +210,66 @@ jobs:
             --directory . \
             --skip-path node_modules
 
+
+  # **The chart renders in each of its shapes, and refuses what it says it refuses** (decision 0038):
+  # the control plane alone, agents with a privileged docker:dind sidecar, and the rootless variant
+  # acknowledged. Each rendering is then checked against the Kubernetes schemas the chart's
+  # `kubeVersion` floor allows, so a field misspelled in a template is a red job rather than an
+  # `helm install` that fails at a customer. Then the refusals: no database URL, and the rootless
+  # variant without its acknowledgement — a guard that renders is a guard nobody has.
+  #
+  # **Both tools are downloaded and checked against a sha256 written here**, read off the publisher's
+  # checksum file and compared, the day they were pinned, with the one in the release notes of the
+  # other origin (get.helm.sh against GitHub for Helm). A moved archive is a red job, never a new tool.
+  helm-chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HELM_VERSION: v3.22.0
+      HELM_SHA256: 1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: helm and kubeconform, at their checksums
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSLo helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "${HELM_SHA256}  helm.tar.gz" | sha256sum -c -
+          tar -xzf helm.tar.gz -C bin --strip-components=1 linux-amd64/helm
+          curl -fsSLo kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum -c -
+          tar -xzf kubeconform.tar.gz -C bin kubeconform
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: lint, render and validate each shape
+        working-directory: deploy/helm/vectispire
+        run: |
+          for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml ci/dind-rootless-values.yaml \
+              values.example.yaml; do
+            echo "::group::$values"
+            helm lint . --strict -f "$values"
+            helm template vs . -n vectispire -f "$values" > rendered.yaml
+            # The floor the chart declares (`kubeVersion`), not the newest schema: a field that exists
+            # only in a later release must not pass here.
+            kubeconform -strict -summary -kubernetes-version 1.27.0 rendered.yaml
+            echo "::endgroup::"
+          done
+      - name: the chart refuses what it says it refuses
+        working-directory: deploy/helm/vectispire
+        run: |
+          refused() {
+            if helm template vs . "$@" > /dev/null 2> refusal.txt; then
+              echo "::error::rendered, and should have been refused: $*"; exit 1
+            fi
+            cat refusal.txt
+          }
+          refused
+          refused -f ci/dind-rootless-values.yaml --set agents.dind.rootless.acknowledgeUnreadableWorkspaces=false
+          refused -f ci/no-agents-values.yaml --set trustedProxies=
+          refused -f ci/no-agents-values.yaml --set image.digest=
+
   jvm:
     runs-on: ubuntu-latest
     timeout-minutes: 30
