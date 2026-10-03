@@ -200,6 +200,16 @@ another branch, is another target and is accepted as before.
   words when bound. Where a version stays unstated, the evidence says it is managed outside the SBOM and
   that an SBOM produced by the build resolves it. The template's rule editor offers both, in French and
   English.
+- **Kubernetes: a Helm chart** in `deploy/helm/vectispire/`
+  ([installation](../getting-started/installation.md#kubernetes),
+  [decision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0038-deploying-on-kubernetes.md)).
+  - **What it runs.** The control plane by digest, against an external MySQL, with its secrets as files,
+    a read-only root, `Recreate` upgrades and an Ingress. It runs no container: every scan goes to an
+    agent, and report plugins answer `409 report-executor-unavailable` on Kubernetes for now.
+  - **Where agents run.** Outside the cluster on a Docker host (recommended, nothing deployed by the
+    chart), or, opt-in, in the cluster as pods with a privileged `docker:dind` sidecar on nodes of their
+    own. The rootless variant renders only when acknowledged, because it does not scan.
+  - **Checked in CI** for each of these shapes.
 - **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
   (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
   ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).

@@ -217,6 +217,17 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   illisible est refusée en mots à la liaison. Quand une version reste non indiquée, la preuve dit qu'elle
   est gérée hors du SBOM et qu'un SBOM produit par le build la résout. L'éditeur de règles du modèle
   propose les deux, en français et en anglais.
+- **Kubernetes : une chart Helm** dans `deploy/helm/vectispire/`
+  ([installation](../getting-started/installation.md#kubernetes),
+  [décision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0038-deploying-on-kubernetes.md)).
+  - **Ce qu'elle fait tourner.** Le plan de contrôle par empreinte, contre un MySQL externe, ses secrets
+    en fichiers, une racine en lecture seule, des mises à jour `Recreate` et un Ingress. Elle ne lance
+    aucun conteneur : chaque scan va à un agent, et les plugins de rapport répondent
+    `409 report-executor-unavailable` sur Kubernetes pour l'instant.
+  - **Où tournent les agents.** Hors du cluster sur un hôte Docker (recommandé, la chart n'y déploie
+    rien), ou, sur option, dans le cluster en pods avec un sidecar `docker:dind` privilégié sur des
+    nœuds à eux. La variante rootless ne se rend que sur acquittement, parce qu'elle ne scanne pas.
+  - **Vérifiée en CI** pour chacune de ces formes.
 - **Découvertes de forge : les dépôts d'un GitHub aussi** — github.com, Enterprise Cloud avec résidence des
   données (`<sous-domaine>.ghe.com`) et Enterprise Server 3.12 ou ultérieur sous `/api/v3`
   ([ce qui est listé](../administration/forge-connections.fr.md#decouvrir-les-depots), décision 0037, lot D4).

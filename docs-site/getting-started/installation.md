@@ -202,6 +202,204 @@ counts the proxy's address rather than the caller's and stops protecting anyone.
 
 Both are recorded with their reasoning in the project's threat model.
 
+## Kubernetes {#kubernetes}
+
+A Helm chart ships in [`deploy/helm/vectispire/`](https://github.com/asmolabs/vectispire/tree/main/deploy/helm/vectispire).
+It follows [decision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0038-deploying-on-kubernetes.md).
+It deploys:
+
+- the control plane, which also serves the interface;
+- its Ingress;
+- the audit mirror's volume.
+
+It does **not** deploy the database or the Secrets, which are yours. It runs no container itself, so
+**every scan runs on an agent**. Agents run on a Docker host outside the cluster (recommended), or
+in the cluster as opt-in pods.
+
+!!! warning "Report plugins are not available on Kubernetes yet"
+    A [report plugin](../administration/report-plugins.md) runs on the control plane's own Docker
+    endpoint, and a pod has none. Requests answer `409 report-executor-unavailable` until a later
+    version can reach a remote daemon. Built-in reports and exports are not affected: they are
+    rendered by the application itself.
+
+### The MySQL server
+
+Installed and backed up separately. The chart points at it:
+
+- **One host in the URL.** `jdbc:mysql://mysql.example.org:3306/vectispire`. A URL listing several
+  hosts, or `mysql+srv`, is refused at startup: Vectispire must know the database's address to keep
+  webhooks from reaching it.
+- **TLS.** Add `sslMode=VERIFY_IDENTITY` to the URL. If the server's certificate is from a private CA,
+  put that CA in a PKCS12 truststore and store it in a Secret named by `database.trustStore`. Then
+  add `trustCertificateKeyStoreUrl=file:/etc/vectispire/mysql/truststore.p12&trustCertificateKeyStoreType=PKCS12`
+  to the URL.
+- **`max_allowed_packet` at least `160M`.** Report exports travel hex-encoded at twice their size.
+- **UTC**: `default_time_zone = '+00:00'`. Some columns default to `CURRENT_TIMESTAMP`, which the
+  server evaluates in the session's time zone. Do not set `TZ` on the pod.
+- **Back up before every upgrade.** Migrations run at startup and have no way back. Rolling back
+  means restoring the backup and the previous image digest.
+
+### Installing
+
+```bash
+kubectl create namespace vectispire
+kubectl -n vectispire create secret generic vectispire-database \
+  --from-literal=password='<the database password>'   # gitleaks:allow
+kubectl -n vectispire create secret generic vectispire-keys \
+  --from-literal=encryption-key="$(openssl rand -base64 32)" \
+  --from-literal=bootstrap-password="$(openssl rand -base64 24)"   # gitleaks:allow
+kubectl -n vectispire create secret tls vectispire-tls --cert=tls.crt --key=tls.key
+
+cp deploy/helm/vectispire/values.example.yaml my-values.yaml   # edit it
+helm install vectispire deploy/helm/vectispire -n vectispire -f my-values.yaml
+```
+
+**Back up the encryption key** outside the cluster. It decrypts every deployment key and token
+Vectispire holds; a cluster rebuilt without it holds secrets nobody can read.
+
+Also set a **signing key** (`secrets.signingKey`, a P-256 PKCS#8 PEM): on 0.10.0, an installation
+without one answers 500 on its first evidence bundle (fixed in the next release). Keep it: replacing
+it makes every document already signed unverifiable.
+
+The chart refuses to render without its required values, and says which is missing. The full list is
+in the chart's [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md).
+
+**Shape of the deployment:**
+
+- one replica;
+- `strategy: Recreate`, so an old pod never serves a migrated schema;
+- the image pinned by digest;
+- the pod: uid 1000, read-only root filesystem, every capability dropped, no service-account token;
+- probes on `/actuator/health/liveness` and `/actuator/health/readiness`; readiness includes the
+  database.
+
+### The Ingress
+
+The default annotations are ingress-nginx's. With another controller, set the same three things in
+its own words:
+
+| Setting | Why |
+|---|---|
+| read timeout ≥ 60 s | an agent's long poll holds its request 30 s |
+| body size ≥ 256 MB | an agent's result carries the SBOM |
+| TLS | the interface signs people in |
+
+Set `trustedProxies` to the ingress controller's address range. Left empty, every audit entry and
+rate limit names the controller instead of the caller. TLS ending at the Ingress would also read as
+plain HTTP to the application.
+
+**Two replicas** are possible but not the default. They need:
+
+- cookie affinity (`ingress.stickySessions`): single sign-on keeps its state in the session of the
+  pod that sent the person to the provider;
+- a ReadWriteMany volume for the audit mirror (`auditMirror.accessMode`): each pod writes its own
+  file there.
+
+### Agents on a Docker host (recommended)
+
+A Linux VM with Docker, outside the cluster, reaching the Ingress over HTTPS. Create the agent on the
+**Agents** screen, then run it the way the composition's `with-agent` profile does:
+
+- its own socket proxy;
+- its work directory mounted **at the same path** on both sides — the daemon resolves a scanner's
+  bind on its own host.
+
+```yaml
+# docker-compose.yml on the agent's host
+services:
+  agent:
+    image: ghcr.io/asmolabs/vectispire-agent:0.10.0@sha256:121ec47d0db949946b55ec034b72fdaff909470c92353efda434bbbbb428d72e
+    environment:
+      VECTISPIRE_URL: https://vectispire.example.org
+      DOCKER_HOST: tcp://agent-docker-proxy:2375
+      # The key as a file, read through the configuration tree, not as a variable.
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      JDK_JAVA_OPTIONS: >-
+        -Djava.io.tmpdir=/var/lib/vectispire/agent-work
+        -Duser.home=/var/lib/vectispire/agent-work/home
+    secrets:
+      - source: agent_token
+        target: VECTISPIRE_AGENT_TOKEN
+    volumes:
+      - /var/lib/vectispire/agent-work:/var/lib/vectispire/agent-work
+    depends_on: [agent-docker-proxy]
+    restart: unless-stopped
+    networks: [outside, docker]
+  agent-docker-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    # What ContainerRunner calls, and nothing else; every other section stays at its default, 0.
+    # docker-compose.yml lists them all, each with its reason.
+    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks: [docker]
+secrets:
+  agent_token:
+    file: ./agent-token   # the key shown once on the Agents screen, mode 0600
+networks:
+  outside: {}
+  docker: {internal: true}
+```
+
+Before the first start, give the work directory to the agent's user:
+
+```bash
+sudo install -d -m 0700 -o 1000 -g 1000 /var/lib/vectispire/agent-work
+```
+
+**Trust.** If the Ingress certificate is from a private CA, give the agent's JVM a truststore through
+`JDK_JAVA_OPTIONS`:
+
+```
+-Djavax.net.ssl.trustStore=… -Djavax.net.ssl.trustStoreType=PKCS12
+```
+
+The truststore replaces the JVM's own: include every authority the agent must trust.
+
+See [Agents](../administration/agents.md) for:
+
+- credentials modes;
+- pinning a signing key;
+- concurrency.
+
+### Agents in the cluster (opt-in)
+
+`agents.enabled: true` deploys one agent pod per release. The pod has two containers:
+
+- the agent, read-only, as uid 1000;
+- a Docker daemon of its own (`docker:dind`), on a Unix socket shared through an `emptyDir`. It never
+  listens on TCP: the image's entrypoint would otherwise open port 2375 to the whole cluster, with no
+  authentication.
+
+The work directory is a second `emptyDir`, mounted at the same path in both containers.
+
+**The daemon runs in a privileged container, which is root on its node.** A scanner that escapes its
+own container reaches that daemon, and through it the node. Give these pods:
+
+- **their own namespace**: the chart creates `vectispire-agents` with Pod Security Admission's
+  `privileged` level;
+- **their own nodes**: `agents.nodeSelector`, and `agents.tolerations` matching a taint only they
+  tolerate;
+- **the NetworkPolicy**: on by default. It denies all ingress. List the cluster's pod and service
+  ranges in `agents.networkPolicy.excludeCidrs`, so that egress reaches the outside world and the
+  Ingress, nothing else.
+
+Where the cluster forbids privileged pods, use a Docker host.
+
+The **rootless variant** (`agents.dind.variant: rootless`, `docker:dind-rootless`) **does not scan
+with this version's agent**:
+
+- under the rootless daemon's user namespace, the workspace the agent owns as uid 1000 appears to the
+  scanner as owned by root;
+- the scanner, also running as uid 1000, cannot read it, and every scanner ends up absent;
+- on most clusters it also needs a privileged container anyway, or unconfined seccomp and AppArmor.
+
+The chart renders it only with `agents.dind.rootless.acknowledgeUnreadableWorkspaces: true`.
+
+Each restart of the pod downloads the scanner images and the vulnerability database again — about
+3 GB. `agents.dind.imageCache` keeps the images on a volume.
+
 ## Running from source
 
 ```bash

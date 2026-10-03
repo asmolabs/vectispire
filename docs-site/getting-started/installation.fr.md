@@ -207,6 +207,211 @@ de protéger qui que ce soit.
 
 Les deux sont consignés avec leur raisonnement dans le modèle de menaces du projet.
 
+## Kubernetes {#kubernetes}
+
+Une chart Helm est livrée dans [`deploy/helm/vectispire/`](https://github.com/asmolabs/vectispire/tree/main/deploy/helm/vectispire).
+Elle suit la [décision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0038-deploying-on-kubernetes.md).
+Elle déploie :
+
+- le plan de contrôle, qui sert aussi l'interface ;
+- son Ingress ;
+- le volume du miroir d'audit.
+
+Elle ne déploie **ni** la base **ni** les Secrets, qui sont les vôtres. Elle ne lance elle-même aucun
+conteneur : **chaque scan tourne sur un agent**. Les agents tournent sur un hôte Docker hors du
+cluster (recommandé), ou dans le cluster, en pods, sur option.
+
+!!! warning "Les plugins de rapport ne sont pas encore disponibles sur Kubernetes"
+    Un [plugin de rapport](../administration/report-plugins.fr.md) tourne sur le point d'accès Docker
+    du plan de contrôle lui-même, et un pod n'en a pas. Les demandes répondent
+    `409 report-executor-unavailable` jusqu'à ce qu'une version ultérieure sache joindre un démon
+    distant. Les rapports et exports intégrés ne sont pas concernés : l'application les produit
+    elle-même.
+
+### Le serveur MySQL
+
+Installé et sauvegardé à part. La chart pointe vers lui :
+
+- **Un seul hôte dans l'URL.** `jdbc:mysql://mysql.example.org:3306/vectispire`. Une URL qui liste
+  plusieurs hôtes, ou `mysql+srv`, est refusée au démarrage : Vectispire doit connaître l'adresse de
+  la base pour empêcher les webhooks de l'atteindre.
+- **TLS.** Ajoutez `sslMode=VERIFY_IDENTITY` à l'URL. Si le certificat du serveur vient d'une
+  autorité privée, mettez cette autorité dans un truststore PKCS12, rangé dans un Secret nommé par
+  `database.trustStore`. Ajoutez ensuite
+  `trustCertificateKeyStoreUrl=file:/etc/vectispire/mysql/truststore.p12&trustCertificateKeyStoreType=PKCS12`
+  à l'URL.
+- **`max_allowed_packet` d'au moins `160M`.** Les exports de rapport voyagent en hexadécimal, au double
+  de leur taille.
+- **UTC** : `default_time_zone = '+00:00'`. Certaines colonnes ont `CURRENT_TIMESTAMP` pour défaut, que
+  le serveur évalue dans le fuseau de la session. Ne fixez pas `TZ` sur le pod.
+- **Sauvegardez avant chaque mise à jour.** Les migrations tournent au démarrage et n'ont pas de retour
+  arrière. Revenir en arrière, c'est restaurer la sauvegarde et l'empreinte de l'image précédente.
+
+### Installer
+
+```bash
+kubectl create namespace vectispire
+kubectl -n vectispire create secret generic vectispire-database \
+  --from-literal=password='<le mot de passe de la base>'   # gitleaks:allow
+kubectl -n vectispire create secret generic vectispire-keys \
+  --from-literal=encryption-key="$(openssl rand -base64 32)" \
+  --from-literal=bootstrap-password="$(openssl rand -base64 24)"   # gitleaks:allow
+kubectl -n vectispire create secret tls vectispire-tls --cert=tls.crt --key=tls.key
+
+cp deploy/helm/vectispire/values.example.yaml mes-valeurs.yaml   # à adapter
+helm install vectispire deploy/helm/vectispire -n vectispire -f mes-valeurs.yaml
+```
+
+**Sauvegardez la clé de chiffrement** hors du cluster. Elle déchiffre chaque clé de déploiement et
+chaque jeton que Vectispire détient ; un cluster reconstruit sans elle détient des secrets que
+personne ne peut lire.
+
+Fixez aussi une **clé de signature** (`secrets.signingKey`, PEM PKCS#8 P-256) : en 0.10.0, une
+installation qui n'en a pas répond 500 à son premier dossier de preuves (corrigé dans la version
+suivante). Gardez-la : la remplacer rend invérifiable chaque document déjà signé.
+
+La chart refuse de se rendre sans ses valeurs obligatoires, et dit laquelle manque. La liste complète
+est dans le [README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md)
+de la chart.
+
+**Forme du déploiement :**
+
+- un réplica ;
+- `strategy: Recreate`, pour qu'un ancien pod ne serve jamais un schéma migré ;
+- l'image épinglée par empreinte ;
+- le pod : uid 1000, système de fichiers racine en lecture seule, toutes capacités retirées, aucun
+  jeton de compte de service ;
+- des sondes sur `/actuator/health/liveness` et `/actuator/health/readiness` ; la disponibilité inclut
+  la base.
+
+### L'Ingress
+
+Les annotations par défaut sont celles d'ingress-nginx. Avec un autre contrôleur, réglez les trois
+mêmes choses dans ses propres termes :
+
+| Réglage | Pourquoi |
+|---|---|
+| délai de lecture ≥ 60 s | le long polling d'un agent tient sa requête 30 s |
+| taille de corps ≥ 256 Mo | le résultat d'un agent porte le SBOM |
+| TLS | l'interface connecte des personnes |
+
+Réglez `trustedProxies` sur la plage d'adresses du contrôleur d'Ingress. Laissé vide, chaque entrée
+d'audit et chaque limite de débit nomme le contrôleur au lieu de l'appelant. Le TLS terminé à
+l'Ingress se lirait aussi comme du HTTP en clair côté application.
+
+**Deux réplicas** sont possibles, mais pas par défaut. Ils demandent :
+
+- l'affinité par cookie (`ingress.stickySessions`) : l'authentification unique garde son état dans la
+  session du pod qui a envoyé la personne vers le fournisseur ;
+- un volume ReadWriteMany pour le miroir d'audit (`auditMirror.accessMode`) : chaque pod y écrit son
+  propre fichier.
+
+### Des agents sur un hôte Docker (recommandé)
+
+Une VM Linux avec Docker, hors du cluster, qui joint l'Ingress en HTTPS. Créez l'agent sur l'écran
+**Agents**, puis lancez-le comme le fait le profil `with-agent` de la composition :
+
+- son propre proxy de socket ;
+- son répertoire de travail monté **au même chemin** des deux côtés — le démon résout le bind d'un
+  scanner sur son propre hôte.
+
+```yaml
+# docker-compose.yml sur l'hôte de l'agent
+services:
+  agent:
+    image: ghcr.io/asmolabs/vectispire-agent:0.10.0@sha256:121ec47d0db949946b55ec034b72fdaff909470c92353efda434bbbbb428d72e
+    environment:
+      VECTISPIRE_URL: https://vectispire.example.org
+      DOCKER_HOST: tcp://agent-docker-proxy:2375
+      # La clé en fichier, lue par l'arbre de configuration, pas en variable.
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      JDK_JAVA_OPTIONS: >-
+        -Djava.io.tmpdir=/var/lib/vectispire/agent-work
+        -Duser.home=/var/lib/vectispire/agent-work/home
+    secrets:
+      - source: agent_token
+        target: VECTISPIRE_AGENT_TOKEN
+    volumes:
+      - /var/lib/vectispire/agent-work:/var/lib/vectispire/agent-work
+    depends_on: [agent-docker-proxy]
+    restart: unless-stopped
+    networks: [outside, docker]
+  agent-docker-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    # Ce qu'appelle ContainerRunner, et rien d'autre ; toute autre section garde sa valeur par
+    # défaut, 0. docker-compose.yml les liste toutes, chacune avec sa raison.
+    environment: {PING: 1, VERSION: 1, INFO: 1, CONTAINERS: 1, IMAGES: 1, POST: 1, EXEC: 0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks: [docker]
+secrets:
+  agent_token:
+    file: ./agent-token   # la clé affichée une fois sur l'écran Agents, mode 0600
+networks:
+  outside: {}
+  docker: {internal: true}
+```
+
+Avant le premier démarrage, donnez le répertoire de travail à l'utilisateur de l'agent :
+
+```bash
+sudo install -d -m 0700 -o 1000 -g 1000 /var/lib/vectispire/agent-work
+```
+
+**Confiance.** Si le certificat de l'Ingress vient d'une autorité privée, donnez un truststore à la JVM
+de l'agent par `JDK_JAVA_OPTIONS` :
+
+```
+-Djavax.net.ssl.trustStore=… -Djavax.net.ssl.trustStoreType=PKCS12
+```
+
+Le truststore remplace celui de la JVM : incluez-y chaque autorité à laquelle l'agent doit se fier.
+
+Voir [Agents](../administration/agents.fr.md) pour :
+
+- les modes d'identifiants ;
+- l'épinglage d'une clé de signature ;
+- la concurrence.
+
+### Des agents dans le cluster (sur option)
+
+`agents.enabled: true` déploie un pod d'agent par release. Le pod a deux conteneurs :
+
+- l'agent, en lecture seule, en uid 1000 ;
+- un démon Docker à lui (`docker:dind`), sur un socket Unix partagé par un `emptyDir`. Il n'écoute
+  jamais en TCP : le point d'entrée de l'image ouvrirait sinon le port 2375 à tout le cluster, sans
+  authentification.
+
+Le répertoire de travail est un second `emptyDir`, monté au même chemin dans les deux conteneurs.
+
+**Le démon tourne dans un conteneur privilégié, qui est root sur son nœud.** Un scanner qui s'échappe
+de son propre conteneur atteint ce démon, et par lui le nœud. Donnez à ces pods :
+
+- **leur propre namespace** : la chart crée `vectispire-agents` au niveau `privileged` de Pod
+  Security Admission ;
+- **leurs propres nœuds** : `agents.nodeSelector`, et `agents.tolerations` accordé à une taint qu'eux
+  seuls tolèrent ;
+- **la NetworkPolicy** : active par défaut. Elle refuse toute entrée. Listez les plages de pods et de
+  services du cluster dans `agents.networkPolicy.excludeCidrs`, pour que la sortie n'atteigne que le
+  monde extérieur et l'Ingress.
+
+Là où le cluster interdit les pods privilégiés, utilisez un hôte Docker.
+
+La **variante rootless** (`agents.dind.variant: rootless`, `docker:dind-rootless`) **ne scanne pas avec
+l'agent de cette version** :
+
+- sous l'espace de noms utilisateur du démon rootless, l'espace de travail que l'agent possède en
+  uid 1000 apparaît au scanner comme appartenant à root ;
+- le scanner, lancé lui aussi en uid 1000, ne peut pas le lire, et chaque scanner finit absent ;
+- sur la plupart des clusters, elle demande en outre un conteneur privilégié malgré tout, ou seccomp
+  et AppArmor non confinés.
+
+La chart ne la rend qu'avec `agents.dind.rootless.acknowledgeUnreadableWorkspaces: true`.
+
+Chaque redémarrage du pod télécharge de nouveau les images des scanners et la base de
+vulnérabilités — environ 3 Go. `agents.dind.imageCache` garde les images sur un volume.
+
 ## Exécuter depuis les sources
 
 ```bash
