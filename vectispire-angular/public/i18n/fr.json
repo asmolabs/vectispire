@@ -1825,6 +1825,8 @@
     "add_btn": "Ajouter un dépôt",
     "agent_hint": "L'étiquette qu'un agent doit porter pour analyser cette cible — et donc pour recevoir sa clé de déploiement. Laissée vide, n'importe quel agent peut la prendre.",
     "agent_label": "Agent requis",
+    "already_registered": "Ce dépôt est déjà une cible, sur la même branche et le même sous-chemin : {{name}}. Modifiez celle-ci, ou choisissez une autre branche ou un autre sous-chemin.",
+    "already_registered_unnamed": "Ce dépôt est déjà une cible, sur la même branche et le même sous-chemin.",
     "api_keys": "Clés API",
     "aria_delete": "Supprimer {{name}}",
     "aria_edit": "Modifier {{name}}",

@@ -1825,6 +1825,8 @@
     "add_btn": "Add Repository",
     "agent_hint": "The label an agent must carry to scan this target — and therefore to receive its deployment key. Left empty, any agent may take it.",
     "agent_label": "Required agent",
+    "already_registered": "This repository is already a target, on the same branch and sub-path: {{name}}. Edit that one, or choose another branch or sub-path.",
+    "already_registered_unnamed": "This repository is already a target, on the same branch and sub-path.",
     "api_keys": "API keys",
     "aria_delete": "Delete {{name}}",
     "aria_edit": "Edit {{name}}",

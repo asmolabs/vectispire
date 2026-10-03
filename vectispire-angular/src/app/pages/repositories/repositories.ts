@@ -462,10 +462,29 @@ export class Repositories {
                 // The server's message is the one that knows *why* — scheme refused, host
                 // missing. Replacing it with a generic "error" would lose that.
                 this.formError.set(
-                    messageOf(response, this.i18n.t(editing ? 'repositories.error_save' : 'repositories.error_add'))
+                    this.alreadyRegistered(response) ??
+                        messageOf(response, this.i18n.t(editing ? 'repositories.error_save' : 'repositories.error_add'))
                 );
             }
         });
+    }
+
+    /**
+     * The same repository, branch and sub-path already filed — said in the reader's language, naming
+     * the target when the server named it.
+     *
+     * The server sends the existing target's id only to a caller who sees it, and this screen lists
+     * exactly what the caller sees, so the name is read from the list rather than from the English
+     * sentence. Without an id — or one the list has not loaded — the sentence names nothing, as the
+     * server's does: a target the caller cannot see is not revealed by its name here either.
+     */
+    private alreadyRegistered(failure: unknown): string | null {
+        const problem = (failure as { error?: { type?: unknown; existingRepositoryId?: unknown } } | null)?.error;
+        if (problem?.type !== TARGET_ALREADY_REGISTERED) return null;
+        const existing = this.repositories().find((repository) => repository.id === problem.existingRepositoryId);
+        return existing
+            ? this.i18n.t('repositories.already_registered', { name: existing.displayName })
+            : this.i18n.t('repositories.already_registered_unnamed');
     }
 
     askDelete(repository: MonitoredRepository): void {
@@ -702,3 +721,6 @@ chmod +x vectispire-cli.sh
         });
     }
 }
+
+/** The RFC 9457 `type` of a duplicate target — the cause the routes publish, never the English sentence. */
+const TARGET_ALREADY_REGISTERED = 'urn:vectispire:problem:target-already-registered';

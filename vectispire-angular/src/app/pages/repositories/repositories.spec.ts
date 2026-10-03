@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Repositories } from './repositories';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { useEnglish } from '@/app/core/testing/english';
 import { version as RELEASE } from '../../../../package.json';
 
 /**
@@ -276,6 +277,99 @@ describe('the repository list', () => {
 
         // The server's wording is the only one that names what was wrong with the expression.
         expect(fixture.componentInstance.formError()).toContain('Expected five fields');
+    });
+
+    /**
+     * A target filed twice is refused with a 409 typed `target-already-registered`. The screen says so
+     * in the reader's language, naming the existing target when the server gave its id — and only then:
+     * without one, the server is withholding a target this caller cannot see, and so must the sentence.
+     */
+    describe('a repository already filed', () => {
+        const ALREADY_REGISTERED = (existingRepositoryId?: number) => ({
+            type: 'urn:vectispire:problem:target-already-registered',
+            title: 'Conflict',
+            status: 409,
+            detail: 'This repository is already registered as "Arm Libs Spring" (id 5), on branch master, under backend.',
+            ...(existingRepositoryId === undefined ? {} : { existingRepositoryId })
+        });
+
+        beforeEach(() => useEnglish());
+
+        it('is named on creation, from the list the reader sees', () => {
+            load();
+
+            fixture.componentInstance.openForm();
+            fixture.componentInstance.form.url = 'https://bitbucket.example.com/art/basalt-libs-spring';
+            fixture.componentInstance.form.branch = 'master';
+            fixture.componentInstance.form.subPath = 'backend';
+            fixture.componentInstance.submit();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
+                ALREADY_REGISTERED(5),
+                { status: 409, statusText: 'Conflict' }
+            );
+
+            expect(fixture.componentInstance.formError()).toBe(
+                'This repository is already a target, on the same branch and sub-path: Arm Libs Spring. ' +
+                    'Edit that one, or choose another branch or sub-path.'
+            );
+            expect(fixture.componentInstance.formVisible()).toBe(true);
+        });
+
+        it('is refused on an edit in the same words', () => {
+            load({ ...REPOSITORY, id: 6, displayName: 'Other', subPath: null });
+            fixture.componentInstance.repositories.set([
+                ...fixture.componentInstance.repositories(),
+                { ...fixture.componentInstance.repositories()[0], id: 5, displayName: 'Arm Libs Spring' }
+            ]);
+
+            fixture.componentInstance.openForm(fixture.componentInstance.repositories()[0]);
+            fixture.componentInstance.form.subPath = 'backend';
+            fixture.componentInstance.submit();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/repositories/6').flush(
+                ALREADY_REGISTERED(5),
+                { status: 409, statusText: 'Conflict' }
+            );
+
+            expect(fixture.componentInstance.formError()).toContain(': Arm Libs Spring.');
+        });
+
+        it('names nothing when the server named nothing', () => {
+            load();
+
+            fixture.componentInstance.openForm();
+            fixture.componentInstance.form.url = 'https://bitbucket.example.com/secret/vault.git';
+            fixture.componentInstance.submit();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
+                {
+                    ...ALREADY_REGISTERED(),
+                    detail: 'This repository is already registered, on this branch and sub-path.'
+                },
+                { status: 409, statusText: 'Conflict' }
+            );
+
+            expect(fixture.componentInstance.formError()).toBe(
+                'This repository is already a target, on the same branch and sub-path.'
+            );
+        });
+
+        it("leaves any other conflict in the server's words", () => {
+            load();
+
+            fixture.componentInstance.openForm();
+            fixture.componentInstance.form.url = 'https://bitbucket.example.com/art/other.git';
+            fixture.componentInstance.submit();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
+                {
+                    type: 'urn:vectispire:problem:revision-changed',
+                    title: 'Conflict',
+                    status: 409,
+                    detail: 'Somebody changed this repository.'
+                },
+                { status: 409, statusText: 'Conflict' }
+            );
+
+            expect(fixture.componentInstance.formError()).toBe('Somebody changed this repository.');
+        });
     });
 
     /**
