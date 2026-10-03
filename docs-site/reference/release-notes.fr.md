@@ -393,7 +393,9 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   fichier qu'il contient et répond son `standing` — `upheld`, `withdrawn` ou `unknown` — avec les exécutions qui
   l'ont produit, leurs digests de plugin, de manifeste et d'image, leur clé de signature et leur retrait. Le
   document d'un projet que l'appelant ne voit pas en entier répond `unknown`, exactement comme un document jamais
-  produit. `REPORT_PLUGIN_WITHDRAWN` compte les documents retirés ; V79 ajoute trois index aux exécutions
+  produit. Dans la section **Rapports** d'un projet, l'exécution d'un document retiré est marquée **Retiré**
+  avec la date, qui l'a retiré et pourquoi, et son téléchargement est suivi de ce qu'il vaut.
+  `REPORT_PLUGIN_WITHDRAWN` compte les documents retirés ; V79 ajoute trois index aux exécutions
   ([comment](../administration/report-plugins.fr.md#linstallation-se-porte-t-elle-toujours-garante-dun-document)).
 
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**

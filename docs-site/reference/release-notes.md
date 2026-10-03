@@ -364,8 +364,9 @@ another branch, is another target and is accepted as before.
   for any signed-in account, takes the SHA-256 of a package or of the file inside it and answers its
   `standing` — `upheld`, `withdrawn` or `unknown` — with the runs that produced it, their plugin, manifest and
   image digests, signing key and withdrawal. A document of a project the caller does not see whole answers
-  `unknown`, exactly as one never produced. `REPORT_PLUGIN_WITHDRAWN` counts the documents withdrawn; V79 adds
-  three indexes to the runs
+  `unknown`, exactly as one never produced. On a project's **Reports** section a withdrawn document's run is
+  marked **Withdrawn** with the date, who withdrew it and why, and its download is followed by what it is
+  worth. `REPORT_PLUGIN_WITHDRAWN` counts the documents withdrawn; V79 adds three indexes to the runs
   ([how](../administration/report-plugins.md#does-the-installation-still-stand-by-a-document)).
 
 - **Experimental: other scorecard weights, side by side with the production ones.**

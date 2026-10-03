@@ -837,6 +837,12 @@ Lot R7 — withdrawal and the document status route — settled these points §4
 - **The digest is normalised to lower case** before it is compared: MySQL compares a `varchar` without regard to
   case and PostgreSQL with it, so an upper-case digest would otherwise be known on one engine and unknown on the
   other. A `sha256:` prefix is accepted; anything but 64 hexadecimal characters is a 400 about the request.
+- **On screen, the place R6 left is filled**: a produced run whose manifest was withdrawn carries a
+  **Withdrawn** tag with the date, the governor and the justification, and keeps its download button; after a
+  download the page reads `Vectispire-Document-Status` — the server's word at that instant, not the row's —
+  and says what the document is worth, reading the runs again when the row predates the withdrawal. The
+  status route has no screen: it is for a holder's script, and R6's interface reaches a document through its
+  run.
 
 ## Implementation, in lots
 

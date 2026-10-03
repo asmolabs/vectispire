@@ -157,10 +157,12 @@ image, at whose request, and that these are the bytes the image wrote. It does n
 the export faithfully: the export is kept with the run and the image is pinned, so anybody who doubts a
 document can render the export again with the same image and compare.
 
-!!! note "A withdrawn plugin's documents are not marked yet"
-    When an administrator withdraws a plugin's manifest, the documents it produced stay stored and are
-    still offered for download unmarked. Marking them as withdrawn, and answering whether the installation
-    still stands by a document, come in a later release.
+**A withdrawn document is marked, and still downloadable.** When the platform governor withdraws a plugin's
+manifest, every document it produced is marked **Withdrawn** on its run, with the date, who withdrew it and
+the justification. Its download is still offered — it is the evidence of what was handed out — and after it
+the page says that the signature still verifies but the installation no longer stands by the document.
+Anybody holding a copy can ask whether the installation still stands by it
+([how](../administration/report-plugins.md#does-the-installation-still-stand-by-a-document)).
 
 ### Switching a plugin on for a project
 

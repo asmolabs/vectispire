@@ -167,10 +167,12 @@ remis à quelle image, à la demande de qui, et que ce sont les octets que l'ima
 que le document rend fidèlement l'export : l'export est conservé avec l'exécution et l'image est épinglée,
 quiconque doute d'un document peut donc rendre l'export à nouveau avec la même image et comparer.
 
-!!! note "Les documents d'un plugin retiré ne sont pas encore marqués"
-    Quand un administrateur retire le manifeste d'un plugin, les documents qu'il a produits restent
-    conservés et sont encore proposés au téléchargement sans marque. Les marquer comme retirés, et répondre
-    si l'installation se porte toujours garante d'un document, viennent dans une version ultérieure.
+**Un document retiré est marqué, et reste téléchargeable.** Quand le gouverneur de la plateforme retire le
+manifeste d'un plugin, chaque document qu'il a produit est marqué **Retiré** sur son exécution, avec la date,
+qui l'a retiré et la justification. Son téléchargement reste proposé — c'est la preuve de ce qui a été remis
+— et, après lui, la page indique que la signature se vérifie toujours mais que l'installation ne se porte plus
+garante du document. Quiconque en détient une copie peut demander si l'installation s'en porte toujours
+garante ([comment](../administration/report-plugins.fr.md#linstallation-se-porte-t-elle-toujours-garante-dun-document)).
 
 ### Activer un plugin pour un projet
 

@@ -917,6 +917,12 @@ code est dans `core.reportplugins` (`ReportWithdrawals`, `ReportDocumentStatusSe
   casse et PostgreSQL en en tenant compte, si bien qu'une empreinte en majuscules serait sinon connue sur un
   moteur et inconnue sur l'autre. Un préfixe `sha256:` est accepté ; tout autre chose que 64 caractères
   hexadécimaux est un 400 qui parle de la requête.
+- **À l'écran, la place laissée par R6 est remplie** : une exécution produite dont le manifeste a été retiré
+  porte une étiquette **Retiré** avec la date, le gouverneur et la justification, et garde son bouton de
+  téléchargement ; après un téléchargement, la page lit `Vectispire-Document-Status` — la parole du serveur à
+  cet instant, pas celle de la ligne — et dit ce que vaut le document, en relisant les exécutions quand la ligne
+  précède le retrait. La route de statut n'a pas d'écran : elle sert au script d'un détenteur, et l'interface
+  de R6 atteint un document par son exécution.
 
 ## Mise en œuvre, en lots
 
