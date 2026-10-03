@@ -6,8 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.posture.ScoreSimulationService;
@@ -32,7 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  * The experimental score simulation: administrators only, narrowed to the caller's allowance, and
  * the two formulas side by side over seeded estates whose current grades are the backlog item's
  * complaint — fifty and five hundred mediums both A+, twenty-seven highs and four exploited
- * criticals both 0.
+ * criticals both 0 — and estates holding disallowed licences, which the candidate weighs as highs.
  */
 @DisplayName("the score simulation route (experimental)")
 class ScoreSimulationRoutesTest extends ApiTestBase {
@@ -51,6 +53,9 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
     @Autowired
     private ScoreSimulationService simulations;
 
+    @Autowired
+    private LicenseGovernanceService licences;
+
     @Test
     @DisplayName("lists every target under both formulas, with the grade distribution under each")
     void bothFormulasSideBySide() throws Exception {
@@ -64,17 +69,24 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         body.path("targets").forEach(row -> byName.put(row.path("targetName").asText(), row));
         assertThat(byName).containsKeys(ids.keySet().toArray(String[]::new));
 
-        // name -> current score, current grade, candidate score, candidate grade
-        assertRow(byName.get("estate/clean"), 100, "A_PLUS", 100, "A_PLUS");
-        assertRow(byName.get("estate/one-critical"), 97, "A_PLUS", 83, "B");
-        assertRow(byName.get("estate/one-exploited-critical"), 72, "B", 54, "D");
-        assertRow(byName.get("estate/fifty-mediums"), 100, "A_PLUS", 40, "D");
-        assertRow(byName.get("estate/five-hundred-mediums"), 100, "A_PLUS", 1, "F");
-        assertRow(byName.get("estate/twenty-seven-highs"), 0, "F", 14, "F");
-        assertRow(byName.get("estate/four-exploited-criticals"), 0, "F", 16, "F");
+        // name -> current score, current grade, candidate score, candidate grade, risk points
+        assertRow(byName.get("estate/clean"), 100, "A_PLUS", 100, "A_PLUS", 0);
+        assertRow(byName.get("estate/one-critical"), 97, "A_PLUS", 83, "B", 10);
+        assertRow(byName.get("estate/one-exploited-critical"), 72, "B", 54, "D", 25);
+        assertRow(byName.get("estate/fifty-mediums"), 100, "A_PLUS", 63, "C", 25);
+        assertRow(byName.get("estate/five-hundred-mediums"), 100, "A_PLUS", 1, "F", 250);
+        assertRow(byName.get("estate/twenty-seven-highs"), 0, "F", 14, "F", 108);
+        assertRow(byName.get("estate/four-exploited-criticals"), 0, "F", 16, "F", 100);
+        assertRow(byName.get("estate/mixed"), 65, "C", 24, "F", 79);
+        // The licence term: the card's own count, weighing a high's 4 — and no +5 for the scan.
+        assertRow(byName.get("estate/one-disallowed-licence"), 100, "A_PLUS", 93, "A", 4);
+        assertRow(byName.get("estate/one-critical-one-licence"), 92, "A", 78, "B", 14);
+        assertRow(byName.get("estate/ten-disallowed-licences"), 55, "C", 48, "D", 40);
+        assertThat(byName.get("estate/ten-disallowed-licences").path("licences").asLong()).isEqualTo(10);
         assertThat(byName.get("estate/never-scanned").path("currentGrade").asText()).isEqualTo("NO_DATA");
         assertThat(byName.get("estate/never-scanned").path("candidateGrade").asText()).isEqualTo("NO_DATA");
         assertThat(byName.get("estate/never-scanned").path("candidateScore").isNull()).isTrue();
+        assertThat(byName.get("estate/never-scanned").path("candidateRiskPoints").isNull()).isTrue();
 
         // An exploited issue is its own class, counted under no severity.
         JsonNode exploited = byName.get("estate/one-exploited-critical");
@@ -82,13 +94,21 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         assertThat(exploited.path("critical").asLong()).isZero();
 
         assertThat(body.path("weights").path("k").asDouble()).isEqualTo(55);
+        assertThat(body.path("weights").path("medium").asDouble()).isEqualTo(0.5);
+        assertThat(body.path("weights").path("licence").asDouble()).isEqualTo(4);
         Map<String, long[]> grades = new HashMap<>();
         body.path("grades").forEach(g -> grades.put(
                 g.path("grade").asText(), new long[] {g.path("current").asLong(), g.path("candidate").asLong()}));
         assertThat(grades).containsOnlyKeys(
                 java.util.Arrays.stream(SecurityGrade.values()).map(Enum::name).toArray(String[]::new));
-        assertThat(grades.get("A_PLUS")).containsExactly(4, 1);
+        // grade -> {current, candidate}
+        assertThat(grades.get("A_PLUS")).containsExactly(5, 1);
+        assertThat(grades.get("A")).containsExactly(1, 1);
+        assertThat(grades.get("B")).containsExactly(1, 2);
+        assertThat(grades.get("C")).containsExactly(2, 1);
+        assertThat(grades.get("D")).containsExactly(0, 2);
         assertThat(grades.get("F")).containsExactly(2, 4);
+        assertThat(grades.get("NO_DATA")).containsExactly(1, 1);
 
         printTable(body);
     }
@@ -98,18 +118,25 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
     void parametersOverride() throws Exception {
         seedEstates();
 
-        JsonNode halfMedium = read(mvc.perform(authenticated(get(ROUTE).param("medium", "0.5"), asAdmin()))
+        JsonNode fullMedium = read(mvc.perform(authenticated(get(ROUTE).param("medium", "1"), asAdmin()))
                 .andExpect(status().isOk())
                 .andReturn());
-        JsonNode fifty = null;
-        for (JsonNode row : halfMedium.path("targets")) {
-            if (row.path("targetName").asText().equals("estate/fifty-mediums")) {
-                fifty = row;
-            }
-        }
-        assertThat(fifty).isNotNull();
-        assertThat(fifty.path("candidateGrade").asText()).isEqualTo("C");
-        assertThat(halfMedium.path("weights").path("medium").asDouble()).isEqualTo(0.5);
+        assertThat(rowOf(fullMedium, "estate/fifty-mediums").path("candidateGrade").asText()).isEqualTo("D");
+        assertThat(fullMedium.path("weights").path("medium").asDouble()).isEqualTo(1);
+
+        // A licence weighing nothing: the candidate reads the licence estate as clean.
+        JsonNode freeLicences = read(mvc.perform(authenticated(get(ROUTE).param("licence", "0"), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn());
+        JsonNode ten = rowOf(freeLicences, "estate/ten-disallowed-licences");
+        assertThat(ten.path("candidateScore").asInt()).isEqualTo(100);
+        assertThat(ten.path("candidateRiskPoints").asDouble()).isZero();
+        assertThat(freeLicences.path("weights").path("licence").asDouble()).isZero();
+
+        MvcResult refusedLicence = mvc.perform(authenticated(get(ROUTE).param("licence", "-1"), asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        assertThat(detailOf(refusedLicence)).startsWith("licence must be");
 
         MvcResult refused = mvc.perform(authenticated(get(ROUTE).param("k", "0"), asAdmin()))
                 .andExpect(status().isBadRequest())
@@ -148,29 +175,45 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         long only = ids.get("estate/fifty-mediums");
 
         ScoreSimulationService.ScoreSimulation narrowed = simulations.simulate(
-                Visibility.only(List.of(new ScanTarget.Repository(only))), null, null, null, null, null, null);
+                Visibility.only(List.of(new ScanTarget.Repository(only))), null, null, null, null, null, null, null);
 
         assertThat(narrowed.targets()).extracting(ScoreSimulationTarget::targetId).containsExactly(only);
         assertThat(narrowed.grades().stream().mapToLong(ScoreSimulationService.ScoreSimulationGrade::current).sum())
                 .isEqualTo(1);
     }
 
-    private static void assertRow(JsonNode row, int current, String currentGrade, int candidate, String candidateGrade) {
+    private static void assertRow(
+            JsonNode row, int current, String currentGrade, int candidate, String candidateGrade, double riskPoints) {
         assertThat(row).as("row").isNotNull();
         String name = row.path("targetName").asText();
         assertThat(row.path("currentScore").asInt()).as(name + " current").isEqualTo(current);
         assertThat(row.path("currentGrade").asText()).as(name + " current grade").isEqualTo(currentGrade);
         assertThat(row.path("candidateScore").asInt()).as(name + " candidate").isEqualTo(candidate);
         assertThat(row.path("candidateGrade").asText()).as(name + " candidate grade").isEqualTo(candidateGrade);
+        assertThat(row.path("candidateRiskPoints").asDouble()).as(name + " risk points").isEqualTo(riskPoints);
+    }
+
+    private static JsonNode rowOf(JsonNode body, String name) {
+        for (JsonNode row : body.path("targets")) {
+            if (row.path("targetName").asText().equals(name)) {
+                return row;
+            }
+        }
+        throw new AssertionError("no row for " + name);
     }
 
     /**
      * The estates the backlog item names, each a scanned repository, plus one nobody scanned that
      * holds an open issue — a target with neither is not graded, so not listed. The
      * production score adds 5 for a completed scan, so a clean scanned target is 100 and one
-     * critical 97.
+     * critical 97. The licence estates carry an SBOM listing GPL-3.0-only components, which the
+     * default policy refuses: the inventory's tally is what both formulas read.
      */
     private Map<String, Long> seedEstates() {
+        // Stated, not assumed: the policy is a singleton row the between-test cleanup does not empty,
+        // and a class that relaxed it earlier in the run left GPL-3.0-only allowed — the licence
+        // estates then read clean under both formulas.
+        licences.updatePolicy(LicensePolicy.defaultPolicy());
         Map<String, Long> ids = new HashMap<>();
         ids.put("estate/clean", repository("estate/clean", true));
         ids.put("estate/one-critical", seed("estate/one-critical", 0, 1, 0, 0, 0));
@@ -180,6 +223,9 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         ids.put("estate/twenty-seven-highs", seed("estate/twenty-seven-highs", 0, 0, 27, 0, 0));
         ids.put("estate/four-exploited-criticals", seed("estate/four-exploited-criticals", 4, 0, 0, 0, 0));
         ids.put("estate/mixed", seed("estate/mixed", 0, 2, 6, 40, 120));
+        ids.put("estate/one-disallowed-licence", withLicences("estate/one-disallowed-licence", 1, 0));
+        ids.put("estate/one-critical-one-licence", withLicences("estate/one-critical-one-licence", 1, 1));
+        ids.put("estate/ten-disallowed-licences", withLicences("estate/ten-disallowed-licences", 10, 0));
         // Listed for its open issue (an import alone, say), never scanned: no data under either formula.
         long neverScanned = repository("estate/never-scanned", false);
         List<IssueEntity> imported = new ArrayList<>();
@@ -197,6 +243,21 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         add(rows, repo, highs, "high", false);
         add(rows, repo, mediums, "medium", false);
         add(rows, repo, lows, "low", false);
+        issues.saveAll(rows);
+        return repo;
+    }
+
+    /** A scanned repository whose SBOM lists {@code disallowed} GPL-3.0-only components and one MIT. */
+    private long withLicences(String name, int disallowed, int criticals) {
+        StringBuilder sbom = new StringBuilder("{\"artifacts\":[");
+        for (int i = 0; i <= disallowed; i++) {
+            String licence = i < disallowed ? "GPL-3.0-only" : "MIT";
+            sbom.append(i > 0 ? "," : "").append("{\"name\":\"pkg").append(i).append("\",\"version\":\"1.0\",")
+                    .append("\"licenses\":[{\"value\":\"").append(licence).append("\"}]}");
+        }
+        long repo = repository(name, sbom.append("]}").toString());
+        List<IssueEntity> rows = new ArrayList<>();
+        add(rows, repo, criticals, "critical", false);
         issues.saveAll(rows);
         return repo;
     }
@@ -219,20 +280,28 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
     }
 
     private long repository(String name, boolean scanned) {
+        return scanned ? repository(name, (String) null) : unscanned(name);
+    }
+
+    private long unscanned(String name) {
         RepositoryEntity repo = new RepositoryEntity();
         repo.setName(name);
         repo.setUrl("https://git.example.test/" + name + ".git");
         repo.setBranch("main");
-        repo = repositories.save(repo);
-        if (scanned) {
-            ScanEntity scan = new ScanEntity();
-            scan.setRepoId(repo.getId());
-            scan.setBranch("main");
-            scan.setStatus("completed");
-            scan.setCreatedAt(Instant.now());
-            scans.save(scan);
-        }
-        return repo.getId();
+        return repositories.save(repo).getId();
+    }
+
+    /** A repository holding one completed scan, carrying {@code sbom} when it is not null. */
+    private long repository(String name, String sbom) {
+        long repo = unscanned(name);
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repo);
+        scan.setBranch("main");
+        scan.setStatus("completed");
+        scan.setCreatedAt(Instant.now());
+        scan.setSbom(sbom);
+        scans.save(scan);
+        return repo;
     }
 
     private JsonNode read(MvcResult result) throws Exception {
@@ -241,12 +310,18 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
 
     /** The comparison, in the test's output — what the backlog item's decision is taken on. */
     private static void printTable(JsonNode body) {
-        StringBuilder table = new StringBuilder("\n| target | exploited | critical | high | medium | low | current | candidate |\n");
-        body.path("targets").forEach(row -> table.append("| %s | %d | %d | %d | %d | %d | %s %s | %s %s |%n".formatted(
+        StringBuilder table = new StringBuilder(
+                "\n| target | exploited | critical | high | medium | low | licences | current | candidate | risk points |\n");
+        body.path("targets").forEach(row -> table.append("| %s | %d | %d | %d | %d | %d | %d | %s %s | %s %s | %s |%n".formatted(
                 row.path("targetName").asText(), row.path("exploited").asLong(), row.path("critical").asLong(),
                 row.path("high").asLong(), row.path("medium").asLong(), row.path("low").asLong(),
+                row.path("licences").asLong(),
                 row.path("currentScore").asText(), row.path("currentGrade").asText(),
-                row.path("candidateScore").asText(), row.path("candidateGrade").asText())));
+                row.path("candidateScore").asText(), row.path("candidateGrade").asText(),
+                row.path("candidateRiskPoints").asText())));
+        table.append("\n| grade | current | candidate |\n");
+        body.path("grades").forEach(g -> table.append("| %s | %d | %d |%n".formatted(
+                g.path("grade").asText(), g.path("current").asLong(), g.path("candidate").asLong())));
         System.out.println(table);
     }
 }

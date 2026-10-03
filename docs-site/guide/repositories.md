@@ -222,22 +222,33 @@ the same letter there — see [Dashboard](dashboard.md#security-posture-grade).
 the formula above, an administrator can see every target scored both ways on the estate's own
 backlog: `GET /api/v1/scorecards/simulation`. Nothing is stored and nothing is recorded.
 
-The candidate is **100 × exp(−Σ weight × open issues / k)**: each issue removes a share of what is
-left instead of a fixed number of points, so the score keeps falling with the backlog without ever
-reaching 0, and fifty mediums no longer read like five hundred. The proposed weights are 25 for an
+The candidate is **100 × exp(−Σ weight × count / k)**, over the open issues and the disallowed
+licences: each one removes a share of what is left instead of a fixed number of points, so the score
+keeps falling with the backlog without ever reaching 0, and fifty mediums no longer read like five
+hundred. The defaults are the calibration the product owner validated on 2026-10-03: 25 for an
 actively exploited issue (CISA KEV, whatever its severity — counted in that class only), 10 for a
-critical, 4 for a high, 1 for a medium and 0.25 for a low, with **k = 55**. Any exploited issue caps
-the grade at **D** (score 54 at most). The grade bands are the table above, unchanged. The same issues
-count as for the current score — open, triage not settled — and a target with no completed scan is
-`NO_DATA` under both. The candidate leaves out the licence and completed-scan terms.
+critical, 4 for a high, 0.5 for a medium, 0.125 for a low and **4 for a disallowed licence** (a
+high's weight, counted as the card counts its licence violations), with **k = 55**. Any exploited
+issue caps the grade at **D** (score 54 at most). There is **no bonus for a completed scan**: having
+one is what gets a target graded at all. The grade bands are the table above, unchanged. The same
+issues count as for the current score — open, triage not settled — and a target with no completed
+scan is `NO_DATA` under both.
 
-With these values one critical reads 83 (B), one exploited critical 54 (D, capped), fifty mediums 40
-(D), five hundred mediums 1 (F) and twenty-seven highs 14 (F). With mediums at 1, no `k` makes both
-one critical a B and fifty mediums a C; at 0.5, fifty mediums read 63 (C).
+Beside the score each row carries its **risk points**, the weighted total Σ weight × count the score
+is computed from. The score is held at 1 at the bottom of F; the risk points keep moving, so a team
+deep in F still sees what it fixed.
 
-Each of `exploited`, `critical`, `high`, `medium`, `low` and `k` can be passed as a query parameter
-to try other values; one left out takes the proposed value. The answer lists each target's current and
-candidate score and grade with its counts, and how many targets read each grade under each formula.
+With these values one critical reads 83 (B), one exploited critical 54 (D, capped), fifty mediums 63
+(C), one disallowed licence 93 (A), one critical and one disallowed licence 78 (B), ten disallowed
+licences 48 (D), five hundred mediums 1 (F) and twenty-seven highs 14 (F). With mediums at 1, no `k`
+makes both one critical a B and fifty mediums a C — which is why the medium weighs 0.5. Changing the
+production formula to this one is [decision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0036-the-posture-score-formula.md),
+proposed.
+
+Each of `exploited`, `critical`, `high`, `medium`, `low`, `licence` and `k` can be passed as a query
+parameter to try other values; one left out takes the validated value. The answer lists each target's
+current and candidate score and grade, its risk points and its counts, and how many targets read each
+grade under each formula.
 
 ## Languages {#languages}
 

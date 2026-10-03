@@ -101,7 +101,8 @@ public class ScorecardController {
      */
     @Operation(summary = "Simulate a candidate scorecard formula (experimental)",
             description = "Lists every visible target's current score and grade beside the candidate's, "
-                    + "100 × exp(−Σ weight × open issues / k), an exploited issue capping the grade at D, "
+                    + "100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an "
+                    + "exploited issue capping the grade at D, with the weighted total (the risk points), "
                     + "and the grade distribution under each. Parameters left out take the proposed values. "
                     + "Experimental: nothing is stored and no card, badge or ranking changes.")
     @ApiResponse(responseCode = "200", description = "Both formulas over the caller's estate")
@@ -115,8 +116,9 @@ public class ScorecardController {
             @Parameter(description = "Weight of a high issue") @RequestParam(value = "high", required = false) Double high,
             @Parameter(description = "Weight of a medium issue (or one with no severity)") @RequestParam(value = "medium", required = false) Double medium,
             @Parameter(description = "Weight of a low issue") @RequestParam(value = "low", required = false) Double low,
+            @Parameter(description = "Weight of a disallowed licence entry") @RequestParam(value = "licence", required = false) Double licence,
             @Parameter(description = "The weighted backlog that brings the score to 100/e (about 37)") @RequestParam(value = "k", required = false) Double k) {
-        return simulations.simulate(allowed(principal), exploited, critical, high, medium, low, k);
+        return simulations.simulate(allowed(principal), exploited, critical, high, medium, low, licence, k);
     }
 
     /** @param url what to paste into a README, absent when no badge is published */

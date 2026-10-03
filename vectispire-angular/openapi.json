@@ -8188,6 +8188,10 @@
             "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
             "type" : "string"
           },
+          "candidateRiskPoints" : {
+            "format" : "double",
+            "type" : "number"
+          },
           "candidateScore" : {
             "format" : "int32",
             "type" : "integer"
@@ -8212,6 +8216,10 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "licences" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "low" : {
             "format" : "int64",
             "type" : "integer"
@@ -8231,7 +8239,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "critical", "exploited", "high", "low", "medium", "targetId" ],
+        "required" : [ "critical", "exploited", "high", "licences", "low", "medium", "targetId" ],
         "type" : "object"
       },
       "ScoreSimulationWeights" : {
@@ -8252,6 +8260,10 @@
             "format" : "double",
             "type" : "number"
           },
+          "licence" : {
+            "format" : "double",
+            "type" : "number"
+          },
           "low" : {
             "format" : "double",
             "type" : "number"
@@ -8261,7 +8273,7 @@
             "type" : "number"
           }
         },
-        "required" : [ "critical", "exploited", "high", "k", "low", "medium" ],
+        "required" : [ "critical", "exploited", "high", "k", "licence", "low", "medium" ],
         "type" : "object"
       },
       "SealingKeyRequest" : {
@@ -16965,7 +16977,7 @@
     },
     "/api/v1/scorecards/simulation" : {
       "get" : {
-        "description" : "Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × open issues / k), an exploited issue capping the grade at D, and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.",
+        "description" : "Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.",
         "operationId" : "simulateScores",
         "parameters" : [ {
           "description" : "Weight of an actively exploited (CISA KEV) issue, any severity",
@@ -17007,6 +17019,15 @@
           "description" : "Weight of a low issue",
           "in" : "query",
           "name" : "low",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        }, {
+          "description" : "Weight of a disallowed licence entry",
+          "in" : "query",
+          "name" : "licence",
           "required" : false,
           "schema" : {
             "format" : "double",

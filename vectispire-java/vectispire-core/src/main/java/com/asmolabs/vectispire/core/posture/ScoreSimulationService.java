@@ -23,8 +23,9 @@ import org.springframework.stereotype.Service;
  * is listed with both scores. The current one is that computation's, not a copy of it; the candidate
  * is {@link CandidateScore} over the same open, unsettled issues. A target its card reads {@code
  * NO_DATA} is {@code NO_DATA} under both — the candidate changes the arithmetic, not what counts as
- * observed. The candidate leaves out the two terms of the production score that are not the backlog
- * (a disallowed licence −5, a completed scan +5): the counts beside each row are what it weighs.
+ * observed. The candidate weighs the disallowed licences the card counts, as a term of the backlog,
+ * and drops the production bonus for a completed scan: the counts beside each row are what it weighs,
+ * and the risk points their weighted sum.
  */
 @Service
 public class ScoreSimulationService {
@@ -39,7 +40,7 @@ public class ScoreSimulationService {
 
     /** The parameters the simulation ran with — the request's, the proposed ones where it set none. */
     public record ScoreSimulationWeights(
-            double exploited, double critical, double high, double medium, double low, double k) {}
+            double exploited, double critical, double high, double medium, double low, double licence, double k) {}
 
     /**
      * One target under both formulas.
@@ -47,9 +48,12 @@ public class ScoreSimulationService {
      * @param currentScore null exactly when {@code currentGrade} is {@code NO_DATA}, as on the card
      * @param candidateExact the candidate's unrounded, uncapped score, which still orders two targets
      *     both rounded to one; null with no data
+     * @param candidateRiskPoints the weighted backlog {@code Σ wₛ·nₛ} the candidate score is computed
+     *     from — what still moves inside F, where every score reads one; null with no data
      * @param exploited open, unsettled issues listed in CISA KEV, whatever their severity; counted in
      *     no severity column
      * @param medium an issue with no severity is counted here, as the ranking counts it
+     * @param licences disallowed licence entries, the count the card charges
      */
     public record ScoreSimulationTarget(
             String targetKind,
@@ -60,11 +64,13 @@ public class ScoreSimulationService {
             Integer candidateScore,
             SecurityGrade candidateGrade,
             Double candidateExact,
+            Double candidateRiskPoints,
             long exploited,
             long critical,
             long high,
             long medium,
-            long low) {}
+            long low,
+            long licences) {}
 
     /** How many of the listed targets read this grade under each formula. */
     public record ScoreSimulationGrade(SecurityGrade grade, long current, long candidate) {}
@@ -80,7 +86,14 @@ public class ScoreSimulationService {
      * is negative, not finite, or a {@code k} that is not positive is refused in words.
      */
     public ScoreSimulation simulate(
-            Visibility allowed, Double exploited, Double critical, Double high, Double medium, Double low, Double k) {
+            Visibility allowed,
+            Double exploited,
+            Double critical,
+            Double high,
+            Double medium,
+            Double low,
+            Double licence,
+            Double k) {
         CandidateScore.Weights proposed = CandidateScore.Weights.PROPOSED;
         CandidateScore.Weights weights = new CandidateScore.Weights(
                 Objects.requireNonNullElse(exploited, proposed.exploited()),
@@ -88,6 +101,7 @@ public class ScoreSimulationService {
                 Objects.requireNonNullElse(high, proposed.high()),
                 Objects.requireNonNullElse(medium, proposed.medium()),
                 Objects.requireNonNullElse(low, proposed.low()),
+                Objects.requireNonNullElse(licence, proposed.licence()),
                 Objects.requireNonNullElse(k, proposed.k()));
 
         Map<ScanTarget, SecurityScorecardService.TargetGrade> current = scorecards.gradeEach(allowed);
@@ -127,18 +141,20 @@ public class ScoreSimulationService {
                     noData ? null : after.score(),
                     afterGrade,
                     noData ? null : CandidateScore.exact(open, weights),
+                    noData ? null : after.riskPoints(),
                     open.exploited(),
                     open.critical(),
                     open.high(),
                     open.medium(),
-                    open.low()));
+                    open.low(),
+                    open.licences()));
         }
 
         List<ScoreSimulationGrade> grades = new ArrayList<>();
         tally.forEach((grade, pair) -> grades.add(new ScoreSimulationGrade(grade, pair[0], pair[1])));
         return new ScoreSimulation(
                 new ScoreSimulationWeights(weights.exploited(), weights.critical(), weights.high(), weights.medium(),
-                        weights.low(), weights.k()),
+                        weights.low(), weights.licence(), weights.k()),
                 rows,
                 grades);
     }

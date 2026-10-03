@@ -229,7 +229,12 @@ public class SecurityScorecardService {
      * exploited and under no severity; an issue with no severity is a medium, as the ranking counts it;
      * a severity neither critical, high nor medium is a low.
      *
-     * <p>A target with nothing open is absent; the caller reads it as {@link CandidateScore.Counts#NONE}.
+     * <p><b>The licences are the card's own count</b>, read from the same tally {@link #gradeEach}
+     * charges five points apiece ({@code LicenseGovernanceService.violationsByTarget}) — never counted
+     * a second way here, or the two formulas would be compared on different licences.
+     *
+     * <p>A target with nothing open and no disallowed licence is absent; the caller reads it as
+     * {@link CandidateScore.Counts#NONE}.
      */
     public Map<ScanTarget, CandidateScore.Counts> candidateCounts(Visibility allowed) {
         Map<ScanTarget, long[]> sums = new LinkedHashMap<>();
@@ -238,7 +243,7 @@ public class SecurityScorecardService {
             if (target == null || !Terms.isOpen(row.state())) {
                 continue;
             }
-            long[] sum = sums.computeIfAbsent(target, key -> new long[5]);
+            long[] sum = sums.computeIfAbsent(target, key -> new long[6]);
             String severity = row.severity() == null ? null : row.severity().toUpperCase(Locale.ROOT);
             int slot;
             if (row.kev()) {
@@ -254,8 +259,14 @@ public class SecurityScorecardService {
             }
             sum[slot] += row.count();
         }
+        licenseService.violationsByTarget(allowed).forEach((target, refused) -> {
+            if (refused > 0) {
+                sums.computeIfAbsent(target, key -> new long[6])[5] += refused;
+            }
+        });
         Map<ScanTarget, CandidateScore.Counts> counts = new LinkedHashMap<>();
-        sums.forEach((target, sum) -> counts.put(target, new CandidateScore.Counts(sum[0], sum[1], sum[2], sum[3], sum[4])));
+        sums.forEach((target, sum) ->
+                counts.put(target, new CandidateScore.Counts(sum[0], sum[1], sum[2], sum[3], sum[4], sum[5])));
         return counts;
     }
 

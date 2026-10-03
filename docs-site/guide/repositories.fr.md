@@ -230,25 +230,33 @@ score et la même lettre — voir [Tableau de bord](dashboard.md#note-de-posture
 remplacer la formule ci-dessus, un administrateur peut voir chaque cible notée des deux façons sur le
 backlog réel du parc : `GET /api/v1/scorecards/simulation`. Rien n'est enregistré ni consigné.
 
-La candidate est **100 × exp(−Σ poids × problèmes ouverts / k)** : chaque problème retire une part de
-ce qui reste au lieu d'un nombre fixe de points, le score continue donc de baisser avec le backlog sans
-jamais atteindre 0, et cinquante moyennes ne se lisent plus comme cinq cents. Les poids proposés sont
-25 pour un problème activement exploité (CISA KEV, quelle que soit sa sévérité — compté dans cette
-classe seulement), 10 pour un critique, 4 pour un haut, 1 pour un moyen et 0,25 pour un bas, avec
-**k = 55**. Tout problème exploité plafonne la note à **D** (score 54 au plus). Les seuils de note sont
-ceux du tableau ci-dessus, inchangés. Les mêmes problèmes comptent que pour le score actuel — ouverts,
-triage non réglé — et une cible sans scan terminé est `NO_DATA` dans les deux. La candidate laisse de
-côté les termes de licence et de scan terminé.
+La candidate est **100 × exp(−Σ poids × nombre / k)**, sur les problèmes ouverts et les licences
+interdites : chacun retire une part de ce qui reste au lieu d'un nombre fixe de points, le score
+continue donc de baisser avec le backlog sans jamais atteindre 0, et cinquante moyennes ne se lisent
+plus comme cinq cents. Les valeurs par défaut sont la calibration validée par le responsable produit le
+2026-10-03 : 25 pour un problème activement exploité (CISA KEV, quelle que soit sa sévérité — compté
+dans cette classe seulement), 10 pour un critique, 4 pour un haut, 0,5 pour un moyen, 0,125 pour un bas
+et **4 pour une licence interdite** (le poids d'un haut, comptée comme la fiche compte ses violations de
+licence), avec **k = 55**. Tout problème exploité plafonne la note à **D** (score 54 au plus). Il n'y a
+**pas de bonus pour un scan terminé** : en avoir un est ce qui fait qu'une cible est notée. Les seuils
+de note sont ceux du tableau ci-dessus, inchangés. Les mêmes problèmes comptent que pour le score
+actuel — ouverts, triage non réglé — et une cible sans scan terminé est `NO_DATA` dans les deux.
 
-Avec ces valeurs, un critique donne 83 (B), un critique exploité 54 (D, plafonné), cinquante moyennes
-40 (D), cinq cents moyennes 1 (F) et vingt-sept hautes 14 (F). Avec les moyennes à 1, aucun `k` ne
-donne à la fois B pour un critique et C pour cinquante moyennes ; à 0,5, cinquante moyennes donnent
-63 (C).
+À côté du score, chaque ligne porte ses **points de risque**, le total pondéré Σ poids × nombre dont le
+score est calculé. Le score est maintenu à 1 au bas de F ; les points de risque continuent de bouger, et
+une équipe loin dans F voit encore ce qu'elle a corrigé.
 
-Chacun de `exploited`, `critical`, `high`, `medium`, `low` et `k` peut être passé en paramètre de
-requête pour essayer d'autres valeurs ; un paramètre absent prend la valeur proposée. La réponse liste
-pour chaque cible le score et la note actuels et candidats avec ses compteurs, et combien de cibles
-lisent chaque note sous chaque formule.
+Avec ces valeurs, un critique donne 83 (B), un critique exploité 54 (D, plafonné), cinquante moyennes 63
+(C), une licence interdite 93 (A), un critique et une licence interdite 78 (B), dix licences interdites
+48 (D), cinq cents moyennes 1 (F) et vingt-sept hautes 14 (F). Avec les moyennes à 1, aucun `k` ne donne
+à la fois B pour un critique et C pour cinquante moyennes — d'où le poids de 0,5 du moyen. Passer la
+formule de production à celle-ci est la [décision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0036-the-posture-score-formula.md),
+proposée.
+
+Chacun de `exploited`, `critical`, `high`, `medium`, `low`, `licence` et `k` peut être passé en
+paramètre de requête pour essayer d'autres valeurs ; un paramètre absent prend la valeur validée. La
+réponse liste pour chaque cible le score et la note actuels et candidats, ses points de risque et ses
+compteurs, et combien de cibles lisent chaque note sous chaque formule.
 
 ## Langages {#languages}
 

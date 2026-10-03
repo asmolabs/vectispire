@@ -3327,7 +3327,7 @@ export interface paths {
         };
         /**
          * Simulate a candidate scorecard formula (experimental)
-         * @description Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × open issues / k), an exploited issue capping the grade at D, and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.
+         * @description Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.
          */
         get: operations["simulateScores"];
         put?: never;
@@ -7033,6 +7033,8 @@ export interface components {
             candidateExact?: number;
             /** @enum {string} */
             candidateGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: double */
+            candidateRiskPoints?: number;
             /** Format: int32 */
             candidateScore?: number;
             /** Format: int64 */
@@ -7045,6 +7047,8 @@ export interface components {
             exploited: number;
             /** Format: int64 */
             high: number;
+            /** Format: int64 */
+            licences: number;
             /** Format: int64 */
             low: number;
             /** Format: int64 */
@@ -7063,6 +7067,8 @@ export interface components {
             high: number;
             /** Format: double */
             k: number;
+            /** Format: double */
+            licence: number;
             /** Format: double */
             low: number;
             /** Format: double */
@@ -12758,6 +12764,8 @@ export interface operations {
                 medium?: number;
                 /** @description Weight of a low issue */
                 low?: number;
+                /** @description Weight of a disallowed licence entry */
+                licence?: number;
                 /** @description The weighted backlog that brings the score to 100/e (about 37) */
                 k?: number;
             };
