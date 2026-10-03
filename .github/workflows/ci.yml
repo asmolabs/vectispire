@@ -411,11 +411,60 @@ jobs:
         with:
           name: ui
           path: vectispire-angular/dist
-      - name: build both images with Jib
+      # The demonstration report plugin's image beside the two (decision 0035 §6): the release signs and
+      # publishes all three, so all three are built from every push.
+      - name: build the three images with Jib
         run: |
           cd vectispire-java
-          ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild -x test \
+          ./gradlew :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild \
+            :vectispire-report-demo:jibDockerBuild -x test \
             -PuiDist="$GITHUB_WORKSPACE/vectispire-angular/dist/vectispire/browser"
+      # **The plugin's image renders in a report plugin's closed shape, twice to the same bytes.** The shape
+      # the executor gives it (`ReportPluginRenderer`): no network, a read-only root, a `noexec` scratch, no
+      # capability, not root, the export alone and read-only, the manifest's own arguments. Same export, same
+      # image, same bytes — the property the platform's provenance relies on to let a doubter render again.
+      # Another major exits 2 and writes nothing. The full run through `ContainerRunner`, with the bounded
+      # output, is `:vectispire-common:integrationTest`'s; the signature is only made by a tag.
+      - name: the report plugin's image renders, and the same export gives the same bytes
+        run: |
+          work="$(mktemp -d)"
+          mkdir "$work/in" "$work/out1" "$work/out2" "$work/out3"
+          cp vectispire-java/vectispire-report-demo/src/test/resources/exports/sample.json "$work/in/export.json"
+          chmod 0755 "$work/in" "$work/out1" "$work/out2" "$work/out3"
+          chmod 0644 "$work/in/export.json"
+          chmod 0777 "$work/out1" "$work/out2" "$work/out3"
+          render() {
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges --user 1000:1000 --memory 2g --pids-limit 512 \
+              --tmpfs /tmp:rw,noexec,nosuid,mode=1777,size=64m \
+              -v "$work/in:/report/input:ro" -v "$work/$1:/report/output" \
+              vectispire-report-demo:latest \
+              $(jq -r '.arguments[]' vectispire-java/vectispire-report-demo/manifest.template.json \
+                | sed -e 's|{input}|/report/input/export.json|' -e 's|{output}|/report/output/summary.xlsx|')
+          }
+          render out1
+          render out2
+          cmp "$work/out1/summary.xlsx" "$work/out2/summary.xlsx"
+          python3 - "$work/out1/summary.xlsx" <<'PY'
+          import sys, zipfile
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              names = z.namelist()
+              assert names[0] == "[Content_Types].xml", names
+              assert not any("vbaproject" in n.lower() for n in names), names
+              assert "spreadsheetml.sheet.main+xml" in z.read("[Content_Types].xml").decode()
+              assert all(i.date_time == (1980, 2, 1, 0, 0, 0) for i in z.infolist())
+          print("summary.xlsx:", len(names), "parts, byte-identical on two runs")
+          PY
+          jq '.schema_version = "2.0"' "$work/in/export.json" > "$work/in/next" && mv "$work/in/next" "$work/in/export.json"
+          chmod 0644 "$work/in/export.json"
+          set +e
+          render out3 2> "$work/stderr"
+          code=$?
+          set -e
+          [ "$code" = 2 ] || { echo "another major exited $code, not 2"; cat "$work/stderr"; exit 1; }
+          grep -q "reads major 1 only" "$work/stderr"
+          [ ! -e "$work/out3/summary.xlsx" ] || { echo "another major wrote a document"; exit 1; }
+          echo "another major: exit 2, its reason on stderr, nothing written"
       - name: the control plane image starts, migrates and serves
         run: |
           docker network create smoke

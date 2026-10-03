@@ -117,19 +117,21 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           NAMESPACE="$(echo "$NAMESPACE" | tr '[:upper:]' '[:lower:]')"
           cd vectispire-java
-          ./gradlew :vectispire-core:jibBuildTar :vectispire-agent:jibBuildTar -x test \
+          ./gradlew :vectispire-core:jibBuildTar :vectispire-agent:jibBuildTar \
+            :vectispire-report-demo:jibBuildTar -x test \
             --dependency-verification=strict \
             -PimageNamespace="$NAMESPACE" \
             -PimageTag="$VERSION" \
             -PuiDist="$GITHUB_WORKSPACE/vectispire-angular/dist/vectispire/browser"
           cp vectispire-core/build/jib-image.tar "$GITHUB_WORKSPACE/vectispire-image.tar"
           cp vectispire-agent/build/jib-image.tar "$GITHUB_WORKSPACE/vectispire-agent-image.tar"
+          cp vectispire-report-demo/build/jib-image.tar "$GITHUB_WORKSPACE/vectispire-report-demo-image.tar"
 
       # The SBOM each image will carry as an attestation, taken here from the archive: the
       # contents are the image's, and the scanner does not run where the signing token lives.
       - name: the SBOM of each image
         run: |
-          for NAME in vectispire vectispire-agent; do
+          for NAME in vectispire vectispire-agent vectispire-report-demo; do
             docker run --rm -v "$PWD:/work:ro" \
               anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
               scan "docker-archive:/work/${NAME}-image.tar" -o cyclonedx-json > "${NAME}-image.cdx.json"
@@ -156,13 +158,22 @@ jobs:
           sh ci/check-cli-pin.sh
           cp scripts/vectispire-cli.sh vectispire-cli.sh
 
+      # **The demonstration report plugin's manifest, as a template** (decision 0035 §6). Its image's digest
+      # is the registry's, known once `publish` has pushed it, and its signing identity names this tag: both
+      # are filled there, from the digest that job signed and verified, and the filled manifest is signed
+      # like every other file. What is handed over is the template, covered by the checksums below; its
+      # shape is the registry's, held by `ManifestTemplateTest`.
+      - name: the demonstration plugin's manifest template
+        run: cp vectispire-java/vectispire-report-demo/manifest.template.json vectispire-report-demo.manifest.template.json
+
       # What `publish` signs is checked against this list before anything is signed: the handover
       # goes through artifact storage, and the job that holds the token trusts only what matches.
       - name: checksums of everything handed over
         run: |
           sha256sum "$JAR" "$SBOM" vectispire-image.tar vectispire-agent-image.tar \
-            vectispire-image.cdx.json vectispire-agent-image.cdx.json vectispire-gate.sh \
-            vectispire-cli.sh > SHA256SUMS
+            vectispire-report-demo-image.tar \
+            vectispire-image.cdx.json vectispire-agent-image.cdx.json vectispire-report-demo-image.cdx.json \
+            vectispire-gate.sh vectispire-cli.sh vectispire-report-demo.manifest.template.json > SHA256SUMS
           cat SHA256SUMS
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -173,10 +184,13 @@ jobs:
             ${{ env.SBOM }}
             vectispire-image.tar
             vectispire-agent-image.tar
+            vectispire-report-demo-image.tar
             vectispire-image.cdx.json
             vectispire-agent-image.cdx.json
+            vectispire-report-demo-image.cdx.json
             vectispire-gate.sh
             vectispire-cli.sh
+            vectispire-report-demo.manifest.template.json
             SHA256SUMS
           retention-days: 7
           if-no-files-found: error
@@ -329,7 +343,7 @@ jobs:
           echo "${{ github.token }}" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
           # The archives `build` wrote and the checksums above vouched for, tagged as Jib named
           # them. The digest is the registry's after the push, read back and signed below.
-          for NAME in vectispire vectispire-agent; do
+          for NAME in vectispire vectispire-agent vectispire-report-demo; do
             docker load --input "${NAME}-image.tar"
             docker tag "${NAMESPACE}/${NAME}:${VERSION}" "${NAMESPACE}/${NAME}:latest"
             docker push "${NAMESPACE}/${NAME}:${VERSION}"
@@ -339,7 +353,7 @@ jobs:
       # **Signed by digest, never by tag.** A tag is a mutable pointer: signing `:0.9.0` says
       # nothing about what `:0.9.0` resolves to tomorrow, which is the whole failure mode the
       # jar signing above exists to prevent. The digest is the image.
-      - name: sign and verify both images
+      - name: sign and verify the three images
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           # **Paired explicitly rather than derived from the image name.** The first version of
@@ -348,7 +362,7 @@ jobs:
           # identifier, so `${vectispire-agent_DIGEST}` is parameter expansion with a default:
           # "if $vectispire is unset, use the string agent_DIGEST". It would not have failed. It
           # would have put that literal into the release notes.
-          set -- "vectispire:CORE" "vectispire-agent:AGENT"
+          set -- "vectispire:CORE" "vectispire-agent:AGENT" "vectispire-report-demo:DEMO"
           for PAIR in "$@"; do
             NAME="${PAIR%%:*}"
             SLOT="${PAIR##*:}"
@@ -407,6 +421,15 @@ jobs:
           push-to-registry: true
           create-storage-record: false
 
+      - name: provenance of the demonstration report plugin's image
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.NAMESPACE }}/vectispire-report-demo
+          subject-digest: ${{ env.DEMO_DIGEST }}
+          push-to-registry: true
+          create-storage-record: false
+
       # **Verified with the command the documentation gives, before the release exists** — the
       # same rule as the cosign step above: an attestation nobody has verified is one whose
       # shape nobody knows. `--signer-workflow` and `--source-ref` are what the documentation
@@ -419,7 +442,8 @@ jobs:
         run: |
           set -- "$JAR" \
             "oci://${NAMESPACE}/vectispire@${CORE_DIGEST}" \
-            "oci://${NAMESPACE}/vectispire-agent@${AGENT_DIGEST}"
+            "oci://${NAMESPACE}/vectispire-agent@${AGENT_DIGEST}" \
+            "oci://${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}"
           for SUBJECT in "$@"; do
             gh attestation verify "$SUBJECT" \
               --repo "$GITHUB_REPOSITORY" \
@@ -429,6 +453,33 @@ jobs:
               --deny-self-hosted-runners > /dev/null
             echo "$SUBJECT: provenance verified"
           done
+
+      # **The demonstration plugin's manifest, filled with what this run signed, then signed itself**
+      # (decision 0035 §6). The image is the digest the step above signed and verified — never one read
+      # again from a tag — and the identity is this tag's: the manifest an operator pastes into the
+      # registry names exactly the signature it will find. Signed like the CLI and the gate script, and
+      # verified with the command a consumer runs before it is published. A template left with a
+      # placeholder, or an image that is not that digest, stops the release here.
+      - name: the demonstration plugin's manifest, filled and signed
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}"
+          jq --arg image "${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}" --arg identity "$IDENTITY" \
+            '.image = $image | .signature.identity = $identity' \
+            vectispire-report-demo.manifest.template.json > vectispire-report-demo.manifest.json
+          if grep -q '{{' vectispire-report-demo.manifest.json; then
+            echo "the manifest still carries a placeholder"; exit 1
+          fi
+          [ "$(jq -r .image vectispire-report-demo.manifest.json)" = "${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}" ]
+          [ "$(jq -r .signature.identity vectispire-report-demo.manifest.json)" = "$IDENTITY" ]
+          cosign sign-blob --yes --bundle vectispire-report-demo.manifest.json.cosign.bundle \
+            vectispire-report-demo.manifest.json
+          cosign verify-blob \
+            --bundle vectispire-report-demo.manifest.json.cosign.bundle \
+            --certificate-identity "$IDENTITY" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            vectispire-report-demo.manifest.json
+          cat vectispire-report-demo.manifest.json
 
       # Kept for the rehearsal, which has no tag to publish against and must leave something a
       # human can inspect.
@@ -484,6 +535,14 @@ jobs:
 
           Also tagged \`${VERSION}\` and \`latest\`.
 
+          **Demonstration report plugin** — signed by the same identity, with its SBOM attested:
+
+              docker pull ${NAMESPACE}/vectispire-report-demo@${DEMO_DIGEST}
+
+          Its manifest, \`vectispire-report-demo.manifest.json\`, is attached with its Sigstore bundle and
+          names that digest and the identity of this tag: verify it, then register it as the platform governor
+          (\`docs-site/administration/report-plugins.md\`).
+
           **Jar** — attached below with its SBOM and a Sigstore bundle for each.
 
           **CI gate script** — \`vectispire-gate.sh\`, attached with its Sigstore bundle. The GitLab
@@ -495,7 +554,7 @@ jobs:
 
               ${CLI_SHA256}
 
-          **Build provenance** (SLSA, naming commit ${GITHUB_SHA}) for the jar and both images:
+          **Build provenance** (SLSA, naming commit ${GITHUB_SHA}) for the jar and the three images:
 
               gh attestation verify <file or oci://image@digest> --repo ${GITHUB_REPOSITORY} \\
                 --signer-workflow ${GITHUB_REPOSITORY}/.github/workflows/release.yml --source-ref ${GITHUB_REF}
@@ -503,4 +562,5 @@ jobs:
           )" \
             "$JAR" "${JAR}.cosign.bundle" "$SBOM" "${SBOM}.cosign.bundle" \
             vectispire-gate.sh vectispire-gate.sh.cosign.bundle \
-            vectispire-cli.sh vectispire-cli.sh.cosign.bundle
+            vectispire-cli.sh vectispire-cli.sh.cosign.bundle \
+            vectispire-report-demo.manifest.json vectispire-report-demo.manifest.json.cosign.bundle
