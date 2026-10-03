@@ -167,7 +167,11 @@ serveur laissé à son paquet par défaut de 64 Mio, une exécution dont l'expor
 en échec `export_too_large` avant que le plugin ne s'exécute, le détail le disant. Démarrez MySQL avec
 `--max-allowed-packet=160M` (la composition livrée ne le fait pas) et tout export jusqu'à la borne de 64 Mio est
 gardé. La borne est lue sur le serveur à chaque exécution ; PostgreSQL n'en a aucune en deçà de 64 Mio. Un
-téléchargement de l'export (`GET …/export`) ne garde rien et n'est pas concerné.
+téléchargement de l'export (`GET …/export`) ne garde rien et n'est pas concerné. **Le paquet du document est une
+ligne à lui, sous le même paquet** : sur un serveur par défaut, le fichier qu'un plugin peut écrire est abaissé,
+pour l'exécution, du `max_output_bytes` de son manifeste à environ 31 Mio, et un plugin qui le remplit passe en
+échec `output_full`, le détail disant pourquoi. Le même `--max-allowed-packet=160M` rend le plafond du
+manifeste, jusqu'à 50 Mio.
 
 ## La vérification de la sortie
 

@@ -292,7 +292,9 @@ another branch, is another target and is accepted as before.
   `cosign verify-blob` and `cosign verify-blob-attestation` verify it against the instance's public key.
   **The signature means provenance, not truth**: it says what the installation gave which image and what
   came back, not that the document renders the export faithfully — the kept export is how that is checked.
-  Documents are purged with the exports by the evidence window, and with their project. The runs gain
+  Documents are purged with the exports by the evidence window, and with their project. On MySQL at its
+  default `max_allowed_packet` a run's file is lowered to about 31 MiB, which `--max-allowed-packet=160M`
+  restores to the manifest's ceiling. The runs gain
   `outputMediaType`, `signingKeyId` and `packageSha256`
   ([how](../administration/report-plugins.md#the-document-and-how-to-verify-it)).
 

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.reportplugins.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportBounds;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,5 +44,25 @@ class ReportExportCeilingTest {
                 .contains("max_allowed_packet")
                 .contains(String.valueOf(32 * MIB))
                 .contains("160M");
+    }
+
+    @Test
+    @DisplayName("a run's file: the manifest's ceiling on PostgreSQL; on MySQL what one statement keeps of its package")
+    void outputBytes() {
+        long max = ReportPluginManifest.MAX_OUTPUT_BYTES;
+        assertThat(ReportExportCeiling.outputBytes(OptionalLong.empty(), max)).isEqualTo(max);
+        assertThat(ReportExportCeiling.outputBytes(OptionalLong.of(64 * MIB), max))
+                .isEqualTo((64 * MIB - ReportExportCeiling.STATEMENT_MARGIN) / 2 - ReportExportCeiling.PACKAGE_MARGIN);
+        assertThat(ReportExportCeiling.outputBytes(OptionalLong.of(64 * MIB), 5 * MIB)).as("a lower manifest's own")
+                .isEqualTo(5 * MIB);
+        assertThat(ReportExportCeiling.outputBytes(OptionalLong.of(160 * MIB), max)).as("the advice holds").isEqualTo(max);
+    }
+
+    @Test
+    @DisplayName("a full output under a lowered ceiling says why and what restores it; under the manifest's, nothing more")
+    void whyOutput() {
+        assertThat(ReportExportCeiling.whyOutput(20 * MIB, 20 * MIB)).isEmpty();
+        assertThat(ReportExportCeiling.whyOutput(31 * MIB, 50 * MIB))
+                .contains("max_allowed_packet").contains(String.valueOf(31 * MIB)).contains("160M");
     }
 }

@@ -234,9 +234,19 @@ public class ReportExecution {
             }
             learnt = learnt.withExport(clock.instant(), export);
 
+            // The file's ceiling lowered the same way: its signed package is a row of its own, and a file the
+            // database could not keep would be rendered, checked and signed for nothing.
+            long outputCeiling = ceiling.outputBytes(manifest.maxOutputBytes());
             ReportPluginRenderer.Outcome outcome;
             try {
-                outcome = executor.render(manifest, export.json());
+                outcome = executor.render(outputCeiling < manifest.maxOutputBytes()
+                        ? manifest.withMaxOutputBytes(outputCeiling) : manifest, export.json());
+                if (outcome instanceof ReportPluginRenderer.Outcome.Failed full
+                        && full.reason() == ReportRunReason.OUTPUT_FULL) {
+                    outcome = new ReportPluginRenderer.Outcome.Failed(full.reason(), full.detail()
+                            + ReportExportCeiling.whyOutput(outputCeiling, manifest.maxOutputBytes()),
+                            full.exportHandedOver());
+                }
             } catch (RuntimeException failed) {
                 log.warn("Report run {}: the executor failed: {}", runId, failed.getMessage(), failed);
                 outcome = new ReportPluginRenderer.Outcome.Failed(ReportRunReason.EXECUTOR_ERROR,

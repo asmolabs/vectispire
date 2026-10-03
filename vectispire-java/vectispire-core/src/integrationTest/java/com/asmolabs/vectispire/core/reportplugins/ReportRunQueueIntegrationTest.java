@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportBounds;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
@@ -229,6 +230,34 @@ class ReportRunQueueIntegrationTest {
             content[i] = pattern[i % pattern.length];
         }
         return content;
+    }
+
+    @Test
+    @DisplayName("a package at the largest a run's file may make is kept whole; on MySQL's default packet below 50 MiB")
+    void documentAtTheBound() {
+        long manifest = ReportPluginManifest.MAX_OUTPUT_BYTES;
+        long output = ceiling.outputBytes(manifest);
+        long bound = output + ReportExportCeiling.PACKAGE_MARGIN;
+        if (ENGINE == Engine.MYSQL) {
+            assertThat(output).isLessThan(manifest).isGreaterThan(30L * 1024 * 1024);
+        } else {
+            assertThat(output).isEqualTo(manifest);
+        }
+
+        long kept = run(1, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+        byte[] content = new byte[Math.toIntExact(bound)];
+        Arrays.fill(content, (byte) 'P');
+        document(kept, content, AT);
+        assertThat(documents.findById(kept).orElseThrow().getContent()).isEqualTo(content);
+
+        if (ENGINE == Engine.MYSQL) {
+            // Why the file's ceiling is lowered there: the manifest's would make a package the default server refuses,
+            // a run rendered, checked and signed for nothing.
+            long refused = run(2, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+            byte[] whole = new byte[Math.toIntExact(manifest + ReportExportCeiling.PACKAGE_MARGIN)];
+            assertThatThrownBy(() -> document(refused, whole, AT)).hasStackTraceContaining("max_allowed_packet");
+            assertThat(documents.existsById(refused)).isFalse();
+        }
     }
 
     @Test

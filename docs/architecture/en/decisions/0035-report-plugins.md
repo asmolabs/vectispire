@@ -707,6 +707,12 @@ or stated loosely. The code is in `common/domain/reportplugins` (`ReportOutputCh
   SHA-256 — and `t_report_document` holds the package (V77, common). Purged with the exports by the evidence window
   (`ReportEvidenceRetentionTask`, which replaces R3's export-only task, each table on its own), and with the
   project.
+- **On MySQL the file's ceiling is what one statement keeps of its package**, as R3 bounded the export: the
+  package is written in one statement, hex-encoded at twice its size, so on a default 64 MiB `max_allowed_packet`
+  a run's file is lowered from the manifest's `max_output_bytes` to half the packet less 64 KiB and the package's
+  256 KiB (`ReportExportCeiling.outputBytes`) — about 31 MiB — and a plugin filling it fails `output_full`, the
+  detail saying why and that `--max-allowed-packet=160M` restores the manifest's 50 MiB. Without it a run would
+  render, check and sign a document the write then refused.
 - **The document status route** (`GET /api/v1/report-documents/{sha256}`) and serving a withdrawn manifest's
   documents as withdrawn are R7's, as the lots table says: a withdrawn digest's documents are served unmarked until
   then.

@@ -161,7 +161,10 @@ default packet of 64 MiB, a run whose export would pass about 32 MiB fails `expo
 plugin runs, the detail saying so. Start MySQL with `--max-allowed-packet=160M` (the shipped composition
 does not) and every export up to the 64 MiB bound is kept. The bound is read from the server at each run;
 PostgreSQL has none below 64 MiB. A download of the export (`GET …/export`) keeps nothing and is not
-affected.
+affected. **The document's package is a row of its own, under the same packet**: on a default server the file
+a plugin may write is lowered from its manifest's `max_output_bytes` to about 31 MiB for the run, and a
+plugin that fills it fails `output_full`, the detail saying why. The same `--max-allowed-packet=160M`
+restores the manifest's ceiling, up to 50 MiB.
 
 ## The check on the output
 

@@ -772,6 +772,13 @@ que le §3 laissait ouverts ou énonçait vaguement. Le code est dans `common/do
   signature et le SHA-256 du paquet — et `t_report_document` contient le paquet (V77, common). Purgé avec les
   exports par la fenêtre des preuves (`ReportEvidenceRetentionTask`, qui remplace la tâche de R3 limitée aux
   exports, chaque table à part), et avec le projet.
+- **Sur MySQL, le plafond du fichier est ce qu'une instruction garde de son paquet**, comme R3 a borné l'export :
+  le paquet est écrit en une instruction, encodé en hexadécimal au double de sa taille, donc sur un
+  `max_allowed_packet` de 64 Mio par défaut le fichier d'une exécution est abaissé du `max_output_bytes` du
+  manifeste à la moitié du paquet moins 64 Kio et les 256 Kio du paquet (`ReportExportCeiling.outputBytes`) —
+  environ 31 Mio — et un plugin qui le remplit passe en échec `output_full`, le détail disant pourquoi et que
+  `--max-allowed-packet=160M` rend les 50 Mio du manifeste. Sans cela, une exécution rendrait, vérifierait et
+  signerait un document que l'écriture refuserait ensuite.
 - **La route d'état d'un document** (`GET /api/v1/report-documents/{sha256}`) et le service des documents d'un
   manifeste retiré marqués comme retirés relèvent de R7, comme le dit le tableau des lots : d'ici là, les documents
   d'un digest retiré sont servis sans marque.

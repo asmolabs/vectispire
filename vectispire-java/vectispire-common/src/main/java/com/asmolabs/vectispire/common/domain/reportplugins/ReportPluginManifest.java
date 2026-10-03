@@ -82,6 +82,16 @@ public record ReportPluginManifest(
     }
 
     /**
+     * This manifest with a lower output ceiling, for one run: where the database cannot keep a document as large as
+     * the manifest allows ({@code ReportExportCeiling}). Its digest is not the registered one, so it is handed to the
+     * renderer and nothing else — never stored, never named.
+     */
+    public ReportPluginManifest withMaxOutputBytes(long ceiling) {
+        return new ReportPluginManifest(id, name, image, exportSchema, arguments, output, mediaType, ceiling,
+                timeoutSeconds, signature);
+    }
+
+    /**
      * This manifest, or a refusal naming the first thing wrong with it.
      *
      * @throws InvalidPluginException meant to be shown to the governor as it is

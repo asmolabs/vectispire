@@ -315,7 +315,9 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   contre la clé publique de l'instance. **La signature atteste la provenance, pas la vérité** : elle dit ce
   que l'installation a donné à quelle image et ce qui en est revenu, pas que le document rend fidèlement
   l'export — l'export conservé est ce qui permet de le vérifier. Les documents sont purgés avec les exports
-  par la fenêtre des preuves, et avec leur projet. Les exécutions gagnent `outputMediaType`, `signingKeyId`
+  par la fenêtre des preuves, et avec leur projet. Sur MySQL à son `max_allowed_packet` par défaut, le fichier
+  d'une exécution est abaissé à environ 31 Mio, ce que `--max-allowed-packet=160M` ramène au plafond du
+  manifeste. Les exécutions gagnent `outputMediaType`, `signingKeyId`
   et `packageSha256` ([comment](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier)).
 
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
