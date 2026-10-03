@@ -125,6 +125,19 @@ public class RepositoriesController {
 
     public record QueuedScan(Long id, String status) {}
 
+    /**
+     * One target filed more than once.
+     *
+     * @param repository {@code host/path}, the identity the URLs share — no scheme, no user part, no port
+     * @param targets its filings, oldest first: the oldest is the one new filings are compared with
+     */
+    public record DuplicateTarget(String repository, String branch, String subPath, List<RepositorySummary> targets) {}
+
+    static final String DUPLICATE_REFUSAL = "The same repository (its URL compared without scheme, user, port, "
+            + "case or .git), on the same branch and sub-path, as an existing target answers 409 with the type "
+            + "urn:vectispire:problem:" + RepositoryAdministrationService.TargetAlreadyRegisteredException.CAUSE
+            + "; when the caller sees that target, the problem's existingRepositoryId names it.";
+
     /** The list, with each target's latest scan and how many issues are waiting on it. */
     @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible to the caller.")
     @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
@@ -136,7 +149,8 @@ public class RepositoriesController {
                 .toList();
     }
 
-    @Operation(summary = "Create repository", description = "Registers a new Git repository for automated security scanning.")
+    @Operation(summary = "Create repository", description = "Registers a new Git repository for automated security scanning. "
+            + DUPLICATE_REFUSAL)
     @ApiResponse(responseCode = "200", description = "Repository registered successfully")
     @RequiresAdministrator
     @PostMapping
@@ -145,8 +159,30 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryView saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
+        RepositoryView saved = inventory.create(changesOf(body), allowed(principal), RequestActors.of(principal, request));
         return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
+    }
+
+    /**
+     * The targets filed more than once: those the duplicate refusal found already there when it arrived.
+     *
+     * <p>A read, for the administrator who merges them by hand — nothing here deletes a row, since
+     * either may hold the triage.
+     */
+    @Operation(summary = "List duplicate repository targets", description = "The repositories filed more than "
+            + "once on the same branch and sub-path, grouped, each group oldest first. Filed before duplicates were "
+            + "refused; merged by hand.")
+    @ApiResponse(responseCode = "200", description = "Groups of two or more targets, possibly none")
+    @RequiresAdministrator
+    @GetMapping("/duplicates")
+    public List<DuplicateTarget> duplicates(@AuthenticationPrincipal VectispirePrincipal principal) {
+        return inventory.duplicates(allowed(principal)).stream()
+                .map(group -> new DuplicateTarget(
+                        group.identity().repository(),
+                        group.identity().branch(),
+                        group.identity().subPath(),
+                        group.targets().stream().map(RepositoriesController::summaryOf).toList()))
+                .toList();
     }
 
     /**
@@ -163,7 +199,9 @@ public class RepositoriesController {
      * — and the wrong one for pointing an existing row at an unrelated project. The audit entry
      * records both URLs so the surprise has an explanation.
      */
-    @Operation(summary = "Update repository", description = "Updates configuration, schedule or credentials of a monitored repository.")
+    @Operation(summary = "Update repository", description = "Updates configuration, schedule or credentials of a monitored repository. "
+            + "Changing the URL, the branch or the sub-path to another target's is refused like a creation: "
+            + DUPLICATE_REFUSAL)
     @ApiResponse(responseCode = "200", description = "Repository updated successfully")
     @RequiresAdministrator
     @PatchMapping("/{id}")

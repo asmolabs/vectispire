@@ -103,4 +103,41 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
              where r.sshKeyId is not null
              group by r.sshKeyId""")
     List<Object[]> countBySshKey();
+
+    /** The target holding this guard — at most one, the index is unique (V74). */
+    java.util.Optional<RepositoryEntity> findByIdentityGuard(String identityGuard);
+
+    /**
+     * The rows holding no guard, oldest first: those written before V74 or by an instance of an earlier
+     * version during a rolling upgrade, the second filing of a target filed twice before the rule, and a
+     * URL that names no host. Oldest first, so that of two twins the one with the longer history keeps
+     * the guard.
+     */
+    List<RepositoryEntity> findByIdentityGuardIsNullOrderByIdAsc();
+
+    /**
+     * Writes a row's identity, and its guard when it is free ({@code null} otherwise).
+     *
+     * <p><b>A targeted update, conditional on what was read.</b> The keying runs beside the routes: a
+     * save would write back every column of a row an operator may have edited since, and a URL, branch
+     * or sub-path changed in between would get the identity of the old one. A row that moved is left
+     * alone — the update that moved it keyed it — and so is one keyed in between.
+     *
+     * @param subPath the sub-path as read, {@code ""} for none: a null bound beside a comparison is
+     *     typed differently by each engine's driver
+     * @return 1 when written, 0 when the row had changed
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update RepositoryEntity r set r.urlIdentity = :urlIdentity, r.identityGuard = :guard
+             where r.id = :id and r.identityGuard is null
+               and r.url = :url and r.branch = :branch and coalesce(r.subPath, '') = :subPath""")
+    int key(
+            @Param("id") Long id,
+            @Param("url") String url,
+            @Param("branch") String branch,
+            @Param("subPath") String subPath,
+            @Param("urlIdentity") String urlIdentity,
+            @Param("guard") String guard);
 }

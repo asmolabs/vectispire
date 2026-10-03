@@ -3364,6 +3364,26 @@
         },
         "type" : "object"
       },
+      "DuplicateTarget" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "repository" : {
+            "type" : "string"
+          },
+          "subPath" : {
+            "type" : "string"
+          },
+          "targets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RepositorySummary"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "Email" : {
         "properties" : {
           "primary" : {
@@ -16411,7 +16431,7 @@
         "tags" : [ "Repositories" ]
       },
       "post" : {
-        "description" : "Registers a new Git repository for automated security scanning.",
+        "description" : "Registers a new Git repository for automated security scanning. The same repository (its URL compared without scheme, user, port, case or .git), on the same branch and sub-path, as an existing target answers 409 with the type urn:vectispire:problem:target-already-registered; when the caller sees that target, the problem's existingRepositoryId names it.",
         "operationId" : "create_4",
         "requestBody" : {
           "content" : {
@@ -16439,6 +16459,29 @@
         "tags" : [ "Repositories" ]
       }
     },
+    "/api/v1/repositories/duplicates" : {
+      "get" : {
+        "description" : "The repositories filed more than once on the same branch and sub-path, grouped, each group oldest first. Filed before duplicates were refused; merged by hand.",
+        "operationId" : "duplicates",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/DuplicateTarget"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Groups of two or more targets, possibly none"
+          }
+        },
+        "summary" : "List duplicate repository targets",
+        "tags" : [ "Repositories" ]
+      }
+    },
     "/api/v1/repositories/{id}" : {
       "delete" : {
         "description" : "Removes repository and cascades deletion of its issues, findings and history.",
@@ -16462,7 +16505,7 @@
         "tags" : [ "Repositories" ]
       },
       "patch" : {
-        "description" : "Updates configuration, schedule or credentials of a monitored repository.",
+        "description" : "Updates configuration, schedule or credentials of a monitored repository. Changing the URL, the branch or the sub-path to another target's is refused like a creation: The same repository (its URL compared without scheme, user, port, case or .git), on the same branch and sub-path, as an existing target answers 409 with the type urn:vectispire:problem:target-already-registered; when the caller sees that target, the problem's existingRepositoryId names it.",
         "operationId" : "update_5",
         "parameters" : [ {
           "description" : "Repository identifier",

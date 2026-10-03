@@ -101,6 +101,21 @@ public class RepositoryEntity {
     @Column(name = "project_id", insertable = false, updatable = false)
     private Long projectId;
 
+    /**
+     * {@code RepositoryUrl.identity} of {@link #url} (V74): what discovery compares, whatever the
+     * branch and the sub-path. Null on a row not keyed yet, and on a URL that names no host.
+     */
+    @Column(name = "url_identity", length = 255)
+    private String urlIdentity;
+
+    /**
+     * {@code RepositoryIdentity.guard()}, held unique by the database: what refuses the second of two
+     * creations racing past the service's check. Null on a row not keyed yet, and on a row filed twice
+     * before the rule, whose oldest twin holds it — see V74.
+     */
+    @Column(name = "identity_guard", length = 64)
+    private String identityGuard;
+
     public Long getId() {
         return id;
     }
@@ -224,5 +239,21 @@ public class RepositoryEntity {
     /** No setter: see the field. */
     public Long getProjectId() {
         return projectId;
+    }
+
+    public String getUrlIdentity() {
+        return urlIdentity;
+    }
+
+    public void setUrlIdentity(String urlIdentity) {
+        this.urlIdentity = urlIdentity;
+    }
+
+    public String getIdentityGuard() {
+        return identityGuard;
+    }
+
+    public void setIdentityGuard(String identityGuard) {
+        this.identityGuard = identityGuard;
     }
 }

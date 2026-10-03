@@ -2873,9 +2873,29 @@ export interface paths {
         put?: never;
         /**
          * Create repository
-         * @description Registers a new Git repository for automated security scanning.
+         * @description Registers a new Git repository for automated security scanning. The same repository (its URL compared without scheme, user, port, case or .git), on the same branch and sub-path, as an existing target answers 409 with the type urn:vectispire:problem:target-already-registered; when the caller sees that target, the problem's existingRepositoryId names it.
          */
         post: operations["create_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List duplicate repository targets
+         * @description The repositories filed more than once on the same branch and sub-path, grouped, each group oldest first. Filed before duplicates were refused; merged by hand.
+         */
+        get: operations["duplicates"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2901,7 +2921,7 @@ export interface paths {
         head?: never;
         /**
          * Update repository
-         * @description Updates configuration, schedule or credentials of a monitored repository.
+         * @description Updates configuration, schedule or credentials of a monitored repository. Changing the URL, the branch or the sub-path to another target's is refused like a creation: The same repository (its URL compared without scheme, user, port, case or .git), on the same branch and sub-path, as an existing target answers 409 with the type urn:vectispire:problem:target-already-registered; when the caller sees that target, the problem's existingRepositoryId names it.
          */
         patch: operations["update_5"];
         trace?: never;
@@ -5392,6 +5412,12 @@ export interface components {
             name?: string;
             rules?: components["schemas"]["Rule"][];
             version?: string;
+        };
+        DuplicateTarget: {
+            branch?: string;
+            repository?: string;
+            subPath?: string;
+            targets?: components["schemas"]["RepositorySummary"][];
         };
         Email: {
             primary?: boolean;
@@ -12327,6 +12353,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RepositorySummary"];
+                };
+            };
+        };
+    };
+    duplicates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Groups of two or more targets, possibly none */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DuplicateTarget"][];
                 };
             };
         };

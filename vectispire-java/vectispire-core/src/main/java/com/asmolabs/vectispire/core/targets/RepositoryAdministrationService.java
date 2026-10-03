@@ -3,12 +3,14 @@ package com.asmolabs.vectispire.core.targets;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryIdentity;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -198,7 +200,15 @@ public class RepositoryAdministrationService {
                 .findFirst();
     }
 
-    public RepositoryView create(Changes changes, RequestActor actor) {
+    /**
+     * Files a new repository target.
+     *
+     * @param allowed what the caller sees, which decides only how a duplicate is refused — see {@link
+     *     TargetAlreadyRegisteredException}
+     * @throws TargetAlreadyRegisteredException when the same repository, branch and sub-path is already
+     *     a target
+     */
+    public RepositoryView create(Changes changes, Visibility allowed, RequestActor actor) {
         String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
         // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
         // is arbitrary code execution, not a typo.
@@ -224,8 +234,15 @@ public class RepositoryAdministrationService {
         repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
         repository.setTier(AssetTier.fromInput(changes.tier()).name());
         requireMatchingCredential(repository);
+        // Checked before the write although the unique index would refuse the row anyway: the ordinary
+        // duplicate — somebody pasting the SSH URL of a repository filed over HTTPS — is then refused
+        // without a failed statement, which the driver logs as an error and an engine pays for with an
+        // identity value. The index is for the race this check cannot see.
+        Optional<RepositoryIdentity> identity = identityOf(repository);
+        identity.ifPresent(target -> refuseIfRegistered(target, null, allowed));
+        stamp(repository, identity, true);
 
-        RepositoryEntity saved = repositories.save(repository);
+        RepositoryEntity saved = saveRefusingARacedTwin(repository, identity, allowed);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Repository added: " + RepositoryUrl.redact(saved.getUrl())));
         return RepositoryView.of(saved);
@@ -249,6 +266,7 @@ public class RepositoryAdministrationService {
                 RowVisibility.requireVisible(repositories.findById(id), new ScanTarget.Repository(id), allowed);
 
         String previousUrl = repository.getUrl();
+        Optional<RepositoryIdentity> previousIdentity = identityOf(repository);
         // The list sends the URL masked; a form saved without touching it sends the mask back,
         // which must leave the stored URL — credential included — as it was.
         if (changes.url() != null && !RepositoryUrl.isMaskedFormOf(trim(changes.url()), previousUrl)) {
@@ -291,8 +309,17 @@ public class RepositoryAdministrationService {
         if (changes.tier() != null) {
             repository.setTier(AssetTier.fromInput(changes.tier()).name());
         }
+        // Refused only when the edit makes this row another target's twin. A row filed twice before
+        // the rule keeps its name, its schedule and its credential editable: refusing those over a
+        // pair nobody touched would hold every setting of it hostage to a merge.
+        Optional<RepositoryIdentity> identity = identityOf(repository);
+        boolean otherTarget = !identity.equals(previousIdentity);
+        if (otherTarget) {
+            identity.ifPresent(target -> refuseIfRegistered(target, id, allowed));
+        }
+        stamp(repository, identity, guardIsFree(identity, id));
 
-        RepositoryEntity saved = repositories.save(repository);
+        RepositoryEntity saved = saveRefusingARacedTwin(repository, identity, allowed);
         String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + RepositoryUrl.redact(previousUrl) + ")";
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
@@ -323,6 +350,116 @@ public class RepositoryAdministrationService {
         TargetGrants.Revoked revoked = targetDeletion.deleteRepository(id);
         TargetDeletionAudit.record(audit, actor, id, "repository " + id,
                 "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()), revoked);
+    }
+
+    /**
+     * The same repository, branch and sub-path filed a second time: 409, typed {@code
+     * urn:vectispire:problem:target-already-registered}.
+     *
+     * <p><b>Named only to a caller who sees it.</b> The sentence then names the target and the problem
+     * carries its id ({@code existingRepositoryId}), so the screen can lead to it. To a caller who does
+     * not, the refusal is the same 409 without either: the database refuses the row whoever asks, so the
+     * only alternatives are to say so or to pretend, and a 404 or a 400 would be the pretence. What it
+     * reveals is one bit about a URL the caller already holds — some target files it — and nothing of
+     * which one, in which project, or what it found; a refusal that named it would hand out exactly the
+     * estate {@code Visibility} withholds. Only administrators reach the two routes today, and an
+     * administrator sees everything; the narrower form is for the callers that come next (decision
+     * 0037's import), and is tested at the service.
+     */
+    public static final class TargetAlreadyRegisteredException extends ConflictException {
+
+        /** The token the problem's {@code type} ends with, published in the routes' descriptions. */
+        public static final String CAUSE = "target-already-registered";
+
+        TargetAlreadyRegisteredException(String message) {
+            super(message, CAUSE);
+        }
+
+        TargetAlreadyRegisteredException(String message, long existingRepositoryId) {
+            super(message, CAUSE, Map.of("existingRepositoryId", existingRepositoryId));
+        }
+    }
+
+    /**
+     * The targets filed twice: repositories sharing one {@link RepositoryIdentity}, oldest first in
+     * each group, groups by their oldest member. Rows the rule found already doubled when it arrived
+     * (V74); nothing deletes them, since either one may hold the triage — merging is an administrator's
+     * gesture, written in the repository guide.
+     *
+     * <p>Grouped over the rows the caller sees and computed from the URLs as they are, not from the
+     * stored identity: a row the keying has not reached yet is listed all the same.
+     */
+    public List<Duplicated> duplicates(Visibility allowed) {
+        Map<RepositoryIdentity, List<Listed>> byTarget = new java.util.LinkedHashMap<>();
+        list(allowed).stream()
+                .sorted(java.util.Comparator.comparing(listed -> listed.repository().id()))
+                .forEach(listed -> RepositoryIdentity.of(
+                                listed.repository().url(), listed.repository().branch(), listed.repository().subPath())
+                        .ifPresent(identity -> byTarget.computeIfAbsent(identity, ignored -> new java.util.ArrayList<>())
+                                .add(listed)));
+        return byTarget.entrySet().stream()
+                .filter(group -> group.getValue().size() > 1)
+                .map(group -> new Duplicated(group.getKey(), List.copyOf(group.getValue())))
+                .toList();
+    }
+
+    /** One target filed more than once, and each of its filings. */
+    public record Duplicated(RepositoryIdentity identity, List<Listed> targets) {}
+
+    private static Optional<RepositoryIdentity> identityOf(RepositoryEntity repository) {
+        return RepositoryIdentity.of(repository.getUrl(), repository.getBranch(), repository.getSubPath());
+    }
+
+    /** Whether no row but {@code self} holds the guard — always, for a URL that names no host. */
+    private boolean guardIsFree(Optional<RepositoryIdentity> identity, Long self) {
+        return identity.flatMap(target -> repositories.findByIdentityGuard(target.guard()))
+                .filter(holder -> !holder.getId().equals(self))
+                .isEmpty();
+    }
+
+    private static void stamp(RepositoryEntity repository, Optional<RepositoryIdentity> identity, boolean holdsGuard) {
+        repository.setUrlIdentity(identity.map(RepositoryIdentity::repository).orElse(null));
+        repository.setIdentityGuard(holdsGuard ? identity.map(RepositoryIdentity::guard).orElse(null) : null);
+    }
+
+    private void refuseIfRegistered(RepositoryIdentity identity, Long self, Visibility allowed) {
+        Optional<RepositoryEntity> holder = repositories.findByIdentityGuard(identity.guard())
+                .filter(existing -> !existing.getId().equals(self));
+        if (holder.isEmpty()) {
+            return;
+        }
+        RepositoryEntity existing = holder.get();
+        if (!allowed.permits(new ScanTarget.Repository(existing.getId()))) {
+            throw new TargetAlreadyRegisteredException(
+                    "This repository is already registered, on this branch and sub-path.");
+        }
+        String where = identity.subPath().isEmpty() ? "at its root" : "under " + identity.subPath();
+        throw new TargetAlreadyRegisteredException(
+                "This repository is already registered as \"" + RepositoryUrl.displayName(existing.getName(), existing.getUrl())
+                        + "\" (id " + existing.getId() + "), on branch " + identity.branch() + ", " + where
+                        + ". Edit that target, or choose another branch or sub-path.",
+                existing.getId());
+    }
+
+    /**
+     * Saves, and reads a refused write as the race it may have been.
+     *
+     * <p><b>Two creations racing pass the check before the write together</b>; the unique index on the guard lets
+     * one commit and refuses the other. But a failed write does not say why it failed — a lock timeout
+     * or a dropped connection fails it the same way — so the refusal is not read from the exception:
+     * once the write has rolled back, the committed row answers. Present, the caller is answered the
+     * 409 the check would have given a moment later; absent, the failure was something else and is
+     * thrown as it came.
+     */
+    private RepositoryEntity saveRefusingARacedTwin(
+            RepositoryEntity repository, Optional<RepositoryIdentity> identity, Visibility allowed) {
+        try {
+            return repositories.save(repository);
+        } catch (RuntimeException failed) {
+            identity.filter(target -> target.guard().equals(repository.getIdentityGuard()))
+                    .ifPresent(target -> refuseIfRegistered(target, repository.getId(), allowed));
+            throw failed;
+        }
     }
 
     private static void schedule(RepositoryEntity repository, ScheduleChoice choice) {

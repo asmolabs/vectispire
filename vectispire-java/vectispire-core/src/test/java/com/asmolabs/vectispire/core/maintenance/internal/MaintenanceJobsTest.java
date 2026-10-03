@@ -44,7 +44,9 @@ import com.asmolabs.vectispire.core.scanning.SchedulerService;
 import com.asmolabs.vectispire.core.scanning.internal.ScanRetentionTask;
 import com.asmolabs.vectispire.core.scanning.internal.SchedulingTickTask;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.targets.RepositoryIdentityService;
 import com.asmolabs.vectispire.core.targets.TargetDeletionService;
+import com.asmolabs.vectispire.core.targets.internal.RepositoryIdentityTask;
 import com.asmolabs.vectispire.core.targets.internal.OrphanedTargetRowsTask;
 import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssScoresSyncTask;
@@ -95,6 +97,7 @@ class MaintenanceJobsTest {
             SentMessagesTask.class,
             TicketSweepTask.class,
             InventoryBackfillTask.class,
+            RepositoryIdentityTask.class,
             TriageExpiryTask.class,
             SlaBreachTask.class,
             WeeklyDigestTask.class,
@@ -114,6 +117,7 @@ class MaintenanceJobsTest {
     private TicketSweepService tickets;
     private SessionCleanupService sessions;
     private InventoryBackfill backfill;
+    private RepositoryIdentityService identities;
     private SchedulerService scheduler;
     private CredentialedBacklog backlog;
     private IssueTriageService triage;
@@ -136,6 +140,7 @@ class MaintenanceJobsTest {
         tickets = mock(TicketSweepService.class);
         sessions = mock(SessionCleanupService.class);
         backfill = mock(InventoryBackfill.class);
+        identities = mock(RepositoryIdentityService.class);
         scheduler = mock(SchedulerService.class);
         backlog = mock(CredentialedBacklog.class);
         triage = mock(IssueTriageService.class);
@@ -166,6 +171,7 @@ class MaintenanceJobsTest {
                 new SentMessagesTask(outbox),
                 new TicketSweepTask(tickets),
                 new InventoryBackfillTask(backfill),
+                new RepositoryIdentityTask(identities),
                 new TriageExpiryTask(triage),
                 new SlaBreachTask(breaches),
                 new WeeklyDigestTask(digest),
@@ -211,12 +217,15 @@ class MaintenanceJobsTest {
         // cover less than its name says. In order, because two positions matter: the decisions
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
-        InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, breaches, digest, complianceHistory,
+        InOrder turn = inOrder(retention, outbox, tickets, backfill, identities, triage, breaches, digest, complianceHistory,
                 owaspWeekly, sessions, verdicts, snapshots, reviews, feed, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
         turn.verify(backfill).runOnce();
+        // The only writer of the guard on the rows V74 found: without it, a second filing of any target
+        // registered before the upgrade is accepted for as long as the install lives.
+        turn.verify(identities).keyUnkeyed();
         turn.verify(triage).expireStale();
         // After the expiry, so an acceptance that lapsed this turn counts; nothing else ever asks
         // which deadlines have passed, so without this call no SLA breach reaches the SOC.
@@ -262,12 +271,15 @@ class MaintenanceJobsTest {
         // failures, the first and one in the middle, and every other job still runs, in order.
         jobs.hourlyMaintenance();
 
-        InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, digest, complianceHistory, sessions,
+        InOrder turn = inOrder(retention, outbox, tickets, backfill, identities, triage, digest, complianceHistory, sessions,
                 verdicts, snapshots, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
         turn.verify(backfill).runOnce();
+        // The only writer of the guard on the rows V74 found: without it, a second filing of any target
+        // registered before the upgrade is accepted for as long as the install lives.
+        turn.verify(identities).keyUnkeyed();
         turn.verify(triage).expireStale();
         turn.verify(digest).runOnce();
         turn.verify(complianceHistory).capture();
