@@ -84,8 +84,12 @@ public record ContainerRun(
      * @param bytes what it may hold, everything in it counted
      * @param holderImage the image that keeps the directory alive, pinned by digest like any other
      * @param file the one file read back — a bare name in {@code target}
+     * @param inodes the files and directories it may hold, itself included: each is kernel memory no size
+     *     limit counts. {@link ContainerRunner#OUTPUT_INODES} for a scanner's plugin, which may leave a
+     *     directory's worth beside its report; a report plugin writes one file and gets sixteen (decision
+     *     0035 §2) — room for a few temporary ones, and no more
      */
-    public record BoundedOutput(String target, long bytes, String holderImage, String file) {
+    public record BoundedOutput(String target, long bytes, String holderImage, String file, int inodes) {
 
         public BoundedOutput {
             if (bytes <= 0) {
@@ -94,6 +98,15 @@ public record ContainerRun(
             if (file == null || file.isEmpty() || file.contains("/") || file.startsWith(".")) {
                 throw new IllegalArgumentException("The file read back is a bare name in the output directory.");
             }
+            if (inodes < 2) {
+                // The directory is one, the file another: fewer and nothing could ever be written.
+                throw new IllegalArgumentException("A bounded output holds at least its directory and one file.");
+            }
+        }
+
+        /** A directory's worth of files: {@link ContainerRunner#OUTPUT_INODES}. */
+        public BoundedOutput(String target, long bytes, String holderImage, String file) {
+            this(target, bytes, holderImage, file, ContainerRunner.OUTPUT_INODES);
         }
     }
 

@@ -23,8 +23,18 @@ public class ScannerFailureException extends RuntimeException {
 
     /** The scanner ran too long and was stopped. */
     public static ScannerFailureException timedOut(String label, Duration timeout) {
-        return new ScannerFailureException(
-                label, "Scanner \"" + label + "\" exceeded " + timeout.toSeconds() + "s and was stopped.");
+        return new TimedOut(label, timeout);
+    }
+
+    /**
+     * A container stopped at its timeout — a type, so that a caller telling a timeout from any other failure
+     * reads the class and never the sentence, which is free to change.
+     */
+    public static final class TimedOut extends ScannerFailureException {
+
+        private TimedOut(String label, Duration timeout) {
+            super(label, "Scanner \"" + label + "\" exceeded " + timeout.toSeconds() + "s and was stopped.");
+        }
     }
 
     /**

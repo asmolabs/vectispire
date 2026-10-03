@@ -492,9 +492,10 @@ public final class ContainerRunner {
     }
 
     /**
-     * The files a bounded output may hold. A directory's worth: a report and what a tool leaves
+     * The files a bounded output holds by default. A directory's worth: a report and what a tool leaves
      * beside it. Each inode is kernel memory, and without a bound a tool creating empty files would
-     * spend the container's memory where no size limit counts it.
+     * spend the container's memory where no size limit counts it. A caller that needs fewer says so
+     * ({@link ContainerRun.BoundedOutput#inodes}).
      */
     public static final int OUTPUT_INODES = 4096;
 
@@ -524,7 +525,7 @@ public final class ContainerRunner {
                         .withOptions(Map.of(
                                 "type", "tmpfs",
                                 "device", "tmpfs",
-                                "o", "size=" + bounded.bytes() + ",nr_inodes=" + OUTPUT_INODES
+                                "o", "size=" + bounded.bytes() + ",nr_inodes=" + bounded.inodes()
                                         + ",uid=" + owner[0] + ",gid=" + owner[1]
                                         + ",mode=0700,noexec,nosuid,nodev"))));
         String report = "df -P -k " + bounded.target() + "; df -P -i " + bounded.target();
@@ -555,7 +556,9 @@ public final class ContainerRunner {
             throws InterruptedException {
         OutputFile file;
         try (InputStream tar = docker.copyArchiveFromContainerCmd(holder, bounded.target() + "/" + bounded.file()).exec()) {
-            file = OutputArchive.read(tar, bounded.file(), limits.outputBytes());
+            // The smaller of the two ceilings: the directory's own, which a report plugin's manifest sets
+            // below what a scanner may hand back, and that one.
+            file = OutputArchive.read(tar, bounded.file(), Math.min(bounded.bytes(), limits.outputBytes()));
         } catch (com.github.dockerjava.api.exception.NotFoundException absent) {
             file = new OutputFile.Missing();
         } catch (IOException | RuntimeException unreadable) {
@@ -649,7 +652,7 @@ public final class ContainerRunner {
         /** A link, a directory, a FIFO — anything but a regular file; not read. */
         record NotRegular() implements OutputFile {}
 
-        /** Larger than the scanner output ceiling; not read. */
+        /** Larger than its directory's ceiling or the scanner output ceiling, whichever is smaller; not read. */
         record TooLarge(long size) implements OutputFile {}
 
         /** The file's bytes, within the ceiling. */
