@@ -35,6 +35,8 @@ import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity;
@@ -264,8 +266,8 @@ final class TargetRowsFixture {
             imported.setApiKeyId(source.getApiKeyId());
             beans.getBean(SarifImportRepository.class).save(imported);
 
-            // A coverage figure and a test report with one suite, the suite naming its import: the
-            // listener takes the suite before the import it is found through.
+            // A coverage figure with one package and a test report with one suite, each child naming its
+            // import: the listener takes the children before the imports they are found through.
             CoverageImportEntity coverage = new CoverageImportEntity();
             coverage.setSourceId(sourceId);
             coverage.setSourceSlug(source.getSlug());
@@ -277,7 +279,13 @@ final class TargetRowsFixture {
             coverage.setImportedAt(AT);
             coverage.setImportedBy("pipeline");
             coverage.setApiKeyId(source.getApiKeyId());
-            beans.getBean(CoverageImportRepository.class).save(coverage);
+            long coverageId = beans.getBean(CoverageImportRepository.class).save(coverage).getId();
+            CoveragePackageEntity coveragePackage = new CoveragePackageEntity();
+            coveragePackage.setImportId(coverageId);
+            coveragePackage.setPath("com/example/app");
+            coveragePackage.setLinesCovered(1);
+            coveragePackage.setLinesTotal(2);
+            beans.getBean(CoveragePackageRepository.class).save(coveragePackage);
 
             TestReportImportEntity report = new TestReportImportEntity();
             report.setSourceId(sourceId);
@@ -337,6 +345,9 @@ final class TargetRowsFixture {
             rows.put("t_sarif_source", count("t_sarif_source where repository_id = ?", id));
             rows.put("t_sarif_import", count("t_sarif_import where repo_id = ?", id));
             rows.put("t_coverage_import", count("t_coverage_import where repo_id = ?", id));
+            rows.put("t_coverage_package", count("t_coverage_package where import_id in (select c.id from "
+                    + "t_coverage_import c where c.repo_id = ?) or import_id not in (select id from t_coverage_import)",
+                    id));
             rows.put("t_test_report_import", count("t_test_report_import where repo_id = ?", id));
             rows.put("t_test_suite_result", count("t_test_suite_result where import_id in (select t.id from "
                     + "t_test_report_import t where t.repo_id = ?) or import_id not in (select id from t_test_report_import)",

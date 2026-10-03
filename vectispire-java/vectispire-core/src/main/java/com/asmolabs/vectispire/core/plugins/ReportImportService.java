@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.reports.CoverageFormat;
+import com.asmolabs.vectispire.common.domain.reports.CoveragePackages;
 import com.asmolabs.vectispire.common.domain.reports.CoverageReport;
 import com.asmolabs.vectispire.common.domain.reports.TestReport;
 import com.asmolabs.vectispire.common.domain.reports.TestReportFormat;
@@ -14,6 +15,8 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
@@ -57,8 +60,9 @@ import org.springframework.util.unit.DataSize;
  *
  * <h2>What is kept</h2>
  *
- * <p>The figures, never the document: a coverage report's line and branch counts, a test report's
- * totals and its suites. The document's SHA-256, the source and the key are kept with them — the
+ * <p>The figures, never the document: a coverage report's line and branch counts — and its counts
+ * per package, when they add up to them, or why they were not kept — a test report's totals and its
+ * suites. The document's SHA-256, the source and the key are kept with them — the
  * figure is the pipeline's word, and this is what binds the word to a key and to the bytes it sent. The
  * commit and branch a pipeline states are kept as its word too, and verified against nothing. The
  * import is a row, and an audit entry written after the commit.
@@ -79,6 +83,7 @@ public class ReportImportService {
 
     private final SarifSourceRepository sources;
     private final CoverageImportRepository coverage;
+    private final CoveragePackageRepository coveragePackages;
     private final TestReportImportRepository testReports;
     private final TestSuiteResultRepository suites;
     private final TargetCatalog targets;
@@ -92,6 +97,7 @@ public class ReportImportService {
     public ReportImportService(
             SarifSourceRepository sources,
             CoverageImportRepository coverage,
+            CoveragePackageRepository coveragePackages,
             TestReportImportRepository testReports,
             TestSuiteResultRepository suites,
             TargetCatalog targets,
@@ -103,6 +109,7 @@ public class ReportImportService {
             @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize maxTestReportBytes) {
         this.sources = sources;
         this.coverage = coverage;
+        this.coveragePackages = coveragePackages;
         this.testReports = testReports;
         this.suites = suites;
         this.targets = targets;
@@ -157,8 +164,19 @@ public class ReportImportService {
         row.setImportedAt(clock.instant());
         row.setImportedBy(importedBy(caller));
         row.setApiKeyId(caller.keyId());
+        row.setPackagesState(report.packages().state().wireName());
         CoverageImportEntity saved = transactions.execute(status -> {
             CoverageImportEntity imported = coverage.save(row);
+            coveragePackages.saveAll(report.packages().packages().stream().map(part -> {
+                CoveragePackageEntity entity = new CoveragePackageEntity();
+                entity.setImportId(imported.getId());
+                entity.setPath(part.path());
+                entity.setLinesCovered(part.lines().covered());
+                entity.setLinesTotal(part.lines().total());
+                entity.setBranchesCovered(part.branches().map(CoverageReport.Counts::covered).orElse(null));
+                entity.setBranchesTotal(part.branches().map(CoverageReport.Counts::total).orElse(null));
+                return entity;
+            }).toList());
             reported.announce(repositoryId);
             return imported;
         });
@@ -168,8 +186,15 @@ public class ReportImportService {
                         + repositoryId + ": lines " + saved.getLinesCovered() + "/" + saved.getLinesTotal()
                         + (saved.getBranchesTotal() == null ? ""
                                 : ", branches " + saved.getBranchesCovered() + "/" + saved.getBranchesTotal())
-                        + stated(said) + ", sha256 " + saved.getDocumentSha256().substring(0, 12) + "."));
+                        + packages(report.packages()) + stated(said) + ", sha256 " + saved.getDocumentSha256().substring(0, 12) + "."));
         return CoverageImportView.of(saved);
+    }
+
+    /** What the audit entry says of the packages: how many were kept, or why none was. */
+    private static String packages(CoveragePackages packages) {
+        return packages.state() == CoveragePackages.State.KEPT
+                ? ", " + packages.packages().size() + " package(s) kept"
+                : ", no package kept (" + packages.state().wireName() + ")";
     }
 
     /**

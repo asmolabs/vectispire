@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
@@ -34,13 +35,15 @@ public class ReportImportCatalog {
     static final int BATCH = 1_000;
 
     private final CoverageImportRepository coverage;
+    private final CoveragePackageRepository coveragePackages;
     private final TestReportImportRepository testReports;
     private final TestSuiteResultRepository suites;
     private final SarifImportRepository sarif;
 
-    public ReportImportCatalog(CoverageImportRepository coverage, TestReportImportRepository testReports,
-            TestSuiteResultRepository suites, SarifImportRepository sarif) {
+    public ReportImportCatalog(CoverageImportRepository coverage, CoveragePackageRepository coveragePackages,
+            TestReportImportRepository testReports, TestSuiteResultRepository suites, SarifImportRepository sarif) {
         this.coverage = coverage;
+        this.coveragePackages = coveragePackages;
         this.testReports = testReports;
         this.suites = suites;
         this.sarif = sarif;
@@ -53,6 +56,14 @@ public class ReportImportCatalog {
             coverage.findNewestByRepoIdIn(batch).forEach(row -> newest.put(row.getRepoId(), CoverageImportView.of(row)));
         }
         return newest;
+    }
+
+    /**
+     * One coverage import's packages, by path — empty for an import that kept none, which its {@code
+     * packagesState} says why. One import at a time: a kept import holds up to ten thousand of them.
+     */
+    public List<CoveragePackageView> coveragePackages(long importId) {
+        return coveragePackages.findByImportIdOrderByPathAsc(importId).stream().map(CoveragePackageView::of).toList();
     }
 
     /** The newest test report per repository, with its suites; a repository with none is absent. */

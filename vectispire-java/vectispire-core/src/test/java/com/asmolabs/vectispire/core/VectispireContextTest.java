@@ -67,6 +67,7 @@ public abstract class VectispireContextTest {
             "t_checklist_template_version",
             "t_checklist_template",
             "t_sarif_import",
+            "t_coverage_package",
             "t_coverage_import",
             "t_test_suite_result",
             "t_test_report_import",

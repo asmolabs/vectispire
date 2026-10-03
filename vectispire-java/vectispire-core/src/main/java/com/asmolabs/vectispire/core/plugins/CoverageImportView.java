@@ -12,6 +12,9 @@ import java.util.UUID;
  * @param branchesCovered and {@code branchesTotal}: null when the report counted no branch
  * @param commit and {@code branch}: what the pipeline stated, verified against nothing
  * @param documentSha256 of the bytes uploaded — what lets a pipeline prove which report it sent
+ * @param packagesState {@code kept} when the report's counts per package were kept beside its totals;
+ *     {@code too_many}, {@code path_refused} or {@code inconsistent} when they were not, and why; null
+ *     for an import accepted before packages were kept — a rule scoped to packages needs it re-imported
  */
 public record CoverageImportView(
         Long id,
@@ -29,12 +32,13 @@ public record CoverageImportView(
         String documentSha256,
         Instant importedAt,
         String importedBy,
-        UUID apiKeyId) {
+        UUID apiKeyId,
+        String packagesState) {
 
     static CoverageImportView of(CoverageImportEntity row) {
         return new CoverageImportView(row.getId(), row.getSourceId(), row.getSourceSlug(), row.getRepoId(), row.getFormat(),
                 row.getToolVersion(), row.getLinesCovered(), row.getLinesTotal(), row.getBranchesCovered(),
                 row.getBranchesTotal(), row.getCommit(), row.getBranch(), row.getDocumentSha256(), row.getImportedAt(),
-                row.getImportedBy(), row.getApiKeyId());
+                row.getImportedBy(), row.getApiKeyId(), row.getPackagesState());
     }
 }

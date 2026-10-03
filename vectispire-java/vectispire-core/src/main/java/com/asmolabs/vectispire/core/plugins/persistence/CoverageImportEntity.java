@@ -75,6 +75,13 @@ public class CoverageImportEntity {
     @Column(name = "api_key_id", length = 36, nullable = false)
     private UUID apiKeyId;
 
+    /**
+     * {@code kept}, or why the report's packages were not — {@code CoveragePackages.State}; null for an
+     * import accepted before packages were kept (V70), which kept none.
+     */
+    @Column(name = "packages_state", length = 20)
+    private String packagesState;
+
     public Long getId() {
         return id;
     }
@@ -201,5 +208,13 @@ public class CoverageImportEntity {
 
     public void setApiKeyId(UUID apiKeyId) {
         this.apiKeyId = apiKeyId;
+    }
+
+    public String getPackagesState() {
+        return packagesState;
+    }
+
+    public void setPackagesState(String packagesState) {
+        this.packagesState = packagesState;
     }
 }

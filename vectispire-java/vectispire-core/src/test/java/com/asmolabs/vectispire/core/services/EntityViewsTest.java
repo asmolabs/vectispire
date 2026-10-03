@@ -50,6 +50,8 @@ class EntityViewsTest {
                         com.asmolabs.vectispire.core.plugins.SarifImportView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity.class,
                         com.asmolabs.vectispire.core.plugins.CoverageImportView.class, Set.of()),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity.class,
+                        com.asmolabs.vectispire.core.plugins.CoveragePackageView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity.class,
                         com.asmolabs.vectispire.core.plugins.TestReportImportView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity.class,

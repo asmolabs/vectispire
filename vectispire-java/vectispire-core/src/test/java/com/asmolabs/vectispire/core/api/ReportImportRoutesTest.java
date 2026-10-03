@@ -72,6 +72,9 @@ class ReportImportRoutesTest extends ApiTestBase {
     private TestReportImportRepository testReportImports;
 
     @Autowired
+    private com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository coveragePackages;
+
+    @Autowired
     private TestSuiteResultRepository suites;
 
     private long project;
@@ -267,7 +270,9 @@ class ReportImportRoutesTest extends ApiTestBase {
                     .andExpect(jsonPath("$.commit").value("4f2a9c1"))
                     .andExpect(jsonPath("$.branch").value("release/2.4"))
                     .andExpect(jsonPath("$.apiKeyId").value(key.id()))
-                    .andExpect(jsonPath("$.documentSha256").value(Matchers.matchesPattern("[0-9a-f]{64}")));
+                    .andExpect(jsonPath("$.documentSha256").value(Matchers.matchesPattern("[0-9a-f]{64}")))
+                    // Its one package counts 1 of 10 against totals of 80 of 100: not kept, and said.
+                    .andExpect(jsonPath("$.packagesState").value("inconsistent"));
             assertThat(operations()).contains(AuditOperation.COVERAGE_IMPORTED.wireName());
 
             // lcov, declared: no branch counted is no branch figure — null on the wire, not 0 of 0.
@@ -284,6 +289,33 @@ class ReportImportRoutesTest extends ApiTestBase {
                     .andExpect(jsonPath("$[1].format").value("jacoco"));
             mvc.perform(authenticated(get("/api/v1/repositories/999999/coverage-imports"), asAdmin()))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("coverage keeps its packages beside its totals, adding up to them, and the audit entry counts them")
+        void coveragePackagesKept() throws Exception {
+            Key key = declaredReportKey("orders-ci");
+            String jacoco = "<report name=\"orders\">"
+                    + "<package name=\"org/example/orders/service\"><counter type=\"LINE\" missed=\"2\" covered=\"8\"/>"
+                    + "<counter type=\"BRANCH\" missed=\"1\" covered=\"3\"/></package>"
+                    + "<package name=\"org/example/orders/generated\"><counter type=\"LINE\" missed=\"30\" covered=\"0\"/>"
+                    + "</package><counter type=\"LINE\" missed=\"32\" covered=\"8\"/>"
+                    + "<counter type=\"BRANCH\" missed=\"1\" covered=\"3\"/></report>";
+
+            long id = json.readTree(coverage(key.secret(), inScope, "?format=jacoco", jacoco.getBytes(StandardCharsets.UTF_8))
+                            .andExpect(status().isCreated())
+                            .andExpect(jsonPath("$.packagesState").value("kept"))
+                            .andReturn().getResponse().getContentAsString())
+                    .path("id").asLong();
+
+            var kept = coveragePackages.findByImportIdOrderByPathAsc(id);
+            assertThat(kept).extracting(row -> row.getPath() + " " + row.getLinesCovered() + "/" + row.getLinesTotal()
+                            + " " + row.getBranchesCovered() + "/" + row.getBranchesTotal())
+                    .containsExactly("org/example/orders/generated 0/30 0/0", "org/example/orders/service 8/10 3/4");
+            assertThat(kept.stream().mapToLong(row -> row.getLinesCovered()).sum()).isEqualTo(8);
+            assertThat(kept.stream().mapToLong(row -> row.getLinesTotal()).sum()).isEqualTo(40);
+            assertThat(auditLog.findAll()).anySatisfy(entry -> assertThat(entry.getDescription())
+                    .contains("Coverage from source \"orders-ci\"").contains("2 package(s) kept"));
         }
 
         @Test
