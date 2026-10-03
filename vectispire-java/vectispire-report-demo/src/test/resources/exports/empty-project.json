@@ -1,0 +1,23 @@
+{
+  "schema": "vectispire-project-export",
+  "schema_version": "1.0",
+  "export": {
+    "id": "0d9b5a8e-2f1e-4c39-8f0b-6c7e1a2b3c4d",
+    "generated_at": "2026-10-02T07:00:00Z",
+    "product_version": null,
+    "requester": {"account_id": 4, "display_name": null},
+    "locale": null,
+    "installation": {"name": "Vectispire", "public_url": null}
+  },
+  "project": {
+    "id": 8, "name": "Empty", "description": null, "created_at": null, "solution": null,
+    "repositories": [], "containers": []
+  },
+  "scans": [],
+  "gate": [],
+  "issues": [],
+  "issue_counts": [],
+  "inventory": {"complete": true, "targets": [], "components": []},
+  "compliance": {"monitored_targets": 0, "observed_targets": 0, "fresh_targets": 0, "frameworks": []},
+  "checklists": []
+}

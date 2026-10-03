@@ -1,0 +1,15 @@
+{
+  "id": "vectispire-report-demo",
+  "name": "Vectispire demonstration summary",
+  "image": "{{image}}",
+  "export_schema": 1,
+  "arguments": ["--in", "{input}", "--out", "{output}"],
+  "output": "summary.xlsx",
+  "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "max_output_bytes": 20971520,
+  "timeout_seconds": 120,
+  "signature": {
+    "identity": "{{identity}}",
+    "issuer": "https://token.actions.githubusercontent.com"
+  }
+}

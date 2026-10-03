@@ -15,7 +15,7 @@
 #   home dropped `jakarta.platform`'s BOM parent, and the next build on a clean runner failed
 #   verification. A clean home is what CI has.
 # - **Every task CI runs**, so every configuration they resolve is recorded: `build`, the engine
-#   campaign, the agent's integration suite, both jars and both image builds. A task CI adds later
+#   campaign, the agent's integration suite, both jars and the three image builds. A task CI adds later
 #   resolves nothing new until it is added here too — and fails CI until then, which is the point.
 # - **Key servers are switched on for the run only.** The committed file disables them, so a
 #   build never fetches a key and never depends on a key server being up; a new signer's key is
@@ -61,8 +61,8 @@ GRADLE_USER_HOME="$home" ./gradlew --no-daemon --quiet \
   --write-verification-metadata pgp,sha256 --export-keys --dry-run \
   build integrationTestAll :vectispire-common:integrationTest \
   :vectispire-core:bootJar :vectispire-agent:bootJar \
-  :vectispire-core:jibBuildTar :vectispire-agent:jibBuildTar \
-  :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild >/dev/null
+  :vectispire-core:jibBuildTar :vectispire-agent:jibBuildTar :vectispire-report-demo:jibBuildTar \
+  :vectispire-core:jibDockerBuild :vectispire-agent:jibDockerBuild :vectispire-report-demo:jibDockerBuild >/dev/null
 
 mv gradle/verification-metadata.dryrun.xml "$metadata"
 mv gradle/verification-keyring.dryrun.keys "$keyring"

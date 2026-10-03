@@ -1,0 +1,119 @@
+{
+  "schema": "vectispire-project-export",
+  "schema_version": "1.0",
+  "export": {
+    "id": "6f1c2d4e-0b7a-4e57-9a51-3c8f0d2b9e10",
+    "generated_at": "2026-10-01T08:30:00Z",
+    "product_version": "0.12.0",
+    "requester": {"account_id": 7, "display_name": "Ada Developer"},
+    "locale": "en",
+    "installation": {"name": "Vectispire", "public_url": "https://vectispire.example.org"}
+  },
+  "project": {
+    "id": 3,
+    "name": "Checkout",
+    "description": "The payment pages & their API",
+    "created_at": "2026-06-01T09:00:00Z",
+    "solution": {"id": 1, "name": "Payments"},
+    "repositories": [
+      {"id": 11, "name": "checkout-api.git", "url": "https://***@example.invalid/checkout-api.git", "branch": "main", "sub_path": null},
+      {"id": 12, "name": "checkout-web.git", "url": "https://example.invalid/checkout-web.git", "branch": "main", "sub_path": "web"}
+    ],
+    "containers": [
+      {"id": 21, "registry": "registry.example.invalid", "image": "checkout/api", "tag": "2.4.1"}
+    ]
+  },
+  "scans": [
+    {"target": {"kind": "repository", "id": 11}, "scan": {"id": 101, "queued_at": "2026-09-30T22:00:00Z", "duration_ms": 4200,
+      "examined_types": ["sast", "secret", "vulnerability"], "failures": ["secrets: the scanner timed out"],
+      "plugins": [{"plugin_id": "java-arch", "manifest_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "state": "produced", "findings": 2, "languages": [], "reason": null, "refusal": null, "signature": "verified"}]}},
+    {"target": {"kind": "repository", "id": 12}, "scan": null},
+    {"target": {"kind": "container", "id": 21}, "scan": {"id": 102, "queued_at": "2026-09-30T22:05:00Z", "duration_ms": null,
+      "examined_types": null, "failures": [], "plugins": []}}
+  ],
+  "gate": [
+    {"target": {"kind": "repository", "id": 11}, "verdict": {"passed": false, "decided_at": "2026-09-30T22:10:00Z", "fail_on_severity": "high",
+      "policy_source": "default", "policy_version": 4, "relaxations_ignored": false, "evaluated": 3, "violations": 1, "critical": 1, "high": 0, "medium": 1, "low": 1}},
+    {"target": {"kind": "repository", "id": 12}, "verdict": null},
+    {"target": {"kind": "container", "id": 21}, "verdict": null}
+  ],
+  "issues": [
+    {"id": 1001, "target": {"kind": "repository", "id": 11}, "type": "vulnerability", "severity": "critical",
+      "identifier": "CVE-2021-44228", "title": "Apache Log4j2 JNDI features do not protect against attacker controlled LDAP endpoints.",
+      "tool": "grype", "component": {"name": "log4j-core", "version": "2.14.1", "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"},
+      "path": "pom.xml", "line": null, "first_seen_at": "2026-09-01T10:00:00Z", "last_seen_at": "2026-09-30T22:00:00Z",
+      "state": "open", "kev": true, "epss": 0.97, "cvss": 10.0, "fix_versions": "2.17.1",
+      "triage": {"status": "under_review", "justification": null, "comment": "Being looked at with the vendor.",
+        "decided_by": {"account_id": 7, "display_name": "Ada Developer"}, "decided_at": "2026-09-02T09:00:00Z", "review_at": null},
+      "remediation": {"due_at": "2026-10-01T10:00:00Z", "state": "overdue"}},
+    {"id": 1002, "target": {"kind": "repository", "id": 11}, "type": "secret", "severity": "high",
+      "identifier": "aws-access-token", "title": null, "tool": "gitleaks", "component": null,
+      "path": "config/app.yml", "line": 12, "first_seen_at": "2026-09-30T22:00:00Z", "last_seen_at": "2026-09-30T22:00:00Z",
+      "state": "open", "kev": false, "epss": null, "cvss": null, "fix_versions": null, "triage": null, "remediation": null},
+    {"id": 1003, "target": {"kind": "container", "id": 21}, "type": "plugin", "severity": "medium",
+      "identifier": "ARCH-001", "title": null, "tool": "plugin:java-arch", "component": null,
+      "path": "src/main/java/App.java", "line": 3, "first_seen_at": null, "last_seen_at": null,
+      "state": "open", "kev": false, "epss": null, "cvss": null, "fix_versions": null,
+      "triage": {"status": "not_affected", "justification": "code_not_reachable", "comment": "Dead <code> & \"unused\"",
+        "decided_by": {"account_id": 9, "display_name": null}, "decided_at": "2026-09-15T12:00:00Z", "review_at": "2027-03-15T12:00:00Z"},
+      "remediation": null}
+  ],
+  "issue_counts": [
+    {"type": "plugin", "severity": "medium", "state": "open", "triage_status": "not_affected", "count": 1},
+    {"type": "secret", "severity": "high", "state": "open", "triage_status": "under_review", "count": 1},
+    {"type": "vulnerability", "severity": "critical", "state": "open", "triage_status": "under_review", "count": 1},
+    {"type": "vulnerability", "severity": "high", "state": "resolved", "triage_status": "under_review", "count": 4}
+  ],
+  "inventory": {
+    "complete": false,
+    "targets": [
+      {"target": {"kind": "repository", "id": 11}, "scan_id": 101, "state": "listed", "component_count": 1},
+      {"target": {"kind": "repository", "id": 12}, "scan_id": null, "state": "never_scanned", "component_count": 0},
+      {"target": {"kind": "container", "id": 21}, "scan_id": 102, "state": "empty", "component_count": 0}
+    ],
+    "components": [
+      {"name": "log4j-core", "version": "2.14.1", "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1", "type": "java-archive",
+        "targets": [{"kind": "repository", "id": 11}]}
+    ]
+  },
+  "compliance": {
+    "monitored_targets": 3, "observed_targets": 2, "fresh_targets": 2,
+    "frameworks": [
+      {"id": "owasp-top10-2021", "title": "OWASP Top 10 (2021)", "status": "PARTIAL", "score": 60,
+        "controls": [{"id": "A06", "name": "Vulnerable and Outdated Components", "category": "components", "status": "NON_COMPLIANT", "score": 0, "details": "1 critical"}]}
+    ]
+  },
+  "checklists": [
+    {"draft": false, "document_sha256": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "statement": {
+        "form": 2, "status": "signed_off", "signed": true,
+        "project": {"id": 3, "name": "Checkout"}, "revision": 2,
+        "template": {"slug": "secure-delivery", "name": "Secure delivery checklist", "version": 1, "label": "v1", "sourceSha256": "7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730"},
+        "header": {"product": "Checkout", "author": "Ada Developer", "date": "2026-09-20T15:00:00Z"},
+        "opened": {"by": "Ada Developer", "at": "2026-09-10T09:00:00Z"},
+        "submitted": {"by": "Ada Developer", "at": "2026-09-19T09:00:00Z"},
+        "signedOff": {"by": null, "at": "2026-09-20T15:00:00Z"},
+        "fourEyesRequired": true, "productVersion": "0.12.0", "producedAt": "2026-09-20T15:00:00Z",
+        "lines": [
+          {"itemId": 501, "key": "SD-01", "position": 1, "row": 8, "domain": "Dependencies", "objective": "Known components",
+            "control": "An SBOM is produced at every build.", "contact": null, "kpi": null, "contentDigest": "abc",
+            "evidenceRequired": "link_or_file", "evidenceValidityMonths": 12,
+            "answer": {"id": 9001, "value": "yes", "word": "Oui", "comment": "Produced by the scan.", "answeredBy": "Vectispire", "answeredByKind": "system",
+              "answeredAt": "2026-09-18T10:00:00Z", "carriedFrom": null, "carriedBy": null, "carriedAt": null, "needsConfirmation": false, "withdrawn": false},
+            "history": [], "measurement": {"purpose": "sign_off", "ruleKind": "sbom", "ruleDigest": "d1", "rule": "{}", "outcome": "pass", "reason": null,
+              "asOf": "2026-09-18T10:00:00Z", "computedAt": "2026-09-18T10:00:00Z", "summary": "An SBOM on every target scanned.", "evidenceDigest": "e1", "evidence": "{}"},
+            "reconciliation": "agrees",
+            "evidence": [
+              {"id": 1, "kind": "file", "link": null, "fileName": "sbom.json", "mediaType": "application/json", "size": 120, "sha256": "aa11", "performedOn": null, "validUntil": null,
+                "addedBy": "Ada Developer", "addedAt": "2026-09-18T10:00:00Z", "withdrawnBy": null, "withdrawnAt": null},
+              {"id": 2, "kind": "link", "link": "https://wiki.example.invalid/old", "fileName": null, "mediaType": null, "size": null, "sha256": null, "performedOn": null, "validUntil": null,
+                "addedBy": "Ada Developer", "addedAt": "2026-09-17T10:00:00Z", "withdrawnBy": "Ada Developer", "withdrawnAt": "2026-09-18T09:00:00Z"}
+            ]},
+          {"itemId": 502, "key": "SD-02", "position": 2, "row": 9, "domain": "Secrets", "objective": "No secret in code",
+            "control": "No secret is committed.", "contact": null, "kpi": null, "contentDigest": "def",
+            "evidenceRequired": "none", "evidenceValidityMonths": null,
+            "answer": null, "history": [], "measurement": null, "reconciliation": null, "evidence": []}
+        ]
+      }}
+  ]
+}
