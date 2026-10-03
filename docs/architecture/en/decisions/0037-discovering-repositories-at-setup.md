@@ -468,6 +468,71 @@ make, each recorded here rather than left to the code:
   imported in the list (D3, D6); the fourteen-day expiry announcement (D7 — the expiry is stored and
   returned now). `forges` lists `access::security` alone; `targets` arrives with the import (D6).
 
+## Built in D2 and D3
+
+Lots D2 — the paged call — and D3 — the discovery job, its snapshot and GitLab's listing — landed on
+2026-10-03 as §3 describes, with these choices the text above did not make:
+
+- **The pager is `OutboundJson.pager`**, an `OutboundPager` opened on one origin, in the foundation's
+  `outbound` beside the door it goes through; `LinkHeader` (RFC 8288, read whole even when a keyset cursor
+  carries commas) and `RateLimit` are pure readings in `common`. The origin — scheme, host and port, the
+  default port spelled out — is compared **before** anything is sent, and the credential headers are
+  attached after that comparison: a URL elsewhere is refused with nothing sent, not checked by the guard
+  with the token already on its way.
+- **A 403 is a rate limit only with the limit's headers** (`Retry-After`, or a remaining count of `0`);
+  otherwise it is the forge refusing the token something, and is handed back. The wait is `Retry-After`,
+  then `X-RateLimit-Reset`, then `RateLimit-Reset` (epoch seconds on GitLab, a delay in the IETF draft, told
+  apart by size); a limit naming no wait is waited for the bound, once more. A wait is at least a second.
+  The back-off of a 5xx or a timeout is one, two, four seconds, and is not counted as a rate-limit wait. The
+  deadline is checked before every request and before every wait.
+- **The HTTP client retried behind every caller's back.** Apache's default strategy sent a GET again after
+  a 429 or a 503, sleeping `Retry-After` itself, and after a dropped connection — invisible to the pager,
+  which never saw the limit it was written to honour. `PinnedHttpSender` now disables it for every caller:
+  a caller that retries says how.
+- **GitLab's walk** is the table's: `GET /groups?min_access_level=10&order_by=id` (offset pages, `Link` or
+  `X-Next-Page`), then **one** keyset listing `GET /projects?membership=true&min_access_level=10&statistics=true`,
+  then `GET /projects/:id/languages` — asked only of a project new to the snapshot or active since it was
+  last listed, so a re-run does not spend a request per project; a 403 or 404 there leaves the language
+  unknown and the run goes on.
+- **A 403 per namespace has no request to answer on GitLab.** The projects come from one membership
+  listing, not one per group, so a group the token cannot read is not in it, and a 403 can only answer the
+  listing itself — which fails the run `forge_refused`. The rule of §3 lives where a listing is per
+  namespace: GitHub's per owner (D4) and a discovery scoped to a group. Meanwhile a group that stops being
+  listed — an IP restriction, a membership removed — has its repositories marked gone by the next completed
+  run: flagged, never deleted, back as *changed* the run after it reappears.
+- **Unknown, per GitLab.** `fork` is `true` when `forked_from_project` is there and `null` otherwise — GitLab
+  names a fork's source only when the token can read it, so its absence is not "not a fork". No `statistics`
+  is a `null` size; an empty repository a `null` branch. A value longer than its column is made unknown
+  rather than cut (a cut branch is a wrong branch); a repository whose id, path or name does not fit is not
+  kept and is counted, `repositoriesSkipped`.
+- **The comparison** also says *unarchived* and *seen again after it was gone*; an unknown is never a
+  change (a default branch GitLab did not state this time is not a branch changed). The language a listing
+  does not carry is never overwritten by it. `goneCount` is `null` unless the run completed, and
+  `change=gone` is refused (400) for any other run rather than answered empty.
+- **States and reasons.** `partial`: `time_bound`, `repository_bound`, `rate_limited` (with
+  `rateLimitResetAt`). `failed`: `token_rejected`, `destination_blocked`, `cross_origin_page`,
+  `forge_unavailable`, `forge_refused`, `connection_unusable` (the token no longer decrypts, the pinned CA
+  expired), `unsupported`, `executor_lost`, `internal_error`. `cross_origin_page` and `destination_blocked`
+  are recorded `FORGE_CONNECTION_REFUSED` in the requester's name, which signals `VECTI-SEC-036`. Requesting
+  a discovery writes no audit entry: §3 names none, and a discovery reads.
+- **The lease.** Three minutes, renewed with the progress before a request once fifteen seconds have passed,
+  and in the transaction that writes each page — rolled back when the run is no longer this instance's. A
+  lapsed run goes back to `pending` and is listed again from its first page (the snapshot is written by
+  forge id, so a page read twice changes nothing); after three attempts it fails `executor_lost`. One
+  discovery per connection is a unique active key (the connection's id while pending or running), and a
+  refused insert asks the committed row before answering 409.
+- **Where it runs.** `DiscoveryWorker`, on every control-plane instance whatever the built-in worker's
+  switch — never on an agent — in a pool of its own (`VECTISPIRE_DISCOVERY_CONCURRENCY`, two). The bounds
+  are read from `vectispire.forges.discovery.*` so that a test reaches each in seconds; the defaults are
+  answer 8's.
+- **Routes**: `POST …/discoveries` (202), `GET …/discoveries` (the last fifty), `GET …/discoveries/{id}`,
+  and `GET …/discoveries/{id}/repositories?change=all|new|changed|gone` — a read of one run's comparison;
+  the selection with its filters stays D5's. A connection carries `lastDiscovery`. Deleting a connection
+  deletes its runs first — waiting on the row a page being written holds — then its snapshot.
+- **V76**, in common: `t_forge_discovery`, `t_forge_repository`; no foreign key.
+- Not built here: a discovery scoped to a group (the screen's answer to an estate past the bound), GitHub's
+  listing (D4), the per-namespace 403 that comes with them.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

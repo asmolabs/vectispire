@@ -2,8 +2,9 @@
 
 A read-only connection to a GitHub or a GitLab, from which Vectispire will discover your repositories and
 let you choose the ones to import ([decision 0037](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0037-discovering-repositories-at-setup.md)).
-This release ships the connections themselves: the discovery and the import come in the next lots, and
-until then a connection proves that its token works and reads what it should.
+This release ships the connections and the **discovery** of a GitLab's repositories: a connection lists
+what its token can see and keeps it as a snapshot, compared run to run. Choosing repositories and importing
+them as targets come in the next lots, and so does the discovery of a GitHub's.
 
 Administrators only, through `/api/v1/forge-connections` ([API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
 There is no screen yet.
@@ -101,7 +102,69 @@ through the new CA before keeping it.
   token untouched. The expiry the forge reported is shown (`tokenExpiresAt`).
 - **Rename, change the network statement or the CA** (`PATCH`). The address cannot change: another
   server is another connection.
-- **Delete** (`DELETE`): no target goes with it — an imported repository is a target like any other.
+- **Delete** (`DELETE`): no target goes with it — an imported repository is a target like any other. Its
+  discoveries and its snapshot go with it.
+
+## Discovering repositories
+
+`POST /api/v1/forge-connections/{id}/discoveries` asks for a discovery and answers at once, **202**, with the
+run — `pending`. A control-plane instance takes it within seconds and lists the forge in the background; poll
+`GET …/discoveries/{discoveryId}` for its progress. GitLab only in this release: a GitHub connection answers
+409 `forge-discovery-unsupported` until its listing lands.
+
+**What is listed (GitLab).** The groups the token belongs to (`GET /groups?min_access_level=10`), then every
+project it is a member of (`GET /projects?membership=true&min_access_level=10&statistics=true`, keyset pages
+by id), then the main language of each project that is new or active since it was last read (`GET
+/projects/:id/languages`). The two parameters are not optional: without them gitlab.com lists every public
+project of the service. A token sees what its role lets it see — give it **Reporter** on the groups to
+discover; a Guest's projects are listed all the same, without their size or, for private ones, their
+language.
+
+**What is kept per repository**: GitLab's id (stable across renames and moves), the full path, the namespace,
+the name, the default branch, archived, fork, visibility, last activity, main language, size, and the HTTPS,
+SSH and web URLs. **A value GitLab did not give is kept empty — *unknown*, never zero**: no size without
+Reporter, no language when the language request is refused, no default branch for an empty repository, and
+*fork* only when GitLab names the source project (it names it only when the token can read it). A repository
+in a user's own namespace is listed and flagged `personal`: the selection will offer it unticked.
+
+**Its states.**
+
+| State | Meaning |
+|---|---|
+| `pending` | waiting for an instance — or resumed after the instance running it stopped |
+| `running` | listing; the counters move: namespaces and repositories seen, requests made, seconds waited on rate limits |
+| `completed` | every page was read; repositories no longer listed are marked **gone** |
+| `partial` | a bound ended it (below); what was read is kept and compared, **nothing is marked gone** |
+| `failed` | `token_rejected` (401: replace the token), `forge_refused` (a listing answered 403 or 404: the token needs `read_api`), `forge_unavailable` (no answer after three retries), `destination_blocked`, `cross_origin_page`, `connection_unusable` (the token no longer decrypts, or the pinned CA expired), `executor_lost`, `internal_error` |
+
+**One discovery per connection at a time**: a second request answers 409 `forge-discovery-in-progress`, with
+the running one's `discoveryId`.
+
+**Bounds.** Thirty minutes and twenty thousand repositories per run; past either the run ends `partial`
+(`time_bound`, `repository_bound`). A rate limit is honoured, never raced: a wait of up to a minute
+(`Retry-After`, `RateLimit-Reset`) is spent inside the run; a longer one ends it `partial`, `rate_limited`,
+with `rateLimitResetAt` saying when to run it again. A server that does not answer is retried three times
+with back-off, ten seconds per request, then the run fails.
+
+**The comparison.** Each run is compared with the snapshot the connection's earlier runs left. Once it ends,
+`newCount`, `changedCount` and `goneCount` say how it moved, and `GET …/discoveries/{discoveryId}/repositories`
+lists the repositories (`change=all`), the new ones (`new`), those renamed or moved, given another default
+branch, archived, unarchived or back after being gone (`changed`, with `changeSummary`), and those no longer
+listed (`gone`). **Only a completed run marks a repository gone** — a partial listing proves nothing about
+what it did not reach, so `goneCount` is empty and `change=gone` is refused for it. **Nothing is ever deleted
+from the snapshot** but with the connection: a gone or archived repository stays, and a target imported from
+it keeps its history.
+
+**The same door as the probe.** Every request goes through the outbound guard — the address re-checked at
+each request, private only when you said the server is internal — and the CA you pinned. **The next page is
+followed only on the connection's own scheme, host and port**: a page pointing anywhere else fails the run
+before anything is sent there, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`; so is an
+address the guard now refuses. The token is decrypted for the run and never leaves the control plane — a
+discovery runs on the control plane, on every instance, whatever the built-in worker's switch, never on an
+agent. A restart in the middle resumes the run from its first page; after three lost attempts it fails
+`executor_lost`.
+
+**Administrators only**, like the connection: a discovery names repositories no grant covers yet.
 
 ## Encryption
 
@@ -118,6 +181,7 @@ another row does not decrypt. It is never returned by any route, written in the 
 | Renamed | `FORGE_CONNECTION_CHANGED` | — |
 | Refused for a blocked address or a refused scope | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, failure) |
 | Refused for anything else — a mistyped token, an old server | — | — |
+| A discovery stopped by a next page on another origin, or an address the guard refuses | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, failure) |
 
 The entries name the forge, the address, the owner, the kind of token, its scopes and whether it can
 write; never the token. See the [SIEM catalogue](../integrations/siem.md#event-catalogue).

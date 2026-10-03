@@ -194,6 +194,26 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Nouveautés
 
+- **Découvertes de forge : les dépôts d'un GitLab listés en arrière-plan, gardés comme un instantané et
+  comparés d'une exécution à l'autre** ([Découvrir les dépôts](../administration/forge-connections.fr.md#decouvrir-les-depots),
+  décision 0037, lots D2 et D3 — le choix et l'import des dépôts suivent, et le listage de GitHub avec le
+  lot D4). `POST /api/v1/forge-connections/{id}/discoveries` répond 202 avec une exécution `pending` qu'une
+  instance du plan de contrôle prend sous bail — un redémarrage la reprend — et
+  `GET …/discoveries/{discoveryId}` rend compte de sa progression ; une par connexion à la fois (409
+  `forge-discovery-in-progress`). Les groupes et projets dont le jeton est membre sont listés
+  (`membership=true`, `min_access_level=10`) avec leur branche par défaut, archivé, fork, visibilité,
+  dernière activité, langage et taille — **une valeur que GitLab n'a pas donnée est gardée `null`,
+  inconnue, jamais zéro** — et un projet dans l'espace personnel d'un utilisateur est marqué `personal`.
+  `…/repositories?change=new|changed|gone` lit la comparaison ; **seule une exécution complète marque un
+  dépôt disparu**, et rien n'est supprimé. Bornes : trente minutes et 20 000 dépôts par exécution, une
+  attente de limite de débit d'au plus une minute passée dans l'exécution — au-delà de l'une d'elles,
+  l'exécution finit `partial`. Chaque requête passe par la garde sortante et l'AC épinglée de la connexion ;
+  une page suivante sur une autre origine n'est jamais suivie — l'exécution échoue, journalisée
+  `FORGE_CONNECTION_REFUSED` et signalée `VECTI-SEC-036`. Administrateurs seulement, pas encore d'écran.
+- **Plus aucune requête n'est réessayée dans le dos de son appelant.** Le client HTTP par lequel passe
+  chaque appel sortant renvoyait un GET après un 429 ou un 503, en dormant ce que disait `Retry-After`, et
+  après une connexion coupée ; un webhook, un ticket, une revue de modèle ou un téléchargement de catalogue
+  qui échoue une fois échoue désormais une fois, et un appelant qui réessaie le dit.
 - **Connexions de forge : un jeton en lecture seule vers un GitHub ou un GitLab, sondé avant d'être
   gardé** ([Connexions de forge](../administration/forge-connections.fr.md), décision 0037, lot D1 — la
   découverte et l'import des dépôts suivent). `/api/v1/forge-connections`, administrateurs seulement, pas

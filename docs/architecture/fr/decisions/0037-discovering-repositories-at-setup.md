@@ -508,6 +508,78 @@ ci-dessus ne faisait pas, chacun consigné ici plutôt que laissé au code :
   l'expiration est stockée et renvoyée dès maintenant). `forges` ne liste qu'`access::security` ;
   `targets` arrive avec l'import (D6).
 
+## Construit en D2 et D3
+
+Les lots D2 — l'appel paginé — et D3 — la tâche de découverte, son instantané et le listage de GitLab — ont
+été livrés le 2026-10-03 comme le décrit le §3, avec ces choix que le texte ci-dessus ne faisait pas :
+
+- **Le paginateur est `OutboundJson.pager`**, un `OutboundPager` ouvert sur une origine, dans le module
+  socle `outbound` à côté de la porte qu'il emprunte ; `LinkHeader` (RFC 8288, lu en entier même quand un
+  curseur *keyset* contient des virgules) et `RateLimit` sont des lectures pures dans `common`. L'origine —
+  schéma, hôte et port, le port par défaut explicité — est comparée **avant** tout envoi, et les en-têtes
+  d'authentification sont ajoutés après cette comparaison : une URL ailleurs est refusée sans rien envoyer,
+  et non vérifiée par la garde alors que le jeton serait déjà en route.
+- **Un 403 n'est une limite de débit qu'avec les en-têtes de la limite** (`Retry-After`, ou un reste à
+  `0`) ; sinon c'est la forge qui refuse quelque chose au jeton, et il est rendu à l'appelant. L'attente est
+  `Retry-After`, puis `X-RateLimit-Reset`, puis `RateLimit-Reset` (secondes epoch chez GitLab, un délai
+  dans le brouillon IETF, distingués par leur grandeur) ; une limite qui ne nomme aucune attente est
+  attendue la durée de la borne, une fois de plus. Une attente dure au moins une seconde. Le délai après un
+  5xx ou une expiration est d'une, deux, quatre secondes, et n'est pas compté comme attente de limite.
+  L'échéance est vérifiée avant chaque requête et avant chaque attente.
+- **Le client HTTP réessayait dans le dos de tous les appelants.** La stratégie par défaut d'Apache
+  renvoyait un GET après un 429 ou un 503, en dormant elle-même `Retry-After`, et après une connexion
+  coupée — invisible pour le paginateur, qui ne voyait jamais la limite qu'il était écrit pour respecter.
+  `PinnedHttpSender` la désactive désormais pour tous : un appelant qui réessaie dit comment.
+- **Le parcours de GitLab** est celui du tableau : `GET /groups?min_access_level=10&order_by=id` (pages
+  par décalage, `Link` ou `X-Next-Page`), puis **un seul** listage *keyset*
+  `GET /projects?membership=true&min_access_level=10&statistics=true`, puis `GET /projects/:id/languages` —
+  demandé seulement pour un projet nouveau dans l'instantané ou actif depuis son dernier listage, si bien
+  qu'une relance ne dépense pas une requête par projet ; un 403 ou un 404 à cet endroit laisse le langage
+  inconnu et l'exécution continue.
+- **Un 403 par espace de noms n'a pas de requête à laquelle répondre chez GitLab.** Les projets viennent
+  d'un seul listage d'appartenance, pas d'un par groupe : un groupe que le jeton ne peut lire n'y figure
+  pas, et un 403 ne peut répondre qu'au listage lui-même — ce qui fait échouer l'exécution `forge_refused`.
+  La règle du §3 vit là où un listage est par espace de noms : celui de GitHub par propriétaire (D4) et une
+  découverte limitée à un groupe. D'ici là, un groupe qui cesse d'être listé — une restriction d'adresse IP,
+  une appartenance retirée — voit ses dépôts marqués disparus par l'exécution complète suivante : signalés,
+  jamais supprimés, de retour comme *modifiés* à l'exécution qui les revoit.
+- **L'inconnu, selon GitLab.** `fork` vaut `true` quand `forked_from_project` est présent et `null` sinon —
+  GitLab ne nomme la source d'un fork que si le jeton peut la lire, donc son absence ne veut pas dire « pas
+  un fork ». Pas de `statistics` donne une taille `null` ; un dépôt vide, une branche `null`. Une valeur
+  plus longue que sa colonne devient inconnue plutôt que tronquée (une branche tronquée est une mauvaise
+  branche) ; un dépôt dont l'identifiant, le chemin ou le nom ne tient pas n'est pas gardé et est compté,
+  `repositoriesSkipped`.
+- **La comparaison** dit aussi *désarchivé* et *revu après avoir disparu* ; un inconnu n'est jamais un
+  changement (une branche par défaut que GitLab n'a pas donnée cette fois n'est pas une branche changée).
+  Le langage, qu'un listage ne porte pas, n'est jamais écrasé par lui. `goneCount` est `null` sauf si
+  l'exécution est complète, et `change=gone` est refusé (400) pour toute autre exécution plutôt que répondu
+  vide.
+- **États et raisons.** `partial` : `time_bound`, `repository_bound`, `rate_limited` (avec
+  `rateLimitResetAt`). `failed` : `token_rejected`, `destination_blocked`, `cross_origin_page`,
+  `forge_unavailable`, `forge_refused`, `connection_unusable` (le jeton ne se déchiffre plus, l'AC épinglée a
+  expiré), `unsupported`, `executor_lost`, `internal_error`. `cross_origin_page` et `destination_blocked`
+  sont journalisés `FORGE_CONNECTION_REFUSED` au nom du demandeur, ce qui signale `VECTI-SEC-036`. Demander
+  une découverte n'écrit aucune entrée d'audit : le §3 n'en nomme aucune, et une découverte lit.
+- **Le bail.** Trois minutes, renouvelé avec la progression avant une requête dès que quinze secondes sont
+  passées, et dans la transaction qui écrit chaque page — annulée quand l'exécution n'est plus à cette
+  instance. Une exécution dont le bail a expiré revient à `pending` et est relistée depuis sa première page
+  (l'instantané est écrit par identifiant de forge, une page lue deux fois ne change rien) ; après trois
+  tentatives, elle échoue `executor_lost`. Une découverte par connexion est une clé active unique
+  (l'identifiant de la connexion tant qu'elle est en attente ou en cours), et une insertion refusée
+  interroge la ligne validée avant de répondre 409.
+- **Où elle tourne.** `DiscoveryWorker`, sur chaque instance du plan de contrôle quel que soit
+  l'interrupteur du worker intégré — jamais sur un agent — dans un pool à lui
+  (`VECTISPIRE_DISCOVERY_CONCURRENCY`, deux). Les bornes sont lues de `vectispire.forges.discovery.*` pour
+  qu'un test atteigne chacune en quelques secondes ; les valeurs par défaut sont celles de la réponse 8.
+- **Routes** : `POST …/discoveries` (202), `GET …/discoveries` (les cinquante dernières),
+  `GET …/discoveries/{id}`, et `GET …/discoveries/{id}/repositories?change=all|new|changed|gone` — une
+  lecture de la comparaison d'une exécution ; la sélection et ses filtres restent à D5. Une connexion porte
+  `lastDiscovery`. Supprimer une connexion supprime d'abord ses exécutions — en attendant la ligne que tient
+  une page en cours d'écriture — puis son instantané.
+- **V76**, dans common : `t_forge_discovery`, `t_forge_repository` ; aucune clé étrangère.
+- Non construit ici : une découverte limitée à un groupe (la réponse de l'écran à un parc au-delà de la
+  borne), le listage de GitHub (D4), et le 403 par espace de noms qui vient avec eux.
+
 ## Mise en œuvre, par lots
 
 | Lot | Contenu | Taille |

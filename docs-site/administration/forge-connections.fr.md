@@ -2,8 +2,9 @@
 
 Une connexion en lecture seule à un GitHub ou un GitLab, depuis laquelle Vectispire découvrira vos dépôts
 et vous laissera choisir ceux à importer ([décision 0037](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0037-discovering-repositories-at-setup.md)).
-Cette version livre les connexions elles-mêmes : la découverte et l'import viennent dans les lots
-suivants, et d'ici là une connexion prouve que son jeton fonctionne et lit ce qu'il doit.
+Cette version livre les connexions et la **découverte** des dépôts d'un GitLab : une connexion liste ce
+que son jeton peut voir et le garde comme un instantané, comparé d'une exécution à l'autre. Le choix des
+dépôts et leur import comme cibles viennent dans les lots suivants, de même que la découverte d'un GitHub.
 
 Administrateurs seulement, par `/api/v1/forge-connections` ([référence de l'API](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
 Il n'y a pas encore d'écran.
@@ -102,7 +103,71 @@ Une AC qui expire arrête la connexion ; remplacez-la par un `PATCH`, qui sonde 
 - **Renommer, changer la déclaration de réseau ou l'AC** (`PATCH`). L'adresse ne change pas : un autre
   serveur est une autre connexion.
 - **Supprimer** (`DELETE`) : aucune cible ne part avec elle — un dépôt importé est une cible comme une
-  autre.
+  autre. Ses découvertes et son instantané partent avec elle.
+
+## Découvrir les dépôts
+
+`POST /api/v1/forge-connections/{id}/discoveries` demande une découverte et répond aussitôt, **202**, avec
+l'exécution — `pending`. Une instance du plan de contrôle la prend en quelques secondes et liste la forge en
+arrière-plan ; interrogez `GET …/discoveries/{discoveryId}` pour suivre sa progression. GitLab seulement
+dans cette version : une connexion GitHub répond 409 `forge-discovery-unsupported` jusqu'à l'arrivée de son
+listage.
+
+**Ce qui est listé (GitLab).** Les groupes dont le jeton est membre (`GET /groups?min_access_level=10`),
+puis chaque projet dont il est membre (`GET /projects?membership=true&min_access_level=10&statistics=true`,
+pages *keyset* par identifiant), puis le langage principal de chaque projet nouveau ou actif depuis sa
+dernière lecture (`GET /projects/:id/languages`). Les deux paramètres ne sont pas optionnels : sans eux,
+gitlab.com liste tous les projets publics du service. Un jeton voit ce que son rôle lui laisse voir —
+donnez-lui **Reporter** sur les groupes à découvrir ; les projets d'un Guest sont listés quand même, sans
+leur taille ni, pour les privés, leur langage.
+
+**Ce qui est gardé par dépôt** : l'identifiant GitLab (stable aux renommages et aux déplacements), le chemin
+complet, l'espace de noms, le nom, la branche par défaut, archivé, fork, visibilité, dernière activité,
+langage principal, taille, et les URL HTTPS, SSH et web. **Une valeur que GitLab n'a pas donnée reste vide —
+*inconnue*, jamais zéro** : pas de taille sans Reporter, pas de langage quand sa requête est refusée, pas de
+branche par défaut pour un dépôt vide, et *fork* seulement quand GitLab nomme le projet source (il ne le
+nomme que si le jeton peut le lire). Un dépôt dans l'espace personnel d'un utilisateur est listé et marqué
+`personal` : la sélection le proposera décoché.
+
+**Ses états.**
+
+| État | Signification |
+|---|---|
+| `pending` | en attente d'une instance — ou reprise après l'arrêt de l'instance qui l'exécutait |
+| `running` | en cours de listage ; les compteurs avancent : espaces de noms et dépôts vus, requêtes faites, secondes d'attente sur les limites de débit |
+| `completed` | toutes les pages ont été lues ; les dépôts qui ne sont plus listés sont marqués **disparus** |
+| `partial` | une borne l'a arrêtée (ci-dessous) ; ce qui a été lu est gardé et comparé, **rien n'est marqué disparu** |
+| `failed` | `token_rejected` (401 : remplacez le jeton), `forge_refused` (un listage a répondu 403 ou 404 : le jeton doit avoir `read_api`), `forge_unavailable` (pas de réponse après trois essais), `destination_blocked`, `cross_origin_page`, `connection_unusable` (le jeton ne se déchiffre plus, ou l'AC épinglée a expiré), `executor_lost`, `internal_error` |
+
+**Une découverte par connexion à la fois** : une seconde demande répond 409
+`forge-discovery-in-progress`, avec le `discoveryId` de celle en cours.
+
+**Bornes.** Trente minutes et vingt mille dépôts par exécution ; au-delà de l'une ou l'autre, l'exécution
+finit `partial` (`time_bound`, `repository_bound`). Une limite de débit est respectée, jamais devancée : une
+attente d'au plus une minute (`Retry-After`, `RateLimit-Reset`) est passée dans l'exécution ; une plus longue
+la termine `partial`, `rate_limited`, `rateLimitResetAt` disant quand la relancer. Un serveur qui ne répond
+pas est réessayé trois fois avec un délai croissant, dix secondes par requête, puis l'exécution échoue.
+
+**La comparaison.** Chaque exécution est comparée à l'instantané laissé par les précédentes. Une fois
+terminée, `newCount`, `changedCount` et `goneCount` disent comment il a bougé, et
+`GET …/discoveries/{discoveryId}/repositories` liste les dépôts (`change=all`), les nouveaux (`new`), ceux
+renommés ou déplacés, changés de branche par défaut, archivés, désarchivés ou revenus après avoir disparu
+(`changed`, avec `changeSummary`), et ceux qui ne sont plus listés (`gone`). **Seule une exécution complète
+marque un dépôt disparu** — un listage partiel ne prouve rien de ce qu'il n'a pas atteint : son `goneCount`
+est vide et `change=gone` est refusé. **Rien n'est jamais supprimé de l'instantané**, sauf avec la
+connexion : un dépôt disparu ou archivé reste, et une cible importée depuis lui garde son historique.
+
+**La même porte que la sonde.** Chaque requête passe par la garde sortante — l'adresse revérifiée à chaque
+requête, privée seulement si vous avez déclaré le serveur interne — et par l'AC que vous avez épinglée. **La
+page suivante n'est suivie que sur le schéma, l'hôte et le port de la connexion** : une page pointant
+ailleurs fait échouer l'exécution avant que rien n'y soit envoyé, journalisé `FORGE_CONNECTION_REFUSED` et
+signalé `VECTI-SEC-036` ; de même pour une adresse que la garde refuse désormais. Le jeton est déchiffré
+pour l'exécution et ne quitte jamais le plan de contrôle — une découverte tourne sur le plan de contrôle, sur
+chaque instance, quel que soit l'interrupteur du worker intégré, jamais sur un agent. Un redémarrage en cours
+reprend l'exécution depuis sa première page ; après trois tentatives perdues, elle échoue `executor_lost`.
+
+**Administrateurs seulement**, comme la connexion : une découverte nomme des dépôts qu'aucun droit ne couvre
+encore.
 
 ## Chiffrement
 
@@ -120,6 +185,7 @@ la clé courante.
 | Renommée | `FORGE_CONNECTION_CHANGED` | — |
 | Refusée pour une adresse bloquée ou une portée refusée | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, échec) |
 | Refusée pour autre chose — un jeton mal saisi, un serveur ancien | — | — |
+| Une découverte arrêtée par une page suivante sur une autre origine, ou une adresse que la garde refuse | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, échec) |
 
 Les entrées nomment la forge, l'adresse, le propriétaire, le type de jeton, ses portées et s'il peut
 écrire ; jamais le jeton. Voir le [catalogue SIEM](../integrations/siem.fr.md#catalogue-des-evenements).

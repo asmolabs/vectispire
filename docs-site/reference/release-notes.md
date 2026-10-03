@@ -180,6 +180,25 @@ another branch, is another target and is accepted as before.
 
 ### New
 
+- **Forge discoveries: a GitLab's repositories listed in the background, kept as a snapshot and compared
+  run to run** ([Discovering repositories](../administration/forge-connections.md#discovering-repositories),
+  decision 0037, lots D2 and D3 — choosing and importing repositories come next, and GitHub's listing with
+  lot D4). `POST /api/v1/forge-connections/{id}/discoveries` answers 202 with a `pending` run that a
+  control-plane instance takes under a lease — a restart resumes it — and `GET …/discoveries/{discoveryId}`
+  reports its progress; one per connection at a time (409 `forge-discovery-in-progress`). The groups and
+  projects the token is a member of are listed (`membership=true`, `min_access_level=10`) with their
+  default branch, archived, fork, visibility, last activity, language and size — **a value GitLab did not
+  give is kept `null`, unknown, never zero** — and a project in a user's own namespace is flagged
+  `personal`. `…/repositories?change=new|changed|gone` reads the comparison; **only a completed run marks a
+  repository gone**, and nothing is deleted. Bounds: thirty minutes and 20,000 repositories per run, a
+  rate-limit wait of up to a minute spent inside it — past any of them the run ends `partial`. Every
+  request goes through the outbound guard and the connection's pinned CA; a next page on another origin is
+  never followed — the run fails, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`.
+  Administrators only, no screen yet.
+- **No request is retried behind its caller's back any more.** The HTTP client every outbound call goes
+  through sent a GET again after a 429 or a 503, sleeping whatever `Retry-After` said, and after a dropped
+  connection; a webhook, a ticket, a model review or a catalogue download that failed once now fails once,
+  and a caller that retries says so.
 - **Forge connections: a read-only token to a GitHub or a GitLab, probed before it is kept**
   ([Forge connections](../administration/forge-connections.md), decision 0037, lot D1 — the discovery
   and the import of repositories come next). `/api/v1/forge-connections`, administrators only, no screen
