@@ -53,6 +53,8 @@ and the components took only its upstream clean-ups (self-closing tags, `NgClass
 bindings instead of `CommonModule`). `LICENSE.md` beside this file is the template's own —
 copyright PrimeTek, which Sparked keeps — and must stay there: MIT asks for the notice to
 travel with the code that derives from it, and it was once deleted without anyone noticing.
+The build copies it to `licenses/sparked/`, the jar serves it with `3rdpartylicenses.txt` under
+`static/licenses/`, and `npm test` (`check-assets.mjs`) and the jar's build fail without it.
 The Tailwind utilities Optimus colours (`text-primary`, `bg-surface-*`, `border-surface`,
 `text-muted-color`, `bg-emphasis`, …) come from `@openng/optimus-ui-tailwindcss`, OpenNG's MIT
 fork of `tailwindcss-primeui` 0.6.1: same utilities, same CSS output byte for byte.

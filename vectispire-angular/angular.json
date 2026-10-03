@@ -26,6 +26,11 @@
                             {
                                 "glob": "**/*",
                                 "input": "public"
+                            },
+                            {
+                                "glob": "LICENSE.md",
+                                "input": ".",
+                                "output": "licenses/sparked"
                             }
                         ],
                         "styles": [

@@ -120,6 +120,19 @@ for (const path of sources) {
 // La licence de la police doit voyager avec elle (SIL OFL 1.1, article 2).
 check('font licence present', 'public/fonts/LICENSE.txt', (content) => (content.includes('SIL OPEN FONT LICENSE') ? null : "le fichier ne contient pas le texte de la licence OFL"));
 
+// **The shell's MIT notice must ship too** (Sparked, OpenNG's port of PrimeTek's Sakai): copied
+// code, not an npm package, so `3rdpartylicenses.txt` does not carry it. It was deleted once
+// without anyone noticing, and then never reached the jar at all — `angular.json` copies it into
+// the build and the root `NOTICE` names it; the jar's build refuses a bundle without it.
+check('shell licence present', 'LICENSE.md', (content) => (/Copyright \(c\) [0-9-]+ PrimeTek/.test(content) && content.includes('Permission is hereby granted') ? null : "the MIT notice of the template (PrimeTek) is missing"));
+check('shell licence shipped', 'angular.json', (content) => {
+    const options = JSON.parse(content).projects?.vectispire?.architect?.build?.options;
+    return (options?.assets ?? []).some((asset) => asset.glob === 'LICENSE.md' && asset.input === '.' && asset.output === 'licenses/sparked')
+        ? null
+        : 'the build no longer copies LICENSE.md to licenses/sparked/';
+});
+check('shell licence named', '../NOTICE', (content) => (content.includes('PrimeTek') && content.includes('openng-org/sparked') ? null : 'NOTICE no longer names Sparked and PrimeTek'));
+
 if (failures.length) {
     console.error('Asset check: failed\n');
     for (const failure of failures) console.error(`  - ${failure}`);

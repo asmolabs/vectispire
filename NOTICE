@@ -47,6 +47,24 @@ GPL-2.0 WITH Universal-FOSS-Exception-1.0
   paragraph exists rather than a bare list.
 
 --------------------------------------------------------------------------------
+The interface bundled in the jar
+--------------------------------------------------------------------------------
+
+The web interface is served by the jar from `static/`. The notices of the npm
+packages compiled into it (Angular, Optimus UI, chart.js and the rest, MIT for
+most) are in `static/licenses/3rdpartylicenses.txt`, as `ng build` writes them.
+
+Its shell is not a package but code copied into the repository, and so is not in
+that file:
+
+MIT
+  Sparked (openng-org/sparked)              OpenNG's port onto Optimus UI of
+                                            Sakai, Copyright (c) 2018-2026 PrimeTek
+                                            — full text in
+                                            `vectispire-angular/LICENSE.md`, shipped
+                                            as `static/licenses/sparked/LICENSE.md`
+
+--------------------------------------------------------------------------------
 Scanners invoked as containers
 --------------------------------------------------------------------------------
 

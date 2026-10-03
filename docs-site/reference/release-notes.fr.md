@@ -118,6 +118,13 @@
 
 ### Corrigé
 
+- **Les licences de l'interface voyagent désormais avec elle.** `ng build` écrit les notices des
+  paquets npm qu'il embarque (Angular, Optimus UI, chart.js…, MIT pour la plupart) à côté du dossier
+  `browser/`, et seul ce dossier arrivait dans le jar et l'image ; la notice MIT du shell (Sparked,
+  le gabarit Sakai de PrimeTek porté sur Optimus UI — du code recopié, pas un paquet) n'était livrée
+  nulle part non plus. Les deux sont maintenant dans le jar sous `static/licenses/`
+  (`3rdpartylicenses.txt`, `sparked/LICENSE.md`), `NOTICE` nomme le shell, et le build refuse un
+  bundle qui aurait perdu l'une ou l'autre.
 - **Un dépôt `git://` que son serveur ne sert pas était retenté un quart d'heure avant d'échouer sur
   « the clone failed ».** `git daemon` répond à un chemin qu'il n'a pas, ou n'exporte pas, par un refus
   qui lui est propre, lu comme un échec inconnu — transitoire : l'analyse attendait une minute, puis

@@ -59,6 +59,7 @@ val buildUi by tasks.registering(Exec::class) {
     inputs.dir(uiSource.dir("src"))
     inputs.file(uiSource.file("package.json"))
     inputs.file(uiSource.file("angular.json"))
+    inputs.file(uiSource.file("LICENSE.md"))
     outputs.dir(uiOutput)
 
     workingDir = uiSource.asFile
@@ -78,6 +79,28 @@ if (prebuiltUi.isPresent || project.hasProperty("ui")) {
         // `static/` is where Spring Boot serves from with no configuration. The SPA's deep
         // links still need forwarding — see `SpaForwarding`.
         from(assets) { into("static") }
+
+        // **The bundle's licences travel with it.** `ng build` writes the notices of every npm
+        // package it bundles (Angular, Optimus UI, chart.js… mostly MIT, which asks for the
+        // notice in every copy) to `3rdpartylicenses.txt` *beside* `browser/`, and only
+        // `browser/` was shipped: the jar and the image carried none of them, nor Sparked's
+        // (PrimeTek, MIT — copied code, not a package, so `angular.json` copies its `LICENSE.md`
+        // to `licenses/sparked/`). Both are required, so a build that lost either fails here
+        // rather than shipping without it.
+        val bundleLicences = if (prebuiltUi.isPresent) {
+            file(prebuiltUi.get()).parentFile.resolve("3rdpartylicenses.txt")
+        } else {
+            uiOutput.get().file("3rdpartylicenses.txt").asFile
+        }
+        from(bundleLicences) { into("static/licenses") }
+        val assetsDirectory = if (prebuiltUi.isPresent) file(prebuiltUi.get()) else uiOutput.get().dir("browser").asFile
+        doFirst {
+            listOf(bundleLicences, assetsDirectory.resolve("licenses/sparked/LICENSE.md")).forEach {
+                if (!it.isFile) {
+                    throw GradleException("The interface's licence notice $it is missing: the jar would ship the bundle without it.")
+                }
+            }
+        }
     }
 }
 

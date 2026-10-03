@@ -51,11 +51,11 @@ COPY vectispire-java/buildSrc/ buildSrc/
 RUN mkdir -p vectispire-common vectispire-core vectispire-agent && ./gradlew --no-daemon help
 
 COPY vectispire-java/ ./
-COPY --from=ui /src/vectispire-angular/dist/vectispire/browser /ui
+COPY --from=ui /src/vectispire-angular/dist/vectispire /ui
 
 # `-PuiDist` rather than `-Pui`: the interface is already built, and asking Gradle to build it
 # again here is what would drag Node into this stage.
-RUN ./gradlew --no-daemon :vectispire-core:bootJar -PuiDist=/ui -x test
+RUN ./gradlew --no-daemon :vectispire-core:bootJar -PuiDist=/ui/browser -x test
 
 # --- The image that runs -----------------------------------------------------------------
 FROM eclipse-temurin:25-jre-alpine
