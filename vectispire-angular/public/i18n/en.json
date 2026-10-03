@@ -2034,7 +2034,8 @@
     "plugin_manifest": "manifest",
     "plugin_refusal": {
       "unsigned": "Refused — unsigned",
-      "signature_unverified": "Refused — signature not verified"
+      "signature_unverified": "Refused — signature not verified",
+      "registry_authentication_required": "Refused — registry authentication required"
     },
     "plugin_refused_no_reason": "not started, no reason recorded",
     "plugin_waived": "Ran unsigned (waiver)",
@@ -3288,6 +3289,7 @@
     "reason_step_absent": "The step or plugin was absent in every scan within the maximum age: it did not look, which is not finding nothing.",
     "reason_plugin_unsigned": "The plugin was refused: its manifest declares no signer, a signer is required, and the governor waived nothing. Nobody started the tool — sign its image, or record the waiver.",
     "reason_plugin_signature_unverified": "The plugin was refused: the signer its manifest declares did not verify its image. Nobody started the tool.",
+    "reason_plugin_registry_authentication_required": "The plugin was refused: its image's registry would not let the signature be read — the executor holds no credentials for it, or the ones it holds were refused. Whether the image is signed is unknown; nobody started the tool.",
     "reason_language_not_analysed": "The analysis produced on a tree it could not read: a source language of the repository is read by none of the SAST rules the scan ran with, or the plugin reads none of the tree’s languages. Nothing found, because nothing was read.",
     "reason_examination_unrecorded": "The scans within the maximum age predate the record of which steps ran: whether it looked is unknown until the next scan.",
     "reason_languages_unrecorded": "The scan did not record the languages of its tree, or those its analysis reads: whether it read the code is unknown until the next scan.",
@@ -3301,6 +3303,7 @@
     "reason_short_step_absent": "step absent",
     "reason_short_plugin_unsigned": "plugin unsigned",
     "reason_short_plugin_signature_unverified": "signature not verified",
+    "reason_short_plugin_registry_authentication_required": "registry authentication required",
     "reason_short_language_not_analysed": "language not analysed",
     "reason_short_examination_unrecorded": "examination unrecorded",
     "reason_short_languages_unrecorded": "languages unrecorded",

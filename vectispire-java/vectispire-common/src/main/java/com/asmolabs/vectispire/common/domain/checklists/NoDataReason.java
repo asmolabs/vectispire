@@ -33,6 +33,13 @@ public enum NoDataReason {
      */
     PLUGIN_SIGNATURE_UNVERIFIED,
     /**
+     * The same, refused because the registry of its image would not let cosign read the signature —
+     * no credentials held for it, or the ones held refused. Not "unverified": nothing was read, and the
+     * answer is the executor's Docker configuration, not the image or its signer. Thirty-nine
+     * characters: the measurement's {@code reason} column holds forty.
+     */
+    PLUGIN_REGISTRY_AUTHENTICATION_REQUIRED,
+    /**
      * The analysis produced, on a tree none — or not all — of whose source languages it reads: the
      * built-in SAST or quality step whose Semgrep rules read none of some source language the scan's
      * census found ({@link SourceLanguages}), or a plugin that produced on a tree holding none of the

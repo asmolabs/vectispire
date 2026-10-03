@@ -49,7 +49,7 @@ class OpenApiRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.state.enum",
                         Matchers.contains("produced", "not_applicable", "absent", "refused")))
                 .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.refusal.enum",
-                        Matchers.contains("unsigned", "signature_unverified")))
+                        Matchers.contains("unsigned", "signature_unverified", "registry_authentication_required")))
                 .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.signature.enum",
                         Matchers.contains("verified", "waived", "not_required")))
                 .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.type").value("array"))

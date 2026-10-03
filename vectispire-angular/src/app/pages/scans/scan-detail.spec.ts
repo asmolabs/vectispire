@@ -132,6 +132,16 @@ describe('the scan detail', () => {
             reason: null,
             refusal: null,
             signature: 'waived'
+        }),
+        asSchema('PluginOutcome', {
+            pluginId: 'private-one',
+            manifestDigest: 'f'.repeat(64),
+            state: 'refused',
+            findings: null,
+            languages: [],
+            reason: 'The registry registry.acme.internal requires authentication to be read',
+            refusal: 'registry_authentication_required',
+            signature: null
         })
     ];
 
@@ -306,7 +316,7 @@ describe('the scan detail', () => {
         const rows = Array.from(
             (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="plugin-outcome"]')
         );
-        const [produced, , , unsigned, impostor, waived] = rows;
+        const [produced, , , unsigned, impostor, waived, locked] = rows;
         expect(unsigned.getAttribute('data-state')).toBe('refused');
         expect(unsigned.textContent).toContain('scans.plugin_refusal.unsigned');
         expect(unsigned.textContent).toContain('declares no signer');
@@ -314,6 +324,10 @@ describe('the scan detail', () => {
         expect(unsigned.querySelector('.p-tag-danger')).not.toBeNull();
         expect(impostor.textContent).toContain('scans.plugin_refusal.signature_unverified');
         expect(impostor.textContent).toContain('no matching signatures');
+        // A registry that would not be read is not a signer that failed: nothing was read.
+        expect(locked.textContent).toContain('scans.plugin_refusal.registry_authentication_required');
+        expect(locked.textContent).not.toContain('scans.plugin_refusal.signature_unverified');
+        expect(locked.querySelector('.p-tag-danger')).not.toBeNull();
 
         expect(waived.querySelector('[data-testid="plugin-waived"]')?.textContent).toContain('scans.plugin_waived');
         expect(waived.querySelector('.p-tag-danger')).toBeNull();

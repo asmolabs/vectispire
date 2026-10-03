@@ -235,6 +235,22 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a plugin whose registry would not be read has no data, and the line says so rather than \"unverified\"")
+        void aPluginWhoseRegistryWouldNotBeRead() throws Exception {
+            publishWithRule(Map.of("kind", "findings_threshold", "maxAgeDays", 7, "scopes", List.of("plugin:java-arch"),
+                    "thresholds", Map.of("high", Map.of("maxOpen", 0))));
+            scan(first, hoursAgo(2), "secret", refused("java-arch", "registry_authentication_required"), true);
+            scan(second, hoursAgo(2), "secret", refused("java-arch", "signature_unverified"), true);
+            open(developer, project);
+
+            JsonNode measurement = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(measurement.at("/outcome").asText()).isEqualTo("no_data");
+            assertThat(statusOf(measurement, first)).isEqualTo("plugin_registry_authentication_required");
+            assertThat(statusOf(measurement, second)).isEqualTo("plugin_signature_unverified");
+            assertThat(repository(measurement, first).at("/detail").asText()).contains("authentication required");
+        }
+
+        @Test
         @DisplayName("an imported tool: the import carrying it is the look, one from before the record is unrecorded")
         void anImportedTool() throws Exception {
             publishWithRule(Map.of("kind", "findings_threshold", "maxAgeDays", 7,

@@ -150,6 +150,15 @@ class RuleEvaluationTest {
             assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, unverified).build(), NOW)
                     .reason()).contains(NoDataReason.PLUGIN_SIGNATURE_UNVERIFIED);
 
+            PluginRuns unreadable = new PluginRuns(List.of(
+                    new PluginRun(look(FRESH), PluginState.REFUSED_REGISTRY_AUTHENTICATION_REQUIRED)), 1, false);
+            Measurement locked = RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, unreadable)
+                    .build(), NOW);
+            assertThat(locked.reason()).as("nothing was read: not \"unverified\"")
+                    .contains(NoDataReason.PLUGIN_REGISTRY_AUTHENTICATION_REQUIRED);
+            assertThat(locked.repositories()).singleElement().satisfies(line ->
+                    assertThat(line.detail()).hasValueSatisfying(detail -> assertThat(detail).contains("authentication required")));
+
             PluginRuns crashedSince = new PluginRuns(List.of(new PluginRun(look(FRESH), PluginState.ABSENT),
                     new PluginRun(look(FRESH.minusSeconds(60)), PluginState.REFUSED_UNSIGNED)), 2, false);
             assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).scope("plugin:java-arch", 1L, crashedSince).build(),

@@ -257,6 +257,58 @@ class PluginStepsTest {
             assertThat(check.mounts()).as("no tree, no workspace, no key: nothing of the target").isEmpty();
             assertThat(check.user()).isEqualTo("1000:1000");
             assertThat(check.asRoot()).isFalse();
+            assertThat(check.login())
+                    .as("the registry is read with what the pull would send — for the image verified, outside the tree")
+                    .satisfies(login -> {
+                        assertThat(login.reference()).isEqualTo("registry.acme.internal/acme-lint@" + DIGEST);
+                        assertThat(login.directory().startsWith(workspace.source())).isFalse();
+                    });
+            assertThat(launched.get().login()).as("the plugin itself is never handed a credential").isNull();
+        }
+
+        @Test
+        @DisplayName("a registry that will not be read, with no credentials held, is said as such and not as a missing signature")
+        void registryRefusedAnonymous() {
+            verification = new ContainerRunner.ContainerResult("", "Error: GET https://registry.acme.internal/v2/acme-lint/"
+                    + "manifests/sha256-dd.sig: UNAUTHORIZED: authentication required; [map[Action:pull]]", 1);
+            when(containers.registryAccessFor("registry.acme.internal/acme-lint@" + DIGEST))
+                    .thenReturn(new ContainerRunner.RegistryAccess("registry.acme.internal", false));
+            plugin(0, writing(REPORT));
+
+            assertThat(run(keyless)).singleElement().isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+                assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.REGISTRY_AUTHENTICATION_REQUIRED);
+                assertThat(refused.reason()).contains("registry.acme.internal").contains("holds no credentials")
+                        .contains("was not run").contains("UNAUTHORIZED");
+            });
+            assertThat(launched.get()).isNull();
+        }
+
+        @Test
+        @DisplayName("credentials held and refused, by a registry's code or a token endpoint's status: the same state, said so")
+        void registryRefusedCredentials() {
+            when(containers.registryAccessFor("registry.acme.internal/acme-lint@" + DIGEST))
+                    .thenReturn(new ContainerRunner.RegistryAccess("registry.acme.internal", true));
+            plugin(0, writing(REPORT));
+
+            for (String said : List.of("Error: GET …: DENIED: requested access to the resource is denied",
+                    "Error: GET https://auth.docker.io/token?scope=x: unexpected status code 401 Unauthorized",
+                    "Error: GET …: unexpected status code 403 Forbidden")) {
+                verification = new ContainerRunner.ContainerResult("", said, 1);
+                assertThat(run(keyless)).as(said).singleElement().isInstanceOfSatisfying(PluginStep.Refused.class, refused -> {
+                    assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.REGISTRY_AUTHENTICATION_REQUIRED);
+                    assertThat(refused.reason()).contains("refused the credentials");
+                });
+            }
+        }
+
+        @Test
+        @DisplayName("a file the key mount could not open is not a registry's refusal: \"denied\" in prose is not the code")
+        void proseIsNotTheCode() {
+            verification = new ContainerRunner.ContainerResult("", "Error: open /trust/cosign.pub: permission denied", 1);
+            plugin(0, writing(REPORT));
+
+            assertThat(run(keyed)).singleElement().isInstanceOfSatisfying(PluginStep.Refused.class, refused ->
+                    assertThat(refused.refusal()).isEqualTo(PluginStep.Refusal.SIGNATURE_UNVERIFIED));
         }
 
         @Test

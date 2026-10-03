@@ -2034,7 +2034,8 @@
     "plugin_manifest": "manifeste",
     "plugin_refusal": {
       "unsigned": "Refusé — non signé",
-      "signature_unverified": "Refusé — signature non vérifiée"
+      "signature_unverified": "Refusé — signature non vérifiée",
+      "registry_authentication_required": "Refusé — authentification au registre requise"
     },
     "plugin_refused_no_reason": "non démarré, aucune raison enregistrée",
     "plugin_waived": "Sans signature (dérogation)",
@@ -3406,6 +3407,7 @@
     "reason_step_absent": "L’étape ou le plugin était absent de chaque analyse dans l’âge maximal : il n’a pas regardé, ce qui n’est pas ne rien trouver.",
     "reason_plugin_unsigned": "Le plugin a été refusé : son manifeste ne déclare aucun signataire, un signataire est exigé, et le gouverneur n’a accordé aucune dérogation. Personne n’a lancé l’outil — signez son image, ou enregistrez la dérogation.",
     "reason_plugin_signature_unverified": "Le plugin a été refusé : le signataire que déclare son manifeste n’a pas vérifié son image. Personne n’a lancé l’outil.",
+    "reason_plugin_registry_authentication_required": "Le plugin a été refusé : le registre de son image n’a pas laissé lire la signature — l’exécuteur n’a pas d’identifiants pour lui, ou ceux qu’il a ont été refusés. On ignore si l’image est signée ; personne n’a lancé l’outil.",
     "reason_language_not_analysed": "L’analyse a produit sur un arbre qu’elle ne pouvait pas lire : un langage source du dépôt n’est lu par aucune des règles SAST de l’analyse, ou le plugin ne lit aucun des langages de l’arbre. Rien trouvé, parce que rien n’a été lu.",
     "reason_examination_unrecorded": "Les analyses dans l’âge maximal précèdent l’enregistrement des étapes exécutées : on ne sait pas si l’étape a regardé avant la prochaine analyse.",
     "reason_languages_unrecorded": "L’analyse n’a pas enregistré les langages de son arbre, ou ceux que lit son examen : on ne sait pas si elle a lu le code avant la prochaine analyse.",
@@ -3419,6 +3421,7 @@
     "reason_short_step_absent": "étape absente",
     "reason_short_plugin_unsigned": "plugin non signé",
     "reason_short_plugin_signature_unverified": "signature non vérifiée",
+    "reason_short_plugin_registry_authentication_required": "authentification au registre requise",
     "reason_short_language_not_analysed": "langage non analysé",
     "reason_short_examination_unrecorded": "examen non enregistré",
     "reason_short_languages_unrecorded": "langages non enregistrés",

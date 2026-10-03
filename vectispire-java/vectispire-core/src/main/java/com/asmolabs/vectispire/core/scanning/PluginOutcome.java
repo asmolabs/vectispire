@@ -23,7 +23,8 @@ import java.util.Optional;
  * <p>The findings themselves are the scan's findings rows; only their count is kept here.
  *
  * <p><b>A refused plugin is kept as refused</b>, beside absent: the executor would not start it for
- * want of a verified signer (decision 0017 §9.1). Both leave the backlog alone and are in the scan's
+ * want of a verified signer, or of a registry that would let the signature be read (decision 0017
+ * §9.1). Both leave the backlog alone and are in the scan's
  * failures; only the state tells "its image is not signed" from "it crashed", and the checklist's
  * measurement names the one it was.
  *
@@ -32,8 +33,9 @@ import java.util.Optional;
  * @param findings for a produced plugin, how many results it reported; {@code null} otherwise
  * @param languages for a not-applicable plugin, the languages it declares and the tree lacked
  * @param reason for an absent or refused plugin, what went wrong, in the executor's words
- * @param refusal for a refused plugin, {@code unsigned} or {@code signature_unverified} — {@link
- *     PluginStep.Refusal}; null otherwise, and for a reason this version does not know
+ * @param refusal for a refused plugin, {@code unsigned}, {@code signature_unverified} or {@code
+ *     registry_authentication_required} — {@link PluginStep.Refusal}; null otherwise, and for a reason
+ *     this version does not know
  * @param signature for a produced plugin, what the executor established about the image's signer:
  *     {@code verified}, {@code waived} — it ran unsigned under the governor's waiver — or {@code
  *     not_required}, the executor's operator having switched the requirement off; null for a scan

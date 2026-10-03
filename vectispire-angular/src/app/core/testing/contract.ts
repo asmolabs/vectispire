@@ -111,7 +111,7 @@ const FINDING_TYPES = [
     'quality'
 ]; // FindingType
 const PLUGIN_STATES = ['produced', 'not_applicable', 'absent', 'refused']; // PluginOutcome.State
-const PLUGIN_REFUSALS = ['unsigned', 'signature_unverified']; // PluginStep.Refusal
+const PLUGIN_REFUSALS = ['unsigned', 'signature_unverified', 'registry_authentication_required']; // PluginStep.Refusal
 const PLUGIN_SIGNATURES = ['verified', 'waived', 'not_required']; // PluginStep.Signature
 const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
 const CHECKLIST_VERSION_STATUSES = ['draft', 'published', 'retired']; // TemplateVersionStatus
@@ -136,6 +136,7 @@ const NO_DATA_REASONS = [
     'step_absent',
     'plugin_unsigned',
     'plugin_signature_unverified',
+    'plugin_registry_authentication_required',
     'language_not_analysed',
     'examination_unrecorded',
     'languages_unrecorded',

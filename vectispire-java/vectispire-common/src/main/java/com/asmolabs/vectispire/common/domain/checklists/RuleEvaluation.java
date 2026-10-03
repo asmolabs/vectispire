@@ -155,6 +155,10 @@ public final class RuleEvaluation {
                         case REFUSED_SIGNATURE_UNVERIFIED -> new Missing(NoDataReason.PLUGIN_SIGNATURE_UNVERIFIED, scan,
                                 Optional.of("the executor refused the plugin: the signer its manifest declares did not"
                                         + " verify its image"));
+                        case REFUSED_REGISTRY_AUTHENTICATION_REQUIRED -> new Missing(
+                                NoDataReason.PLUGIN_REGISTRY_AUTHENTICATION_REQUIRED, scan, Optional.of("the executor"
+                                        + " refused the plugin: the registry of its image would not let the signature be read"
+                                        + " (authentication required)"));
                         default -> new Missing(NoDataReason.STEP_ABSENT, scan);
                     };
                 }

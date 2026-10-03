@@ -117,16 +117,19 @@ class PluginWireTest {
                 .plugin(new PluginStep.Refused("u", DIGEST, PluginStep.Refusal.UNSIGNED, "no signer declared"))
                 .plugin(new PluginStep.Refused("v", DIGEST, PluginStep.Refusal.SIGNATURE_UNVERIFIED, "cosign: no match"))
                 .plugin(new PluginStep.Produced("w", DIGEST, "acme", null, List.of(), PluginStep.Signature.WAIVED))
+                .plugin(new PluginStep.Refused("x", DIGEST, PluginStep.Refusal.REGISTRY_AUTHENTICATION_REQUIRED,
+                        "cosign: UNAUTHORIZED"))
                 .build(Duration.ofSeconds(1));
 
         String body = json.writeValueAsString(written);
         JsonNode tree = json.readTree(body);
 
         assertThat(tree.path("plugins")).extracting(node -> node.path("state").asText())
-                .containsExactly("refused", "refused", "produced");
+                .containsExactly("refused", "refused", "produced", "refused");
         assertThat(tree.path("plugins").path(0).path("refusal").asText()).isEqualTo("unsigned");
         assertThat(tree.path("plugins").path(1).path("refusal").asText()).isEqualTo("signature_unverified");
         assertThat(tree.path("plugins").path(2).path("signature").asText()).isEqualTo("waived");
+        assertThat(tree.path("plugins").path(3).path("refusal").asText()).isEqualTo("registry_authentication_required");
         assertThat(json.readValue(body, ScanArtifacts.class)).isEqualTo(written);
 
         ScanArtifacts later = json.readValue("{\"plugins\":[{\"state\":\"refused\",\"pluginId\":\"x\",\"refusal\":"

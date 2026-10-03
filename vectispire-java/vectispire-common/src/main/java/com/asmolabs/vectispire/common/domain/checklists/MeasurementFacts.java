@@ -118,7 +118,9 @@ public record MeasurementFacts(
         /** Not started: no signer declared where one is required, and no waiver. */
         REFUSED_UNSIGNED,
         /** Not started: the declared signer did not verify the image. */
-        REFUSED_SIGNATURE_UNVERIFIED
+        REFUSED_SIGNATURE_UNVERIFIED,
+        /** Not started: the registry would not let its signature be read, so nobody knows who signed it. */
+        REFUSED_REGISTRY_AUTHENTICATION_REQUIRED
     }
 
     /**

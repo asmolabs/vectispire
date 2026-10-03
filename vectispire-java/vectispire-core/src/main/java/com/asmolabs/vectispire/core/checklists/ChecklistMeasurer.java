@@ -236,6 +236,7 @@ class ChecklistMeasurer {
                 yield refusal == null ? PluginState.ABSENT : switch (refusal) {
                     case UNSIGNED -> PluginState.REFUSED_UNSIGNED;
                     case SIGNATURE_UNVERIFIED -> PluginState.REFUSED_SIGNATURE_UNVERIFIED;
+                    case REGISTRY_AUTHENTICATION_REQUIRED -> PluginState.REFUSED_REGISTRY_AUTHENTICATION_REQUIRED;
                 };
             }
         }).orElse(PluginState.ABSENT);

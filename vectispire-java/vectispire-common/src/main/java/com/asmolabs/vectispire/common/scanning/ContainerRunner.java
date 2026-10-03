@@ -7,6 +7,7 @@ import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
 import com.github.dockerjava.api.model.AccessMode;
+import com.github.dockerjava.api.model.AuthConfig;
 import com.github.dockerjava.api.model.Driver;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /**
  * Running a scanner container.
@@ -81,6 +83,13 @@ public final class ContainerRunner {
      * convention would need a test; one constant is the property itself.
      */
     public static final String DATABASE_CACHE_MOUNT = "/cache";
+
+    /**
+     * Where a {@link ContainerRun.RegistryLogin} is mounted, read-only, and what {@code DOCKER_CONFIG}
+     * names in the tool's environment: the variable every client built on the Docker CLI's
+     * configuration reads, cosign's included.
+     */
+    public static final String REGISTRY_LOGIN_MOUNT = "/trust/registry";
 
     private final DockerClient docker;
     private final ScannerLimits limits;
@@ -325,7 +334,7 @@ public final class ContainerRunner {
 
     /** Created — not started — labelled, with the scratch environment, as {@code user}. */
     private String create(String image, List<String> command, String label, String user, boolean asRoot,
-            HostConfig hostConfig) {
+            HostConfig hostConfig, List<String> environment) {
         var create = docker.createContainerCmd(image)
                 .withCmd(command)
                 // **Labelled, because the machine that scans is not necessarily ours.** An
@@ -337,7 +346,7 @@ public final class ContainerRunner {
                 // ones known to need it: the next image added is not going to announce that it
                 // caches under `$HOME`, it is going to fail a scan on a read-only filesystem
                 // and report having found nothing.
-                .withEnv(
+                .withEnv(Stream.concat(Stream.of(
                         "HOME=" + SCRATCH_HOME,
                         "TMPDIR=/tmp",
                         "XDG_CACHE_HOME=" + SCRATCH_HOME + "/.cache",
@@ -355,7 +364,7 @@ public final class ContainerRunner {
                         // which are asked explicitly, are not affected.
                         "GRYPE_DB_AUTO_UPDATE=false",
                         // Nor its own version, which is pinned by digest and asked of nobody.
-                        "GRYPE_CHECK_FOR_APP_UPDATE=false")
+                        "GRYPE_CHECK_FOR_APP_UPDATE=false"), environment.stream()).toList())
                 .withHostConfig(hostConfig);
         if (user != null) {
             create = create.withUser(user);
@@ -378,8 +387,21 @@ public final class ContainerRunner {
 
         String holder = null;
         String container = null;
+        Path login = null;
+        Optional<AuthConfig> credentials = Optional.empty();
         try {
-            HostConfig hostConfig = closedHostConfig(request.binds(), request.network());
+            List<String> binds = request.binds();
+            List<String> environment = List.of();
+            if (request.login() != null) {
+                credentials = PullCredentials.of(docker, request.login().reference());
+                if (credentials.isPresent()) {
+                    login = writeLogin(credentials.get(), request.login(), request.label());
+                    binds = Stream.concat(binds.stream(),
+                            Stream.of(ContainerRun.Mount.readOnly(login.toString(), REGISTRY_LOGIN_MOUNT).toBind())).toList();
+                    environment = List.of("DOCKER_CONFIG=" + REGISTRY_LOGIN_MOUNT);
+                }
+            }
+            HostConfig hostConfig = closedHostConfig(binds, request.network());
             if (bounded != null) {
                 ensureImagePresent(bounded.holderImage(), request.label());
                 holder = startHolder(bounded, request.user(), request.label(), timeout);
@@ -392,7 +414,7 @@ public final class ContainerRunner {
                         .withUlimits(List.of(new Ulimit("fsize", bounded.bytes(), bounded.bytes())));
             }
             container = create(request.image(), request.command(), request.label(), request.user(), request.asRoot(),
-                    hostConfig);
+                    hostConfig, environment);
             docker.startContainerCmd(container).exec();
             int exitCode = waitFor(container, timeout, request.label());
 
@@ -419,7 +441,9 @@ public final class ContainerRunner {
             Optional<CollectedOutput> collected = bounded == null
                     ? Optional.empty()
                     : Optional.of(collect(holder, bounded, request.label()));
-            return new ContainerResult(output.stdout(), output.stderr(), exitCode, collected);
+            AuthConfig sent = credentials.orElse(null);
+            return new ContainerResult(PullCredentials.redact(output.stdout(), sent),
+                    PullCredentials.redact(output.stderr(), sent), exitCode, collected);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new ScannerFailureException(request.label(), "Interrupted while reading the scanner's output.");
@@ -429,8 +453,32 @@ public final class ContainerRunner {
             // its volume — the other order would leave the volume in use and the removal refused.
             remove(container, false);
             remove(holder, true);
+            // After the container, which held it open: the credentials outlive the run by nothing.
+            PullCredentials.erase(login);
         }
     }
+
+    private static Path writeLogin(AuthConfig credentials, ContainerRun.RegistryLogin login, String label) {
+        try {
+            return PullCredentials.write(credentials, PullCredentials.registryOf(login.reference()), login.directory());
+        } catch (IOException unwritable) {
+            // The exception's own message names a path, never the credentials.
+            throw ScannerFailureException.of(label, "The registry credentials could not be handed to it: "
+                    + unwritable.getMessage());
+        }
+    }
+
+    /**
+     * What this executor holds to read {@code reference}'s registry: the registry as its pulls key it,
+     * and whether its Docker configuration carries credentials for it — never the credentials. For a
+     * tool's refusal to say which of "none held" and "the ones held were refused" it was.
+     */
+    public RegistryAccess registryAccessFor(String reference) {
+        return new RegistryAccess(PullCredentials.registryOf(reference), PullCredentials.of(docker, reference).isPresent());
+    }
+
+    /** @param credentialsHeld whether the pulls of the registry are authenticated */
+    public record RegistryAccess(String registry, boolean credentialsHeld) {}
 
     private void remove(String id, boolean withVolumes) {
         if (id == null) {
@@ -487,7 +535,8 @@ public final class ContainerRunner {
                 label + " (output)",
                 user,
                 false,
-                closedHostConfig(List.of(), false).withMounts(List.of(volume)));
+                closedHostConfig(List.of(), false).withMounts(List.of(volume)),
+                List.of());
         try {
             docker.startContainerCmd(holder).exec();
         } catch (RuntimeException refused) {

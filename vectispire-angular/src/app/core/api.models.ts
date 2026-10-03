@@ -2310,7 +2310,10 @@ export type PluginActivation = Refine<
  */
 export type PluginState = NonNullable<Schema<'PluginOutcome'>['state']>;
 
-/** Why an executor would not start a plugin: `unsigned` or `signature_unverified`. */
+/**
+ * Why an executor would not start a plugin: `unsigned`, `signature_unverified`, or
+ * `registry_authentication_required` — the registry would not let the signature be read.
+ */
 export type PluginRefusal = NonNullable<Schema<'PluginOutcome'>['refusal']>;
 
 /** The footing a produced plugin ran on: `verified`, `waived` or `not_required`. */

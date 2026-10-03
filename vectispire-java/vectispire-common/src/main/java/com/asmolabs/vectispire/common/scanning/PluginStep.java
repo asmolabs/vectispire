@@ -34,7 +34,8 @@ import java.util.Set;
  *       said it computed no result. Its issues are left as they are and the reason is a failure of
  *       the scan (decision 0007).
  *   <li>{@link Refused} — the executor would not start it: its manifest declares no signer where one
- *       is required and no waiver covers it, or the signer it declares did not verify the image. Its
+ *       is required and no waiver covers it, the signer it declares did not verify the image, or the
+ *       image's registry would not let the signature be read. Its
  *       issues are left as they are and it is a failure of the scan, like absent; told apart from
  *       absent because the fix is not the plugin's code but its provenance — sign the image, or have
  *       the governor waive the requirement for it, in writing (decision 0017 §9.1). Never folded into
@@ -100,11 +101,20 @@ public sealed interface PluginStep {
         UNSIGNED("unsigned"),
         /**
          * Its manifest declares a signer and cosign did not verify the image against it — another
-         * signer, no signature, or a registry or trust root that could not be reached: an image nobody
+         * signer, no signature, or a registry or trust root that could not be reached (a registry that
+         * refused to be read is {@link #REGISTRY_AUTHENTICATION_REQUIRED}): an image nobody
          * verified is not run, whatever the reason. A waiver never covers this: it lifts the requirement
          * to declare a signer, not the verification of one declared.
          */
-        SIGNATURE_UNVERIFIED("signature_unverified");
+        SIGNATURE_UNVERIFIED("signature_unverified"),
+        /**
+         * Its manifest declares a signer, and the registry would not let cosign read the signature: it
+         * answered "unauthorized" or "denied" — with no credentials held for it, or with the ones the
+         * executor's pulls use. Whether the image is signed is unknown, so it is not run; told apart
+         * from {@link #SIGNATURE_UNVERIFIED} because nothing was read, and the fix is the executor's
+         * Docker configuration, not the image or its signer.
+         */
+        REGISTRY_AUTHENTICATION_REQUIRED("registry_authentication_required");
 
         private final String wireName;
 

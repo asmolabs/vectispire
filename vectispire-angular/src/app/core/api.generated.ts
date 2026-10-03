@@ -4131,7 +4131,7 @@ export interface components {
             /** Format: int64 */
             itemId: number;
             /** @enum {string} */
-            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             outcome?: "pass" | "fail" | "no_data";
             /** Format: int32 */
@@ -4618,7 +4618,7 @@ export interface components {
             /** @enum {string} */
             purpose?: "read" | "answer" | "submission" | "sign_off";
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             ruleDigest?: string;
@@ -5826,11 +5826,11 @@ export interface components {
             /** Format: int32 */
             position: number;
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             submittedOutcome?: "pass" | "fail" | "no_data";
             /** @enum {string} */
-            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         MeasuredLineView: {
             /** @enum {string} */
@@ -6154,7 +6154,7 @@ export interface components {
             pluginId?: string;
             reason?: string;
             /** @enum {string} */
-            refusal?: "unsigned" | "signature_unverified";
+            refusal?: "unsigned" | "signature_unverified" | "registry_authentication_required";
             /** @enum {string} */
             signature?: "verified" | "waived" | "not_required";
             /** @enum {string} */
@@ -6438,7 +6438,7 @@ export interface components {
             pluginId?: string;
             reason?: string;
             /** @enum {string} */
-            refusal?: "unsigned" | "signature_unverified";
+            refusal?: "unsigned" | "signature_unverified" | "registry_authentication_required";
         });
         Region: {
             /** Format: int32 */
@@ -6578,7 +6578,7 @@ export interface components {
             /** Format: int64 */
             sourceId?: number;
             /** @enum {string} */
-            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         RepositoryRef: {
             /** Format: int64 */

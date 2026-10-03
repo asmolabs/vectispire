@@ -26,6 +26,8 @@ import java.util.Optional;
  *     {@link #asRoot}). Set for a tool that <em>writes</em> into a mount: what root writes there is
  *     root's on the host, and Vectispire, unprivileged, cannot delete it afterwards
  * @param output a writable directory with a ceiling, or {@code null} — see {@link BoundedOutput}
+ * @param login the pull credentials handed to the tool for one registry, or {@code null} — see
+ *     {@link RegistryLogin}
  */
 public record ContainerRun(
         String image,
@@ -36,7 +38,8 @@ public record ContainerRun(
         boolean asRoot,
         Duration timeout,
         String user,
-        BoundedOutput output) {
+        BoundedOutput output,
+        RegistryLogin login) {
 
     /** @param readOnly explicit, and true wherever it can be */
     public record Mount(String source, String target, boolean readOnly) {
@@ -94,18 +97,33 @@ public record ContainerRun(
         }
     }
 
+    /**
+     * The credentials this executor's pulls use for {@code reference}'s registry, handed to the tool
+     * as a Docker configuration for the length of the run — and nothing when it holds none.
+     *
+     * <p><b>Named, never carried.</b> The request names the image; the runner resolves the credentials
+     * from the Docker configuration its own pulls read, by the rule its pulls apply, writes them into
+     * {@code directory} readable by their owner alone, mounts that read-only and erases it in the same
+     * {@code finally} that removes the container. No caller holds them, so none can log them, put them
+     * in a message, or keep them past the run.
+     *
+     * @param directory where the file is written for the run — a directory of the workspace no tool
+     *     reads, on the daemon's host like every other mount
+     */
+    public record RegistryLogin(String reference, Path directory) {}
+
     /** The closed shape: no network, not root, default timeout. */
     public static ContainerRun of(String image, List<String> command, List<Mount> mounts, String label) {
-        return new ContainerRun(image, List.copyOf(command), List.copyOf(mounts), label, false, false, null, null, null);
+        return new ContainerRun(image, List.copyOf(command), List.copyOf(mounts), label, false, false, null, null, null, null);
     }
 
     public ContainerRun withNetwork() {
-        return new ContainerRun(image, command, mounts, label, true, asRoot, timeout, user, output);
+        return new ContainerRun(image, command, mounts, label, true, asRoot, timeout, user, output, login);
     }
 
     /** Named `runningAsRoot` rather than `asRoot`: the latter is the component's accessor. */
     public ContainerRun runningAsRoot() {
-        return new ContainerRun(image, command, mounts, label, network, true, timeout, user, output);
+        return new ContainerRun(image, command, mounts, label, network, true, timeout, user, output, login);
     }
 
     /**
@@ -113,7 +131,7 @@ public record ContainerRun(
      * see {@link BoundedOutput}. Needs {@link #runningAs}: the directory belongs to that user.
      */
     public ContainerRun withBoundedOutput(BoundedOutput value) {
-        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, value);
+        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, value, login);
     }
 
     /**
@@ -121,7 +139,7 @@ public record ContainerRun(
      * writes stays deletable by the process that created the directory.
      */
     public ContainerRun runningAs(String uidGid) {
-        return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid, output);
+        return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid, output, login);
     }
 
     /**
@@ -140,8 +158,14 @@ public record ContainerRun(
         return ownerOf(directory).map(this::runningAs).orElseGet(this::runningAsRoot);
     }
 
+    /** Hands the tool the pull credentials for {@code reference}'s registry — see {@link RegistryLogin}. */
+    public ContainerRun withRegistryLoginFor(String reference, Path directory) {
+        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, output,
+                new RegistryLogin(reference, directory));
+    }
+
     public ContainerRun withTimeout(Duration value) {
-        return new ContainerRun(image, command, mounts, label, network, asRoot, value, user, output);
+        return new ContainerRun(image, command, mounts, label, network, asRoot, value, user, output, login);
     }
 
     /**
