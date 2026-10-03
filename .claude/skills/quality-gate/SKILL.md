@@ -156,6 +156,10 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   `no leaks found` and exited 0. When you add or change a CI job that runs a scanner in a
   container, read its log once for the count of what it examined, and make the job refuse a run
   that examined nothing.
+- **A test that plants a secret-shaped value fails `secrets`** once it is pushed (R1's
+  `AKIA…` fixture did). Mark the line with a trailing `// gitleaks:allow` comment, which gitleaks
+  honours, and say in the comment beside it that the value is invented; a fingerprint in
+  `.gitleaksignore` can only be written after the commit exists, which costs a red pipeline first.
 - **Public repository: no customer or employer names.** Fixtures, comments and examples use
   neutral names (`org.example`, invented project names); a customer-specific plugin or template
   lives in a private repository and registry, never here.
