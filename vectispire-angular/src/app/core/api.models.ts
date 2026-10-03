@@ -3217,6 +3217,8 @@ export type ReportRun = Refine<
         signingKeyId: string | null;
         packageSha256: string | null;
         productVersion: string | null;
+    }
+>;
 
 /** Where a forge discovery stands (decision 0037 §3) — the document's own enum. */
 export type ForgeDiscoveryState = NonNullable<Schema<'ForgeDiscoveryView'>['state']>;
