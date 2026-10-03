@@ -536,6 +536,65 @@ Lots D2 — the paged call — and D3 — the discovery job, its snapshot and Gi
 - Not built here: a discovery scoped to a group (the screen's answer to an estate past the bound), GitHub's
   listing (D4), the per-namespace 403 that comes with them.
 
+## Built in D5 and D6
+
+Lots D5 — the selection and its preview — and D6 — the import — landed on 2026-10-03 as §4 and §5 describe, GitLab's
+mapping exercised first and GitHub's written beside it for D4, with these choices the text above did not make:
+
+- **Which discovery is read.** The connection's latest that ended **completed or partial**: a partial run stopped at
+  a bound, and what it listed it listed whole — nothing is inferred from what it did not reach. A pending, running or
+  failed run answers 409 `forge-discovery-not-selectable`; an older run, `forge-discovery-superseded` with
+  `latestDiscoveryId`, the snapshot being one per connection and rewritten by each run. A run still going does not
+  supersede the last ended one. What it listed is the rows first seen by it or before, last seen by it or after,
+  and not gone.
+- **The selection is held by the screen**, a set of forge ids sent with each gesture; the server filters and pages
+  the table (up to twenty thousand rows) and applies `proposed`, `all`, `none`, `invert` to what the filters match,
+  `add` and `remove` by id, dropping and naming an id that cannot be ticked. Nothing about a selection is stored.
+- **Unknown in a filter.** A filter that hides (archived, forks, inactive) keeps a repository it cannot judge; one
+  that requires (only archived, a language, a visibility) leaves it out; either way `unjudged` counts it, against
+  that filter alone. GitLab names a fork's source only when the token can read it, so hiding the unknown would hide
+  most of a GitLab. `personal` and `present` are filters too. The path pattern is a glob matched by hand — a regular
+  expression of many `.*` backtracks exponentially on a long path.
+- **The mapping's rules**: per namespace, covering everything below it, or per forge id; the most specific word on
+  each field wins. A placement that names a project without a solution, or a solution without a project, and a name
+  past the column's hundred characters, are listed against the repository by the preview and refuse the import —
+  never cut, never guessed.
+- **Presence** reads the stored `url_identity` (V73) in batches of a thousand, and computes the identity from the
+  URL for rows the keying has not reached; the HTTPS and SSH URLs are both asked. The skip reasons are
+  `already_imported`, `already_present`, `no_default_branch` (GitLab's empty repository), `no_clone_url` and
+  `duplicate_in_selection`.
+- **Credentials per host**: the host of the HTTPS clone URL, the one a token is bound to. The request's choices are
+  checked whole before anything — a key that exists, a token bound to that host (400 otherwise); a host it leaves out
+  takes the proposal, in the preview and the import alike, so that what was previewed is what is imported.
+- **The schedule's first round.** A target never picked up is due at once under the default schedule, so a thousand
+  imported targets would all have been scanned at the next tick — "off by default" would have been a lie. An imported
+  target is stamped with the import's instant as its last scheduled round, as V70 stamped the estate at the upgrade:
+  its first default round is its own slot in the coming interval.
+- **Filed at its creation.** The project is set in the creation and said in its *Repository added* entry, rather than
+  filed afterwards: a filing is `PROJECT_REPOSITORIES_CHANGED`, signalled `VECTI-SEC-011` each time, and three
+  hundred of them is exactly what §5 refuses the SOC. The summary counts what was filed where; `VECTI-SEC-035` is the
+  one event.
+- **One transaction, the entries after it.** `targets` gained `TargetImports`: the forms' creations in package-private
+  forms that hand their entry to a batch, recorded once the batch's transaction commits — none if it rolled back. A
+  description holds 255 characters: the URL first, then where it came from. A repository the form would refuse
+  refuses the whole import (400, the first three named). `TargetScans` gained `queue(repository, notBefore)`.
+- **The race.** The import plans again inside its transaction. Two imports of one selection meet at the V73 guard;
+  the loser's write fails, and a failed write does not say why, so once it has rolled back the import is planned
+  again from what is committed: if that creates less, something got there first and the import runs again (three
+  attempts at most), skipping it; if it creates the same, the failure is thrown as it came. Forced on both engines by
+  a lock wait, not by luck.
+- **`FORGE_IMPORT_APPLIED` is written for every import**, a replay included, and **`VECTI-SEC-035` only when it
+  created something**: a replay that created nothing is no event.
+- **Who will see the targets**: administrators and the roles that see the whole estate, plus the accounts and teams
+  granted a reused project, counted (`TargetGrants.granteesOfProjects`); every signed-in account when visibility is
+  not restricted.
+- **Provenance**: `t_forge_import_link`, unique by connection and forge id and by target, with the discovery and who
+  imported; no orphan sweep, the link being written in its target's transaction. A connection carries
+  `importedTargets`.
+- **V78**, in common. `forges` now lists `targets`.
+- Not built here: the screen (D7), GitHub's listing (D4) — its mapping is written and unit-tested, its snapshot
+  does not exist yet — and a discovery scoped to a group.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

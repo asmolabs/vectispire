@@ -53,7 +53,7 @@ layered packages are gone:
 | `plugins` | domain | `access`, `issues`, `scanning`, `targets` — implements `scanning`'s `ScanPlugins` port; the agents' manifest route reaches it through that port |
 | `checklists` | domain | `access` — the routes' markers, the signed-in account four-eyes compares, the caller's allowance and the whole-project guard; `targets` — a project's repositories, their schedules, and `ProjectDeleted`; `scanning`, `scanning::queries` — the newest scan in which a step produced, the scans within an age, each plugin's state per scan; `issues` — a scope's backlog, settled triage out; `plugins` — the imports a measurement rests on; `inventory` — an SBOM's components (§6) |
 | `reportplugins` | domain | `access`, `access::security`, `targets`, `scanning`, `scanning::queries`, `gate`, `issues`, `issues::queries`, `inventory`, `compliance`, `checklists` — a project's export reads each part from its owner (decision 0035) |
-| `forges` | domain | `access::security` — its routes' markers alone; the import (decision 0037, lot D6) will add `targets`, one way |
+| `forges` | domain | `targets` — the import creates targets, solutions and projects through its gestures (`TargetImports`), queues first scans through `TargetScans` and hears `TargetDeleted` (decision 0037, lot D6), one way; `access::security` — its routes' markers |
 | `platform` | the shell | any; used by none |
 | `config` | infrastructure | — |
 

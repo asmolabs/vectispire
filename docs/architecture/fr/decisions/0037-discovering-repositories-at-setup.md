@@ -583,6 +583,72 @@ Les lots D2 — l'appel paginé — et D3 — la tâche de découverte, son inst
 - Non construit ici : une découverte limitée à un groupe (la réponse de l'écran à un parc au-delà de la
   borne), le listage de GitHub (D4), et le 403 par espace de noms qui vient avec eux.
 
+## Construit en D5 et D6
+
+Les lots D5 — la sélection et son aperçu — et D6 — l'import — sont arrivés le 2026-10-03 comme les §4 et §5 les
+décrivent, la correspondance de GitLab exercée d'abord et celle de GitHub écrite à côté pour D4, avec ces choix que le
+texte ci-dessus ne faisait pas :
+
+- **Quelle découverte est lue.** La dernière de la connexion terminée **`completed` ou `partial`** : une exécution
+  partielle s'est arrêtée à une borne, et ce qu'elle a listé, elle l'a listé entier — rien n'est déduit de ce qu'elle
+  n'a pas atteint. Une exécution en attente, en cours ou en échec répond 409 `forge-discovery-not-selectable` ; une
+  plus ancienne, `forge-discovery-superseded` avec `latestDiscoveryId`, l'instantané étant unique par connexion et
+  réécrit par chaque exécution. Une exécution encore en cours ne remplace pas la dernière terminée. Ce qu'elle a
+  listé : les lignes vues pour la première fois par elle ou avant, vues en dernier par elle ou après, et pas
+  disparues.
+- **La sélection est tenue par l'écran**, un ensemble d'identifiants de forge envoyé avec chaque geste ; le serveur
+  filtre et pagine le tableau (jusqu'à vingt mille lignes) et applique `proposed`, `all`, `none`, `invert` à ce que
+  les filtres retiennent, `add` et `remove` par identifiant, en retirant et en nommant un identifiant qui ne peut être
+  coché. Rien d'une sélection n'est stocké.
+- **L'inconnu dans un filtre.** Un filtre qui masque (archivés, forks, inactifs) garde un dépôt qu'il ne peut juger ;
+  un filtre qui exige (seulement les archivés, un langage, une visibilité) l'écarte ; dans les deux cas `unjudged`
+  le compte, contre ce seul filtre. GitLab ne nomme la source d'un fork que si le jeton peut la lire : masquer
+  l'inconnu masquerait l'essentiel d'un GitLab. `personal` et `present` sont aussi des filtres. Le motif de chemin est
+  un glob évalué à la main — une expression régulière de nombreux `.*` revient en arrière exponentiellement sur un
+  long chemin.
+- **Les règles de correspondance** : par espace de noms, couvrant tout ce qui est en dessous, ou par identifiant de
+  forge ; la parole la plus précise l'emporte sur chaque champ. Un rangement qui nomme un projet sans solution, ou une
+  solution sans projet, et un nom au-delà des cent caractères de la colonne sont listés contre le dépôt par l'aperçu
+  et font refuser l'import — jamais coupés, jamais devinés.
+- **La présence** lit `url_identity` stocké (V73) par lots de mille, et calcule l'identité depuis l'URL pour les
+  lignes que l'indexation n'a pas encore atteintes ; les URL HTTPS et SSH sont toutes deux demandées. Les raisons
+  d'écart sont `already_imported`, `already_present`, `no_default_branch` (le dépôt vide de GitLab), `no_clone_url`
+  et `duplicate_in_selection`.
+- **Les identifiants par hôte** : l'hôte de l'URL de clonage HTTPS, celui auquel un jeton est lié. Les choix de la
+  requête sont vérifiés en entier avant tout — une clé qui existe, un jeton lié à cet hôte (400 sinon) ; un hôte
+  qu'elle omet prend la proposition, dans l'aperçu comme dans l'import, pour que ce qui a été prévisualisé soit ce
+  qui est importé.
+- **Le premier passage de la planification.** Une cible jamais prise est due aussitôt sous la planification par
+  défaut : mille cibles importées auraient toutes été scannées au tic suivant — « désactivé par défaut » aurait été
+  un mensonge. Une cible importée est estampillée de l'instant de l'import comme dernier passage planifié, comme V70
+  a estampillé le parc à la mise à jour : son premier passage par défaut est son propre créneau dans l'intervalle qui
+  vient.
+- **Rangée à sa création.** Le projet est fixé dans la création et dit dans son entrée *Repository added*, plutôt que
+  rangé après : un rangement est `PROJECT_REPOSITORIES_CHANGED`, signalé `VECTI-SEC-011` à chaque fois, et trois
+  cents d'entre eux sont exactement ce que le §5 épargne au SOC. Le résumé compte ce qui a été rangé où ;
+  `VECTI-SEC-035` est l'unique événement.
+- **Une transaction, les entrées après.** `targets` a gagné `TargetImports` : les créations des formulaires sous des
+  formes de paquet qui remettent leur entrée à un lot, enregistrées une fois la transaction du lot validée — aucune
+  si elle a été annulée. Une description tient en 255 caractères : l'URL d'abord, puis la provenance. Un dépôt que le
+  formulaire refuserait fait refuser tout l'import (400, les trois premiers nommés). `TargetScans` a gagné
+  `queue(repository, notBefore)`.
+- **La course.** L'import replanifie dans sa transaction. Deux imports d'une même sélection se rencontrent sur la
+  garde de V73 ; l'écriture du perdant échoue, et une écriture échouée ne dit pas pourquoi : une fois annulé, l'import
+  est replanifié depuis ce qui est validé. S'il crée moins, quelque chose est arrivé avant et l'import recommence
+  (trois tentatives au plus) en l'écartant ; s'il crée la même chose, l'échec est relancé tel quel. Forcée sur les
+  deux moteurs par une attente de verrou, pas par chance.
+- **`FORGE_IMPORT_APPLIED` est écrit pour chaque import**, un rejeu compris, et **`VECTI-SEC-035` seulement quand il
+  a créé quelque chose** : un rejeu qui n'a rien créé n'est pas un événement.
+- **Qui verra les cibles** : les administrateurs et les rôles qui voient tout le parc, plus les comptes et équipes
+  ayant droit à un projet réutilisé, comptés (`TargetGrants.granteesOfProjects`) ; chaque compte connecté quand la
+  visibilité n'est pas restreinte.
+- **Provenance** : `t_forge_import_link`, unique par connexion et identifiant de forge et par cible, avec la
+  découverte et qui a importé ; pas de balayage des orphelins, le lien étant écrit dans la transaction de sa cible.
+  Une connexion porte `importedTargets`.
+- **V78**, dans common. `forges` liste désormais `targets`.
+- Non construit ici : l'écran (D7), le listage de GitHub (D4) — sa correspondance est écrite et testée unitairement,
+  son instantané n'existe pas encore — et une découverte limitée à un groupe.
+
 ## Mise en œuvre, par lots
 
 | Lot | Contenu | Taille |

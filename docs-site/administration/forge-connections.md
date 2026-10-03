@@ -103,7 +103,8 @@ through the new CA before keeping it.
 - **Rename, change the network statement or the CA** (`PATCH`). The address cannot change: another
   server is another connection.
 - **Delete** (`DELETE`): no target goes with it — an imported repository is a target like any other. Its
-  discoveries and its snapshot go with it.
+  discoveries, its snapshot and the provenance of the targets imported through it go with it; the targets
+  stay, and only stop saying where they came from.
 
 ## Discovering repositories
 
@@ -167,6 +168,92 @@ agent. A restart in the middle resumes the run from its first page; after three 
 **Administrators only**, like the connection: a discovery names repositories no grant covers yet. Each discovery queued is audited `FORGE_DISCOVERY_REQUESTED` in the requester's name; it is not
 signalled to the SIEM — the standing access is the connection, signalled `VECTI-SEC-034`.
 
+## Selecting and importing
+
+Once a discovery has ended **completed or partial**, its repositories can be selected and imported as ordinary
+targets. The selection reads **the connection's latest such discovery**: a pending, running or failed one
+answers 409 `forge-discovery-not-selectable`, and an older one 409 `forge-discovery-superseded` with
+`latestDiscoveryId` — the snapshot now describes the newer run. A partial run is selectable: what it listed it
+listed whole, and nothing is inferred from what it did not reach.
+
+**The table** — `GET …/discoveries/{discoveryId}/selection` — lists the repositories by full path, 100 a page
+(`limit` up to 500), each with:
+
+- `presentAs`: the targets that already file it. A repository **is already present** when the identity of its
+  HTTPS *or* its SSH clone URL — host and path, lower case, without scheme, user, port or `.git` — equals that of
+  an existing target's URL, **whatever that target's branch and sub-path**: the rule the repository form refuses
+  a duplicate by. `git@git.example.org:Acme/API.git` and `https://git.example.org/acme/api` are one repository,
+  and a monorepo split into three sub-path targets shows three ids.
+- `importedAs`: the target an earlier import from this connection made of it — recognised by GitLab's id, so a
+  repository renamed on the forge is still that target.
+- `selectable`, and `notSelectable` when it is not: `already_imported`, `already_present`, `no_default_branch`
+  (an empty repository: nothing to clone yet), `no_clone_url`.
+- `offered`: whether the selection proposes it ticked — selectable, not archived, not a fork, and **not in a
+  personal namespace**, which is offered unticked.
+- `proposedSolution` and `proposedProject`, below.
+
+**Filters**: `archived` and `forks` (`hide` by default, `show`, `only`), `inactiveDays` (hides a last activity
+older than that), `language`, `visibility`, `namespace` (that group and everything below it), `path` (a pattern —
+`acme/payments/*`, `*` any run of characters, `?` one — or, without either, a search), `personal` and `present`
+(`show` by default, `hide`, `only`). **A filter never judges what GitLab did not say**: one that hides keeps a
+repository it cannot judge, one that requires leaves it out, and `unjudged` counts them per filter — GitLab
+names a fork's source only when the token can read it, so most repositories have no fork flag at all, and
+hiding them would hide most of the estate.
+
+**The selection** is a set of GitLab ids that the screen holds; what is imported is what was ticked, never what a
+filter matches at import time. `POST …/discoveries/{discoveryId}/selection` applies one operation to what the
+filters match — `proposed`, `all`, `none`, `invert`, or `add` and `remove` with `forgeIds` — and answers the
+selection, dropping (and naming in `dropped`) any id that cannot be ticked.
+
+**Where each repository is filed — proposed, shown, editable.** GitLab: the top-level group is the solution, and
+the repository's parent group below it the project (`acme/backend/payments/api` → solution `acme`, project
+`backend/payments`); a repository directly under the top-level group goes to a project named after that group. A
+personal namespace: no project. A solution or project **of the same name** (case aside) is reused, never renamed
+or moved. A `mapping` rule changes the proposal for a namespace and everything below it, or for one repository by
+its `forgeId`: another `solution`, another `project`, or `noProject`. The most specific rule wins on each field,
+so renaming `acme`'s solution keeps every subgroup's project.
+
+**The preview** — `POST …/imports/preview`, nothing written — says what the import would do: the targets with
+their URL, default branch, credential, solution and project, and **who will see them** (`visibleTo`):
+administrators, plus the accounts and teams granted a reused project, counted; a new project has no grant yet, so
+its targets are *visible to administrators only* until somebody makes one — or, when visibility is not restricted
+on your installation, every signed-in account. It lists the repositories skipped and why, those the import would
+refuse with the form's own reason, the solutions and projects reused (`existingId`) or created, the credential per
+host, the default schedule and the first scans.
+
+**The import** — `POST …/imports`, the preview's body:
+
+- **At most 1,000 repositories, in one transaction**: everything is created or nothing. A larger selection is
+  several imports.
+- **Through the forms' own gestures**: the same refusals (a host off the allow-list, a token presented to another
+  host…) and the same audit entries as a repository, a solution or a project added by hand. A repository the form
+  would refuse refuses the import — 400 naming the first ones; the preview lists them all.
+- **Planned again inside its transaction.** Whatever became a target since the preview is skipped
+  (`already_present`, `already_imported`); **replaying an import creates nothing**. Two administrators importing
+  the same selection at once create each target once: the second import waits on the first one's key, then skips
+  what it created.
+- **The clone credential, per host** (`credentials`: `host`, then `sshKeyId` or `httpsTokenId`). An SSH key clones
+  over GitLab's SSH URL; an [HTTPS token](../guide/repositories.md) — bound to that host — over its HTTPS URL; none,
+  over the HTTPS URL, for public repositories. A host you do not name takes the proposal: **the one HTTPS token
+  bound to it when there is exactly one**, none otherwise. A private repository imported with no credential is
+  allowed and warned about — its scans will fail with *requires authentication*. **The connection's own token
+  never clones**: it can list the organisation, it is not sent to agents.
+- **Branch**: GitLab's default branch at the discovery. A later change of default branch shows as *changed* in the
+  next discovery; the target is not altered.
+- **Schedule**: none of its own, so the installation's default applies — and each new target takes it **at its own
+  slot in the coming week**, not all of them at the next tick.
+- **First scan**: off by default. With `firstScan`, each new target's first scan is queued and held back so that
+  they reach GitLab one at a time: the *k*-th waits *k* × `spacingSeconds` (60 by default, 10 to 600). Three hundred
+  repositories at the default are five hours of clones.
+- **No grant.** New targets are visible to administrators and to whoever holds a grant on the project they are
+  filed into. Granting stays on its own screen.
+
+The result lists what was created — each target's id, URL, solution, project and first scan — and what was
+skipped. The connection's `importedTargets` counts the targets imported through it that still exist.
+
+**Provenance.** Each imported target is linked to its connection and GitLab's id. Deleting the target deletes the
+link — the repository is offered again; deleting the connection deletes every link and no target.
+
 ## Encryption
 
 The token is encrypted under `ENCRYPTION_KEY` with the row as its context, so a ciphertext copied into
@@ -184,6 +271,8 @@ another row does not decrypt. It is never returned by any route, written in the 
 | Refused for anything else — a mistyped token, an old server | — | — |
 | A discovery queued — never a request refused because one is already running | `FORGE_DISCOVERY_REQUESTED` (the connection, the discovery's id, the requester) | — |
 | A discovery stopped by a next page on another origin, or an address the guard refuses | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, failure) |
+| An import: each target, solution and project created | `SETTING_UPDATED` (*Repository added: … — imported from connection …*), `SOLUTION_UPDATED`, `PROJECT_UPDATED` | — |
+| An import, once, summarised: counts, skipped, first scans, credentials per host | `FORGE_IMPORT_APPLIED` | `VECTI-SEC-035` (5) when it created something |
 
 The entries name the forge, the address, the owner, the kind of token, its scopes and whether it can
 write; never the token. See the [SIEM catalogue](../integrations/siem.md#event-catalogue).

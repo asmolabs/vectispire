@@ -194,6 +194,24 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Nouveautés
 
+- **Imports de forge : les dépôts d'une découverte sélectionnés, prévisualisés et importés comme des cibles
+  ordinaires** ([Sélectionner et importer](../administration/forge-connections.fr.md#selectionner-et-importer),
+  décision 0037, lots D5 et D6 — l'écran est le lot D7). `GET …/discoveries/{discoveryId}/selection` est le
+  tableau, filtré et paginé sur le serveur — archivés et forks masqués par défaut, inactivité, langage,
+  visibilité, espace de noms, un motif de chemin, personnels et présents — avec la **présence par identité**
+  de chaque dépôt (la règle de doublon du formulaire de dépôt : son URL de clonage HTTPS ou SSH contre celle
+  de chaque cible, quels que soient la branche et le sous-chemin) et la solution et le projet que propose
+  l'organisation de GitLab (groupe de premier niveau → solution, sous-groupe parent → projet) ; `POST` dessus
+  applique proposed / all / none / invert / add / remove. `POST …/imports/preview` dit ce qui serait créé,
+  réutilisé, écarté ou refusé, l'identifiant de clonage par hôte, les premiers scans et **qui verra les
+  nouvelles cibles** ; `POST …/imports` crée jusqu'à 1 000 cibles **en une transaction**, par les gestes et
+  les entrées d'audit mêmes des formulaires, replanifié dans celle-ci pour qu'**un rejeu ne crée rien**. La
+  branche par défaut de la forge ; aucune planification propre — le défaut s'applique, au créneau de chaque
+  cible plutôt qu'à toutes au tic suivant ; des premiers scans seulement sur demande, un toutes les 60
+  secondes par défaut (de 10 s à 10 min) ; aucun droit. Une entrée `FORGE_IMPORT_APPLIED` par import, signalée
+  **`VECTI-SEC-035`** une fois quand il a créé quelque chose. Administrateurs seulement. Le jeton de la
+  connexion ne clone jamais. Supprimer une cible importée supprime sa provenance ; supprimer la connexion
+  garde les cibles. Migration V78 (`t_forge_import_link`).
 - **Découvertes de forge : les dépôts d'un GitLab listés en arrière-plan, gardés comme un instantané et
   comparés d'une exécution à l'autre** ([Découvrir les dépôts](../administration/forge-connections.fr.md#decouvrir-les-depots),
   décision 0037, lots D2 et D3 — le choix et l'import des dépôts suivent, et le listage de GitHub avec le

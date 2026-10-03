@@ -53,7 +53,7 @@ décision 0037, le dernier — et les paquetages par couche ont disparu :
 | `plugins` | domaine | `access`, `issues`, `scanning`, `targets` — implémente le port `ScanPlugins` de `scanning` ; la route des manifestes des agents l'atteint par ce port |
 | `checklists` | domaine | `access` — les marqueurs des routes, le compte connecté que compare le double contrôle, l'autorisation de l'appelant et le garde du projet entier ; `targets` — les dépôts d'un projet, leurs planifications, et `ProjectDeleted` ; `scanning`, `scanning::queries` — l'analyse la plus récente où une étape a produit, les analyses dans un âge, l'état de chaque plugin par analyse ; `issues` — le passif d'un périmètre, triage réglé exclu ; `plugins` — les imports sur lesquels une mesure repose ; `inventory` — les composants d'un SBOM (§6) |
 | `reportplugins` | domaine | `access`, `access::security`, `targets`, `scanning`, `scanning::queries`, `gate`, `issues`, `issues::queries`, `inventory`, `compliance`, `checklists` — l'export d'un projet lit chaque partie chez son propriétaire (décision 0035) |
-| `forges` | domaine | `access::security` — les seuls marqueurs de ses routes ; l'import (décision 0037, lot D6) ajoutera `targets`, dans un seul sens |
+| `forges` | domaine | `targets` — l'import crée cibles, solutions et projets par ses gestes (`TargetImports`), met les premiers scans en file par `TargetScans` et entend `TargetDeleted` (décision 0037, lot D6), dans un seul sens ; `access::security` — les marqueurs de ses routes |
 | `platform` | la coque | tous ; utilisé par aucun |
 | `config` | infrastructure | — |
 

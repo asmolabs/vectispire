@@ -180,6 +180,23 @@ another branch, is another target and is accepted as before.
 
 ### New
 
+- **Forge imports: a discovery's repositories selected, previewed and imported as ordinary targets**
+  ([Selecting and importing](../administration/forge-connections.md#selecting-and-importing), decision 0037,
+  lots D5 and D6 — the screen is lot D7). `GET …/discoveries/{discoveryId}/selection` is the table, filtered
+  and paged on the server — archived and forks hidden by default, inactivity, language, visibility,
+  namespace, a path pattern, personal and present — with each repository's **presence by identity** (the
+  repository form's duplicate rule: its HTTPS or SSH clone URL against every target's, whatever the branch
+  and sub-path) and the solution and project GitLab's layout proposes (top-level group → solution, parent
+  subgroup → project); `POST` on it applies proposed / all / none / invert / add / remove. `POST
+  …/imports/preview` says what would be created, reused, skipped or refused, the clone credential per host,
+  the first scans and **who will see the new targets**; `POST …/imports` creates up to 1,000 targets **in one
+  transaction**, through the forms' own gestures and audit entries, planned again inside it so that **a
+  replay creates nothing**. The forge's default branch; no schedule of its own — the default applies, at
+  each target's own slot rather than all at the next tick; first scans only when asked, one every 60 seconds
+  by default (10 s to 10 min); no grant. One `FORGE_IMPORT_APPLIED` entry per import, signalled
+  **`VECTI-SEC-035`** once when it created something. Administrators only. The connection's own token never
+  clones. Deleting an imported target drops its provenance; deleting the connection keeps the targets.
+  Migration V78 (`t_forge_import_link`).
 - **Forge discoveries: a GitLab's repositories listed in the background, kept as a snapshot and compared
   run to run** ([Discovering repositories](../administration/forge-connections.md#discovering-repositories),
   decision 0037, lots D2 and D3 — choosing and importing repositories come next, and GitHub's listing with

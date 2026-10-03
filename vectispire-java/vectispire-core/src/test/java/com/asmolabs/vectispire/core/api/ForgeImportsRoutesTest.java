@@ -368,12 +368,21 @@ class ForgeImportsRoutesTest extends ApiTestBase {
         assertThat(forgeIds(candidates("?present=hide").at("/items"))).doesNotContain("11", "13");
         assertThat(forgeIds(candidates("?present=only").at("/items"))).containsExactly("11", "13");
 
+        // A forge whose SSH host is not its HTTPS host: matched through the forge's own two URLs (§4).
+        ForgeRepositoryEntity core = snapshot.findAll().stream().filter(row -> row.getForgeId().equals("18"))
+                .findFirst().orElseThrow();
+        core.setSshUrl("ssh://git@ssh.example.org:2222/globex/platform/core.git");
+        snapshot.saveAndFlush(core);
+        long overSsh = repository("git@ssh.example.org:globex/platform/core", null);
+        assertThat(byForgeId(candidates("").at("/items"), "18").at("/presentAs")).extracting(JsonNode::asLong)
+                .containsExactly(overSsh);
+
         JsonNode preview = preview(request(List.of("11", "12", "13")));
         assertThat(forgeIds(preview.at("/targets"))).containsExactly("12");
         JsonNode skipped = byForgeId(preview.at("/skipped"), "11");
         assertThat(skipped.at("/reason").asText()).isEqualTo("already_present");
         assertThat(skipped.at("/repositoryIds")).extracting(JsonNode::asLong).containsExactly(sshSpelled);
-        assertThat(repositories.count()).as("a preview writes nothing").isEqualTo(3);
+        assertThat(repositories.count()).as("a preview writes nothing").isEqualTo(4);
     }
 
     // ---- D6: the import.
