@@ -164,14 +164,16 @@ son `itemKey` avec sa `rule`, ou `null` pour la délier.
 | `findings_threshold` | pour chacun de ses `scopes` — `builtin:secret`, `builtin:sast`, `builtin:iac`, `builtin:vulnerability`, `builtin:quality`, `builtin:eol`, `builtin:license`, `plugin:<id>`, `import:<source>/<outil>` — l'analyse ou l'import le plus récent où ce périmètre a produit | chaque périmètre a produit dans l'âge maximal — pour `builtin:sast`, `builtin:quality` et un plugin, sur un arbre dont il a lu les langages ([ce que l'analyse a lu](../guide/security-checklists.md#lignes-mesurees)) — et le passif respecte les `thresholds` par sévérité : `maxOpen`, `minResolvedRatio` (résolus ÷ résolus et ouverts), le triage réglé exclu des deux côtés |
 | `coverage_threshold` | l'import de couverture le plus récent | il date de moins que l'âge maximal et son taux de `line` ou de `branch` (`metric`) atteint `minimumRatio` — `per_repository`, ou `project_weighted` (`aggregation`) — sur tout le rapport, ou sur les paquets que nomme son `scope` facultatif ([ci-dessous](#couverture-sur-un-perimetre-de-paquets)) |
 | `test_suite_passed` | l'import de rapport de tests le plus récent | une suite correspond à `suitePattern` (`*` et `?`), celles qui correspondent ont exécuté au moins `minimumTests` tests (les ignorés non comptés), aucun en échec ni en erreur |
-| `component_versions` | les composants du SBOM analysé le plus récent | chaque paquet déclaré (`purlPrefix`) est présent à l'une de ses `versions` listées — une liste explicite, sans ordre de versions |
+| `component_versions` | les composants du SBOM analysé le plus récent | chaque paquet déclaré (`purlPrefix`) est présent à l'une de ses `versions` listées — des versions exactes, et des plages Maven pour un paquet `pkg:maven/` ([ci-dessous](#composants-presence-versions-et-plages)) |
+| `component_present` | les mêmes composants | chaque paquet déclaré (`purlPrefix`) est présent, quelle que soit sa version — y compris une version que le SBOM n'indique pas |
 
 **Rien n'est supposé.** Chaque type exige `maxAgeDays` (1 à 366 — sept est un bon début), une règle
 de dépendances indique `requireSchedule`, une règle de constats indique au moins un seuil — *aucun
 secret en clair* est `builtin:secret` avec chaque compte à zéro — et un paramètre d'un autre type est
 refusé plutôt qu'ignoré. La colonne KPI reste les mots du modèle : un seuil est un paramètre écrit
 par quelqu'un, jamais un nombre lu dans une phrase. Aucune liste de paquets n'est livrée avec le
-produit ; `component_versions` existe pour l'organisation qui la lie avec les siens.
+produit ; `component_versions` et `component_present` existent pour l'organisation qui les lie avec les
+siens.
 
 Un `purlPrefix` est une URL de paquet sans sa version ; il désigne un composant dont l'URL de paquet
 est exactement lui, ou le prolonge par `/`, `@`, `?` ou `#` — `pkg:npm/left` ne désigne pas
@@ -180,6 +182,62 @@ est exactement lui, ou le prolonge par `/`, `@`, `?` ou `#` — `pkg:npm/left` n
 et est refusé à la liaison. Une ligne liée avec le `/` final avant ce refus garde son texte — son
 empreinte le lit — et sa mesure indique qu'il ne désigne aucun paquet ; dérivez un brouillon pour la
 lier à nouveau.
+
+### Composants : présence, versions et plages
+
+Les deux types de composants lisent le même inventaire : les composants de l'analyse la plus récente de
+chaque dépôt dont l'étape des dépendances a produit dans `maxAgeDays`. Une ligne qui demande si une
+bibliothèque **est utilisée** et une ligne qui demande **quelles versions** sont autorisées répondent
+depuis le même SBOM.
+
+**« La bibliothèque X est utilisée »**, c'est `component_present`. La ligne est satisfaite quand un
+composant correspond au préfixe, quelle que soit sa version — y compris une version que le SBOM
+n'indique pas, ce que Syft écrit (`UNKNOWN`) pour une dépendance Maven dont un POM parent ou un BOM gère
+la version. Elle échoue quand l'inventaire ne liste aucun tel composant, et n'a pas de données quand le
+dépôt n'a aucune analyse dans l'âge, ou quand sa dernière analyse ne conserve plus son SBOM et que son
+inventaire ne liste rien (`inventory_absent`) : une absence que personne n'aurait pu voir n'est pas
+« non utilisée ».
+
+```json
+{ "kind": "component_present", "maxAgeDays": 7,
+  "components": [{ "purlPrefix": "pkg:maven/org.example.platform/platform-application" }] }
+```
+
+**« Les versions de la famille Y utilisées »**, c'est un préfixe d'espace de noms —
+`pkg:maven/org.example.platform` — sur l'un ou l'autre type. La preuve liste, par dépôt, chaque paquet
+sous le préfixe avec les versions qu'indiquent ses occurrences (vingt paquets au plus, les autres
+comptés) : le relecteur lit ce qui est déployé et planifie les mises à jour à côté de la ligne.
+
+**Les versions autorisées**, c'est `component_versions`, ses `versions` exactes ou, pour un paquet
+`pkg:maven/`, des plages Maven — écrites comme Maven les écrit et lues dans l'ordre de Maven :
+
+| Entrée | Autorise |
+|---|---|
+| `1.17.7` | exactement `1.17.7`, tel que le SBOM l'écrit |
+| `[1.17.7]` | `1.17.7` dans l'ordre de Maven — `1.17.7.0` aussi |
+| `[1.17,2.0)` | de `1.17` inclus à `2.0` exclu |
+| `(,2.0)` | tout ce qui est sous `2.0` |
+| `[1.0,1.2],[1.5,)` | une union : de `1.0` à `1.2`, ou `1.5` et au-delà |
+
+```json
+{ "kind": "component_versions", "maxAgeDays": 7,
+  "components": [{ "purlPrefix": "pkg:maven/org.example.platform", "versions": ["[1.17,2.0)", "1.16.4"] }] }
+```
+
+L'ordre de Maven n'est pas celui d'une chaîne : `1.9` est sous `1.17` ; `1.17-SNAPSHOT`, `1.17-RC1` et
+`1.17-alpha` sont sous `1.17`, si bien que `[1.17,2.0)` les refuse et admet `2.0-SNAPSHOT` ;
+`5.3.0.RELEASE`, `5.3.0.Final` et `5.3.0` sont une même version ; un service pack, `1.17-sp1`, suit sa
+version. Une plage illisible est refusée à la liaison, en mots — une borne basse au-dessus de la borne
+haute, une version seule entre parenthèses, des plages qui se chevauchent, une plage qui n'admet aucune
+version ou les admet toutes (liez `component_present` pour cela). Une plage sur un autre type
+(`pkg:npm/…`) est refusée : chaque écosystème ordonne ses versions à sa manière, et seul l'ordre de
+Maven est implémenté. Une règle liée avant l'existence des plages garde son texte et son empreinte, et
+ses versions exactes leur sens.
+
+**Une version que le SBOM n'indique pas** n'est pas jugée par `component_versions` : un paquet dont
+aucune occurrence n'en indique est `version_unrecorded`, et sa preuve dit que la version est gérée hors
+du SBOM — un POM parent ou un BOM — et qu'un SBOM produit par le build, qui l'indique, résout la ligne.
+Quand la ligne demande seulement si la bibliothèque est utilisée, liez `component_present`.
 
 ### Couverture sur un périmètre de paquets
 

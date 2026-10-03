@@ -126,6 +126,13 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 #### Autres changements
 
+- **Une règle de checklist a un sixième type, `component_present`, et une mesure une nouvelle raison,
+  `inventory_absent`.** `kind` sur la route des règles et dans `boundRule`, `ruleKind` sur une mesure,
+  peuvent valoir `component_present` ; ses `components` portent un `purlPrefix` et aucune `versions`. Une
+  entrée de `component_versions` peut être une plage Maven (`[1.17,2.0)`). Un client qui aiguille sur
+  `kind` ou `reason` doit traiter les nouveaux jetons ; un client qui les ignore lit toujours une règle et
+  une absence de données. Chaque règle liée auparavant garde sa forme canonique et son empreinte de
+  contenu ([Composants](../administration/checklist-templates.md#composants-presence-versions-et-plages)).
 - **Un import de couverture répond `packagesState`**, et une mesure de checklist a trois raisons de
   plus. `POST` et `GET /api/v1/repositories/{id}/coverage-imports` portent `packagesState` — `kept`,
   `too_many`, `path_refused`, `inconsistent`, ou `null` pour un import accepté avant cette version — et la
@@ -194,6 +201,22 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Nouveautés
 
+- **Une ligne de checklist répond à « la bibliothèque X est utilisée » et à « les versions de la famille Y
+  utilisées », et à une plage de versions**
+  ([Composants](../administration/checklist-templates.md#composants-presence-versions-et-plages)). Une
+  règle `component_present` est satisfaite quand un paquet correspondant à son préfixe figure dans le
+  SBOM analysé le plus récent, **quelle que soit sa version — y compris une version gérée par un BOM
+  Maven, que Syft écrit `UNKNOWN`** : une ligne sans réponse automatique sur un projet conforme qui
+  utilise un BOM en a désormais une. Elle échoue quand le paquet est absent, et n'a pas de données sans
+  analyse récente, ou quand la dernière analyse ne conserve plus son SBOM et que son inventaire ne liste
+  rien. Un préfixe d'espace de noms (`pkg:maven/org.example.platform`) liste, par dépôt, chacun de ses
+  paquets avec ses versions, vingt au plus et les autres comptés — sur `component_versions` aussi. Une
+  ligne `component_versions` accepte désormais des **plages de versions Maven** à côté des versions
+  exactes pour un paquet `pkg:maven/` — `[1.17,2.0)`, `[1.17.7]`, `(,2.0)`, des unions — dans l'ordre
+  de Maven : `1.17-SNAPSHOT` et `1.17-RC1` avant `1.17`, `5.3.0.RELEASE` égale à `5.3.0` ; une plage
+  illisible est refusée en mots à la liaison. Quand une version reste non indiquée, la preuve dit qu'elle
+  est gérée hors du SBOM et qu'un SBOM produit par le build la résout. L'éditeur de règles du modèle
+  propose les deux, en français et en anglais.
 - **Découvertes de forge : les dépôts d'un GitHub aussi** — github.com, Enterprise Cloud avec résidence des
   données (`<sous-domaine>.ghe.com`) et Enterprise Server 3.12 ou ultérieur sous `/api/v3`
   ([ce qui est listé](../administration/forge-connections.fr.md#decouvrir-les-depots), décision 0037, lot D4).

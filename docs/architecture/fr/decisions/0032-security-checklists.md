@@ -606,7 +606,11 @@ Chacune avec la recommandation de cette proposition.
     garder les révisions validées orphelines — une preuve que personne ne peut voir par aucun droit.*
 11. **Les versions de composants.** *Recommandé : une liste explicite de versions autorisées par
     préfixe purl en v1. L'ordre des versions par écosystème (« au moins 3.2 ») est une étape
-    ultérieure ; un ordre mal fait valide une ligne.*
+    ultérieure ; un ordre mal fait valide une ligne.* Pris pour Maven seul (2026-10) : les versions
+    autorisées d'un paquet `pkg:maven/` peuvent être des plages Maven, lues dans l'ordre de
+    `ComparableVersion` 3.9 — écrit dans le domaine, comparé à `maven-artifact` — et une plage sur un autre
+    type est refusée. « Utilisée, quelle que soit la version » est un type à part, `component_present`,
+    pour qu'une liste vide ne se lise jamais comme « toute version ».
 12. **Où va la preuve dans le classeur.** *Recommandé : la feuille `Evidence` ajoutée, les feuilles du
     modèle ne portant que les colonnes de l'organisation. Alternative : ajoutée à la cellule de
     commentaire.*

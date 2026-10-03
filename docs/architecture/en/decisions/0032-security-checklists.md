@@ -560,7 +560,10 @@ Each with the recommendation this proposal makes.
     revisions as orphans — evidence nobody can see through any grant.*
 11. **Component versions.** *Recommended: an explicit list of allowed versions per purl prefix in v1.
     Version ordering per ecosystem ("at least 3.2") is a later step; an ordering done wrong passes a
-    line.*
+    line.* Taken for Maven alone (2026-10): a `pkg:maven/` package's allowed versions may be Maven ranges,
+    read in `ComparableVersion` 3.9's order — written in the domain, compared with `maven-artifact` — and
+    a range on another type is refused. "Is used, whatever the version" is a kind of its own,
+    `component_present`, so that an empty list never reads as "any version".
 12. **Where evidence goes in the workbook.** *Recommended: the added `Evidence` sheet, the template's
     own sheets holding only the organisation's columns. Alternative: appended to the comment cell.*
 13. **Uploaded files in v1, or links only.** *Recommended: both, bounded, served as downloads only.*

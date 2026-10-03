@@ -117,6 +117,12 @@ another branch, is another target and is accepted as before.
 
 #### Other changes
 
+- **A checklist rule has a sixth kind, `component_present`, and a measurement a new reason,
+  `inventory_absent`.** `kind` on the rules route and in `boundRule`, `ruleKind` on a measurement, may read
+  `component_present`; its `components` carry a `purlPrefix` and no `versions`. A `component_versions`
+  entry may be a Maven range (`[1.17,2.0)`). A client that switches over `kind` or `reason` should handle
+  the new tokens; one that does not still reads a rule and no data. Every rule bound before keeps its
+  canonical form and its content digest ([Components](../administration/checklist-templates.md#components-presence-versions-and-ranges)).
 - **A coverage import answers `packagesState`**, and a checklist measurement has three more reasons.
   `POST` and `GET /api/v1/repositories/{id}/coverage-imports` carry `packagesState` — `kept`, `too_many`,
   `path_refused`, `inconsistent`, or `null` for an import accepted before this version — and a rule's
@@ -180,6 +186,20 @@ another branch, is another target and is accepted as before.
 
 ### New
 
+- **A checklist line answers "library X is used" and "the versions of family Y in use", and a range of
+  versions** ([Components](../administration/checklist-templates.md#components-presence-versions-and-ranges)).
+  A `component_present` rule passes when a package matching its prefix is in the newest analysed SBOM,
+  **whatever its version — one a Maven BOM manages, which Syft writes `UNKNOWN`, included**: a line that had
+  no automatic answer on a compliant project using a BOM now has one. It fails when the package is absent,
+  and has no data without a fresh analysis, or where the newest analysis no longer holds its SBOM and its
+  inventory lists nothing. A namespace prefix (`pkg:maven/org.example.platform`) lists, per repository,
+  each of its packages with its versions, twenty at most and the rest counted — on `component_versions`
+  too. A `component_versions` line now takes **Maven version ranges** beside exact versions on a
+  `pkg:maven/` package — `[1.17,2.0)`, `[1.17.7]`, `(,2.0)`, unions — in Maven's own order: `1.17-SNAPSHOT`
+  and `1.17-RC1` before `1.17`, `5.3.0.RELEASE` equal to `5.3.0`; a range that does not read is refused in
+  words when bound. Where a version stays unstated, the evidence says it is managed outside the SBOM and
+  that an SBOM produced by the build resolves it. The template's rule editor offers both, in French and
+  English.
 - **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
   (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
   ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).

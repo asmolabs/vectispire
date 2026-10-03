@@ -154,14 +154,16 @@ shows each line's rule in words and nothing to change. A script does the same wi
 | `findings_threshold` | for each of its `scopes` — `builtin:secret`, `builtin:sast`, `builtin:iac`, `builtin:vulnerability`, `builtin:quality`, `builtin:eol`, `builtin:license`, `plugin:<id>`, `import:<source>/<tool>` — the newest scan or import in which that scope produced | every scope produced within the maximum age — for `builtin:sast`, `builtin:quality` and a plugin, on a tree whose languages it read ([what the analysis read](../guide/security-checklists.md#measured-lines)) — and the backlog meets the `thresholds` per severity: `maxOpen`, `minResolvedRatio` (resolved ÷ resolved and open), settled triage left out of both |
 | `coverage_threshold` | the newest coverage import | it is within the maximum age and its `line` or `branch` ratio (`metric`) is at least `minimumRatio` — `per_repository`, or `project_weighted` (`aggregation`) — over the whole report, or over the packages its optional `scope` names ([below](#coverage-over-a-scope-of-packages)) |
 | `test_suite_passed` | the newest test-report import | a suite matches `suitePattern` (`*` and `?`), those that match ran at least `minimumTests` (skipped ones not counted), none failed or errored |
-| `component_versions` | the components of the newest analysed SBOM | every declared package (`purlPrefix`) is present at one of its listed `versions` — an explicit list, no version ordering |
+| `component_versions` | the components of the newest analysed SBOM | every declared package (`purlPrefix`) is present at one of its listed `versions` — exact versions, and Maven ranges on a `pkg:maven/` package ([below](#components-presence-versions-and-ranges)) |
+| `component_present` | the same components | every declared package (`purlPrefix`) is present, whatever its version — one the SBOM does not state included |
 
 **Nothing is assumed.** Every kind requires `maxAgeDays` (1 to 366 — seven is a sensible start), a
 dependency rule states `requireSchedule`, a findings rule states at least one threshold — *no
 plaintext secret* is `builtin:secret` with every count at zero — and a parameter another kind takes
 is refused rather than ignored. The KPI column stays the template's words: a threshold is a
 parameter somebody wrote, never a number read out of a sentence. No package list ships with the
-product; `component_versions` exists for the organisation that binds it with its own.
+product; `component_versions` and `component_present` exist for the organisation that binds them with its
+own.
 
 A `purlPrefix` is a package URL without its version, and it matches a component whose package URL is
 exactly it or continues it with `/`, `@`, `?` or `#` — `pkg:npm/left` does not match
@@ -169,6 +171,59 @@ exactly it or continues it with `/`, `@`, `?` or `#` — `pkg:npm/left` does not
 `pkg:maven/com.example.tools`, not `pkg:maven/com.example.tools/`, which named no package and is
 refused when bound. A line bound with the trailing `/` before that refusal keeps its text — its
 digest reads it — and its measurement says it names no package; derive a draft to bind it again.
+
+### Components: presence, versions and ranges
+
+Both component kinds read the same inventory: the components of each repository's newest scan whose
+dependency step produced within `maxAgeDays`. A line asking whether a library **is used** and a line
+asking **which versions** are allowed answer from the same SBOM.
+
+**"Library X is used"** is `component_present`. It passes when a component matches the prefix, whatever
+its version — including a version the SBOM does not state, which is what Syft writes (`UNKNOWN`) for a
+Maven dependency whose version a parent POM or a BOM manages. It fails when the inventory lists no
+such component, and has no data when the repository has no analysis within the age, or when its
+newest analysis no longer holds its SBOM and its inventory lists nothing (`inventory_absent`): an
+absence nobody could have seen is not "not used".
+
+```json
+{ "kind": "component_present", "maxAgeDays": 7,
+  "components": [{ "purlPrefix": "pkg:maven/org.example.platform/platform-application" }] }
+```
+
+**"The versions of family Y in use"** is a namespace prefix — `pkg:maven/org.example.platform` — on
+either kind. The evidence lists, per repository, each package under the prefix with the versions its
+occurrences state (twenty packages at most, the rest counted), so the reviewer reads what is deployed
+and plans the updates beside the line.
+
+**Allowed versions** are `component_versions`, its `versions` exact or, on a `pkg:maven/` package, Maven
+ranges — written as Maven writes them and read in Maven's order:
+
+| Entry | Allows |
+|---|---|
+| `1.17.7` | exactly `1.17.7`, as the SBOM writes it |
+| `[1.17.7]` | `1.17.7` in Maven's order — `1.17.7.0` too |
+| `[1.17,2.0)` | from `1.17` included to `2.0` excluded |
+| `(,2.0)` | anything below `2.0` |
+| `[1.0,1.2],[1.5,)` | a union: `1.0` to `1.2`, or `1.5` and above |
+
+```json
+{ "kind": "component_versions", "maxAgeDays": 7,
+  "components": [{ "purlPrefix": "pkg:maven/org.example.platform", "versions": ["[1.17,2.0)", "1.16.4"] }] }
+```
+
+Maven's order is not a string's: `1.9` is below `1.17`; `1.17-SNAPSHOT`, `1.17-RC1` and `1.17-alpha` are
+below `1.17`, so `[1.17,2.0)` refuses them and admits `2.0-SNAPSHOT`; `5.3.0.RELEASE`, `5.3.0.Final` and
+`5.3.0` are one version; a service pack, `1.17-sp1`, follows its release. A range that does not read is
+refused when bound, in words — a lower bound above the upper one, a lone version in parentheses,
+ranges that overlap, a range admitting no version or every one (bind `component_present` for that). A
+range on another type (`pkg:npm/…`) is refused: each ecosystem orders its versions its own way, and
+only Maven's is implemented. A rule bound before ranges existed keeps its text and its digest, and
+its exact versions their meaning.
+
+**A version the SBOM does not state** is not judged by `component_versions`: a package none of whose
+occurrences states one is `version_unrecorded`, and its evidence says the version is managed outside
+the SBOM — a parent POM or a BOM — and that an SBOM produced by the build, which states it, resolves the
+line. Where the line only asks whether the library is used, bind `component_present`.
 
 ### Coverage over a scope of packages
 
