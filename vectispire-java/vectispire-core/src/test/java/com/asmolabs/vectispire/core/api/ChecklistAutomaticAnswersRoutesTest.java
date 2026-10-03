@@ -328,7 +328,7 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
         @Test
         @DisplayName("a no resting on a package's version is withdrawn once the SBOM no longer states that version")
         void anUnstatedVersionWithdrawsTheNo() throws Exception {
-            // cpt-boncommande: the version inherited from a parent BOM Syft does not resolve, written UNKNOWN.
+            // A real project's module: the version inherited from a parent BOM Syft does not resolve, written UNKNOWN.
             // Read as a version, the line failed and Vectispire answered "no" for a module that is present.
             publish("release", List.of(SECRETS, COMPONENTS), false);
             open(developer, "release", null);

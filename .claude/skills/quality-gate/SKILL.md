@@ -149,3 +149,11 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   the fixed commit instead.
 - The nightly (`nightly.yml`, from `main`) is the only place every suite runs unconditionally. Do not
   cut a release on a nightly that has not been green.
+- **A green check is only worth what it read.** The `secrets` job scanned 0 commits for six weeks:
+  in its container git refused the checkout ("dubious ownership"), gitleaks logged it, said
+  `no leaks found` and exited 0. When you add or change a CI job that runs a scanner in a
+  container, read its log once for the count of what it examined, and make the job refuse a run
+  that examined nothing.
+- **Public repository: no customer or employer names.** Fixtures, comments and examples use
+  neutral names (`org.example`, invented project names); a customer-specific plugin or template
+  lives in a private repository and registry, never here.

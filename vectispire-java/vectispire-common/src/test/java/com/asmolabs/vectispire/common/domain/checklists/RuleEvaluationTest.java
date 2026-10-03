@@ -329,18 +329,18 @@ class RuleEvaluationTest {
         @DisplayName("components: a package whose version the SBOM does not state is no data, never a failure")
         void aVersionTheSbomDoesNotStateIsNoData() {
             ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
-                    + "{\"purlPrefix\":\"pkg:maven/be.civadis.arm.tools/arm-spring-application\",\"versions\":[\"1.17.7\"]}]}");
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform/platform-application\",\"versions\":[\"1.17.7\"]}]}");
             Builder facts = facts(List.of(1L))
                     .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
-            // What Syft wrote for cpt-boncommande: the version inherited from a parent BOM it does not
+            // What Syft wrote for a module of a real project: the version inherited from a parent BOM it does not
             // resolve, "UNKNOWN", and a purl with no version. A null and a blank say the same.
             for (String unstated : java.util.Arrays.asList("UNKNOWN", null, " ")) {
                 Measurement measured = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(new Component(
-                        "arm-spring-application", unstated, "pkg:maven/be.civadis.arm.tools/arm-spring-application")))
+                        "platform-application", unstated, "pkg:maven/org.example.platform/platform-application")))
                         .build(), NOW);
                 assertThat(measured.outcome()).as("version %s", unstated).isEqualTo(MeasurementOutcome.NO_DATA);
                 assertThat(measured.reason()).contains(NoDataReason.VERSION_UNRECORDED);
-                assertThat(measured.summary()).contains("arm-spring-application is in its SBOM with no version stated");
+                assertThat(measured.summary()).contains("platform-application is in its SBOM with no version stated");
                 assertThat(measured.evidenceJson()).contains("version_unrecorded")
                         .doesNotContain("not an allowed version").doesNotContain("UNKNOWN");
             }

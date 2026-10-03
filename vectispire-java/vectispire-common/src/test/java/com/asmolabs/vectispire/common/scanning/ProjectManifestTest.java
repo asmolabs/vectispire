@@ -51,8 +51,8 @@ class ProjectManifestTest {
             write("pom.xml", """
                     <project>
                       <parent>
-                        <groupId>be.civadis</groupId>
-                        <artifactId>arm-parent</artifactId>
+                        <groupId>org.example</groupId>
+                        <artifactId>platform-parent</artifactId>
                         <version>1.8.0</version>
                       </parent>
                       <artifactId>basalt-libs-spring</artifactId>

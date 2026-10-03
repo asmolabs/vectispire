@@ -10,7 +10,7 @@ that are not flattering.
 
 ## Reporting a vulnerability
 
-**Email `laurent.boucher@civadis.be` with `[vectispire-security]` in the subject.**
+**Email `asmolabs@outlook.com` with `[vectispire-security]` in the subject.**
 
 Do not open a GitHub issue. The tracker is public to everyone with access to the project, and a
 report there is a disclosure before anyone has had a chance to fix it.
@@ -105,7 +105,7 @@ passe ensuite — y compris ce qui n'est pas flatteur.
 
 ## Signaler une vulnérabilité
 
-**Écrire à `laurent.boucher@civadis.be` avec `[vectispire-security]` en objet.**
+**Écrire à `asmolabs@outlook.com` avec `[vectispire-security]` en objet.**
 
 Pas de ticket GitHub : le suivi est visible de tous ceux qui ont accès au projet, et un rapport
 là-bas est une divulgation avant que quiconque ait pu corriger.
