@@ -1,0 +1,21 @@
+{{- if .Values.auditMirror.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vectispire.fullname" . }}-audit
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+  annotations:
+    # Audit entries: an uninstall must not take them with it.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - {{ .Values.auditMirror.accessMode }}
+  {{- with .Values.auditMirror.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.auditMirror.size }}
+{{- end }}

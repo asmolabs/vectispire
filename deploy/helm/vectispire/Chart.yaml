@@ -1,0 +1,15 @@
+apiVersion: v2
+name: vectispire
+description: >-
+  Vectispire's control plane on Kubernetes, without a container endpoint, against an external MySQL —
+  and, opt-in, scan agents in pods with a Docker-in-Docker sidecar (decision 0038).
+type: application
+# The chart's own version, moved when the chart changes. The application's is appVersion, and the
+# image is pinned by digest in values.yaml rather than inferred from it.
+version: 0.1.0
+appVersion: "0.10.0"
+kubeVersion: ">=1.27.0-0"
+home: https://github.com/asmolabs/vectispire
+sources:
+  - https://github.com/asmolabs/vectispire
+license: Apache-2.0

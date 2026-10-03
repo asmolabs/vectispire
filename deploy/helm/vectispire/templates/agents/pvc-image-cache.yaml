@@ -1,0 +1,19 @@
+{{- if and .Values.agents.enabled .Values.agents.dind.imageCache.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vectispire.fullname" . }}-agent-images
+  namespace: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.agents.dind.imageCache.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.agents.dind.imageCache.size }}
+{{- end }}

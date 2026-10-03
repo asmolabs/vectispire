@@ -1,0 +1,9 @@
+Vectispire {{ .Chart.AppVersion }} — control plane without a container endpoint (decision 0038).
+
+{{- if .Values.ingress.enabled }}
+Interface: http{{ if .Values.ingress.tls.secretName }}s{{ end }}://{{ .Values.ingress.host }}/
+{{- end }}
+
+Every scan runs on an agent. {{ if .Values.agents.enabled }}An agent pod with a {{ .Values.agents.dind.variant }} Docker-in-Docker sidecar runs in the namespace {{ include "vectispire.agentNamespace" . }}.{{ else }}None is deployed here: install one on a Docker host outside the cluster (installation guide, "Kubernetes").{{ end }}
+Report plugins answer 409 report-executor-unavailable on this installation, until an executor can reach a
+remote daemon.

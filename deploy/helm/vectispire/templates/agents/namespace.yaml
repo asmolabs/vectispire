@@ -1,0 +1,12 @@
+{{- if and .Values.agents.enabled .Values.agents.createNamespace (ne (include "vectispire.agentNamespace" .) .Release.Namespace) }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    # The daemon's container is privileged, which Pod Security Admission admits at this level only. This
+    # namespace holds the agents and nothing else, so the exception covers them alone.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: privileged
+{{- end }}

@@ -1,0 +1,276 @@
+# Vectispire on Kubernetes — decision 0038 (docs/architecture/en/decisions/0038-deploying-on-kubernetes.md).
+#
+# What this chart deploys: the control plane (a Deployment, the interface served by the same jar), its
+# Service, an Ingress, the audit mirror's volume, and — off by default — scan agents in pods with a
+# Docker-in-Docker sidecar. What it does not deploy: the database (an external MySQL), the Secrets (yours,
+# named below), and agents on a Docker host outside the cluster, which is the recommended place for them.
+#
+# **The control plane runs no container.** The built-in worker is off and cannot be switched on here: a
+# pod has no Docker daemon, and the report plugins that would need one answer 409 until an executor can
+# reach a remote daemon (decision 0038, option A). Every scan runs on an agent.
+
+image:
+  repository: ghcr.io/asmolabs/vectispire
+  tag: "0.10.0"
+  # **By digest.** A tag can be moved; what was reviewed and what runs are then two images. The chart
+  # refuses to render without one. `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<tag>`.
+  digest: "sha256:c10b45e5a06c31674feffffaf49940179c2e8db27780996ce2eb06870c9133b8"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# **One at go-live.** The code is written for several instances (decision 0038 §1), and none of its
+# mechanisms has been exercised by two running applications. Two need cookie affinity on the Ingress for
+# single sign-on (`ingress.stickySessions`) and a ReadWriteMany volume for the audit mirror, one file per
+# pod; the chart refuses two replicas with a ReadWriteOnce mirror.
+replicaCount: 1
+
+# The external database. Only MySQL is offered here, the engine the composition ships; PostgreSQL is
+# supported by the application and works with the same keys.
+database:
+  # **Required.** One host, no `mysql+srv`: the application must know the database's address to keep
+  # webhooks off it, and refuses to start otherwise. TLS through Connector/J's own properties, e.g.
+  #   jdbc:mysql://db.example.org:3306/vectispire?sslMode=VERIFY_IDENTITY&trustCertificateKeyStoreUrl=file:/etc/vectispire/mysql/truststore.p12&trustCertificateKeyStoreType=PKCS12
+  # The server: `max_allowed_packet` at least 160M, `default_time_zone` '+00:00' (decision 0038 §4).
+  url: ""
+  user: vectispire
+  password:
+    secretName: ""
+    key: password
+  # The MySQL server's CA as a PKCS12 truststore, mounted at mountPath for the URL above to name.
+  trustStore:
+    secretName: ""
+    key: truststore.p12
+    mountPath: /etc/vectispire/mysql
+
+# Each secret reaches the pod as a file under /run/secrets — the config tree the application imports —
+# never as an environment variable. Create the Secrets yourself (see the chart's README).
+secrets:
+  # **Required.** Decrypts every deployment key and token Vectispire holds. Lose it and they are lost.
+  encryptionKey:
+    secretName: ""
+    key: encryption-key
+  # Read only while no account exists: the first administrator's password. Required for a first install.
+  bootstrapPassword:
+    secretName: ""
+    key: bootstrap-password
+  # Optional: the document signing key (PEM, PKCS#8, P-256). Unset, one is generated on first use and
+  # stored encrypted in the database. Set it with two replicas, and keep it: a replaced key makes every
+  # document already signed unverifiable.
+  signingKey:
+    secretName: ""
+    key: signing-key
+  # Optional: the OIDC client's secret, with `oidc.issuer` set.
+  oidcClientSecret:
+    secretName: ""
+    key: oidc-client-secret
+  # Optional, during a rotation only: the previous encryption keys, comma-separated.
+  previousEncryptionKeys:
+    secretName: ""
+    key: previous-encryption-keys
+
+bootstrap:
+  username: admin
+
+oidc:
+  # Set to switch single sign-on on. The other OIDC settings go in `extraEnv`
+  # (docs-site/reference/configuration.md, "Authentication").
+  issuer: ""
+
+# **The ingress controller's addresses or CIDR — required with an Ingress.** Left empty, the rate limiter
+# and every audit entry name the controller, and `X-Forwarded-Proto` is ignored, so TLS ending at the
+# Ingress reads as plain HTTP to the pod.
+trustedProxies: ""
+
+# Plain variables, for the settings this chart does not name (docs-site/reference/configuration.md).
+# Never a secret here: an environment is readable by whoever can read the pod.
+extraEnv: []
+#  - name: VECTISPIRE_GIT_ALLOWED_HOSTS
+#    value: gitlab.example.org
+
+# The audit mirror: each audit entry appended, as it is written, to a file outside the database — what
+# makes deleting the last entry a second edit in a second medium. One file per pod, named after it.
+auditMirror:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+  # ReadWriteOnce for one replica. Two replicas need ReadWriteMany, each pod writing its own file.
+  accessMode: ReadWriteOnce
+
+service:
+  type: ClusterIP
+  port: 3180
+
+ingress:
+  enabled: true
+  className: ""
+  host: vectispire.example.org
+  tls:
+    # The Secret holding the certificate for `host`; empty serves no TLS, which the chart refuses unless
+    # `allowPlainHttp` says so — the interface signs people in.
+    secretName: ""
+  allowPlainHttp: false
+  # With two replicas, single sign-on needs the callback on the pod that sent the person out. These are
+  # ingress-nginx's; another controller has its own.
+  stickySessions: false
+  # **ingress-nginx's, and each one is needed.** An agent's long poll holds its request 30 seconds; an
+  # agent's result carries the SBOM, up to 256 MB; a rule set is up to 64 MB. Another controller needs
+  # the same three settings in its own words.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: "256m"
+
+# Starting values; measure. The heap is 75 % of the limit (`-XX:MaxRAMPercentage=75` in the image).
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
+
+# Room for Tomcat's and the reports' temporary files, and the home JGit and the JVM write to.
+tmpSize: 1Gi
+
+probes:
+  # Long enough for the migrations of an upgrade: thirty times ten seconds.
+  startup:
+    periodSeconds: 10
+    failureThreshold: 30
+  liveness:
+    periodSeconds: 15
+    failureThreshold: 4
+  readiness:
+    periodSeconds: 10
+    failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+
+networkPolicy:
+  # A floor, not the control: a policy names addresses, the application names destinations
+  # (`OutboundUrlGuard`). Off by default because the ingress controller's namespace is yours to name.
+  enabled: false
+  # Who may reach port 3180: the ingress controller, by its namespace's labels.
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+  # Restricting egress means listing every destination: the database, the forges, the OIDC issuer, the
+  # SIEM collector, the trackers and the threat-intelligence feeds. DNS is added for you.
+  restrictEgress: false
+  egress: []
+  #  - to:
+  #      - ipBlock:
+  #          cidr: 10.0.20.15/32   # the MySQL server
+  #    ports:
+  #      - port: 3306
+
+# --- Scan agents in the cluster ------------------------------------------------------------------------
+#
+# **Off by default, and the recommendation is to keep it off**: run agents on a Docker host outside the
+# cluster (docs-site/getting-started/installation.md, "Kubernetes"). In the cluster an agent needs a
+# Docker daemon of its own, and a privileged container is root on its node — so these pods belong in a
+# namespace and on nodes of their own, and nowhere a privileged pod is forbidden.
+agents:
+  enabled: false
+  # A namespace of its own, labelled for privileged pods (Pod Security Admission) when created here.
+  namespace: vectispire-agents
+  createNamespace: true
+
+  image:
+    repository: ghcr.io/asmolabs/vectispire-agent
+    tag: "0.10.0"
+    digest: "sha256:121ec47d0db949946b55ec034b72fdaff909470c92353efda434bbbbb428d72e"
+    pullPolicy: IfNotPresent
+
+  # **Required.** The control plane as the agent reaches it — through the Ingress, over HTTPS.
+  controlPlaneUrl: ""
+  # The agent's API key (scope `agent`) and, optionally, the private half of its pinned signing key.
+  # One agent identity is one pod: more scans at once is the agent's concurrency, set on its row.
+  token:
+    secretName: ""
+    key: token
+  signingKey:
+    secretName: ""
+    key: signing-key
+  # A PKCS12 truststore, when the Ingress certificate is from a private CA. It replaces the JVM's own:
+  # include every authority the agent must trust, the forges' included.
+  trustStore:
+    secretName: ""
+    key: truststore.p12
+  # The forges' SSH host keys, pinned: a read-only known_hosts is only matched against, never written.
+  # Without it the first contact records them, and the pod forgets them at every restart.
+  knownHosts: ""
+  pluginRegistry: ""
+  pluginSignatureRequired: true
+  extraEnv: []
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+  # The work directory: each scan's clone and the vulnerability matcher's database (some 3 GB). Mounted
+  # at the same path in the agent and in the daemon, because the daemon resolves a scanner's bind.
+  workDir:
+    path: /var/lib/vectispire/agent-work
+    sizeLimit: 30Gi
+
+  dind:
+    # `privileged` — docker:dind, the daemon as root in a privileged container: root on the node.
+    # `rootless` — docker:dind-rootless. **It does not scan with this release's agent**: under the
+    # daemon's user namespace the workspace the agent owns as uid 1000 reads as root's to a scanner run as
+    # uid 1000, and every scanner is absent (decision 0038, "Decided on 2026-10-03"). Rendered only with
+    # `rootless.acknowledgeUnreadableWorkspaces: true`.
+    variant: privileged
+    privileged:
+      image: docker:29.8.2-dind@sha256:7dcdfc4a20246236f558175182ccace1eb15a41bd3eb119dd2284f393498b7c1
+    rootless:
+      image: docker:29.8.2-dind-rootless@sha256:3acba49741f1aedb28125ffb2307faaec8e870ebb9343de41c21ac549bd6abf0
+      acknowledgeUnreadableWorkspaces: false
+      # What the image needs on most clusters. Docker's own instructions run it privileged — as uid 1000,
+      # so not root on the node — to lift seccomp, AppArmor and the masked /proc that rootlesskit needs. A
+      # cluster allowing unconfined seccomp and AppArmor, an unmasked procMount and user namespaces may do
+      # without `privileged`; replace this block then.
+      securityContext:
+        privileged: true
+        runAsUser: 1000
+        runAsGroup: 1000
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        memory: 6Gi
+    # The daemon's images and layers. An emptyDir by default: every restart pulls the scanners again. A
+    # volume keeps them; one pod per agent, so ReadWriteOnce.
+    imageCache:
+      enabled: false
+      size: 50Gi
+      storageClassName: ""
+    # Without a cache, the emptyDir's ceiling.
+    dataSizeLimit: 50Gi
+
+  nodeSelector: {}
+  #  vectispire.dev/agents: "true"
+  tolerations: []
+  #  - key: vectispire.dev/agents
+  #    operator: Exists
+  #    effect: NoSchedule
+  affinity: {}
+
+  networkPolicy:
+    # Nothing reaches an agent: deny every ingress. Egress to DNS, and to everything outside the
+    # excluded ranges — the forges, the registries, the matcher's database, the control plane through
+    # its Ingress. Put the cluster's pod and service ranges in `excludeCidrs`, so that a scanner that
+    # escapes reaches nothing inside the cluster.
+    enabled: true
+    excludeCidrs: []
+    #  - 10.244.0.0/16
+    #  - 10.96.0.0/12
+    # The ingress controller's address, when the control plane's Ingress resolves inside an excluded range.
+    allowTo: []

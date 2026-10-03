@@ -1,0 +1,59 @@
+# An installation, end to end, with placeholders under example.org. Copy it, replace what is yours, and
+#   helm install vectispire deploy/helm/vectispire -n vectispire -f values.example.yaml
+#
+# The Secrets named below are created beforehand (README.md, "Secrets"); none is written here.
+
+database:
+  # The server's CA in a PKCS12 truststore, from the Secret `vectispire-mysql-trust`.
+  url: jdbc:mysql://mysql.example.org:3306/vectispire?sslMode=VERIFY_IDENTITY&trustCertificateKeyStoreUrl=file:/etc/vectispire/mysql/truststore.p12&trustCertificateKeyStoreType=PKCS12
+  user: vectispire
+  password:
+    secretName: vectispire-database
+    key: password
+  trustStore:
+    secretName: vectispire-mysql-trust
+    key: truststore.p12
+
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+    key: encryption-key
+  bootstrapPassword:
+    secretName: vectispire-keys
+    key: bootstrap-password
+  signingKey:
+    secretName: vectispire-keys
+    key: signing-key
+
+bootstrap:
+  username: admin
+
+# The ingress controller's pod range: the only peer whose X-Forwarded-For and X-Forwarded-Proto are read.
+trustedProxies: 10.244.0.0/16
+
+ingress:
+  className: nginx
+  host: vectispire.example.org
+  tls:
+    secretName: vectispire-tls
+
+extraEnv:
+  - name: VECTISPIRE_GIT_ALLOWED_HOSTS
+    value: gitlab.example.org
+
+auditMirror:
+  enabled: true
+  size: 1Gi
+
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+
+# Agents run on a Docker host outside the cluster (the installation guide's "Kubernetes" section), so
+# nothing is deployed for them here. For agents in the cluster instead — privileged pods, on nodes of
+# their own — see values.yaml, `agents`.
+agents:
+  enabled: false

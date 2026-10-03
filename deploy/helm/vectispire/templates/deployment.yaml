@@ -1,0 +1,219 @@
+{{- include "vectispire.validate" . -}}
+{{- $fullname := include "vectispire.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: {{ .Values.replicaCount }}
+  # **Recreate, never a rolling update.** Flyway's lock keeps two migrations apart, but a rolling update
+  # keeps the previous release serving against the migrated schema, and nothing asks a migration to keep
+  # the previous release working (decision 0038 §7).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "vectispire.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vectispire.selector" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      # The control plane calls no Kubernetes API; a token it does not need is one a compromise could use.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: control-plane
+          image: {{ include "vectispire.image" .Values.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3180
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VECTISPIRE_DB_URL
+              value: {{ .Values.database.url | quote }}
+            - name: VECTISPIRE_DB_USER
+              value: {{ .Values.database.user | quote }}
+            # Through its own `_FILE` setting, which refuses to start on a missing or empty file. The file
+            # is not named ENCRYPTION_KEY: the config tree would set that variable too, and both is refused.
+            - name: ENCRYPTION_KEY_FILE
+              value: /run/secrets/encryption_key
+            {{- if .Values.secrets.previousEncryptionKeys.secretName }}
+            - name: VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE
+              value: /run/secrets/previous_encryption_keys
+            {{- end }}
+            - name: VECTISPIRE_BOOTSTRAP_USERNAME
+              value: {{ .Values.bootstrap.username | quote }}
+            # No daemon in this pod: every scan runs on an agent (decision 0038 §1).
+            - name: VECTISPIRE_EMBEDDED_WORKER
+              value: "false"
+            # The home's `.ssh` holds no identity here, and the worker that would clone is off.
+            - name: VECTISPIRE_HOST_SSH
+              value: "false"
+            - name: VECTISPIRE_TRUSTED_PROXIES
+              value: {{ .Values.trustedProxies | quote }}
+            {{- if .Values.auditMirror.enabled }}
+            # One file per pod: two processes appending to one file on a shared volume interleave lines.
+            - name: VECTISPIRE_AUDIT_MIRROR
+              value: /var/lib/vectispire/audit/$(POD_NAME).ndjson
+            {{- end }}
+            # A pod that lost its database stops receiving traffic rather than answering 500.
+            - name: MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE
+              value: readinessState,db
+            {{- if .Values.oidc.issuer }}
+            - name: VECTISPIRE_OIDC_ISSUER
+              value: {{ .Values.oidc.issuer | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: secrets
+              mountPath: /run/secrets
+              readOnly: true
+            # The image's root is read-only; these two are what the process writes: java.io.tmpdir and
+            # the home. Started this way against MySQL before the chart said so (decision 0038 §6).
+            - name: tmp
+              mountPath: /tmp
+            - name: home
+              mountPath: /home/vectispire
+            {{- if .Values.auditMirror.enabled }}
+            - name: audit
+              mountPath: /var/lib/vectispire/audit
+            {{- end }}
+            {{- if .Values.database.trustStore.secretName }}
+            - name: mysql-trust
+              mountPath: {{ .Values.database.trustStore.mountPath }}
+              readOnly: true
+            {{- end }}
+      volumes:
+        # Every secret as a file under /run/secrets, named as the application reads it.
+        - name: secrets
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: {{ .Values.secrets.encryptionKey.secretName }}
+                  items:
+                    - key: {{ .Values.secrets.encryptionKey.key }}
+                      path: encryption_key
+              - secret:
+                  name: {{ .Values.database.password.secretName }}
+                  items:
+                    - key: {{ .Values.database.password.key }}
+                      path: VECTISPIRE_DB_PASSWORD
+              {{- with .Values.secrets.bootstrapPassword }}
+              {{- if .secretName }}
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: VECTISPIRE_BOOTSTRAP_PASSWORD
+              {{- end }}
+              {{- end }}
+              {{- with .Values.secrets.signingKey }}
+              {{- if .secretName }}
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: vectispire.signing.key
+              {{- end }}
+              {{- end }}
+              {{- with .Values.secrets.oidcClientSecret }}
+              {{- if .secretName }}
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: vectispire.oidc.client-secret
+              {{- end }}
+              {{- end }}
+              {{- with .Values.secrets.previousEncryptionKeys }}
+              {{- if .secretName }}
+              - secret:
+                  name: {{ .secretName }}
+                  items:
+                    - key: {{ .key }}
+                      path: previous_encryption_keys
+              {{- end }}
+              {{- end }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmpSize }}
+        - name: home
+          emptyDir:
+            sizeLimit: 64Mi
+        {{- if .Values.auditMirror.enabled }}
+        - name: audit
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}-audit
+        {{- end }}
+        {{- if .Values.database.trustStore.secretName }}
+        - name: mysql-trust
+          secret:
+            secretName: {{ .Values.database.trustStore.secretName }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.database.trustStore.key }}
+                path: {{ .Values.database.trustStore.key }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

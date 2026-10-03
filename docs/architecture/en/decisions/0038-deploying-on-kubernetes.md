@@ -184,8 +184,11 @@ file and not in the table still does.
 
 - **Security context**: `runAsNonRoot`, user and group 1000, `allowPrivilegeEscalation: false`,
   every capability dropped, `seccompProfile: RuntimeDefault`, and a **read-only root filesystem**
-  with `emptyDir` volumes for `java.io.tmpdir` and the home (`/home/vectispire`). Read-only is the
-  intent, to be confirmed by starting the image so before the chart claims it.
+  with `emptyDir` volumes for `java.io.tmpdir` and the home (`/home/vectispire`). Verified on 2026-10-03 with the
+  0.10.0 image: started read-only, as uid 1000 with every capability dropped and no other writable
+  path than `/tmp` and the home, against MySQL 8.4 — migrations, sign-in, the audit mirror, a PDF
+  export, the interface. The agent image too, read-only, scanning a repository through a privileged
+  `docker:dind` on a shared socket, with the work directory at the same path in both.
 - **Probes**: a **startup probe** on `/actuator/health/liveness` long enough for the migrations (the
   composition allows 120 s), then liveness on `/actuator/health/liveness` and readiness on
   `/actuator/health/readiness`, with `management.endpoint.health.group.readiness.include` set to

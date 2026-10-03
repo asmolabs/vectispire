@@ -192,8 +192,11 @@ toujours.
 - **Contexte de sécurité** : `runAsNonRoot`, utilisateur et groupe 1000,
   `allowPrivilegeEscalation: false`, toutes les capacités retirées, `seccompProfile: RuntimeDefault`,
   et un **système de fichiers racine en lecture seule** avec des volumes `emptyDir` pour
-  `java.io.tmpdir` et le home (`/home/vectispire`). La lecture seule est l'intention, à confirmer en
-  démarrant l'image ainsi avant que la chart ne l'affirme.
+  `java.io.tmpdir` et le home (`/home/vectispire`). Vérifié le 2026-10-03 avec
+  l'image 0.10.0 : démarrée en lecture seule, en uid 1000, toutes capacités retirées, sans autre chemin
+  inscriptible que `/tmp` et le home, contre MySQL 8.4 — migrations, connexion, miroir d'audit, export
+  PDF, interface. L'image de l'agent aussi, en lecture seule, scannant un dépôt par un `docker:dind`
+  privilégié sur un socket partagé, le répertoire de travail au même chemin des deux côtés.
 - **Sondes** : une **sonde de démarrage** sur `/actuator/health/liveness` assez longue pour les
   migrations (la composition accorde 120 s), puis la vivacité sur `/actuator/health/liveness` et la
   disponibilité sur `/actuator/health/readiness`, avec

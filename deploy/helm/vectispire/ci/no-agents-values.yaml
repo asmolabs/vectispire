@@ -1,0 +1,19 @@
+# Rendered in CI: the recommended shape — the control plane alone, agents on a Docker host outside.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire?sslMode=VERIFY_IDENTITY
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+  bootstrapPassword:
+    secretName: vectispire-keys
+  signingKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+networkPolicy:
+  enabled: true

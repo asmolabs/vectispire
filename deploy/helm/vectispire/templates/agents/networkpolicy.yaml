@@ -1,0 +1,38 @@
+{{- if and .Values.agents.enabled .Values.agents.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vectispire.fullname" . }}-agent
+  namespace: {{ include "vectispire.agentNamespace" . }}
+  labels:
+    {{- include "vectispire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vectispire.agentSelector" . | nindent 6 }}
+  # Nothing reaches an agent: it polls, and its daemon listens on a socket file only.
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # The scanners' traffic leaves through this pod too — the daemon's bridge is behind the pod's
+    # address — so this is what an escaped scanner can reach. The cluster's own ranges belong in
+    # excludeCidrs.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            {{- with .Values.agents.networkPolicy.excludeCidrs }}
+            except:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+    {{- with .Values.agents.networkPolicy.allowTo }}
+    - to:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,23 @@
+# Rendered in CI: the rootless variant, acknowledged — it renders, and it does not scan with this
+# release's agent (decision 0038). Kept rendering so that it is ready when the agent maps owners.
+database:
+  url: jdbc:mysql://db.example.org:3306/vectispire
+  password:
+    secretName: vectispire-database
+secrets:
+  encryptionKey:
+    secretName: vectispire-keys
+trustedProxies: 10.0.0.0/8
+ingress:
+  className: nginx
+  tls:
+    secretName: vectispire-tls
+agents:
+  enabled: true
+  controlPlaneUrl: https://vectispire.example.org
+  token:
+    secretName: vectispire-agent
+  dind:
+    variant: rootless
+    rootless:
+      acknowledgeUnreadableWorkspaces: true
