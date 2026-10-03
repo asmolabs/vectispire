@@ -23,7 +23,9 @@ import java.util.Map;
  *   <li>{@code test_suite_passed}: {@code maxAgeDays}, {@code suitePattern} (a glob, {@code *} and {@code ?}) and
  *       {@code minimumTests};
  *   <li>{@code component_versions}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} and its
- *       allowed {@code versions}.
+ *       allowed {@code versions} — exact, or Maven ranges ({@code [1.17,2.0)}) on a {@code pkg:maven/} prefix;
+ *   <li>{@code component_present}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} alone —
+ *       present whatever its version.
  * </ul>
  *
  * @param maxAgeDays how old the evidence may be, 1 to 366 — required of every kind
@@ -56,6 +58,11 @@ public record ChecklistRuleForm(
      */
     public record CoverageScopeForm(List<String> include, List<String> exclude) {}
 
-    /** @param purlPrefix a package URL without its version, {@code pkg:maven/com.example/ledger-core} */
+    /**
+     * @param purlPrefix a package URL without its version, {@code pkg:maven/com.example/ledger-core}, or a namespace,
+     *     {@code pkg:maven/com.example}
+     * @param versions the allowed versions of a {@code component_versions} rule; absent from a {@code
+     *     component_present} one
+     */
     public record ComponentForm(String purlPrefix, List<String> versions) {}
 }

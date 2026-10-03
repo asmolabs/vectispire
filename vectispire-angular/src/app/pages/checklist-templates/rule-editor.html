@@ -381,7 +381,7 @@
                     <small class="text-muted-color">{{ 'checklist_templates.rule_pattern_hint' | translate }}</small>
                 }
 
-                @if (kind === 'component_versions') {
+                @if (kind === 'component_versions' || kind === 'component_present') {
                     <fieldset class="border-0 p-0 m-0 flex flex-col gap-2" data-testid="rule-components">
                         <legend class="font-medium mb-1">
                             {{ 'checklist_templates.rule_components_legend' | translate }}
@@ -400,17 +400,19 @@
                                     [ngModel]="component.purlPrefix"
                                     (ngModelChange)="setComponent($index, { purlPrefix: $event })"
                                 />
-                                <input
-                                    pInputText
-                                    class="w-64 font-mono"
-                                    [id]="'rule-versions-' + $index"
-                                    [attr.aria-label]="
-                                        'checklist_templates.aria_versions' | translate: { index: $index + 1 }
-                                    "
-                                    [placeholder]="'checklist_templates.rule_col_versions' | translate"
-                                    [ngModel]="component.versions"
-                                    (ngModelChange)="setComponent($index, { versions: $event })"
-                                />
+                                @if (kind === 'component_versions') {
+                                    <input
+                                        pInputText
+                                        class="w-64 font-mono"
+                                        [id]="'rule-versions-' + $index"
+                                        [attr.aria-label]="
+                                            'checklist_templates.aria_versions' | translate: { index: $index + 1 }
+                                        "
+                                        [placeholder]="'checklist_templates.rule_col_versions' | translate"
+                                        [ngModel]="component.versions"
+                                        (ngModelChange)="setComponent($index, { versions: $event })"
+                                    />
+                                }
                                 <p-button
                                     icon="pi pi-times"
                                     size="small"
@@ -434,8 +436,11 @@
                                 (onClick)="addComponent()"
                             />
                         </div>
-                        <small class="text-muted-color">{{
-                            'checklist_templates.rule_components_hint' | translate
+                        <small class="text-muted-color" data-testid="rule-components-hint">{{
+                            (kind === 'component_present'
+                                ? 'checklist_templates.rule_components_present_hint'
+                                : 'checklist_templates.rule_components_hint'
+                            ) | translate
                         }}</small>
                     </fieldset>
                 }

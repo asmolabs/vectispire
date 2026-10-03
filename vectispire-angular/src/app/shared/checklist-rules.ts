@@ -30,7 +30,8 @@ export const RULE_KINDS: readonly ChecklistRuleKind[] = [
     'findings_threshold',
     'coverage_threshold',
     'test_suite_passed',
-    'component_versions'
+    'component_versions',
+    'component_present'
 ];
 
 // Literal keys, so that a new value cannot ship as a raw key (decision 0019). The i18n check counts
@@ -40,7 +41,8 @@ export const RULE_KIND_KEYS = {
     findings_threshold: 'checklist_rules.kind_findings_threshold',
     coverage_threshold: 'checklist_rules.kind_coverage_threshold',
     test_suite_passed: 'checklist_rules.kind_test_suite_passed',
-    component_versions: 'checklist_rules.kind_component_versions'
+    component_versions: 'checklist_rules.kind_component_versions',
+    component_present: 'checklist_rules.kind_component_present'
 } as const satisfies Record<ChecklistRuleKind, string>;
 
 export const SEVERITIES: readonly ChecklistSeverity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'];
@@ -122,7 +124,10 @@ export interface ThresholdDraft {
     minResolvedRatio: number | null;
 }
 
-/** One declared package as the form edits it: its allowed versions typed as a list, separated by commas. */
+/**
+ * One declared package as the form edits it: its allowed versions typed as a list, separated by commas —
+ * a comma inside a Maven range's brackets is the range's own. Unused by a presence rule.
+ */
 export interface ComponentDraft {
     purlPrefix: string;
     versions: string;
@@ -169,7 +174,8 @@ export type RuleProblem =
     | 'purl'
     | 'purl_twice'
     | 'versions'
-    | 'version_length';
+    | 'version_length'
+    | 'version_range';
 
 export const RULE_PROBLEM_KEYS = {
     max_age: 'checklist_rules.problem_max_age',
@@ -192,7 +198,8 @@ export const RULE_PROBLEM_KEYS = {
     purl: 'checklist_rules.problem_purl',
     purl_twice: 'checklist_rules.problem_purl_twice',
     versions: 'checklist_rules.problem_versions',
-    version_length: 'checklist_rules.problem_version_length'
+    version_length: 'checklist_rules.problem_version_length',
+    version_range: 'checklist_rules.problem_version_range'
 } as const satisfies Record<RuleProblem, string>;
 
 /** A refusal and what its sentence names. */
@@ -264,7 +271,7 @@ export function draftOf(rule: ChecklistRule | null): RuleDraft {
     draft.minimumTests = rule.minimumTests ?? null;
     draft.components = (rule.components ?? []).map((component) => ({
         purlPrefix: component.purlPrefix,
-        versions: component.versions.join(', ')
+        versions: (component.versions ?? []).join(', ')
     }));
     draft.scopeInclude = (rule.scope?.include ?? []).join(', ');
     draft.scopeExclude = (rule.scope?.exclude ?? []).join(', ');
@@ -350,11 +357,50 @@ function wholeIn(value: number | null, min: number, max: number): boolean {
     return value !== null && Number.isInteger(value) && value >= min && value <= max;
 }
 
-function versionsOf(component: ComponentDraft): string[] {
-    return component.versions
-        .split(',')
-        .map((version) => version.trim())
-        .filter((version) => version.length > 0);
+/**
+ * The versions typed, split on the commas between them and never on one inside a range: `[1.17,2.0)` is
+ * one entry, and `[1.0,1.2],[1.5,)` two — a union either way, since a version allowed by any entry is.
+ */
+export function versionsOf(component: ComponentDraft): string[] {
+    const versions: string[] = [];
+    let depth = 0;
+    let current = '';
+    for (const character of component.versions) {
+        if (character === '[' || character === '(') depth++;
+        if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
+        if (character === ',' && depth === 0) {
+            versions.push(current);
+            current = '';
+        } else {
+            current += character;
+        }
+    }
+    versions.push(current);
+    return versions.map((version) => version.trim()).filter((version) => version.length > 0);
+}
+
+/** `ChecklistRule`'s prefix check, shared by both component kinds; the refusal or null. */
+function prefixesRefusal(draft: RuleDraft): RuleRefusal | null {
+    if (draft.components.length === 0 || draft.components.length > RULE_BOUNDS.maxComponents) {
+        return { problem: 'components_count', params: { max: RULE_BOUNDS.maxComponents } };
+    }
+    const prefixes = new Set<string>();
+    for (const component of draft.components) {
+        const prefix = component.purlPrefix.trim();
+        if (
+            !prefix.startsWith('pkg:') ||
+            prefix.length <= 4 ||
+            prefix.length > RULE_BOUNDS.maxPrefix ||
+            /\s/.test(prefix) ||
+            CONTROL.test(prefix) ||
+            prefix.includes('@')
+        ) {
+            return { problem: 'purl', params: { prefix, max: RULE_BOUNDS.maxPrefix } };
+        }
+        if (prefixes.has(prefix)) return { problem: 'purl_twice', params: { prefix } };
+        prefixes.add(prefix);
+    }
+    return null;
 }
 
 /** The thresholds a severity states; a severity left blank states none. */
@@ -417,31 +463,24 @@ export function ruleRefusal(draft: RuleDraft): RuleRefusal | null {
             }
             return null;
         }
+        case 'component_present':
+            return prefixesRefusal(draft);
         case 'component_versions': {
-            if (draft.components.length === 0 || draft.components.length > RULE_BOUNDS.maxComponents) {
-                return { problem: 'components_count', params: { max: RULE_BOUNDS.maxComponents } };
-            }
-            const prefixes = new Set<string>();
+            const prefixRefusal = prefixesRefusal(draft);
+            if (prefixRefusal) return prefixRefusal;
             for (const component of draft.components) {
                 const prefix = component.purlPrefix.trim();
-                if (
-                    !prefix.startsWith('pkg:') ||
-                    prefix.length <= 4 ||
-                    prefix.length > RULE_BOUNDS.maxPrefix ||
-                    /\s/.test(prefix) ||
-                    CONTROL.test(prefix) ||
-                    prefix.includes('@')
-                ) {
-                    return { problem: 'purl', params: { prefix, max: RULE_BOUNDS.maxPrefix } };
-                }
-                if (prefixes.has(prefix)) return { problem: 'purl_twice', params: { prefix } };
-                prefixes.add(prefix);
                 const versions = versionsOf(component);
                 if (versions.length === 0 || versions.length > RULE_BOUNDS.maxVersions) {
                     return { problem: 'versions', params: { prefix, max: RULE_BOUNDS.maxVersions } };
                 }
                 if (versions.some((version) => version.length > RULE_BOUNDS.maxVersion || CONTROL.test(version))) {
                     return { problem: 'version_length', params: { prefix, max: RULE_BOUNDS.maxVersion } };
+                }
+                // `AllowedComponent.declared`: Maven's order is the only one implemented; the server reads the
+                // range itself and says what is wrong with one that does not read.
+                if (!prefix.startsWith('pkg:maven/') && versions.some((version) => /^[[(]/.test(version))) {
+                    return { problem: 'version_range', params: { prefix } };
                 }
             }
             return null;
@@ -512,6 +551,14 @@ export function ruleOf(draft: RuleDraft): ChecklistRule | null {
                     versions: versionsOf(component)
                 }))
             };
+        case 'component_present':
+            return {
+                kind: draft.kind,
+                maxAgeDays,
+                components: draft.components.map((component): ChecklistAllowedComponent => ({
+                    purlPrefix: component.purlPrefix.trim()
+                }))
+            };
     }
 }
 
@@ -537,7 +584,7 @@ export function canonicalRule(rule: ChecklistRule | null): string {
         copy.components = copy.components
             .map((component) => ({
                 purlPrefix: component.purlPrefix,
-                versions: [...new Set(component.versions)].sort()
+                versions: component.versions ? [...new Set(component.versions)].sort() : null
             }))
             .sort((a, b) => (a.purlPrefix < b.purlPrefix ? -1 : a.purlPrefix > b.purlPrefix ? 1 : 0));
     }
@@ -671,9 +718,14 @@ export function describeRule(i18n: I18nService, rule: ChecklistRule): string[] {
                 lines.push(
                     i18n.t('checklist_rules.summary_component', {
                         prefix: component.purlPrefix,
-                        versions: component.versions.join(', ')
+                        versions: (component.versions ?? []).join(', ')
                     })
                 );
+            }
+            break;
+        case 'component_present':
+            for (const component of rule.components ?? []) {
+                lines.push(i18n.t('checklist_rules.summary_component_present', { prefix: component.purlPrefix }));
             }
             break;
     }

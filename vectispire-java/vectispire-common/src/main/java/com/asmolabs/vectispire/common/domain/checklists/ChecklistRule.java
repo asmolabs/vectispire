@@ -69,7 +69,8 @@ public sealed interface ChecklistRule {
         FINDINGS_THRESHOLD,
         COVERAGE_THRESHOLD,
         TEST_SUITE_PASSED,
-        COMPONENT_VERSIONS;
+        COMPONENT_VERSIONS,
+        COMPONENT_PRESENT;
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);
@@ -224,6 +225,45 @@ public sealed interface ChecklistRule {
         }
     }
 
+    /**
+     * Every declared package present, on every repository, in the inventory of its newest scan whose
+     * dependency step produced within the age — whatever its version, a version the SBOM does not state
+     * included: "library X is used" asks for the library, and a BOM-managed version Syft writes {@code
+     * UNKNOWN} is the library there all the same. Absent is a failure only where the inventory could
+     * have listed it: a scan that kept no SBOM and whose inventory lists nothing is {@link
+     * NoDataReason#INVENTORY_ABSENT}, never "not used". A namespace prefix names a family, and the
+     * evidence lists each of its packages with its versions — the versions in use, for the reviewer.
+     *
+     * <p>A kind of its own rather than a component_versions without versions: a list left empty must
+     * never read as "any version allowed", and every rule bound before keeps its bytes.
+     *
+     * @param purlPrefixes sorted, distinct; a package URL without its version, as {@link AllowedComponent}
+     *     names one
+     */
+    record ComponentPresent(int maxAgeDays, List<String> purlPrefixes) implements ChecklistRule {
+
+        public ComponentPresent {
+            requireAge(maxAgeDays);
+            Objects.requireNonNull(purlPrefixes, "purlPrefixes");
+            if (purlPrefixes.isEmpty() || purlPrefixes.size() > MAX_COMPONENTS) {
+                throw new InvalidInputException("A presence rule declares 1 to " + MAX_COMPONENTS + " packages.");
+            }
+            Set<String> prefixes = new java.util.TreeSet<>();
+            for (String prefix : purlPrefixes) {
+                String kept = AllowedComponent.requirePrefix(prefix);
+                if (!prefixes.add(kept)) {
+                    throw new InvalidInputException("The package " + kept + " is declared twice.");
+                }
+            }
+            purlPrefixes = List.copyOf(prefixes);
+        }
+
+        @Override
+        public Kind kind() {
+            return Kind.COMPONENT_PRESENT;
+        }
+    }
+
     enum Metric {
         LINE,
         BRANCH;
@@ -290,6 +330,11 @@ public sealed interface ChecklistRule {
                     component.versions().forEach(versions::add);
                 }
             }
+            case ComponentPresent rule -> {
+                // The shape a component_versions entry has, its versions left out: one form for the API.
+                ArrayNode components = node.putArray("components");
+                rule.purlPrefixes().forEach(prefix -> components.addObject().put("purlPrefix", prefix));
+            }
         }
         try {
             return Json.WRITER.writeValueAsString(sorted(node));
@@ -326,7 +371,7 @@ public sealed interface ChecklistRule {
             case FINDINGS_THRESHOLD -> Set.of("scopes", "thresholds");
             case COVERAGE_THRESHOLD -> Set.of("metric", "minimumRatio", "aggregation", "scope");
             case TEST_SUITE_PASSED -> Set.of("suitePattern", "minimumTests");
-            case COMPONENT_VERSIONS -> Set.of("components");
+            case COMPONENT_VERSIONS, COMPONENT_PRESENT -> Set.of("components");
         };
         for (Map.Entry<String, JsonNode> field : node.properties()) {
             if (field.getValue().isNull() || field.getKey().equals("kind") || field.getKey().equals("maxAgeDays")) {
@@ -356,6 +401,7 @@ public sealed interface ChecklistRule {
                     integer(node, "minimumTests").orElseThrow(() -> new InvalidInputException("State the least number "
                             + "of tests the matching suites must run, minimumTests.")));
             case COMPONENT_VERSIONS -> new ComponentVersions(maxAge, components(node.get("components"), stated));
+            case COMPONENT_PRESENT -> new ComponentPresent(maxAge, present(node.get("components"), stated));
         };
     }
 
@@ -495,6 +541,35 @@ public sealed interface ChecklistRule {
             components.add(stated ? AllowedComponent.declared(prefix, allowed) : new AllowedComponent(prefix, allowed));
         }
         return components;
+    }
+
+    private static List<String> present(JsonNode node, boolean stated) {
+        if (node == null || !node.isArray()) {
+            throw new InvalidInputException("A presence rule declares its packages, components: each a purlPrefix.");
+        }
+        List<String> prefixes = new ArrayList<>();
+        for (JsonNode component : node) {
+            if (component == null || !component.isObject()) {
+                throw new InvalidInputException("A declared package is an object, its purlPrefix.");
+            }
+            for (Map.Entry<String, JsonNode> field : component.properties()) {
+                if (field.getKey().equals("purlPrefix") || field.getValue().isNull()) {
+                    continue;
+                }
+                throw new InvalidInputException(field.getKey().equals("versions")
+                        ? "A component_present rule asks for a package whatever its version, and "
+                                + BoundedText.clip(text(component, "purlPrefix").orElse(""), 60) + " lists versions —"
+                                + " bind component_versions to judge them."
+                        : "A declared package takes a purlPrefix; \"" + BoundedText.clip(field.getKey(), 40)
+                                + "\" is not one.");
+            }
+            String prefix = AllowedComponent.requirePrefix(text(component, "purlPrefix").orElse(""));
+            if (stated) {
+                AllowedComponent.refuseEndingOnSeparator(prefix);
+            }
+            prefixes.add(prefix);
+        }
+        return prefixes;
     }
 
     private static <E> E named(E[] values, java.util.function.Function<E, String> wireName, String value, String what) {

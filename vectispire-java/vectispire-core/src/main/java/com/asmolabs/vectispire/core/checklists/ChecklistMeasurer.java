@@ -157,7 +157,15 @@ class ChecklistMeasurer {
             }
             case ChecklistRule.CoverageThreshold threshold -> coverage = coverage(repositories, threshold.scope().isPresent());
             case ChecklistRule.TestSuitePassed ignored -> tests = tests(repositories);
+            // Both read the same inventory, the newest scan whose dependency step produced: a presence line
+            // and a versions line on one project never answer from two different SBOMs.
             case ChecklistRule.ComponentVersions ignored -> {
+                ToolScope.BuiltIn scope = new ToolScope.BuiltIn(FindingType.VULNERABILITY);
+                Scanned scanned = scanned(repositories, FindingType.VULNERABILITY, since);
+                scopes.put(scope.key(), scanned.facts());
+                listed = components(scanned.newest());
+            }
+            case ChecklistRule.ComponentPresent ignored -> {
                 ToolScope.BuiltIn scope = new ToolScope.BuiltIn(FindingType.VULNERABILITY);
                 Scanned scanned = scanned(repositories, FindingType.VULNERABILITY, since);
                 scopes.put(scope.key(), scanned.facts());

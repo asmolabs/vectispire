@@ -777,6 +777,38 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a presence rule and a Maven range are bound and read back; a range that does not read is refused in words")
+        void componentPresenceAndRanges() throws Exception {
+            int revision = draftWithLayout("release");
+            List<String> keys = keys(version("release", 1));
+            Map<String, Object> present = Map.of("kind", "component_present", "maxAgeDays", 7,
+                    "components", List.of(Map.of("purlPrefix", "pkg:maven/org.example.platform")));
+            Map<String, Object> ranged = Map.of("kind", "component_versions", "maxAgeDays", 7, "components",
+                    List.of(Map.of("purlPrefix", "pkg:maven/org.example.platform", "versions", List.of("[1.17,2.0)"))));
+
+            assertThat(detailOf(rules(reviewer, "release", 1, List.of(bound(keys.get(0), Map.of("kind", "component_versions",
+                            "maxAgeDays", 7, "components", List.of(Map.of("purlPrefix", "pkg:maven/org.example.platform",
+                                    "versions", List.of("[2.0,1.17)")))))), revision)
+                    .andExpect(status().isBadRequest()).andReturn()))
+                    .isEqualTo("The version range \"[2.0,1.17)\" does not read: its lower bound 2.0 is above its upper"
+                            + " bound 1.17.");
+            assertThat(detailOf(rules(reviewer, "release", 1, List.of(bound(keys.get(0), Map.of("kind", "component_present",
+                            "maxAgeDays", 7, "components", List.of(Map.of("purlPrefix", "pkg:maven/org.example.platform",
+                                    "versions", List.of("1.0")))))), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("bind component_versions to judge them");
+            assertThat(version("release", 1).at("/version/revision").asInt()).as("no refusal writes").isEqualTo(revision);
+
+            JsonNode bound = read(rules(reviewer, "release", 1, List.of(bound(keys.get(0), present),
+                    bound(keys.get(1), ranged)), revision).andExpect(status().isOk()));
+            assertThat(bound.at("/items/0/boundRule/kind").asText()).isEqualTo("component_present");
+            assertThat(bound.at("/items/0/boundRule/components/0/purlPrefix").asText())
+                    .isEqualTo("pkg:maven/org.example.platform");
+            assertThat(bound.at("/items/0/boundRule/components/0/versions").isMissingNode()
+                    || bound.at("/items/0/boundRule/components/0/versions").isNull()).as("a presence rule lists none").isTrue();
+            assertThat(bound.at("/items/1/boundRule/components/0/versions/0").asText()).isEqualTo("[1.17,2.0)");
+        }
+
+        @Test
         @DisplayName("names the revision read, on a draft with a layout, and refuses in words a rule the kind refuses")
         void refusals() throws Exception {
             importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")

@@ -3219,7 +3219,8 @@
     "rule_col_versions": "Versions autorisées, séparées par des virgules",
     "aria_remove_component": "Retirer le paquet {{index}}",
     "rule_component_add_btn": "Ajouter un paquet",
-    "rule_components_hint": "Une liste explicite : une version est autorisée lorsqu'elle est écrite ici, telle que le SBOM l'indique. Rien n'est ordonné.",
+    "rule_components_hint": "Une version est autorisée lorsqu'elle est écrite ici, telle que le SBOM l'indique — ou, pour un paquet pkg:maven/, lorsqu'elle est dans une plage Maven écrite ici : [1.17,2.0), [1.17.7], (,2.0), lue dans l'ordre de Maven (1.17-SNAPSHOT avant 1.17, 5.3.0.RELEASE égale à 5.3.0). Une version que le SBOM n'indique pas n'est pas jugée.",
+    "rule_components_present_hint": "Un paquet présent quelle que soit sa version, y compris une version que le SBOM n'indique pas (gérée par un BOM). Un espace de noms — pkg:maven/org.example — demande l'un quelconque de ses paquets, et la preuve liste chacun avec ses versions.",
     "rule_keep_btn": "Garder cette règle",
     "rule_unbind_btn": "Mesurer sans règle"
   },
@@ -3469,6 +3470,7 @@
     "reason_language_not_analysed": "L’analyse a produit sur un arbre qu’elle ne pouvait pas lire : un langage source du dépôt n’est lu par aucune des règles SAST de l’analyse, ou le plugin ne lit aucun des langages de l’arbre. Rien trouvé, parce que rien n’a été lu.",
     "reason_examination_unrecorded": "Les analyses dans l’âge maximal précèdent l’enregistrement des étapes exécutées : on ne sait pas si l’étape a regardé avant la prochaine analyse.",
     "reason_languages_unrecorded": "L’analyse n’a pas enregistré les langages de son arbre, ou ceux que lit son examen : on ne sait pas si elle a lu le code avant la prochaine analyse.",
+    "reason_inventory_absent": "La dernière analyse ne conserve plus son SBOM, et son inventaire ne liste rien : la présence des paquets n’a pas été enregistrée. Analysez à nouveau le dépôt.",
     "reason_version_unrecorded": "Un paquet déclaré figure dans le SBOM, et le SBOM n’en indique pas la version — une version Maven héritée d’un parent ou d’un BOM que l’inventaire n’a pas résolu. Présent, à une version que personne n’a enregistrée : non jugé.",
     "reason_packages_unrecorded": "La règle mesure un périmètre de paquets, et le dernier import de couverture a été accepté avant que les imports ne conservent leurs paquets : seuls ses totaux sont connus. Importez à nouveau le rapport pour mesurer le périmètre.",
     "reason_packages_not_kept": "La règle mesure un périmètre de paquets, et le dernier import de couverture ne les a pas conservés — trop de paquets, un chemin trop long pour être stocké entier, ou des comptes qui ne s’additionnent pas aux totaux. La preuve dit lequel.",
@@ -3487,6 +3489,7 @@
     "reason_short_examination_unrecorded": "examen non enregistré",
     "reason_short_languages_unrecorded": "langages non enregistrés",
     "reason_short_version_unrecorded": "version non enregistrée",
+    "reason_short_inventory_absent": "aucun inventaire conservé",
     "reason_short_packages_unrecorded": "réimport nécessaire",
     "reason_short_packages_not_kept": "paquets non conservés",
     "reason_short_scope_matches_nothing": "périmètre vide",
@@ -3562,6 +3565,7 @@
     "kind_coverage_threshold": "Couverture de tests",
     "kind_test_suite_passed": "Suite de tests réussie",
     "kind_component_versions": "Versions de composants autorisées",
+    "kind_component_present": "Composant présent",
     "metric_line": "lignes",
     "metric_branch": "branches",
     "aggregation_per_repository": "sur chaque dépôt",
@@ -3578,6 +3582,7 @@
     "summary_coverage": "Couverture des {{metric}} d'au moins {{percent}} %, {{aggregation}}",
     "summary_suite": "Les suites correspondant à {{pattern}} ont exécuté au moins {{tests}} tests, sans échec ni erreur",
     "summary_component": "{{prefix}} présent, dans l'une des versions : {{versions}}",
+    "summary_component_present": "{{prefix}} présent, quelle que soit sa version",
     "summary_age": "Preuves d'au plus {{days}} jours",
     "problem_max_age": "Indiquez l'âge maximal des preuves : un nombre entier de jours, de {{min}} à {{max}}.",
     "problem_require_schedule": "Indiquez si la planification du dépôt doit s'exécuter au moins aussi souvent que l'âge maximal.",
@@ -3601,7 +3606,8 @@
     "problem_purl": "« {{prefix}} » n’est pas une URL de paquet sans sa version : pkg:type/espace/nom, sans espace, sans @, {{max}} caractères au plus.",
     "problem_purl_twice": "Le paquet {{prefix}} est déclaré deux fois.",
     "problem_versions": "{{prefix}} : indiquez de 1 à {{max}} versions autorisées, séparées par des virgules.",
-    "problem_version_length": "{{prefix}} : une version autorisée compte au plus {{max}} caractères."
+    "problem_version_length": "{{prefix}} : une version autorisée compte au plus {{max}} caractères.",
+    "problem_version_range": "{{prefix}} : une plage de versions se lit dans l'ordre de Maven et ne vaut que pour un paquet pkg:maven/ — listez les versions qu'il autorise."
   },
   "report_plugins": {
     "title": "Plugins de rapport",

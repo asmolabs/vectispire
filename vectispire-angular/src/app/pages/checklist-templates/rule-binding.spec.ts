@@ -421,6 +421,57 @@ describe('binding a rule to a template line', () => {
         answerRereads(BOUND_VERSION);
     });
 
+    it('binds a presence rule: packages by URL or namespace, no versions asked, the hint saying why', async () => {
+        await start('CISO');
+        await edit(5);
+        choose('#rule-kind', 'Component present');
+        await settle();
+
+        button('rule-component-add').click();
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('#rule-versions-0')).toBeNull();
+        expect(text('[data-testid="rule-components-hint"]')).toContain('whatever its version');
+        type('#rule-purl-0', 'pkg:maven/org.example.platform');
+        const request = keepAndSave();
+        expect(request.request.body).toEqual({
+            items: [
+                {
+                    itemKey: ROW_5,
+                    rule: {
+                        kind: 'component_present',
+                        maxAgeDays: 7,
+                        components: [{ purlPrefix: 'pkg:maven/org.example.platform' }]
+                    }
+                }
+            ]
+        });
+        request.flush(BOUND_VERSION);
+        answerRereads(BOUND_VERSION);
+    });
+
+    it('binds a Maven range as one version, its comma its own, and refuses one on another type', async () => {
+        await start('CISO');
+        await edit(5);
+        choose('#rule-kind', 'Component versions allowed');
+        await settle();
+
+        button('rule-component-add').click();
+        fixture.detectChanges();
+        expect(text('[data-testid="rule-components-hint"]')).toContain("read in Maven's order");
+        type('#rule-purl-0', 'pkg:npm/left-pad');
+        type('#rule-versions-0', '[1.17,2.0), 1.16.4');
+        button('rule-keep').click();
+        fixture.detectChanges();
+        expect(text('[data-testid="rule-error"]')).toContain('applies to a pkg:maven/ package only');
+        type('#rule-purl-0', 'pkg:maven/org.example.platform');
+        const request = keepAndSave();
+        expect(request.request.body.items[0].rule.components).toEqual([
+            { purlPrefix: 'pkg:maven/org.example.platform', versions: ['[1.17,2.0)', '1.16.4'] }
+        ]);
+        request.flush(BOUND_VERSION);
+        answerRereads(BOUND_VERSION);
+    });
+
     it('refuses a maximum age past a year and a day, and a malformed scope, before sending anything', async () => {
         await start('CISO');
         await edit(7);

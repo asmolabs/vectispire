@@ -16,9 +16,10 @@ import java.util.TreeSet;
  * Maven range — {@code [1.17,2.0)}, {@code [1.17.7]}, {@code (,2.0)}, a comma union — read in Maven's
  * order ({@link MavenVersionRange}), and only on a {@code pkg:maven/} prefix: "at least 3.2" needs the
  * ecosystem's own order, an order done wrong passes a line, and Maven's is the only one implemented
- * and checked against its reference. A range on another type is refused when bound; read from a stored
- * rule, an entry written before ranges existed — or on another type — stays the literal it was, so a
- * stored rule's meaning, like its bytes, does not move under it.
+ * and checked against its reference. A range on another type is refused when bound, and read from a
+ * stored rule stays the literal it was; a stored rule is never refused, its text being its digest. An
+ * exact version keeps its meaning whatever the type; on a Maven package a stored entry that reads as a
+ * range is read as one, and still matches its literal — no Maven version is written with a bracket.
  *
  * <p><b>Nothing of any organisation here.</b> The product ships no package and no version: the rule
  * exists for the organisation that binds it with its own prefixes (question 11), and appears in no
@@ -36,16 +37,8 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
     public static final int MAX_VERSION = 255;
 
     public AllowedComponent {
-        Objects.requireNonNull(purlPrefix, "purlPrefix");
         Objects.requireNonNull(versions, "versions");
-        String prefix = purlPrefix.strip();
-        if (!prefix.startsWith("pkg:") || prefix.length() <= 4 || prefix.length() > MAX_PREFIX
-                || prefix.chars().anyMatch(c -> Character.isWhitespace(c) || Character.isISOControl(c))
-                || prefix.contains("@")) {
-            throw new InvalidInputException("A package is named by a package URL without its version, pkg:type/"
-                    + "namespace/name, at most " + MAX_PREFIX + " characters; \"" + BoundedText.clip(prefix, 60)
-                    + "\" is not one.");
-        }
+        String prefix = requirePrefix(purlPrefix);
         if (versions.isEmpty() || versions.size() > MAX_VERSIONS) {
             throw new InvalidInputException("A package lists 1 to " + MAX_VERSIONS + " allowed versions; "
                     + prefix + " lists " + versions.size() + ".");
@@ -90,14 +83,7 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
             }
             MavenVersionRange.parse(version);
         }
-        if (component.endsOnSeparator()) {
-            String prefix = component.purlPrefix();
-            String trimmed = prefix.substring(0, prefix.length() - 1);
-            throw new InvalidInputException("A package-URL prefix stops before the separator, never on it: \""
-                    + BoundedText.clip(prefix, 60) + "\" names no package. Write \"" + BoundedText.clip(trimmed, 60)
-                    + "\" for every package it continues with /, @, ? or # — a namespace's packages — or name one"
-                    + " package in full.");
-        }
+        refuseEndingOnSeparator(component.purlPrefix());
         return component;
     }
 
@@ -106,8 +92,7 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
      * readable when stored so a line bound before the refusal still says why it matched nothing.
      */
     boolean endsOnSeparator() {
-        char last = purlPrefix.charAt(purlPrefix.length() - 1);
-        return last == '/' || last == '?' || last == '#';
+        return endsOnSeparator(purlPrefix);
     }
 
     /**
@@ -131,13 +116,49 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
 
     /** Whether a component's package URL is this package's. */
     boolean names(String purl) {
-        if (purl == null || !purl.startsWith(purlPrefix)) {
+        return names(purlPrefix, purl);
+    }
+
+    // ------------------------------------------------------------------ a prefix, whatever the rule
+
+    /** The prefix stripped, or a refusal: what {@link ChecklistRule.ComponentPresent} names checks the same way. */
+    static String requirePrefix(String purlPrefix) {
+        Objects.requireNonNull(purlPrefix, "purlPrefix");
+        String prefix = purlPrefix.strip();
+        if (!prefix.startsWith("pkg:") || prefix.length() <= 4 || prefix.length() > MAX_PREFIX
+                || prefix.chars().anyMatch(c -> Character.isWhitespace(c) || Character.isISOControl(c))
+                || prefix.contains("@")) {
+            throw new InvalidInputException("A package is named by a package URL without its version, pkg:type/"
+                    + "namespace/name, at most " + MAX_PREFIX + " characters; \"" + BoundedText.clip(prefix, 60)
+                    + "\" is not one.");
+        }
+        return prefix;
+    }
+
+    /** The refusal {@link #declared} explains, for any rule a person binds with a prefix. */
+    static void refuseEndingOnSeparator(String prefix) {
+        if (endsOnSeparator(prefix)) {
+            String trimmed = prefix.substring(0, prefix.length() - 1);
+            throw new InvalidInputException("A package-URL prefix stops before the separator, never on it: \""
+                    + BoundedText.clip(prefix, 60) + "\" names no package. Write \"" + BoundedText.clip(trimmed, 60)
+                    + "\" for every package it continues with /, @, ? or # — a namespace's packages — or name one"
+                    + " package in full.");
+        }
+    }
+
+    static boolean endsOnSeparator(String prefix) {
+        char last = prefix.charAt(prefix.length() - 1);
+        return last == '/' || last == '?' || last == '#';
+    }
+
+    static boolean names(String prefix, String purl) {
+        if (purl == null || !purl.startsWith(prefix)) {
             return false;
         }
-        if (purl.length() == purlPrefix.length()) {
+        if (purl.length() == prefix.length()) {
             return true;
         }
-        char next = purl.charAt(purlPrefix.length());
+        char next = purl.charAt(prefix.length());
         return next == '@' || next == '/' || next == '?' || next == '#';
     }
 }

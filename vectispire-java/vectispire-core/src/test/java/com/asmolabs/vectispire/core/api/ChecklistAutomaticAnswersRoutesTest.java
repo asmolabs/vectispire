@@ -548,6 +548,42 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
                 assertThat(logged.getDescription()).contains("checklist_auto_answer"));
     }
 
+    @Test
+    @DisplayName("a presence line passes on a module whose version a BOM manages, answers yes, and the document says why")
+    void aPresenceLineOnAManagedVersion() throws Exception {
+        // What Syft wrote for a module whose version the parent BOM manages: UNKNOWN, and a purl without one. A
+        // versions line has no answer there; "is ledger-core used" has one, and the signed document carries it.
+        publish("release", List.of(SECRETS, Map.of("kind", "component_present", "maxAgeDays", 7,
+                "components", List.of(Map.of("purlPrefix", "pkg:maven/com.example/ledger-core")))), false);
+        open(developer, "release", null);
+        completeScan(sbomOf("UNKNOWN"));
+
+        JsonNode measurement = read(mvc.perform(authenticated(get(base() + "/1/measurements"), developer.token()))
+                .andExpect(status().isOk())).at("/lines/1/measurement");
+        assertThat(measurement.at("/outcome").asText()).isEqualTo("pass");
+        assertThat(measurement.at("/evidence/summary").asText())
+                .startsWith("Pass, 1 declared package present, whatever the version");
+        assertThat(read(developer, 1).at("/lines/1/answer/value").asText()).isEqualTo("yes");
+
+        byte[] zip = mvc.perform(authenticated(get(base() + "/1/document"), developer.token()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        JsonNode line = json.readTree(unzip(zip).get("checklist.json")).at("/lines/1");
+        assertThat(line.at("/measurement/ruleKind").asText()).isEqualTo("component_present");
+        assertThat(line.at("/measurement/rule").asText())
+                .isEqualTo("{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example/ledger-core\"}],"
+                        + "\"kind\":\"component_present\",\"maxAgeDays\":7}");
+        assertThat(line.at("/measurement/summary").asText())
+                .startsWith("Pass, 1 declared package present, whatever the version");
+        assertThat(line.at("/measurement/evidence").asText())
+                .contains("pkg:maven/com.example/ledger-core with no version stated");
+        assertThat(line.at("/answer/answeredByKind").asText()).isEqualTo("system");
+
+        completeScan(CLEAN);
+        assertThat(read(developer, 1).at("/lines/1/answer/value").asText())
+                .as("a scan whose dependency step did not run says nothing of the package: the yes stands")
+                .isEqualTo("yes");
+    }
+
     // ------------------------------------------------------------------ the document
 
     @Test

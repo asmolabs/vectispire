@@ -202,7 +202,8 @@ public class ChecklistTemplatesController {
 
     @Operation(summary = "Bind rules to checklist template lines", description = "Security lead only, on a draft "
             + "with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind "
-            + "dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed or component_versions, "
+            + "dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed, component_versions or "
+            + "component_present, "
             + "maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind "
             + "it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding "
             + "moved is changed against the previous version, and a project's answer carried onto it waits for "

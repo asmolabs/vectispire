@@ -460,6 +460,86 @@ class RuleEvaluationTest {
         }
 
         @Test
+        @DisplayName("presence: a package present passes whatever its version, UNKNOWN included; absent fails")
+        void presence() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_present\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform/platform-application\"}]}");
+            Builder facts = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
+            for (String version : java.util.Arrays.asList("UNKNOWN", null, "1.17.7")) {
+                Measurement present = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(new Component(
+                        "platform-application", version, "pkg:maven/org.example.platform/platform-application"
+                                + (version == null || version.equals("UNKNOWN") ? "" : "@" + version)))).build(), NOW);
+                assertThat(present.outcome()).as("version %s", version).isEqualTo(MeasurementOutcome.PASS);
+                assertThat(present.summary()).startsWith("Pass, 1 declared package present, whatever the version");
+            }
+            Measurement unknown = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(new Component(
+                    "platform-application", "UNKNOWN", "pkg:maven/org.example.platform/platform-application"))).build(), NOW);
+            assertThat(unknown.evidenceJson())
+                    .contains("pkg:maven/org.example.platform/platform-application with no version stated");
+
+            Measurement absent = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(new Component(
+                    "platform-applications", "1.0", "pkg:maven/org.example.platform/platform-applications@1.0"))).build(),
+                    NOW);
+            assertThat(absent.outcome()).as("a package whose name continues the prefix is another package")
+                    .isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(absent.summary()).contains("pkg:maven/org.example.platform/platform-application is not in its SBOM");
+            assertThat(RuleEvaluation.evaluate(rule, facts.components(1L, List.of()).build(), NOW).outcome())
+                    .as("an inventory that ran and listed nothing").isEqualTo(MeasurementOutcome.FAIL);
+        }
+
+        @Test
+        @DisplayName("presence: no data without a fresh analysis, or where nothing kept what the scan listed")
+        void presenceWithoutAnInventory() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_present\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform\"}]}");
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).build(), NOW).reason())
+                    .contains(NoDataReason.NEVER_EXAMINED);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(OLD)), true, 0, 0))
+                    .components(1L, List.of(new Component("platform-web", "1.0",
+                            "pkg:maven/org.example.platform/platform-web@1.0"))).build(), NOW).reason())
+                    .as("present, on a scan older than the age").contains(NoDataReason.STALE);
+
+            Builder purged = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), false, 1, 0));
+            Measurement nothing = RuleEvaluation.evaluate(rule, purged.components(1L, List.of()).build(), NOW);
+            assertThat(nothing.outcome()).as("an empty inventory beside a purged SBOM is not \"not used\"")
+                    .isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(nothing.reason()).contains(NoDataReason.INVENTORY_ABSENT);
+            assertThat(nothing.summary()).contains("no longer holds its SBOM and its inventory lists nothing");
+
+            Measurement kept = RuleEvaluation.evaluate(rule, purged.components(1L, List.of(new Component("platform-web",
+                    "1.0", "pkg:maven/org.example.platform/platform-web@1.0"))).build(), NOW);
+            assertThat(kept.outcome()).as("the inventory outlives the payload, and is read").isEqualTo(MeasurementOutcome.PASS);
+        }
+
+        @Test
+        @DisplayName("presence: a namespace lists the family's packages and versions on every repository")
+        void presenceListsTheFamily() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_present\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform\"},{\"purlPrefix\":\"pkg:npm/left-pad\"}]}");
+            Measurement measured = RuleEvaluation.evaluate(rule, facts(List.of(1L, 2L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .scope("builtin:vulnerability", 2L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .components(1L, List.of(
+                            new Component("platform-web", "1.18.0", "pkg:maven/org.example.platform/platform-web@1.18.0"),
+                            new Component("platform-core", "UNKNOWN", "pkg:maven/org.example.platform/platform-core"),
+                            new Component("left-pad", "1.3.0", "pkg:npm/left-pad@1.3.0")))
+                    .components(2L, List.of(
+                            new Component("platform-web", "1.17.2", "pkg:maven/org.example.platform/platform-web@1.17.2")))
+                    .build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(measured.summary()).contains("repository 2: pkg:npm/left-pad is not in its SBOM")
+                    .doesNotContain("repository 1:");
+            assertThat(measured.evidenceJson())
+                    .contains("pkg:maven/org.example.platform matches 2 packages: "
+                            + "pkg:maven/org.example.platform/platform-core with no version stated, "
+                            + "pkg:maven/org.example.platform/platform-web at 1.18.0; pkg:npm/left-pad at 1.3.0")
+                    .contains("pkg:maven/org.example.platform/platform-web at 1.17.2");
+        }
+
+        @Test
         @DisplayName("components: a stored prefix ending on its separator says why it matched nothing")
         void aStoredPrefixEndingOnItsSeparator() {
             ChecklistRule rule = ChecklistRule.fromCanonical("{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example/\","

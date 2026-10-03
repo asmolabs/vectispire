@@ -27,6 +27,7 @@ import {
     ruleRefusal,
     type RuleDraft,
     scopeAllowed,
+    versionsOf,
     secretsAtZero,
     SEVERITY_KEYS
 } from './checklist-rules';
@@ -239,6 +240,60 @@ describe('the checklist rules, as the form reads them', () => {
         expect(problem(components([one('pkg:npm/left', 'v'.repeat(256))]))).toBe('version_length');
     });
 
+    it('splits typed versions on the commas between them, never on one inside a Maven range', () => {
+        const typed = (versions: string) => versionsOf({ purlPrefix: 'pkg:maven/org.example/x', versions });
+        expect(typed('[1.17,2.0), 1.16.4')).toEqual(['[1.17,2.0)', '1.16.4']);
+        expect(typed('(,1.0],[1.2,1.3)')).toEqual(['(,1.0]', '[1.2,1.3)']);
+        expect(typed(' 3.2.1 ,, 3.3.0 ')).toEqual(['3.2.1', '3.3.0']);
+        expect(
+            draftOf({
+                kind: 'component_versions',
+                maxAgeDays: 7,
+                components: [{ purlPrefix: 'pkg:maven/org.example/x', versions: ['[1.17,2.0)', '1.16.4'] }]
+            }).components[0].versions
+        ).toBe('[1.17,2.0), 1.16.4');
+    });
+
+    it('refuses a range on a package that is not Maven, and leaves a Maven range for the server to read', () => {
+        const draft = (purlPrefix: string, versions: string): RuleDraft => ({
+            ...emptyDraft('component_versions'),
+            components: [{ purlPrefix, versions }]
+        });
+        expect(problem(draft('pkg:npm/left-pad', '[1.0,2.0)'))).toBe('version_range');
+        expect(problem(draft('pkg:npm/left-pad', '1.0.0'))).toBeNull();
+        expect(problem(draft('pkg:maven/org.example.platform', '[1.17,2.0), 1.16.4'))).toBeNull();
+    });
+
+    it('asks a presence rule its packages alone, sends no versions, and says so in words', () => {
+        const present = (list: string[]): RuleDraft => ({
+            ...emptyDraft('component_present'),
+            components: list.map((purlPrefix) => ({ purlPrefix, versions: '' }))
+        });
+        expect(problem(present([]))).toBe('components_count');
+        expect(problem(present(['pkg:maven/org.example.platform']))).toBeNull();
+        expect(problem(present(['pkg:maven/org.example.platform@1.0']))).toBe('purl');
+        expect(problem(present(['pkg:maven/org.example', 'pkg:maven/org.example']))).toBe('purl_twice');
+        const rule = ruleOf({
+            ...present([' pkg:maven/org.example.platform ']),
+            components: [{ purlPrefix: ' pkg:maven/org.example.platform ', versions: '1.0' }]
+        });
+        expect(asSchema('ChecklistRuleForm', rule)).toEqual({
+            kind: 'component_present',
+            maxAgeDays: 7,
+            components: [{ purlPrefix: 'pkg:maven/org.example.platform' }]
+        });
+        expect(draftOf(rule).components).toEqual([{ purlPrefix: 'pkg:maven/org.example.platform', versions: '' }]);
+        expect(canonicalRule(rule)).toBe(
+            '{"components":[{"purlPrefix":"pkg:maven/org.example.platform"}],"kind":"component_present","maxAgeDays":7}'
+        );
+        TestBed.configureTestingModule({ providers: [provideHttpClient()] });
+        useEnglish();
+        expect(describeRule(TestBed.inject(I18nService), rule!)).toEqual([
+            'pkg:maven/org.example.platform present, whatever its version',
+            'Evidence at most 7 days old'
+        ]);
+    });
+
     it('allows "no rule" always: it unbinds the line', () => {
         expect(ruleRefusal(emptyDraft(null))).toBeNull();
         expect(ruleOf(emptyDraft(null))).toBeNull();
@@ -282,6 +337,7 @@ describe('the checklist rules, as the form reads them', () => {
             'suitePattern'
         ]);
         expect(keys({ ...everything, kind: 'component_versions' })).toEqual(['components', 'kind', 'maxAgeDays']);
+        expect(keys({ ...everything, kind: 'component_present' })).toEqual(['components', 'kind', 'maxAgeDays']);
         // A dependency rule without thresholds says none, rather than an empty object.
         expect(ruleOf({ ...emptyDraft('dependency_analysis'), requireSchedule: false })).toEqual({
             kind: 'dependency_analysis',

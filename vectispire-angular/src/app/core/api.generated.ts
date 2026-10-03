@@ -918,7 +918,7 @@ export interface paths {
         get?: never;
         /**
          * Bind rules to checklist template lines
-         * @description Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed or component_versions, maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a rule the kind refuses — a missing maximum age, a parameter another kind takes, a scope nothing examines, a threshold that checks nothing; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.
+         * @description Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed, component_versions or component_present, maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a rule the kind refuses — a missing maximum age, a parameter another kind takes, a scope nothing examines, a threshold that checks nothing; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.
          */
         put: operations["bindRules"];
         post?: never;
@@ -4627,7 +4627,7 @@ export interface components {
             /** Format: int64 */
             itemId: number;
             /** @enum {string} */
-            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             outcome?: "pass" | "fail" | "no_data";
             /** Format: int32 */
@@ -5114,12 +5114,12 @@ export interface components {
             /** @enum {string} */
             purpose?: "read" | "answer" | "submission" | "sign_off";
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             ruleDigest?: string;
             /** @enum {string} */
-            ruleKind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions";
+            ruleKind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions" | "component_present";
         };
         ChecklistMeasurementsView: {
             /** Format: date-time */
@@ -5214,7 +5214,7 @@ export interface components {
             aggregation?: "per_repository" | "project_weighted";
             components?: components["schemas"]["ComponentForm"][];
             /** @enum {string} */
-            kind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions";
+            kind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions" | "component_present";
             /** Format: int32 */
             maxAgeDays?: number;
             /** @enum {string} */
@@ -6650,11 +6650,11 @@ export interface components {
             /** Format: int32 */
             position: number;
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             submittedOutcome?: "pass" | "fail" | "no_data";
             /** @enum {string} */
-            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         MeasuredLineView: {
             /** @enum {string} */
@@ -7560,7 +7560,7 @@ export interface components {
             /** Format: int64 */
             sourceId?: number;
             /** @enum {string} */
-            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         RepositoryPage: {
             items?: components["schemas"]["ForgeRepositoryView"][];

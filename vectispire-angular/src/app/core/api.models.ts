@@ -2895,8 +2895,14 @@ export type ChecklistThreshold = Refine<
     { maxOpen?: number | null; minResolvedRatio?: number | null }
 >;
 
-/** One package an organisation requires, by package-URL prefix, and the versions of it it allows. */
-export type ChecklistAllowedComponent = Refine<Schema<'ComponentForm'>, { purlPrefix: string; versions: string[] }>;
+/**
+ * One package an organisation requires, by package-URL prefix, and — on a `component_versions` rule — the
+ * versions of it it allows, exact or Maven ranges; a `component_present` rule names the prefix alone.
+ */
+export type ChecklistAllowedComponent = Refine<
+    Schema<'ComponentForm'>,
+    { purlPrefix: string; versions?: string[] | null }
+>;
 
 /**
  * The packages a coverage rule measures: matched by an `include` pattern — every package when none is

@@ -180,6 +180,49 @@ class ChecklistRuleTest {
     }
 
     @Test
+    @DisplayName("binds a presence rule as prefixes alone, and refuses versions, a separator ending and a duplicate")
+    void presence() {
+        ChecklistRule rule = ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[
+                  {"purlPrefix":"pkg:maven/org.example.platform/platform-application"},
+                  {"purlPrefix":" pkg:maven/org.example.platform "}]}""");
+        assertThat(rule.canonical()).isEqualTo("{\"components\":[{\"purlPrefix\":\"pkg:maven/org.example.platform\"},"
+                + "{\"purlPrefix\":\"pkg:maven/org.example.platform/platform-application\"}],"
+                + "\"kind\":\"component_present\",\"maxAgeDays\":30}");
+        assertThat(ChecklistRule.fromCanonical(rule.canonical()).canonical()).isEqualTo(rule.canonical());
+        assertThat(rule.digest()).as("another kind, another digest than the same prefix's component_versions")
+                .isNotEqualTo(ChecklistRule.parse("""
+                        {"kind":"component_versions","maxAgeDays":30,"components":[
+                          {"purlPrefix":"pkg:maven/org.example.platform","versions":["1.0"]}]}""").digest());
+
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[
+                  {"purlPrefix":"pkg:maven/org.example.platform","versions":["1.0"]}]}"""))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("A component_present rule asks for a package whatever its version, and "
+                        + "pkg:maven/org.example.platform lists versions — bind component_versions to judge them.");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[{"purlPrefix":"pkg:maven/org.example/"}]}"""))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("Write \"pkg:maven/org.example\"");
+        assertThat(ChecklistRule.fromCanonical("{\"components\":[{\"purlPrefix\":\"pkg:maven/org.example/\"}],"
+                + "\"kind\":\"component_present\",\"maxAgeDays\":30}").canonical())
+                .as("a stored one reads back, its text its digest").contains("pkg:maven/org.example/");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[
+                  {"purlPrefix":"pkg:maven/org.example"},{"purlPrefix":"pkg:maven/org.example "}]}"""))
+                .isInstanceOf(InvalidInputException.class).hasMessage("The package pkg:maven/org.example is declared twice.");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[]}"""))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("1 to 50 packages");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[{"purlPrefix":"pkg:maven/a","pinned":true}]}"""))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("\"pinned\" is not one");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_present","maxAgeDays":30,"components":[{"purlPrefix":"pkg:maven/a@1.0"}]}"""))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("without its version");
+    }
+
+    @Test
     @DisplayName("refuses a prefix ending on its separator when bound, naming the prefix that works, and reads a stored one unchanged")
     void aPrefixEndingOnItsSeparator() {
         String stated = """

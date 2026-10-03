@@ -125,7 +125,8 @@ const RULE_KINDS = [
     'findings_threshold',
     'coverage_threshold',
     'test_suite_passed',
-    'component_versions'
+    'component_versions',
+    'component_present'
 ]; // ChecklistRule.Kind
 const COVERAGE_METRICS = ['line', 'branch']; // ChecklistRule.Metric
 const COVERAGE_AGGREGATIONS = ['per_repository', 'project_weighted']; // ChecklistRule.Aggregation
@@ -140,6 +141,7 @@ const NO_DATA_REASONS = [
     'language_not_analysed',
     'examination_unrecorded',
     'languages_unrecorded',
+    'inventory_absent',
     'version_unrecorded',
     'packages_unrecorded',
     'packages_not_kept',

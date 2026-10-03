@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.checklists;
 
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.ComponentPresent;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.ComponentVersions;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.CoverageThreshold;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.DependencyAnalysis;
@@ -108,6 +109,7 @@ public final class RuleEvaluation {
             case CoverageThreshold coverage -> coverage(coverage, facts, repositories, since);
             case TestSuitePassed tests -> tests(tests, facts, repositories, since);
             case ComponentVersions components -> components(components, facts, repositories, since);
+            case ComponentPresent present -> present(present, facts, repositories, since);
         };
     }
 
@@ -571,6 +573,47 @@ public final class RuleEvaluation {
                 + (rule.components().size() == 1 ? " declared package" : " declared packages") + " at allowed versions");
     }
 
+    private static Measurement present(ComponentPresent rule, MeasurementFacts facts, List<Long> repositories,
+            Instant since) {
+        String key = new ToolScope.BuiltIn(FindingType.VULNERABILITY).key();
+        Map<Long, ScopeFacts> scoped = facts.scopes().getOrDefault(key, Map.of());
+        Collector collector = new Collector();
+        for (long repository : repositories) {
+            ScopeState state = classify(scoped.get(repository), since);
+            if (!(state instanceof Examined examined)) {
+                collector.add(repository, Optional.empty(), state);
+                continue;
+            }
+            List<MeasurementFacts.Component> listed = facts.components().getOrDefault(repository, List.of());
+            // The inventory outlives the SBOM's payload, so a listed inventory is read whatever the
+            // retention did; an empty one beside a purged SBOM is a list nobody can vouch for, and
+            // "absent" read off it would answer "not used" for a library nobody looked for (decision 0007).
+            if (listed.isEmpty() && !(scoped.get(repository) instanceof Scanned scanned && scanned.sbomStored())) {
+                collector.missing(repository, Optional.empty(), NoDataReason.INVENTORY_ABSENT,
+                        Optional.of(examined.look()), "its newest analysed scan no longer holds its SBOM and its"
+                                + " inventory lists nothing — scan it again");
+                continue;
+            }
+            List<String> unmet = new ArrayList<>();
+            List<String> found = new ArrayList<>();
+            for (String prefix : rule.purlPrefixes()) {
+                List<MeasurementFacts.Component> occurrences = listed.stream()
+                        .filter(component -> AllowedComponent.names(prefix, component.purl())).toList();
+                if (occurrences.isEmpty()) {
+                    unmet.add(AllowedComponent.endsOnSeparator(prefix)
+                            ? prefix + " ends on its separator and names no package — bind it without the last character"
+                            : prefix + " is not in its SBOM");
+                    continue;
+                }
+                found.add(listing(prefix, occurrences));
+            }
+            collector.examined(repository, Optional.empty(), examined.look(), unmet, String.join("; ", found));
+        }
+        int declared = rule.purlPrefixes().size();
+        return collector.outcome(List.of(), List.of(), declared + (declared == 1 ? " declared package" : " declared packages")
+                + " present, whatever the version");
+    }
+
     /**
      * What the evidence says of a version the SBOM does not state. Syft cannot see a version a parent
      * POM or a BOM manages; an SBOM the build itself produced resolves it, and the line is then judged.
@@ -587,20 +630,28 @@ public final class RuleEvaluation {
      */
     static String listing(String prefix, List<MeasurementFacts.Component> occurrences) {
         Map<String, List<MeasurementFacts.Component>> byPackage = packages(occurrences);
+        if (byPackage.size() == 1) {
+            return described(byPackage.entrySet().iterator().next());
+        }
         List<String> named = new ArrayList<>();
         for (Map.Entry<String, List<MeasurementFacts.Component>> entry : byPackage.entrySet()) {
             if (named.size() == LISTED_PACKAGES) {
                 break;
             }
-            Set<String> stated = entry.getValue().stream().map(MeasurementFacts.Component::statedVersion)
-                    .flatMap(Optional::stream).collect(Collectors.toCollection(java.util.TreeSet::new));
-            boolean unstated = entry.getValue().stream().anyMatch(component -> component.statedVersion().isEmpty());
-            named.add(entry.getKey() + (stated.isEmpty() ? " with no version stated"
-                    : " at " + String.join(", ", stated) + (unstated ? " and with none stated" : "")));
+            named.add(described(entry));
         }
         int rest = byPackage.size() - named.size();
         return prefix + " matches " + byPackage.size() + " packages: " + String.join(", ", named)
                 + (rest > 0 ? ", and " + rest + " more" : "");
+    }
+
+    /** One package and the versions its occurrences state. */
+    private static String described(Map.Entry<String, List<MeasurementFacts.Component>> entry) {
+        Set<String> stated = entry.getValue().stream().map(MeasurementFacts.Component::statedVersion)
+                .flatMap(Optional::stream).collect(Collectors.toCollection(java.util.TreeSet::new));
+        boolean unstated = entry.getValue().stream().anyMatch(component -> component.statedVersion().isEmpty());
+        return entry.getKey() + (stated.isEmpty() ? " with no version stated"
+                : " at " + String.join(", ", stated) + (unstated ? " and with none stated" : ""));
     }
 
     /** The occurrences by package — the package URL without its version, qualifiers or subpath. */
@@ -753,7 +804,7 @@ public final class RuleEvaluation {
 
         /** The headlines whose summary carries the first repository's own sentence. */
         private static final Set<NoDataReason> EXPLAINED = EnumSet.of(NoDataReason.LANGUAGE_NOT_ANALYSED,
-                NoDataReason.LANGUAGES_UNRECORDED, NoDataReason.VERSION_UNRECORDED, NoDataReason.PACKAGES_UNRECORDED,
+                NoDataReason.LANGUAGES_UNRECORDED, NoDataReason.INVENTORY_ABSENT, NoDataReason.VERSION_UNRECORDED, NoDataReason.PACKAGES_UNRECORDED,
                 NoDataReason.PACKAGES_NOT_KEPT, NoDataReason.SCOPE_MATCHES_NOTHING);
 
         /**

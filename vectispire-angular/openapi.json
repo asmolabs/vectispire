@@ -511,7 +511,7 @@
             "type" : "integer"
           },
           "noDataReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "outcome" : {
@@ -1772,7 +1772,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
@@ -1783,7 +1783,7 @@
             "type" : "string"
           },
           "ruleKind" : {
-            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions" ],
+            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions", "component_present" ],
             "type" : "string"
           }
         },
@@ -2018,7 +2018,7 @@
             "type" : "array"
           },
           "kind" : {
-            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions" ],
+            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions", "component_present" ],
             "type" : "string"
           },
           "maxAgeDays" : {
@@ -5881,7 +5881,7 @@
             "type" : "integer"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "submittedOutcome" : {
@@ -5889,7 +5889,7 @@
             "type" : "string"
           },
           "submittedReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -8323,7 +8323,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -13334,7 +13334,7 @@
     },
     "/api/v1/checklist-templates/{slug}/versions/{ordinal}/rules" : {
       "put" : {
-        "description" : "Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed or component_versions, maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a rule the kind refuses — a missing maximum age, a parameter another kind takes, a scope nothing examines, a threshold that checks nothing; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.",
+        "description" : "Security lead only, on a draft with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed, component_versions or component_present, maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding moved is changed against the previous version, and a project's answer carried onto it waits for confirmation. revision is the one the editor read. 400 without revision or lines, for a line named twice or not in the version, a rule the kind refuses — a missing maximum age, a parameter another kind takes, a scope nothing examines, a threshold that checks nothing; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed.",
         "operationId" : "bindRules",
         "parameters" : [ {
           "in" : "path",

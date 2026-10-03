@@ -3097,7 +3097,8 @@
     "rule_col_versions": "Allowed versions, separated by commas",
     "aria_remove_component": "Remove package {{index}}",
     "rule_component_add_btn": "Add a package",
-    "rule_components_hint": "An explicit list: a version is allowed when it is written here, as the SBOM states it. Nothing is ordered.",
+    "rule_components_hint": "A version is allowed when it is written here, as the SBOM states it — or, on a pkg:maven/ package, when it is in a Maven range written here: [1.17,2.0), [1.17.7], (,2.0), read in Maven's order (1.17-SNAPSHOT before 1.17, 5.3.0.RELEASE equal to 5.3.0). A version the SBOM does not state is not judged.",
+    "rule_components_present_hint": "A package present whatever its version, including a version the SBOM does not state (managed by a BOM). A namespace — pkg:maven/org.example — asks for any of its packages, and the evidence lists each with its versions.",
     "rule_keep_btn": "Keep this rule",
     "rule_unbind_btn": "Measure by no rule"
   },
@@ -3347,6 +3348,7 @@
     "reason_language_not_analysed": "The analysis produced on a tree it could not read: a source language of the repository is read by none of the SAST rules the scan ran with, or the plugin reads none of the tree’s languages. Nothing found, because nothing was read.",
     "reason_examination_unrecorded": "The scans within the maximum age predate the record of which steps ran: whether it looked is unknown until the next scan.",
     "reason_languages_unrecorded": "The scan did not record the languages of its tree, or those its analysis reads: whether it read the code is unknown until the next scan.",
+    "reason_inventory_absent": "The newest analysis no longer holds its SBOM, and its inventory lists nothing: whether the packages are there, nothing recorded. Scan the repository again.",
     "reason_version_unrecorded": "A declared package is in the SBOM, and the SBOM states no version for it — a Maven version inherited from a parent or a BOM the inventory did not resolve. Present, at a version nobody recorded: not judged.",
     "reason_packages_unrecorded": "The rule measures a scope of packages, and the newest coverage import was accepted before imports kept their packages: only its totals are known. Import the report again to measure the scope.",
     "reason_packages_not_kept": "The rule measures a scope of packages, and the newest coverage import did not keep them — too many packages, a path too long to store whole, or counts that did not add up to the totals. The evidence says which.",
@@ -3365,6 +3367,7 @@
     "reason_short_examination_unrecorded": "examination unrecorded",
     "reason_short_languages_unrecorded": "languages unrecorded",
     "reason_short_version_unrecorded": "version unrecorded",
+    "reason_short_inventory_absent": "no inventory kept",
     "reason_short_packages_unrecorded": "re-import needed",
     "reason_short_packages_not_kept": "packages not kept",
     "reason_short_scope_matches_nothing": "scope matches nothing",
@@ -3440,6 +3443,7 @@
     "kind_coverage_threshold": "Test coverage",
     "kind_test_suite_passed": "Test suite passed",
     "kind_component_versions": "Component versions allowed",
+    "kind_component_present": "Component present",
     "metric_line": "lines",
     "metric_branch": "branches",
     "aggregation_per_repository": "on every repository",
@@ -3456,6 +3460,7 @@
     "summary_coverage": "Coverage of {{metric}} at least {{percent}} %, {{aggregation}}",
     "summary_suite": "Suites matching {{pattern}} ran at least {{tests}} tests, none failed nor errored",
     "summary_component": "{{prefix}} present, at one of: {{versions}}",
+    "summary_component_present": "{{prefix}} present, whatever its version",
     "summary_age": "Evidence at most {{days}} days old",
     "problem_max_age": "State the maximum age of the evidence: a whole number of days, {{min}} to {{max}}.",
     "problem_require_schedule": "Say whether the repository's schedule must run at least as often as the maximum age.",
@@ -3479,7 +3484,8 @@
     "problem_purl": "\"{{prefix}}\" is no package URL without its version: pkg:type/namespace/name, no space, no @, at most {{max}} characters.",
     "problem_purl_twice": "The package {{prefix}} is declared twice.",
     "problem_versions": "{{prefix}}: list 1 to {{max}} allowed versions, separated by commas.",
-    "problem_version_length": "{{prefix}}: an allowed version is at most {{max}} characters."
+    "problem_version_length": "{{prefix}}: an allowed version is at most {{max}} characters.",
+    "problem_version_range": "{{prefix}}: a version range is read in Maven's order and applies to a pkg:maven/ package only — list the versions it allows."
   },
   "report_plugins": {
     "title": "Report plugins",
