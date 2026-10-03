@@ -41,6 +41,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0035](0035-report-plugins.md) | A report plugin is a signed container image that turns a project export into one document, which the platform validates, signs and keeps with its provenance | accepted |
 | [0036](0036-the-posture-score-formula.md) | The posture score falls by a share per issue, licences weigh like a high, an exploited issue caps at D, a scope is graded by its weakest target, the portfolio by its distribution, and the risk points are shown | accepted |
 | [0037](0037-discovering-repositories-at-setup.md) | Repositories are discovered through a read-only forge connection, chosen by a person, and imported as ordinary targets | accepted |
+| [0038](0038-deploying-on-kubernetes.md) | On Kubernetes the control plane runs without a container endpoint, scans run on agents on a Docker host, the database is external, and report plugins wait for an executor that can reach a remote daemon | proposed |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
