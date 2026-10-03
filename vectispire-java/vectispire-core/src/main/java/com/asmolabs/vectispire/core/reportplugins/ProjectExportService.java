@@ -465,7 +465,7 @@ public class ProjectExportService {
                 merged.components().stream().map(component -> new ProjectExport.InventoryComponent(component.name(),
                         component.version(), component.purl(), component.type(),
                         component.targets().stream().map(carrier -> new ProjectExport.Target(carrier.kind(), carrier.id()))
-                                .toList())).toList());
+                                .toList(), component.sources())).toList());
     }
 
     private ProjectExport.Compliance complianceOf(VisibleScope scope) {

@@ -27,6 +27,10 @@ import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContractRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomComponentRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.BuildSbomRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
@@ -305,6 +309,25 @@ final class TargetRowsFixture {
             suite.setName("com.example.AppTest");
             suite.setTestsCount(1);
             beans.getBean(TestSuiteResultRepository.class).save(suite);
+
+            // A build SBOM and one of its components, the child naming its import (V82).
+            BuildSbomEntity sbom = new BuildSbomEntity();
+            sbom.setSourceId(sourceId);
+            sbom.setSourceSlug(source.getSlug());
+            sbom.setRepoId(repoId);
+            sbom.setSpecVersion("1.6");
+            sbom.setComponentsCount(1);
+            sbom.setDocumentSha256("0".repeat(64));
+            sbom.setImportedAt(AT);
+            sbom.setImportedBy("pipeline");
+            sbom.setApiKeyId(source.getApiKeyId());
+            long sbomId = beans.getBean(BuildSbomRepository.class).save(sbom).getId();
+            BuildSbomComponentEntity listed = new BuildSbomComponentEntity();
+            listed.setImportId(sbomId);
+            listed.setName("spring-jcl");
+            listed.setVersion("6.1.14");
+            listed.setPurl("pkg:maven/org.springframework/spring-jcl@6.1.14");
+            beans.getBean(BuildSbomComponentRepository.class).save(listed);
         }
     }
 
@@ -348,6 +371,9 @@ final class TargetRowsFixture {
             rows.put("t_coverage_package", count("t_coverage_package where import_id in (select c.id from "
                     + "t_coverage_import c where c.repo_id = ?) or import_id not in (select id from t_coverage_import)",
                     id));
+            rows.put("t_build_sbom", count("t_build_sbom where repo_id = ?", id));
+            rows.put("t_build_sbom_component", count("t_build_sbom_component where import_id in (select b.id from "
+                    + "t_build_sbom b where b.repo_id = ?) or import_id not in (select id from t_build_sbom)", id));
             rows.put("t_test_report_import", count("t_test_report_import where repo_id = ?", id));
             rows.put("t_test_suite_result", count("t_test_suite_result where import_id in (select t.id from "
                     + "t_test_report_import t where t.repo_id = ?) or import_id not in (select id from t_test_report_import)",

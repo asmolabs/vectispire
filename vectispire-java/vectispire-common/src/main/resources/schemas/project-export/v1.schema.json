@@ -7,7 +7,7 @@
   "required": ["schema", "schema_version", "export", "project", "scans", "gate", "issues", "issue_counts", "inventory", "compliance", "checklists"],
   "properties": {
     "schema": {"const": "vectispire-project-export"},
-    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$", "description": "MAJOR.MINOR; this file describes 1.0."},
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$", "description": "MAJOR.MINOR; this file describes 1.1. 1.1 added inventory.components[].sources."},
     "export": {"$ref": "#/$defs/about"},
     "project": {"$ref": "#/$defs/project"},
     "scans": {"type": "array", "items": {"$ref": "#/$defs/targetScan"}, "description": "One entry per target filed in the project, repositories then images."},
@@ -257,7 +257,8 @@
               "version": {"$ref": "#/$defs/nullableString"},
               "purl": {"$ref": "#/$defs/nullableString"},
               "type": {"$ref": "#/$defs/nullableString"},
-              "targets": {"type": "array", "items": {"$ref": "#/$defs/target"}}
+              "targets": {"type": "array", "items": {"$ref": "#/$defs/target"}},
+              "sources": {"type": "array", "items": {"type": "string"}, "description": "Since 1.1. Who listed the component across its targets, build then scanner: build, a CycloneDX SBOM a declared source imported for the repository; scanner, the scan's own cataloguer. Where both did, the version is the build's. Open: a reader keeps a value it does not know."}
             }
           }
         }

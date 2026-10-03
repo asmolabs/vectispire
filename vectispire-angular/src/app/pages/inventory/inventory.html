@@ -303,7 +303,24 @@
                             <div class="text-sm text-muted-color">{{ row.purl }}</div>
                         }
                     </td>
-                    <td>{{ row.componentVersion ?? '—' }}</td>
+                    <td>
+                        {{ row.componentVersion ?? '—' }}
+                        @if (row.source === 'build') {
+                            <p-tag
+                                [value]="'inventory.source_build' | translate"
+                                severity="info"
+                                [title]="'inventory.source_build_hint' | translate"
+                            />
+                        } @else if (row.source === 'both') {
+                            <p-tag
+                                [value]="'inventory.source_build' | translate"
+                                severity="secondary"
+                                [title]="
+                                    'inventory.source_both_hint' | translate: { version: row.scannerVersion ?? '—' }
+                                "
+                            />
+                        }
+                    </td>
                     <td>
                         @if (row.direct === true) {
                             <p-tag [value]="'inventory.direct' | translate" severity="warn" />

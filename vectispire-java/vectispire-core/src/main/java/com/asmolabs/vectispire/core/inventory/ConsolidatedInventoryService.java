@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
@@ -103,8 +104,11 @@ public class ConsolidatedInventoryService {
      *
      * @param purl null where the SBOM gave none; the component is then merged by name and version
      * @param targets the visible targets whose newest completed scan lists it, repositories then images
+     * @param sources who listed it across those targets, {@code build} and {@code scanner} in that order:
+     *     the build's SBOM, the scanner, or both (decision 0039)
      */
-    public record MergedComponent(String name, String version, String purl, String type, List<ComponentTarget> targets) {}
+    public record MergedComponent(
+            String name, String version, String purl, String type, List<ComponentTarget> targets, List<String> sources) {}
 
     /**
      * @param kind {@code project} (a solution's is not offered yet)
@@ -150,7 +154,7 @@ public class ConsolidatedInventoryService {
             read.add(new TargetInventory(
                     ref.kind(), ref.id(), ref.name(), scan.scanId(), scan.createdAt(), state, listed.size()));
             for (ComponentCatalog.Component component : listed) {
-                merged.computeIfAbsent(Key.of(component), key -> new Merging(component)).carriedBy(ref);
+                merged.computeIfAbsent(Key.of(component), key -> new Merging(component)).carriedBy(ref, component.origin());
             }
         }
 
@@ -199,20 +203,36 @@ public class ConsolidatedInventoryService {
 
         private final ComponentCatalog.Component first;
         private final List<ComponentTarget> targets = new ArrayList<>();
+        private boolean fromBuild;
+        private boolean fromScanner;
 
         Merging(ComponentCatalog.Component first) {
             this.first = first;
         }
 
-        void carriedBy(ComponentTarget target) {
+        void carriedBy(ComponentTarget target, ComponentOrigin origin) {
             if (targets.stream().noneMatch(known -> Objects.equals(known, target))) {
                 targets.add(target);
+            }
+            if (origin.fromBuild()) {
+                fromBuild = true;
+            }
+            if (origin != ComponentOrigin.BUILD) {
+                fromScanner = true;
             }
         }
 
         MergedComponent done() {
             String purl = first.purl() != null && !first.purl().isBlank() ? first.purl() : null;
-            return new MergedComponent(first.name(), first.version(), purl, first.type(), List.copyOf(targets));
+            List<String> sources = new ArrayList<>();
+            if (fromBuild) {
+                sources.add("build");
+            }
+            if (fromScanner) {
+                sources.add("scanner");
+            }
+            return new MergedComponent(first.name(), first.version(), purl, first.type(), List.copyOf(targets),
+                    List.copyOf(sources));
         }
     }
 }

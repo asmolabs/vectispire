@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -45,6 +46,10 @@ public class InventoryQueryService {
      *     scan that ran before Vectispire read manifests, and for a tree that carries none
      * @param componentVersion the version of the <b>library</b>. The two sit side by side because
      *     confusing them is the one mistake that makes the answer useless
+     * @param source who listed it on that scan: {@code scanner}, {@code build} — only the build's SBOM,
+     *     a library resolved transitively — or {@code both}, the version then the build's (decision 0039)
+     * @param scannerVersion for {@code both}, what the scanner wrote — {@code UNKNOWN} where a parent BOM
+     *     managed it; null otherwise
      */
     public record Occurrence(
             String component,
@@ -58,7 +63,9 @@ public class InventoryQueryService {
             String branch,
             String projectVersion,
             Long scanId,
-            Instant scannedAt) {}
+            Instant scannedAt,
+            String source,
+            String scannerVersion) {}
 
     /** @param truncated said plainly: a capped list read as complete is a wrong answer */
     public record Results(List<Occurrence> occurrences, int total, boolean truncated) {}
@@ -177,6 +184,8 @@ public class InventoryQueryService {
                 label.branch(),
                 label.version(),
                 component.getScanId(),
-                component.getScanCreatedAt());
+                component.getScanCreatedAt(),
+                ComponentOrigin.ofStored(component.getOrigin()).wireName(),
+                ComponentOrigin.ofStored(component.getOrigin()) == ComponentOrigin.BOTH ? component.getScannedVersion() : null);
     }
 }

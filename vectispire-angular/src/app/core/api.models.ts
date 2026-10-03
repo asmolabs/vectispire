@@ -1319,6 +1319,13 @@ export type InventoryOccurrence = Refine<
         direct: boolean | null;
         targetId: number | null;
         projectVersion: string | null;
+        /**
+         * Who listed it on that scan (decision 0039): the scanner, the build's SBOM alone, or both —
+         * the version then the build's. A value this version does not know is shown as the scanner's.
+         */
+        source: string;
+        /** For `both`, the version the scanner read — `UNKNOWN` where a parent BOM managed it. */
+        scannerVersion: string | null;
     }
 >;
 
@@ -2390,14 +2397,14 @@ export type PluginOutcome = Refine<
 >;
 
 /**
- * What a declared source may deliver (decision 0032 §7). The contract types them as strings; these
- * are the values `SourceKind.wireName()` spells, and a key must hold `sarif_import` for the first and
- * `report_import` for the two others.
+ * What a declared source may deliver (decisions 0032 §7, 0039). The contract types them as strings;
+ * these are the values `SourceKind.wireName()` spells, and a key must hold `sarif_import` for the
+ * first and `report_import` for the three others.
  */
-export type SourceKind = 'sarif' | 'coverage' | 'test_report';
+export type SourceKind = 'sarif' | 'coverage' | 'test_report' | 'sbom';
 
 /** In the order the form offers them: SARIF first, since a source without kinds is SARIF alone. */
-export const SOURCE_KINDS: readonly SourceKind[] = ['sarif', 'coverage', 'test_report'];
+export const SOURCE_KINDS: readonly SourceKind[] = ['sarif', 'coverage', 'test_report', 'sbom'];
 
 /**
  * A declared internal source (decisions 0017 §7, 0032 §7): one integration key, exactly one scope —

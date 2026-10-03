@@ -1,6 +1,7 @@
 /**
  * Plugins — third-party analysers run as containers, emitting SARIF — their activation per project,
- * and SARIF imported from declared internal sources (decision 0017, amended).
+ * and the reports declared internal sources send: SARIF (decision 0017, amended), coverage and test
+ * reports (decision 0032 §7), and build SBOMs (decision 0039).
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
  * ModularityTest}, decision 0030): a dependency on a module, or on a named interface ({@code
@@ -18,13 +19,17 @@
  * ProjectDeleted} and {@code TargetDeleted}, which {@code targets} publishes. {@code access}: a source
  * is bound to an integration key checked through {@code ApiKeyAdministrationService}, which also names
  * the keys the source list shows its governance readers, and the routes
- * resolve the caller's visibility through {@code VisibilityService}.
+ * resolve the caller's visibility through {@code VisibilityService}. {@code inventory}: a build SBOM
+ * admitted here is kept and completes the repository's scans through {@code BuildSbomInventory}, which
+ * owns the components — the declared source, the key and the audit stay this module's, as for the other
+ * imports (decision 0039).
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code Visibilities},
  * which every controller needs. Only its {@code web} may name them — the layer rule keeps a
  * module's service layer off every {@code web} package, {@code access}'s included.
  */
-@ApplicationModule(allowedDependencies = {"access", "access::security", "issues", "scanning", "targets"})
+@ApplicationModule(allowedDependencies = {
+        "access", "access::security", "inventory", "issues", "scanning", "targets"})
 package com.asmolabs.vectispire.core.plugins;
 
 import org.springframework.modulith.ApplicationModule;

@@ -10,9 +10,12 @@ import com.asmolabs.vectispire.common.domain.reports.CoveragePackages;
 import com.asmolabs.vectispire.common.domain.reports.CoverageReport;
 import com.asmolabs.vectispire.common.domain.reports.TestReport;
 import com.asmolabs.vectispire.common.domain.reports.TestReportFormat;
+import com.asmolabs.vectispire.common.domain.sbom.BuildSbom;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.inventory.BuildSbomInventory;
+import com.asmolabs.vectispire.core.inventory.BuildSbomView;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity;
@@ -69,6 +72,13 @@ import org.springframework.util.unit.DataSize;
  *
  * <p>Nothing here opens or resolves an issue: a coverage figure is not a finding. That is also why
  * these kinds take {@code report_import} and not {@code sarif_import}.
+ *
+ * <h2>A build's SBOM</h2>
+ *
+ * <p>A third kind, {@code sbom} (decision 0039): a CycloneDX JSON document the build produced, admitted
+ * by the same steps, then kept by {@code inventory} — its components, not only a figure, since every
+ * later scan of the repository is completed by the newest one. What it changes is the inventory: the
+ * versions the scanner could not read, the libraries it could not see. It opens no issue either.
  */
 @Service
 public class ReportImportService {
@@ -90,9 +100,11 @@ public class ReportImportService {
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
     private final ReportedRepositories reported;
+    private final BuildSbomInventory buildSboms;
     private final Clock clock;
     private final long maxCoverageBytes;
     private final long maxTestReportBytes;
+    private final long maxSbomBytes;
 
     public ReportImportService(
             SarifSourceRepository sources,
@@ -104,9 +116,11 @@ public class ReportImportService {
             AuditLogService audit,
             TransactionTemplate transactions,
             ReportedRepositories reported,
+            BuildSbomInventory buildSboms,
             Clock clock,
             @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize maxCoverageBytes,
-            @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize maxTestReportBytes) {
+            @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize maxTestReportBytes,
+            @Value("${vectispire.http.max-body.sbom-import:32MB}") DataSize maxSbomBytes) {
         this.sources = sources;
         this.coverage = coverage;
         this.coveragePackages = coveragePackages;
@@ -116,9 +130,11 @@ public class ReportImportService {
         this.audit = audit;
         this.transactions = transactions;
         this.reported = reported;
+        this.buildSboms = buildSboms;
         this.clock = clock;
         this.maxCoverageBytes = maxCoverageBytes.toBytes();
         this.maxTestReportBytes = maxTestReportBytes.toBytes();
+        this.maxSbomBytes = maxSbomBytes.toBytes();
     }
 
     /**
@@ -253,6 +269,48 @@ public class ReportImportService {
         return TestReportImportView.of(saved);
     }
 
+    /**
+     * A build's CycloneDX SBOM for a repository: admitted as the reports are, read under {@link BuildSbom}'s
+     * guards, kept, and the repository's newest scan completed with it — one transaction, which also queues
+     * the checklists' reaction; the audit entry after the commit.
+     *
+     * @param uploader empty for a caller that is not an integration key — a session — which is refused
+     */
+    public BuildSbomView importBuildSbom(long repositoryId, byte[] document, Stated stated, Optional<Uploader> uploader) {
+        Uploader caller = requireKey(uploader);
+        SarifSourceEntity source = admit(caller, repositoryId, SourceKind.SBOM);
+        requireWithin(document, maxSbomBytes, "SBOM");
+        Stated said = bounded(stated);
+        BuildSbom sbom = BuildSbom.read(document, maxSbomBytes);
+
+        String sha256 = Digests.sha256Hex(document);
+        BuildSbomInventory.Accepted accepted = new BuildSbomInventory.Accepted(source.getId(), source.getSlug(),
+                repositoryId, said.commit(), said.branch(), sha256, clock.instant(), importedBy(caller), caller.keyId());
+        BuildSbomView saved = transactions.execute(status -> {
+            BuildSbomView kept = buildSboms.record(accepted, sbom);
+            reported.announce(repositoryId);
+            return kept;
+        });
+        // A scan whose ingestion read the imports just before this one committed and committed itself just
+        // after: asked once more, the newest scan is completed now rather than at the next import or scan.
+        buildSboms.completeNewest(repositoryId);
+
+        audit.record(caller.actor().entry(AuditOperation.BUILD_SBOM_IMPORTED, String.valueOf(repositoryId),
+                "Build SBOM from source \"" + source.getSlug() + "\" (CycloneDX " + saved.specVersion()
+                        + (saved.tool() == null ? "" : ", " + saved.tool()) + ") recorded for repository " + repositoryId
+                        + ": " + saved.componentsCount() + " component(s)"
+                        + (saved.completedScanId() == null ? ", no scan completed yet"
+                                : ", scan " + saved.completedScanId() + " completed")
+                        + stated(said) + ", sha256 " + sha256.substring(0, 12) + "."));
+        return saved;
+    }
+
+    /** A repository's latest build SBOMs, within the caller's visibility — 404 for one it cannot see. */
+    public List<BuildSbomView> buildSbomHistory(long repositoryId, Visibility allowed) {
+        requireVisible(repositoryId, allowed);
+        return buildSboms.history(repositoryId);
+    }
+
     /** A repository's latest coverage imports, within the caller's visibility — 404 for one it cannot see. */
     public List<CoverageImportView> coverageHistory(long repositoryId, Visibility allowed) {
         requireVisible(repositoryId, allowed);
@@ -270,8 +328,8 @@ public class ReportImportService {
     }
 
     private static Uploader requireKey(Optional<Uploader> uploader) {
-        return uploader.orElseThrow(() -> new ReportImportRefusedException("Coverage and test reports are imported "
-                + "with a declared source's integration key; a session is not a source."));
+        return uploader.orElseThrow(() -> new ReportImportRefusedException("Coverage and test reports and build "
+                + "SBOMs are imported with a declared source's integration key; a session is not a source."));
     }
 
     /**

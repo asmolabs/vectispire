@@ -71,6 +71,10 @@ public abstract class VectispireContextTest {
             "t_coverage_import",
             "t_test_suite_result",
             "t_test_report_import",
+            // The build SBOMs and their components (V82, common, no foreign key). Left out, an SBOM one test
+            // imported would complete the next test's scans of a repository under the same id.
+            "t_build_sbom_component",
+            "t_build_sbom",
             "t_sarif_source",
             "t_plugin_activation",
             "t_plugin_manifest",

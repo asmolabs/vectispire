@@ -120,16 +120,16 @@ describe('the declared sources', () => {
         await start('AUDITOR');
 
         fixture.componentInstance.sources.set([
-            { ...SOURCE, kinds: ['sarif', 'coverage', 'test_report'] },
-            { ...SOURCE, id: 4, slug: 'future', kinds: ['sbom' as never] }
+            { ...SOURCE, kinds: ['sarif', 'coverage', 'test_report', 'sbom'] },
+            { ...SOURCE, id: 4, slug: 'future', kinds: ['spdx' as never] }
         ]);
         fixture.detectChanges();
         const kinds = (slug: string) =>
             Array.from(dom().querySelectorAll(`[data-testid="source-${slug}"] [data-testid="source-kinds"] p-tag`)).map(
                 (tag) => tag.textContent?.trim()
             );
-        expect(kinds('payments-ci')).toEqual(['SARIF', 'Coverage', 'Test reports']);
-        expect(kinds('future')).toEqual(['sbom']);
+        expect(kinds('payments-ci')).toEqual(['SARIF', 'Coverage', 'Test reports', 'Build SBOMs']);
+        expect(kinds('future')).toEqual(['spdx']);
     });
 
     it('asks for the tools only while SARIF is among the kinds, and sends none without it', async () => {

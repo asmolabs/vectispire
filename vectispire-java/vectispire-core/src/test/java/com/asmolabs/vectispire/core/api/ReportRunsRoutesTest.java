@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -348,7 +349,7 @@ class ReportRunsRoutesTest extends ApiTestBase {
             assertThat(ended.at("/signerIdentity").asText())
                     .isEqualTo("https://ci.example.internal/reports/summary/release@refs/tags/v1");
             assertThat(ended.at("/signerIssuer").asText()).isEqualTo("https://ci.example.internal/oidc");
-            assertThat(ended.at("/exportSchemaVersion").asText()).isEqualTo("1.0");
+            assertThat(ended.at("/exportSchemaVersion").asText()).isEqualTo(ProjectExportSchema.VERSION);
             assertThat(ended.at("/exportSha256").asText()).isEqualTo(Digests.sha256Hex(export));
             assertThat(ended.at("/exportSize").asLong()).isEqualTo(export.length);
             assertThat(ended.at("/outputSha256").asText()).isEqualTo(Digests.sha256Hex(DOCUMENT));
@@ -603,7 +604,7 @@ class ReportRunsRoutesTest extends ApiTestBase {
                     .isEqualTo("https://ci.example.internal/reports/summary/release@refs/tags/v1");
             assertThat(predicate.at("/plugin/signer/issuer").asText()).isEqualTo("https://ci.example.internal/oidc");
             assertThat(predicate.at("/export/schema").asText()).isEqualTo("vectispire-project-export");
-            assertThat(predicate.at("/export/schemaVersion").asText()).isEqualTo("1.0");
+            assertThat(predicate.at("/export/schemaVersion").asText()).isEqualTo(ProjectExportSchema.VERSION);
             assertThat(predicate.at("/export/sha256").asText()).isEqualTo(ended.at("/exportSha256").asText())
                     .isEqualTo(Digests.sha256Hex(handed.get()));
             assertThat(predicate.at("/export/id").asText()).isEqualTo(json.readTree(handed.get()).at("/export/id").asText());

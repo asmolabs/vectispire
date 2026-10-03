@@ -16,13 +16,19 @@ import java.util.stream.Collectors;
  *
  * <p>One pipeline, one key, one declaration: a source that sends SARIF and coverage is one source
  * with two kinds, not two sources. The scope stays per kind of document — {@code sarif_import} for
- * SARIF, which opens and resolves issues, {@code report_import} for the two reports, which only
- * record a figure — so a key issued for coverage never deposits findings.
+ * SARIF, which opens and resolves issues, {@code report_import} for the two reports and the build SBOM,
+ * which record a figure or a component and open nothing — so a key issued for coverage never deposits
+ * findings.
  */
 public enum SourceKind {
     SARIF(ApiKeyScope.SARIF_IMPORT),
     COVERAGE(ApiKeyScope.REPORT_IMPORT),
-    TEST_REPORT(ApiKeyScope.REPORT_IMPORT);
+    TEST_REPORT(ApiKeyScope.REPORT_IMPORT),
+    /**
+     * A build's CycloneDX SBOM (decision 0039): it completes the inventory, opens no issue, and so takes
+     * {@code report_import} like the two reports.
+     */
+    SBOM(ApiKeyScope.REPORT_IMPORT);
 
     private final ApiKeyScope scope;
 

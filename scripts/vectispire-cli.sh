@@ -63,6 +63,7 @@ Commands:
   sbom          Download a scan's SBOM, in Syft's native JSON, as the cataloguer produced it
   coverage      Send a coverage report (JaCoCo, Cobertura, lcov) for a repository
   test-report   Send a JUnit test report (one XML file, or a zip of them) for a repository
+  build-sbom    Send the build's CycloneDX JSON SBOM for a repository (cyclonedx-maven-plugin, Gradle CycloneDX)
   version       Display CLI version
 
 Global Options:
@@ -97,14 +98,15 @@ SBOM Options (key scope: read):
   For a CycloneDX document, with the issues as VEX, use the export instead (key scope: export):
   GET /api/v1/cyclonedx/scans/<scan-id>/cyclonedx-vex.json
 
-Report Options (coverage, test-report):
+Report Options (coverage, test-report, build-sbom):
   --repo-id <id>          Target repository ID (required)
   --file <path>           The report to send (required)
   --format <format>       coverage only: jacoco, cobertura or lcov (required, never guessed)
   --commit <sha>          The commit the report was produced from (kept as stated)
-  --branch <name>         The branch it was produced on (kept as stated)
+  --branch <name>         The branch it was produced on (kept as stated; for build-sbom, it
+                          completes the scans of that branch only)
   The key must hold the report_import scope and be declared as a source delivering
-  coverage or test_report, or the report is refused.
+  coverage, test_report or sbom, or the report is refused.
 
 Exit codes:
   0  done: gate passed, scan completed, file sent
@@ -125,6 +127,9 @@ Examples:
   # Send the pipeline's coverage and test results
   vectispire-cli coverage --repo-id 1 --format jacoco --file target/site/jacoco/jacoco.xml --commit "$CI_COMMIT_SHA"
   vectispire-cli test-report --repo-id 1 --file target/surefire-reports.zip
+
+  # Send the SBOM the build resolved (mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom)
+  vectispire-cli build-sbom --repo-id 1 --file target/bom.json --commit "$CI_COMMIT_SHA" --branch "$CI_COMMIT_REF_NAME"
 
 EOF
     exit "${1:-0}"
@@ -548,6 +553,16 @@ cmd_test_report() {
     printf "${GREEN}✔ Test report recorded${NC}\n" >&2
 }
 
+cmd_build_sbom() {
+    parse_report_options "$@"
+    if [ -n "$FORMAT" ]; then
+        die "--format is for coverage; a build SBOM is CycloneDX JSON, and the server reads it as such or refuses it."
+    fi
+    printf "${BLUE}==> Sending the build's SBOM for repository %s...${NC}\n" "$REPO_ID" >&2
+    upload_report "/api/v1/repositories/${REPO_ID}/build-sbom-imports$(report_query)" "application/vnd.cyclonedx+json" "$FILE"
+    printf "${GREEN}✔ Build SBOM recorded${NC}\n" >&2
+}
+
 # --- CLI Entrypoint ---
 
 COMMAND="${1:-}"
@@ -573,6 +588,7 @@ case "$COMMAND" in
     sbom) cmd_sbom "$@" ;;
     coverage) cmd_coverage "$@" ;;
     test-report) cmd_test_report "$@" ;;
+    build-sbom) cmd_build_sbom "$@" ;;
     version|--version|-v) printf "vectispire-cli v%s\n" "$VERSION" ;;
     *)
         printf "${RED}Unknown command: %s${NC}\n" "$COMMAND" >&2

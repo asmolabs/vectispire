@@ -59,6 +59,29 @@ public class ComponentEntity {
     @Column(name = "is_direct")
     private Boolean isDirect;
 
+    /**
+     * Who listed the row (V82): null for the scanner, {@code build} or {@code both} once a build SBOM
+     * completed the scan — {@code ComponentOrigin}. For {@code both}, {@link #version} and {@link #purl}
+     * are the build's and {@link #scannedVersion} and {@link #scannedPurl} the scanner's, which a later
+     * SBOM no longer listing the package gives back.
+     */
+    @Column(name = "origin", length = 10)
+    private String origin;
+
+    /** The import that completed the row, or null: a reference only, the import leaving by the evidence window. */
+    @Column(name = "build_sbom_id")
+    private Long buildSbomId;
+
+    @Column(name = "scanned_version", length = 255)
+    private String scannedVersion;
+
+    @Column(name = "scanned_purl", length = 500)
+    private String scannedPurl;
+
+    /** The licence the build declared; the scanner's own are read from its SBOM. */
+    @Column(name = "declared_license", length = 255)
+    private String declaredLicense;
+
     public Long getId() {
         return id;
     }
@@ -137,5 +160,45 @@ public class ComponentEntity {
 
     public void setIsDirect(Boolean isDirect) {
         this.isDirect = isDirect;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    public Long getBuildSbomId() {
+        return buildSbomId;
+    }
+
+    public void setBuildSbomId(Long buildSbomId) {
+        this.buildSbomId = buildSbomId;
+    }
+
+    public String getScannedVersion() {
+        return scannedVersion;
+    }
+
+    public void setScannedVersion(String scannedVersion) {
+        this.scannedVersion = scannedVersion;
+    }
+
+    public String getScannedPurl() {
+        return scannedPurl;
+    }
+
+    public void setScannedPurl(String scannedPurl) {
+        this.scannedPurl = scannedPurl;
+    }
+
+    public String getDeclaredLicense() {
+        return declaredLicense;
+    }
+
+    public void setDeclaredLicense(String declaredLicense) {
+        this.declaredLicense = declaredLicense;
     }
 }

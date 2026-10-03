@@ -1,5 +1,6 @@
 /**
- * What targets are made of: components, SBOM diff, blast radius, licences, API contracts.
+ * What targets are made of: components — the scanner's, completed by a build's SBOM (decision 0039) — SBOM
+ * diff, blast radius, licences, API contracts.
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
  * ModularityTest}, decision 0030): a dependency on a module, or on a named interface ({@code

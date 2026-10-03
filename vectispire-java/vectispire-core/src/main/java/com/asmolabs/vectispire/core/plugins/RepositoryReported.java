@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.plugins;
 
 /**
  * A port {@code plugins} declares for a module above it that reacts to a report accepted for a
- * repository — a SARIF document, a coverage report, a test report — the checklists, whose measured lines
+ * repository — a SARIF document, a coverage report, a test report, a build SBOM — the checklists, whose measured lines
  * the report may now answer (decision 0032, amendment "the scans answer the lines they measure").
  *
  * <p><b>Called inside the import's transaction, and only to queue</b> (decision 0033), as

@@ -27,7 +27,7 @@ class ProjectExportSchemaTest {
      * release notes say so); anything else — a field removed, renamed, retyped, or made required — is a new
      * major, in a new file, the previous one produced beside it for a release line.
      */
-    private static final String V1_SHA256 = "7f903fc220981166ea7d8734e97ac84449963d587ee4b3e8b89e8ab15f831f41";
+    private static final String V1_SHA256 = "5d13c73922630daa47275a694b3e8c4993e6e8fb4c60e79f520f9ea513e22a1f";
 
     private static final ObjectMapper JSON = new ObjectMapper();
 

@@ -323,8 +323,15 @@ public enum AuditOperation {
     TEST_REPORT_IMPORTED,
 
     /**
-     * A coverage or test report was refused for what it claimed rather than for its form: no enabled
-     * source for the key, a kind its source is not declared for, a repository outside its scope.
+     * A declared source's build SBOM — CycloneDX JSON — was accepted for a repository and completes its
+     * scans' inventories (decision 0039); the entry carries the document's SHA-256 and the scan completed.
+     */
+    BUILD_SBOM_IMPORTED,
+
+    /**
+     * A coverage report, a test report or a build SBOM was refused for what it claimed rather than for its
+     * form: no enabled source for the key, a kind its source is not declared for, a repository outside its
+     * scope.
      */
     REPORT_IMPORT_REFUSED,
 

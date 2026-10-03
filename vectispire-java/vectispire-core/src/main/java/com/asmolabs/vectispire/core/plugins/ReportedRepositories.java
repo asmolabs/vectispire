@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Tells the module above that a report was accepted for a repository ({@link RepositoryReported}), once
- * for the three kinds of import, <b>inside the import's transaction</b> (decision 0033).
+ * for the four kinds of import, <b>inside the import's transaction</b> (decision 0033).
  *
  * <p>It was called after the commit and the audit entry, and whatever the reaction threw was logged and
  * dropped: a process stopping in between answered nothing for that report. The reaction now only queues

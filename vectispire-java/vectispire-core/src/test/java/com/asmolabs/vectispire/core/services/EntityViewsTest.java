@@ -63,6 +63,8 @@ class EntityViewsTest {
                         com.asmolabs.vectispire.core.plugins.CoveragePackageView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity.class,
                         com.asmolabs.vectispire.core.plugins.TestReportImportView.class, Set.of()),
+                Arguments.of(com.asmolabs.vectispire.core.inventory.persistence.BuildSbomEntity.class,
+                        com.asmolabs.vectispire.core.inventory.BuildSbomView.class, Set.of("completedScanId")),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity.class,
                         com.asmolabs.vectispire.core.plugins.TestSuiteResultView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity.class,

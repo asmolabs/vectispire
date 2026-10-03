@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
+import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -305,7 +306,38 @@ public class LicenseGovernanceService {
             Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
             String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
 
-            String key = targetKind + ":" + targetId + ":" + comp.name() + ":" + (comp.version() != null ? comp.version() : "");
+            String prefix = targetKind + ":" + targetId + ":" + comp.name() + ":";
+            String key = prefix + (comp.version() != null ? comp.version() : "");
+            ComponentOrigin origin = ComponentOrigin.ofStored(comp.origin());
+            if (origin.fromBuild()) {
+                // A build SBOM completed the scan (decision 0039): the version is the build's, and so is the
+                // licence where it declares one. A row the scanner also listed replaces the entry its SBOM
+                // gave under the scanner's version — the UNKNOWN a parent BOM left — rather than standing
+                // beside it, and keeps the licence the scanner read where the build declares none.
+                LicenseEntry scanned = null;
+                if (origin == ComponentOrigin.BOTH) {
+                    String scannedKey = prefix + (comp.scannedVersion() != null ? comp.scannedVersion() : "");
+                    scanned = scannedKey.equals(key) ? entryMap.get(key) : entryMap.remove(scannedKey);
+                }
+                String license = comp.declaredLicense() != null && !comp.declaredLicense().isBlank()
+                        ? comp.declaredLicense()
+                        : scanned != null ? scanned.license()
+                        : entryMap.containsKey(key) ? entryMap.get(key).license() : UNDECLARED;
+                LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
+                boolean compliant = policy.isCompliant(license, risk);
+                entryMap.put(key, new LicenseEntry(
+                        comp.name(),
+                        comp.version() != null ? comp.version() : "unknown",
+                        comp.purl(),
+                        license,
+                        risk,
+                        compliant,
+                        compliant ? null : "License " + license + " is forbidden under active compliance policy (" + risk + ")",
+                        targetId,
+                        targetKind,
+                        nameOf.apply(scan)));
+                continue;
+            }
             if (!entryMap.containsKey(key)) {
                 String inferredLicense = UNDECLARED;
                 LicenseRiskCategory risk = LicenseRiskCategory.classify(inferredLicense);
@@ -387,7 +419,9 @@ public class LicenseGovernanceService {
      *   <li>an SBOM is dropped by the retention purge (the SBOM count moves), after which the scan's
      *       components speak for it;
      *   <li>the inventory's backfill gives components to a scan holding an SBOM and none (the count of
-     *       indexed SBOM scans moves).
+     *       indexed SBOM scans moves);
+     *   <li>a build SBOM completes a repository's newest scan, or a newer one completes it again (the
+     *       count of build-completed rows, or the newest import among them, moves).
      * </ul>
      * A writer that changed any of these in another way would leave a tally behind it: the proof is
      * {@code LicenceTalliesDatabaseTest}, one case per line above. The scans attached to no target are
@@ -467,8 +501,14 @@ public class LicenseGovernanceService {
         }
     }
 
-    /** What a target's inventory is made of, in counts — see {@link #violationsByTarget}. */
-    private record Stamp(ScanCatalog.ScanCensus scans, long indexedSboms) {}
+    /**
+     * What a target's inventory is made of, in counts — see {@link #violationsByTarget}.
+     *
+     * @param buildRows how many of its component rows a build SBOM completed, and {@code newestBuild} the
+     *     newest import among them (decision 0039): an SBOM arriving completes the newest scan without any
+     *     scan moving, and a tally stamped by the scans alone kept counting the scanner's UNKNOWNs
+     */
+    private record Stamp(ScanCatalog.ScanCensus scans, long indexedSboms, long buildRows, long newestBuild) {}
 
     /**
      * The tallies of every owner {@code allowed} permits that holds a scan, those whose census moved
@@ -514,14 +554,21 @@ public class LicenseGovernanceService {
             componentsRepo.indexedAmong(ids.subList(from, Math.min(from + SCAN_BATCH, ids.size())))
                     .forEach(id -> indexed.merge(sbomScans.get(id), 1L, Long::sum));
         }
+        // Only repositories are completed by a build, and only their completed rows are counted.
+        Map<Owner, long[]> built = new HashMap<>();
+        for (Object[] row : componentsRepo.buildCompletionByRepository()) {
+            built.put(new Owner(new ScanTarget.Repository(((Number) row[0]).longValue())),
+                    new long[] {((Number) row[1]).longValue(), ((Number) row[2]).longValue()});
+        }
         Map<Owner, Stamp> stamps = new HashMap<>();
         census.byTarget().forEach((target, scans) -> {
             Owner owner = new Owner(target);
-            stamps.put(owner, new Stamp(scans, indexed.getOrDefault(owner, 0L)));
+            long[] build = built.getOrDefault(owner, new long[2]);
+            stamps.put(owner, new Stamp(scans, indexed.getOrDefault(owner, 0L), build[0], build[1]));
         });
         if (census.untargeted().scans() > 0) {
             Owner none = new Owner(null);
-            stamps.put(none, new Stamp(census.untargeted(), indexed.getOrDefault(none, 0L)));
+            stamps.put(none, new Stamp(census.untargeted(), indexed.getOrDefault(none, 0L), 0, 0));
         }
         return stamps;
     }

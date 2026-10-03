@@ -1,9 +1,11 @@
 package com.asmolabs.vectispire.core.inventory.persistence;
 
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,7 +73,8 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
      * the engine returned first, and a read of five targets could disagree with the estate's.
      */
     @Query("""
-            select new com.asmolabs.vectispire.core.inventory.persistence.ComponentName(c.scanId, c.name, c.version, c.purl)
+            select new com.asmolabs.vectispire.core.inventory.persistence.ComponentName(
+                   c.scanId, c.name, c.version, c.purl, c.origin, c.scannedVersion, c.declaredLicense)
               from ComponentEntity c
              where c.scanId in :scanIds
              order by c.scanId, c.id""")
@@ -79,6 +82,35 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
 
     @Transactional
     void deleteByScanId(long scanId);
+
+    /**
+     * A scan's rows, locked for the write that completes them with a build SBOM — two imports of one
+     * repository completing its newest scan at once would otherwise both add the build's components.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ComponentEntity c where c.scanId = :scanId order by c.id")
+    List<ComponentEntity> lockScan(@Param("scanId") long scanId);
+
+    /**
+     * For each of these imports, the newest scan it completed — what an import's history shows. An
+     * import that completed none is absent. The caller hands at most a page of imports.
+     */
+    @Query("""
+            select c.buildSbomId, max(c.scanId) from ComponentEntity c
+             where c.buildSbomId in :importIds
+             group by c.buildSbomId""")
+    List<Object[]> newestScanCompletedBy(@Param("importIds") Collection<Long> importIds);
+
+    /**
+     * Per repository, how many rows a build SBOM completed and the newest import among them — what the
+     * licence tallies compare, beside the scans' census, to know that a target's inventory moved when no
+     * scan did. Only build-completed rows are read, through their index.
+     */
+    @Query("""
+            select c.repoId, count(c), max(c.buildSbomId) from ComponentEntity c
+             where c.buildSbomId is not null and c.repoId is not null
+             group by c.repoId""")
+    List<Object[]> buildCompletionByRepository();
 
     @Transactional
     void deleteByScanIdIn(Collection<Long> scanIds);

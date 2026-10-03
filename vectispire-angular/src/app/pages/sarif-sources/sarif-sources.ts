@@ -44,22 +44,27 @@ interface Draft {
 /** Literal keys, so the i18n check sees each one and a new kind cannot ship as a raw key (decision 0019). */
 const KIND_KEYS: Record<
     SourceKind,
-    'sarif_sources.kind_sarif' | 'sarif_sources.kind_coverage' | 'sarif_sources.kind_test_report'
+    | 'sarif_sources.kind_sarif'
+    | 'sarif_sources.kind_coverage'
+    | 'sarif_sources.kind_test_report'
+    | 'sarif_sources.kind_sbom'
 > = {
     sarif: 'sarif_sources.kind_sarif',
     coverage: 'sarif_sources.kind_coverage',
-    test_report: 'sarif_sources.kind_test_report'
+    test_report: 'sarif_sources.kind_test_report',
+    sbom: 'sarif_sources.kind_sbom'
 };
 
 /** The scope an integration key must hold for a source to deliver each kind — the server's rule. */
 const KIND_SCOPES: Record<SourceKind, 'sarif_import' | 'report_import'> = {
     sarif: 'sarif_import',
     coverage: 'report_import',
-    test_report: 'report_import'
+    test_report: 'report_import',
+    sbom: 'report_import'
 };
 
 /**
- * The declared internal sources (decisions 0017 §7, 0032 §7): SARIF, coverage and test reports.
+ * The declared internal sources (decisions 0017 §7, 0032 §7, 0039): SARIF, coverage and test reports, build SBOMs.
  *
  * **External means outside the organisation.** A report from a tool that already had the code — an
  * on-premise SonarQube, the team's own CI — is imported; one from a hosted service to which the code

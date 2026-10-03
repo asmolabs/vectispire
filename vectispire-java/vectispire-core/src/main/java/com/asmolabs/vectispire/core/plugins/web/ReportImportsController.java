@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.inventory.BuildSbomView;
 import com.asmolabs.vectispire.core.plugins.CoverageImportView;
 import com.asmolabs.vectispire.core.plugins.ReportImportService;
 import com.asmolabs.vectispire.core.plugins.TestReportImportView;
@@ -29,17 +30,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * A declared internal source's coverage and test reports, recorded for one repository (decision 0032
- * §7).
+ * §7), and its build's CycloneDX SBOM (decision 0039).
  *
  * <p><b>Only with a declared source's integration key</b> — {@code @AcceptsApiKey(REPORT_IMPORT)} lets
  * such a key reach the routes, and the service refuses anything else, a session included, in 0017's
  * order. The account the key acts for must be able to cause effects ({@code @RequiresWriteAccount}),
  * as for SARIF: a recorded figure is what a checklist will read. The bodies are capped by the routes'
- * filter ({@code vectispire.http.max-body.coverage-import}, {@code .test-report-import}) before they
+ * filter ({@code vectispire.http.max-body.coverage-import}, {@code .test-report-import}, {@code
+ * .sbom-import}) before they
  * are read. The format is the pipeline's to declare and the service's to parse: the query parameter
  * for coverage, the media type for a test report.
  */
-@Tag(name = "Report import", description = "Coverage and test reports from declared internal sources")
+@Tag(name = "Report import", description = "Coverage and test reports and build SBOMs from declared internal sources")
 @RestController
 @RequestMapping("/api/v1/repositories/{repositoryId}")
 public class ReportImportsController {
@@ -93,6 +95,41 @@ public class ReportImportsController {
             HttpServletRequest request) {
         return imports.importTestReport(repositoryId, request.getContentType(), document,
                 new ReportImportService.Stated(commit, branch), uploader(principal, allowed(principal), request));
+    }
+
+    @Operation(summary = "Import build SBOM", description = "A declared internal source's integration key only "
+            + "(scope report_import), for a source declared to deliver sbom. One CycloneDX JSON document, spec 1.4 to "
+            + "1.6, as the build produced it (cyclonedx-maven-plugin, the Gradle CycloneDX plugin); nothing it refers "
+            + "to is fetched. It completes the repository's newest completed scan and every later one: the build's "
+            + "stated versions replace the scanner's, the libraries only the build lists are added, each row saying "
+            + "who listed it. branch, when stated, limits it to the scans of that branch; commit is kept as stated. "
+            + "403 for a session, an undeclared key or a source not declared for sbom; 404 for a repository outside "
+            + "the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that is not "
+            + "CycloneDX JSON 1.4 to 1.6, lists no components array, or exceeds a component bound.")
+    @PostMapping(value = "/build-sbom-imports",
+            consumes = {"application/vnd.cyclonedx+json", "application/json", "application/octet-stream"})
+    @ResponseStatus(HttpStatus.CREATED)
+    @RequiresWriteAccount
+    @AcceptsApiKey(ApiKeyScope.REPORT_IMPORT)
+    public BuildSbomView importBuildSbom(
+            @PathVariable long repositoryId,
+            @RequestParam(required = false) String commit,
+            @RequestParam(required = false) String branch,
+            @RequestBody byte[] document,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return imports.importBuildSbom(repositoryId, document, new ReportImportService.Stated(commit, branch),
+                uploader(principal, allowed(principal), request));
+    }
+
+    @Operation(summary = "List repository's build SBOM imports", description = "The latest fifty, without their "
+            + "components, each with the newest scan it completed. 404 for a repository the caller cannot see.")
+    @GetMapping("/build-sbom-imports")
+    @RequiresAccount
+    @AcceptsApiKey(ApiKeyScope.READ)
+    public List<BuildSbomView> buildSbomHistory(
+            @PathVariable long repositoryId, @AuthenticationPrincipal VectispirePrincipal principal) {
+        return imports.buildSbomHistory(repositoryId, allowed(principal));
     }
 
     @Operation(summary = "List repository's coverage imports", description = "The latest fifty. 404 for a repository "

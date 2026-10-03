@@ -213,6 +213,7 @@ vectispire:
       sarif-import: ${VECTISPIRE_MAX_BODY_SARIF_IMPORT:32MB}
       coverage-import: ${VECTISPIRE_MAX_BODY_COVERAGE_IMPORT:16MB}
       test-report-import: ${VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT:32MB}
+      sbom-import: ${VECTISPIRE_MAX_BODY_SBOM_IMPORT:32MB}
       checklist-template-import: ${VECTISPIRE_MAX_BODY_CHECKLIST_TEMPLATE_IMPORT:10MB}
 
   session:

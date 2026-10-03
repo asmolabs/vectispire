@@ -29,7 +29,9 @@ describe('the component search', () => {
         branch: 'master',
         projectVersion: '1.17.6',
         scanId: 34,
-        scannedAt: '2026-08-21T05:03:00Z'
+        scannedAt: '2026-08-21T05:03:00Z',
+        source: 'scanner',
+        scannerVersion: null
     });
 
     beforeEach(async () => {
@@ -40,6 +42,9 @@ describe('the component search', () => {
 
         TestBed.inject(I18nService).translations.set({
             inventory: {
+                source_build: 'build',
+                source_build_hint: "Listed by the build's SBOM only.",
+                source_both_hint: "Version stated by the build's SBOM; the scanner read {{version}}.",
                 diff_needs_two_scans: 'This target has a single scan: there is nothing to compare yet.',
                 diff_needs_two_ids: 'Name the two scans to compare.',
                 diff_failed: 'The difference could not be computed.'
@@ -108,6 +113,32 @@ describe('the component search', () => {
         // nothing established.
         expect(text).toContain('unknown');
         expect(text).not.toContain('transitive');
+    });
+
+    it("says which versions the build's SBOM stated, and what the scanner read instead", () => {
+        search('spring', '', {
+            occurrences: [
+                {
+                    ...OCCURRENCE,
+                    component: 'spring-core',
+                    componentVersion: '6.1.14',
+                    source: 'both',
+                    scannerVersion: 'UNKNOWN'
+                },
+                { ...OCCURRENCE, component: 'spring-jcl', componentVersion: '6.1.14', source: 'build', scanId: 35 },
+                { ...OCCURRENCE, component: 'left-pad', componentVersion: '1.3.0', scanId: 36 }
+            ],
+            total: 3,
+            truncated: false
+        });
+
+        const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('tbody tr'));
+        const tagOf = (row: HTMLElement) => row.querySelector('p-tag[title]');
+        // A version the build resolved is said to be the build's — a reviewer must not read the scanner's
+        // UNKNOWN into it, nor take a transitive library for one found in the tree.
+        expect(tagOf(rows[0])?.getAttribute('title')).toContain('the scanner read UNKNOWN');
+        expect(tagOf(rows[1])?.getAttribute('title')).toContain("build's SBOM only");
+        expect(tagOf(rows[2])).toBeNull();
     });
 
     it('does not search on an empty name', () => {

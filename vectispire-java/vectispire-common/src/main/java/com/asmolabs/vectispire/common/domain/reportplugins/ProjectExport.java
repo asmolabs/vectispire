@@ -230,11 +230,17 @@ public record ProjectExport(
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record InventoryTarget(Target target, Long scanId, String state, int componentCount) {}
 
-    /** @param purl null where the SBOM gave none */
-    public record InventoryComponent(String name, String version, String purl, String type, List<Target> targets) {
+    /**
+     * @param purl null where the SBOM gave none
+     * @param sources who listed it across its targets — {@code build}, a build's CycloneDX SBOM, and {@code
+     *     scanner}, in that order (since 1.1): where both did, the version is the build's
+     */
+    public record InventoryComponent(
+            String name, String version, String purl, String type, List<Target> targets, List<String> sources) {
 
         public InventoryComponent {
             targets = List.copyOf(targets);
+            sources = List.copyOf(sources);
         }
     }
 

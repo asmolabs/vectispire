@@ -33,7 +33,9 @@ public class ComponentInventory {
      *
      * <p><b>Replaced, never merged.</b> A scan re-run after a failure must not leave the
      * components of its first attempt beside the second's: the inventory of a scan is what that
-     * scan saw, and two overlapping answers to that are worse than none.
+     * scan saw, and two overlapping answers to that are worse than none. What a build SBOM adds is
+     * written afterwards, by {@link BuildSbomInventory#complete}, and each row says whose it is — the
+     * backfill, which also calls this, completes nothing: the scans it indexes are history.
      *
      * <p>Each row carries the scan's target and creation instant, which every read of the inventory
      * filters or orders by: with them here, none of those reads names {@code scanning}'s table.

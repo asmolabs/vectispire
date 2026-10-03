@@ -372,7 +372,7 @@ public enum SecurityEventType {
                     SOLUTION_UPDATED, PROJECT_UPDATED,
                     // Routine: a pipeline's upload, as frequent as its builds. What it did is in the
                     // entry; a refusal is the event.
-                    SARIF_IMPORTED, COVERAGE_IMPORTED, TEST_REPORT_IMPORTED,
+                    SARIF_IMPORTED, COVERAGE_IMPORTED, TEST_REPORT_IMPORTED, BUILD_SBOM_IMPORTED,
                     // A draft being written changes nothing any project attests to: publishing it does.
                     CHECKLIST_TEMPLATE_IMPORTED, CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED, CHECKLIST_TEMPLATE_ITEMS_PAIRED,
                     CHECKLIST_TEMPLATE_EVIDENCE_SET, CHECKLIST_TEMPLATE_RULES_BOUND, CHECKLIST_TEMPLATE_DERIVED,

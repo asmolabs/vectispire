@@ -42,6 +42,8 @@ import com.asmolabs.vectispire.core.posture.internal.WeeklyDigestTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportQueue;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportRunSweepTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportEvidenceRetentionTask;
+import com.asmolabs.vectispire.core.inventory.BuildSbomInventory;
+import com.asmolabs.vectispire.core.inventory.internal.BuildSbomRetentionTask;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.scanning.RetentionService;
@@ -116,6 +118,7 @@ class MaintenanceJobsTest {
             SnapshotRetentionTask.class,
             OwaspWeeklyRetentionTask.class,
             ReportEvidenceRetentionTask.class,
+            BuildSbomRetentionTask.class,
             AbandonedReviewsTask.class,
             KevCatalogueSyncTask.class,
             EpssScoresSyncTask.class,
@@ -144,6 +147,7 @@ class MaintenanceJobsTest {
     private ReportQueue reportQueue;
     private ReportDocumentRepository reportDocuments;
     private ForgeReviewService forgeReviews;
+    private BuildSbomInventory buildSboms;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -171,6 +175,7 @@ class MaintenanceJobsTest {
         reportQueue = mock(ReportQueue.class);
         reportDocuments = mock(ReportDocumentRepository.class);
         forgeReviews = mock(ForgeReviewService.class);
+        buildSboms = mock(BuildSbomInventory.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
@@ -201,6 +206,7 @@ class MaintenanceJobsTest {
                 new SnapshotRetentionTask(snapshots, settings, clock),
                 new OwaspWeeklyRetentionTask(owaspWeekly, settings, clock),
                 new ReportEvidenceRetentionTask(reportExports, reportDocuments, settings, clock),
+                new BuildSbomRetentionTask(buildSboms, settings, clock),
                 new AbandonedReviewsTask(reviews),
                 new KevCatalogueSyncTask(feed),
                 new EpssScoresSyncTask(feed),
@@ -239,7 +245,8 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, identities, triage, breaches, digest, complianceHistory,
-                owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, reviews, feed, forgeReviews,
+                owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, buildSboms, reviews, feed,
+                forgeReviews,
                 targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
@@ -267,6 +274,9 @@ class MaintenanceJobsTest {
         turn.verify(reportExports).deleteCreatedBefore(any());
         // And of their signed documents, up to 50 MiB a run, which nothing else ever removes but a project's deletion.
         turn.verify(reportDocuments).deleteCreatedBefore(any());
+        // The only purge of the build SBOMs pipelines send, one per build, which nothing else removes but a
+        // repository's deletion.
+        turn.verify(buildSboms).purgeImportedBefore(any());
         turn.verify(reviews).settleAbandoned();
         // The only thing that keeps the KEV catalogue from being as old as the last button press.
         turn.verify(feed).syncIfDue();

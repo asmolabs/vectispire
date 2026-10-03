@@ -78,6 +78,7 @@ const OPERATION_KEYS: Record<string, string> = {
     SARIF_IMPORT_REFUSED: 'audit_log.operations.sarif_import_refused',
     COVERAGE_IMPORTED: 'audit_log.operations.coverage_imported',
     TEST_REPORT_IMPORTED: 'audit_log.operations.test_report_imported',
+    BUILD_SBOM_IMPORTED: 'audit_log.operations.build_sbom_imported',
     REPORT_IMPORT_REFUSED: 'audit_log.operations.report_import_refused',
     CHECKLIST_TEMPLATE_IMPORTED: 'audit_log.operations.checklist_template_imported',
     CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED: 'audit_log.operations.checklist_template_layout_confirmed',

@@ -3306,6 +3306,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{repositoryId}/build-sbom-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List repository's build SBOM imports
+         * @description The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see.
+         */
+        get: operations["buildSbomHistory"];
+        put?: never;
+        /**
+         * Import build SBOM
+         * @description A declared internal source's integration key only (scope report_import), for a source declared to deliver sbom. One CycloneDX JSON document, spec 1.4 to 1.6, as the build produced it (cyclonedx-maven-plugin, the Gradle CycloneDX plugin); nothing it refers to is fetched. It completes the repository's newest completed scan and every later one: the build's stated versions replace the scanner's, the libraries only the build lists are added, each row saying who listed it. branch, when stated, limits it to the scans of that branch; commit is kept as stated. 403 for a session, an undeclared key or a source not declared for sbom; 404 for a repository outside the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that is not CycloneDX JSON 1.4 to 1.6, lists no components array, or exceeds a component bound.
+         */
+        post: operations["importBuildSbom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{repositoryId}/coverage-imports": {
         parameters: {
             query?: never;
@@ -4843,6 +4867,29 @@ export interface components {
             /** Format: int64 */
             count: number;
             label?: string;
+        };
+        BuildSbomView: {
+            /** Format: uuid */
+            apiKeyId?: string;
+            branch?: string;
+            commit?: string;
+            /** Format: int64 */
+            completedScanId?: number;
+            /** Format: int32 */
+            componentsCount?: number;
+            documentSha256?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: date-time */
+            importedAt?: string;
+            importedBy?: string;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int64 */
+            sourceId?: number;
+            sourceSlug?: string;
+            specVersion?: string;
+            tool?: string;
         };
         Builder: {
             id?: string;
@@ -6691,6 +6738,7 @@ export interface components {
         MergedComponent: {
             name?: string;
             purl?: string;
+            sources?: string[];
             targets?: components["schemas"]["ComponentTarget"][];
             type?: string;
             version?: string;
@@ -6781,6 +6829,8 @@ export interface components {
             scanId?: number;
             /** Format: date-time */
             scannedAt?: string;
+            scannerVersion?: string;
+            source?: string;
             /** Format: int64 */
             targetId?: number;
             targetKind?: string;
@@ -13726,6 +13776,59 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["QueuedScan"];
+                };
+            };
+        };
+    };
+    buildSbomHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BuildSbomView"][];
+                };
+            };
+        };
+    };
+    importBuildSbom: {
+        parameters: {
+            query?: {
+                commit?: string;
+                branch?: string;
+            };
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string;
+                "application/octet-stream": string;
+                "application/vnd.cyclonedx+json": string;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BuildSbomView"];
                 };
             };
         };

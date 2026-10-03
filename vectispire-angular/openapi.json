@@ -1078,6 +1078,60 @@
         "required" : [ "count" ],
         "type" : "object"
       },
+      "BuildSbomView" : {
+        "properties" : {
+          "apiKeyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "branch" : {
+            "type" : "string"
+          },
+          "commit" : {
+            "type" : "string"
+          },
+          "completedScanId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "componentsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "documentSha256" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "importedBy" : {
+            "type" : "string"
+          },
+          "repoId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceSlug" : {
+            "type" : "string"
+          },
+          "specVersion" : {
+            "type" : "string"
+          },
+          "tool" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Builder" : {
         "properties" : {
           "id" : {
@@ -5994,6 +6048,12 @@
           "purl" : {
             "type" : "string"
           },
+          "sources" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "targets" : {
             "items" : {
               "$ref" : "#/components/schemas/ComponentTarget"
@@ -6251,6 +6311,12 @@
           },
           "scannedAt" : {
             "format" : "date-time",
+            "type" : "string"
+          },
+          "scannerVersion" : {
+            "type" : "string"
+          },
+          "source" : {
             "type" : "string"
           },
           "targetId" : {
@@ -18558,6 +18624,102 @@
         "tags" : [ "Repositories" ]
       }
     },
+    "/api/v1/repositories/{repositoryId}/build-sbom-imports" : {
+      "get" : {
+        "description" : "The latest fifty, without their components, each with the newest scan it completed. 404 for a repository the caller cannot see.",
+        "operationId" : "buildSbomHistory",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/BuildSbomView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List repository's build SBOM imports",
+        "tags" : [ "Report import" ]
+      },
+      "post" : {
+        "description" : "A declared internal source's integration key only (scope report_import), for a source declared to deliver sbom. One CycloneDX JSON document, spec 1.4 to 1.6, as the build produced it (cyclonedx-maven-plugin, the Gradle CycloneDX plugin); nothing it refers to is fetched. It completes the repository's newest completed scan and every later one: the build's stated versions replace the scanner's, the libraries only the build lists are added, each row saying who listed it. branch, when stated, limits it to the scans of that branch; commit is kept as stated. 403 for a session, an undeclared key or a source not declared for sbom; 404 for a repository outside the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that is not CycloneDX JSON 1.4 to 1.6, lists no components array, or exceeds a component bound.",
+        "operationId" : "importBuildSbom",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "commit",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "branch",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "application/octet-stream" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "application/vnd.cyclonedx+json" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BuildSbomView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Import build SBOM",
+        "tags" : [ "Report import" ]
+      }
+    },
     "/api/v1/repositories/{repositoryId}/coverage-imports" : {
       "get" : {
         "description" : "The latest fifty. 404 for a repository the caller cannot see.",
@@ -21587,9 +21749,6 @@
     "description" : "Container image registry tracking, digest verification and scanning",
     "name" : "Containers"
   }, {
-    "description" : "Coverage and test reports from declared internal sources",
-    "name" : "Report import"
-  }, {
     "description" : "Attack Path Visualization and Exploit Scenario Correlation",
     "name" : "Attack Paths"
   }, {
@@ -21601,5 +21760,8 @@
   }, {
     "description" : "Discovered API endpoints, declared contracts (OpenAPI/Swagger) and shadow APIs",
     "name" : "Attack Surface"
+  }, {
+    "description" : "Coverage and test reports and build SBOMs from declared internal sources",
+    "name" : "Report import"
   } ]
 }
