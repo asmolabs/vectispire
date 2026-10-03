@@ -180,6 +180,19 @@ another branch, is another target and is accepted as before.
 
 ### New
 
+- **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
+  (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
+  ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).
+  A GitHub discovery no longer answers 409 `forge-discovery-unsupported`. A fine-grained token lists the
+  connection's owner; a classic token (Enterprise Server) every organisation its user belongs to and the
+  user's own repositories, flagged `personal` and offered unticked. The listing carries the default branch,
+  archived, fork, visibility (`internal` included), `pushed_at`, language and size, pages by `Link` on the
+  connection's own origin, and waits out GitHub's primary and secondary rate limits. **An organisation the
+  token cannot read — single sign-on not authorised, an IP allow list — no longer stops anything**: the run
+  goes on, ends `completed`, and names it in a new member of the discovery, `unreadableNamespaces` (`path`,
+  `reason`), and in `detail`; **none of its repositories is marked gone by that run**. Imported as GitLab's
+  are, the organisation a solution and each repository its own project. Migration V80
+  (`t_forge_discovery.unreadable_namespaces`).
 - **Forge connections, discovery and import on screen** ([On screen](../administration/forge-connections.md#on-screen),
   decision 0037, lot D7). **Administration → Forge connections**, administrators only: each connection with
   its token's kind and scopes, whether it can write (*Not reported* for a GitHub fine-grained token —

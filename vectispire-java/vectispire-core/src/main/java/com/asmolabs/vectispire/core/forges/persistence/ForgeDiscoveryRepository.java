@@ -38,7 +38,7 @@ public interface ForgeDiscoveryRepository extends JpaRepository<ForgeDiscoveryEn
                set d.state = :running, d.claimedBy = :owner, d.leaseExpiresAt = :leaseExpiresAt,
                    d.startedAt = :startedAt, d.attempts = d.attempts + 1,
                    d.namespacesSeen = 0, d.repositoriesSeen = 0, d.repositoriesSkipped = 0, d.requestsMade = 0,
-                   d.rateLimitWaitSeconds = 0, d.unreadableNamespaces = null
+                   d.rateLimitWaitSeconds = 0
              where d.id = :id and d.state = :pending""")
     int take(
             @Param("id") long id,

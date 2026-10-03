@@ -2,9 +2,9 @@
 
 A read-only connection to a GitHub or a GitLab, from which Vectispire will discover your repositories and
 let you choose the ones to import ([decision 0037](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0037-discovering-repositories-at-setup.md)).
-This release ships the connections, the **discovery** of a GitLab's repositories — a connection lists what
-its token can see and keeps it as a snapshot, compared run to run — and the **selection and import** of
-those repositories as ordinary targets. The discovery of a GitHub's comes in a later lot.
+This release ships the connections, the **discovery** of a GitLab's and a GitHub's repositories — a
+connection lists what its token can see and keeps it as a snapshot, compared run to run — and the
+**selection and import** of those repositories as ordinary targets.
 
 Administrators only: on screen under **Administration → Forge connections** ([below](#on-screen)), and
 through `/api/v1/forge-connections` ([API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
@@ -92,7 +92,7 @@ control plane, and is never sent to an agent.
 |---|---|---|
 | GitLab | a **group access token** — a bot member that outlives the person who made it — or a personal access token; role **Reporter** on the groups to discover | **`read_api`** only |
 | GitHub (github.com, ghe.com, Enterprise Server that offers them) | a **fine-grained** personal access token, resource owner = the connection's owner, repository access *All repositories* or a selection | **Metadata: read**, and nothing else |
-| GitHub Enterprise Server without fine-grained tokens | a classic personal access token | `repo` (to list private repositories) and `read:org` |
+| GitHub Enterprise Server without fine-grained tokens | a classic personal access token | `repo` (to list private repositories) and `read:org` (to list the organisations it belongs to) |
 
 **GitLab: `read_api`, and only read scopes.** The token is accepted with `read_api` plus, at most,
 `read_repository`, `read_registry` or `read_user`. Anything else — `api`, `write_repository`, `sudo`,
@@ -110,6 +110,12 @@ write to every one of them, and a fine-grained token is always available there. 
 classic token holding `repo` or `public_repo` is accepted and shown **`canWrite: true`** — in the list,
 the audit entry and the SIEM event. Administration scopes (`admin:org`, `delete_repo`, `workflow`, the
 package scopes…) are refused.
+
+**GitHub organisations enforcing SAML single sign-on.** A classic token must be *authorised* for each
+such organisation (on GitHub: *Settings → Developer settings → Personal access tokens → Configure SSO*);
+until it is, GitHub refuses it that organisation's repositories. A discovery then marks the organisation
+*not readable with this token*, says why, and goes on with the others (below). A fine-grained token is
+approved by the organisation instead, and needs no such step.
 
 **What remains, written rather than hidden.** A GitHub Enterprise Server classic `repo` token can write.
 GitLab's `read_api` can also read files through the API. The connection is a standing read access to the
@@ -167,8 +173,7 @@ through the new CA before keeping it.
 
 `POST /api/v1/forge-connections/{id}/discoveries` asks for a discovery and answers at once, **202**, with the
 run — `pending`. A control-plane instance takes it within seconds and lists the forge in the background; poll
-`GET …/discoveries/{discoveryId}` for its progress. GitLab only in this release: a GitHub connection answers
-409 `forge-discovery-unsupported` until its listing lands.
+`GET …/discoveries/{discoveryId}` for its progress.
 
 **What is listed (GitLab).** The groups the token belongs to (`GET /groups?min_access_level=10`), then every
 project it is a member of (`GET /projects?membership=true&min_access_level=10&statistics=true`, keyset pages
@@ -178,7 +183,36 @@ project of the service. A token sees what its role lets it see — give it **Rep
 discover; a Guest's projects are listed all the same, without their size or, for private ones, their
 language.
 
-**What is kept per repository**: GitLab's id (stable across renames and moves), the full path, the namespace,
+**What is listed (GitHub)** — github.com, ghe.com and Enterprise Server alike, through the API root of the
+table above. GitHub lists one owner at a time, and which owners depends on the token, read again at every run
+(`GET /user`):
+
+- a **fine-grained token** is issued for exactly one resource owner, the connection's: that organisation's
+  repositories (`GET /orgs/{owner}/repos?type=all`), or the user's own (`GET /user/repos?affiliation=owner`)
+  when the owner is the token's user;
+- a **classic token** (Enterprise Server) sees every organisation its user belongs to: the connection's owner,
+  then each organisation `GET /user/orgs` names, then the user's own repositories.
+
+The user's own repositories are a **personal namespace**: listed, flagged `personal`, offered unticked. GitHub
+states every field in its listing — the language too, so a GitHub discovery makes no request per repository —
+and always states *fork* and *archived*, which are therefore never unknown here. The last activity is
+`pushed_at`; the size is GitHub's, in kibibytes, stored in bytes; the visibility may be `internal` on
+Enterprise Server and Enterprise Cloud. **An empty GitHub repository still names a default branch**: it is
+offered, and its first scan says there is nothing to scan.
+
+**An organisation the token cannot read is not a failed run.** A 403 or a 404 on one organisation — single
+sign-on not authorised for the token (`X-GitHub-SSO: required`), an IP allow list, an organisation refusing
+this kind of token, an organisation renamed or hidden — marks it *not readable with this token*: the run goes on
+with the others, ends `completed`, and lists it in `unreadableNamespaces` with the reason in words (also in
+`detail`). **The screen does not show that list yet**: it shows a run's detail only beside the reason of a
+partial or failed run, so a completed run with an organisation it could not read looks complete there — read
+the discovery through the API to see which. **None of its repositories is marked gone by that run**: a refusal is not an absence. Two refusals
+name no organisation: single sign-on *filters* `GET /user/orgs` rather than refusing it (`X-GitHub-SSO:
+partial-results`, by id), and a classic token without `read:org` is refused that list. Either way the run
+records it (a `path` of `null`) and marks gone only repositories of the namespaces it did read. A 401 still
+fails the run — the token is the problem, not one organisation.
+
+**What is kept per repository**: the forge's id (stable across renames and moves), the full path, the namespace,
 the name, the default branch, archived, fork, visibility, last activity, main language, size, and the HTTPS,
 SSH and web URLs. **A value GitLab did not give is kept empty — *unknown*, never zero**: no size without
 Reporter, no language when the language request is refused, no default branch for an empty repository, and
@@ -191,7 +225,7 @@ in a user's own namespace is listed and flagged `personal`: the selection will o
 |---|---|
 | `pending` | waiting for an instance — or resumed after the instance running it stopped |
 | `running` | listing; the counters move: namespaces and repositories seen, requests made, seconds waited on rate limits |
-| `completed` | every page was read; repositories no longer listed are marked **gone** |
+| `completed` | every page was read; repositories no longer listed are marked **gone** — except in a namespace the token could not read (`unreadableNamespaces`) |
 | `partial` | a bound ended it (below); what was read is kept and compared, **nothing is marked gone** |
 | `failed` | `token_rejected` (401: replace the token), `forge_refused` (a listing answered 403 or 404: the token needs `read_api`), `forge_unavailable` (no answer after three retries), `destination_blocked`, `cross_origin_page`, `connection_unusable` (the token no longer decrypts, or the pinned CA expired), `executor_lost`, `internal_error` |
 
@@ -200,7 +234,8 @@ the running one's `discoveryId`.
 
 **Bounds.** Thirty minutes and twenty thousand repositories per run; past either the run ends `partial`
 (`time_bound`, `repository_bound`). A rate limit is honoured, never raced: a wait of up to a minute
-(`Retry-After`, `RateLimit-Reset`) is spent inside the run; a longer one ends it `partial`, `rate_limited`,
+(`Retry-After`, GitHub's `X-RateLimit-Reset`, GitLab's `RateLimit-Reset`) is spent inside the run — GitHub's
+secondary limits, a 403 or 429 with `Retry-After`, included; a longer one ends it `partial`, `rate_limited`,
 with `rateLimitResetAt` saying when to run it again. A server that does not answer is retried three times
 with back-off, ten seconds per request, then the run fails.
 
@@ -241,7 +276,7 @@ listed whole, and nothing is inferred from what it did not reach.
   an existing target's URL, **whatever that target's branch and sub-path**: the rule the repository form refuses
   a duplicate by. `git@git.example.org:Acme/API.git` and `https://git.example.org/acme/api` are one repository,
   and a monorepo split into three sub-path targets shows three ids.
-- `importedAs`: the target an earlier import from this connection made of it — recognised by GitLab's id, so a
+- `importedAs`: the target an earlier import from this connection made of it — recognised by the forge's id, so a
   repository renamed on the forge is still that target.
 - `selectable`, and `notSelectable` when it is not: `already_imported`, `already_present`, `no_default_branch`
   (an empty repository: nothing to clone yet), `no_clone_url`.
@@ -257,15 +292,17 @@ repository it cannot judge, one that requires leaves it out, and `unjudged` coun
 names a fork's source only when the token can read it, so most repositories have no fork flag at all, and
 hiding them would hide most of the estate.
 
-**The selection** is a set of GitLab ids that the screen holds; what is imported is what was ticked, never what a
+**The selection** is a set of forge ids that the screen holds; what is imported is what was ticked, never what a
 filter matches at import time. `POST …/discoveries/{discoveryId}/selection` applies one operation to what the
 filters match — `proposed`, `all`, `none`, `invert`, or `add` and `remove` with `forgeIds` — and answers the
 selection, dropping (and naming in `dropped`) any id that cannot be ticked.
 
 **Where each repository is filed — proposed, shown, editable.** GitLab: the top-level group is the solution, and
 the repository's parent group below it the project (`acme/backend/payments/api` → solution `acme`, project
-`backend/payments`); a repository directly under the top-level group goes to a project named after that group. A
-personal namespace: no project. A solution or project **of the same name** (case aside) is reused, never renamed
+`backend/payments`); a repository directly under the top-level group goes to a project named after that group. GitHub,
+which has no level between an organisation and its repositories: the organisation is the solution, and **each
+repository its own project**, named after it (`acme/api` → solution `acme`, project `api`). A personal namespace,
+on either forge: no project. A solution or project **of the same name** (case aside) is reused, never renamed
 or moved. A `mapping` rule changes the proposal for a namespace and everything below it, or for one repository by
 its `forgeId`: another `solution`, another `project`, or `noProject`. The most specific rule wins on each field,
 so renaming `acme`'s solution keeps every subgroup's project.
@@ -295,12 +332,12 @@ host, the default schedule and the first scans.
   bound to it when there is exactly one**, none otherwise. A private repository imported with no credential is
   allowed and warned about — its scans will fail with *requires authentication*. **The connection's own token
   never clones**: it can list the organisation, it is not sent to agents.
-- **Branch**: GitLab's default branch at the discovery. A later change of default branch shows as *changed* in the
+- **Branch**: the forge's default branch at the discovery. A later change of default branch shows as *changed* in the
   next discovery; the target is not altered.
 - **Schedule**: none of its own, so the installation's default applies — and each new target takes it **at its own
   slot in the coming week**, not all of them at the next tick.
 - **First scan**: off by default. With `firstScan`, each new target's first scan is queued and held back so that
-  they reach GitLab one at a time: the *k*-th waits *k* × `spacingSeconds` (60 by default, 10 to 600). Three hundred
+  they reach the forge one at a time: the *k*-th waits *k* × `spacingSeconds` (60 by default, 10 to 600). Three hundred
   repositories at the default are five hours of clones.
 - **No grant.** New targets are visible to administrators and to whoever holds a grant on the project they are
   filed into. Granting stays on its own screen.
@@ -308,7 +345,7 @@ host, the default schedule and the first scans.
 The result lists what was created — each target's id, URL, solution, project and first scan — and what was
 skipped. The connection's `importedTargets` counts the targets imported through it that still exist.
 
-**Provenance.** Each imported target is linked to its connection and GitLab's id. Deleting the target deletes the
+**Provenance.** Each imported target is linked to its connection and the forge's id. Deleting the target deletes the
 link — the repository is offered again; deleting the connection deletes every link and no target.
 
 ## Encryption

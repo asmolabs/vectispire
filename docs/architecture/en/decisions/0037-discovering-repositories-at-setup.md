@@ -595,6 +595,50 @@ mapping exercised first and GitHub's written beside it for D4, with these choice
 - Not built here: the screen (D7), GitHub's listing (D4) — its mapping is written and unit-tested, its snapshot
   does not exist yet — and a discovery scoped to a group.
 
+## Built in D4
+
+Lot D4 — GitHub's listing — landed on 2026-10-03 as §1 and §3 describe, D1 to D3 and D5 to D6 untouched but for
+the two hooks the per-namespace rule needed, with these choices the text above did not make:
+
+- **Which owners: the token decides, read again at every run** (`GET /user`, whose `X-OAuth-Scopes` tells a
+  classic token from a fine-grained one). A fine-grained token is issued for one resource owner, so it lists the
+  connection's alone — `GET /orgs/{owner}/repos?type=all`, or `GET /user/repos?affiliation=owner` when the owner is
+  the token's user; asking it about another organisation would list that one's public repositories, which nobody
+  asked for. A classic token (Enterprise Server) lists the owner, every organisation `GET /user/orgs` names, and the
+  user's own repositories. §3's table named the owner alone; the classic token's wider view is what the owner
+  asked for when D4 was scheduled, and what an Enterprise Server without fine-grained tokens offers.
+- **The user's own repositories are the personal namespace**, flagged and offered unticked, whatever the token.
+- **The per-namespace 403 has two hooks on the listing**: `unreadable(path, reason)` — one organisation refused
+  (403, or 404: renamed or hidden is not proof of deletion), the run goes on, ends `completed`, and the completed
+  run's gone marks in that namespace are taken back in the same transaction — and `namespacesIncomplete(reason)` —
+  the forge withheld namespaces without naming them: single sign-on *filters* `GET /user/orgs` (`X-GitHub-SSO:
+  partial-results`, by id) rather than refusing it, and a classic token without `read:org` is refused that list.
+  Then the completed run marks gone only within the namespaces it read. Both batch their namespaces by a thousand
+  and compare them in lower case — GitHub's logins are case-insensitive and the owner is typed by a person. A 401
+  still fails the run: the token is the problem, not one organisation.
+- **Recorded, not only logged**: `unreadableNamespaces` (`path`, `reason`; `path` null for the unnamed) on the
+  discovery, stored one per line in `t_forge_discovery.unreadable_namespaces` — **V80**, in common, an added
+  nullable `${text}` column; a hundred kept, the rest counted — and summed up in `detail` for a screen that reads
+  only that. A field added to the view, nothing removed: the screen built in parallel keeps its contract. The
+  single sign-on sentence names the step to take and leaves out GitHub's authorisation URL, which carries a
+  request token.
+- **The metadata is the listing's.** GitHub states the language in it, so no request per repository: a language
+  the listing carries is written, one it does not carry kept (GitLab's listing carries none and is unchanged).
+  `fork` and `archived` are always stated, never unknown; `visibility` from the field (`internal` included),
+  from `private` only where it is missing; the size in kibibytes, stored in bytes; `pushed_at` as the last
+  activity. An empty GitHub repository still names a default branch, so `no_default_branch` does not skip it; its
+  first scan says it is empty.
+- **Pages and limits are the pager's**: `Link` on the connection's own origin, the `Authorization` and
+  `X-GitHub-Api-Version` headers attached to it alone; a secondary limit (403 or 429 with `Retry-After`) and a
+  primary one (`X-RateLimit-Remaining: 0` with `X-RateLimit-Reset`) waited out within the minute, past it the run
+  ends `partial`, `rate_limited`. A 403 carrying neither is a refusal, and is the organisation's.
+- **The 409 `forge-discovery-unsupported` stays** in the contract for a kind without a lister — Bitbucket's
+  connections may exist before D8's listing.
+- **Tested** against recorded answers for the two clouds, through the real door (the guard applying
+  `PUBLIC_ONLY`, the pager, `OutboundJson`) with only the exchange recorded — `api.github.com` and
+  `api.<sub>.ghe.com` cannot be stood up — and over HTTP against an Enterprise Server on loopback behind a private
+  CA at `/api/v3`, from discovery to import.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

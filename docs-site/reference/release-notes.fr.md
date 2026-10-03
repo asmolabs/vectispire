@@ -194,6 +194,20 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Nouveautés
 
+- **Découvertes de forge : les dépôts d'un GitHub aussi** — github.com, Enterprise Cloud avec résidence des
+  données (`<sous-domaine>.ghe.com`) et Enterprise Server 3.12 ou ultérieur sous `/api/v3`
+  ([ce qui est listé](../administration/forge-connections.fr.md#decouvrir-les-depots), décision 0037, lot D4).
+  Une découverte GitHub ne répond plus 409 `forge-discovery-unsupported`. Un jeton *fine-grained* liste le
+  propriétaire de la connexion ; un jeton classique (Enterprise Server) chaque organisation dont son
+  utilisateur est membre et les dépôts propres de l'utilisateur, marqués `personal` et proposés décochés. Le
+  listage donne la branche par défaut, archivé, fork, la visibilité (`internal` comprise), `pushed_at`, le
+  langage et la taille, pagine par `Link` sur l'origine propre de la connexion, et attend la fin des limites de
+  débit primaires et secondaires de GitHub. **Une organisation que le jeton ne peut pas lire — authentification
+  unique non autorisée, liste d'adresses IP autorisées — n'arrête plus rien** : l'exécution continue, finit
+  `completed`, et la nomme dans un nouveau membre de la découverte, `unreadableNamespaces` (`path`, `reason`),
+  et dans `detail` ; **aucun de ses dépôts n'est marqué disparu par cette exécution**. Importés comme ceux de
+  GitLab, l'organisation une solution et chaque dépôt son propre projet. Migration V80
+  (`t_forge_discovery.unreadable_namespaces`).
 - **Connexions de forge, découverte et import à l'écran** ([À l'écran](../administration/forge-connections.fr.md#a-lecran),
   décision 0037, lot D7). **Administration → Connexions de forge**, administrateurs seulement : chaque
   connexion avec le type et les portées de son jeton, s'il peut écrire (*Non communiqué* pour un jeton GitHub

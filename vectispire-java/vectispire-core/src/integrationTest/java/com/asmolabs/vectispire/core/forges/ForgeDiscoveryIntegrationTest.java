@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
+import com.asmolabs.vectispire.common.domain.forges.UnreadableNamespace;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
@@ -13,6 +14,7 @@ import com.asmolabs.vectispire.core.persistence.Engine;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -150,12 +152,19 @@ class ForgeDiscoveryIntegrationTest {
         assertThat(completed.getGoneCount()).isNull();
         assertThat(completed.getRateLimitResetAt()).isEqualTo(AT.plusSeconds(3600));
         assertThat(completed.getActiveKey()).isNull();
+        assertThat(UnreadableNamespace.decode(completed.getUnreadableNamespaces())).as("held whole on every engine")
+                .hasSize(UnreadableNamespace.MAX_RECORDED);
+        assertThat(completed.getUnreadableNamespaces()).hasSizeGreaterThan(50_000);
     }
 
     private int finish(long id, String owner) {
         return discoveries.finish(id, RUNNING, owner, "completed", null, "d".repeat(2000), AT.plusSeconds(30), 4, 20_000, 1,
-                20_300, 61, AT.plusSeconds(3600), 3, 2, null);
+                20_300, 61, AT.plusSeconds(3600), 3, 2, null, UNREADABLE);
     }
+
+    /** The widest list a run records: a hundred namespaces, each with the longest reason — far past any varchar. */
+    private static final String UNREADABLE = UnreadableNamespace.encode(IntStream.range(0, 150)
+            .mapToObj(i -> new UnreadableNamespace("org-" + i, "r".repeat(UnreadableNamespace.REASON_LENGTH))).toList());
 
     private ForgeRepositoryEntity repository(UUID connection, String forgeId, long seenBy) {
         ForgeRepositoryEntity row = new ForgeRepositoryEntity();
@@ -201,6 +210,13 @@ class ForgeDiscoveryIntegrationTest {
         assertThat(snapshot.findByConnectionIdAndLastSeenBy(connection, 8, PageRequest.of(0, 1, Sort.by("fullPath", "id")))
                 .getTotalElements()).isEqualTo(2);
         assertThat(snapshot.setLanguage(connection, "2", "TypeScript")).isOne();
+
+        // A namespace the run could not read: what it marked there is taken back, in any case the forge spells it.
+        assertThat(snapshot.unmarkGone(connection, 8, List.of("acme"))).isOne();
+        assertThat(snapshot.findByConnectionIdAndForgeIdIn(connection, List.of("1")).getFirst().getGoneBy()).isNull();
+        assertThat(snapshot.markGoneWithin(connection, 8, AT, List.of("globex"))).as("not a namespace read").isZero();
+        assertThat(snapshot.markGoneWithin(connection, 8, AT, List.of("other", "acme"))).isOne();
+        assertThat(snapshot.unmarkGone(connection, 9, List.of("acme"))).as("another run's marks stay").isZero();
 
         assertThat(discoveries.deleteByConnection(connection)).isZero();
         assertThat(snapshot.deleteByConnection(connection)).isEqualTo(3);

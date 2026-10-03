@@ -2,10 +2,9 @@
 
 Une connexion en lecture seule à un GitHub ou un GitLab, depuis laquelle Vectispire découvrira vos dépôts
 et vous laissera choisir ceux à importer ([décision 0037](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0037-discovering-repositories-at-setup.md)).
-Cette version livre les connexions, la **découverte** des dépôts d'un GitLab — une connexion liste ce que
-son jeton peut voir et le garde comme un instantané, comparé d'une exécution à l'autre — puis la
-**sélection et l'import** de ces dépôts comme cibles ordinaires. La découverte d'un GitHub vient dans un lot
-ultérieur.
+Cette version livre les connexions, la **découverte** des dépôts d'un GitLab et d'un GitHub — une connexion
+liste ce que son jeton peut voir et le garde comme un instantané, comparé d'une exécution à l'autre — et la
+**sélection et l'import** de ces dépôts comme cibles ordinaires.
 
 Administrateurs seulement : à l'écran sous **Administration → Connexions de forge** ([ci-dessous](#a-lecran)),
 et par `/api/v1/forge-connections` ([référence de l'API](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
@@ -98,7 +97,7 @@ découverte est en lecture seule, reste dans le plan de contrôle et n'est jamai
 |---|---|---|
 | GitLab | un **jeton d'accès de groupe** — un membre robot qui survit à la personne qui l'a créé — ou un jeton d'accès personnel ; rôle **Reporter** sur les groupes à découvrir | **`read_api`** seulement |
 | GitHub (github.com, ghe.com, les Enterprise Server qui les proposent) | un jeton d'accès personnel **fine-grained**, propriétaire de ressource = celui de la connexion, accès *All repositories* ou une sélection | **Metadata: read**, et rien d'autre |
-| GitHub Enterprise Server sans jetons *fine-grained* | un jeton d'accès personnel classique | `repo` (pour lister les dépôts privés) et `read:org` |
+| GitHub Enterprise Server sans jetons *fine-grained* | un jeton d'accès personnel classique | `repo` (pour lister les dépôts privés) et `read:org` (pour lister les organisations dont il est membre) |
 
 **GitLab : `read_api`, et seulement des portées de lecture.** Le jeton est accepté avec `read_api` plus,
 au plus, `read_repository`, `read_registry` ou `read_user`. Toute autre — `api`, `write_repository`,
@@ -116,6 +115,12 @@ peut aussi écrire dans chacun d'eux, et un jeton *fine-grained* y est toujours 
 Server un jeton classique portant `repo` ou `public_repo` est accepté et affiché **`canWrite: true`** —
 dans la liste, l'entrée d'audit et l'événement SIEM. Les portées d'administration (`admin:org`,
 `delete_repo`, `workflow`, les portées de paquets…) sont refusées.
+
+**Organisations GitHub imposant l'authentification unique SAML.** Un jeton classique doit être *autorisé*
+pour chacune de ces organisations (sur GitHub : *Settings → Developer settings → Personal access tokens →
+Configure SSO*) ; tant qu'il ne l'est pas, GitHub lui refuse les dépôts de cette organisation. Une découverte
+marque alors l'organisation *illisible avec ce jeton*, dit pourquoi, et continue avec les autres (ci-dessous).
+Un jeton *fine-grained* est approuvé par l'organisation à la place, et ne demande pas cette étape.
 
 **Ce qui reste, écrit plutôt que caché.** Un jeton classique `repo` de GitHub Enterprise Server peut
 écrire. Le `read_api` de GitLab peut aussi lire des fichiers par l'API. La connexion est un accès
@@ -173,9 +178,7 @@ Une AC qui expire arrête la connexion ; remplacez-la par un `PATCH`, qui sonde 
 
 `POST /api/v1/forge-connections/{id}/discoveries` demande une découverte et répond aussitôt, **202**, avec
 l'exécution — `pending`. Une instance du plan de contrôle la prend en quelques secondes et liste la forge en
-arrière-plan ; interrogez `GET …/discoveries/{discoveryId}` pour suivre sa progression. GitLab seulement
-dans cette version : une connexion GitHub répond 409 `forge-discovery-unsupported` jusqu'à l'arrivée de son
-listage.
+arrière-plan ; interrogez `GET …/discoveries/{discoveryId}` pour suivre sa progression.
 
 **Ce qui est listé (GitLab).** Les groupes dont le jeton est membre (`GET /groups?min_access_level=10`),
 puis chaque projet dont il est membre (`GET /projects?membership=true&min_access_level=10&statistics=true`,
@@ -185,7 +188,39 @@ gitlab.com liste tous les projets publics du service. Un jeton voit ce que son r
 donnez-lui **Reporter** sur les groupes à découvrir ; les projets d'un Guest sont listés quand même, sans
 leur taille ni, pour les privés, leur langage.
 
-**Ce qui est gardé par dépôt** : l'identifiant GitLab (stable aux renommages et aux déplacements), le chemin
+**Ce qui est listé (GitHub)** — github.com, ghe.com et Enterprise Server de même, par la racine d'API du
+tableau plus haut. GitHub liste un propriétaire à la fois, et lesquels dépend du jeton, relu à chaque exécution
+(`GET /user`) :
+
+- un **jeton *fine-grained*** est émis pour exactement un propriétaire de ressource, celui de la connexion : les
+  dépôts de cette organisation (`GET /orgs/{owner}/repos?type=all`), ou ceux de l'utilisateur
+  (`GET /user/repos?affiliation=owner`) quand le propriétaire est l'utilisateur du jeton ;
+- un **jeton classique** (Enterprise Server) voit chaque organisation dont son utilisateur est membre : le
+  propriétaire de la connexion, puis chaque organisation que nomme `GET /user/orgs`, puis les dépôts propres de
+  l'utilisateur.
+
+Les dépôts propres de l'utilisateur sont un **espace de noms personnel** : listés, marqués `personal`, proposés
+décochés. GitHub donne chaque champ dans son listage — le langage aussi, si bien qu'une découverte GitHub ne fait
+aucune requête par dépôt — et donne toujours *fork* et *archivé*, qui ne sont donc jamais inconnus ici. La dernière
+activité est `pushed_at` ; la taille est celle de GitHub, en kibioctets, gardée en octets ; la visibilité peut être
+`internal` sur Enterprise Server et Enterprise Cloud. **Un dépôt GitHub vide nomme quand même une branche par
+défaut** : il est proposé, et son premier scan dit qu'il n'y a rien à analyser.
+
+**Une organisation que le jeton ne peut pas lire n'est pas une exécution en échec.** Un 403 ou un 404 sur une
+organisation — authentification unique non autorisée pour le jeton (`X-GitHub-SSO: required`), une liste
+d'adresses IP autorisées, une organisation qui refuse ce genre de jeton, une organisation renommée ou cachée — la
+marque *illisible avec ce jeton* : l'exécution continue avec les autres, finit `completed`, et la liste dans
+`unreadableNamespaces` avec la raison en mots (aussi dans `detail`). **L'écran ne montre pas encore cette liste** :
+il n'affiche le détail d'une exécution qu'à côté de la raison d'une exécution partielle ou en échec, si bien
+qu'une exécution complète avec une organisation illisible y paraît complète — lisez la découverte par l'API pour
+savoir laquelle. **Aucun de ses dépôts n'est marqué disparu
+par cette exécution** : un refus n'est pas une absence. Deux refus ne nomment aucune organisation :
+l'authentification unique *filtre* `GET /user/orgs` au lieu de le refuser (`X-GitHub-SSO: partial-results`, par
+identifiant), et un jeton classique sans `read:org` se voit refuser cette liste. Dans les deux cas l'exécution
+l'enregistre (un `path` à `null`) et ne marque disparus que des dépôts des espaces de noms qu'elle a lus. Un 401
+fait toujours échouer l'exécution — le problème est le jeton, pas une organisation.
+
+**Ce qui est gardé par dépôt** : l'identifiant de la forge (stable aux renommages et aux déplacements), le chemin
 complet, l'espace de noms, le nom, la branche par défaut, archivé, fork, visibilité, dernière activité,
 langage principal, taille, et les URL HTTPS, SSH et web. **Une valeur que GitLab n'a pas donnée reste vide —
 *inconnue*, jamais zéro** : pas de taille sans Reporter, pas de langage quand sa requête est refusée, pas de
@@ -199,7 +234,7 @@ nomme que si le jeton peut le lire). Un dépôt dans l'espace personnel d'un uti
 |---|---|
 | `pending` | en attente d'une instance — ou reprise après l'arrêt de l'instance qui l'exécutait |
 | `running` | en cours de listage ; les compteurs avancent : espaces de noms et dépôts vus, requêtes faites, secondes d'attente sur les limites de débit |
-| `completed` | toutes les pages ont été lues ; les dépôts qui ne sont plus listés sont marqués **disparus** |
+| `completed` | toutes les pages ont été lues ; les dépôts qui ne sont plus listés sont marqués **disparus** — sauf dans un espace de noms que le jeton n'a pas pu lire (`unreadableNamespaces`) |
 | `partial` | une borne l'a arrêtée (ci-dessous) ; ce qui a été lu est gardé et comparé, **rien n'est marqué disparu** |
 | `failed` | `token_rejected` (401 : remplacez le jeton), `forge_refused` (un listage a répondu 403 ou 404 : le jeton doit avoir `read_api`), `forge_unavailable` (pas de réponse après trois essais), `destination_blocked`, `cross_origin_page`, `connection_unusable` (le jeton ne se déchiffre plus, ou l'AC épinglée a expiré), `executor_lost`, `internal_error` |
 
@@ -208,7 +243,8 @@ nomme que si le jeton peut le lire). Un dépôt dans l'espace personnel d'un uti
 
 **Bornes.** Trente minutes et vingt mille dépôts par exécution ; au-delà de l'une ou l'autre, l'exécution
 finit `partial` (`time_bound`, `repository_bound`). Une limite de débit est respectée, jamais devancée : une
-attente d'au plus une minute (`Retry-After`, `RateLimit-Reset`) est passée dans l'exécution ; une plus longue
+attente d'au plus une minute (`Retry-After`, `X-RateLimit-Reset` de GitHub, `RateLimit-Reset` de GitLab) est
+passée dans l'exécution — les limites secondaires de GitHub, un 403 ou un 429 avec `Retry-After`, comprises ; une plus longue
 la termine `partial`, `rate_limited`, `rateLimitResetAt` disant quand la relancer. Un serveur qui ne répond
 pas est réessayé trois fois avec un délai croissant, dix secondes par requête, puis l'exécution échoue.
 
@@ -253,7 +289,7 @@ qu'elle n'a pas atteint.
   `https://git.example.org/acme/api` sont un seul dépôt, et un monorepo découpé en trois cibles de sous-chemin
   montre trois identifiants.
 - `importedAs` : la cible qu'un import précédent depuis cette connexion en a faite — reconnue par l'identifiant de
-  GitLab, si bien qu'un dépôt renommé sur la forge reste cette cible.
+  la forge, si bien qu'un dépôt renommé sur la forge reste cette cible.
 - `selectable`, et `notSelectable` quand il ne l'est pas : `already_imported`, `already_present`,
   `no_default_branch` (un dépôt vide : rien à cloner encore), `no_clone_url`.
 - `offered` : si la sélection le propose coché — sélectionnable, ni archivé, ni fork, et **pas dans un espace de
@@ -268,7 +304,7 @@ n'a pas dit** : celui qui masque garde un dépôt qu'il ne peut juger, celui qui
 compte par filtre — GitLab ne nomme la source d'un fork que si le jeton peut la lire, si bien que la plupart des
 dépôts n'ont aucune indication de fork, et les masquer masquerait l'essentiel du parc.
 
-**La sélection** est un ensemble d'identifiants GitLab que l'écran garde ; ce qui est importé est ce qui a été coché,
+**La sélection** est un ensemble d'identifiants de la forge que l'écran garde ; ce qui est importé est ce qui a été coché,
 jamais ce qu'un filtre retient au moment de l'import. `POST …/discoveries/{discoveryId}/selection` applique une
 opération à ce que les filtres retiennent — `proposed`, `all`, `none`, `invert`, ou `add` et `remove` avec
 `forgeIds` — et répond la sélection, en retirant (et en nommant dans `dropped`) tout identifiant qui ne peut être
@@ -277,7 +313,9 @@ coché.
 **Où chaque dépôt est rangé — proposé, montré, modifiable.** GitLab : le groupe de premier niveau est la solution,
 et le groupe parent du dépôt sous lui le projet (`acme/backend/payments/api` → solution `acme`, projet
 `backend/payments`) ; un dépôt directement sous le groupe de premier niveau va dans un projet nommé d'après ce
-groupe. Un espace de noms personnel : aucun projet. Une solution ou un projet **du même nom** (casse mise à part)
+groupe. GitHub, qui n'a aucun niveau entre une organisation et ses dépôts : l'organisation est la solution, et
+**chaque dépôt son propre projet**, nommé d'après lui (`acme/api` → solution `acme`, projet `api`). Un espace de
+noms personnel, sur l'une ou l'autre forge : aucun projet. Une solution ou un projet **du même nom** (casse mise à part)
 est réutilisé, jamais renommé ni déplacé. Une règle `mapping` change la proposition pour un espace de noms et tout ce
 qui est en dessous, ou pour un dépôt par son `forgeId` : une autre `solution`, un autre `project`, ou `noProject`.
 La règle la plus précise l'emporte sur chaque champ, si bien que renommer la solution d'`acme` garde le projet de
@@ -308,12 +346,12 @@ défaut et les premiers scans.
   jeton HTTPS lié à cet hôte quand il y en a exactement un**, aucun sinon. Un dépôt privé importé sans identifiant
   est permis et signalé — ses scans échoueront avec *requires authentication*. **Le jeton de la connexion ne clone
   jamais** : il peut lister l'organisation, il n'est pas envoyé aux agents.
-- **Branche** : la branche par défaut de GitLab à la découverte. Un changement ultérieur de branche par défaut
+- **Branche** : la branche par défaut de la forge à la découverte. Un changement ultérieur de branche par défaut
   apparaît comme *changed* à la découverte suivante ; la cible n'est pas modifiée.
 - **Planification** : aucune qui lui soit propre, la planification par défaut de l'installation s'applique donc — et
   chaque nouvelle cible la prend **à son propre créneau dans la semaine qui vient**, pas toutes au tic suivant.
 - **Premier scan** : désactivé par défaut. Avec `firstScan`, le premier scan de chaque nouvelle cible est mis en file
-  et retenu pour qu'ils atteignent GitLab un par un : le *k*-ième attend *k* × `spacingSeconds` (60 par défaut, de 10
+  et retenu pour qu'ils atteignent la forge un par un : le *k*-ième attend *k* × `spacingSeconds` (60 par défaut, de 10
   à 600). Trois cents dépôts au défaut font cinq heures de clonages.
 - **Aucun droit.** Les nouvelles cibles sont visibles des administrateurs et de quiconque détient un droit sur le
   projet où elles sont rangées. Accorder reste l'affaire de son propre écran.
@@ -322,7 +360,7 @@ Le résultat liste ce qui a été créé — l'identifiant, l'URL, la solution, 
 cible — et ce qui a été écarté. `importedTargets` de la connexion compte les cibles importées par elle qui
 existent encore.
 
-**Provenance.** Chaque cible importée est liée à sa connexion et à l'identifiant de GitLab. Supprimer la cible
+**Provenance.** Chaque cible importée est liée à sa connexion et à l'identifiant de la forge. Supprimer la cible
 supprime le lien — le dépôt est de nouveau proposé ; supprimer la connexion supprime chaque lien et aucune cible.
 
 ## Chiffrement

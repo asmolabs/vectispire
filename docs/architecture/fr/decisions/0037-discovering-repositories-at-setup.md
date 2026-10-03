@@ -649,6 +649,56 @@ texte ci-dessus ne faisait pas :
 - Non construit ici : l'écran (D7), le listage de GitHub (D4) — sa correspondance est écrite et testée unitairement,
   son instantané n'existe pas encore — et une découverte limitée à un groupe.
 
+## Construit en D4
+
+Le lot D4 — le listage de GitHub — a été livré le 2026-10-03 comme le décrivent les §1 et §3, D1 à D3 et D5 à D6
+inchangés hormis les deux points d'accroche dont la règle par espace de noms avait besoin, avec ces choix que le
+texte ci-dessus ne faisait pas :
+
+- **Quels propriétaires : le jeton décide, relu à chaque exécution** (`GET /user`, dont l'en-tête `X-OAuth-Scopes`
+  distingue un jeton classique d'un jeton *fine-grained*). Un jeton *fine-grained* est émis pour un seul
+  propriétaire de ressource : il liste donc celui de la connexion seul — `GET /orgs/{owner}/repos?type=all`, ou
+  `GET /user/repos?affiliation=owner` quand le propriétaire est l'utilisateur du jeton ; l'interroger sur une autre
+  organisation listerait les dépôts publics de celle-ci, que personne n'a demandés. Un jeton classique (Enterprise
+  Server) liste le propriétaire, chaque organisation que nomme `GET /user/orgs`, et les dépôts propres de
+  l'utilisateur. Le tableau du §3 ne nommait que le propriétaire ; la vue plus large du jeton classique est ce que
+  le responsable produit a demandé quand D4 a été planifié, et ce qu'offre un Enterprise Server sans jetons
+  *fine-grained*.
+- **Les dépôts propres de l'utilisateur sont l'espace de noms personnel**, marqués et proposés décochés, quel que
+  soit le jeton.
+- **Le 403 par espace de noms a deux points d'accroche sur le listage** : `unreadable(path, reason)` — une
+  organisation refusée (403, ou 404 : renommée ou cachée n'est pas la preuve d'une suppression), l'exécution
+  continue, finit `completed`, et les marques de disparition de l'exécution complète dans cet espace de noms sont
+  reprises dans la même transaction — et `namespacesIncomplete(reason)` — la forge a retenu des espaces de noms sans
+  les nommer : l'authentification unique *filtre* `GET /user/orgs` (`X-GitHub-SSO: partial-results`, par
+  identifiant) au lieu de le refuser, et un jeton classique sans `read:org` se voit refuser cette liste. L'exécution
+  complète ne marque alors disparus que dans les espaces de noms qu'elle a lus. Les deux regroupent leurs espaces de
+  noms par mille et les comparent en minuscules — les identifiants GitHub ignorent la casse et le propriétaire est
+  saisi par une personne. Un 401 fait toujours échouer l'exécution : le problème est le jeton, pas une organisation.
+- **Enregistré, pas seulement journalisé** : `unreadableNamespaces` (`path`, `reason` ; `path` nul pour ceux qui ne
+  sont pas nommés) sur la découverte, stocké un par ligne dans `t_forge_discovery.unreadable_namespaces` — **V80**,
+  dans common, une colonne `${text}` nullable ajoutée ; cent gardés, le reste compté — et résumé dans `detail` pour
+  un écran qui ne lit que lui. Un champ ajouté à la vue, rien de retiré : l'écran construit en parallèle garde son
+  contrat. La phrase sur l'authentification unique nomme le geste à faire et omet l'URL d'autorisation de GitHub,
+  qui porte un jeton de requête.
+- **Les métadonnées sont celles du listage.** GitHub y donne le langage, donc aucune requête par dépôt : un langage
+  que le listage porte est écrit, un qu'il ne porte pas est gardé (le listage de GitLab n'en porte aucun et ne change
+  pas). `fork` et `archived` sont toujours donnés, jamais inconnus ; `visibility` depuis le champ (`internal`
+  compris), depuis `private` seulement s'il manque ; la taille en kibioctets, gardée en octets ; `pushed_at` comme
+  dernière activité. Un dépôt GitHub vide nomme quand même une branche par défaut, `no_default_branch` ne l'écarte
+  donc pas ; son premier scan dit qu'il est vide.
+- **Pages et limites sont celles du paginateur** : `Link` sur l'origine propre de la connexion, les en-têtes
+  `Authorization` et `X-GitHub-Api-Version` attachés à elle seule ; une limite secondaire (403 ou 429 avec
+  `Retry-After`) et une primaire (`X-RateLimit-Remaining: 0` avec `X-RateLimit-Reset`) attendues dans la minute,
+  au-delà l'exécution finit `partial`, `rate_limited`. Un 403 qui ne porte ni l'un ni l'autre est un refus, et
+  c'est celui de l'organisation.
+- **Le 409 `forge-discovery-unsupported` reste** dans le contrat pour un type sans listage — les connexions
+  Bitbucket peuvent exister avant le listage de D8.
+- **Testé** contre des réponses enregistrées pour les deux clouds, par la vraie porte (la garde appliquant
+  `PUBLIC_ONLY`, le paginateur, `OutboundJson`) avec le seul échange enregistré — `api.github.com` et
+  `api.<sub>.ghe.com` ne peuvent être montés — et en HTTP contre un Enterprise Server en boucle locale derrière
+  une AC privée sous `/api/v3`, de la découverte à l'import.
+
 ## Mise en œuvre, par lots
 
 | Lot | Contenu | Taille |
