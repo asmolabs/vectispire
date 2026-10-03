@@ -300,6 +300,11 @@ Décidé avec le responsable produit le 2026-10-03 (amendement) :
    Décidé avec le responsable produit le 2026-10-03 : la ligne va sur ce graphique et sur **toute
    série du score ajoutée plus tard**, dès sa première version. Aucun graphique du score dans le temps
    n'existe aujourd'hui — le classement et les fiches montrent le score tel qu'il est — donc rien d'autre
-   ne la porte encore.
+   ne la porte encore. *Construit avec la bascule :* la ligne se place **le jour où l'installation a été
+   mise à jour**, pas à la date de la version — une installation mise à jour un mois après la 0.11.0 a
+   gardé les anciennes notes pendant ce mois. La migration V69 écrit ce jour comme réglage interne là où
+   l'installation avait déjà un scan terminé (une installation neuve n'a pas de note sous l'ancienne
+   formule, et pas de ligne), et `GET /api/v1/dashboard/trends` le transmet au graphique comme
+   `score_formula_changed_on`.
 6. `CandidateScore` cesse d'être une candidate (renommée dans le domaine du scorecard) et la route de
    simulation est retirée à la version suivante, quand plus personne n'a besoin de la comparaison.

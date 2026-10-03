@@ -139,13 +139,16 @@ project covers the repositories filed in it.
 ## The README badge
 
 Each repository can expose a dynamic badge for its own README, showing the security
-posture grade. It puts the number in front of the people who commit, which is where it
-changes behaviour.
+posture grade — the letter alone, never the score's risk points: the badge is anonymous, and the
+points would tell anyone reading it how much is open and when that moves. It puts the grade in front
+of the people who commit, which is where it changes behaviour.
 
 ## How the scorecard grade is computed
 
 The grade on a repository's **scorecard** and on its badge is the same number. It is computed
-when asked for, from the repository's backlog as it stands — nothing is stored.
+when asked for, from the repository's backlog as it stands — nothing is stored. The formula is
+[decision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0036-the-posture-score-formula.md),
+since 0.11.0.
 
 **What counts.** Open issues of that repository only. Resolved issues are left out, and so are
 issues triaged **not affected** or **fixed** — the two decisions that already stop an issue
@@ -153,23 +156,28 @@ failing the gate. An issue whose dismissal is **awaiting approval** still counts
 not a decision. A triage status Vectispire does not recognise counts too, rather than being
 read as settled.
 
-**The score** starts at 100:
+**The risk points** add up what is open, each issue and each disallowed licence once:
 
-| Element | Points | Per |
+| Element | Risk points | Per |
 |---|---|---|
-| Actively exploited vulnerability (CISA KEV) | −25 | issue |
-| Critical | −8 | issue |
-| High | −4 | issue |
-| Licence not allowed by the licence policy | −5 | component |
-| At least one completed scan | +5 | once |
+| Actively exploited vulnerability (CISA KEV), whatever its severity | 25 | issue |
+| Critical | 10 | issue |
+| High | 4 | issue |
+| Medium (or no severity) | 0.5 | issue |
+| Low | 0.125 | issue |
+| Licence not allowed by the licence policy | 4 | component |
+
+An exploited issue counts as exploited only, not also under its severity.
+
+**The score** is **100 × e^(−risk points / 55)**, rounded, and never below 1. Each issue removes a
+share of what is left rather than a fixed number of points: the score falls quickly for the first
+issues and keeps falling, ever more slowly, so a backlog twice as large always scores lower — fifty
+mediums no longer read like five hundred, and a team deep in F still sees its risk points fall as it
+fixes. **Any actively exploited issue caps the score at 54**, the top of D. A completed scan earns
+nothing: having one is what gets a target graded at all.
 
 **Reachability is not a term.** Vectispire runs no call-graph analysis, so nothing establishes
-whether a component's vulnerable code is called. The grade used to charge a "reachable" critical
-−15 instead of −8, on a value that was never recorded; every critical now costs −8, which is what
-every grade already was.
-
-Penalties add up: an actively exploited critical costs 33. Medium and low severities
-cost nothing. The result is held between 0 and 100.
+whether a component's vulnerable code is called. Every critical weighs the same.
 
 **The grade:**
 
@@ -182,96 +190,81 @@ cost nothing. The result is held between 0 and 100.
 | 40 – 54 | D |
 | below 40 | F |
 
-For example, a scanned repository with two criticals, one high, one actively exploited medium and
-one disallowed licence scores 100 − 8 − 8 − 4 − 25 − 5 + 5 = **55, grade C**.
+For example: one critical is 10 risk points, **83, B**; one exploited critical 25 points, 63 held at
+**54, D**; fifty mediums 25 points, **63, C**; one disallowed licence 4 points, **93, A**. A scanned
+repository with two criticals, one high, one actively exploited medium, two mediums, four lows and
+one disallowed licence has 10 + 10 + 4 + 25 + 0.5 + 0.5 + 0.5 + 4 = 54.5 risk points and scores
+**37, grade F**.
+
+**The risk points are on the card** (`riskPoints`), beside the score, for whoever is signed in — never
+on the public badge. They are a sum of what is open, not a percentage.
 
 **No scan, no grade.** A repository or image with no completed scan has nothing to grade: its
-scorecard reads grade **`NO_DATA`** with no score (`score` is `null`), and its badge reads *no data*
-in grey. It used to read 100, A+ — the score subtracts what it finds from a hundred, and nobody had
-looked. The counts stay, being true of what was read; a SARIF import alone does not make a target
-scanned. A scan in progress, or one that failed after a completed one, does not take the grade away:
-the backlog graded is the one the last completed scan left.
+scorecard reads grade **`NO_DATA`** with no score and no risk points (`score` and `riskPoints` are
+`null`), and its badge reads *no data* in grey. The counts stay, being true of what was read; a SARIF
+import alone does not make a target scanned. A scan in progress, or one that failed after a completed
+one, does not take the grade away: the backlog graded is the one the last completed scan left.
 
-**A portfolio, a project or a solution** — the global scorecard and the one under [a project's compliance](compliance.md#per-project-and-per-solution) — is computed the
-same way over the targets you see, with two rules of its own. None of them scanned is `NO_DATA`. Some
-of them scanned caps the score at the scanned share, rounded, and adds the recommendation *Scan the N
-target(s) never scanned*: ten targets with one scanned clean score 10, not 100 — the compliance
-controls' coverage cap, read over the same targets. `totalTargets` and `observedTargets` say what the
-card covers. The compliance freshness window does not cap it: that window is a setting of each
-deployment, and a grade must not differ between two installations holding the same estate.
+**A project or a solution** — the scorecard under [a project's compliance](compliance.md#per-project-and-per-solution) —
+is graded by its **weakest link**: the lowest score among the targets of it you see that hold a
+completed scan, each computed as its own card computes it, and `weakestTarget` names that target
+(kind, id, name, its own score, grade and risk points). A scope is no safer than its most exposed
+target, and its grade does not depend on its size: twenty repositories of four mediums each, every
+one 96, A+, make an A+ project — not the D that adding their backlogs up would give. A target never
+scanned does not compete. The scope's **risk points are the sum of its open backlog**, each issue and
+each licence entry once however many of its targets name it, so a large scope still shows how much is
+open. None of its targets scanned is `NO_DATA`. Some of them scanned caps the score at the scanned
+share, rounded, and adds the recommendation *Scan the N target(s) never scanned*: ten targets with
+one scanned clean score 10, not 100 — the compliance controls' coverage cap, read over the same
+targets. `totalTargets` and `observedTargets` say what the card covers. The compliance freshness
+window does not cap it: that window is a setting of each deployment, and a grade must not differ
+between two installations holding the same estate.
+
+**The portfolio has no single grade.** A grade over a whole estate is either crushed by its size or
+the worst target's grade under another name; neither tells you what to do next. The dashboard —
+and `GET /api/v1/scorecards/global` — shows instead how many of the targets you see read each grade,
+*No data* included, the weakest of them by name, and the risk points of everything open. See
+[Dashboard](dashboard.md#security-posture-grade).
 
 **What does not move the grade.** Issues past their remediation deadline are counted on the
 scorecard and produce a recommendation, but cost no points: deadlines are a setting of each
 deployment (see [Remediation times](remediation-delays.md#where-the-deadlines-come-from)), and a badge must not
-change grade because somebody edited a window.
+change grade because somebody edited a window. Nor can an installation change the weights: two
+installations holding the same estate grade it the same.
 
 **The recommendations** list, when they apply: disallowed licences, no completed scan yet —
 an in-toto attestation is issued from a completed scan, so there is none before —, actively
 exploited vulnerabilities, criticals, highs, and overdue issues.
 
-The penalties have no ceiling, so the scale saturates at the bottom: five exploited
-criticals already make an F, and five hundred make the same F. Read the counts on the
-scorecard, not only the letter.
-
 This grade is also the one in the dashboard's maturity ranking: a target reads the same score and
 the same letter there — see [Dashboard](dashboard.md#security-posture-grade).
 
-### A candidate formula, to compare (experimental) {#score-simulation}
+**Grades dropped in 0.11.0, and nothing in the repositories changed.** The formula before it charged
+25 for an exploited issue on top of its severity, 8 for a critical, 4 for a high, 5 for a licence,
+nothing for mediums and lows, and gave 5 for a completed scan; it reached 0 at twenty-seven highs and
+read fifty and five hundred mediums alike at 100. Mediums, lows and every further issue count now, so
+most grades read lower the day an installation upgrades. The dashboard's trend chart marks that day.
 
-**Experimental — nothing on a card, a badge or the ranking changes.** To decide whether to replace
-the formula above, an administrator can see every target scored both ways on the estate's own
-backlog: `GET /api/v1/scorecards/simulation`. Nothing is stored and nothing is recorded.
+### Other weights, to compare (experimental) {#score-simulation}
 
-The candidate is **100 × exp(−Σ weight × count / k)**, over the open issues and the disallowed
-licences: each one removes a share of what is left instead of a fixed number of points, so the score
-keeps falling with the backlog without ever reaching 0, and fifty mediums no longer read like five
-hundred. The defaults are the calibration the product owner validated on 2026-10-03: 25 for an
-actively exploited issue (CISA KEV, whatever its severity — counted in that class only), 10 for a
-critical, 4 for a high, 0.5 for a medium, 0.125 for a low and **4 for a disallowed licence** (a
-high's weight, counted as the card counts its licence violations), with **k = 55**. Any exploited
-issue caps the grade at **D** (score 54 at most). There is **no bonus for a completed scan**: having
-one is what gets a target graded at all. The grade bands are the table above, unchanged. The same
-issues count as for the current score — open, triage not settled — and a target with no completed
-scan is `NO_DATA` under both.
-
-Beside the score each row carries its **risk points**, the weighted total Σ weight × count the score
-is computed from. The score is held at 1 at the bottom of F; the risk points keep moving, so a team
-deep in F still sees what it fixed.
-
-With these values one critical reads 83 (B), one exploited critical 54 (D, capped), fifty mediums 63
-(C), one disallowed licence 93 (A), one critical and one disallowed licence 78 (B), ten disallowed
-licences 48 (D), five hundred mediums 1 (F) and twenty-seven highs 14 (F). With mediums at 1, no `k`
-makes both one critical a B and fifty mediums a C — which is why the medium weighs 0.5. Changing the
-production formula to this one is [decision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0036-the-posture-score-formula.md),
-proposed.
+**Experimental — nothing on a card, a badge or the ranking changes.** An administrator can see every
+target scored under other weights on the estate's own backlog: `GET /api/v1/scorecards/simulation`.
+Nothing is stored and nothing is recorded. The route served to decide the formula above, and is
+retired in the release after 0.11.0.
 
 Each of `exploited`, `critical`, `high`, `medium`, `low`, `licence` and `k` can be passed as a query
-parameter to try other values; one left out takes the validated value. The answer lists each target's
-current and candidate score and grade, its risk points and its counts, and how many targets read each
-grade under each formula.
+parameter; one left out takes the production value. The answer lists each target's current score and
+grade — the card's — beside the candidate's under the weights asked for, its risk points and its
+counts, and how many targets read each grade under each. **With no parameter, the two agree.**
 
 **Projects and solutions are listed too** (`scopes`), each one the [solutions tree](../administration/solutions-and-projects.md) shows
-the administrator: the score its project or solution scorecard gives today beside the candidate over
-the scope's whole backlog, with the same cap when part of the scope was never scanned and the same
-`NO_DATA` when none of it was. A scope adds up its targets' backlogs, so it can read lower than each
-of them. Each scope row also carries two licence counts: `licences`, the candidate's, each disallowed
-entry counted once; and `currentLicences`, what the project's or solution's card counts today.
-They differ — `currentDoubleCounted` is then `true` — where a scan named both an image and a
-repository of the scope: today's card counts that scan's components and licence findings once for
-the repository and once more for the image. Each target's own card counts them once, on the
-repository; the candidate agrees with it, and the switch of formula fixes the scope card.
-
-**Two ways of grading a scope are compared** in each scope row, since adding the backlogs up makes a
-scope's grade depend on its size. `candidateScore` and `candidateGrade` are the **sum**: the formula
-over the scope's whole backlog. `weakestScore` and `weakestGrade` are the **weakest link**: the
-candidate score of the scope's lowest-scoring scanned target, exactly as that target's own row reads
-it, and `weakestTarget` names it (kind, id, name — always one of the targets the same answer lists).
-The weakest link is held at the share of the scope that was scanned, like the sum, and a scope none
-of which was scanned is `NO_DATA` under both. The risk points stay the sum's, each issue and each
-licence counted once. Twenty repositories of four mediums each read 96 (A+) one by one: summed, their
-project reads 48 (D), its weakest link 96 (A+). Ten clean repositories beside one holding an exploited
-critical read 54 (D) both ways — the clean ten hide nothing. Which of the two a scope's card will use
-is part of decision 0036, still proposed.
+the administrator, with both ways of grading a scope that were compared: `weakestScore` and
+`weakestGrade`, the **weakest link** the card now uses (`currentScore` equals it with no parameter),
+and `candidateScore` and `candidateGrade`, the **sum** — the formula over the scope's whole backlog,
+which was rejected because it lowers a scope's grade for holding more targets. `licences` and
+`currentLicences` count the scope's disallowed licence entries the candidate's way and the card's;
+they agree since 0.11.0, and `currentDoubleCounted` reads `false` — before it, a scope card counted
+twice the licences of a scan naming both one of its images and one of its repositories.
 
 ## Languages {#languages}
 

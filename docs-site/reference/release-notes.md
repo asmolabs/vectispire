@@ -4,6 +4,61 @@
 
 ### Changes an integration can see
 
+#### Score formula (0.11.0)
+
+**Grades drop because mediums, lows and every further issue now count — not because a project got
+worse. Nothing in your repositories changed.** The scorecard's formula is replaced, everywhere at once
+— the cards, the project and solution scorecards, the dashboard's ranking and the public badge —
+([decision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0036-the-posture-score-formula.md),
+[how it is computed](../guide/repositories.md#how-the-scorecard-grade-is-computed)).
+
+- **The score is `100 × e^(−risk points / 55)`, rounded and never below 1**, over **risk points** that
+  weigh what is open: 25 an actively exploited issue (CISA KEV, whatever its severity, counted in that
+  class only), 10 a critical, 4 a high, 0.5 a medium, 0.125 a low, 4 a disallowed licence. **Any exploited
+  issue caps the score at 54 (D).** There is no longer a bonus for a completed scan. The bands do not
+  change. The old formula — a hundred less 25 per KEV on top of its severity, 8 per critical, 4 per high,
+  5 per licence, plus 5 for a scan — reached 0 at twenty-seven highs and read fifty or five hundred
+  mediums at 100, A+. Some figures, old → new: one critical 97 A+ → 83 B; one exploited critical 72 B →
+  54 D; fifty mediums 100 A+ → 63 C; one disallowed licence 100 A+ → 93 A; twenty-seven highs 0 F → 14 F.
+  On the eleven seeded targets of the comparison, eight change grade and none rises.
+- **A new field, `riskPoints`**, on `GET /api/v1/scorecards/repositories/{id}` and `…/containers/{id}`,
+  on the `scorecard` of `GET /api/v1/projects/{id}/compliance` and `…/solutions/{id}/compliance`, and on
+  each row of the maturity ranking (`GET /api/v1/dashboard/posture-analytics`, `targetScoreboard[].riskPoints`)
+  — `null` exactly when the score is. Signed-in routes only.
+- **The public badge (`GET /api/v1/scorecards/badges/{token}.svg`) keeps its look and shows the letter
+  alone** — it may change letter and colour on its next render with nobody having touched the
+  repository, and never shows the risk points: they would tell anyone reading the README how much is
+  open, and when that moves.
+- **A project or a solution is graded by its weakest link**: its score is the lowest score among the
+  scanned targets of it you see, each as its own card computes it, held at the scanned share as before,
+  and the scorecard names that target in a new field, `weakestTarget` (kind, id, name, its own score,
+  grade and risk points). It used to be the formula over the scope's summed backlog, which graded a
+  scope lower the more targets it held. Its `riskPoints` are the whole scope's open backlog, each issue
+  and licence once.
+- **A scope's `licenseViolationCount` can fall.** A project or a solution filing both an image and a
+  repository that one scan named counted that scan's disallowed licences twice; each is counted once
+  now, as each target's own card already did.
+- **`GET /api/v1/scorecards/global` changes shape: the portfolio has no single grade.** A grade over a
+  whole estate is crushed by its size or is the worst target's grade under another name. The response
+  is now `grades` — every grade, `NO_DATA` included, with how many of the targets you see read it —,
+  `weakestTarget` (`null` when none is scanned), `riskPoints`, `totalTargets`, `observedTargets` and the
+  open counts (`openCriticalCount`, `openHighCount`, `openKevCount`, `overdueCount`,
+  `licenseViolationCount`). **`score`, `grade`, `targetId`, `targetKind`, `targetName`, `hasAttestation`
+  and `recommendations` are gone**, rather than kept with a meaning they no longer have: an integration
+  thresholding the global `score` must move to the distribution or the weakest target. The dashboard
+  shows the same three figures.
+- **The ranking breaks ties on the risk points**, the fewer first, where it kept the listing order:
+  inside F every score is held at 1, and at 54 the exploited cap holds many.
+- **`GET /api/v1/dashboard/trends` gains `score_formula_changed_on`**, the day (ISO, UTC) this
+  installation's grades changed formula — the day it was upgraded, written by migration V69 when the
+  installation already held a completed scan; `null` on a fresh one. The dashboard's trend chart draws a
+  dated line there, and says it in words under the chart.
+- **Nothing else reads the grade.** The gate, SIEM events, notifications, tickets and the exports
+  (SARIF, VEX, CSAF, CycloneDX) are unchanged. A check of yours that reads the badge's letter or the
+  API's `score` — "no worse than B" — will see it drop.
+
+#### Other changes
+
 - **A plugin refusal has a third reason, `registry_authentication_required`**, and a checklist
   measurement a matching reason, `plugin_registry_authentication_required`: the plugin's image declares
   a signer, and its registry would not let the signature be read. A client that switches over
@@ -72,15 +127,12 @@
   `VECTI-SEC-032`; `VECTI-SEC-031` and `033` are reserved for the plugins themselves
   ([how](../guide/exports.md#project-export)).
 
-- **Experimental: a candidate scorecard formula, side by side with the current one.**
+- **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
-  solution both ways so that a change of formula is decided on the estate's figures, with each row's
-  risk points; the defaults are the calibration validated on 2026-10-03, disallowed licences included;
-  no grade changes ([how](../guide/repositories.md#score-simulation)). A scope row shows where a
-  project's or a solution's card counts a licence twice today — a scan naming one of its images and
-  one of its repositories — which the formula's switch will fix. Each scope row also sets the summed
-  candidate beside the weakest link — the score of its lowest-scoring scanned target, and which one —
-  so that how a scope is graded is decided on the same figures.
+  solution under the card's formula and under the weights asked for, with each row's risk points; with
+  no parameter the two agree. It served to decide the formula above, sets both ways of grading a scope
+  — the weakest link the card uses and the rejected sum — beside each other, and is retired in the
+  release after this one ([how](../guide/repositories.md#score-simulation)).
 - **A weekly record of the OWASP Top 10 coverage starts now.** Every six hours at most, the maintenance
   turn records, for every repository and image — scanned or not — and for each of the ten categories,
   the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings

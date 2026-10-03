@@ -51,10 +51,11 @@ projects), and over nothing else: the same controls, the same coverage and fresh
 when none of those targets was scanned** — however scanned the rest of the estate is — and a
 per-target matrix holding only them. A clean project in an estate full of criticals reads compliant;
 the estate does not. The response carries the estate summary's shape under `compliance` and, under
-`scorecard`, the portfolio scorecard computed over the same targets — no second formula for either. The
-scorecard follows the same absence: grade `NO_DATA` and a `null` score when none of the targets holds a
-completed scan, and a score capped at the scanned share when only some do, with `totalTargets` and
-`observedTargets` beside it ([how the scorecard is computed](repositories.md#how-the-scorecard-grade-is-computed)).
+`scorecard`, the scope's scorecard over the same targets: graded by its weakest link — the lowest score
+among those targets, each as its own card computes it, named in `weakestTarget` — with the risk points of
+the scope's whole open backlog. The scorecard follows the same absence: grade `NO_DATA` and a `null`
+score when none of the targets holds a completed scan, and a score capped at the scanned share when only
+some do, with `totalTargets` and `observedTargets` beside it ([how the scorecard is computed](repositories.md#how-the-scorecard-grade-is-computed)).
 The platform's own controls (encryption, the audit mirror, four-eyes, the sign-in policy) are the
 deployment's and read the same in every scope.
 

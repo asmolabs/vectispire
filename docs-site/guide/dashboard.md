@@ -34,10 +34,24 @@ what was resolved, and the mean time to resolve.
 MTTR is shown **absent** rather than zero for a period in which nothing was resolved. Zero
 would read as "fixed the day it appeared", which is the opposite of what happened.
 
+**A dated line marks the day the scorecard formula changed** on this installation — the day it was
+upgraded to 0.11.0, when it already held a completed scan — and a note under the charts says so. The
+curves are the backlog's, which the formula does not move; the line is there for whoever sets a grade
+beside them, since most grades read lower from that day with nothing in the repositories changed. A
+fresh installation has no grade under the old formula, and no line.
+
 The series is narrowed by your visibility like every other view — see
 [Users and teams](../administration/users-and-teams.md).
 
 ## Security posture grade
+
+**The portfolio has no single grade.** The panel above the ranking shows, over the targets you see,
+**how many read each grade** — A+ to F, and *No data* for those never scanned —, **the weakest
+target** by name with its score and grade, and **the risk points of everything open**, each issue and
+each disallowed licence once. A grade for a whole estate would be either crushed by its size, adding
+every target's backlog up, or the worst target's grade under another name; how many targets are in
+F, whether that number falls, and which one to open first are what you act on
+([decision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0036-the-posture-score-formula.md)).
 
 The maturity ranking gives each repository and container **its scorecard's grade**, from A+ to F,
 alongside its business criticality tier. The tier is what you set when registering the repository;
@@ -45,18 +59,17 @@ the grade is computed from the backlog. A Tier 1 service at a poor grade is the 
 this page.
 
 **One target, one grade.** The score and the grade of a row are those of the target's scorecard and of
-its README badge, computed by the same rule — exploited vulnerabilities, criticals and highs,
-disallowed licences, and five points for a completed scan — described in
+its README badge, computed by the same rule — exploited vulnerabilities, criticals, highs, mediums and
+lows, and disallowed licences, each weighed in risk points — described in
 [How the scorecard grade is computed](repositories.md#how-the-scorecard-grade-is-computed). Issues
 triaged **not affected** or **fixed** are left out, as on the scorecard and at the gate; one whose
-dismissal is awaiting approval still counts. Mediums and lows are shown in their columns and weigh
-nothing on the score, as on the scorecard.
+dismissal is awaiting approval still counts.
+
+**Ties are broken by the risk points.** Each row shows them beside the score; of two targets at the
+same score — both held at 1 deep in F, or at 54 by an exploited issue — the one with fewer risk points
+ranks first.
 
 **Which targets are listed.** Every target you see that holds an open issue or a completed scan, and
 those whose issues are all closed. A target scanned clean is listed at 100, A+. A target holding no
 completed scan — its findings came from a SARIF import alone — ranks last as *No data*, with no score;
 its counts stay. A target registered and never scanned, carrying no issue, is not listed.
-
-The scale saturates at the bottom, as the scorecard's does: from twenty-seven open highs, or four
-exploited criticals, a target reads 0, F, whatever else it carries. Read the counts beside
-the letter.

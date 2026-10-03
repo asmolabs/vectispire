@@ -4,6 +4,65 @@
 
 ### Changements visibles d'une intégration
 
+#### Formule du score (0.11.0)
+
+**Les notes baissent parce que les moyennes, les basses et chaque problème de plus comptent désormais —
+pas parce qu'un projet s'est dégradé. Rien n'a changé dans vos dépôts.** La formule du scorecard est
+remplacée, partout à la fois — les fiches, les scorecards de projet et de solution, le classement du
+tableau de bord et la pastille publique —
+([décision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0036-the-posture-score-formula.md),
+[comment elle est calculée](../guide/repositories.fr.md#comment-la-note-du-scorecard-est-calculee)).
+
+- **Le score vaut `100 × e^(−points de risque / 55)`, arrondi et jamais moins de 1**, sur des **points de
+  risque** qui pèsent ce qui est ouvert : 25 un problème activement exploité (CISA KEV, quelle que soit sa
+  sévérité, compté dans cette classe seulement), 10 un critique, 4 un haut, 0,5 un moyen, 0,125 un bas, 4
+  une licence interdite. **Tout problème exploité plafonne le score à 54 (D).** Il n'y a plus de bonus
+  pour un scan terminé. Les seuils ne changent pas. L'ancienne formule — cent moins 25 par KEV en plus de
+  sa sévérité, 8 par critique, 4 par haut, 5 par licence, plus 5 pour un scan — atteignait 0 à vingt-sept
+  hautes et lisait cinquante ou cinq cents moyennes à 100, A+. Quelques chiffres, avant → après : un
+  critique 97 A+ → 83 B ; un critique exploité 72 B → 54 D ; cinquante moyennes 100 A+ → 63 C ; une
+  licence interdite 100 A+ → 93 A ; vingt-sept hautes 0 F → 14 F. Sur les onze cibles semées de la
+  comparaison, huit changent de note et aucune ne monte.
+- **Un nouveau champ, `riskPoints`**, sur `GET /api/v1/scorecards/repositories/{id}` et
+  `…/containers/{id}`, sur le `scorecard` de `GET /api/v1/projects/{id}/compliance` et
+  `…/solutions/{id}/compliance`, et sur chaque ligne du classement de maturité
+  (`GET /api/v1/dashboard/posture-analytics`, `targetScoreboard[].riskPoints`) — `null` exactement quand
+  le score l'est. Routes authentifiées seulement.
+- **La pastille publique (`GET /api/v1/scorecards/badges/{token}.svg`) garde son aspect et ne montre que
+  la lettre** — elle peut changer de lettre et de couleur à son prochain rendu sans que personne ait
+  touché au dépôt, et ne montre jamais les points de risque : ils diraient à quiconque lit le README
+  combien est ouvert, et quand cela bouge.
+- **Un projet ou une solution est noté par son maillon le plus faible** : son score est le plus bas
+  score des cibles analysées que vous en voyez, chacune telle que sa propre fiche la calcule, plafonné à
+  la part analysée comme avant, et la fiche nomme cette cible dans un nouveau champ, `weakestTarget`
+  (nature, id, nom, son propre score, sa note et ses points de risque). C'était la formule sur le backlog
+  cumulé de la portée, qui notait une portée d'autant plus bas qu'elle tenait de cibles. Ses
+  `riskPoints` sont tout le backlog ouvert de la portée, chaque problème et licence une fois.
+- **Le `licenseViolationCount` d'une portée peut baisser.** Un projet ou une solution qui range à la
+  fois une image et un dépôt nommés par un même scan comptait deux fois les licences interdites de ce
+  scan ; chacune est comptée une fois désormais, comme le faisait déjà la fiche de chaque cible.
+- **`GET /api/v1/scorecards/global` change de forme : le portefeuille n'a pas de note unique.** Une note
+  sur tout un parc est écrasée par sa taille, ou est la note de la pire cible sous un autre nom. La
+  réponse porte désormais `grades` — chaque note, `NO_DATA` compris, avec le nombre de cibles que vous
+  voyez qui la lisent —, `weakestTarget` (`null` quand aucune n'est analysée), `riskPoints`,
+  `totalTargets`, `observedTargets` et les compteurs ouverts (`openCriticalCount`, `openHighCount`,
+  `openKevCount`, `overdueCount`, `licenseViolationCount`). **`score`, `grade`, `targetId`, `targetKind`,
+  `targetName`, `hasAttestation` et `recommendations` ont disparu**, plutôt que d'être gardés avec un sens
+  qu'ils n'ont plus : une intégration qui applique un seuil au `score` global doit passer à la
+  répartition ou à la cible la plus faible. Le tableau de bord montre les trois mêmes chiffres.
+- **Le classement départage les ex æquo par les points de risque**, le moins d'abord, là où il gardait
+  l'ordre de la liste : dans F tous les scores sont maintenus à 1, et à 54 le plafond de l'exploité en
+  tient beaucoup.
+- **`GET /api/v1/dashboard/trends` gagne `score_formula_changed_on`**, le jour (ISO, UTC) où les notes de
+  cette installation ont changé de formule — le jour de sa mise à jour, écrit par la migration V69 quand
+  l'installation avait déjà un scan terminé ; `null` sur une installation neuve. Le graphique de tendance
+  du tableau de bord trace une ligne datée à ce jour, et le dit en toutes lettres sous le graphique.
+- **Rien d'autre ne lit la note.** La barrière, les événements SIEM, les notifications, les tickets et les
+  exports (SARIF, VEX, CSAF, CycloneDX) sont inchangés. Un contrôle de votre côté qui lit la lettre de la
+  pastille ou le `score` de l'API — « pas pire que B » — la verra baisser.
+
+#### Autres changements
+
 - **Un refus de plugin a une troisième raison, `registry_authentication_required`**, et une mesure de
   checklist une raison assortie, `plugin_registry_authentication_required` : l'image du plugin déclare
   un signataire, et son registre n'a pas laissé lire la signature. Un client qui distingue les valeurs
@@ -77,16 +136,13 @@
   `VECTI-SEC-032` ; `VECTI-SEC-031` et `033` sont réservés aux plugins eux-mêmes
   ([comment](../guide/exports.fr.md#export-de-projet)).
 
-- **Expérimental : une formule candidate du scorecard, à côté de l'actuelle.**
+- **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et
-  chaque solution visibles des deux façons pour que le changement de formule se décide sur les chiffres
-  du parc, avec les points de risque de chaque ligne ; les valeurs par défaut sont la calibration
-  validée le 2026-10-03, licences interdites comprises ; aucune note ne change
-  ([comment](../guide/repositories.fr.md#score-simulation)). Une ligne de portée montre où la fiche
-  d'un projet ou d'une solution compte aujourd'hui une licence deux fois — un scan qui nomme une de ses
-  images et un de ses dépôts — ce que la bascule de formule corrigera. Chaque ligne de portée met aussi
-  la candidate sommée à côté du maillon le plus faible — le score de sa cible analysée la moins bien
-  notée, et laquelle — pour que la façon de noter une portée se décide sur les mêmes chiffres.
+  chaque solution visibles avec la formule de la fiche et avec les poids demandés, avec les points de
+  risque de chaque ligne ; sans paramètre les deux s'accordent. Elle a servi à décider la formule
+  ci-dessus, met côte à côte les deux façons de noter une portée — le maillon le plus faible qu'utilise
+  la fiche et la somme rejetée — et est retirée à la version suivante
+  ([comment](../guide/repositories.fr.md#score-simulation)).
 - **Un relevé hebdomadaire de la couverture OWASP Top 10 commence maintenant.** Toutes les six heures au
   plus, le passage de maintenance enregistre, pour chaque dépôt et chaque image — analysés ou non — et pour
   chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien

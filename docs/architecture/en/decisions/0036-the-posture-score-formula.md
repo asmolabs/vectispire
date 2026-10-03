@@ -280,6 +280,10 @@ Decided with the product owner on 2026-10-03 (amendment):
    who sets a grade beside them. Decided with the owner on 2026-10-03: the line goes on that chart and
    on **any series of the score added later**, from its first version. No chart of the score over time
    exists today — the ranking and the cards show the score as it stands — so nothing else carries it
-   yet.
+   yet. *Built with the switch:* the line stands on **the day the installation was upgraded**, not on
+   the release date — an installation upgrading a month after 0.11.0 kept the old grades for that month.
+   Migration V69 writes that day as an internal setting where the installation already held a
+   completed scan (a fresh one has no grade under the old formula, and no line), and
+   `GET /api/v1/dashboard/trends` hands it to the chart as `score_formula_changed_on`.
 6. `CandidateScore` stops being a candidate (renamed into the scorecard's domain) and the simulation
    route is retired in the release after, once nobody needs the comparison.

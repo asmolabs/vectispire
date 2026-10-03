@@ -144,13 +144,16 @@ attribution sur un projet couvre les dépôts qui y sont rangés.
 ## La pastille README
 
 Chaque dépôt peut exposer une pastille dynamique pour son propre README, montrant la note de
-posture de sécurité. Elle met le chiffre sous les yeux des gens qui commitent, c'est-à-dire là
-où il change les comportements.
+posture de sécurité — la lettre seule, jamais les points de risque du score : la pastille est anonyme,
+et les points diraient à quiconque la lit combien est ouvert et quand cela bouge. Elle met la note sous
+les yeux des gens qui commitent, c'est-à-dire là où elle change les comportements.
 
 ## Comment la note du scorecard est calculée
 
 La note de la **fiche scorecard** d'un dépôt et celle de sa pastille sont le même nombre. Elle
-est calculée à la demande, sur le backlog du dépôt tel qu'il est — rien n'est stocké.
+est calculée à la demande, sur le backlog du dépôt tel qu'il est — rien n'est stocké. La formule est
+celle de la [décision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0036-the-posture-score-formula.md),
+depuis la 0.11.0.
 
 **Ce qui compte.** Les problèmes ouverts de ce dépôt seulement. Les problèmes résolus sont
 écartés, ainsi que ceux triés **non affecté** ou **corrigé** — les deux décisions qui empêchent
@@ -158,23 +161,30 @@ déjà un problème de faire échouer la barrière. Un problème dont l'exclusio
 d'approbation** compte toujours : une demande n'est pas une décision. Un statut de triage que
 Vectispire ne reconnaît pas compte aussi, plutôt que d'être lu comme réglé.
 
-**Le score** part de 100 :
+**Les points de risque** additionnent ce qui est ouvert, chaque problème et chaque licence interdite
+une fois :
 
-| Élément | Points | Par |
+| Élément | Points de risque | Par |
 |---|---|---|
-| Vulnérabilité activement exploitée (CISA KEV) | −25 | problème |
-| Critique | −8 | problème |
-| Haute | −4 | problème |
-| Licence non autorisée par la politique de licences | −5 | composant |
-| Au moins un scan terminé | +5 | une fois |
+| Vulnérabilité activement exploitée (CISA KEV), quelle que soit sa sévérité | 25 | problème |
+| Critique | 10 | problème |
+| Haute | 4 | problème |
+| Moyenne (ou sans sévérité) | 0,5 | problème |
+| Basse | 0,125 | problème |
+| Licence non autorisée par la politique de licences | 4 | composant |
+
+Un problème exploité compte comme exploité seulement, pas aussi sous sa sévérité.
+
+**Le score** vaut **100 × e^(−points de risque / 55)**, arrondi, et jamais moins de 1. Chaque problème
+retire une part de ce qui reste plutôt qu'un nombre fixe de points : le score baisse vite pour les
+premiers problèmes et continue de baisser, de plus en plus lentement, si bien qu'un backlog deux fois
+plus grand a toujours un score plus bas — cinquante moyennes ne se lisent plus comme cinq cents, et une
+équipe loin dans F voit encore ses points de risque baisser à mesure qu'elle corrige. **Tout problème
+activement exploité plafonne le score à 54**, le haut de D. Un scan terminé ne rapporte rien : en
+avoir un est ce qui fait qu'une cible est notée.
 
 **L'atteignabilité n'est pas un terme.** Vectispire n'exécute aucune analyse de graphe d'appels,
-si bien que rien n'établit si le code vulnérable d'un composant est appelé. La note facturait un
-critique « atteignable » −15 au lieu de −8, sur une valeur jamais enregistrée ; tout critique coûte
-désormais −8, ce que toutes les notes valaient déjà.
-
-Les pénalités s'additionnent : un critique activement exploité coûte 33. Les
-sévérités moyenne et basse ne coûtent rien. Le résultat est borné entre 0 et 100.
+si bien que rien n'établit si le code vulnérable d'un composant est appelé. Tout critique pèse pareil.
 
 **La note :**
 
@@ -187,19 +197,32 @@ sévérités moyenne et basse ne coûtent rien. Le résultat est borné entre 0 
 | 40 – 54 | D |
 | moins de 40 | F |
 
-Par exemple, un dépôt scanné avec deux critiques, une haute, une moyenne activement exploitée et
-une licence non autorisée obtient 100 − 8 − 8 − 4 − 25 − 5 + 5 = **55, note C**.
+Par exemple : un critique fait 10 points de risque, **83, B** ; un critique exploité 25 points, 63
+plafonné à **54, D** ; cinquante moyennes 25 points, **63, C** ; une licence interdite 4 points, **93,
+A**. Un dépôt scanné avec deux critiques, une haute, une moyenne activement exploitée, deux moyennes,
+quatre basses et une licence interdite a 10 + 10 + 4 + 25 + 0,5 + 0,5 + 0,5 + 4 = 54,5 points de risque
+et obtient **37, note F**.
+
+**Les points de risque sont sur la fiche** (`riskPoints`), à côté du score, pour qui est connecté —
+jamais sur la pastille publique. Ils sont une somme de ce qui est ouvert, pas un pourcentage.
 
 **Pas de scan, pas de note.** Un dépôt ou une image sans scan terminé n'a rien à noter : sa fiche
-porte la note **`NO_DATA`** sans score (`score` vaut `null`), et sa pastille affiche *no data* en gris.
-Elle affichait 100, A+ — le score retranche de cent ce qu'il trouve, et personne n'avait regardé. Les
-compteurs restent, puisqu'ils sont vrais de ce qui a été lu ; un import SARIF seul ne fait pas d'une
-cible une cible analysée. Un scan en cours, ou un scan échoué après un scan terminé, n'enlève pas la
-note : le backlog noté est celui qu'a laissé le dernier scan terminé.
+porte la note **`NO_DATA`** sans score ni points de risque (`score` et `riskPoints` valent `null`), et
+sa pastille affiche *no data* en gris. Les compteurs restent, puisqu'ils sont vrais de ce qui a été lu ;
+un import SARIF seul ne fait pas d'une cible une cible analysée. Un scan en cours, ou un scan échoué
+après un scan terminé, n'enlève pas la note : le backlog noté est celui qu'a laissé le dernier scan
+terminé.
 
-**Un portefeuille, un projet ou une solution** — la fiche globale et celle qui accompagne
-[la conformité d'un projet](compliance.fr.md#par-projet-et-par-solution) — se calcule de même sur les
-cibles que vous voyez, avec deux règles propres. Aucune analysée, c'est `NO_DATA`. Une partie analysée
+**Un projet ou une solution** — la fiche qui accompagne
+[la conformité d'un projet](compliance.fr.md#par-projet-et-par-solution) — est noté par son **maillon
+le plus faible** : le plus bas score des cibles que vous en voyez qui ont un scan terminé, chacun
+calculé comme le calcule la fiche de la cible, et `weakestTarget` nomme cette cible (nature, id, nom,
+son propre score, sa note et ses points de risque). Une portée n'est pas plus sûre que sa cible la plus
+exposée, et sa note ne dépend pas de sa taille : vingt dépôts de quatre moyennes chacun, tous à 96, A+,
+font un projet A+ — pas le D qu'additionner leurs backlogs donnerait. Une cible jamais analysée n'entre
+pas en lice. Les **points de risque de la portée sont la somme de son backlog ouvert**, chaque problème
+et chaque licence une fois, quel que soit le nombre de ses cibles qui les nomment, pour qu'une grande
+portée montre toujours ce qui est ouvert. Aucune cible analysée, c'est `NO_DATA`. Une partie analysée
 plafonne le score à la part analysée, arrondie, et ajoute la recommandation *Scan the N target(s) never
 scanned* : dix cibles dont une analysée propre valent 10, pas 100 — le plafond de couverture des
 contrôles de conformité, lu sur les mêmes cibles. `totalTargets` et `observedTargets` disent ce que la
@@ -207,82 +230,56 @@ fiche couvre. La fenêtre de fraîcheur de la conformité ne la plafonne pas : c
 réglage de chaque installation, et une note ne doit pas différer entre deux installations qui tiennent
 le même parc.
 
+**Le portefeuille n'a pas de note unique.** Une note sur tout un parc est soit écrasée par sa taille,
+soit la note de la pire cible sous un autre nom ; aucune ne dit quoi faire ensuite. Le tableau de bord —
+et `GET /api/v1/scorecards/global` — montre à la place combien des cibles que vous voyez lisent chaque
+note, *Pas de données* compris, la plus faible d'entre elles par son nom, et les points de risque de
+tout ce qui est ouvert. Voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
+
 **Ce qui ne change pas la note.** Les problèmes en retard sur leur délai de remédiation sont
 comptés sur la fiche et produisent une recommandation, mais ne coûtent aucun point : les délais
 sont un réglage propre à chaque installation (voir [Délais de correction](remediation-delays.md#dou-viennent-les-delais)),
-et une pastille ne doit pas changer de note parce que quelqu'un a modifié une fenêtre.
+et une pastille ne doit pas changer de note parce que quelqu'un a modifié une fenêtre. Une installation
+ne peut pas non plus changer les poids : deux installations qui tiennent le même parc le notent pareil.
 
 **Les recommandations** listent, quand elles s'appliquent : les licences non autorisées,
 l'absence de scan terminé — une attestation in-toto est délivrée à partir d'un scan terminé, il
 n'y en a donc aucune avant —, les vulnérabilités activement exploitées, les critiques, les
 hautes et les problèmes en retard.
 
-Les pénalités n'ont pas de plafond, l'échelle sature donc par le bas : cinq critiques
-exploités suffisent pour un F, et cinq cents donnent le même F. Lisez les
-compteurs de la fiche, pas seulement la lettre.
-
 Cette note est aussi celle du classement de maturité du tableau de bord : une cible y lit le même
 score et la même lettre — voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
 
-### Une formule candidate, pour comparer (expérimental) {#score-simulation}
+**Les notes ont baissé en 0.11.0, et rien n'a changé dans les dépôts.** La formule d'avant facturait 25
+pour un problème exploité en plus de sa sévérité, 8 pour un critique, 4 pour une haute, 5 pour une
+licence, rien pour les moyennes et les basses, et donnait 5 pour un scan terminé ; elle atteignait 0 à
+vingt-sept hautes et lisait cinquante et cinq cents moyennes pareil, à 100. Les moyennes, les basses et
+chaque problème de plus comptent désormais, si bien que la plupart des notes se lisent plus bas le jour
+où une installation se met à jour. Le graphique de tendance du tableau de bord marque ce jour.
 
-**Expérimental — rien ne change sur une fiche, une pastille ni le classement.** Pour décider s'il faut
-remplacer la formule ci-dessus, un administrateur peut voir chaque cible notée des deux façons sur le
-backlog réel du parc : `GET /api/v1/scorecards/simulation`. Rien n'est enregistré ni consigné.
+### D'autres poids, pour comparer (expérimental) {#score-simulation}
 
-La candidate est **100 × exp(−Σ poids × nombre / k)**, sur les problèmes ouverts et les licences
-interdites : chacun retire une part de ce qui reste au lieu d'un nombre fixe de points, le score
-continue donc de baisser avec le backlog sans jamais atteindre 0, et cinquante moyennes ne se lisent
-plus comme cinq cents. Les valeurs par défaut sont la calibration validée par le responsable produit le
-2026-10-03 : 25 pour un problème activement exploité (CISA KEV, quelle que soit sa sévérité — compté
-dans cette classe seulement), 10 pour un critique, 4 pour un haut, 0,5 pour un moyen, 0,125 pour un bas
-et **4 pour une licence interdite** (le poids d'un haut, comptée comme la fiche compte ses violations de
-licence), avec **k = 55**. Tout problème exploité plafonne la note à **D** (score 54 au plus). Il n'y a
-**pas de bonus pour un scan terminé** : en avoir un est ce qui fait qu'une cible est notée. Les seuils
-de note sont ceux du tableau ci-dessus, inchangés. Les mêmes problèmes comptent que pour le score
-actuel — ouverts, triage non réglé — et une cible sans scan terminé est `NO_DATA` dans les deux.
-
-À côté du score, chaque ligne porte ses **points de risque**, le total pondéré Σ poids × nombre dont le
-score est calculé. Le score est maintenu à 1 au bas de F ; les points de risque continuent de bouger, et
-une équipe loin dans F voit encore ce qu'elle a corrigé.
-
-Avec ces valeurs, un critique donne 83 (B), un critique exploité 54 (D, plafonné), cinquante moyennes 63
-(C), une licence interdite 93 (A), un critique et une licence interdite 78 (B), dix licences interdites
-48 (D), cinq cents moyennes 1 (F) et vingt-sept hautes 14 (F). Avec les moyennes à 1, aucun `k` ne donne
-à la fois B pour un critique et C pour cinquante moyennes — d'où le poids de 0,5 du moyen. Passer la
-formule de production à celle-ci est la [décision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0036-the-posture-score-formula.md),
-proposée.
+**Expérimental — rien ne change sur une fiche, une pastille ni le classement.** Un administrateur peut
+voir chaque cible notée avec d'autres poids sur le backlog réel du parc :
+`GET /api/v1/scorecards/simulation`. Rien n'est enregistré ni consigné. La route a servi à décider la
+formule ci-dessus, et est retirée à la version qui suit la 0.11.0.
 
 Chacun de `exploited`, `critical`, `high`, `medium`, `low`, `licence` et `k` peut être passé en
-paramètre de requête pour essayer d'autres valeurs ; un paramètre absent prend la valeur validée. La
-réponse liste pour chaque cible le score et la note actuels et candidats, ses points de risque et ses
-compteurs, et combien de cibles lisent chaque note sous chaque formule.
+paramètre de requête ; un paramètre absent prend la valeur de production. La réponse liste pour chaque
+cible le score et la note actuels — ceux de la fiche — à côté de ceux de la candidate avec les poids
+demandés, ses points de risque et ses compteurs, et combien de cibles lisent chaque note sous chacune.
+**Sans paramètre, les deux s'accordent.**
 
 **Les projets et les solutions sont listés aussi** (`scopes`), chacun de ceux que
-l'[arbre des solutions](../administration/solutions-and-projects.fr.md) montre à l'administrateur : le score que donne aujourd'hui le
-scorecard du projet ou de la solution à côté de la candidate sur le backlog entier de la portée, avec
-le même plafond quand une partie de la portée n'a jamais été scannée et le même `NO_DATA` quand aucune
-ne l'a été. Une portée cumule les backlogs de ses cibles, et peut donc se lire plus bas que chacune
-d'elles. Chaque ligne de portée porte aussi deux nombres de licences : `licences`, celui de la
-candidate, chaque entrée interdite comptée une fois ; et `currentLicences`, ce que compte aujourd'hui
-la fiche du projet ou de la solution. Ils diffèrent — `currentDoubleCounted` vaut alors `true` — là
-où un scan a nommé à la fois une image et un dépôt de la portée : la fiche actuelle compte les
-composants et les constats de licence de ce scan une fois pour le dépôt et une fois de plus pour
-l'image. La fiche propre de chaque cible les compte une fois, sur le dépôt ; la candidate s'accorde
-avec elle, et la bascule de formule corrige la fiche de portée.
-
-**Deux façons de noter une portée sont comparées** dans chaque ligne de portée, puisque additionner
-les backlogs fait dépendre la note d'une portée de sa taille. `candidateScore` et `candidateGrade` sont
-la **somme** : la formule sur tout le backlog de la portée. `weakestScore` et `weakestGrade` sont le
-**maillon le plus faible** : le score candidat de la cible analysée la moins bien notée de la portée,
-tel que la ligne de cette cible le donne, et `weakestTarget` la nomme (nature, id, nom — toujours une
-des cibles que la même réponse liste). Le maillon le plus faible est plafonné à la part analysée de la
-portée, comme la somme, et une portée dont rien n'a été analysé est `NO_DATA` dans les deux cas. Les
-points de risque restent ceux de la somme, chaque problème et chaque licence comptés une fois. Vingt
-dépôts de quatre moyennes chacun lisent 96 (A+) un par un : additionnés, leur projet lit 48 (D), son
-maillon le plus faible 96 (A+). Dix dépôts propres à côté d'un dépôt portant une critique exploitée
-lisent 54 (D) dans les deux cas — les dix propres ne cachent rien. Laquelle des deux la fiche d'une
-portée utilisera relève de la décision 0036, toujours proposée.
+l'[arbre des solutions](../administration/solutions-and-projects.fr.md) montre à l'administrateur, avec
+les deux façons de noter une portée qui ont été comparées : `weakestScore` et `weakestGrade`, le
+**maillon le plus faible** qu'utilise désormais la fiche (`currentScore` lui est égal sans paramètre),
+et `candidateScore` et `candidateGrade`, la **somme** — la formule sur tout le backlog de la portée,
+rejetée parce qu'elle baisse la note d'une portée qui tient plus de cibles. `licences` et
+`currentLicences` comptent les entrées de licence interdites de la portée à la façon de la candidate et
+à celle de la fiche ; elles s'accordent depuis la 0.11.0, et `currentDoubleCounted` vaut `false` —
+avant, une fiche de portée comptait deux fois les licences d'un scan nommant à la fois une de ses
+images et un de ses dépôts.
 
 ## Langages {#languages}
 

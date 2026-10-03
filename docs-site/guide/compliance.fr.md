@@ -53,8 +53,10 @@ solution), et sur rien d'autre : mêmes contrôles, mêmes plafonds de couvertur
 **`NO_DATA` quand aucune de ces cibles n'a été analysée** — quel que soit l'état du reste du parc — et
 une matrice par cible qui ne contient qu'elles. Un projet propre dans un parc plein de critiques se lit
 conforme ; le parc, non. La réponse porte la forme du résumé du parc sous `compliance` et, sous
-`scorecard`, la fiche de score du portefeuille calculée sur les mêmes cibles — pas de seconde formule
-pour l'une ni pour l'autre. La fiche suit la même absence : note `NO_DATA` et score `null` quand aucune
+`scorecard`, la fiche de score de la portée sur les mêmes cibles : notée par son maillon le plus
+faible — le plus bas score de ces cibles, chacun tel que la fiche de la cible le calcule, nommée dans
+`weakestTarget` — avec les points de risque de tout le backlog ouvert de la portée. La fiche suit la
+même absence : note `NO_DATA` et score `null` quand aucune
 des cibles n'a de scan terminé, score plafonné à la part analysée quand certaines seulement en ont un,
 avec `totalTargets` et `observedTargets` à côté
 ([calcul de la fiche](repositories.fr.md#comment-la-note-du-scorecard-est-calculee)). Les contrôles
