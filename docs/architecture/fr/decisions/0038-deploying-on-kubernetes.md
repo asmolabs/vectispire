@@ -1,12 +1,13 @@
-# 0038 — Sur Kubernetes, le plan de contrôle tourne sans point d'accès aux conteneurs, les scans tournent sur des agents sur un hôte Docker, la base est externe, et les plugins de rapport attendent un exécuteur capable de joindre un démon distant
+# 0038 — Sur Kubernetes, le plan de contrôle tourne sans point d'accès aux conteneurs, les scans tournent sur des agents dotés de leur propre démon Docker, la base est externe, et les plugins de rapport attendent un exécuteur capable de joindre un démon distant
 
-**Date :** 2026-10-03 · **Statut :** proposée · **S'appuie sur :** [0002](0002-the-database-carries-the-queue.md), [0003](0003-long-polling-for-agents.md), [0013](0013-flyway-multi-dialect-migrations.md), [0018](0018-the-docker-socket-is-never-mounted.md), [0035](0035-report-plugins.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-10-03 · **Statut :** acceptée · **S'appuie sur :** [0002](0002-the-database-carries-the-queue.md), [0003](0003-long-polling-for-agents.md), [0013](0013-flyway-multi-dialect-migrations.md), [0018](0018-the-docker-socket-is-never-mounted.md), [0035](0035-report-plugins.md) · **Décideur :** Laurent Boucher
 
-*Proposée. La forme du déploiement (§1–§7) est écrite telle qu'elle serait décidée. Une question
-reste ouverte, sous « À trancher » : où tournent les plugins de rapport. L'examen qui la fonde (§3) a
-montré qu'ils ne peuvent pas tourner sur un démon Docker distant sans modification du code ; aucune
-chart n'est donc écrite : une chart qui installe une fonction qui ne peut pas marcher n'est pas une
-chart à livrer.*
+*Acceptée le 2026-10-03 par le responsable produit : l'option D pour la mise en service (les plugins
+de rapport répondent 409 jusqu'à ce que l'option A soit construite), et des agents à l'un de deux
+endroits — sur un hôte Docker hors du cluster, ou dans le cluster en pods avec un sidecar
+Docker-in-Docker, sur option. Les réponses sont à la fin, sous « Tranché le 2026-10-03 » ; §1–§7
+tiennent tels qu'écrits, §2 y est élargi. Le défaut TLS de docker-java trouvé au §3 est corrigé dans
+le même lot : un démon distant en TLS n'est plus l'un des trois obstacles de l'option A.*
 
 ## Contexte
 
@@ -218,7 +219,7 @@ démarre la nouvelle image, qui migre, puis sert. Il n'y a pas de migration desc
 arrière, c'est restaurer la sauvegarde de la base prise avant la mise à jour, avec l'empreinte de
 l'image précédente.
 
-## À trancher : où tournent les plugins de rapport sur Kubernetes
+## Les options pour les plugins de rapport sur Kubernetes
 
 | | Ce qu'il faut | Ce que cela coûte |
 |---|---|---|
@@ -229,13 +230,14 @@ l'image précédente.
 
 **Recommandation : D pour fin octobre, puis A.** L'échéance est tenue avec la forme testée
 aujourd'hui, et A est petit, garde intact le raisonnement de 0035, et sera redemandé par toute
-installation sans démon local. La chart s'écrit une fois ceci tranché — pour D elle n'a besoin
-d'aucun réglage Docker ; pour A elle gagne l'hôte distant et son certificat en Secret.
+installation sans démon local. Tranché ainsi : voir la réponse 1 ci-dessous.
 
 ## Alternatives écartées
 
-- **Un sidecar Docker-in-Docker.** Il exige un conteneur privilégié, root sur le nœud à peu de chose
-  près, dans le pod qui détient `ENCRYPTION_KEY` — la concentration de 0018, en pire.
+- **Un sidecar Docker-in-Docker à côté du plan de contrôle.** Il exige un conteneur privilégié, root
+  sur le nœud à peu de chose près, dans le pod qui détient `ENCRYPTION_KEY` — la concentration de
+  0018, en pire. (À côté d'un *agent*, il est accepté sur option : voir « Tranché le 2026-10-03 »,
+  réponse 2.)
 - **Monter le socket Docker ou containerd du nœud.** Root sur le nœud, pour chaque workload qu'il
   porte ; et un socket containerd ne parle de toute façon pas l'API Docker qu'utilise
   `ContainerRunner`.
@@ -254,10 +256,51 @@ d'aucun réglage Docker ; pour A elle gagne l'hôte distant et son certificat en
 
 ## Conséquences
 
-- Une installation Kubernetes est une installation tout-agent : au moins un agent sur un hôte Docker
-  est nécessaire avant le premier scan.
+- Une installation Kubernetes est une installation tout-agent : au moins un agent — sur un hôte
+  Docker, ou dans un pod doté de son propre démon — est nécessaire avant le premier scan.
 - Les plugins de rapport sont indisponibles sur Kubernetes jusqu'à ce que la question ci-dessus soit
   tranchée et construite.
 - Le miroir d'audit demande un volume persistant et un fichier par pod.
 - Le guide d'installation gagne une section Kubernetes, et la chart vit sous
-  `deploy/helm/vectispire/`, vérifiée et rendue en CI — une fois la chart écrite.
+  `deploy/helm/vectispire/`, vérifiée et rendue en CI pour chacune de ses formes.
+
+## Tranché le 2026-10-03
+
+1. **Plugins de rapport : D pour la mise en service, puis A.** Le plan de contrôle n'a pas de point
+   d'accès aux conteneurs ; une demande de rapport répond 409 `report-executor-unavailable`, comme 0035
+   le dit d'une installation tout-agent. L'exécuteur qui copie les entrées (A) est le lot suivant. Son
+   premier point, le TLS de docker-java, est corrigé dès maintenant : `ContainerRunner.clientAt` passe
+   au transport les réglages SSL de la configuration, si bien que `tcp://…:2376` avec
+   `DOCKER_TLS_VERIFY=1` et `DOCKER_CERT_PATH` parle TLS avec le certificat client.
+2. **Des agents à l'un de deux endroits, choisi par installation.**
+   - **Sur un hôte Docker hors du cluster — la recommandation**, et le seul choix là où le cluster
+     interdit les pods privilégiés. La chart ne déploie rien pour lui ; l'agent tourne comme le profil
+     `with-agent` de la composition, et joint le plan de contrôle par l'Ingress.
+   - **Dans le cluster, en pods avec un sidecar Docker-in-Docker — sur option**, désactivé par
+     défaut. Le pod d'agent ne détient ni accès à la base ni `ENCRYPTION_KEY`, ce qui rendait un
+     sidecar inacceptable à côté du plan de contrôle. Ce qu'il coûte est dit ici, parce que la chart ne
+     peut pas le dire : **un conteneur privilégié est root sur son nœud.** Un scanner qui s'échappe de
+     son conteneur atteint un démon capable de lancer des conteneurs privilégiés, donc le nœud. Les
+     agents tournent donc dans un namespace à eux, sur un pool de nœuds à eux (`nodeSelector`, une
+     taint qu'eux seuls tolèrent), derrière une NetworkPolicy qui leur laisse joindre le plan de
+     contrôle et les forges et rien d'autre dans le cluster. Le pod a le démon pour lui seul, sur **un
+     socket Unix dans un `emptyDir` partagé, jamais en TCP** : le point d'entrée de `docker:dind`
+     ajoute `--host=tcp://0.0.0.0:2375`, sans TLS ni authentification, sauf si la commande nomme
+     `dockerd` elle-même — mesuré, et un 2375 ouvert sur l'adresse d'un pod est un démon privilégié
+     offert à tout le cluster. Le répertoire de travail est un second `emptyDir` monté **au même
+     chemin** dans l'agent et dans le démon, pour la raison qui fait monter
+     `VECTISPIRE_AGENT_WORK_DIR` au même chemin dans la composition : le bind d'un scanner est résolu
+     par le démon.
+   - **La variante rootless (`docker:dind-rootless`) est proposée et refusée par défaut, parce
+     qu'elle ne scanne pas.** Mesuré en 29.8.2 : sous l'espace de noms utilisateur du démon rootless,
+     l'espace de travail que l'agent crée en uid 1000, mode 0700, apparaît au scanner comme appartenant
+     à root, et le scanner — lancé sous le propriétaire de l'espace de travail, l'uid 1000
+     (`ContainerRun.runningAsOwnerOf`) — lit `Permission denied`. Chaque scanner serait absent, en
+     silence pour le triage. L'agent ne lance jamais un scanner en root, et aucun choix d'uid pour le
+     pod ne comble l'écart : l'uid 1000 du démon est le root du conteneur. L'image rootless demande en
+     outre, sur la plupart des clusters, soit un conteneur privilégié malgré tout, soit seccomp et
+     AppArmor non confinés avec un `/proc` démasqué — elle épargne donc rarement le privilège qu'elle
+     vise. La chart ne la rend que sur acquittement explicite, pour qu'elle soit là à essayer quand
+     l'agent saura faire correspondre les propriétaires, et jamais choisie par mégarde.
+3. **La chart est écrite** (`deploy/helm/vectispire/`), avec §1–§7 pour défauts.
+

@@ -1,11 +1,13 @@
-# 0038 — On Kubernetes the control plane runs without a container endpoint, scans run on agents on a Docker host, the database is external, and report plugins wait for an executor that can reach a remote daemon
+# 0038 — On Kubernetes the control plane runs without a container endpoint, scans run on agents with a Docker daemon of their own, the database is external, and report plugins wait for an executor that can reach a remote daemon
 
-**Date:** 2026-10-03 · **Status:** proposed · **Builds on:** [0002](0002-the-database-carries-the-queue.md), [0003](0003-long-polling-for-agents.md), [0013](0013-flyway-multi-dialect-migrations.md), [0018](0018-the-docker-socket-is-never-mounted.md), [0035](0035-report-plugins.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-03 · **Status:** accepted · **Builds on:** [0002](0002-the-database-carries-the-queue.md), [0003](0003-long-polling-for-agents.md), [0013](0013-flyway-multi-dialect-migrations.md), [0018](0018-the-docker-socket-is-never-mounted.md), [0035](0035-report-plugins.md) · **Decider:** Laurent Boucher
 
-*Proposed. The deployment shape (§1–§7) is written as it would be decided. One question is left
-open, under "To decide": where report plugins run. The investigation behind it (§3) found that they
-cannot run over a remote Docker daemon without a code change, so no chart is written yet: a chart
-that installs a feature that cannot work is not one to ship.*
+*Accepted on 2026-10-03 by the product owner: option D for go-live (report plugins answer 409 until
+option A is built), and agents in either of two places — on a Docker host outside the cluster, or in
+the cluster as pods with a Docker-in-Docker sidecar, opt-in. The answers are at the end, under
+"Decided on 2026-10-03"; §1–§7 stand as written, §2 is widened there. The docker-java TLS defect §3
+found is fixed in the same lot, so a remote daemon over TLS is no longer one of option A's three
+blockers.*
 
 ## Context
 
@@ -207,7 +209,7 @@ An upgrade therefore stops every pod, starts the new image, which migrates, and 
 down migration: rolling back is restoring the database backup taken before the upgrade, with the
 previous image digest.
 
-## To decide: where report plugins run on Kubernetes
+## The options for report plugins on Kubernetes
 
 | | What it takes | What it costs |
 |---|---|---|
@@ -218,13 +220,13 @@ previous image digest.
 
 **Recommendation: D for the end of October, then A.** The deadline is met with the shape that is
 tested today, and A is small, keeps 0035's reasoning intact, and is what an installation without a
-local daemon will ask for again. The chart is written once this is decided — for D it needs no
-Docker setting at all; for A it gains the remote host and its certificate as a Secret.
+local daemon will ask for again. Decided so: see answer 1 below.
 
 ## Alternatives considered
 
-- **A Docker-in-Docker sidecar.** It needs a privileged container, which is root on the node in all
-  but name, in the pod that holds `ENCRYPTION_KEY` — 0018's concentration, made worse.
+- **A Docker-in-Docker sidecar beside the control plane.** It needs a privileged container, which is
+  root on the node in all but name, in the pod that holds `ENCRYPTION_KEY` — 0018's concentration,
+  made worse. (Beside an *agent* it is accepted, opt-in: see "Decided on 2026-10-03", answer 2.)
 - **Mounting the node's Docker or containerd socket.** Root on the node, for every workload the node
   carries; and a containerd socket does not speak the Docker API `ContainerRunner` uses anyway.
 - **Running scanners as Kubernetes Jobs** — a Kubernetes backend for `ContainerRunner`. The closed
@@ -241,9 +243,48 @@ Docker setting at all; for A it gains the remote host and its certificate as a S
 
 ## Consequences
 
-- A Kubernetes installation is an all-agent installation: at least one agent on a Docker host is
-  required before the first scan.
+- A Kubernetes installation is an all-agent installation: at least one agent — on a Docker host, or
+  in a pod with its own daemon — is required before the first scan.
 - Report plugins are unavailable on Kubernetes until the question above is settled and built.
 - The audit mirror needs a persistent volume and a file per pod.
 - The installation guide gains a Kubernetes section, and the chart lives under
-  `deploy/helm/vectispire/`, linted and rendered in CI — once the chart is written.
+  `deploy/helm/vectispire/`, linted and rendered in CI for each of its shapes.
+
+## Decided on 2026-10-03
+
+1. **Report plugins: D for go-live, then A.** The control plane has no container endpoint; a report
+   request answers 409 `report-executor-unavailable`, as 0035 says of an all-agent installation. The
+   copy-in executor (A) is the next lot. Its first item, docker-java's TLS, is fixed now:
+   `ContainerRunner.clientAt` hands the transport the configuration's SSL settings, so `tcp://…:2376`
+   with `DOCKER_TLS_VERIFY=1` and `DOCKER_CERT_PATH` speaks TLS with the client certificate.
+2. **Agents in either of two places, chosen per installation.**
+   - **On a Docker host outside the cluster — the recommendation**, and the only choice where the
+     cluster forbids privileged pods. The chart deploys nothing for it; the agent runs as the
+     composition's `with-agent` profile does, and reaches the control plane through the Ingress.
+   - **In the cluster, as pods with a Docker-in-Docker sidecar — opt-in**, off by default. The
+     agent pod holds no database credential and no `ENCRYPTION_KEY`, which is what made a sidecar
+     unacceptable beside the control plane. What it costs is said here, because the chart cannot
+     say it: **a privileged container is root on its node.** A scanner that escapes its container
+     reaches a daemon that can start privileged containers, hence the node. So the agents run in a
+     namespace of their own, on a node pool of their own (`nodeSelector`, a taint they alone
+     tolerate), behind a NetworkPolicy that lets them reach the control plane and the forges and
+     nothing else in the cluster. The pod has the daemon to itself on a **Unix socket in a shared
+     `emptyDir`, never TCP**: the `docker:dind` entrypoint adds `--host=tcp://0.0.0.0:2375`, with no
+     TLS and no authentication, unless the command names `dockerd` itself — measured, and an open
+     2375 on a pod address is a privileged daemon for the whole cluster. The work directory is a
+     second `emptyDir` mounted **at the same path** in the agent and the daemon, for the reason the
+     composition mounts `VECTISPIRE_AGENT_WORK_DIR` at the same path: a scanner's bind is resolved by
+     the daemon.
+   - **The rootless variant (`docker:dind-rootless`) is offered and refused by default, because it
+     does not scan.** Measured on 29.8.2: under the rootless daemon's user namespace, the
+     workspace the agent creates as uid 1000, mode 0700, appears to the scanner as owned by root,
+     and the scanner — run as the workspace's owner, uid 1000 (`ContainerRun.runningAsOwnerOf`) —
+     reads `Permission denied`. Every scanner would be absent, silently as far as triage goes.
+     The agent never runs a scanner as root, and no mapping of the pod's uid closes the gap: the
+     daemon's uid 1000 is the container's root. The rootless image also needs, on most clusters,
+     either a privileged container anyway or seccomp and AppArmor unconfined with an unmasked
+     `/proc` — so it rarely spares the privilege it is meant to. The chart renders it only under an
+     explicit acknowledgement, so that it is there to try when the agent learns to map owners, and
+     never chosen by accident.
+3. **The chart is written** (`deploy/helm/vectispire/`), with §1–§7 as its defaults.
+
