@@ -194,12 +194,18 @@ public enum SecurityEventType {
     /**
      * A forge connection was created, given another token or another trust — a pinned CA, a network
      * statement — or deleted (decision 0037 §2): a standing read access to an organisation's whole list of
-     * repositories appeared, changed hands or went. A renaming is audited and not signalled. {@code 035}
-     * is reserved for the imports from a forge, by the same decision, and is not to be taken by anything
-     * else.
+     * repositories appeared, changed hands or went. A renaming is audited and not signalled.
      */
     FORGE_CONNECTION_CHANGED("VECTI-SEC-034", "Forge connection created, its token or trust replaced, or deleted", 6,
             Outcome.SUCCESS),
+
+    /**
+     * Repositories were imported from a forge as targets (decision 0037 §5): many targets — and the clone
+     * credentials attached to them — created in one gesture. <b>Once per import, with its counts, never once
+     * per target</b>: a SOC wants one event for one gesture, not three hundred. An import that created nothing —
+     * a replay, every repository already present — is audited and not signalled.
+     */
+    FORGE_IMPORT_APPLIED("VECTI-SEC-035", "Repositories imported from a forge", 5, Outcome.SUCCESS),
 
     /**
      * A forge connection was refused because its address is one the outbound guard blocks, or its token is
@@ -381,6 +387,8 @@ public enum SecurityEventType {
                     // A renaming is a forge connection's change too, and not an event: the writer names
                     // VECTI-SEC-034 on the creation, the new token or trust, and the deletion.
                     FORGE_CONNECTION_CHANGED,
+                    // An import that created nothing is not an event: its writer names VECTI-SEC-035 when it did.
+                    FORGE_IMPORT_APPLIED,
                     // Work going right or wrong, not a security event (0035 §4): the export each one handed a
                     // plugin is signalled on its own, as PROJECT_EXPORTED.
                     REPORT_REQUESTED, REPORT_PRODUCED, REPORT_FAILED,

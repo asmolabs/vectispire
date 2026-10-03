@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.forges.persistence;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -143,6 +144,10 @@ public interface ForgeDiscoveryRepository extends JpaRepository<ForgeDiscoveryEn
     Optional<ForgeDiscoveryEntity> findFirstByConnectionIdOrderByRequestedAtDescIdDesc(UUID connectionId);
 
     Optional<ForgeDiscoveryEntity> findByIdAndConnectionId(long id, UUID connectionId);
+
+    /** The connection's latest discovery in one of these states — the one a selection reads (decision 0037 §4). */
+    Optional<ForgeDiscoveryEntity> findFirstByConnectionIdAndStateInOrderByRequestedAtDescIdDesc(
+            UUID connectionId, Collection<String> states);
 
     /**
      * Every run of a connection that is going away. First of the connection's deletions: it waits on the row a

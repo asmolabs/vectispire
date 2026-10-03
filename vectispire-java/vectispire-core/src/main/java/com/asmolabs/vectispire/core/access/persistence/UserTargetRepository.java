@@ -39,4 +39,8 @@ public interface UserTargetRepository extends JpaRepository<UserTargetEntity, Us
     @Modifying(clearAutomatically = true)
     @Query("delete from UserTargetEntity t where t.id.targetKind = :kind and t.id.targetId = :targetId")
     int deleteByTarget(@Param("kind") String kind, @Param("targetId") Long targetId);
+
+    /** How many grants name one target — of a project, for the import preview's "who will see it". */
+    @Query("select count(t) from UserTargetEntity t where t.id.targetKind = :kind and t.id.targetId = :targetId")
+    long countByTarget(@Param("kind") String kind, @Param("targetId") Long targetId);
 }

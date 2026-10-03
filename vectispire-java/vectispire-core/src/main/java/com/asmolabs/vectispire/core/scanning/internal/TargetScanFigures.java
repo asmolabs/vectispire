@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetScans;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,11 @@ public class TargetScanFigures implements TargetScans {
     @Override
     public Queued queue(RepositoryView repository) {
         return queued(trigger.trigger(repository));
+    }
+
+    @Override
+    public Queued queue(RepositoryView repository, Instant notBefore) {
+        return queued(trigger.trigger(repository, notBefore));
     }
 
     @Override

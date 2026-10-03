@@ -29,6 +29,8 @@ import java.util.UUID;
  * @param encryptionState {@code current}, {@code previous_key} (rotate: save the connection or replace its
  *     token) or {@code unreadable} (replace the token)
  * @param lastDiscovery the connection's latest discovery, whatever its state; null before the first
+ * @param importedTargets how many targets were imported through it and still exist — a deleted target's link goes
+ *     with it
  */
 public record ForgeConnectionView(
         UUID id,
@@ -51,4 +53,5 @@ public record ForgeConnectionView(
         String createdBy,
         Instant updatedAt,
         String updatedBy,
-        ForgeDiscoveryView lastDiscovery) {}
+        ForgeDiscoveryView lastDiscovery,
+        long importedTargets) {}

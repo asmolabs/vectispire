@@ -55,6 +55,7 @@ System_Boundary("VectispirePlatform_boundary", "Vectispire Platform", $tags="") 
   Container(VectispirePlatform.DockerDaemonScanners, "Docker Daemon & Scanners", $techn="Docker Engine / ContainerRunner", $descr="Runs isolated ephemeral containers for SCA, Secrets, IaC, and SAST analysis.", $tags="", $link="")
 }
 
+Rel(VectispirePlatform.SpringBootControlPlane.notifications, VectispirePlatform.SpringBootControlPlane.targets, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.platform, VectispirePlatform.SpringBootControlPlane.access, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.platform, VectispirePlatform.SpringBootControlPlane.ai, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.platform, VectispirePlatform.SpringBootControlPlane.checklists, "uses", $techn="", $tags="", $link="")
@@ -132,6 +133,7 @@ Rel(VectispirePlatform.SpringBootControlPlane.exports, VectispirePlatform.Spring
 Rel(VectispirePlatform.SpringBootControlPlane.exports, VectispirePlatform.SpringBootControlPlane.scanning, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.exports, VectispirePlatform.SpringBootControlPlane.targets, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.forges, VectispirePlatform.SpringBootControlPlane.access, "uses", $techn="", $tags="", $link="")
+Rel(VectispirePlatform.SpringBootControlPlane.forges, VectispirePlatform.SpringBootControlPlane.targets, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.gate, VectispirePlatform.SpringBootControlPlane.access, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.gate, VectispirePlatform.SpringBootControlPlane.issues, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.gate, VectispirePlatform.SpringBootControlPlane.rules, "uses", $techn="", $tags="", $link="")
@@ -145,7 +147,6 @@ Rel(VectispirePlatform.SpringBootControlPlane.issues, VectispirePlatform.SpringB
 Rel(VectispirePlatform.SpringBootControlPlane.issues, VectispirePlatform.SpringBootControlPlane.targets, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.notifications, VectispirePlatform.SpringBootControlPlane.access, "uses", $techn="", $tags="", $link="")
 Rel(VectispirePlatform.SpringBootControlPlane.notifications, VectispirePlatform.SpringBootControlPlane.issues, "uses", $techn="", $tags="", $link="")
-Rel(VectispirePlatform.SpringBootControlPlane.notifications, VectispirePlatform.SpringBootControlPlane.targets, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)
 hide stereotypes

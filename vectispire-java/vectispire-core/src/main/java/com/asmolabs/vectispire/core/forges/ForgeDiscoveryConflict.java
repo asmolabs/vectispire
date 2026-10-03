@@ -13,7 +13,17 @@ public class ForgeDiscoveryConflict extends ConflictException {
         /** A discovery of this connection is pending or running: it is the one to poll; {@code discoveryId} names it. */
         IN_PROGRESS("forge-discovery-in-progress"),
         /** This version lists no repositories of this forge yet — GitHub's adapter is lot D4. */
-        UNSUPPORTED("forge-discovery-unsupported");
+        UNSUPPORTED("forge-discovery-unsupported"),
+        /**
+         * Repositories are selected and imported from a discovery that ended with something to choose from —
+         * completed, or partial — and this one is pending, running or failed; {@code state} says which.
+         */
+        NOT_SELECTABLE("forge-discovery-not-selectable"),
+        /**
+         * A newer discovery of the connection has ended: the snapshot now describes it, and selecting from the
+         * older one would offer what it no longer lists. {@code latestDiscoveryId} names the one to select from.
+         */
+        SUPERSEDED("forge-discovery-superseded");
 
         private final String token;
 

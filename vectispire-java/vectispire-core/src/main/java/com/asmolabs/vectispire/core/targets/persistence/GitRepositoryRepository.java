@@ -80,7 +80,7 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
      * save of a repository read before a move cannot write the old project back.
      */
     @Transactional
-    @Modifying(clearAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update RepositoryEntity r set r.projectId = :projectId where r.id = :id")
     int assignProject(@Param("id") Long id, @Param("projectId") Long projectId);
 
@@ -103,6 +103,21 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
              where r.sshKeyId is not null
              group by r.sshKeyId""")
     List<Object[]> countBySshKey();
+
+    /**
+     * The targets filing any of these repositories ({@code url_identity}, V73) whatever their branch and sub-path,
+     * as {@code [id, urlIdentity]} — what decision 0037's import asks to tell a repository already present.
+     * Callers batch the list: one bind parameter per element.
+     */
+    @Query("select r.id, r.urlIdentity from RepositoryEntity r where r.urlIdentity in :identities")
+    List<Object[]> findIdsByUrlIdentityIn(@Param("identities") java.util.Collection<String> identities);
+
+    /**
+     * The rows whose identity the keying has not written yet, as {@code [id, url]}: written before V73 and not yet
+     * reached, or by an instance of an earlier version. Their identity is computed from the URL by the caller.
+     */
+    @Query("select r.id, r.url from RepositoryEntity r where r.urlIdentity is null")
+    List<Object[]> findUnidentified();
 
     /** The target holding this guard — at most one, the index is unique (V73). */
     java.util.Optional<RepositoryEntity> findByIdentityGuard(String identityGuard);

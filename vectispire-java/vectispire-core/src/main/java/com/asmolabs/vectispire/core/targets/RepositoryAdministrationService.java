@@ -25,6 +25,7 @@ import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -209,6 +210,58 @@ public class RepositoryAdministrationService {
      *     a target
      */
     public RepositoryView create(Changes changes, Visibility allowed, RequestActor actor) {
+        RepositoryEntity saved = file(built(changes), allowed);
+        audit.record(added(actor, saved, ""));
+        return RepositoryView.of(saved);
+    }
+
+    /**
+     * Why {@link #create} would refuse these changes, without writing anything: the form's refusals, for a caller
+     * that shows them before the write — decision 0037's import preview. Empty when they would be accepted; a
+     * target already registered is not asked here, the caller having its own words for it.
+     */
+    Optional<String> refusal(Changes changes) {
+        try {
+            built(changes);
+            return Optional.empty();
+        } catch (InvalidInputException refused) {
+            return Optional.of(refused.getMessage());
+        }
+    }
+
+    /**
+     * {@link #create} for an import (decision 0037 §5), inside the transaction {@code TargetImports} holds open:
+     * the same refusals and the same entry, which is handed to {@code entries} for the batch to record once its
+     * transaction has committed — inside it, the entry would describe a write that may still roll back.
+     *
+     * @param projectId the project the target is filed into at its creation, or null; said in the entry, which
+     *     stands for the filing a form would have audited apart
+     * @param scheduledFrom stamped as its last scheduled round, so that the installation's default schedule first
+     *     takes it at its own slot in the coming interval rather than at the next tick — a target never picked up
+     *     is due at once, and a thousand imported in one gesture would all be scanned in the next minute
+     * @param provenance appended to the entry: where it came from
+     */
+    RepositoryView createImported(Changes changes, Long projectId, Instant scheduledFrom, String provenance,
+            RequestActor actor, List<AuditLogService.Record> entries) {
+        RepositoryEntity repository = built(changes);
+        repository.setLastScheduledScanAt(scheduledFrom);
+        RepositoryEntity saved = file(repository, Visibility.everything());
+        if (projectId != null) {
+            // The column's one writer, as for a filing by hand: the entity maps it read-only. Flushed first, since
+            // the update clears the persistence context the batch is writing in.
+            repositories.assignProject(saved.getId(), projectId);
+        }
+        entries.add(added(actor, saved, provenance));
+        return repositories.findById(saved.getId()).map(RepositoryView::of).orElseThrow();
+    }
+
+    private static AuditLogService.Record added(RequestActor actor, RepositoryEntity saved, String provenance) {
+        return actor.entry(AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()),
+                "Repository added: " + RepositoryUrl.redact(saved.getUrl()) + provenance);
+    }
+
+    /** A new target's row, validated as the form validates it, and not yet written. */
+    private RepositoryEntity built(Changes changes) {
         String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
         // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
         // is arbitrary code execution, not a typo.
@@ -234,6 +287,11 @@ public class RepositoryAdministrationService {
         repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
         repository.setTier(AssetTier.fromInput(changes.tier()).name());
         requireMatchingCredential(repository);
+        return repository;
+    }
+
+    /** Writes a new target, refusing the twin of one already registered. */
+    private RepositoryEntity file(RepositoryEntity repository, Visibility allowed) {
         // Checked before the write although the unique index would refuse the row anyway: the ordinary
         // duplicate — somebody pasting the SSH URL of a repository filed over HTTPS — is then refused
         // without a failed statement, which the driver logs as an error and an engine pays for with an
@@ -241,11 +299,7 @@ public class RepositoryAdministrationService {
         Optional<RepositoryIdentity> identity = identityOf(repository);
         identity.ifPresent(target -> refuseIfRegistered(target, null, allowed));
         stamp(repository, identity, true);
-
-        RepositoryEntity saved = saveRefusingARacedTwin(repository, identity, allowed);
-        audit.record(actor.entry(
-                AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Repository added: " + RepositoryUrl.redact(saved.getUrl())));
-        return RepositoryView.of(saved);
+        return saveRefusingARacedTwin(repository, identity, allowed);
     }
 
     /**

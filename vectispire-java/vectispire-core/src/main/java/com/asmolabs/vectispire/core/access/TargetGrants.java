@@ -1,10 +1,15 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -56,6 +61,34 @@ public class TargetGrants {
         public String summary() {
             return grants + " grant(s) and " + keys.size() + " API key(s) revoked";
         }
+    }
+
+    /**
+     * Who holds a grant naming one target: accounts directly, and teams — each team's members seeing it through
+     * the team. Counted, not named: the import preview that asks (decision 0037 §4) tells an administrator how
+     * far the new targets reach, and the grant screens name the holders.
+     */
+    public record Grantees(long accounts, long teams) {
+
+        public static final Grantees NONE = new Grantees(0, 0);
+    }
+
+    /**
+     * The grantees of each of these projects that has any; a project missing from the answer has none. One pair
+     * of counts per project — a preview asks of the projects an import files into, a few hundred at most.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Grantees> granteesOfProjects(Collection<Long> projectIds) {
+        Map<Long, Grantees> granted = new HashMap<>();
+        for (Long projectId : new HashSet<>(projectIds)) {
+            Grantees grantees = new Grantees(
+                    userTargets.countByTarget(TeamRules.KIND_PROJECT, projectId),
+                    teamTargets.countByTarget(TeamRules.KIND_PROJECT, projectId));
+            if (grantees.accounts() > 0 || grantees.teams() > 0) {
+                granted.put(projectId, grantees);
+            }
+        }
+        return Map.copyOf(granted);
     }
 
     /** A key revoked with its target, as its audit entry names it. */

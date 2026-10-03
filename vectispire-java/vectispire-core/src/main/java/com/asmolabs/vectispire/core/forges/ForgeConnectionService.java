@@ -22,6 +22,7 @@ import com.asmolabs.vectispire.core.forges.internal.ForgeTargets;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -94,6 +95,7 @@ public class ForgeConnectionService {
     private final ForgeConnectionRepository connections;
     private final ForgeDiscoveryRepository discoveries;
     private final ForgeRepositoryRepository snapshot;
+    private final ForgeImportLinkRepository links;
     private final ForgeProbes probes;
     private final EncryptionService encryption;
     private final AuditLogService audit;
@@ -104,6 +106,7 @@ public class ForgeConnectionService {
             ForgeConnectionRepository connections,
             ForgeDiscoveryRepository discoveries,
             ForgeRepositoryRepository snapshot,
+            ForgeImportLinkRepository links,
             ForgeProbes probes,
             EncryptionService encryption,
             AuditLogService audit,
@@ -112,6 +115,7 @@ public class ForgeConnectionService {
         this.connections = connections;
         this.discoveries = discoveries;
         this.snapshot = snapshot;
+        this.links = links;
         this.probes = probes;
         this.encryption = encryption;
         this.audit = audit;
@@ -261,8 +265,9 @@ public class ForgeConnectionService {
     }
 
     /**
-     * Deletes a connection with its discoveries and its snapshot, in one transaction. No target goes with it — an
-     * imported repository is a target like any other (decision 0037 §5); the provenance links will, from lot D6.
+     * Deletes a connection with its discoveries, its snapshot and its provenance links, in one transaction. No target
+     * goes with it — an imported repository is a target like any other from the moment it is created (decision 0037
+     * §5); it only stops saying where it came from.
      *
      * <p><b>The discoveries first.</b> A running discovery writes each page in a transaction that first renews its
      * lease, holding its row: deleting the runs waits for that page to commit, so that the snapshot's deletion, which
@@ -274,6 +279,7 @@ public class ForgeConnectionService {
         transactions.executeWithoutResult(status -> {
             discoveries.deleteByConnection(id);
             snapshot.deleteByConnection(id);
+            links.deleteByConnection(id);
             connections.deleteById(id);
         });
         record(actor, id, "Forge connection deleted: " + describe(entity), true);
@@ -359,7 +365,8 @@ public class ForgeConnectionService {
                 entity.getUpdatedBy(),
                 discoveries.findFirstByConnectionIdOrderByRequestedAtDescIdDesc(entity.getId())
                         .map(ForgeDiscoveryService::view)
-                        .orElse(null));
+                        .orElse(null),
+                links.countByConnectionId(entity.getId()));
     }
 
     private ForgeConnectionEntity require(UUID id) {

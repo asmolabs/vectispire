@@ -474,6 +474,14 @@ public enum AuditOperation {
     FORGE_DISCOVERY_REQUESTED,
 
     /**
+     * Repositories were imported from a forge connection's discovery (decision 0037 §5): the one entry summarising
+     * the gesture — the connection, the discovery, how many targets, solutions and projects were created, how many
+     * repositories were skipped and why, and the first scans queued. Each target, solution and project created
+     * has its own entry beside it, as the forms write them.
+     */
+    FORGE_IMPORT_APPLIED,
+
+    /**
      * A report was requested of a report plugin for a project (decision 0035 §2): queued for the control plane's
      * executor. The entry names the plugin and the run.
      */

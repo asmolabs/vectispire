@@ -123,6 +123,19 @@ public class SolutionAdministrationService {
     // ------------------------------------------------------------------------------ solutions
 
     public SolutionView createSolution(String requestedName, String description, RequestActor actor) {
+        List<AuditLogService.Record> entries = new ArrayList<>();
+        SolutionView created = createSolution(requestedName, description, actor, entries);
+        entries.forEach(audit::record);
+        return created;
+    }
+
+    /**
+     * {@link #createSolution(String, String, RequestActor)} inside a transaction somebody else holds — decision
+     * 0037's import, through {@code TargetImports}: the same refusals and the same entry, handed to {@code entries}
+     * for the holder to record once it has committed.
+     */
+    SolutionView createSolution(
+            String requestedName, String description, RequestActor actor, List<AuditLogService.Record> entries) {
         String name = BoundedText.required(requestedName, NAME_LENGTH, "A solution name");
         refuseIfSolutionNameTaken(name, null);
 
@@ -132,7 +145,7 @@ public class SolutionAdministrationService {
         solution.setCreatedAt(clock.instant());
         SolutionEntity saved = solutions.save(solution);
 
-        audit.record(actor.entry(AuditOperation.SOLUTION_UPDATED, String.valueOf(saved.getId()), "Solution created: " + name));
+        entries.add(actor.entry(AuditOperation.SOLUTION_UPDATED, String.valueOf(saved.getId()), "Solution created: " + name));
         return SolutionView.of(saved);
     }
 
@@ -193,6 +206,15 @@ public class SolutionAdministrationService {
     // ------------------------------------------------------------------------------- projects
 
     public ProjectView createProject(long solutionId, String requestedName, String description, RequestActor actor) {
+        List<AuditLogService.Record> entries = new ArrayList<>();
+        ProjectView created = createProject(solutionId, requestedName, description, actor, entries);
+        entries.forEach(audit::record);
+        return created;
+    }
+
+    /** {@link #createProject(long, String, String, RequestActor)} inside a transaction somebody else holds, as above. */
+    ProjectView createProject(long solutionId, String requestedName, String description, RequestActor actor,
+            List<AuditLogService.Record> entries) {
         SolutionEntity solution = requireSolution(solutionId);
         String name = BoundedText.required(requestedName, NAME_LENGTH, "A project name");
         refuseIfProjectNameTaken(solutionId, name, null);
@@ -204,9 +226,19 @@ public class SolutionAdministrationService {
         project.setCreatedAt(clock.instant());
         ProjectEntity saved = projects.save(project);
 
-        audit.record(actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(saved.getId()),
+        entries.add(actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(saved.getId()),
                 "Project created: " + solution.getName() + " / " + name));
         return ProjectView.of(saved);
+    }
+
+    /** The solution of that name, case aside — the rule a creation refuses a second one by. */
+    Optional<SolutionView> solutionNamed(String name) {
+        return solutions.findByNameIgnoreCase(name).map(SolutionView::of);
+    }
+
+    /** The project of that name in the solution, case aside — the rule a creation refuses a second one by. */
+    Optional<ProjectView> projectNamed(long solutionId, String name) {
+        return projects.findBySolutionIdAndNameIgnoreCase(solutionId, name).map(ProjectView::of);
     }
 
     /**

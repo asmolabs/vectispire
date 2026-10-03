@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import java.time.Clock;
+import java.time.Instant;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,15 @@ public class ScanTriggerService {
 
     @Transactional
     public ScanEntity trigger(RepositoryView repository) {
+        return trigger(repository, null);
+    }
+
+    /**
+     * Queued, and claimed by no executor before {@code notBefore} — the column a failed attempt's wait uses, which
+     * every claim selection and the take already honour. Null claims at once.
+     */
+    @Transactional
+    public ScanEntity trigger(RepositoryView repository, Instant notBefore) {
         refuseIfQueued(scans.countByStatusAndRepoId(ScanStatus.PENDING.wireName(), repository.id()));
 
         ScanEntity scan = pending();
@@ -52,6 +62,7 @@ public class ScanTriggerService {
         // Copied at queue time: this scan keeps the requirement that held when it was asked
         // for, even if the target's label changes afterwards.
         scan.setRequiredAgentLabel(repository.requiredAgentLabel());
+        scan.setNotBefore(notBefore);
         return scans.save(scan);
     }
 

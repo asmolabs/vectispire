@@ -90,6 +90,9 @@ public abstract class VectispireContextTest {
             // from one test would hold its connection's active key against the next test's request.
             "t_forge_discovery",
             "t_forge_repository",
+            // The provenance of imported targets (V78, common, no foreign key). Left out, a link one test wrote would
+            // mark the next test's repository already imported, under an id the next test's target may take.
+            "t_forge_import_link",
             // The forge connections (V74, common, no foreign key). Left out, a connection one test created would
             // hold its name against the next test's.
             "t_forge_connection",

@@ -41,6 +41,17 @@ public interface ForgeRepositoryRepository extends JpaRepository<ForgeRepository
     int setLanguage(@Param("connectionId") UUID connectionId, @Param("forgeId") String forgeId,
             @Param("language") String language);
 
+    /**
+     * Every repository the discovery listed and no later completed run has marked gone: first seen by it or
+     * before, last seen by it or after — a run still going may have listed it again since. Bounded by the
+     * discovery's own bound, twenty thousand.
+     */
+    @Query("""
+            select r from ForgeRepositoryEntity r
+             where r.connectionId = :connectionId and r.firstSeenBy <= :discoveryId and r.lastSeenBy >= :discoveryId
+               and r.goneBy is null""")
+    List<ForgeRepositoryEntity> listedBy(@Param("connectionId") UUID connectionId, @Param("discoveryId") long discoveryId);
+
     Page<ForgeRepositoryEntity> findByConnectionIdAndLastSeenBy(UUID connectionId, long discoveryId, Pageable page);
 
     Page<ForgeRepositoryEntity> findByConnectionIdAndFirstSeenBy(UUID connectionId, long discoveryId, Pageable page);

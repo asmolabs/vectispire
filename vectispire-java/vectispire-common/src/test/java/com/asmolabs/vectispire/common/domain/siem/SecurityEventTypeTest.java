@@ -55,6 +55,7 @@ class SecurityEventTypeTest {
         expected.put("PROJECT_EXPORTED", "VECTI-SEC-032");
         expected.put("REPORT_PLUGIN_REFUSED", "VECTI-SEC-033");
         expected.put("FORGE_CONNECTION_CHANGED", "VECTI-SEC-034");
+        expected.put("FORGE_IMPORT_APPLIED", "VECTI-SEC-035");
         expected.put("FORGE_CONNECTION_REFUSED", "VECTI-SEC-036");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
@@ -76,12 +77,14 @@ class SecurityEventTypeTest {
     }
 
     @Test
-    @DisplayName("035 stays reserved for the imports from a forge (decision 0037 §2)")
-    void forgeImportIdentifierIsReserved() {
-        // Reserved on 2026-10-03 for the import of repositories from a forge, which lot D6 emits once per
-        // import; 034 and 036 are the connections', since lot D1.
-        assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
-                .doesNotContain("VECTI-SEC-035");
+    @DisplayName("035 is the import from a forge, named by its writer and only when it created something (decision 0037 §5)")
+    void forgeImportIsThirtyFive() {
+        // Reserved on 2026-10-03 for the import of repositories from a forge and emitted by lot D6, once per import.
+        // Not by operation: a replay that created nothing is audited FORGE_IMPORT_APPLIED and is no event.
+        assertThat(SecurityEventType.FORGE_IMPORT_APPLIED.signatureId()).isEqualTo("VECTI-SEC-035");
+        assertThat(SecurityEventType.FORGE_IMPORT_APPLIED.cefSeverity()).isEqualTo(5);
+        assertThat(SecurityEventType.FORGE_IMPORT_APPLIED.outcome()).isEqualTo(SecurityEventType.Outcome.SUCCESS);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.FORGE_IMPORT_APPLIED)).isEmpty();
     }
 
     @Test

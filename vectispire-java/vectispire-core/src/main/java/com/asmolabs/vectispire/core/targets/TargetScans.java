@@ -47,6 +47,13 @@ public interface TargetScans {
      */
     Queued queue(RepositoryView repository);
 
+    /**
+     * The same, claimed by no executor before {@code notBefore} — the wait every claim selection and the take
+     * honour. For decision 0037's first scans after an import, spaced so that the clones do not reach the forge
+     * in one burst.
+     */
+    Queued queue(RepositoryView repository, Instant notBefore);
+
     /** The same for an image. */
     Queued queue(ContainerView container);
 }
