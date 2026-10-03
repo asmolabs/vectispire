@@ -281,7 +281,7 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   scanner gardée à côté. Le scan terminé le plus récent est complété dès la réponse à l'import, et chaque
   scan suivant quand son inventaire est écrit ; les scans plus anciens gardent ce qu'ils ont reçu. La
   recherche de composants, l'inventaire consolidé, son export CycloneDX, l'export de projet, l'inventaire
-  des licences et ses décomptes, et les lignes de checklist `component_versions` lisent tous les lignes
+  des licences et ses décomptes, et les lignes de checklist `component_versions` et `component_present` lisent tous les lignes
   complétées, chacune disant qui l'a listée. La correspondance des vulnérabilités est inchangée, et un
   SBOM n'ouvre aucune issue. Audité `BUILD_SBOM_IMPORTED` ; un refus `REPORT_IMPORT_REFUSED`,
   `VECTI-SEC-027`. Les SBOM partent avec la fenêtre de preuve et avec leur dépôt. Migration V82

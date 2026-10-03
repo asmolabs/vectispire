@@ -630,7 +630,7 @@ chaque ligne — *build* à côté d'une version déclarée par le build, avec c
 info-bulle ; l'**inventaire consolidé** du projet, son export CycloneDX et l'**export de projet** disent
 qui a listé chaque composant (`sources`, schéma d'export 1.1) ; l'**inventaire des licences** compte les
 composants du build avec les licences qu'il déclare, et ses décomptes bougent quand un SBOM arrive ;
-une **ligne de checklist** `component_versions` lit les composants du scan analysé le plus récent,
+une **ligne de checklist** `component_versions` ou `component_present` lit les composants du scan analysé le plus récent,
 complétés — la bibliothèque transitive présente, la version gérée par la BOM déclarée.
 
 Refusé avec :

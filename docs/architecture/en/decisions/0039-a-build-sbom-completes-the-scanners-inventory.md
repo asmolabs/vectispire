@@ -99,7 +99,7 @@ with another.
 | The component search, `GET /api/v1/inventory/search` | the rows of every scan, each with `source` (`scanner`, `build`, `both`) and, for `both`, `scannerVersion` |
 | The project's consolidated inventory and its CycloneDX export | the newest completed scan of each target, completed; each merged component with `sources` |
 | The project export ([0035](0035-report-plugins.md) §1) | the same, `inventory.components[].sources` — an optional field, schema **1.1** |
-| The checklist rule `component_versions` | the components of each repository's newest scan in which the dependency step produced (`ComponentCatalog`), **completed by the newest build SBOM of that scan's branch**: the build's versions in place of `UNKNOWN`, the transitive libraries present. It still requires that scan to hold its SBOM; a build SBOM alone is not a scan |
+| The checklist rules `component_versions` and `component_present` | the components of each repository's newest scan in which the dependency step produced (`ComponentCatalog.componentsOf`, the one read both rules share), **completed by the newest build SBOM of that scan's branch**: the build's versions in place of `UNKNOWN`, the transitive libraries present. Which scan they read does not change; a build SBOM alone is not a scan, and a rule that requires the scan to hold its SBOM still does |
 | The licence inventory and its tallies | the scanner's SBOM and the component rows, as before; a completed row replaces the entry the scanner's SBOM gave under its own version, with the build's declared licence (else the scanner's). The tallies' stamp counts the build-completed rows and the newest import among them, so an SBOM arriving recounts them with no scan moving |
 | The SBOM diff between two scans | the two scans' rows, completed as each was |
 | Vulnerability matching | **unchanged**: Grype runs inside the scan on the scanner's SBOM. A build SBOM opens and resolves no issue |
@@ -131,8 +131,9 @@ with it (`TargetDeleted`, first phase); the scans' completed rows go with the sc
 
 ## Consequences
 
-- The false "no" of a `component_versions` line is gone for a repository whose pipeline sends its
-  SBOM, and `version_unrecorded` with it, as soon as the import is answered.
+- The false "no" of a `component_versions` or `component_present` line is gone for a repository whose
+  pipeline sends its SBOM, and `version_unrecorded` with it, as soon as the import is answered — the
+  remedy that rule's evidence names ("import an SBOM produced by the build").
 - A stale build SBOM — a pipeline that stopped sending one — keeps completing scans until the evidence
   window removes it. Its import date is on every row's history and in the audit log.
 - Two imports completing one scan at the same instant are serialised by a lock on the scan's rows; a

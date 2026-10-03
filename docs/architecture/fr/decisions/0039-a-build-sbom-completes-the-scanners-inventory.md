@@ -105,7 +105,7 @@ peut contredire un autre.
 | La recherche de composants, `GET /api/v1/inventory/search` | les lignes de chaque scan, chacune avec `source` (`scanner`, `build`, `both`) et, pour `both`, `scannerVersion` |
 | L'inventaire consolidé du projet et son export CycloneDX | le scan terminé le plus récent de chaque cible, complété ; chaque composant fusionné avec `sources` |
 | L'export de projet ([0035](0035-report-plugins.md) §1) | la même chose, `inventory.components[].sources` — un champ facultatif, schéma **1.1** |
-| La règle de checklist `component_versions` | les composants du scan le plus récent de chaque dépôt où l'étape de dépendances a produit (`ComponentCatalog`), **complétés par le SBOM de build le plus récent de la branche de ce scan** : les versions du build à la place d'`UNKNOWN`, les bibliothèques transitives présentes. Elle exige toujours que ce scan garde son SBOM ; un SBOM de build seul n'est pas un scan |
+| Les règles de checklist `component_versions` et `component_present` | les composants du scan le plus récent de chaque dépôt où l'étape de dépendances a produit (`ComponentCatalog.componentsOf`, la lecture que les deux règles partagent), **complétés par le SBOM de build le plus récent de la branche de ce scan** : les versions du build à la place d'`UNKNOWN`, les bibliothèques transitives présentes. Le scan qu'elles lisent ne change pas ; un SBOM de build seul n'est pas un scan, et une règle qui exige que ce scan garde son SBOM l'exige toujours |
 | L'inventaire des licences et ses décomptes | le SBOM du scanner et les lignes de composants, comme avant ; une ligne complétée remplace l'entrée que le SBOM du scanner donnait sous sa propre version, avec la licence déclarée par le build (sinon celle du scanner). Le tampon des décomptes compte les lignes complétées par un build et l'import le plus récent parmi elles, si bien qu'un SBOM qui arrive les fait recompter sans qu'aucun scan ne bouge |
 | Le diff de SBOM entre deux scans | les lignes des deux scans, complétées comme chacun l'a été |
 | La correspondance des vulnérabilités | **inchangée** : Grype tourne dans le scan sur le SBOM du scanner. Un SBOM de build n'ouvre ni ne résout aucun problème |
@@ -139,8 +139,9 @@ scans partent avec les scans.
 
 ## Conséquences
 
-- Le faux « non » d'une ligne `component_versions` disparaît pour un dépôt dont le pipeline envoie son
-  SBOM, et `version_unrecorded` avec lui, dès la réponse à l'import.
+- Le faux « non » d'une ligne `component_versions` ou `component_present` disparaît pour un dépôt dont
+  le pipeline envoie son SBOM, et `version_unrecorded` avec lui, dès la réponse à l'import — le remède
+  que nomme la preuve de cette règle (« importez un SBOM produit par le build »).
 - Un SBOM de build périmé — un pipeline qui a cessé d'en envoyer — continue de compléter les scans
   jusqu'à ce que la fenêtre de preuve le retire. Sa date d'import est dans l'historique et au journal
   d'audit.

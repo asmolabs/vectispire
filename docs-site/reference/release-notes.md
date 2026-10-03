@@ -258,7 +258,7 @@ another branch, is another target and is accepted as before.
   scanner's kept beside it. The newest completed scan is completed as the import is answered, and every
   later scan as its inventory is written; older scans keep what they were given. The component search,
   the consolidated inventory, its CycloneDX export, the project export, the licence inventory and its
-  tallies, and the `component_versions` checklist lines all read the completed rows, each saying who
+  tallies, and the `component_versions` and `component_present` checklist lines all read the completed rows, each saying who
   listed it. Vulnerability matching is unchanged, and an SBOM opens no issue. Audited
   `BUILD_SBOM_IMPORTED`; a refusal `REPORT_IMPORT_REFUSED`, `VECTI-SEC-027`. The SBOMs leave with the
   evidence window and with their repository. Migration V82 (`t_build_sbom`, `t_build_sbom_component`,

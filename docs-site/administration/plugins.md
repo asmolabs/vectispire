@@ -608,7 +608,7 @@ Every reader reads the same completed rows: the **component search** shows each 
 **consolidated inventory**, its CycloneDX export and the **project export** say who listed each
 component (`sources`, export schema 1.1); the **licence inventory** counts the build's components with
 the licences it declares, and its tallies move when an SBOM arrives; a **checklist line**
-`component_versions` reads the newest analysed scan's components, completed — the transitive library
+`component_versions` or `component_present` reads the newest analysed scan's components, completed — the transitive library
 present, the BOM-managed version stated.
 
 Refused with:

@@ -299,6 +299,20 @@ class BuildSbomImportRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a presence rule reads the same completed rows: the transitive library is used")
+        void thePresenceLinePasses() throws Exception {
+            publishWithRule(Map.of("kind", "component_present", "maxAgeDays", 7, "components",
+                    List.of(Map.of("purlPrefix", "pkg:maven/org.yaml/snakeyaml"))));
+            scan(ledger, "main", hoursAgo(2));
+            openChecklist();
+            assertThat(measurement().path("outcome").asText()).isEqualTo("fail");
+
+            upload(sbomKey(), ledger, fixture("cyclonedx-maven-ledger.json")).andExpect(status().isCreated());
+
+            assertThat(measurement().path("outcome").asText()).isEqualTo("pass");
+        }
+
+        @Test
         @DisplayName("the licence tallies move when an SBOM arrives, no scan moving: the build's licences and versions count")
         void theLicenceTallyMoves() throws Exception {
             scan(ledger, "main", hoursAgo(2));
