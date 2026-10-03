@@ -137,7 +137,7 @@ Une exécution est dans exactement un état :
 | État | Sens |
 |---|---|
 | `pending` | Demandée, en attente de l'exécuteur. |
-| `running` | Prise en charge. Une exécution encore en cours au-delà de son bail — le plus long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et dix minutes — a été laissée par un exécuteur arrêté : elle passe en échec, `executor_lost`, sans nouvelle tentative. Redemandez-la. |
+| `running` | Prise en charge. Son exécuteur renouvelle son bail tant qu'elle tourne, quelle que soit la durée du pull et de la vérification de la signature. Une exécution dont le bail expire — le plus long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et dix minutes, dix-sept minutes sans renouvellement — a été laissée par un exécuteur arrêté : elle passe en échec, `executor_lost`, sans nouvelle tentative. Redemandez-la. |
 | `produced` | Le plugin est sorti avec 0 et a écrit son fichier dans ses limites. L'export qu'il a reçu est conservé avec l'exécution. |
 | `failed` | `exit_code`, `timeout`, `output_full` (le répertoire s'est rempli ou un fichier a dépassé le plafond), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` — avec le détail, les propres mots du plugin pour un code de sortie. |
 | `refused` | Pas démarrée : `signature_unverified`, `unsigned`, `registry_authentication_required`, ou `export_schema_unavailable` (le manifeste lit une version majeure d'export que cette installation ne produit plus). La correction porte sur la provenance de l'image ou sa version, pas sur son code. |

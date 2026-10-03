@@ -244,7 +244,8 @@ another branch, is another target and is accepted as before.
   read-only, one output directory bounded by the manifest's `max_output_bytes` and 16 files, the manifest's
   timeout, exit 0 or failed. A run is `pending`, `running`, `produced`, `failed` or `refused`, with its
   reason (`GET /api/v1/projects/{id}/reports`); one of a plugin per project at a time (409
-  `report-run-in-progress`); a run whose executor died is failed `executor_lost` after its lease. A
+  `report-run-in-progress`); its executor renews its lease while it runs, and a run whose executor died is
+  failed `executor_lost` once the lease lapses — seventeen minutes without a renewal. A
   produced run keeps the export it was given, purged by the evidence window; nothing else is kept of a run
   that did not produce. **An installation whose built-in worker is switched off cannot run report plugins**
   in this version: 409 `report-executor-unavailable`. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`

@@ -667,8 +667,11 @@ migration V75) et `common/scanning/scanners/ReportPluginRenderer`, qui exécute 
 - **La prise est celle de la file des analyses** : les exécutions en attente lues de la plus ancienne à la plus
   récente, chacune prise par une mise à jour conditionnelle ; aucun verrou de ligne. **Le bail** est le plus
   long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et les dix minutes du §2 —
-  dix-sept minutes pour toute exécution, le manifeste n'étant lu qu'après la prise. Une exécution au-delà est
-  mise en échec `executor_lost` par le tour suivant de n'importe quelle instance, au démarrage ou non, et **sans
+  dix-sept minutes pour toute exécution, le manifeste n'étant lu qu'après la prise — et **son exécuteur le
+  renouvelle** tous les tiers de bail tant que l'exécution vit, chaque renouvellement nommant celui qui l'a
+  prise : fixe, il mettait en échec comme perdue une exécution dont le pull ou la vérification de signature
+  n'était que lent, et jetait ce qu'elle produisait ensuite. Une exécution au-delà est mise en échec
+  `executor_lost` par le tour suivant de n'importe quelle instance, au démarrage ou non, et **sans
   nouvelle tentative** : un rapport décrit l'instant pour lequel il a été demandé. Chaque écriture après la
   prise nomme celui qui l'a prise : un exécuteur dont le bail a expiré n'enregistre rien — ni ne stocke son
   export.

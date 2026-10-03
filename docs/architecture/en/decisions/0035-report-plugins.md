@@ -612,8 +612,10 @@ Lot R3 — the executor — settled these points §2 left open. The code is in `
   (`VECTISPIRE_REPORT_CONCURRENCY`), looking for waiting runs every ten seconds.
 - **The claim is the scan queue's**: the waiting runs read oldest first, each taken by a conditional update; no
   row lock. **The lease** is the longest timeout a manifest may declare, the verifier's two minutes and the ten
-  minutes of §2 — seventeen minutes for every run, the manifest being read only after the take. A run past it is
-  failed `executor_lost` by any instance's next turn, at a start-up or otherwise, and **not retried**: a report
+  minutes of §2 — seventeen minutes for every run, the manifest being read only after the take — and **its
+  executor renews it** every third of it while the run is alive, each renewal naming the claimant: fixed, it
+  failed as lost a run whose pull or signature check was only slow, and dropped what that run then produced. A
+  run past it is failed `executor_lost` by any instance's next turn, at a start-up or otherwise, and **not retried**: a report
   describes the instant it was asked for. Every write after the take names the claimant, so an executor whose
   lease lapsed records nothing — nor stores its export.
 - **The claim settles again what the request settled**: a plugin switched off for the project, disabled or

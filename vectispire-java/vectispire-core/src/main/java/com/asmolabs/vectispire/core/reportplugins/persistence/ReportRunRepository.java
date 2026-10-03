@@ -45,6 +45,22 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
             @Param("startedAt") Instant startedAt,
             @Param("leaseExpiresAt") Instant leaseExpiresAt);
 
+    /**
+     * Extends the lease of a run its owner still holds, and says whether it did: 0 once the run ended, or was
+     * failed as lost, or is another executor's — a renewal names its claimant like every write after the take,
+     * so one executor's heartbeat never keeps another's run alive.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ReportRunEntity r set r.leaseExpiresAt = :leaseExpiresAt
+             where r.id = :id and r.state = :running and r.claimedBy = :owner""")
+    int renew(
+            @Param("id") long id,
+            @Param("running") String running,
+            @Param("owner") String owner,
+            @Param("leaseExpiresAt") Instant leaseExpiresAt);
+
     /** The runs whose executor stopped answering: running, their lease lapsed. */
     @Query("select r.id from ReportRunEntity r where r.state = :running and r.leaseExpiresAt < :asOf order by r.id")
     List<Long> lapsed(@Param("running") String running, @Param("asOf") Instant asOf);

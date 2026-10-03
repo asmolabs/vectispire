@@ -261,8 +261,9 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   lecture seule, un répertoire de sortie borné par le `max_output_bytes` du manifeste et 16 fichiers, le délai
   du manifeste, code de sortie 0 ou échec. Une exécution est `pending`, `running`, `produced`, `failed` ou
   `refused`, avec son motif (`GET /api/v1/projects/{id}/reports`) ; une seule d'un plugin par projet à la
-  fois (409 `report-run-in-progress`) ; une exécution dont l'exécuteur est mort passe en échec
-  `executor_lost` après son bail. Une exécution produite garde l'export qu'elle a reçu, purgé par la fenêtre
+  fois (409 `report-run-in-progress`) ; son exécuteur renouvelle son bail tant qu'elle tourne, et une
+  exécution dont l'exécuteur est mort passe en échec `executor_lost` quand le bail expire — dix-sept minutes
+  sans renouvellement. Une exécution produite garde l'export qu'elle a reçu, purgé par la fenêtre
   des preuves ; rien d'autre n'est gardé d'une exécution qui n'a pas produit. **Une installation dont le
   worker intégré est coupé ne peut pas exécuter de plugins de rapport** dans cette version : 409
   `report-executor-unavailable`. Journalisé `REPORT_REQUESTED`, `PROJECT_EXPORTED` (`VECTI-SEC-032`, l'export
