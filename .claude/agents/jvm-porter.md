@@ -243,6 +243,22 @@ on MySQL too (decision 0034, `TestDatabase`): a container per test JVM, or the s
 `VECTISPIRE_TEST_DB_URL` names, as CI's `jvm` job does; without either they fail, never skip. SQLite
 is gone, and H2 stays refused: a test engine nobody deploys hides what the campaign looks for.
 
+**Prefer the reused MySQL, and never kill what you did not start.** Agents run Gradle and
+Testcontainers side by side in sibling worktrees. With reuse enabled on the machine
+(`testcontainers.reuse.enable=true` in `~/.testcontainers.properties`, which is the user's file — for a
+run of yours, `TESTCONTAINERS_REUSE_ENABLE=true` in the environment instead), every run shares
+`vectispire-test-mysql` (label `com.asmolabs.vectispire.test=mysql`) and works in a database of its
+own, dropped at exit and swept by the next JVM a day later: no container start per run, nothing for
+the reaper to do. Never stop that container while a sibling may be running, never `docker rm` a
+container you did not create — other projects' (`c1vadis/*`, rabbitmq, keycloak), `vectispire-demo-*`,
+another agent's Testcontainers — and never a broad `pkill -f gradle`/`java`: it kills the other
+agents' builds, and their failures then read as defects of their own. Stop a PID you started, or
+`./gradlew --stop` in your own worktree. **A Ryuk failure is environmental, not a defect**: the
+reaper container failing to start or to connect ("Can not connect to Ryuk") fails every Testcontainers
+user in the JVM at once. With reuse on, `:test` registers nothing with it, so
+`TESTCONTAINERS_RYUK_DISABLED=true ./gradlew build` is a fair workaround; never for
+`integrationTest*`, whose containers only the reaper removes. Say in your report which you used.
+
 **Every `@Modifying` query carries `@Transactional`**, and so does every derived `deleteBy…`.
 Spring Data does not add it. Without it the method works whenever a caller happens to have a
 transaction open and fails when none does, which is how the omission survives review — fifteen derived

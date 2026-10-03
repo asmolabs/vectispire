@@ -124,4 +124,15 @@ Une note après l'enregistrement, pas une modification de celui-ci.
   (2026-10-02) : les 24 doublons sont supprimés, et `t_mfa_challenge.user_id` — en ligne dans V23,
   donc jamais une clé sous MySQL 8 — reçoit une clé nommée ; les deux versions majeures finissent avec
   les mêmes 33 clés.
+- **Le conteneur gardé d'une exécution à l'autre (2026-10-03).** « En local, un conteneur … avec
+  réutilisation » avait été écrit sans être livré : `withReuse` était posé, mais rien ne nommait ni
+  n'étiquetait le conteneur, deux JVM démarrant ensemble en créaient chacune un, et rien ne supprimait
+  les bases qu'une JVM tuée laissait. Là où le poste active la réutilisation de Testcontainers,
+  `TestDatabase` garde désormais `vectispire-test-mysql` (étiquette
+  `com.asmolabs.vectispire.test=mysql`) pour toutes les exécutions et tous les worktrees, le nom
+  servant du verrou qui manque à la réutilisation de Testcontainers ; les bases portent leur instant
+  de création (`vectispire_test_<epoch>_<hex>`), sont supprimées à la sortie de la JVM et balayées
+  après un jour. Sans le réglage rien ne change, et la CI garde son service de job. La campagne garde
+  un serveur neuf par classe. Comment l'activer et le retirer : `vectispire-java/README.md`, « One
+  MySQL kept across runs ».
 

@@ -455,6 +455,19 @@ valide le schéma à chaque démarrage de contexte
 ([ADR 0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). La suite de
 l'interface est `npm test`.
 
+Sur un poste de développement, le conteneur peut être gardé d'une exécution à l'autre et partagé par
+tous les worktrees : `echo testcontainers.reuse.enable=true >> ~/.testcontainers.properties` (ou
+`TESTCONTAINERS_REUSE_ENABLE=true`). Les suites démarrent alors `vectispire-test-mysql`, étiqueté
+`com.asmolabs.vectispire.test=mysql`, une seule fois, puis le trouvent en marche, hors de portée du
+ramasse-conteneurs de Testcontainers (Ryuk). Chaque JVM de test travaille toujours dans une base à
+elle, `vectispire_test_<secondes epoch>_<aléa>`, supprimée quand la JVM se termine ; la JVM suivante
+supprime celles qu'une JVM tuée a laissées, une fois vieilles d'un jour, et rien d'autre.
+`docker rm -f vectispire-test-mysql` retire le conteneur. La CI ne réutilise pas : elle nomme un
+service du job par `VECTISPIRE_TEST_DB_URL`, et la campagne d'intégration garde un serveur neuf par
+classe, parce qu'une vérification de concurrence y compte les attentes de verrou du serveur entier.
+Le détail est dans
+[`vectispire-java/README.md`](../../vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine).
+
 Les campagnes d'intégration démarrent un moteur réel via **testcontainers**, appliquent toutes les
 migrations et annulent chaque test dans sa propre transaction — de sorte que le schéma sous test
 est celui que la production recevra, et que les cas ne peuvent pas se voir entre eux.

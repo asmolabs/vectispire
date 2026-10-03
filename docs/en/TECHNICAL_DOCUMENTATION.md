@@ -447,6 +447,18 @@ either they fail rather than skip, and Hibernate validates the schema at every c
 ([ADR 0034](../architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). The interface's
 suite is `npm test`.
 
+On a developer's machine the container can be kept across runs and shared by every worktree:
+`echo testcontainers.reuse.enable=true >> ~/.testcontainers.properties` (or
+`TESTCONTAINERS_REUSE_ENABLE=true`). The suites then start `vectispire-test-mysql`, labelled
+`com.asmolabs.vectispire.test=mysql`, once and find it running afterwards, outside the reach of
+Testcontainers' reaper (Ryuk). Each test JVM still works in a database of its own,
+`vectispire_test_<epoch seconds>_<random>`, dropped when the JVM exits; the next JVM drops those a
+killed one left once they are a day old, and nothing else. `docker rm -f vectispire-test-mysql`
+removes the container. CI does not reuse: it names a job service through `VECTISPIRE_TEST_DB_URL`, and
+the integration campaign keeps a fresh server per class, because a concurrency check there counts the
+lock waits of the whole server. The details are in
+[`vectispire-java/README.md`](../../vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine).
+
 The integration suites start a real engine through **testcontainers**, apply every
 migration, and roll each test back in its own transaction — so the schema under test is the
 one production will receive, and the cases cannot see each other.

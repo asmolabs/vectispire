@@ -25,7 +25,9 @@ cd vectispire-java && ./gradlew build
 
 Compile (with `-Werror` — a dangling doc comment fails it), unit, architecture and HTTP suites —
 the last two on MySQL (decision 0034): a Testcontainers container, so Docker must be running, or the
-server `VECTISPIRE_TEST_DB_URL` names; without either they fail, and that is not a flake.
+server `VECTISPIRE_TEST_DB_URL` names; without either they fail, and that is not a flake. With
+`testcontainers.reuse.enable=true` on the machine, the container is `vectispire-test-mysql`, kept
+across runs and worktrees (`vectispire-java/README.md`, "One MySQL kept across runs").
 `ModularityTest` runs Spring Modulith's `verify()` (decision 0030): a cycle between modules, a reach
 into another module's internals, or a dependency the module's `package-info` does not list fails the
 build, and so does a module without a list or a line nothing uses. Its message names the edge; the

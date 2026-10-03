@@ -401,6 +401,46 @@ that has not been green, and remember that the schedule fires from `main` only.
 is populated, so an empty one now means a package was renamed or deleted, and that rule going
 quiet is exactly how it would go unnoticed.
 
+
+### One MySQL kept across runs, on your machine
+
+By default every test JVM starts its own `mysql:9.4`, and Testcontainers' reaper (Ryuk) removes it
+when the JVM exits: the server's start is paid by every run. A developer's machine can keep one
+instead, shared by every run and every worktree:
+
+```bash
+echo testcontainers.reuse.enable=true >> ~/.testcontainers.properties   # or TESTCONTAINERS_REUSE_ENABLE=true
+```
+
+`TestDatabase` then starts `vectispire-test-mysql` (label `com.asmolabs.vectispire.test=mysql`) once,
+outside the reaper's reach, and every later run finds it running and goes straight to its own
+database. What keeps the shared server clean is the database, not the container: each JVM creates
+`vectispire_test_<epoch seconds>_<random>`, drops it — and any scratch database a test left open —
+when it exits, and at start drops those of ours older than a day, which only a killed JVM leaves.
+Nothing else on the server is touched, and a run in another worktree, whose database is minutes old,
+keeps its own. Two runs starting at once race for the name: the daemon refuses the second create, and
+that run waits for the first one's container instead of making a second. A container a Docker restart
+stopped is replaced; one of another image or Testcontainers version — an older branch's — is left
+alone, the run reuses one without the name, and the log says to remove the old one. To remove it, or
+every container of ours:
+
+```bash
+docker rm -f vectispire-test-mysql
+docker rm -f $(docker ps -aq --filter label=com.asmolabs.vectispire.test=mysql)
+```
+
+The reused container is not registered with Ryuk, so nothing of `./gradlew test` or `build` depends on
+the reaper any more. Testcontainers still starts it — it reads `TESTCONTAINERS_RYUK_DISABLED` from the
+environment only — and where it fails to start, `TESTCONTAINERS_RYUK_DISABLED=true ./gradlew build` is
+safe with reuse on. Never for the integration campaign: its containers are not reused, the reaper is
+what removes them, and without it they stay.
+CI is unchanged: the `jvm` job names a job service with `VECTISPIRE_TEST_DB_URL`, which starts no
+container at all. A server of your own works the same way, and its stale databases are swept by the
+same rule: only names of exactly that form, a day old. The integration campaign does **not** reuse.
+Each of its classes gets a server nobody else uses, because
+`OwaspWeeklyCoverageConcurrencyIntegrationTest` counts the lock waits of the whole server, and a
+neighbour's wait would pass it without its own capture having waited.
+
 ### Defects fixed rather than reproduced
 
 **The cron format nothing accepted.** Both controllers' 400 said `Expected five fields, for example

@@ -14,7 +14,7 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container, or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
+| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). The unit and HTTP suites run on MySQL in a container — kept across runs as `vectispire-test-mysql` where `testcontainers.reuse.enable=true` ([`vectispire-java/README.md`](vectispire-java/README.md#one-mysql-kept-across-runs-on-your-machine)) — or on the server `VECTISPIRE_TEST_DB_URL` names ([0034](docs/architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash

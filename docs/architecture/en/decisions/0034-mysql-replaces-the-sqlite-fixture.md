@@ -114,4 +114,13 @@ A note after the record, not an edit of it.
   composition's `mysql:8` discards them. Recorded here, then settled by V65 (2026-10-02): the 24
   twins are dropped, and `t_mfa_challenge.user_id` — inline in V23, so never a key on MySQL 8 — gets
   a named one; both majors now end with the same 33 keys.
+- **The container kept across runs (2026-10-03).** "Locally, one container … with reuse" had been
+  written and not delivered: `withReuse` was set, but nothing named or labelled the container, two
+  JVMs starting together each made one, and nothing removed the databases a killed JVM left. Where the
+  machine enables Testcontainers' reuse, `TestDatabase` now keeps `vectispire-test-mysql` (label
+  `com.asmolabs.vectispire.test=mysql`) for every run and worktree, the name serving as the lock
+  Testcontainers' reuse lacks; the databases carry their creation instant
+  (`vectispire_test_<epoch>_<hex>`), are dropped at JVM exit and swept after a day. Without the
+  setting nothing changes, and CI keeps its job service. The campaign keeps a fresh server per class.
+  How to enable and remove it: `vectispire-java/README.md`, "One MySQL kept across runs".
 
