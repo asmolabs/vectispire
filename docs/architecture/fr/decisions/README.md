@@ -38,6 +38,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0032](0032-security-checklists.md) | Une checklist de sécurité est le modèle de l'organisation, versionné, rempli par projet par des personnes, et prérempli seulement à partir de preuves qui ont été produites | acceptée |
 | [0033](0033-internal-reactions-leave-through-the-outbox.md) | Une réaction entre modules qui doit survivre à un commit passe par l'outbox, pas par le registre de Modulith | acceptée |
 | [0034](0034-mysql-replaces-the-sqlite-fixture.md) | MySQL remplace SQLite comme fixture des suites unitaires et HTTP | acceptée, réalisée |
+| [0035](0035-report-plugins.md) | Un plugin de rapport est une image de conteneur signée qui transforme un export de projet en un document, que la plateforme vérifie, signe et conserve avec sa provenance | proposée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes
