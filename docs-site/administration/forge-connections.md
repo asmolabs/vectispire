@@ -117,6 +117,13 @@ until it is, GitHub refuses it that organisation's repositories. A discovery the
 *not readable with this token*, says why, and goes on with the others (below). A fine-grained token is
 approved by the organisation instead, and needs no such step.
 
+**A checklist line measuring change reviews needs one more GitHub permission.** A
+[`change_review` line](checklist-templates.md#change-review-how-changes-reach-a-branch) reads merged pull
+requests and their reviews, which *Metadata: read* does not include: grant the fine-grained token
+**Pull requests: read** as well — still read-only — or those lines say `forge_unreadable`, naming the
+permission. *Administration: read* lets the reading see a classic branch protection too; without it the
+rulesets and the history still answer. GitLab's `read_api` already covers it (below).
+
 **What remains, written rather than hidden.** A GitHub Enterprise Server classic `repo` token can write.
 GitLab's `read_api` can also read files through the API. The connection is a standing read access to the
 list of an organisation's repositories, held by the control plane.
@@ -347,6 +354,38 @@ skipped. The connection's `importedTargets` counts the targets imported through 
 
 **Provenance.** Each imported target is linked to its connection and the forge's id. Deleting the target deletes the
 link — the repository is offered again; deleting the connection deletes every link and no target.
+
+## Change reviews: what the checklists ask the forge
+
+A checklist line bound to a [`change_review` rule](checklist-templates.md#change-review-how-changes-reach-a-branch)
+— *every merge request is approved by a peer* — is measured from the forge, through the connection that
+imported the repository, or one whose discovery listed a repository with the same URL. Nobody asks for
+it on screen: an hourly maintenance turn reads the repositories and branches such lines ask about, each
+again once its reading is six hours old, as far back as the widest window bound to it, and keeps what it
+read for the line. A checklist read on screen calls no forge.
+
+| Forge | Requests, per repository and branch | Token |
+|---|---|---|
+| GitLab, every edition | `GET /projects/:id` (the default branch); `GET /projects/:id/approvals` — on the **Community Edition and the Free tier, a 404**, and nothing more of the settings is asked; on Premium and Ultimate, `GET /projects/:id/protected_branches/:branch` and `GET /projects/:id/approval_rules`; then `GET /projects/:id/merge_requests?state=merged&target_branch=…&updated_after=…`, a page per hundred, and `GET /projects/:id/merge_requests/:iid/approvals` once per merged merge request | `read_api`, the scope the connection already holds — the probe's allow-list is unchanged — and the **Reporter** role on the project (a Guest is refused a private project's merge requests); where the token is refused the protected branch, the settings prove nothing alone and the history decides |
+| GitHub | `GET /repositories/:id`; `GET /repos/:owner/:repo/rules/branches/:branch` and `…/branches/:branch/protection`; `GET /repos/:owner/:repo/pulls?state=closed&base=…`, newest update first until one is older than the window, and `GET …/pulls/:number/reviews` once per merged pull request | fine-grained: **Metadata: read** and **Pull requests: read** (*Administration: read* for the classic protection, optional); classic (Enterprise Server): `repo` |
+
+**Bounded, like a discovery.** A reading stops at 500 merged changes — the line then says
+`review_incomplete` rather than judging part of the window —, at two minutes, and waits out a rate limit
+of up to a minute; a turn reads for five minutes at most, and what it does not reach is read at the next.
+A rate limit or a forge that does not answer leaves the previous reading in place until it is stale; a
+refusal is a reading and is kept as one. Every request goes through the connection's own door — its
+address, its pinned CA, its network statement, its token on its own origin only — as a discovery's does.
+
+**What is kept**, per repository and branch: when it was read, the connection and the forge's id, and
+the evidence — the settings in one sentence, and per merged change its reference (`!12`, `#12`), when it
+was merged, how many people other than its author approved it and whether its author did. No name of a
+person is kept. The readings go with the target when it is deleted, with the connection when it is
+deleted, and when no line asks about the repository any more.
+
+**What it does not see**, written rather than hidden: a push straight to the branch on a GitLab without
+approval settings (protect the branch so that one is not possible); a GitLab Premium *Prevent approvals
+by users who add commits* setting, which is not read; a GitHub ruleset's bypass list, which the rules
+endpoint does not state.
 
 ## Encryption
 

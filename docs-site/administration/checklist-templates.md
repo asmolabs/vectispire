@@ -156,6 +156,7 @@ shows each line's rule in words and nothing to change. A script does the same wi
 | `test_suite_passed` | the newest test-report import | a suite matches `suitePattern` (`*` and `?`), those that match ran at least `minimumTests` (skipped ones not counted), none failed or errored |
 | `component_versions` | the components of the newest analysed SBOM | every declared package (`purlPrefix`) is present at one of its listed `versions` — exact versions, and Maven ranges on a `pkg:maven/` package ([below](#components-presence-versions-and-ranges)) |
 | `component_present` | the same components | every declared package (`purlPrefix`) is present, whatever its version — one the SBOM does not state included |
+| `change_review` | the newest reading of the repository's forge, through the connection that imported or discovered it ([below](#change-review-how-changes-reach-a-branch)) | the forge's settings require `minimumApprovals` approvals before a merge, the author's own refused and a direct push refused — or, of the merge requests or pull requests merged into the `branch` (default: the forge's default branch) in the last `windowDays`, at least `minimumRatio` had `minimumApprovals` approvals by people other than their author |
 
 **Nothing is assumed.** Every kind requires `maxAgeDays` (1 to 366 — seven is a sensible start), a
 dependency rule states `requireSchedule`, a findings rule states at least one threshold — *no
@@ -226,6 +227,61 @@ its exact versions their meaning.
 occurrences states one is `version_unrecorded`, and its evidence says the version is managed outside
 the SBOM — a parent POM or a BOM — and that an SBOM produced by the build, which states it, resolves the
 line. Where the line only asks whether the library is used, bind `component_present`.
+
+### Change review: how changes reach a branch
+
+A line such as *every merge request is approved by at least one peer before merge* is bound to a
+`change_review` rule. Vectispire does not read it in a scan: the forge answers it, through the
+[forge connection](forge-connections.md#change-reviews-what-the-checklists-ask-the-forge) that imported
+the repository — or, for a repository typed in by hand, one whose discovery listed a repository with
+the same URL (the identity the repository form compares). A repository neither links is
+`forge_unlinked`, never a pass.
+
+```json
+{ "kind": "change_review", "maxAgeDays": 1, "minimumApprovals": 1, "windowDays": 30, "minimumRatio": 1 }
+```
+
+`minimumApprovals` (1 to 10) counts **distinct people other than the change's author**; `windowDays`
+(1 to 366) is how far back merged changes are counted; `minimumRatio` (above 0, to 1) is the share of
+them that must have the approvals — `1` for every one; `branch`, optional, names the target branch, and
+without it the forge's default branch is read. `maxAgeDays` is how old the forge's reading may be: it is
+taken hourly and each repository again every six hours, so `1` is a sensible value. All four but the
+branch are required by the server; the form proposes one peer, every change and thirty days — the words
+of the line it was written for — in fields the person reads and changes.
+
+**Two sources, chosen by what the forge exposes**, both read at each reading:
+
+| Source | GitLab | GitHub | Proves |
+|---|---|---|---|
+| **Settings** — a configuration proof | Premium and Ultimate only: the approval rules that apply to the branch (`approvals_required`, the largest), *Prevent approval by author* (`merge_requests_author_approval`), and the protected branch's push levels (*No one*) | the rules that apply to the branch (rulesets' `pull_request` rule), and the classic branch protection's required reviews when it binds administrators | every change, the next one included: a pass on the settings alone when they require the approvals, refuse the author's own and refuse a direct push |
+| **History** — what happened | every edition, the **Community Edition included**: the merge requests merged into the branch in the window, and each one's `approved_by` | the pull requests merged into the branch in the window, and each one's reviews — a reviewer's latest decision standing | the window's changes: a pass when the share is met |
+
+**GitLab Community Edition (and the Free tier) has no approval rule**: it answers 404 for the settings,
+and the line is judged on the history — the reading says so in its evidence. Two things follow, and
+both are written down rather than hidden:
+
+- **Nothing on the forge prevents an author from approving their own merge request**, so Vectispire
+  excludes it: an approval by the author is counted nowhere, and the evidence names how many changes
+  had one (*1 approved by their author too, not counted*).
+- **A push straight to the branch is not a merge request**, and the history does not see it. Protect the
+  branch (*Allowed to push and merge: No one*, *Allowed to merge: Maintainers*) so that every change
+  goes through one; the reading does not read that setting on the Community Edition.
+
+An approver who also pushed commits to the change counts as a peer: GitLab Premium's *Prevent
+approvals by users who add commits* is not read, and the Community Edition has none.
+
+**What the line shows.** Per repository, the source and its figures — *47 of 47 merged merge requests
+approved by a peer in 30 days*, or *settings: GitLab approval rules require 2 approvals on main, author
+approval prevented, direct push refused* — and, on a failure, the changes without the approvals
+(*without: !12, !15*). The summary is what the signed document's `Evidence` sheet prints; the reading
+is named by its id and its SHA-256, which the measurement's evidence carries.
+
+**No data, never a pass:** `never_examined` (not read yet — the first reading comes within the hour),
+`forge_unlinked`, `forge_unreadable` (the token was refused the project, its merge requests or pull
+requests — the evidence gives the forge's answer, `HTTP 403` and the permission to grant), `review_incomplete`
+(more than 500 changes merged in the window, or a reading narrower than the rule's window just after
+it was widened), `no_change_merged` (nothing merged in the window: none of none is not all), and
+`stale`.
 
 ### Coverage over a scope of packages
 

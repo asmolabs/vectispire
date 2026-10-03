@@ -128,6 +128,12 @@ another branch, is another target and is accepted as before.
   scan left still listed every package. It now reads that inventory, as `component_present` does, and an
   empty one beside a purged payload is no data, `inventory_absent`, which withdraws the automatic *no*.
   `dependency_analysis` still requires the SBOM kept: that is what it measures.
+- **A checklist rule has a sixth kind, `change_review`, and a measurement four more reasons and a source.**
+  A rule's `kind` may read `change_review`, with `minimumApprovals`, `windowDays` and an optional `branch`
+  on `ChecklistRuleForm` (its share is `minimumRatio`, as coverage's minimum is); a `reason` may read
+  `forge_unlinked`, `forge_unreadable`, `review_incomplete` or `no_change_merged`, a repository's
+  `status` the same, and its `source` `forge_review`. Only on a line bound to the new kind; a client that
+  switches over these vocabularies exhaustively needs the new members.
 - **A coverage import answers `packagesState`**, and a checklist measurement has three more reasons.
   `POST` and `GET /api/v1/repositories/{id}/coverage-imports` carry `packagesState` — `kept`, `too_many`,
   `path_refused`, `inconsistent`, or `null` for an import accepted before this version — and a rule's
@@ -215,6 +221,24 @@ another branch, is another target and is accepted as before.
     chart), or, opt-in, in the cluster as pods with a privileged `docker:dind` sidecar on nodes of their
     own. The rootless variant renders only when acknowledged, because it does not scan.
   - **Checked in CI** for each of these shapes.
+- **A checklist line can measure change reviews — *every merge request is approved by a peer before
+  merge*** ([the rule](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch),
+  [what the forge is asked](../administration/forge-connections.md#change-reviews-what-the-checklists-ask-the-forge),
+  decision 0037, lot G3). A `change_review` rule states the approvals by people other than the author
+  (`minimumApprovals`), the window (`windowDays`), the share of merged changes that must have them
+  (`minimumRatio`) and, optionally, the branch. An hourly maintenance turn reads each repository's forge
+  through the connection that imported it — or one whose discovery listed its URL —, never on a request:
+  the **settings** where the forge has them (GitLab Premium and Ultimate approval rules, *Prevent approval
+  by author* and the protected branch; GitHub rulesets and branch protection), which pass the line alone
+  when they require the approvals, refuse the author's own and refuse a direct push; and the **history** on
+  every edition — the **GitLab Community Edition** included, which has no approval rule and answers 404 for
+  the settings: the merge requests or pull requests merged in the window and who approved each, **an
+  approval by the author counted nowhere**. The line shows *47 of 47 merged merge requests approved by a
+  peer in 30 days*, or the settings in a sentence, and the signed document prints it. No data, never a pass,
+  for a repository no connection knows, a token refused (on GitHub a fine-grained token also needs **Pull
+  requests: read**; GitLab's `read_api` already covers it), more than 500 changes in the window, or nothing
+  merged in it. The template editor offers the kind, proposing one peer, every change and thirty days.
+  Migration V83 (`t_forge_review_reading`).
 - **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
   (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
   ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).

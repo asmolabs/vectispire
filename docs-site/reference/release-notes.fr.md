@@ -139,6 +139,13 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   `component_present`, et un inventaire vide à côté d'une charge purgée est une absence de données,
   `inventory_absent`, qui retire le *non* automatique. `dependency_analysis` exige toujours le SBOM
   conservé : c'est ce qu'elle mesure.
+- **Une règle de checklist a un sixième type, `change_review`, et une mesure quatre raisons et une source de
+  plus.** Le `kind` d'une règle peut valoir `change_review`, avec `minimumApprovals`, `windowDays` et une
+  `branch` facultative sur `ChecklistRuleForm` (sa part est `minimumRatio`, comme le minimum de la
+  couverture) ; une `reason` peut valoir `forge_unlinked`, `forge_unreadable`, `review_incomplete` ou
+  `no_change_merged`, le `status` d'un dépôt de même, et sa `source` `forge_review`. Seulement sur une ligne
+  liée au nouveau type ; un client qui traite ces vocabulaires de façon exhaustive a besoin des nouveaux
+  membres.
 - **Un import de couverture répond `packagesState`**, et une mesure de checklist a trois raisons de
   plus. `POST` et `GET /api/v1/repositories/{id}/coverage-imports` portent `packagesState` — `kept`,
   `too_many`, `path_refused`, `inconsistent`, ou `null` pour un import accepté avant cette version — et la
@@ -234,6 +241,25 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
     rien), ou, sur option, dans le cluster en pods avec un sidecar `docker:dind` privilégié sur des
     nœuds à eux. La variante rootless ne se rend que sur acquittement, parce qu'elle ne scanne pas.
   - **Vérifiée en CI** pour chacune de ces formes.
+- **Une ligne de checklist peut mesurer la revue des changements — *toute merge request est approuvée par
+  un pair avant la fusion*** ([la règle](../administration/checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche),
+  [ce que l'on demande à la forge](../administration/forge-connections.fr.md#revues-des-changements-ce-que-les-checklists-demandent-a-la-forge),
+  décision 0037, lot G3). Une règle `change_review` indique les approbations par d'autres personnes que
+  l'auteur (`minimumApprovals`), la fenêtre (`windowDays`), la part des changements fusionnés qui doit les
+  avoir (`minimumRatio`) et, au besoin, la branche. Un tour de maintenance horaire lit la forge de chaque
+  dépôt par la connexion qui l'a importé — ou une dont la découverte a listé son URL —, jamais sur une
+  requête : les **réglages** quand la forge en a (règles d'approbation de GitLab Premium et Ultimate,
+  *Empêcher l'approbation par l'auteur* et la branche protégée ; rulesets et protection de branche GitHub),
+  qui font réussir la ligne seuls quand ils exigent les approbations, refusent celle de l'auteur et refusent
+  un push direct ; et l'**historique** sur toutes les éditions — la **Community Edition de GitLab** comprise,
+  qui n'a pas de règle d'approbation et répond 404 pour les réglages : les merge requests ou pull requests
+  fusionnées dans la fenêtre et qui a approuvé chacune, **une approbation par l'auteur n'étant comptée nulle
+  part**. La ligne montre *47 of 47 merged merge requests approved by a peer in 30 days*, ou les réglages en
+  une phrase, et le document signé l'imprime. Pas de données, jamais une réussite, pour un dépôt qu'aucune
+  connexion ne connaît, un jeton refusé (sur GitHub, un jeton *fine-grained* demande aussi **Pull requests:
+  read** ; le `read_api` de GitLab le couvre déjà), plus de 500 changements dans la fenêtre, ou rien de
+  fusionné. L'éditeur de modèles propose le type, avec un pair, tous les changements et trente jours.
+  Migration V83 (`t_forge_review_reading`).
 - **Découvertes de forge : les dépôts d'un GitHub aussi** — github.com, Enterprise Cloud avec résidence des
   données (`<sous-domaine>.ghe.com`) et Enterprise Server 3.12 ou ultérieur sous `/api/v3`
   ([ce qui est listé](../administration/forge-connections.fr.md#decouvrir-les-depots), décision 0037, lot D4).

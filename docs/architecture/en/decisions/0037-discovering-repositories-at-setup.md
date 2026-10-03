@@ -639,6 +639,59 @@ the two hooks the per-namespace rule needed, with these choices the text above d
   `api.<sub>.ghe.com` cannot be stood up — and over HTTP against an Enterprise Server on loopback behind a private
   CA at `/api/v3`, from discovery to import.
 
+## Built in G3
+
+Capability G3 — a checklist line measuring change reviews, *every merge request is approved by at least one peer
+before merge* — landed on 2026-10-03 on the connections D1 built, without a decision of its own: it adds a reading
+to a connection, not a new kind of access, and the one place it widens what §2 decided is written here. The
+choices:
+
+- **A rule of decision 0032's, `change_review`**: `minimumApprovals` (1 to 10, people other than the author),
+  `windowDays` (1 to 366), `minimumRatio` (the share of merged changes, above 0 to 1), an optional `branch`
+  (absent: the forge's default branch) and `maxAgeDays`, the reading's freshness. All but the branch are required
+  — no product default decides an outcome; the form proposes one peer, every change, thirty days, the words of
+  the line it was asked for. The branch enters the canonical form only when named.
+- **Two sources, both read, the settings first.** *Settings* — GitLab Premium and Ultimate's approval rules
+  applying to the branch, `merge_requests_author_approval`, the protected branch's push levels; GitHub's rules for
+  the branch (rulesets) and its classic protection — pass the line alone when they require the approvals, refuse
+  the author's and refuse a direct push: a configuration holds for the next change too. Otherwise the *history*
+  decides: the merge requests or pull requests merged into the branch in the window, each with the distinct
+  people other than its author whose approval stood. **The product owner's GitLab is the Community Edition**,
+  which has no approval rule and answers 404 to `GET /projects/:id/approvals`: the history is its path, and the
+  first one tested. It answers `approved_by` on `GET /projects/:id/merge_requests/:iid/approvals`; it has no
+  "prevent approval by author", so an approval by the author is excluded here — counted nowhere, named in the
+  evidence — and a direct push to the branch, which no merge request shows, is the residual the documentation
+  tells administrators to close by protecting the branch.
+- **Read by the `forges` module, never on a request.** An hourly `MaintenanceTask` (`ChangeReviewTask`, after the
+  threat-intelligence feeds) reads the repositories and branches that bound lines ask about — `ChangeReviewDemand`,
+  a service of `checklists` — each again after six hours or when a wider window is asked, through the
+  connection's pager (§3's door: the address, the pinned CA, the token on its origin alone, rate limits waited
+  out within a minute). Bounded: 500 merged changes per reading (past it, `review_incomplete`, never a figure over
+  part of the window), two minutes per reading, five per turn. A rate limit or a silent forge leaves the previous
+  reading; a refusal is a reading. One instance reads each: a conditional update claims the row first, and an
+  insert refused for any reason is not read as a claim lost.
+- **Which forge project**: the target's provenance link (D6), or else a snapshot repository whose clone URL has the
+  target's identity (`RepositoryUrl.identity`, D5's rule) — the lowest connection first when two list it. Neither:
+  `forge_unlinked`.
+- **The dependency runs from `forges` to `checklists`**, which declares the port its measurer reads
+  (`ChangeReviews`, implemented in `forges.internal`) and the demand. The reverse would have put the module holding
+  forge tokens under the one judging checklists; `forges` stays used by nobody but `platform`. Its
+  `allowedDependencies` gains `checklists`, with that reason.
+- **Stored** in `t_forge_review_reading` — **V83**, in common, no foreign key: one row per repository and branch
+  (`wanted_branch` `''` for the default, so the unique key holds on MySQL), its state (`read`, `unreadable`,
+  `unlinked`, `pending`), the evidence as written and its SHA-256, which the line's evidence names as its look
+  (`source` `forge_review`). No person's name: a change is its reference, its merge instant and counts. Deleted
+  with the target (`TargetDeleted`), with the connection, and when no line asks.
+- **§2's GitHub scope, widened for these lines only.** §2 says *Metadata: read — and nothing else*. Merged pull
+  requests and their reviews need **Pull requests: read**; a connection whose lines measure change reviews holds it
+  too, still read-only, and one without it gets `forge_unreadable` naming the permission rather than a refused
+  connection — the discovery needs nothing more. *Administration: read* is optional (the classic protection).
+  GitLab's `read_api` covers everything; the probe's allow-list is unchanged.
+- **No data, in four new reasons**: `forge_unlinked`, `forge_unreadable`, `review_incomplete`, `no_change_merged`
+  (nothing merged in the window — none of none is not all), besides `never_examined` and `stale`.
+- **Not read, written down**: GitLab Premium's "prevent approvals by users who add commits", a GitHub ruleset's
+  bypass list, and the protection of a Community Edition branch.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

@@ -166,6 +166,7 @@ son `itemKey` avec sa `rule`, ou `null` pour la délier.
 | `test_suite_passed` | l'import de rapport de tests le plus récent | une suite correspond à `suitePattern` (`*` et `?`), celles qui correspondent ont exécuté au moins `minimumTests` tests (les ignorés non comptés), aucun en échec ni en erreur |
 | `component_versions` | les composants du SBOM analysé le plus récent | chaque paquet déclaré (`purlPrefix`) est présent à l'une de ses `versions` listées — des versions exactes, et des plages Maven pour un paquet `pkg:maven/` ([ci-dessous](#composants-presence-versions-et-plages)) |
 | `component_present` | les mêmes composants | chaque paquet déclaré (`purlPrefix`) est présent, quelle que soit sa version — y compris une version que le SBOM n'indique pas |
+| `change_review` | la lecture la plus récente de la forge du dépôt, par la connexion qui l'a importé ou découvert ([ci-dessous](#revue-des-changements-comment-ils-arrivent-sur-une-branche)) | les réglages de la forge exigent `minimumApprovals` approbations avant une fusion, celle de l'auteur refusée et un push direct refusé — ou, parmi les merge requests ou pull requests fusionnées dans la `branch` (par défaut : la branche par défaut de la forge) ces `windowDays` derniers jours, au moins `minimumRatio` avaient `minimumApprovals` approbations par d'autres personnes que leur auteur |
 
 **Rien n'est supposé.** Chaque type exige `maxAgeDays` (1 à 366 — sept est un bon début), une règle
 de dépendances indique `requireSchedule`, une règle de constats indique au moins un seuil — *aucun
@@ -239,6 +240,64 @@ ses versions exactes leur sens.
 aucune occurrence n'en indique est `version_unrecorded`, et sa preuve dit que la version est gérée hors
 du SBOM — un POM parent ou un BOM — et qu'un SBOM produit par le build, qui l'indique, résout la ligne.
 Quand la ligne demande seulement si la bibliothèque est utilisée, liez `component_present`.
+
+### Revue des changements : comment ils arrivent sur une branche
+
+Une ligne comme *toute merge request est approuvée par au moins un pair avant la fusion* est liée à une
+règle `change_review`. Vectispire ne la lit pas dans une analyse : la forge y répond, par la
+[connexion de forge](forge-connections.fr.md#revues-des-changements-ce-que-les-checklists-demandent-a-la-forge)
+qui a importé le dépôt — ou, pour un dépôt saisi à la main, une connexion dont la découverte a listé un
+dépôt à la même URL (l'identité que compare le formulaire de dépôt). Un dépôt que rien ne lie est
+`forge_unlinked`, jamais une réussite.
+
+```json
+{ "kind": "change_review", "maxAgeDays": 1, "minimumApprovals": 1, "windowDays": 30, "minimumRatio": 1 }
+```
+
+`minimumApprovals` (1 à 10) compte des **personnes distinctes autres que l'auteur du changement** ;
+`windowDays` (1 à 366) dit sur combien de jours les changements fusionnés sont comptés ; `minimumRatio`
+(supérieur à 0, jusqu'à 1) est la part d'entre eux qui doit avoir les approbations — `1` pour tous ;
+`branch`, facultatif, nomme la branche cible, et sans lui la branche par défaut de la forge est lue.
+`maxAgeDays` est l'âge que peut avoir la lecture de la forge : elle est faite chaque heure, et chaque
+dépôt relu toutes les six heures, si bien que `1` est une valeur raisonnable. Le serveur exige les quatre
+paramètres sauf la branche ; le formulaire propose un pair, tous les changements et trente jours — les
+mots de la ligne pour laquelle la règle est écrite — dans des champs que la personne lit et modifie.
+
+**Deux sources, selon ce que la forge expose**, toutes deux lues à chaque lecture :
+
+| Source | GitLab | GitHub | Prouve |
+|---|---|---|---|
+| **Réglages** — une preuve de configuration | Premium et Ultimate seulement : les règles d'approbation qui s'appliquent à la branche (`approvals_required`, la plus grande), *Empêcher l'approbation par l'auteur* (`merge_requests_author_approval`), et les niveaux de push de la branche protégée (*Personne*) | les règles qui s'appliquent à la branche (la règle `pull_request` des rulesets), et les revues exigées par la protection de branche classique quand elle s'impose aux administrateurs | tous les changements, le prochain compris : une réussite sur les seuls réglages quand ils exigent les approbations, refusent celle de l'auteur et refusent un push direct |
+| **Historique** — ce qui s'est passé | toutes les éditions, **Community Edition comprise** : les merge requests fusionnées dans la branche pendant la fenêtre, et le `approved_by` de chacune | les pull requests fusionnées dans la branche pendant la fenêtre, et les revues de chacune — la dernière décision d'un relecteur fait foi | les changements de la fenêtre : une réussite quand la part est atteinte |
+
+**GitLab Community Edition (et l'offre Free) n'a pas de règle d'approbation** : elle répond 404 pour les
+réglages, et la ligne est jugée sur l'historique — la lecture le dit dans ses preuves. Deux conséquences,
+écrites plutôt que cachées :
+
+- **Rien sur la forge n'empêche un auteur d'approuver sa propre merge request** ; Vectispire l'exclut
+  donc : une approbation par l'auteur n'est comptée nulle part, et les preuves disent combien de
+  changements en avaient une (*1 approved by their author too, not counted*).
+- **Un push direct sur la branche n'est pas une merge request**, et l'historique ne le voit pas. Protégez
+  la branche (*Autorisé à pousser et fusionner : Personne*, *Autorisé à fusionner : Mainteneurs*) pour que
+  tout changement passe par une merge request ; la lecture ne lit pas ce réglage sur la Community Edition.
+
+Un approbateur qui a aussi poussé des commits sur le changement compte comme un pair : le réglage
+*Empêcher les approbations par les utilisateurs qui ajoutent des commits* de GitLab Premium n'est pas lu,
+et la Community Edition n'en a pas.
+
+**Ce que la ligne montre.** Par dépôt, la source et ses chiffres — *47 of 47 merged merge requests
+approved by a peer in 30 days*, ou *settings: GitLab approval rules require 2 approvals on main, author
+approval prevented, direct push refused* — et, en cas d'échec, les changements sans les approbations
+(*without: !12, !15*). Le résumé est ce qu'imprime la feuille `Evidence` du document signé ; la lecture y
+est nommée par son identifiant et son SHA-256, que portent les preuves de la mesure. Ces phrases sont
+celles du serveur, en anglais, comme tous les résumés de mesure.
+
+**Pas de données, jamais une réussite :** `never_examined` (pas encore lu — la première lecture vient dans
+l'heure), `forge_unlinked`, `forge_unreadable` (le jeton s'est vu refuser le projet, ses merge requests ou
+ses pull requests — les preuves donnent la réponse de la forge, `HTTP 403` et la permission à accorder),
+`review_incomplete` (plus de 500 changements fusionnés dans la fenêtre, ou une lecture plus étroite que la
+fenêtre de la règle juste après qu'elle a été élargie), `no_change_merged` (rien de fusionné dans la
+fenêtre : chacun de zéro n'est pas tous), et `stale`.
 
 ### Couverture sur un périmètre de paquets
 

@@ -199,6 +199,8 @@ judged on part of a project's backlog:
 |---|---|
 | `no_repository` | The project has no repository: "every one of none passes" is not a pass. |
 | `never_examined` | A repository has no scan or import in which the scope produced. |
+| `forge_unlinked` | A [`change_review` line](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch), on a repository no forge connection imported and whose URL no discovery listed: there is no forge project to ask. |
+| `forge_unreadable` | The same, and the forge refused the connection's token the project, its merge requests or its pull requests — on GitHub, a fine-grained token without *Pull requests: read*. The evidence gives the forge's answer. |
 | `step_absent` | Every scan within the age ran without the step or the plugin — did not look, not found nothing; also a coverage report that counted no branch, for a rule on branches. |
 | `plugin_unsigned` | The plugin was refused, and did not produce since within the age: its manifest declares no signer, the executor requires one, and the governor [waived](../administration/plugins.md#running-an-unsigned-plugin) nothing. Nobody started the tool — sign its image, or record the waiver. |
 | `plugin_signature_unverified` | The same, refused because the signer its manifest declares did not verify the image (another signer, no signature, or a registry cosign could not reach). |
@@ -211,6 +213,8 @@ judged on part of a project's backlog:
 | `packages_unrecorded` | A coverage line [scoped to packages](../administration/checklist-templates.md#coverage-over-a-scope-of-packages), and the newest coverage import was accepted before imports kept their packages: only its totals are known, and they are not the scope's. The pipeline's next upload measures it. |
 | `packages_not_kept` | The same, and the newest import kept its totals and not its packages — more than 10,000, a path too long to store whole, or counts that did not add up to the totals. The evidence says which. |
 | `scope_matches_nothing` | The same, and no package of the report is in the scope: nothing in it was counted, which is neither 0 % nor 100 %. The evidence names how many packages the report had; compare the patterns with its paths. |
+| `review_incomplete` | A `change_review` line, and the forge's reading does not cover the window: more than 500 changes merged in it, or a reading narrower than a window just widened — the next reading covers it. |
+| `no_change_merged` | A `change_review` line, and nothing was merged into the branch in the window: every one of none is not all. |
 | `stale` | The newest look is older than the rule's maximum age. |
 | `not_applicable_anywhere` | A plugin applies to none of the project's repositories: it looked at nothing. A repository where it is not applicable is left out of the figures when another is measured. |
 | `suite_not_found`, `no_test_ran` | No suite of the newest test report matches, or those that match ran nothing. |

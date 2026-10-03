@@ -209,6 +209,8 @@ seuil n'est jamais jugé sur une partie du passif d'un projet :
 |---|---|
 | `no_repository` | Le projet n'a aucun dépôt : « chacun des zéro dépôts passe » n'est pas un succès. |
 | `never_examined` | Un dépôt n'a aucune analyse ni aucun import où le périmètre a produit. |
+| `forge_unlinked` | Une [ligne `change_review`](../administration/checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche), sur un dépôt qu'aucune connexion de forge n'a importé et dont aucune découverte n'a listé l'URL : il n'y a pas de projet de forge à interroger. |
+| `forge_unreadable` | La même, et la forge a refusé au jeton de la connexion le projet, ses merge requests ou ses pull requests — sur GitHub, un jeton *fine-grained* sans *Pull requests: read*. Les preuves donnent la réponse de la forge. |
 | `step_absent` | Chaque analyse dans l'âge maximal s'est faite sans l'étape ou le plugin — n'a pas regardé, n'a pas « rien trouvé » ; aussi un rapport de couverture qui n'a compté aucune branche, pour une règle sur les branches. |
 | `plugin_unsigned` | Le plugin a été refusé, et n'a pas produit depuis dans l'âge : son manifeste ne déclare aucun signataire, l'exécuteur en exige un, et le gouverneur n'a accordé aucune [dérogation](../administration/plugins.md#faire-tourner-un-plugin-non-signe). Personne n'a lancé l'outil — signez son image, ou enregistrez la dérogation. |
 | `plugin_signature_unverified` | De même, refusé parce que le signataire que déclare son manifeste n'a pas vérifié l'image (autre signataire, pas de signature, ou un registre que cosign n'a pas pu joindre). |
@@ -221,6 +223,8 @@ seuil n'est jamais jugé sur une partie du passif d'un projet :
 | `packages_unrecorded` | Une ligne de couverture [limitée à un périmètre de paquets](../administration/checklist-templates.fr.md#couverture-sur-un-perimetre-de-paquets), et l'import de couverture le plus récent a été accepté avant que les imports ne conservent leurs paquets : seuls ses totaux sont connus, et ce ne sont pas ceux du périmètre. Le prochain envoi du pipeline le mesure. |
 | `packages_not_kept` | De même, et l'import le plus récent a conservé ses totaux et pas ses paquets — plus de 10 000, un chemin trop long pour être stocké entier, ou des comptes qui ne s'additionnent pas aux totaux. La preuve dit lequel. |
 | `scope_matches_nothing` | De même, et aucun paquet du rapport n'entre dans le périmètre : rien n'y a été compté, ce qui n'est ni 0 % ni 100 %. La preuve donne le nombre de paquets du rapport ; comparer les motifs à ses chemins. |
+| `review_incomplete` | Une ligne `change_review`, et la lecture de la forge ne couvre pas la fenêtre : plus de 500 changements fusionnés, ou une lecture plus étroite qu'une fenêtre tout juste élargie — la lecture suivante la couvre. |
+| `no_change_merged` | Une ligne `change_review`, et rien n'a été fusionné dans la branche pendant la fenêtre : chacun de zéro n'est pas tous. |
 | `stale` | Le regard le plus récent est plus ancien que l'âge maximal de la règle. |
 | `not_applicable_anywhere` | Un plugin ne s'applique à aucun dépôt du projet : il n'a rien regardé. Un dépôt où il ne s'applique pas est exclu des chiffres quand un autre est mesuré. |
 | `suite_not_found`, `no_test_ran` | Aucune suite du rapport de tests le plus récent ne correspond, ou celles qui correspondent n'ont rien exécuté. |

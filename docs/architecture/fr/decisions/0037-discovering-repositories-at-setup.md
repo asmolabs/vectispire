@@ -699,6 +699,66 @@ texte ci-dessus ne faisait pas :
   `api.<sub>.ghe.com` ne peuvent être montés — et en HTTP contre un Enterprise Server en boucle locale derrière
   une AC privée sous `/api/v3`, de la découverte à l'import.
 
+## Construit en G3
+
+La capacité G3 — une ligne de checklist qui mesure la revue des changements, *toute merge request est approuvée
+par au moins un pair avant la fusion* — a été livrée le 2026-10-03 sur les connexions construites par D1, sans
+décision propre : elle ajoute une lecture à une connexion, pas un nouveau type d'accès, et le seul point où elle
+élargit ce que le §2 a décidé est écrit ici. Les choix :
+
+- **Une règle de la décision 0032, `change_review`** : `minimumApprovals` (1 à 10, des personnes autres que
+  l'auteur), `windowDays` (1 à 366), `minimumRatio` (la part des changements fusionnés, supérieure à 0 jusqu'à 1),
+  une `branch` facultative (absente : la branche par défaut de la forge) et `maxAgeDays`, la fraîcheur de la
+  lecture. Tous sauf la branche sont exigés — aucune valeur par défaut du produit ne décide d'un résultat ; le
+  formulaire propose un pair, tous les changements, trente jours, les mots de la ligne demandée. La branche
+  n'entre dans la forme canonique que lorsqu'elle est nommée.
+- **Deux sources, toutes deux lues, les réglages d'abord.** Les *réglages* — les règles d'approbation de GitLab
+  Premium et Ultimate qui s'appliquent à la branche, `merge_requests_author_approval`, les niveaux de push de la
+  branche protégée ; les règles de GitHub pour la branche (rulesets) et sa protection classique — font réussir la
+  ligne seuls quand ils exigent les approbations, refusent celle de l'auteur et refusent un push direct : une
+  configuration vaut aussi pour le prochain changement. Sinon l'*historique* décide : les merge requests ou pull
+  requests fusionnées dans la branche pendant la fenêtre, chacune avec les personnes distinctes autres que son
+  auteur dont l'approbation tenait. **Le GitLab du responsable produit est la Community Edition**, qui n'a pas de
+  règle d'approbation et répond 404 à `GET /projects/:id/approvals` : l'historique est son chemin, et le premier
+  testé. Elle répond `approved_by` sur `GET /projects/:id/merge_requests/:iid/approvals` ; elle n'a pas
+  d'« empêcher l'approbation par l'auteur », si bien qu'une approbation par l'auteur est exclue ici — comptée nulle
+  part, nommée dans les preuves — et un push direct sur la branche, qu'aucune merge request ne montre, est le
+  résiduel que la documentation demande aux administrateurs de fermer en protégeant la branche.
+- **Lu par le module `forges`, jamais sur une requête.** Une `MaintenanceTask` horaire (`ChangeReviewTask`, après
+  les flux de veille) lit les dépôts et les branches que demandent les lignes liées — `ChangeReviewDemand`, un
+  service de `checklists` — chacun à nouveau après six heures ou quand une fenêtre plus large est demandée, par le
+  pager de la connexion (la porte du §3 : l'adresse, l'AC épinglée, le jeton sur sa seule origine, les limites de
+  débit attendues dans la minute). Bornée : 500 changements fusionnés par lecture (au-delà, `review_incomplete`,
+  jamais un chiffre sur une partie de la fenêtre), deux minutes par lecture, cinq par tour. Une limite de débit
+  ou une forge muette laisse la lecture précédente ; un refus est une lecture. Une seule instance lit chacune : une
+  mise à jour conditionnelle réclame d'abord la ligne, et une insertion refusée pour quelque raison que ce soit
+  n'est pas lue comme une réclamation perdue.
+- **Quel projet de forge** : le lien de provenance de la cible (D6), ou à défaut un dépôt de l'instantané dont
+  l'URL de clonage a l'identité de la cible (`RepositoryUrl.identity`, la règle de D5) — la connexion la plus basse
+  d'abord quand deux le listent. Ni l'un ni l'autre : `forge_unlinked`.
+- **La dépendance va de `forges` à `checklists`**, qui déclare le port que lit son mesureur (`ChangeReviews`,
+  implémenté dans `forges.internal`) et la demande. L'inverse aurait placé le module qui détient les jetons de
+  forge sous celui qui juge les checklists ; `forges` reste utilisé par `platform` seul. Ses
+  `allowedDependencies` gagnent `checklists`, avec cette raison.
+- **Conservé** dans `t_forge_review_reading` — **V83**, en commun, sans clé étrangère : une ligne par dépôt et
+  par branche (`wanted_branch` à `''` pour la branche par défaut, pour que la clé unique tienne sur MySQL), son
+  état (`read`, `unreadable`, `unlinked`, `pending`), les preuves telles qu'écrites et leur SHA-256, que les
+  preuves de la ligne nomment comme sa lecture (`source` `forge_review`). Aucun nom de personne : un changement
+  est sa référence, son instant de fusion et des comptes. Supprimé avec la cible (`TargetDeleted`), avec la
+  connexion, et quand plus aucune ligne ne demande.
+- **La portée GitHub du §2, élargie pour ces seules lignes.** Le §2 dit *Metadata: read — et rien d'autre*. Les
+  pull requests fusionnées et leurs revues demandent **Pull requests: read** ; une connexion dont les lignes
+  mesurent la revue des changements la détient aussi, toujours en lecture seule, et une connexion qui ne l'a pas
+  obtient `forge_unreadable` nommant la permission plutôt qu'une connexion refusée — la découverte n'a besoin de
+  rien de plus. *Administration: read* est facultative (la protection classique). Le `read_api` de GitLab couvre
+  tout ; la liste autorisée de la sonde est inchangée.
+- **Pas de données, en quatre nouvelles raisons** : `forge_unlinked`, `forge_unreadable`, `review_incomplete`,
+  `no_change_merged` (rien de fusionné dans la fenêtre — chacun de zéro n'est pas tous), en plus de
+  `never_examined` et `stale`.
+- **Non lus, et écrits** : le réglage GitLab Premium « empêcher les approbations par les utilisateurs qui
+  ajoutent des commits », la liste de contournement d'un ruleset GitHub, et la protection d'une branche sur la
+  Community Edition.
+
 ## Mise en œuvre, par lots
 
 | Lot | Contenu | Taille |

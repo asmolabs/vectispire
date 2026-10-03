@@ -122,6 +122,14 @@ Configure SSO*) ; tant qu'il ne l'est pas, GitHub lui refuse les dépôts de cet
 marque alors l'organisation *illisible avec ce jeton*, dit pourquoi, et continue avec les autres (ci-dessous).
 Un jeton *fine-grained* est approuvé par l'organisation à la place, et ne demande pas cette étape.
 
+**Une ligne de checklist qui mesure les revues des changements demande une permission GitHub de
+plus.** Une [ligne `change_review`](checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche)
+lit les pull requests fusionnées et leurs revues, que *Metadata: read* n'inclut pas : accordez aussi au
+jeton *fine-grained* **Pull requests: read** — toujours en lecture seule — sinon ces lignes disent
+`forge_unreadable`, en nommant la permission. *Administration: read* permet à la lecture de voir aussi une
+protection de branche classique ; sans elle, les rulesets et l'historique répondent encore. Le `read_api`
+de GitLab la couvre déjà (ci-dessous).
+
 **Ce qui reste, écrit plutôt que caché.** Un jeton classique `repo` de GitHub Enterprise Server peut
 écrire. Le `read_api` de GitLab peut aussi lire des fichiers par l'API. La connexion est un accès
 permanent en lecture à la liste des dépôts d'une organisation, détenu par le plan de contrôle.
@@ -362,6 +370,39 @@ existent encore.
 
 **Provenance.** Chaque cible importée est liée à sa connexion et à l'identifiant de la forge. Supprimer la cible
 supprime le lien — le dépôt est de nouveau proposé ; supprimer la connexion supprime chaque lien et aucune cible.
+
+## Revues des changements : ce que les checklists demandent à la forge
+
+Une ligne de checklist liée à une [règle `change_review`](checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche)
+— *toute merge request est approuvée par un pair* — est mesurée depuis la forge, par la connexion qui a
+importé le dépôt, ou par une connexion dont la découverte a listé un dépôt à la même URL. Personne ne la
+demande à l'écran : un tour de maintenance horaire lit les dépôts et les branches que ces lignes
+demandent, chacun à nouveau dès que sa lecture a six heures, aussi loin que la plus large fenêtre qui lui
+est liée, et garde ce qu'il a lu pour la ligne. Une checklist lue à l'écran n'appelle aucune forge.
+
+| Forge | Requêtes, par dépôt et par branche | Jeton |
+|---|---|---|
+| GitLab, toutes éditions | `GET /projects/:id` (la branche par défaut) ; `GET /projects/:id/approvals` — sur la **Community Edition et l'offre Free, un 404**, et rien d'autre des réglages n'est demandé ; sur Premium et Ultimate, `GET /projects/:id/protected_branches/:branch` et `GET /projects/:id/approval_rules` ; puis `GET /projects/:id/merge_requests?state=merged&target_branch=…&updated_after=…`, une page par centaine, et `GET /projects/:id/merge_requests/:iid/approvals` une fois par merge request fusionnée | `read_api`, la portée que la connexion détient déjà — la liste autorisée de la sonde est inchangée — et le rôle **Reporter** sur le projet (un Guest se voit refuser les merge requests d'un projet privé) ; si le jeton se voit refuser la branche protégée, les réglages ne prouvent rien seuls et l'historique décide |
+| GitHub | `GET /repositories/:id` ; `GET /repos/:owner/:repo/rules/branches/:branch` et `…/branches/:branch/protection` ; `GET /repos/:owner/:repo/pulls?state=closed&base=…`, mise à jour la plus récente d'abord jusqu'à une plus ancienne que la fenêtre, et `GET …/pulls/:number/reviews` une fois par pull request fusionnée | *fine-grained* : **Metadata: read** et **Pull requests: read** (*Administration: read* pour la protection classique, facultatif) ; classique (Enterprise Server) : `repo` |
+
+**Bornée, comme une découverte.** Une lecture s'arrête à 500 changements fusionnés — la ligne dit alors
+`review_incomplete` plutôt que de juger une partie de la fenêtre —, à deux minutes, et attend une limite de
+débit d'au plus une minute ; un tour lit au plus cinq minutes, et ce qu'il n'atteint pas est lu au suivant.
+Une limite de débit ou une forge qui ne répond pas laisse la lecture précédente en place jusqu'à ce
+qu'elle soit périmée ; un refus est une lecture et est gardé comme tel. Chaque requête passe par la porte
+de la connexion — son adresse, son AC épinglée, sa déclaration de réseau, son jeton sur sa seule
+origine — comme celles d'une découverte.
+
+**Ce qui est gardé**, par dépôt et par branche : quand il a été lu, la connexion et l'identifiant de la
+forge, et les preuves — les réglages en une phrase, et par changement fusionné sa référence (`!12`,
+`#12`), sa date de fusion, combien de personnes autres que son auteur l'ont approuvé et si son auteur l'a
+fait. Aucun nom de personne n'est gardé. Les lectures partent avec la cible quand elle est supprimée, avec
+la connexion quand elle est supprimée, et quand plus aucune ligne ne demande le dépôt.
+
+**Ce qu'elle ne voit pas**, écrit plutôt que caché : un push direct sur la branche d'un GitLab sans
+réglages d'approbation (protégez la branche pour que ce ne soit pas possible) ; le réglage GitLab Premium
+*Empêcher les approbations par les utilisateurs qui ajoutent des commits*, qui n'est pas lu ; la liste de
+contournement d'un ruleset GitHub, que la route des règles n'indique pas.
 
 ## Chiffrement
 
