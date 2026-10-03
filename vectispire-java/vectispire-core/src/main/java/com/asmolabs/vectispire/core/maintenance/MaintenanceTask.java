@@ -70,7 +70,7 @@ public interface MaintenanceTask {
         public static final int SENT_MESSAGES = 200;
         public static final int TICKET_SWEEP = 300;
         public static final int INVENTORY_BACKFILL = 400;
-        /** Beside the other backfill: the repository rows V74 and older instances left without their identity. */
+        /** Beside the other backfill: the repository rows V73 and older instances left without their identity. */
         public static final int REPOSITORY_IDENTITIES = 410;
         public static final int TRIAGE_EXPIRY = 500;
         /** After the expiry: an acceptance that lapsed puts its issue back among those whose deadline counts. */

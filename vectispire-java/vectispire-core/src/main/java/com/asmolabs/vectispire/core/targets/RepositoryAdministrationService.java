@@ -383,7 +383,7 @@ public class RepositoryAdministrationService {
     /**
      * The targets filed twice: repositories sharing one {@link RepositoryIdentity}, oldest first in
      * each group, groups by their oldest member. Rows the rule found already doubled when it arrived
-     * (V74); nothing deletes them, since either one may hold the triage — merging is an administrator's
+     * (V73); nothing deletes them, since either one may hold the triage — merging is an administrator's
      * gesture, written in the repository guide.
      *
      * <p>Grouped over the rows the caller sees and computed from the URLs as they are, not from the

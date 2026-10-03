@@ -223,7 +223,7 @@ class MaintenanceJobsTest {
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
         turn.verify(backfill).runOnce();
-        // The only writer of the guard on the rows V74 found: without it, a second filing of any target
+        // The only writer of the guard on the rows V73 found: without it, a second filing of any target
         // registered before the upgrade is accepted for as long as the install lives.
         turn.verify(identities).keyUnkeyed();
         turn.verify(triage).expireStale();
@@ -277,7 +277,7 @@ class MaintenanceJobsTest {
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
         turn.verify(backfill).runOnce();
-        // The only writer of the guard on the rows V74 found: without it, a second filing of any target
+        // The only writer of the guard on the rows V73 found: without it, a second filing of any target
         // registered before the upgrade is accepted for as long as the install lives.
         turn.verify(identities).keyUnkeyed();
         turn.verify(triage).expireStale();

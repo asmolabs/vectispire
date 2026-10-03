@@ -37,7 +37,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * Two administrators filing the same repository at the same moment, on a real engine.
  *
  * <p><b>What is in question.</b> The service checks for a twin before it writes, and two creations can
- * both pass that check before either commits. The unique index on {@code identity_guard} (V74) is the
+ * both pass that check before either commits. The unique index on {@code identity_guard} (V73) is the
  * arbiter; this asks whether exactly one row results, and whether the loser is answered the same 409 a
  * creation a second later would get — not a 500 carrying the driver's message.
  *
@@ -127,7 +127,7 @@ class RepositoryDuplicateIntegrationTest {
     @Test
     @DisplayName("targets filed twice before the rule: the engine keeps both, the oldest takes the guard")
     void twinsFoundByTheUpgrade() {
-        // Three rows without a guard: nulls are distinct in a unique index on both engines, or V74 could
+        // Three rows without a guard: nulls are distinct in a unique index on both engines, or V73 could
         // not have been applied to an installation holding a twin.
         long older = legacyRow("https://gitlab.example.org/team/legacy.git");
         long younger = legacyRow("git@gitlab.example.org:team/legacy.git");

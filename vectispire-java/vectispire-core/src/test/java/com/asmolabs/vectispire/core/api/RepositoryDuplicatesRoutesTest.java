@@ -135,7 +135,7 @@ class RepositoryDuplicatesRoutesTest extends ApiTestBase {
     @DisplayName("filed before the rule: both kept, listed for a merge, the oldest keyed, the younger still editable")
     void twinsFiledBeforeTheRule() throws Exception {
         String admin = asAdmin();
-        // Rows as V74 finds them: no identity, no guard.
+        // Rows as V73 finds them: no identity, no guard.
         long older = legacyRow("https://gitlab.example.org/team/legacy.git");
         long younger = legacyRow("git@gitlab.example.org:Team/Legacy");
         legacyRow("https://gitlab.example.org/team/alone.git");

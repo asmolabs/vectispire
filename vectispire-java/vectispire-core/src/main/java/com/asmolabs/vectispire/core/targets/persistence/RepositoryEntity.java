@@ -102,7 +102,7 @@ public class RepositoryEntity {
     private Long projectId;
 
     /**
-     * {@code RepositoryUrl.identity} of {@link #url} (V74): what discovery compares, whatever the
+     * {@code RepositoryUrl.identity} of {@link #url} (V73): what discovery compares, whatever the
      * branch and the sub-path. Null on a row not keyed yet, and on a URL that names no host.
      */
     @Column(name = "url_identity", length = 255)
@@ -111,7 +111,7 @@ public class RepositoryEntity {
     /**
      * {@code RepositoryIdentity.guard()}, held unique by the database: what refuses the second of two
      * creations racing past the service's check. Null on a row not keyed yet, and on a row filed twice
-     * before the rule, whose oldest twin holds it — see V74.
+     * before the rule, whose oldest twin holds it — see V73.
      */
     @Column(name = "identity_guard", length = 64)
     private String identityGuard;

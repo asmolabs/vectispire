@@ -112,7 +112,7 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   problème porte son identifiant dans `existingRepositoryId` et le `detail` la nomme ; sinon ni l'un ni
   l'autre — le refus dit que la cible existe, rien de laquelle. Un script qui enregistre des dépôts sans
   condition doit lire ce 409 comme « déjà là ».
-- **La base l'impose** (migration V74, un index unique sur une empreinte des trois parties) : deux
+- **La base l'impose** (migration V73, un index unique sur une empreinte des trois parties) : deux
   créations qui passent la vérification en même temps donnent une cible et un 409, sur PostgreSQL comme
   sur MySQL.
 - **Rien n'est supprimé à la mise à jour.** Les cibles déjà enregistrées deux fois continuent de

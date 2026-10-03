@@ -6,7 +6,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * The repository rows without their identity, keyed — the rows V74 found, and those an instance of the
+ * The repository rows without their identity, keyed — the rows V73 found, and those an instance of the
  * previous version writes during a rolling upgrade. Until a row is keyed, a second filing of its target
  * is not refused.
  */

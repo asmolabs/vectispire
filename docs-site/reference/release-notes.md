@@ -105,7 +105,7 @@ another branch, is another target and is accepted as before.
   problem carries its id as `existingRepositoryId` and the `detail` names it; otherwise neither — the
   refusal says the target exists and nothing of which one. A script that registers repositories
   unconditionally must treat this 409 as "already there".
-- **The database enforces it** (migration V74, a unique index on a hash of the three parts): two
+- **The database enforces it** (migration V73, a unique index on a hash of the three parts): two
   creations racing past the check end in one target and one 409, on PostgreSQL and MySQL.
 - **Nothing is deleted at the upgrade.** Targets already filed twice keep working, are scanned and are
   editable; the oldest of each pair is the one a new filing is compared with. **A new route, `GET

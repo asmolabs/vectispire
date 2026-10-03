@@ -104,11 +104,11 @@ public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity,
              group by r.sshKeyId""")
     List<Object[]> countBySshKey();
 
-    /** The target holding this guard — at most one, the index is unique (V74). */
+    /** The target holding this guard — at most one, the index is unique (V73). */
     java.util.Optional<RepositoryEntity> findByIdentityGuard(String identityGuard);
 
     /**
-     * The rows holding no guard, oldest first: those written before V74 or by an instance of an earlier
+     * The rows holding no guard, oldest first: those written before V73 or by an instance of an earlier
      * version during a rolling upgrade, the second filing of a target filed twice before the rule, and a
      * URL that names no host. Oldest first, so that of two twins the one with the longer history keeps
      * the guard.

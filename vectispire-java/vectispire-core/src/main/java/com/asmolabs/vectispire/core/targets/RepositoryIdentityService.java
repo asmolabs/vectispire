@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Gives every repository row its identity and, where it is free, its guard (V74).
+ * Gives every repository row its identity and, where it is free, its guard (V73).
  *
  * <p><b>Why after the start, and every hour.</b> The identity is computed in Java, so the migration
  * leaves both columns null; until a row holds its guard, the routes' check cannot see it, and a second
