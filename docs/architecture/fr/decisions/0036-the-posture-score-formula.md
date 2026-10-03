@@ -62,6 +62,36 @@ hasard de l'échantillon : sur une grille de 144 000 backlogs (0–4 exploitées
 hautes, des moyennes, des basses, 0–14 licences) aucune note ne monte ; un *score* ne monte qu'à
 l'intérieur de F, là où l'actuel a déjà atteint zéro.
 
+**Projets et solutions.** Depuis la première étape du déploiement, la simulation liste chaque projet
+et chaque solution que l'appelant voit à côté des cibles : le score actuel que donne la fiche de la
+portée face à la candidate sur le backlog cumulé de la portée, le plafond de couverture appliqué aux
+deux. Sur les portées que sème `ScoreSimulationRoutesTest` :
+
+| Portée | Cibles (observées) | Ouverts | Licences, candidate (fiche) | Actuelle | Candidate | Points de risque |
+|---|---|---|---|---|---|---|
+| projet d'un dépôt propre | 1 (1) | — | 0 (0) | 100 A+ | 100 A+ | 0 |
+| projet d'un dépôt et d'une image partageant un scan | 2 (2) | 1 haute | 3 (6) | 71 B | 75 B | 16 |
+| projet d'un dépôt chargé en critiques et d'un dépôt chargé en moyennes | 2 (2) | 3 critiques, 1 haute, 60 moyennes, 20 basses | 0 (0) | 77 B | 30 F | 66,5 |
+| projet dont un dépôt sur deux est scanné, tous deux propres | 2 (1) | — | 0 (0) | 50 D | 50 D | 0 |
+| projet vide | 0 | — | — | pas de données | pas de données | — |
+| solution du projet propre et du projet critiques/moyennes | 3 (3) | comme ce dernier | 0 (0) | 77 B | 30 F | 66,5 |
+
+Une portée cumule les backlogs de ses cibles, et peut donc se lire plus bas que chacune d'elles — le
+dépôt chargé en critiques seul fait 54 D, celui chargé en moyennes 55 C, le projet qui tient les deux
+30 F. C'est la formule qui fait son travail : les deux backlogs ensemble sont une exposition plus
+grande que chacun.
+
+**La fiche de portée compte certaines licences deux fois.** Elle additionne les inventaires de ses
+cibles, et l'inventaire d'une image contient les composants et les constats de licence de chaque scan
+qui nomme cette image *et* un dépôt — rattachés au dépôt, dont l'inventaire les contient aussi. Un
+projet qui range les deux cibles d'un tel scan facture ces entrées deux fois : trois licences
+interdites se lisent six sur la fiche ci-dessus, 71 là où 86 est dû. La fiche propre de chaque cible
+les compte une fois, sur le dépôt. La candidate compte les licences d'une portée comme les fiches de
+ses cibles — la somme de leurs décomptes, chaque entrée sur la seule cible à laquelle son scan est
+attribué — et ses problèmes une fois chacun, quel que soit le nombre de cibles de la portée qu'ils
+nomment ; la simulation signale chaque portée dont la fiche diverge (`currentDoubleCounted`). Avec les
+six de la fiche, la candidate lirait 60 C au lieu de 75 B.
+
 ## Décision
 
 **Le score du scorecard devient celui de la candidate, avec la calibration validée**, partout où
@@ -85,20 +115,27 @@ score            = max(1, arrondi(100 × exp(−points de risque / 55)))   plafo
   D), ce que dit la description même de D : « vulnérabilités critiques non résolues ou menaces KEV ».
 - **Une licence interdite pèse 4, le poids d'un haut**, comptée exactement comme la fiche la compte
   aujourd'hui — le décompte de l'inventaire (`LicenseGovernanceService.violationsByTarget` pour le
-  classement, l'inventaire de la cible pour sa fiche), jamais un second décompte.
+  classement, l'inventaire de la cible pour sa fiche), jamais un second décompte. Celui d'une portée
+  est la somme des décomptes de ses cibles, chaque entrée comptée une fois (le double compte
+  ci-dessus est corrigé par la bascule).
 - **Pas de bonus pour un scan terminé.** En avoir un est la condition d'une note ; une cible sans
   scan reste `NO_DATA` (décision 0007), décidé avant tout score, exactement comme aujourd'hui.
 - **Maintenu à 1, jamais 0** : zéro se lit « plus rien à perdre », la saturation que ceci remplace.
-- **Les points de risque sont affichés** à côté du score — sur la fiche, sur la pastille
-  (`F · 312 pts`, par exemple) et dans le classement, qui les utilise pour départager deux cibles de
-  même score. Dans F le score reste à 1 tandis que les points de risque continuent de baisser, et une
-  équipe loin dans F voit ce qu'elle a corrigé. Ils sont une somme de ce qui est ouvert et présentés
-  comme tels, jamais comme un pourcentage.
+- **Les points de risque ne sont affichés qu'aux lecteurs connectés** — à côté du score sur la fiche
+  de la cible, sur le scorecard d'un projet et d'une solution, et dans le classement, qui les utilise
+  pour départager deux cibles de même score. Dans F le score reste à 1 tandis que les points de risque
+  continuent de baisser, et une équipe loin dans F voit ce qu'elle a corrigé. Ils sont une somme de ce
+  qui est ouvert et présentés comme tels, jamais comme un pourcentage.
+- **La pastille publique montre la lettre, jamais les points de risque** (amendement du 2026-10-03).
+  La pastille est anonyme et intégrée aux README d'autres personnes : une lettre dit comment une cible
+  est notée, les points diraient combien est ouvert sur elle et, de rendu en rendu, comment cela
+  bouge — un attaquant apprendrait quand un backlog grossit après une version, quand un correctif
+  arrive, et où regarder en premier. La lettre est grossière à dessein ; les points restent derrière
+  une session, comme tout autre chiffre du backlog.
 - **Inchangé** : les seuils, ce qui compte (problèmes ouverts, triage réglé — `not_affected`,
   `fixed` — exclu), le plafond de couverture sur le score d'un projet, d'une solution ou du portefeuille
   (la part observée), `NO_DATA`, et les recommandations. Le score d'une portée applique la formule au
-  backlog cumulé de la portée, comme l'actuel ; la route de simulation ne montre que des cibles, et le
-  déploiement y ajoute les portées avant la bascule.
+  backlog cumulé de la portée, comme l'actuel.
 
 ## Alternatives rejetées
 
@@ -125,9 +162,9 @@ seulement à l'écran :
 
 | Consommateur | Ce qu'il lit | Ce qu'il voit |
 |---|---|---|
-| Pastille publique, `GET /api/v1/scorecards/badges/{token}.svg`, intégrée aux README d'autres personnes | la lettre et la couleur de la note | une autre lettre et une autre couleur au rendu suivant, sans que personne ait touché au dépôt |
+| Pastille publique, `GET /api/v1/scorecards/badges/{token}.svg`, intégrée aux README d'autres personnes | la lettre et la couleur de la note | une autre lettre et une autre couleur au rendu suivant, sans que personne ait touché au dépôt — et toujours aucun chiffre : les points de risque n'y figurent pas |
 | `GET /api/v1/scorecards/repositories/{repoId}`, `…/containers/{containerId}`, `…/global` | `score`, `grade` | de nouvelles valeurs ; un nouveau champ `riskPoints` |
-| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | le `scorecard` intégré | comme ci-dessus, sur le backlog et la couverture de la portée |
+| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | le `scorecard` intégré | comme ci-dessus, sur le backlog et la couverture de la portée ; `licenseViolationCount` baisse là où un scan nommait une image et un dépôt de la portée |
 | `GET /api/v1/dashboard/posture-analytics` | `securityScore`, `maturityGrade` du classement de maturité, et son ordre | de nouvelles valeurs, un nouvel ordre entre ex æquo départagés par les points de risque |
 | L'interface : le composant scorecard, le classement du tableau de bord, les pages projet et solution | les champs ci-dessus | les nouveaux chiffres et les points de risque |
 
@@ -151,14 +188,30 @@ fenêtres SLA ont été tenues hors du score.
 
 ## Déploiement
 
+Décidé avec le responsable produit le 2026-10-03 (amendement) :
+
 1. **Avant la bascule**, la route de simulation liste les projets et les solutions à côté des cibles,
-   pour que la nouvelle note d'une portée soit vue sur le parc avant de partir.
-2. **Une seule version bascule**, partout à la fois : `computeScorecard` calcule la formule de
-   `CandidateScore` avec `Weights.PROPOSED`, `SecurityScorecard` gagne `riskPoints`, la pastille les
-   affiche, le classement départage par eux. Pas de drapeau ni de période avec deux formules actives :
-   deux notes pour une cible sur deux écrans est le défaut que l'unification du classement a fermé.
-3. **Les notes de version** la portent sous **« Changements visibles d'une intégration »** : la
-   formule, le tableau ci-dessus, « chaque note peut baisser — rien n'a changé dans votre dépôt », le
-   nouveau champ `riskPoints`, et le nouveau texte de la pastille.
-4. `CandidateScore` cesse d'être une candidate (renommée dans le domaine du scorecard) et la route de
+   pour que la nouvelle note d'une portée soit vue sur le parc avant de partir — fait le 2026-10-03,
+   le tableau des portées ci-dessus ; le responsable produit accepte cette décision sur ce tableau.
+2. **Une seule version bascule, la 0.11.0**, partout à la fois : `computeScorecard` calcule la formule
+   de `CandidateScore` avec `Weights.PROPOSED`, `SecurityScorecard` gagne `riskPoints`, le classement
+   départage par eux, la pastille garde sa seule lettre. Pas de drapeau ni de période avec deux
+   formules actives : deux notes pour une cible sur deux écrans est le défaut que l'unification du
+   classement a fermé.
+3. **Le double compte des portées est corrigé par la même bascule** : le terme de licence d'une portée
+   devient la somme des décomptes de ses cibles, comme la candidate le calcule déjà, et aucune entrée
+   n'est facturée deux fois. Pas avant — une fiche de portée qui bougerait seule une version avant la
+   formule serait un second changement inexpliqué.
+4. **Les notes de version** la portent sous **« Changements visibles d'une intégration »** : la
+   formule, les tableaux ci-dessus, le nouveau champ `riskPoints` (routes authentifiées seulement), et
+   la phrase qu'un lecteur doit lire d'abord — *les notes baissent parce que les moyennes, les basses
+   et chaque problème de plus comptent désormais, pas parce qu'un projet s'est dégradé ; rien n'a
+   changé dans votre dépôt*. Une portée qui se lit plus bas que chacune de ses cibles, et le nombre de
+   licences d'une portée qui baisse, y sont dits aussi.
+5. **Le graphique de tendance du tableau de bord marque la bascule** d'une ligne verticale datée
+   (« formule du scorecard modifiée », 0.11.0), pour qu'un lecteur qui compare une période de part et
+   d'autre voie pourquoi les notes ont bougé. Les séries qu'il trace aujourd'hui sont celles du
+   backlog, que la bascule ne déplace pas ; la ligne sert au lecteur qui met une note en regard, et
+   toute série du score ajoutée plus tard la porte.
+6. `CandidateScore` cesse d'être une candidate (renommée dans le domaine du scorecard) et la route de
    simulation est retirée à la version suivante, quand plus personne n'a besoin de la comparaison.

@@ -60,6 +60,34 @@ accident of the sample: over a grid of 144,000 backlogs (0–4 exploited, 0–7 
 mediums, lows, 0–14 licences) no grade rises; a *score* rises only inside F, where the current one
 has already reached zero.
 
+**Projects and solutions.** Since the rollout's first step the simulation lists every project and
+solution the caller sees beside the targets: the current score its scope card gives against the
+candidate over the scope's summed backlog, the coverage cap applied to both. On the scopes
+`ScoreSimulationRoutesTest` seeds:
+
+| Scope | Targets (observed) | Open | Licences, candidate (card) | Current | Candidate | Risk points |
+|---|---|---|---|---|---|---|
+| project with one clean repository | 1 (1) | — | 0 (0) | 100 A+ | 100 A+ | 0 |
+| project with a repository and an image sharing a scan | 2 (2) | 1 high | 3 (6) | 71 B | 75 B | 16 |
+| project of a critical-heavy and a medium-heavy repository | 2 (2) | 3 critical, 1 high, 60 medium, 20 low | 0 (0) | 77 B | 30 F | 66.5 |
+| project with one of two repositories scanned, both clean | 2 (1) | — | 0 (0) | 50 D | 50 D | 0 |
+| empty project | 0 | — | — | no data | no data | — |
+| solution of the clean project and the critical/medium one | 3 (3) | as the latter | 0 (0) | 77 B | 30 F | 66.5 |
+
+A scope sums its targets' backlogs, so it can read lower than every one of its targets — the
+critical-heavy repository alone is 54 D, the medium-heavy one 55 C, the project holding both 30 F.
+That is the formula doing what it is for: the two backlogs together are more exposure than either.
+
+**The scope card counts some licences twice.** It sums its targets' inventories, and an image's
+inventory holds the components and licence findings of every scan naming that image *and* a
+repository — keyed to the repository, whose inventory holds them too. A project filing both targets
+of such a scan charges those entries twice: three disallowed licences read six on the card above,
+71 where 86 is due. Each target's own card counts them once, on the repository. The candidate counts
+a scope's licences as its targets' cards do — the sum of their tallies, each entry on the one target
+its scan is attributed to — and its issues once each however many of the scope's targets they name;
+the simulation flags each scope whose card disagrees (`currentDoubleCounted`). With the card's six
+the candidate would read 60 C rather than 75 B.
+
 ## Decision
 
 **The scorecard's score becomes the candidate's, with the validated calibration**, everywhere the
@@ -82,19 +110,25 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
   grade's own description says D means: "unresolved critical vulnerabilities or KEV threats".
 - **A disallowed licence weighs 4, a high's weight**, counted exactly as the card counts it today —
   the inventory's tally (`LicenseGovernanceService.violationsByTarget` for the ranking, the
-  target's inventory for its card), never a second count.
+  target's inventory for its card), never a second count. A scope's is the sum of its targets'
+  tallies, each entry counted once (the double count above is fixed by the switch).
 - **No bonus for a completed scan.** Having one is the condition for a grade at all; a target with
   none stays `NO_DATA` (decision 0007), decided before any score, exactly as now.
 - **Held at 1, never 0**: zero reads "nothing left to lose", the saturation this replaces.
-- **The risk points are shown** beside the score — on the card, on the badge (`F · 312 pts`, say)
-  and in the ranking, which orders by them once two targets share a score. Inside F the score stays
-  at 1 while the risk points keep falling, so a team deep in F sees what it fixed. They are a
-  sum of what is open and are stated as such, never as a percentage.
+- **The risk points are shown to signed-in readers only** — beside the score on the target's card,
+  on a project's and a solution's scorecard, and in the ranking, which orders by them once two
+  targets share a score. Inside F the score stays at 1 while the risk points keep falling, so a team
+  deep in F sees what it fixed. They are a sum of what is open and are stated as such, never as a
+  percentage.
+- **The public badge shows the letter, never the risk points** (amended 2026-10-03). The badge is
+  anonymous and embedded in other people's READMEs: a letter says how a target is graded, the points
+  would say how much is open on it and, render after render, how that moves — an attacker would learn
+  when a backlog grows after a release and when a fix lands, and where to look first. The letter is
+  coarse by design; the points stay behind a session, like every other figure of the backlog.
 - **Unchanged**: the bands, what counts (open issues, settled triage — `not_affected`, `fixed` —
   left out), the coverage cap on a project's, a solution's or the portfolio's score (the observed
   share), `NO_DATA`, and the recommendations. A scope's score applies the formula to the scope's
-  summed backlog, as today's does; the simulation route shows targets only, so the rollout adds the
-  scopes to it before the switch.
+  summed backlog, as today's does.
 
 ## Alternatives rejected
 
@@ -120,9 +154,9 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
 
 | Consumer | What it reads | What it sees |
 |---|---|---|
-| Public badge, `GET /api/v1/scorecards/badges/{token}.svg`, embedded in other people's READMEs | the grade's letter and colour | a different letter and colour on the next render, with nobody having changed the repository |
+| Public badge, `GET /api/v1/scorecards/badges/{token}.svg`, embedded in other people's READMEs | the grade's letter and colour | a different letter and colour on the next render, with nobody having changed the repository — and still no figure: the risk points are not on it |
 | `GET /api/v1/scorecards/repositories/{repoId}`, `…/containers/{containerId}`, `…/global` | `score`, `grade` | new values; a new `riskPoints` field |
-| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | the embedded `scorecard` | as above, over the scope's backlog and coverage |
+| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | the embedded `scorecard` | as above, over the scope's backlog and coverage; `licenseViolationCount` drops where a scan named one of the scope's images and one of its repositories |
 | `GET /api/v1/dashboard/posture-analytics` | the maturity ranking's `securityScore`, `maturityGrade`, and its order | new values, a new order among ties broken by risk points |
 | The interface: the scorecard component, the dashboard's ranking, the project and solution pages | the fields above | the new figures and the risk points |
 
@@ -144,14 +178,28 @@ same estate grade it the same, as the SLA windows were kept out of the score for
 
 ## Rollout
 
+Decided with the product owner on 2026-10-03 (amendment):
+
 1. **Before the switch**, the simulation route lists projects and solutions beside targets, so a
-   scope's new grade is seen on the estate before it ships.
-2. **One release switches it**, everywhere at once: `computeScorecard` computes `CandidateScore`'s
-   formula with `Weights.PROPOSED`, `SecurityScorecard` gains `riskPoints`, the badge prints them, the
-   ranking breaks ties on them. No flag and no period with two formulas live: two grades for one
-   target on two screens is the defect the ranking's unification closed.
-3. **The release notes** carry it under **"Changes an integration can see"**: the formula, the
-   table above, "every grade may drop — nothing in your repository changed", the new `riskPoints`
-   field, and the badge's new text.
-4. `CandidateScore` stops being a candidate (renamed into the scorecard's domain) and the simulation
+   scope's new grade is seen on the estate before it ships — done on 2026-10-03, the scope table
+   above; the owner accepts this decision on that table.
+2. **One release switches it, 0.11.0**, everywhere at once: `computeScorecard` computes
+   `CandidateScore`'s formula with `Weights.PROPOSED`, `SecurityScorecard` gains `riskPoints`, the
+   ranking breaks ties on them, the badge keeps its letter alone. No flag and no period with two
+   formulas live: two grades for one target on two screens is the defect the ranking's unification
+   closed.
+3. **The scope double count is fixed by the same switch**: a scope's licence term becomes the sum of
+   its targets' tallies, as the candidate already computes it, and no entry is charged twice. Not
+   before — a scope card that moved on its own one release ahead of the formula would be a second
+   unexplained change.
+4. **The release notes** carry it under **"Changes an integration can see"**: the formula, the
+   tables above, the new `riskPoints` field (signed-in routes only), and the sentence a reader needs
+   first — *grades drop because mediums, lows and every further issue now count, not because a
+   project got worse; nothing in your repository changed*. A scope reading lower than each of its
+   targets, and a scope's licence count falling, are said there too.
+5. **The dashboard's trend chart marks the switch** with a dated vertical line ("scorecard formula
+   changed", 0.11.0), so that a reader comparing a period across it sees why the grades moved. The
+   series it plots today are the backlog's, which the switch does not move; the line is for the reader
+   who sets a grade beside them, and any series of the score added later carries it.
+6. `CandidateScore` stops being a candidate (renamed into the scorecard's domain) and the simulation
    route is retired in the release after, once nobody needs the comparison.
