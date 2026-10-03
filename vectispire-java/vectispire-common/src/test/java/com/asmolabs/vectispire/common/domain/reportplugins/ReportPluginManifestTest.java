@@ -118,6 +118,12 @@ class ReportPluginManifestTest {
                         "{output}"), "summary.xlsx", ReportMediaType.XLSX, null, null,
                         new PluginSignature(SIGNER.identity() + "x", SIGNER.issuer(), null)));
         assertThat(others).extracting(ReportPluginManifest::digest).doesNotContain(digest).doesNotHaveDuplicates();
+        // The type alone: a validated manifest's output name follows its type, so only an unvalidated pair
+        // tells whether the digest reads the type itself — which a run and a document's provenance rely on.
+        assertThat(new ReportPluginManifest("summary", "Quarterly summary", IMAGE, 1, List.of(), "summary.txt",
+                ReportMediaType.CSV, null, null, SIGNER).digest())
+                .isNotEqualTo(new ReportPluginManifest("summary", "Quarterly summary", IMAGE, 1, List.of(), "summary.txt",
+                        ReportMediaType.TEXT, null, null, SIGNER).digest());
     }
 
     @Test

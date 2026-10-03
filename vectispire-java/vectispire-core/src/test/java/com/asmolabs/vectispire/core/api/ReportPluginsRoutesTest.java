@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,9 +13,13 @@ import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.UserView;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
+import com.asmolabs.vectispire.core.reportplugins.ReportPluginService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
@@ -54,6 +60,12 @@ class ReportPluginsRoutesTest extends ApiTestBase {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private ReportPluginService service;
 
     private String governor;
     private long project;
@@ -230,6 +242,19 @@ class ReportPluginsRoutesTest extends ApiTestBase {
 
             assertConflict(approve(asAdmin(), digest), "report-plugin-not-pending");
             activate(asCiso(), project).andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("the service refuses an approver who does not write governance, whatever route reaches it")
+        void serviceChecksTheRole() throws Exception {
+            String digest = newest(body(register(governor, manifest(IMAGE_A))));
+            String username = "champion-" + System.nanoTime();
+            tokenFor(username, Role.SECURITY_CHAMPION, false);
+            UserView champion = UserView.of(users.findByUsername(username).orElseThrow());
+            assertThatThrownBy(() -> service.approve("summary", digest, champion,
+                    new RequestActor(username, "127.0.0.1", null)))
+                    .isInstanceOf(AccessDeniedException.class);
+            assertThat(entries(AuditOperation.REPORT_PLUGIN_APPROVED)).isEmpty();
         }
 
         @Test
