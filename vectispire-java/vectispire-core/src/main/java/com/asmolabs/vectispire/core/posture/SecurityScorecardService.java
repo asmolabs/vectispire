@@ -113,17 +113,17 @@ public class SecurityScorecardService {
      * is both a leak and a number that means nothing about anything they can act on.
      */
     public SecurityScorecard getGlobalScorecard(Visibility allowed) {
-        // **Narrowed after the read, not in the query, and the difference is worth stating.** The
-        // issues are filtered in SQL; the licence inventory narrows to an allowance in
-        // memory, so the portfolio still parses every SBOM it can reach. Recorded rather than
-        // hidden, because a filter applied late is exactly the shape this service has been
-        // corrected for twice. The narrowing is the licence service's own since it stopped
-        // publishing the unfiltered estate: it used to be done here, on a list anyone could ask for.
         List<ScanTarget> visible = new ArrayList<>();
         targets.repositories().forEach(repository -> visible.add(new ScanTarget.Repository(repository.id())));
         targets.containers().forEach(container -> visible.add(new ScanTarget.Container(container.id())));
         visible.removeIf(target -> !allowed.permits(target));
-        return portfolio(allowed, visible, licenseService.getInventory(allowed, null, null), null, "global",
+        // **The licence term is the tallies' sum, not the estate's inventory.** It read every scan,
+        // every component and every licence finding of the deployment and narrowed to the allowance
+        // afterwards — about 105,000 entities a call on two hundred targets of two scans, for an
+        // administrator and for a reader granted five alike. The count is the same: the inventory's
+        // refused entries over what the reader sees, the scans attached to no target included for a
+        // reader who sees everything, as they were.
+        return portfolio(allowed, visible, licenseService.violationsWithin(allowed), null, "global",
                 "Organization Portfolio");
     }
 
@@ -145,7 +145,7 @@ public class SecurityScorecardService {
         List<LicenseEntry> licenses = scope.targets().stream()
                 .flatMap(target -> licenseService.getInventory(RowVisibility.requireVisible(target, allowed)).stream())
                 .toList();
-        return portfolio(allowed, scope.targets(), licenses, scope.id(), scope.kind().wireName(), scope.name());
+        return portfolio(allowed, scope.targets(), violations(licenses), scope.id(), scope.kind().wireName(), scope.name());
     }
 
     /**
@@ -306,7 +306,7 @@ public class SecurityScorecardService {
     }
 
     private SecurityScorecard portfolio(
-            Visibility allowed, List<ScanTarget> visible, List<LicenseEntry> licenses, Long id, String kind, String name) {
+            Visibility allowed, List<ScanTarget> visible, long licenseViolations, Long id, String kind, String name) {
         Terms open = Terms.of(issuesRepo.countForGradingByTarget(openWithin(allowed)));
 
         // The targets in scope holding a completed scan — which is also what the attestation flag
@@ -321,7 +321,7 @@ public class SecurityScorecardService {
 
         long overdue = sla.countOverdue(allowed);
 
-        return computeScorecard(id, kind, name, open, violations(licenses), !observed.isEmpty(), overdue,
+        return computeScorecard(id, kind, name, open, licenseViolations, !observed.isEmpty(), overdue,
                 new Coverage(inScope.size(), observed.size()));
     }
 

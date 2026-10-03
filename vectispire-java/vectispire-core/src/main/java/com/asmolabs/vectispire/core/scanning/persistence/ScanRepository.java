@@ -698,20 +698,28 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     boolean existsByContainerIdAndStatusIgnoreCase(Long containerId, String status);
 
     /**
-     * One target's scans.
+     * Every scan's identifier, targets and SBOM, as {@code [id, repoId, containerId, sbom]} — what the
+     * licence inventory reads of a scan, and nothing else of the row.
      *
-     * <p>Added for the licence inventory, which read every scan in the deployment — and a scan
-     * row carries its whole SBOM payload, megabytes of JSON apiece. Asking for one repository's
-     * licences parsed the estate's.
+     * <p><b>Not the entities.</b> The inventory read whole rows: the CVE list, the summary and the plugin
+     * steps came along with the SBOM it parses, each a document of its own, and every row entered the
+     * persistence context to be dropped at once. A scan row carries its whole SBOM payload, megabytes
+     * of JSON apiece, so the read is still the history's — what the estate's inventory is made of.
      */
-    List<ScanEntity> findByRepoId(Long repoId);
+    @Query("select s.id, s.repoId, s.containerId, s.sbom from ScanEntity s")
+    List<Object[]> sbomsOfAll();
 
-    List<ScanEntity> findByContainerId(Long containerId);
+    /** {@link #sbomsOfAll()} for the scans naming one of these repositories. */
+    @Query("select s.id, s.repoId, s.containerId, s.sbom from ScanEntity s where s.repoId in :repoIds")
+    List<Object[]> sbomsOfRepositories(@Param("repoIds") Collection<Long> repoIds);
 
-    /** The scans of these repositories — the licence tallies' recount of the targets that moved. */
-    List<ScanEntity> findByRepoIdIn(Collection<Long> repoIds);
+    /** {@link #sbomsOfAll()} for the scans naming one of these images. */
+    @Query("select s.id, s.repoId, s.containerId, s.sbom from ScanEntity s where s.containerId in :containerIds")
+    List<Object[]> sbomsOfContainers(@Param("containerIds") Collection<Long> containerIds);
 
-    List<ScanEntity> findByContainerIdIn(Collection<Long> containerIds);
+    /** {@link #sbomsOfAll()} for the scans attached to no target. */
+    @Query("select s.id, s.repoId, s.containerId, s.sbom from ScanEntity s where s.repoId is null and s.containerId is null")
+    List<Object[]> sbomsOfUntargeted();
 
     /**
      * How the scans of each target stand, as {@code [repoId, containerId, status, scans, newest id,
@@ -745,7 +753,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * <p><b>Identifiers, not entities.</b> The SBOM comparison called {@code findAll()} and then
      * filtered and kept two rows in Java: every scan row in the deployment loaded to retain two
      * identifiers — and a scan row carries its whole SBOM payload, megabytes apiece, as
-     * {@link #findByRepoId(Long)} already says a little above. Comparing two scans of one
+     * {@link #sbomsOfAll()} already says a little above. Comparing two scans of one
      * repository therefore read the SBOMs of the entire estate.
      *
      * <p>The projection onto {@code s.id} is half the fix; the bound is the other. Together they

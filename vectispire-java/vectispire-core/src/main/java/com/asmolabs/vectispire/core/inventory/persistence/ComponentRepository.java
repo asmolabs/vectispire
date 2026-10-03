@@ -61,6 +61,22 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
 
     List<ComponentEntity> findByScanIdIn(Collection<Long> scanIds);
 
+    /**
+     * The names of these scans' components, in scan and row order — the licence inventory's read.
+     *
+     * <p><b>Not the entities</b>: the estate's inventory reads every component row of every scan,
+     * a hundred thousand for two hundred targets of two scans, and each one entered the persistence
+     * context to be dropped at once. <b>Ordered</b>, because of two rows naming one component of one
+     * target the first decides the purl the inventory shows: without an order that was whichever row
+     * the engine returned first, and a read of five targets could disagree with the estate's.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.inventory.persistence.ComponentName(c.scanId, c.name, c.version, c.purl)
+              from ComponentEntity c
+             where c.scanId in :scanIds
+             order by c.scanId, c.id""")
+    List<ComponentName> namesOfScans(@Param("scanIds") Collection<Long> scanIds);
+
     @Transactional
     void deleteByScanId(long scanId);
 

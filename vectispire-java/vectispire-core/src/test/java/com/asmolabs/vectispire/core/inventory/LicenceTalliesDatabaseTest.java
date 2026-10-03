@@ -6,8 +6,10 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
+import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.posture.SecurityScorecardService;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.TargetDeletionService;
@@ -17,6 +19,7 @@ import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +51,9 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private LicenseGovernanceService licences;
+
+    @Autowired
+    private SecurityScorecardService scorecards;
 
     @Autowired
     private GitRepositoryRepository repositories;
@@ -99,6 +105,86 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
         assertThat(nonZero(licences.violationsByTarget(restricted))).isEqualTo(fromInventory(restricted));
         // a@1 is the newer scan's GPL, b, c (unknown), d (a component the SBOM does not declare), e.
         assertThat(everything.get(mixed)).isEqualTo(5);
+    }
+
+    /**
+     * The estate's readers that used to narrow the estate's inventory after reading it — the portfolio
+     * scorecard, the summaries, a restricted reader's inventory — against that very computation: the
+     * administrator's inventory, which still reads every scan, narrowed here as it was there.
+     */
+    @Test
+    @DisplayName("the portfolio's licence term, the summaries and a reader's inventory are the narrowed estate's, served warm or cold")
+    void agreeWithTheEstate() {
+        licences.updatePolicy(STRICT);
+        ScanTarget.Repository mixed = repository("estate-mixed");
+        long older = scan(mixed, null, sbom("a@1=MIT", "b@1=GPL-3.0-only"));
+        long newer = scan(mixed, null, sbom("a@1=GPL-3.0-only", "c@1="));
+        components(newer, "a@1", "c@1", "d@1");
+        licenceFinding(older, "e", "1", "AGPL-3.0-only");
+        // A finding naming no licence: an entry with a blank one, which no summary counts as a licence.
+        licenceFinding(newer, "f", "1", "");
+        // One component two scans name and their SBOMs do not: the older row gives the entry its purl.
+        componentWithPurl(older, "z", "1", "pkg:npm/z@1?from=older");
+        componentWithPurl(newer, "z", "1", "pkg:npm/z@1?from=newer");
+
+        ScanTarget.Repository hidden = repository("estate-hidden");
+        long dropped = scan(hidden, null, sbom("p@1=GPL-3.0-only"));
+        components(dropped, "p@1", "q@1");
+        scans.dropPayloads(List.of(dropped));
+
+        ScanTarget.Container image = container("estate-image");
+        scan(null, image, sbom("i@1=MIT", "j@1=GPL-2.0-only"));
+        // Of a repository the reader is not given, though it names their image.
+        ScanTarget.Repository built = repository("estate-built");
+        long both = scan(built, image, sbom("k@1=GPL-3.0-only"));
+        components(both, "k@1", "l@1");
+        // Attached to neither: the administrator's alone.
+        long none = scan(null, null, sbom("g@1=GPL-3.0-only", "h@1=MIT"));
+        components(none, "g@1", "u@1");
+        scan(null, null, sbom("g@1=LGPL-2.1-only"));
+
+        Visibility restricted = Visibility.only(List.of(mixed, image));
+
+        // Cold for the restricted reader, then for the administrator, then warm for both.
+        for (int round = 0; round < 2; round++) {
+            for (Visibility allowed : List.of(restricted, Visibility.everything())) {
+                List<LicenseEntry> estate = licences.getInventory(Visibility.everything(), null, null);
+                List<LicenseEntry> seen = estate.stream().filter(entry -> allowed.permits(ownerOf(entry))).toList();
+
+                assertThat(licences.getInventory(allowed, null, null)).containsExactlyInAnyOrderElementsOf(seen);
+                assertThat(scorecards.getGlobalScorecard(allowed).licenseViolationCount())
+                        .isEqualTo(seen.stream().filter(entry -> !entry.compliant()).count());
+                assertThat(licences.violationsWithin(allowed))
+                        .isEqualTo(seen.stream().filter(entry -> !entry.compliant()).count());
+                assertThat(licences.getSummary(allowed)).isEqualTo(summaryOf(seen));
+                if (allowed instanceof Visibility.Everything) {
+                    assertThat(licences.getSummary(allowed, null, null)).isEqualTo(summaryOf(seen));
+                }
+            }
+        }
+
+        // The oracle is not empty where it matters: the scans attached to no target weigh for the
+        // administrator, a blank licence is there, the older row's purl is kept.
+        List<LicenseEntry> estate = licences.getInventory(Visibility.everything(), null, null);
+        assertThat(estate).filteredOn(entry -> "general".equals(entry.targetKind()) && !entry.compliant()).isNotEmpty();
+        assertThat(estate).extracting(LicenseEntry::license).contains("");
+        assertThat(estate).filteredOn(entry -> "z".equals(entry.packageName()))
+                .singleElement().extracting(LicenseEntry::purl).isEqualTo("pkg:npm/z@1?from=older");
+        assertThat(licences.getInventory(restricted, null, null))
+                .extracting(LicenseEntry::targetId).containsOnly(mixed.id(), image.id());
+    }
+
+    @Test
+    @DisplayName("the scans attached to no target are tallied, recounted when they move, and an administrator's alone")
+    void theScansOfNoTarget() {
+        licences.updatePolicy(STRICT);
+        scan(null, null, sbom("a@1=GPL-3.0-only"));
+        long before = licences.violationsWithin(Visibility.everything());
+
+        scan(null, null, sbom("b@1=GPL-3.0-only", "c@1=AGPL-3.0-only"));
+
+        assertThat(licences.violationsWithin(Visibility.everything())).isEqualTo(before + 2);
+        assertThat(licences.violationsWithin(Visibility.only(List.of()))).isZero();
     }
 
     @Test
@@ -203,6 +289,25 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
                 .collect(Collectors.groupingBy(LicenceTalliesDatabaseTest::targetOf, Collectors.counting()));
     }
 
+    /** The target an entry is keyed to, null for one attached to none — as the service narrows it. */
+    private static ScanTarget ownerOf(LicenseEntry entry) {
+        return "general".equals(entry.targetKind()) || entry.targetId() == null ? null : targetOf(entry);
+    }
+
+    /** The summary of an inventory, as the service always summarised the one it read. */
+    private static LicenseSummary summaryOf(List<LicenseEntry> inventory) {
+        Map<LicenseRiskCategory, Long> breakdown = new EnumMap<>(LicenseRiskCategory.class);
+        for (LicenseRiskCategory category : LicenseRiskCategory.values()) {
+            breakdown.put(category, 0L);
+        }
+        inventory.forEach(entry -> breakdown.merge(entry.riskCategory(), 1L, Long::sum));
+        return new LicenseSummary(
+                inventory.size(),
+                inventory.stream().map(LicenseEntry::license).filter(licence -> licence != null && !licence.isBlank()).distinct().count(),
+                inventory.stream().filter(entry -> !entry.compliant()).count(),
+                breakdown);
+    }
+
     private static ScanTarget targetOf(LicenseEntry entry) {
         return "repository".equals(entry.targetKind())
                 ? new ScanTarget.Repository(entry.targetId())
@@ -272,6 +377,13 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
                     scanId, scan.get("repo_id"), scan.get("container_id"), Timestamp.from(Instant.now()),
                     nameAndVersion[0], nameAndVersion[1].isEmpty() ? null : nameAndVersion[1]);
         }
+    }
+
+    private void componentWithPurl(long scanId, String name, String version, String purl) {
+        Map<String, Object> scan = jdbc.queryForMap("select repo_id, container_id from t_scan where id = ?", scanId);
+        jdbc.update("insert into t_component (scan_id, repo_id, container_id, scan_created_at, name, version, purl, type)"
+                        + " values (?, ?, ?, ?, ?, ?, ?, 'library')",
+                scanId, scan.get("repo_id"), scan.get("container_id"), Timestamp.from(Instant.now()), name, version, purl);
     }
 
     private void licenceFinding(long scanId, String name, String version, String licence) {

@@ -72,17 +72,31 @@ public class ScanCatalog {
         return scans.findById(id).map(ScanView::of);
     }
 
-    /** Every scan, in the table's order. */
-    public List<ScanView> all() {
-        return scans.findAll().stream().map(ScanView::of).toList();
+    /**
+     * A scan's identifier, its targets and its SBOM, and nothing else of the row — what the licence
+     * inventory is made of, with the components and the licence findings keyed to the identifier.
+     *
+     * <p>{@link #target()} attributes it as {@link ScanOfTarget#target()} does.
+     */
+    public record ScanSbom(long id, Long repoId, Long containerId, String sbom) {
+
+        public ScanTarget target() {
+            return new ScanOfTarget(id, repoId, containerId).target();
+        }
+
+        static ScanSbom of(Object[] row) {
+            return new ScanSbom(((Number) row[0]).longValue(), asLong(row[1]), asLong(row[2]), (String) row[3]);
+        }
     }
 
-    public List<ScanView> ofRepository(long repoId) {
-        return scans.findByRepoId(repoId).stream().map(ScanView::of).toList();
+    /** Every scan's {@link ScanSbom}, in no order. */
+    public List<ScanSbom> sboms() {
+        return scans.sbomsOfAll().stream().map(ScanSbom::of).toList();
     }
 
-    public List<ScanView> ofContainer(long containerId) {
-        return scans.findByContainerId(containerId).stream().map(ScanView::of).toList();
+    /** The {@link ScanSbom} of every scan attached to no target. */
+    public List<ScanSbom> sbomsOfUntargeted() {
+        return scans.sbomsOfUntargeted().stream().map(ScanSbom::of).toList();
     }
 
     /** Newest first; both targets {@code null} for the whole deployment's. */
@@ -170,19 +184,26 @@ public class ScanCatalog {
 
     /**
      * Each target's {@link ScanCensus}, a scan attributed as {@link ScanOfTarget#target()} does —
-     * the repository when it names one — and a scan attached to neither left out. Unnarrowed: the
-     * caller narrows what it answers with, and only counts travel.
+     * the repository when it names one — and the scans attached to neither in one census of their
+     * own. Unnarrowed: the caller narrows what it answers with, and only counts travel.
+     *
+     * @param untargeted {@link ScanCensus#scans()} zero when every scan names a target
      */
-    public Map<ScanTarget, ScanCensus> censusByTarget() {
+    public record Census(Map<ScanTarget, ScanCensus> byTarget, ScanCensus untargeted) {}
+
+    public Census census() {
         Map<ScanTarget, ScanCensus> census = new HashMap<>();
+        ScanCensus untargeted = ScanCensus.NONE;
         for (Object[] row : scans.censusByTargetAndStatus()) {
             ScanTarget target = new ScanOfTarget(0L, asLong(row[0]), asLong(row[1])).target();
             if (target != null) {
                 census.put(target, census.getOrDefault(target, ScanCensus.NONE).plus(
                         (String) row[2], asLong(row[3]), asLong(row[4]), asLong(row[5])));
+            } else {
+                untargeted = untargeted.plus((String) row[2], asLong(row[3]), asLong(row[4]), asLong(row[5]));
             }
         }
-        return census;
+        return new Census(census, untargeted);
     }
 
     /** The scans holding an SBOM, as identifier and target, without the SBOM. */
@@ -193,26 +214,26 @@ public class ScanCatalog {
     }
 
     /**
-     * Every scan naming one of these targets, in either column, in batches of {@link #LOOKUP_BATCH} —
-     * the targets are as many as the estate holds.
+     * The {@link ScanSbom} of every scan naming one of these targets, in either column, in batches of
+     * {@link #LOOKUP_BATCH} — the targets are as many as the estate holds.
      */
-    public List<ScanView> ofTargets(Collection<ScanTarget> targets) {
+    public List<ScanSbom> sbomsOfTargets(Collection<ScanTarget> targets) {
         List<Long> repositories = targets.stream()
                 .map(target -> target instanceof ScanTarget.Repository repository ? repository.id() : null)
                 .filter(java.util.Objects::nonNull).distinct().toList();
         List<Long> images = targets.stream()
                 .map(target -> target instanceof ScanTarget.Container container ? container.id() : null)
                 .filter(java.util.Objects::nonNull).distinct().toList();
-        Map<Long, ScanEntity> found = new LinkedHashMap<>();
+        Map<Long, ScanSbom> found = new LinkedHashMap<>();
         for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
-            scans.findByRepoIdIn(repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())))
-                    .forEach(scan -> found.put(scan.getId(), scan));
+            scans.sbomsOfRepositories(repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())))
+                    .forEach(row -> found.putIfAbsent(((Number) row[0]).longValue(), ScanSbom.of(row)));
         }
         for (int from = 0; from < images.size(); from += LOOKUP_BATCH) {
-            scans.findByContainerIdIn(images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())))
-                    .forEach(scan -> found.put(scan.getId(), scan));
+            scans.sbomsOfContainers(images.subList(from, Math.min(from + LOOKUP_BATCH, images.size())))
+                    .forEach(row -> found.putIfAbsent(((Number) row[0]).longValue(), ScanSbom.of(row)));
         }
-        return found.values().stream().map(ScanView::of).toList();
+        return List.copyOf(found.values());
     }
 
     public List<LatestScanRow> latestPerRepository() {
