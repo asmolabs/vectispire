@@ -202,12 +202,7 @@ if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-//
-// It rose from 2659 to 2973 at once on 3 October with no bundle entry added. 270 keys held in maps
-// — older ones such as `CONFLICT_KEYS`, and those the built keys became — were referenced and
-// counted by nobody until the maps were read; 44 more end in a server constant written in capitals
-// (`soa.measured.NO_DATA`), which the two patterns above read only in lower case.
-const EXPECTED_KEYS = 2973;
+const EXPECTED_KEYS = 2976;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(

@@ -497,7 +497,8 @@ export const OFFERED: ChecklistOfferedVersion[] = [
         label: EDITIONS[0],
         itemCount: 3,
         offersNotApplicable: true,
-        publishedAt: '2026-09-02T09:00:00Z'
+        publishedAt: '2026-09-02T09:00:00Z',
+        unrenderable: null
     }),
     asSchema('ChecklistOfferedVersion', {
         templateSlug: 'release',
@@ -506,7 +507,8 @@ export const OFFERED: ChecklistOfferedVersion[] = [
         label: EDITIONS[1],
         itemCount: 3,
         offersNotApplicable: true,
-        publishedAt: '2026-09-27T09:00:00Z'
+        publishedAt: '2026-09-27T09:00:00Z',
+        unrenderable: null
     })
 ];
 

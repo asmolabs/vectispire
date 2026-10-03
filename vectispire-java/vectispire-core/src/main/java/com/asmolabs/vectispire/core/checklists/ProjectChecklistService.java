@@ -195,6 +195,7 @@ public class ProjectChecklistService {
     private final ChecklistItemRepository items;
     private final ChecklistMeasurementRepository measurements;
     private final StoredForms forms;
+    private final VersionTrials trials;
     private final ChecklistMeasurer measurer;
     private final ChecklistDocumentService documents;
     private final SolutionQueryService projects;
@@ -215,6 +216,7 @@ public class ProjectChecklistService {
             ChecklistItemRepository items,
             ChecklistMeasurementRepository measurements,
             StoredForms forms,
+            VersionTrials trials,
             ChecklistMeasurer measurer,
             ChecklistDocumentService documents,
             SolutionQueryService projects,
@@ -233,6 +235,7 @@ public class ProjectChecklistService {
         this.items = items;
         this.measurements = measurements;
         this.forms = forms;
+        this.trials = trials;
         this.measurer = measurer;
         this.documents = documents;
         this.projects = projects;
@@ -292,7 +295,11 @@ public class ProjectChecklistService {
                 latest.map(ChecklistEntity::getRevision).orElse(null), latest.map(ChecklistEntity::getEdition).orElse(null));
     }
 
-    /** The published versions a checklist may be opened on, by template slug then number. */
+    /**
+     * The published versions a checklist may be opened on, by template slug then number — each one no
+     * sign-off could fill in flagged with the trial rendering's reason ({@link ChecklistOfferedVersion}),
+     * the verdict tried once per version and kept ({@link VersionTrials}), not rendered at every read.
+     */
     public List<ChecklistOfferedVersion> offered(long projectId, VisibilityService.Allowance allowance) {
         requireProject(projectId, allowance);
         List<ChecklistOfferedVersion> offered = new ArrayList<>();
@@ -301,7 +308,9 @@ public class ProjectChecklistService {
                     .filter(version -> TemplateVersionStatus.PUBLISHED.wireName().equals(version.status()))
                     .forEach(version -> offered.add(new ChecklistOfferedVersion(template.getSlug(), template.getName(),
                             version.ordinal(), version.label(), version.itemCount() == null ? 0 : version.itemCount(),
-                            version.offersNotApplicable(), version.publishedAt())));
+                            version.offersNotApplicable(), version.publishedAt(),
+                            trials.refusal(version.id(), version.sourceSha256())
+                                    .map(ChecklistOfferedVersion.Unrenderable::of).orElse(null))));
         }
         return offered;
     }
@@ -421,11 +430,11 @@ public class ProjectChecklistService {
      * <p>The version moved <em>to</em> alone is tried, never the one moved from: moving away from a defective
      * version is the way out, and refusing it would hold the project's checklist on a version it can never
      * sign. Before any write and outside any transaction: refused, nothing is stored, audited or signalled.
+     * The verdict is the one the offered list shows, tried once per version ({@link VersionTrials}).
      */
     private void requireRenderable(ChecklistTemplateEntity template, ChecklistTemplateVersionEntity version,
             boolean moving) {
-        ChecklistTemplateService.trial(version, forms.layout(version.getLayout()),
-                domains(items.findByVersionIdOrderByPositionAsc(version.getId()))).ifPresent(refused -> {
+        trials.refusal(version).ifPresent(refused -> {
                     throw ChecklistConflict.unrenderable(Cause.VERSION_UNRENDERABLE, "Version " + version.getOrdinal()
                             + " of \"" + template.getSlug() + "\" cannot be signed off: no sign-off could fill its "
                             + "workbook in, so a checklist " + (moving ? "moved to" : "opened on") + " it could never be "

@@ -1845,6 +1845,9 @@
           },
           "templateSlug" : {
             "type" : "string"
+          },
+          "unrenderable" : {
+            "$ref" : "#/components/schemas/ChecklistVersionUnrenderable"
           }
         },
         "required" : [ "itemCount", "offersNotApplicable", "ordinal" ],
@@ -2239,6 +2242,20 @@
           }
         },
         "required" : [ "itemCount", "layoutConfirmed", "offersNotApplicable", "ordinal", "revision", "sourceSize" ],
+        "type" : "object"
+      },
+      "ChecklistVersionUnrenderable" : {
+        "properties" : {
+          "cells" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UnrenderableCell"
+            },
+            "type" : "array"
+          },
+          "detail" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ChecklistVersionView" : {
@@ -14502,7 +14519,7 @@
     },
     "/api/v1/projects/{projectId}/checklists/offered" : {
       "get" : {
-        "description" : "The published template versions the project's checklist may be opened on or moved to. 404 for a project the caller does not see whole.",
+        "description" : "The published template versions the project's checklist may be opened on or moved to. A version no sign-off could fill in (published before the publication's trial rendering) is listed with an unrenderable member — the trial's reason and the cells at fault — and opening on it, or moving to it, answers 409 checklist-version-unrenderable; on every other version the member is null. 404 for a project the caller does not see whole.",
         "operationId" : "offered",
         "parameters" : [ {
           "in" : "path",

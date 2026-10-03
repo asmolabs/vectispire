@@ -143,8 +143,11 @@ public class ProjectChecklistsController {
     }
 
     @Operation(summary = "List checklist versions offered to a project", description = "The published template "
-            + "versions the project's checklist may be opened on or moved to. 404 for a project the caller does not "
-            + "see whole.")
+            + "versions the project's checklist may be opened on or moved to. A version no sign-off could fill in "
+            + "(published before the publication's trial rendering) is listed with an unrenderable member — the "
+            + "trial's reason and the cells at fault — and opening on it, or moving to it, answers 409 "
+            + "checklist-version-unrenderable; on every other version the member is null. 404 for a project the "
+            + "caller does not see whole.")
     @GetMapping("/offered")
     @RequiresAccount
     public List<ChecklistOfferedVersion> offered(

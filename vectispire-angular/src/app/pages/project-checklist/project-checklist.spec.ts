@@ -3,7 +3,12 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ChecklistProjectContext, ChecklistRevisionSummary, ChecklistView } from '@/app/core/api.models';
+import type {
+    ChecklistOfferedVersion,
+    ChecklistProjectContext,
+    ChecklistRevisionSummary,
+    ChecklistView
+} from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import {
     CARRIED_LINE,
@@ -66,6 +71,7 @@ describe('the project checklist screen', () => {
         revisions?: ChecklistRevisionSummary[];
         view?: ChecklistView;
         context?: ChecklistProjectContext;
+        offered?: ChecklistOfferedVersion[];
     }
 
     /** The context the server answers beside the revisions: the newest one's number and edition. */
@@ -97,7 +103,8 @@ describe('the project checklist screen', () => {
         http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush(context);
         http.expectOne({ method: 'GET', url: BASE }).flush(revisions);
         // The versions a checklist may be opened on or moved to are read for those who write only.
-        for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` })) offered.flush(OFFERED);
+        for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` }))
+            offered.flush(given.offered ?? OFFERED);
         if (context.latestRevision !== null) {
             http.expectOne({ method: 'GET', url: `${BASE}/${revisions[0]?.revision ?? context.latestRevision}` }).flush(
                 view
@@ -1137,6 +1144,54 @@ describe('the project checklist screen', () => {
         );
 
         expect(text('[data-testid="refusal-message"]')).toBe('Version 2 of "release" cannot be signed off.');
+    });
+
+    /** The second version as 0.10.0 published it: no sign-off could fill it in, and the list says so. */
+    const OFFERED_UNRENDERABLE: ChecklistOfferedVersion[] = [
+        OFFERED[0],
+        { ...OFFERED[1], unrenderable: { detail: 'Version 2 of "release" cannot be signed off.', ...UNRENDERABLE } }
+    ] as ChecklistOfferedVersion[];
+
+    it('offers a version no sign-off could fill in disabled, saying why and naming its cells', async () => {
+        await start('USER', 'someone', { offered: OFFERED_UNRENDERABLE });
+
+        const moving = Array.from(dom().querySelectorAll<HTMLOptionElement>('#move-version option'));
+        const version2 = moving.find((one) => one.textContent?.includes('version 2'));
+        expect(version2?.disabled).toBe(true);
+        expect(version2?.textContent?.trim()).toBe(
+            'Release checklist — version 2 (2026 edition) — cannot be signed off'
+        );
+        expect(text('[data-testid="move-unrenderable"]')).toBe(
+            'Release checklist — version 2 (2026 edition) cannot be chosen: no sign-off could fill its workbook in, since cells Vectispire writes into hold a formula other cells depend on — G7 (the master of a formula shared across G7:G9), B3 (an array formula over B3:C3). It was published before Vectispire checked for this, and a published version never changes: ask whoever manages the checklist templates to publish a corrected version.'
+        );
+    });
+
+    it('offers the first checklist the versions a sign-off can fill in, and the other one disabled', async () => {
+        await start('USER', 'carol', { revisions: [], offered: OFFERED_UNRENDERABLE });
+
+        const opening = Array.from(dom().querySelectorAll<HTMLOptionElement>('#open-version option'));
+        expect(opening.map((one) => one.disabled)).toEqual([false, false, true]);
+        expect(dom().querySelectorAll('[data-testid="open-unrenderable"]')).toHaveLength(1);
+    });
+
+    it("says why in the server's words when the version is refused for another reason than a formula", async () => {
+        const other = [
+            OFFERED[0],
+            { ...OFFERED[1], unrenderable: { detail: 'The sheet "Checklist" is missing.', cells: [] } }
+        ] as ChecklistOfferedVersion[];
+        await start('USER', 'carol', { revisions: [], offered: other });
+
+        expect(text('[data-testid="open-unrenderable"]')).toBe(
+            'Release checklist — version 2 (2026 edition) cannot be chosen: no sign-off could fill its workbook in. The sheet "Checklist" is missing.'
+        );
+    });
+
+    it('offers every version alike when none is unrenderable', async () => {
+        await start('USER', 'carol', { revisions: [] });
+
+        const opening = Array.from(dom().querySelectorAll<HTMLOptionElement>('#open-version option'));
+        expect(opening.some((one) => one.disabled)).toBe(false);
+        expect(has('[data-testid="open-unrenderable"]')).toBe(false);
     });
 
     it('lists the earlier revisions and reads one, read-only', async () => {

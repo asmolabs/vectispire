@@ -355,15 +355,20 @@ export class ProjectChecklist {
     );
     readonly openOptions = computed(() => this.offered().map((version) => this.option(version)));
     /** Every published version but the one the checklist is on: moving to it again is refused. */
-    readonly moveOptions = computed(() => {
+    readonly moveTargets = computed(() => {
         const shown = this.summary();
-        return this.offered()
-            .filter(
-                (version) =>
-                    !shown || version.templateSlug !== shown.templateSlug || version.ordinal !== shown.versionOrdinal
-            )
-            .map((version) => this.option(version));
+        return this.offered().filter(
+            (version) =>
+                !shown || version.templateSlug !== shown.templateSlug || version.ordinal !== shown.versionOrdinal
+        );
     });
+    readonly moveOptions = computed(() => this.moveTargets().map((version) => this.option(version)));
+    /**
+     * Why each listed version no sign-off could fill in cannot be chosen — listed rather than hidden, so that
+     * a project on one is not left wondering where its version went, and knows which cells to report.
+     */
+    readonly openUnrenderable = computed(() => this.unrenderableNotes(this.offered()));
+    readonly moveUnrenderable = computed(() => this.unrenderableNotes(this.moveTargets()));
     readonly today = todayUtc();
 
     /** Whether any line of the revision is bound to a rule: only then are the measurements read. */
@@ -642,13 +647,47 @@ export class ProjectChecklist {
             : this.answerValues.filter((v) => v !== 'not_applicable');
     }
 
-    private option(version: ChecklistOfferedVersion): { value: string; label: string } {
-        this.i18n.translations();
-        const ordinal = this.i18n.t('project_checklist.version_n', { ordinal: version.ordinal });
+    /**
+     * A version no sign-off could fill in stays in the list, disabled and saying so: the server refuses it
+     * (`checklist-version-unrenderable`), and choosing it only to be told would cost the person a click and
+     * a reading for nothing.
+     */
+    private option(version: ChecklistOfferedVersion): { value: string; label: string; disabled: boolean } {
+        const label = this.versionLabel(version);
         return {
             value: `${version.templateSlug}:${version.ordinal}`,
-            label: `${version.templateName} — ${ordinal}${version.label ? ` (${version.label})` : ''}`
+            label: version.unrenderable
+                ? `${label} — ${this.i18n.t('project_checklist.version_unrenderable_suffix')}`
+                : label,
+            disabled: !!version.unrenderable
         };
+    }
+
+    private versionLabel(version: ChecklistOfferedVersion): string {
+        this.i18n.translations();
+        const ordinal = this.i18n.t('project_checklist.version_n', { ordinal: version.ordinal });
+        return `${version.templateName} — ${ordinal}${version.label ? ` (${version.label})` : ''}`;
+    }
+
+    /** One sentence per version no sign-off could fill in, its cells in the reader's language. */
+    private unrenderableNotes(versions: readonly ChecklistOfferedVersion[]): { value: string; text: string }[] {
+        return versions.flatMap((version) => {
+            const unrenderable = version.unrenderable;
+            if (!unrenderable) return [];
+            const name = this.versionLabel(version);
+            // Refused for another reason than a formula: the server's words, rather than a sentence naming no cell.
+            const text =
+                unrenderable.cells.length > 0
+                    ? this.i18n.t('project_checklist.version_unrenderable_cells', {
+                          version: name,
+                          cells: describeUnrenderableCells(this.i18n, unrenderable.cells)
+                      })
+                    : this.i18n.t('project_checklist.version_unrenderable_other', {
+                          version: name,
+                          detail: unrenderable.detail
+                      });
+            return [{ value: `${version.templateSlug}:${version.ordinal}`, text }];
+        });
     }
 
     // ------------------------------------------------------------------ opening, moving

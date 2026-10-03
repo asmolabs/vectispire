@@ -82,7 +82,9 @@
                         >
                             <option [ngValue]="null">—</option>
                             @for (option of openOptions(); track option.value) {
-                                <option [ngValue]="option.value">{{ option.label }}</option>
+                                <option [ngValue]="option.value" [disabled]="option.disabled">
+                                    {{ option.label }}
+                                </option>
                             }
                         </select>
                     </div>
@@ -95,6 +97,11 @@
                         (onClick)="openChecklist()"
                     />
                 </div>
+                @for (note of openUnrenderable(); track note.value) {
+                    <p-message severity="warn" styleClass="mt-3" data-testid="open-unrenderable">{{
+                        note.text
+                    }}</p-message>
+                }
             }
         }
     </p-card>
@@ -409,7 +416,9 @@
                                 >
                                     <option [ngValue]="null">—</option>
                                     @for (option of moveOptions(); track option.value) {
-                                        <option [ngValue]="option.value">{{ option.label }}</option>
+                                        <option [ngValue]="option.value" [disabled]="option.disabled">
+                                            {{ option.label }}
+                                        </option>
                                     }
                                 </select>
                             </div>
@@ -422,6 +431,11 @@
                                 (onClick)="moveChecklist()"
                             />
                         </div>
+                        @for (note of moveUnrenderable(); track note.value) {
+                            <p-message severity="warn" styleClass="mt-3" data-testid="move-unrenderable">{{
+                                note.text
+                            }}</p-message>
+                        }
                     }
                 </div>
             </p-card>

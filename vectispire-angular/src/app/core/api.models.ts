@@ -2768,10 +2768,29 @@ export type ChecklistLineHistory = Refine<
     { answers: ChecklistAnswer[]; evidence: ChecklistEvidence[] }
 >;
 
-/** A published template version a project's checklist may be opened on or moved to. */
+/**
+ * A published template version a project's checklist may be opened on or moved to — `unrenderable` set
+ * on one no sign-off could fill in (published before the publication's trial rendering), which the
+ * server refuses to open on or move to, and `null` on every other.
+ */
 export type ChecklistOfferedVersion = Refine<
     Schema<'ChecklistOfferedVersion'>,
-    { templateSlug: string; templateName: string; label: string | null; publishedAt: string }
+    {
+        templateSlug: string;
+        templateName: string;
+        label: string | null;
+        publishedAt: string;
+        unrenderable: ChecklistVersionUnrenderable | null;
+    }
+>;
+
+/**
+ * Why no checklist opens on, or moves to, an offered version: the trial rendering's English sentence, and
+ * the cells at fault — empty when the reason is not a formula in a cell a sign-off writes.
+ */
+export type ChecklistVersionUnrenderable = Refine<
+    Schema<'ChecklistVersionUnrenderable'>,
+    { detail: string; cells: ChecklistUnrenderableCell[] }
 >;
 
 /**

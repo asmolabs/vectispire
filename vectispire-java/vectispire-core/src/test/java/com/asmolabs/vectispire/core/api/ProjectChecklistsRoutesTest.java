@@ -960,6 +960,49 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("is offered flagged, with the trial's reason and its cells, beside a version a sign-off can fill in")
+        void offeredFlagged() throws Exception {
+            publishedBeforeTheTrial("release", ChecklistWorkbooks.withSharedCommentFormula(ChecklistWorkbooks.SECOND), 10);
+
+            JsonNode offered = read(mvc.perform(authenticated(get(base() + "/offered"), developer.token()))
+                    .andExpect(status().isOk()));
+            assertThat(offered).hasSize(2);
+            assertThat(offered.at("/0/ordinal").asInt()).isEqualTo(1);
+            assertThat(offered.at("/0/unrenderable").isNull()).as("version 1 opens: sent, and null").isTrue();
+            assertThat(offered.at("/1/ordinal").asInt()).isEqualTo(2);
+            JsonNode unrenderable = offered.at("/1/unrenderable");
+            assertThat(unrenderable.path("detail").asText()).contains("G7 (the master of a formula shared across G7:G10)");
+            assertThat(unrenderable.path("cells")).hasSize(1);
+            assertThat(unrenderable.at("/cells/0/cell").asText()).isEqualTo("G7");
+            assertThat(unrenderable.at("/cells/0/kind").asText()).isEqualTo("shared");
+            assertThat(unrenderable.at("/cells/0/range").asText()).isEqualTo("G7:G10");
+        }
+
+        /**
+         * The verdict is tried once per version and kept, not rendered at every read: the workbook is replaced
+         * under the same digest by one a sign-off could fill in — which no published version's ever is — and
+         * the list and the opening still answer the verdict first found. Rendered again at each read, both
+         * would let the version through.
+         */
+        @Test
+        @DisplayName("is tried once and kept: the list and the opening answer the verdict first found")
+        void verdictKept() throws Exception {
+            long defective = publishedBeforeTheTrial("release",
+                    ChecklistWorkbooks.withSharedCommentFormula(ChecklistWorkbooks.SECOND), 10);
+            assertThat(read(mvc.perform(authenticated(get(base() + "/offered"), developer.token()))
+                    .andExpect(status().isOk())).at("/1/unrenderable/cells")).hasSize(1);
+
+            var row = templateVersions.findById(defective).orElseThrow();
+            row.setSourceBytes(ChecklistWorkbooks.of(ChecklistWorkbooks.SECOND));
+            templateVersions.saveAndFlush(row);
+
+            assertThat(read(mvc.perform(authenticated(get(base() + "/offered"), developer.token()))
+                    .andExpect(status().isOk())).at("/1/unrenderable/cells")).hasSize(1);
+            assertThat(typeOf(open(developer, "release", 2, null).andExpect(status().isConflict()).andReturn()))
+                    .isEqualTo(PROBLEM + "checklist-version-unrenderable");
+        }
+
+        @Test
         @DisplayName("a checklist already on it moves away to a version a sign-off can fill in: the way out")
         void movingAwayIsTheWayOut() throws Exception {
             long defective = publishedBeforeTheTrial("release",

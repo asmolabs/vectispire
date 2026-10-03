@@ -49,6 +49,8 @@
   `checklist-version-unrenderable`** — `POST /api/v1/projects/{id}/checklists` runs the same trial on the
   version opened on or moved to, and refuses one published earlier that fails it, with the same `cells`
   member; nothing is stored or recorded. The version moved from is never tried.
+  `GET /api/v1/projects/{id}/checklists/offered` still lists such a version, with a new member,
+  `unrenderable` — the trial's `detail` and the same `cells` — which is null on every other version.
 
 ### New
 
@@ -141,6 +143,8 @@
   signed. Moving a checklist away from such a version is never refused: that is the way out —
   [when the server refuses](../guide/security-checklists.md#when-the-server-refuses). The templates
   screen and the project checklist screen both name the cells in the reader's language and say what to do.
+  The versions a project is offered list such a version disabled, *cannot be signed off*, its cells
+  named beneath — rather than offering it to be refused once chosen.
 - **A reopened issue left no trace in its triage history.** When a scan or an import found a resolved
   issue again, it reopened it and cleared a `fixed` decision with no entry: the history showed `fixed` as
   the last word on an issue standing open under review again, and the resolution it had — from when to

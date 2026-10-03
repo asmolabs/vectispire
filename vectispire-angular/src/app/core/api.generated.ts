@@ -2243,7 +2243,7 @@ export interface paths {
         };
         /**
          * List checklist versions offered to a project
-         * @description The published template versions the project's checklist may be opened on or moved to. 404 for a project the caller does not see whole.
+         * @description The published template versions the project's checklist may be opened on or moved to. A version no sign-off could fill in (published before the publication's trial rendering) is listed with an unrenderable member — the trial's reason and the cells at fault — and opening on it, or moving to it, answers 409 checklist-version-unrenderable; on every other version the member is null. 404 for a project the caller does not see whole.
          */
         get: operations["offered"];
         put?: never;
@@ -4648,6 +4648,7 @@ export interface components {
             publishedAt?: string;
             templateName?: string;
             templateSlug?: string;
+            unrenderable?: components["schemas"]["ChecklistVersionUnrenderable"];
         };
         ChecklistOpenRequest: {
             /** Format: int32 */
@@ -4797,6 +4798,10 @@ export interface components {
             sourceSize: number;
             /** @enum {string} */
             status?: "draft" | "published" | "retired";
+        };
+        ChecklistVersionUnrenderable: {
+            cells?: components["schemas"]["UnrenderableCell"][];
+            detail?: string;
         };
         ChecklistVersionView: {
             items?: components["schemas"]["ChecklistItemView"][];

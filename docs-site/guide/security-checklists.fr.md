@@ -38,6 +38,14 @@ les versions **publiées** des modèles. Choisissez-en une et **Ouvrir la checkl
 s'ouvre en **brouillon**, vous comme auteur, chaque ligne sans réponse. Une version en brouillon ou
 retirée n'est jamais proposée.
 
+Une version publiée avant que Vectispire ne contrôle les modèles, dont aucune approbation ne pourrait
+remplir le classeur, est listée mais **ne peut pas être choisie** : elle porte la mention *ne peut pas
+être approuvée*, et une note sous la liste nomme les cellules en cause. Elle reste listée plutôt que
+masquée, pour qu'un projet dont la checklist s'y trouve voie où elle est passée et quoi signaler ;
+demandez à qui gère les modèles une
+[version corrigée](../administration/checklist-templates.fr.md#une-formule-dans-une-cellule-que-vectispire-ecrit).
+La liste **Passer à une autre version** la signale de la même façon.
+
 Un projet a **une seule révision ouverte à la fois**. Si quelqu'un en a ouvert une après que vous avez
 chargé la page, votre ouverture est refusée et l'écran propose de recharger — vous voyez la sienne
 plutôt que d'en ouvrir une seconde.

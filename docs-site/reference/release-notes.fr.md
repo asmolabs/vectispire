@@ -53,6 +53,8 @@
   `checklist-version-unrenderable`** — `POST /api/v1/projects/{id}/checklists` exécute le même essai sur
   la version d'ouverture ou d'arrivée, et refuse une version publiée plus tôt qui y échoue, avec le même
   membre `cells` ; rien n'est enregistré ni consigné. La version quittée n'est jamais essayée.
+  `GET /api/v1/projects/{id}/checklists/offered` liste toujours une telle version, avec un nouveau membre,
+  `unrenderable` — le `detail` de l'essai et les mêmes `cells` —, null sur toute autre version.
 
 ### Nouveautés
 
@@ -155,7 +157,9 @@
   commence une checklist qui ne pourrait jamais être approuvée. Quitter une telle version n'est jamais
   refusé : c'est la sortie — [quand le serveur refuse](../guide/security-checklists.fr.md#quand-le-serveur-refuse).
   L'écran des modèles et celui de la checklist de projet nomment tous deux les cellules dans la langue du
-  lecteur et disent quoi faire.
+  lecteur et disent quoi faire. Les versions proposées à un projet listent une telle version désactivée,
+  *ne peut pas être approuvée*, ses cellules nommées en dessous — au lieu de la proposer pour la refuser
+  une fois choisie.
 - **Une issue rouverte ne laissait aucune trace dans son historique de triage.** Quand une analyse ou un
   import retrouvait une issue résolue, il la rouvrait et effaçait une décision `fixed` sans aucune
   entrée : l'historique montrait `fixed` comme dernier mot d'une issue de nouveau ouverte et en revue, et

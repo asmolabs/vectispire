@@ -38,6 +38,13 @@ checklist offers the **published** template versions. Choose one and **Open the 
 revision 1 opens as a **draft**, you as its author, every line unanswered. A draft or retired version
 is never offered.
 
+A version published before Vectispire checked templates for it, whose workbook no sign-off could fill
+in, is listed but **cannot be chosen**: it reads *cannot be signed off*, and a note beneath the list
+names the cells at fault. It stays listed rather than hidden, so that a project whose checklist stands
+on it sees where it went and what to report; ask whoever manages the templates for a
+[corrected version](../administration/checklist-templates.md#a-formula-in-a-cell-vectispire-writes).
+The **Move to another version** list marks it the same way.
+
 A project has **one open revision at a time**. If somebody opened one after you loaded the page, your
 opening is refused and the screen offers to reload — you see theirs rather than opening a second.
 
