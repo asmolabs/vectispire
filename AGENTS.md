@@ -60,8 +60,9 @@ the checks lived only in that inert directory while the sole remote was GitLab, 
 On a push to `develop` and on every pull request, the `verify` workflow (`ci.yml`) runs
 `secrets`, `docs-consistency` (links and doc facts), `c4-drift`, `dockerfile-policy`, `jvm`
 (`./gradlew build`), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
-`vulnerabilities` and `npm-audit`; `images` then builds both images with Jib **and starts the
-control plane against a real MySQL** before believing them. Syft and Grype are digest-pinned to
+`vulnerabilities` and `npm-audit`; `images` then builds the three images with Jib — the control plane, the agent and the demonstration
+report plugin — **starts the control plane against a real MySQL** before believing them, and renders an
+export twice with the plugin's image to the same bytes. Syft and Grype are digest-pinned to
 what `ScannerImages` pins, so the same scanner version audits Vectispire as audits its targets.
 `main` is not a push trigger: a commit reaching it without going through `develop` has no checks
 to show, and that is the flow the rule is meant to enforce.
@@ -82,7 +83,7 @@ touches none of the engine paths, and a renamed response field touches no front-
 release should not go out on a nightly that has not been green.
 
 A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
-`./gradlew build`, builds the interface, the jar and both images as archives, and hands them over
+`./gradlew build`, builds the interface, the jar and the three images as archives, and hands them over
 with their checksums — holding **no permission but reading the repository**, since it executes every
 plugin and package the tree depends on. Each of those is first checked against
 `vectispire-java/gradle/verification-metadata.xml` — a signature by a key the keyring beside it

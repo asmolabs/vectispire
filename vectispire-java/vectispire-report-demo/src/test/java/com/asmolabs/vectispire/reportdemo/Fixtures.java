@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.domain.checklists.CellRef;
 import com.asmolabs.vectispire.common.domain.checklists.Sheet;
 import com.asmolabs.vectispire.common.domain.checklists.Workbook;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportMediaType;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportOutputCheck;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.networknt.schema.Error;
@@ -72,8 +74,15 @@ final class Fixtures {
                 .isEmpty();
     }
 
-    /** The workbook read by the platform's own reader: its zip guards, its content types, its macro refusal. */
+    /**
+     * The workbook read by the platform's own reader — its zip guards, its content types, its macro refusal — after
+     * the check the platform runs on a report plugin's output before it signs it (R4's {@code ReportOutputCheck},
+     * for the type the manifest declares): every workbook a test reads is one the platform would have signed.
+     */
     static Workbook read(byte[] xlsx) {
+        assertThat(ReportOutputCheck.check(ReportMediaType.XLSX, xlsx, MAX_OUTPUT_BYTES))
+                .as("the platform's check of a declared .xlsx")
+                .isEqualTo(new ReportOutputCheck.Verdict.Accepted());
         return Workbook.read(xlsx, MAX_OUTPUT_BYTES);
     }
 

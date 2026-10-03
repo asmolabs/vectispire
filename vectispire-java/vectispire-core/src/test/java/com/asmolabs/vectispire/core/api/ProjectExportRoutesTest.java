@@ -16,6 +16,8 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportMediaType;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportOutputCheck;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -335,6 +337,9 @@ class ProjectExportRoutesTest extends ApiTestBase {
             JsonNode document = json.readTree(export);
 
             byte[] xlsx = ReportDemo.render(export);
+            assertThat(ReportOutputCheck.check(ReportMediaType.XLSX, xlsx, ReportPluginManifest.DEFAULT_OUTPUT_BYTES))
+                    .as("the check the platform runs before it signs a declared .xlsx")
+                    .isEqualTo(new ReportOutputCheck.Verdict.Accepted());
             Workbook workbook = Workbook.read(xlsx, ReportPluginManifest.DEFAULT_OUTPUT_BYTES);
             assertThat(ReportDemo.render(export)).as("deterministic: the same export, the same bytes").isEqualTo(xlsx);
             assertThat(workbook.sheets()).extracting(Sheet::name).containsExactly("Summary", "Issues", "Checklists");

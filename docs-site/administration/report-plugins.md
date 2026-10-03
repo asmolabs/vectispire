@@ -247,7 +247,8 @@ it switched on.
 
 A value the export leaves null stays an empty cell — never a zero nobody measured. It reads every 1.x export
 and ignores what it does not know; an export of another schema or another major makes it exit 2, one with a
-part missing exit 1, each with its reason on stderr — which the run records as its detail.
+part missing exit 1, each with its reason on stderr — which the run records as its detail. Its workbook passes
+the [check on the output](#the-check-on-the-output): every build of Vectispire checks it.
 
 **The same export gives the same bytes.** The workbook carries no "now": the instant it states is the
 export's, every zip entry is dated 1980-02-01, the parts go in one order. A run's output SHA-256 can

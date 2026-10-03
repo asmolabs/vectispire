@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.checklists.Sheet;
 import com.asmolabs.vectispire.common.domain.checklists.Workbook;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportMediaType;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportOutputCheck;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ReportPluginRenderer;
@@ -80,6 +81,9 @@ class ReportDemoImageIntegrationTest {
         assertThat(first.output()).as("its file, read back as a regular file").isNotNull();
         assertThat(second.output()).as("deterministic in its image").isEqualTo(first.output());
 
+        assertThat(ReportOutputCheck.check(manifest.mediaType(), first.output(), manifest.maxOutputBytes()))
+                .as("the check the platform runs before it signs the file")
+                .isEqualTo(new ReportOutputCheck.Verdict.Accepted());
         Workbook inImage = Workbook.read(first.output(), manifest.maxOutputBytes());
         Workbook inProcess = Workbook.read(ReportDemo.render(export), manifest.maxOutputBytes());
         assertThat(inImage.sheets()).extracting(Sheet::name).containsExactly("Summary", "Issues", "Checklists");

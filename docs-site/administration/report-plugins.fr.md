@@ -258,7 +258,8 @@ Les intitulés de feuilles et de colonnes sont en anglais, comme le schéma de l
 l'export laisse nulle reste une cellule vide — jamais un zéro que personne n'a mesuré. Il lit tout export
 1.x et ignore ce qu'il ne connaît pas ; un export d'un autre schéma ou d'une autre majeure le fait sortir en
 2, un export auquel manque une partie en 1, chacun avec sa raison sur stderr — que l'exécution enregistre
-comme son détail.
+comme son détail. Son classeur passe la [vérification de la sortie](#la-verification-de-la-sortie) :
+chaque build de Vectispire le vérifie.
 
 **Le même export donne les mêmes octets.** Le classeur ne porte aucun « maintenant » : l'instant qu'il
 énonce est celui de l'export, chaque entrée du zip est datée du 1980-02-01, les parties vont dans un ordre

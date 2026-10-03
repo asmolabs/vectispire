@@ -763,9 +763,12 @@ manifest template beside it, the in-process contract test in `ProjectExportRoute
   bounded output, sixteen inodes, the manifest's arguments and limits.
 - **What §6's second test does not do yet.** It assembles the `ContainerRun` the renderer builds after the
   signer check, without the check: a locally built image has no registry and no signature, and the
-  renderer's own suite already runs the verifier against a signed public image. Registering the plugin in a
-  test installation, R4's type check, the package's signature and its `cosign verify-blob` against the
-  installation's key wait for R4. The image's own signature, its verification and the manifest's are made only
+  renderer's own suite already runs the verifier against a signed public image. **R4's check is applied**: the
+  image's output, the in-process one on the export the route builds, and every workbook the plugin's own tests
+  read pass `ReportOutputCheck` for `xlsx` — the check the platform runs before it signs. Registering the
+  plugin in a test installation and verifying the signed package of a run with `cosign verify-blob` against
+  the installation's key are not done: they need a signed image the executor would accept. The image's own
+  signature, its verification and the manifest's are made only
   by a tag: a rehearsal of `release.yml` publishes nothing and so signs none of them.
 
 ## Implementation, in lots

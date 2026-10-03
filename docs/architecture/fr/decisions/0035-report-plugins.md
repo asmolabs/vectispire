@@ -835,9 +835,12 @@ dans `ReportDemoImageIntegrationTest`, et le job `images` de `ci.yml` et les deu
 - **Ce que le second test du §6 ne fait pas encore.** Il assemble le `ContainerRun` que le moteur de rendu
   construit après la vérification du signataire, sans la vérification : une image construite localement n'a
   ni registre ni signature, et la suite du moteur de rendu exécute déjà le vérificateur contre une image
-  publique signée. Enregistrer le plugin dans une installation de test, la vérification de type de R4, la
-  signature du paquet et son `cosign verify-blob` contre la clé de l'installation attendent R4. La signature de
-  l'image, sa vérification et celle du manifeste ne sont faites que par un tag : une répétition de
+  publique signée. **La vérification de R4 est appliquée** : la sortie de l'image, celle rendue en processus sur
+  l'export que construit la route, et chaque classeur que lisent les tests du plugin passent
+  `ReportOutputCheck` pour `xlsx` — la vérification que la plateforme fait avant de signer. Enregistrer le
+  plugin dans une installation de test et vérifier le paquet signé d'une exécution avec `cosign verify-blob`
+  contre la clé de l'installation ne sont pas faits : il y faut une image signée que l'exécuteur accepterait.
+  La signature de l'image, sa vérification et celle du manifeste ne sont faites que par un tag : une répétition de
   `release.yml` ne publie rien et n'en signe donc aucune.
 
 ## Mise en œuvre, en lots

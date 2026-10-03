@@ -10,6 +10,8 @@ import com.asmolabs.vectispire.common.domain.checklists.CellRef;
 import com.asmolabs.vectispire.common.domain.checklists.CellValue;
 import com.asmolabs.vectispire.common.domain.checklists.Sheet;
 import com.asmolabs.vectispire.common.domain.checklists.Workbook;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportMediaType;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportOutputCheck;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -53,6 +55,15 @@ class ReportDemoTest {
     class TheWorkbook {
 
         private final Workbook workbook = Fixtures.read(ReportDemo.render(Fixtures.export("sample.json")));
+
+        @Test
+        @DisplayName("passes the check the platform runs before it signs a declared .xlsx")
+        void passesTheOutputCheck() {
+            for (String fixture : List.of("sample.json", "empty-project.json")) {
+                assertThat(ReportOutputCheck.check(ReportMediaType.XLSX, ReportDemo.render(Fixtures.export(fixture)),
+                        Fixtures.MAX_OUTPUT_BYTES)).as(fixture).isEqualTo(new ReportOutputCheck.Verdict.Accepted());
+            }
+        }
 
         @Test
         @DisplayName("passes the platform's workbook reader: three sheets, in order")
