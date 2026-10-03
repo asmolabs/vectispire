@@ -144,6 +144,7 @@ plugins:
             Single sign-on: Authentification unique
             API keys: Clés d'API
             SSH keys: Clés SSH
+            Forge connections: Connexions de forge
             Gate policies: Politiques de barrière
             Agents: Agents
             Semgrep rule sets: Jeux de règles Semgrep
@@ -226,6 +227,7 @@ nav:
       - Single sign-on: administration/sso.md
       - API keys: administration/api-keys.md
       - SSH keys: administration/ssh-keys.md
+      - Forge connections: administration/forge-connections.md
       - Gate policies: administration/gate-policies.md
       - Agents: administration/agents.md
       - Semgrep rule sets: administration/rule-sets.md

@@ -120,7 +120,7 @@ nouvelle table, `t_forge_connection`.
   ce jeton ; ne lui accordez que Metadata: read »*, ce qui est une phrase et non une vérification, et est
   écrit comme telle.
 - **Conservé comme tout autre secret** : chiffré sous `ENCRYPTION_KEY`, la ligne comme contexte
-  (`forge-connection:<id>`), si bien qu'un chiffré copié dans une autre ligne ne se déchiffre pas ;
+  (`forge_connection:<id>:token`), si bien qu'un chiffré copié dans une autre ligne ne se déchiffre pas ;
   **jamais renvoyé par aucune route**. La liste montre le nom, le type, l'URL de base, le propriétaire,
   les portées et l'expiration que la forge a indiquées, l'`encryptionState` (comme le montrent les clés
   SSH et les jetons, si bien qu'une rotation d'`ENCRYPTION_KEY` signale la ligne *à faire tourner* — voir
@@ -468,6 +468,45 @@ recommandé :
 7. **Les espaces de noms personnels sont proposés, non cochés.**
 8. **Les bornes tiennent** : 1 000 dépôts par import, 20 000 par découverte, trente minutes par
    découverte.
+
+## Construit en D1
+
+Le lot D1 — les connexions — a été livré le 2026-10-03 comme le décrit le §2, avec ces choix que le texte
+ci-dessus ne faisait pas, chacun consigné ici plutôt que laissé au code :
+
+- **Une AC par connexion, jamais un interrupteur qui ignore la vérification.** Le parc du responsable
+  produit est un GitLab autogéré sur un réseau interne, où un certificat de l'AC propre de l'organisation
+  est la règle. Une connexion peut épingler cette AC (`caPem`) : ce doit être une AC, valide aujourd'hui,
+  huit certificats au plus, et elle est approuvée pour cette seule connexion, *à la place* des AC
+  publiques ; la vérification du nom d'hôte est inchangée. La règle est celle du collecteur SIEM
+  (`CollectorCa`), extraite en `PinnedCa` pour que les deux partagent une seule lecture, et
+  `PinnedHttpSender` la prend pour une requête. Une édition cloud refuse l'AC comme la déclaration de
+  réseau interne.
+- **`OutboundJson.answer`** : une requête qui renvoie le statut et les en-têtes — GitHub déclare les
+  portées d'un jeton, son expiration et sa version en en-têtes. L'appel paginé de D2 avec les en-têtes de
+  limite de débit reste celui de D2.
+- **La sonde.** GitLab : `GET /personal_access_tokens/self` (portées, expiration, révocation — les jetons
+  de groupe et de projet sont des jetons personnels d'un robot), jugé avant que le jeton ne soit présenté
+  à nouveau ; `GET /version` (16 ou ultérieur) ; `GET /user` (`bot` distingue un jeton de groupe ou de
+  projet de celui d'une personne, affichés `gitlab_bot` ou `gitlab_personal`). GitHub : un seul
+  `GET /users/{owner}`, dont le 401 est la vérification du jeton et le 404 celle du propriétaire. Un jeton
+  GitHub classique sur github.com ou ghe.com est une portée refusée (`VECTI-SEC-036`) : un jeton
+  *fine-grained* y est toujours disponible.
+- **Inconnu n'est pas « non ».** `canWrite` vaut `null` pour un jeton GitHub *fine-grained*, dont GitHub
+  ne déclare pas les permissions, plutôt que `false`.
+- **Une troisième opération d'audit, `FORGE_CONNECTION_REFUSED`**, porte `VECTI-SEC-036` ; les refus
+  qu'un administrateur corrige simplement (un jeton mal saisi, un serveur ancien) ne sont ni journalisés ni
+  signalés. `VECTI-SEC-034` est nommé par son auteur à la création, au remplacement du jeton, au
+  changement d'AC ou de déclaration de réseau, et à la suppression ; un renommage est seulement
+  journalisé.
+- **`PATCH` renomme, ou change l'AC ou la déclaration de réseau** (sondé à nouveau avec le jeton
+  stocké) ; l'adresse ne change jamais — un autre serveur est une autre connexion. L'enregistrement
+  rescelle le jeton sous l'`ENCRYPTION_KEY` courante, et c'est ainsi qu'une rotation de clé atteint ce
+  stockage.
+- Reportés à leurs lots : le nom d'utilisateur de Bitbucket (D8) ; la dernière découverte et le nombre de
+  cibles importées dans la liste (D3, D6) ; l'annonce de l'expiration quatorze jours avant (D7 —
+  l'expiration est stockée et renvoyée dès maintenant). `forges` ne liste qu'`access::security` ;
+  `targets` arrive avec l'import (D6).
 
 ## Mise en œuvre, par lots
 

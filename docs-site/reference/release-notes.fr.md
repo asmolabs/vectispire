@@ -194,6 +194,18 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Nouveautés
 
+- **Connexions de forge : un jeton en lecture seule vers un GitHub ou un GitLab, sondé avant d'être
+  gardé** ([Connexions de forge](../administration/forge-connections.fr.md), décision 0037, lot D1 — la
+  découverte et l'import des dépôts suivent). `/api/v1/forge-connections`, administrateurs seulement, pas
+  encore d'écran. Le jeton est présenté une fois à la forge par la garde sortante et refusé quand il est
+  rejeté, plus large que la lecture (GitLab : `read_api` ; GitHub : un jeton *fine-grained*, ou un
+  classique sur Enterprise Server, signalé `canWrite`), ou que le serveur est antérieur à GitLab 16 ou
+  GHES 3.12. Un serveur autogéré sur le réseau interne est atteint quand l'administrateur le dit, derrière
+  sa propre AC quand elle est épinglée pour cette connexion — aucun interrupteur n'ignore la vérification.
+  Le jeton est chiffré avec sa ligne pour contexte, remplacé sur place, rescellé quand la connexion est
+  enregistrée pendant une rotation d'`ENCRYPTION_KEY`, et jamais renvoyé. Journalisé
+  `FORGE_CONNECTION_CHANGED` et `FORGE_CONNECTION_REFUSED` ; signalé `VECTI-SEC-034`, et `VECTI-SEC-036`
+  pour une adresse bloquée ou une portée refusée.
 - **Une ligne de couverture peut mesurer un périmètre de paquets**
   ([comment l'écrire](../administration/checklist-templates.fr.md#couverture-sur-un-perimetre-de-paquets)).
   Une règle `coverage_threshold` accepte un `scope` facultatif — des motifs `include` et `exclude` sur les

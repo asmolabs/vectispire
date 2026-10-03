@@ -18,7 +18,7 @@
 > `-Dvectispire.c4.write=true` rewrites the generated parts, then `scripts/generate-c4-diagrams.sh`
 > the diagrams.
 
-## What Modulith detects: twenty-six domains and `config`
+## What Modulith detects: twenty-eight domains and `config`
 
 Modulith takes the packages directly under the application class, `com.asmolabs.vectispire.core`, as
 its modules. Step 2 found five, the layers of a code base packaged by layer — `api`, `services`,
@@ -28,7 +28,7 @@ internals.
 Steps 3 to 5 moved every domain into a package of its own ([0028](decisions/0028-vertical-modules.md),
 [0029](decisions/0029-core-domains-become-modules.md)): `core.<domain>` for the API, `.web` for the
 controllers, `.internal` for the implementation, `.persistence` for the entities and repositories.
-Modulith now finds **27 modules** — `checklists`, added with decision 0032, the latest — and the
+Modulith now finds **29 modules** — `forges`, added with decision 0037, the latest — and the
 layered packages are gone:
 
 | Module | Kind | Other domains it depends on |
@@ -52,6 +52,8 @@ layered packages are gone:
 | `compliance` | domain | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domain | `access`, `issues`, `scanning`, `targets` — implements `scanning`'s `ScanPlugins` port; the agents' manifest route reaches it through that port |
 | `checklists` | domain | `access` — the routes' markers, the signed-in account four-eyes compares, the caller's allowance and the whole-project guard; `targets` — a project's repositories, their schedules, and `ProjectDeleted`; `scanning`, `scanning::queries` — the newest scan in which a step produced, the scans within an age, each plugin's state per scan; `issues` — a scope's backlog, settled triage out; `plugins` — the imports a measurement rests on; `inventory` — an SBOM's components (§6) |
+| `reportplugins` | domain | `access`, `access::security`, `targets`, `scanning`, `scanning::queries`, `gate`, `issues`, `issues::queries`, `inventory`, `compliance`, `checklists` — a project's export reads each part from its owner (decision 0035) |
+| `forges` | domain | `access::security` — its routes' markers alone; the import (decision 0037, lot D6) will add `targets`, one way |
 | `platform` | the shell | any; used by none |
 | `config` | infrastructure | — |
 
@@ -93,8 +95,8 @@ what stayed).
 
 **Two things a module's list cannot say** stay outside `verify()`. The foundation is shared, and Modulith
 allows every shared module to every module, the foundation's own included: `ModularityTest` holds each
-foundation module's list to what it uses. And six modules use `access` for their routes only — `siem`,
-`rules`, `inventory`, `threatintel`, `gate`, `exports` — which a list, one per module, cannot express:
+foundation module's list to what it uses. And seven modules use `access` for their routes only — `siem`,
+`rules`, `inventory`, `threatintel`, `gate`, `exports`, `forges` — which a list, one per module, cannot express:
 `ArchitectureTest.accessForRoutesOnly` keeps their services off it.
 
 **The couplings neither Modulith nor ArchUnit can count are strings**: JPQL queries that name another

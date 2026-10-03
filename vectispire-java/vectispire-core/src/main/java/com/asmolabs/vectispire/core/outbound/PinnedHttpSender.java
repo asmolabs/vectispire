@@ -1,13 +1,20 @@
 package com.asmolabs.vectispire.core.outbound;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.net.PinnedCa;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -15,6 +22,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPatch;
@@ -27,8 +36,11 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.util.Timeout;
@@ -69,8 +81,29 @@ import org.springframework.stereotype.Component;
 @Component
 public class PinnedHttpSender {
 
-    /** A response, reduced to what every caller here actually reads. */
-    public record Response(int status, String body) {}
+    /**
+     * A response, reduced to what the callers here read.
+     *
+     * @param headers by lower-case name, each with its values in the order received — a forge states a
+     *     token's scopes, its expiry and its own version in headers, not in the body (decision 0037)
+     */
+    public record Response(int status, String body, Map<String, List<String>> headers) {
+
+        public Response {
+            headers = Map.copyOf(headers);
+        }
+
+        /** An answer whose headers nobody reads. */
+        public Response(int status, String body) {
+            this(status, body, Map.of());
+        }
+
+        /** The first value of a header, by name in any case; empty when the answer did not carry it. */
+        public Optional<String> header(String name) {
+            List<String> values = headers.get(name.toLowerCase(Locale.ROOT));
+            return values == null || values.isEmpty() ? Optional.empty() : Optional.of(values.getFirst());
+        }
+    }
 
     /**
      * What an answer may weigh when the caller names no ceiling of its own: 4 MiB.
@@ -156,9 +189,39 @@ public class PinnedHttpSender {
             Duration timeout,
             String label,
             long maxBodyBytes) {
-        return exchange(method, destination, headers, body, timeout, label, (response, abort) -> new Response(
+        return send(method, destination, headers, body, timeout, label, maxBodyBytes, Optional.empty());
+    }
+
+    /**
+     * Sends, verifying the server against a pinned CA instead of the runtime's trust store.
+     *
+     * @param trust the CA the server's certificate must chain to — for that request alone, and in place
+     *     of the public CAs, never beside them; empty for the runtime's store. Hostname verification is
+     *     applied either way: a pinned CA changes <em>whom</em> to trust, never whether the name is checked
+     */
+    public Response send(
+            Method method,
+            OutboundUrlGuard.Destination destination,
+            Map<String, String> headers,
+            String body,
+            Duration timeout,
+            String label,
+            long maxBodyBytes,
+            Optional<PinnedCa> trust) {
+        return exchange(method, destination, headers, body, timeout, label, trust, (response, abort) -> new Response(
                 response.getCode(),
-                new String(bounded(response.getEntity(), maxBodyBytes, abort, label), charsetOf(response.getEntity()))));
+                new String(bounded(response.getEntity(), maxBodyBytes, abort, label), charsetOf(response.getEntity())),
+                headersOf(response)));
+    }
+
+    private static Map<String, List<String>> headersOf(ClassicHttpResponse response) {
+        Map<String, List<String>> headers = new LinkedHashMap<>();
+        for (Header header : response.getHeaders()) {
+            headers.computeIfAbsent(header.getName().toLowerCase(Locale.ROOT), name -> new ArrayList<>())
+                    .add(header.getValue());
+        }
+        headers.replaceAll((name, values) -> List.copyOf(values));
+        return headers;
     }
 
     /**
@@ -176,7 +239,7 @@ public class PinnedHttpSender {
             Duration timeout,
             String label,
             long maxBodyBytes) {
-        return exchange(Method.GET, destination, headers, null, timeout, label, (response, abort) -> {
+        return exchange(Method.GET, destination, headers, null, timeout, label, Optional.empty(), (response, abort) -> {
             int status = response.getCode();
             Optional<String> location = Optional.ofNullable(response.getFirstHeader("Location"))
                     .map(header -> header.getValue().trim())
@@ -206,6 +269,7 @@ public class PinnedHttpSender {
             String body,
             Duration timeout,
             String label,
+            Optional<PinnedCa> trust,
             ResponseReader<T> reader) {
 
         if (destination.addresses().isEmpty()) {
@@ -239,7 +303,7 @@ public class PinnedHttpSender {
             pastDeadline.set(true);
             request.cancel();
         }, CompletableFuture.delayedExecutor(deadline.toMillis(), TimeUnit.MILLISECONDS, Runnable::run));
-        try (CloseableHttpClient client = pinnedTo(destination, timeout)) {
+        try (CloseableHttpClient client = pinnedTo(destination, timeout, trust.map(ca -> tlsTrusting(ca, label)))) {
             return client.execute(request, response -> reader.read(response, request::cancel));
         } catch (UnknownHostException pinRefused) {
             // The resolver below throws this for a host it was not pinned to, which is what a
@@ -293,13 +357,47 @@ public class PinnedHttpSender {
         return type != null && type.getCharset() != null ? type.getCharset() : StandardCharsets.UTF_8;
     }
 
-    private static CloseableHttpClient pinnedTo(OutboundUrlGuard.Destination destination, Duration timeout) {
-        PoolingHttpClientConnectionManager connections = PoolingHttpClientConnectionManagerBuilder.create()
+    /**
+     * A TLS context trusting the pinned CA and nothing else.
+     *
+     * <p><b>JSSE's certificate classes</b>, because the socket is JSSE's and takes its trust anchors in
+     * that form; the certificates were read and checked with BouncyCastle by {@link PinnedCa}, and only
+     * their bytes are handed over here. Built per request, like the client: a cached context would
+     * outlive the CA an administrator has just replaced.
+     */
+    private static SSLContext tlsTrusting(PinnedCa ca, String label) {
+        try {
+            CertificateFactory x509 = CertificateFactory.getInstance("X.509");
+            KeyStore anchors = KeyStore.getInstance("PKCS12");
+            anchors.load(null, null);
+            int index = 0;
+            for (PinnedCa.Anchor anchor : ca.anchors()) {
+                anchors.setCertificateEntry("pinned-ca-" + index++,
+                        x509.generateCertificate(new ByteArrayInputStream(anchor.der())));
+            }
+            TrustManagerFactory trust = TrustManagerFactory.getInstance("PKIX");
+            trust.init(anchors);
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, trust.getTrustManagers(), null);
+            return context;
+        } catch (GeneralSecurityException | IOException unusable) {
+            throw new OutboundJson.OutboundFailureException(
+                    label + ": the pinned CA could not be loaded (" + unusable.getMessage() + ").", unusable);
+        }
+    }
+
+    private static CloseableHttpClient pinnedTo(
+            OutboundUrlGuard.Destination destination, Duration timeout, Optional<SSLContext> tls) {
+        PoolingHttpClientConnectionManagerBuilder builder = PoolingHttpClientConnectionManagerBuilder.create()
                 .setDnsResolver(pin(destination.host(), destination.addresses()))
                 .setDefaultConnectionConfig(ConnectionConfig.custom()
                         .setConnectTimeout(Timeout.of(timeout))
-                        .build())
-                .build();
+                        .build());
+        // BUILTIN: JSSE checks the name as part of the handshake, as the default strategy has it — the
+        // pinned CA replaces the trust anchors and nothing else.
+        tls.ifPresent(context -> builder.setTlsSocketStrategy(
+                new DefaultClientTlsStrategy(context, HostnameVerificationPolicy.BUILTIN, null)));
+        PoolingHttpClientConnectionManager connections = builder.build();
 
         return HttpClients.custom()
                 .setConnectionManager(connections)

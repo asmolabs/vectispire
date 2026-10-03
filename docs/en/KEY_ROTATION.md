@@ -30,6 +30,19 @@ before: removing it early leaves those rows unreadable with nothing to say so.
 
 Several previous keys can be listed, comma-separated, which is what an interrupted rotation needs.
 
+### The stores that show their state
+
+Three stores say, row by row, which key they are sealed under (`encryptionState`: `current`,
+`previous_key`, `unreadable`), and each is re-sealed by its own gesture:
+
+| Store | Where the state shows | What re-seals a row |
+|---|---|---|
+| SSH deploy keys | the *SSH keys* page, `GET /api/v1/ssh-keys` | adding the key again and deleting the old row |
+| HTTPS clone tokens ([0022](../architecture/en/decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | `GET /api/v1/git-tokens` | adding the token again and deleting the old row |
+| Forge connections ([0037](../architecture/en/decisions/0037-discovering-repositories-at-setup.md)) | `GET /api/v1/forge-connections` | saving the connection (`PATCH /api/v1/forge-connections/{id}` — an empty `{}` will do) or replacing its token (`PUT …/token`) |
+
+The rotation is finished when none of them lists a `previous_key` row.
+
 ## In production, both halves belong in files
 
 ```bash

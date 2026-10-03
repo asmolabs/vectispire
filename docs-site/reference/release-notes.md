@@ -180,6 +180,18 @@ another branch, is another target and is accepted as before.
 
 ### New
 
+- **Forge connections: a read-only token to a GitHub or a GitLab, probed before it is kept**
+  ([Forge connections](../administration/forge-connections.md), decision 0037, lot D1 — the discovery
+  and the import of repositories come next). `/api/v1/forge-connections`, administrators only, no screen
+  yet. The token is presented to the forge once through the outbound guard and refused when it is
+  rejected, broader than read-only (GitLab: `read_api`; GitHub: a fine-grained token, or a classic one on
+  Enterprise Server, flagged `canWrite`), or the server is older than GitLab 16 or GHES 3.12. A
+  self-managed server on the internal network is reached when the administrator says so, behind its own
+  CA when it is pinned for that connection — there is no switch that skips verification. The token is
+  encrypted with its row as context, replaced in place, re-sealed when the connection is saved during an
+  `ENCRYPTION_KEY` rotation, and never returned. Audited `FORGE_CONNECTION_CHANGED` and
+  `FORGE_CONNECTION_REFUSED`; signalled `VECTI-SEC-034`, and `VECTI-SEC-036` for a blocked address or a
+  refused scope.
 - **A coverage line may measure a scope of packages**
   ([how to write one](../administration/checklist-templates.md#coverage-over-a-scope-of-packages)). A
   `coverage_threshold` rule takes an optional `scope` — `include` and `exclude` patterns over package

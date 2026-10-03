@@ -3842,6 +3842,129 @@
         },
         "type" : "object"
       },
+      "ForgeConnectionChange" : {
+        "properties" : {
+          "caPem" : {
+            "type" : "string"
+          },
+          "internalNetwork" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeConnectionRequest" : {
+        "properties" : {
+          "baseUrl" : {
+            "type" : "string"
+          },
+          "caPem" : {
+            "type" : "string"
+          },
+          "internalNetwork" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "owner" : {
+            "type" : "string"
+          },
+          "token" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeConnectionView" : {
+        "properties" : {
+          "baseUrl" : {
+            "type" : "string"
+          },
+          "caNotAfter" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "caSubject" : {
+            "type" : "string"
+          },
+          "canWrite" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "credentialKind" : {
+            "type" : "string"
+          },
+          "edition" : {
+            "type" : "string"
+          },
+          "encryptionState" : {
+            "type" : "string"
+          },
+          "forgeVersion" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "internalNetwork" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "owner" : {
+            "type" : "string"
+          },
+          "probedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "scopes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "tokenExpiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "internalNetwork" ],
+        "type" : "object"
+      },
+      "ForgeTokenReplacement" : {
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "FullProductName" : {
         "properties" : {
           "name" : {
@@ -13221,6 +13344,179 @@
         "tags" : [ "Exceptions" ]
       }
     },
+    "/api/v1/forge-connections" : {
+      "get" : {
+        "description" : "Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it.",
+        "operationId" : "listForgeConnections",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ForgeConnectionView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List forge connections",
+        "tags" : [ "Forge connections" ]
+      },
+      "post" : {
+        "description" : "The token is probed against the forge before anything is kept, through the outbound guard — public addresses only unless internalNetwork, link-local and Vectispire's own endpoints never — and refused (400) when the forge rejects it, reports a scope outside the read-only allow-list (GitLab: read_api, read_repository, read_registry, read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036.",
+        "operationId" : "createForgeConnection",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgeConnectionRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeConnectionView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Create forge connection",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{id}" : {
+      "delete" : {
+        "description" : "No target goes with it: an imported repository is a target like any other. Signalled VECTI-SEC-034.",
+        "operationId" : "deleteForgeConnection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Delete forge connection",
+        "tags" : [ "Forge connections" ]
+      },
+      "get" : {
+        "description" : "404 when no connection has that id.",
+        "operationId" : "getForgeConnection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeConnectionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read forge connection",
+        "tags" : [ "Forge connections" ]
+      },
+      "patch" : {
+        "description" : "Rename it, or change how its token is presented — the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token again first and signals VECTI-SEC-034. The address cannot change: another server is another connection. Saving re-seals the token under the current ENCRYPTION_KEY.",
+        "operationId" : "updateForgeConnection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgeConnectionChange"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeConnectionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Update forge connection",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{id}/token" : {
+      "put" : {
+        "description" : "Rotation in place: the new token is probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at creation; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.",
+        "operationId" : "replaceForgeConnectionToken",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgeTokenReplacement"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeConnectionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replace forge connection token",
+        "tags" : [ "Forge connections" ]
+      }
+    },
     "/api/v1/gate" : {
       "post" : {
         "description" : "Evaluates current target vulnerabilities against active or requested gate policy. Returns exit verdict and violations.",
@@ -19771,6 +20067,9 @@
   }, {
     "description" : "The ISMS scope, and the evidence covering it",
     "name" : "Certified scope"
+  }, {
+    "description" : "Read-only credentials to GitHub and GitLab, for discovering repositories",
+    "name" : "Forge connections"
   }, {
     "description" : "Discovered API endpoints, declared contracts (OpenAPI/Swagger) and shadow APIs",
     "name" : "Attack Surface"

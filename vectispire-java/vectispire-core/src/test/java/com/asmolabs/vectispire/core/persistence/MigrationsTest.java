@@ -77,7 +77,8 @@ class MigrationsTest {
                         "t_checklist_template", "t_checklist_template_version", "t_checklist_item",
                         "t_checklist", "t_checklist_answer", "t_checklist_evidence", "t_checklist_file",
                         "t_checklist_measurement", "t_checklist_document",
-                        "t_report_plugin", "t_report_plugin_manifest", "t_report_plugin_activation");
+                        "t_report_plugin", "t_report_plugin_manifest", "t_report_plugin_activation",
+                        "t_forge_connection");
     }
 
     @Test

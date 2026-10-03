@@ -20,7 +20,8 @@ Les clés précédentes ne sont essayées **qu'au déchiffrement**. Jamais à l'
 **3. Réenregistrer les secrets.** Les valeurs migrent vers la nouvelle clé au fur et à mesure
 qu'elles sont réenregistrées. La page [Clés SSH](ssh-keys.md) marque les lignes qui dépendent
 encore d'une ancienne clé — ce marquage est ce qui vous dit que la rotation est terminée plutôt
-que seulement commencée.
+que seulement commencée. Une [connexion de forge](forge-connections.fr.md) est rescellée quand elle
+est enregistrée, et affiche `encryptionState: previous_key` d'ici là.
 
 **4. Retirer l'ancienne clé** de la liste des clés précédentes une fois que plus rien n'est
 marqué.

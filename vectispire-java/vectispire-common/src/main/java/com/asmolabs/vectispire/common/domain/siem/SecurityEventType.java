@@ -184,6 +184,24 @@ public enum SecurityEventType {
      */
     PROJECT_EXPORTED("VECTI-SEC-032", "Project export left the platform", 4, Outcome.SUCCESS),
 
+    /**
+     * A forge connection was created, given another token or another trust — a pinned CA, a network
+     * statement — or deleted (decision 0037 §2): a standing read access to an organisation's whole list of
+     * repositories appeared, changed hands or went. A renaming is audited and not signalled. {@code 035}
+     * is reserved for the imports from a forge, by the same decision, and is not to be taken by anything
+     * else.
+     */
+    FORGE_CONNECTION_CHANGED("VECTI-SEC-034", "Forge connection created, its token or trust replaced, or deleted", 6,
+            Outcome.SUCCESS),
+
+    /**
+     * A forge connection was refused because its address is one the outbound guard blocks, or its token is
+     * broader than read-only (decision 0037 §2) — how an SSRF or a credential-harvesting attempt through the
+     * connection form shows itself. Lot D2 adds a next page pointing at another host.
+     */
+    FORGE_CONNECTION_REFUSED("VECTI-SEC-036", "Forge connection refused: blocked destination, write scope, or a "
+            + "credential presented to another host", 5, Outcome.FAILURE),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -310,6 +328,7 @@ public enum SecurityEventType {
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
             case PROJECT_EXPORTED -> Optional.of(PROJECT_EXPORTED);
+            case FORGE_CONNECTION_REFUSED -> Optional.of(FORGE_CONNECTION_REFUSED);
             case REPORT_PLUGIN_REGISTERED, REPORT_PLUGIN_UPDATED, REPORT_PLUGIN_APPROVED, REPORT_PLUGIN_ENABLED_CHANGED,
                     REPORT_PLUGIN_ACTIVATED, REPORT_PLUGIN_DEACTIVATED, REPORT_PLUGIN_WITHDRAWN ->
                     Optional.of(REPORT_PLUGIN_CHANGED);
@@ -350,7 +369,10 @@ public enum SecurityEventType {
                     CHECKLIST_OPENED, CHECKLIST_MOVED_TO_VERSION, CHECKLIST_ANSWERED, CHECKLIST_EVIDENCE_ADDED,
                     CHECKLIST_EVIDENCE_WITHDRAWN, CHECKLIST_SUBMITTED, CHECKLIST_REOPENED,
                     // A download of what was attested, like REPORT_EXPORTED: the sign-off was the event.
-                    CHECKLIST_EXPORTED -> Optional.empty();
+                    CHECKLIST_EXPORTED,
+                    // A renaming is a forge connection's change too, and not an event: the writer names
+                    // VECTI-SEC-034 on the creation, the new token or trust, and the deletion.
+                    FORGE_CONNECTION_CHANGED -> Optional.empty();
         };
     }
 }

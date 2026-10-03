@@ -2,11 +2,14 @@ package com.asmolabs.vectispire.core.outbound;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -99,6 +102,60 @@ public class OutboundJson {
             return Optional.of(json.readTree(response.body()));
         } catch (IOException | UncheckedIOException unreadable) {
             throw new OutboundFailureException(label + ": " + unreadable.getMessage(), unreadable);
+        }
+    }
+
+    /**
+     * An answer whatever its status, with its headers: for a caller to whom a 401 or a 403 means
+     * something of its own — a forge refusing a token is not an outage (decision 0037).
+     *
+     * @param body the document on a 2xx; empty on any other status, whose body is not read as JSON
+     * @param headers by lower-case name
+     */
+    public record Answer(int status, Optional<JsonNode> body, Map<String, List<String>> headers) {
+
+        /** The first value of a header, by name in any case; empty when the answer did not carry it. */
+        public Optional<String> header(String name) {
+            List<String> values = headers.get(name.toLowerCase(Locale.ROOT));
+            return values == null || values.isEmpty() ? Optional.empty() : Optional.of(values.getFirst());
+        }
+    }
+
+    /**
+     * Fetches a JSON document and hands back the status and the headers too, verifying the server
+     * against a pinned CA when one is given.
+     *
+     * <p>The same door as {@link #get}: the guard, the pin, no redirect, ten seconds. What differs is
+     * that no status is an exception here — only an exchange that produced no answer, or a 2xx that is
+     * not JSON. Lot D1 of decision 0037 needs one request's headers (a token's scopes and expiry, a
+     * server's version); the paged form with the rate-limit headers is lot D2's.
+     *
+     * @param trust the CA the server must chain to, in place of the runtime's store; empty for that store
+     * @throws com.asmolabs.vectispire.common.domain.net.UnsafeUrlException when the guard refuses the URL
+     * @throws OutboundFailureException when no answer came back, or a 2xx carried no JSON
+     */
+    public Answer answer(
+            String url, OutboundPolicy policy, String label, Map<String, String> headers, Optional<PinnedCa> trust) {
+        Map<String, String> all = new java.util.LinkedHashMap<>(headers);
+        all.put("Accept", "application/json");
+
+        PinnedHttpSender.Response response = sender.send(
+                PinnedHttpSender.Method.GET,
+                guard.validateAndResolve(url, policy, label),
+                Map.copyOf(all),
+                null,
+                TIMEOUT,
+                label,
+                PinnedHttpSender.DEFAULT_MAX_BODY_BYTES,
+                trust);
+
+        if (response.status() / 100 != 2) {
+            return new Answer(response.status(), Optional.empty(), response.headers());
+        }
+        try {
+            return new Answer(response.status(), Optional.of(json.readTree(response.body())), response.headers());
+        } catch (IOException | UncheckedIOException unreadable) {
+            throw new OutboundFailureException(label + ": the answer is not JSON.", unreadable);
         }
     }
 

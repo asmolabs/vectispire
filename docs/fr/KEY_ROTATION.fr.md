@@ -33,6 +33,19 @@ lignes illisibles sans que rien ne le dise.
 Plusieurs clés précédentes peuvent être listées, séparées par des virgules — c'est ce qu'exige une
 rotation interrompue.
 
+### Les stockages qui montrent leur état
+
+Trois stockages disent, ligne par ligne, sous quelle clé ils sont scellés (`encryptionState` :
+`current`, `previous_key`, `unreadable`), et chacun est rescellé par son propre geste :
+
+| Stockage | Où l'état se voit | Ce qui rescelle une ligne |
+|---|---|---|
+| Clés de déploiement SSH | la page *Clés SSH*, `GET /api/v1/ssh-keys` | ajouter la clé à nouveau et supprimer l'ancienne ligne |
+| Jetons de clonage HTTPS ([0022](../architecture/fr/decisions/0022-https-clone-tokens-are-bound-to-a-host.md)) | `GET /api/v1/git-tokens` | ajouter le jeton à nouveau et supprimer l'ancienne ligne |
+| Connexions de forge ([0037](../architecture/fr/decisions/0037-discovering-repositories-at-setup.md)) | `GET /api/v1/forge-connections` | enregistrer la connexion (`PATCH /api/v1/forge-connections/{id}` — un `{}` vide suffit) ou remplacer son jeton (`PUT …/token`) |
+
+La rotation est terminée quand aucun d'eux ne liste de ligne `previous_key`.
+
 ## En production, les deux moitiés appartiennent à des fichiers
 
 ```bash

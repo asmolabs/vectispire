@@ -99,7 +99,10 @@ class ArchitectureTest {
             // Security checklists (decision 0032): the organisation's templates, answered per project.
             "checklists",
             // Report plugins (decision 0035): a project's export, and the documents rendered from it.
-            "reportplugins");
+            "reportplugins",
+            // Forges (decision 0037): read-only connections to GitHub and GitLab, from which repositories are
+            // discovered and imported.
+            "forges");
 
     /**
      * The top-level packages that are no module's. Only {@code config} since step 5: the datasource,
@@ -241,7 +244,7 @@ class ArchitectureTest {
      * gone.
      */
     private static final Set<String> ACCESS_FOR_ROUTES_ONLY =
-            Set.of("siem", "rules", "inventory", "threatintel", "gate", "exports");
+            Set.of("siem", "rules", "inventory", "threatintel", "gate", "exports", "forges");
 
     @Test
     @DisplayName("a module that uses access for its routes uses it nowhere else")
@@ -594,7 +597,24 @@ class ArchitectureTest {
                 .orShould().dependOnClassesThat().haveFullyQualifiedName("java.net.DatagramSocket")
                 .orShould().dependOnClassesThat().haveFullyQualifiedName("java.nio.channels.SocketChannel")
                 .orShould().dependOnClassesThat().haveFullyQualifiedName("java.nio.channels.DatagramChannel")
-                .orShould().dependOnClassesThat().resideInAPackage("javax.net..")
+                .check(classes);
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .and().haveNameNotMatching(".*\\.SyslogSender(\\$.*)?")
+                .and().haveNameNotMatching(".*\\.PinnedHttpSender(\\$.*)?")
+                .should().dependOnClassesThat().resideInAPackage("javax.net..")
+                .check(classes);
+        // The HTTP door verifies a self-hosted server against a CA pinned for it (a forge connection,
+        // decision 0037): a TLS context and its trust managers, which open nothing — and nothing else of
+        // javax.net, so a socket factory reached through it is still a violation.
+        ArchRuleDefinition.noClasses()
+                .that().haveNameMatching(".*\\.PinnedHttpSender(\\$.*)?")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "javax.net classes other than a TLS context and its trust managers",
+                        (JavaClass type) -> type.getBaseComponentType().getPackageName().startsWith("javax.net")
+                                && !Set.of("javax.net.ssl.SSLContext", "javax.net.ssl.TrustManagerFactory",
+                                        "javax.net.ssl.TrustManager", "javax.net.ssl.KeyManager")
+                                        .contains(type.getBaseComponentType().getName())))
                 .check(classes);
     }
 

@@ -42,7 +42,7 @@ module, and Spring Modulith verifies the boundaries between modules against the 
 declares. That is a genuine step down: a rule, or a line in a list, can be changed by the same commit
 that needs it; a missing dependency cannot.
 
-**Inside `vectispire-core`, twenty-six modules.** The control plane is divided into domains over a
+**Inside `vectispire-core`, twenty-eight modules.** The control plane is divided into domains over a
 foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
 `maintenance`), with `platform` on top — the settings screen that composes four domains, the
 foundation's routes, the error handler and the OpenAPI configuration; it may use any module and none
@@ -83,10 +83,10 @@ and listed in `MaintenanceJobsTest.COMPOSITION`: the tick knows none of the work
 
 **Spring Modulith is the authority on the module boundaries.** `ModularityTest` calls `verify()` and
 fails the build on a cycle between modules, a reach into another module's internals, or a dependency a
-list does not carry; it sees twenty-seven modules (the twenty-six above, seven of them shared, and
+list does not carry; it sees twenty-nine modules (the twenty-eight above, seven of them shared, and
 `config`) and writes their canvases and diagrams into `build/modulith-docs/`
 ([05](../docs/architecture/en/05-modularity.md)). `ArchitectureTest` keeps what Modulith cannot say:
-the layers inside a module, and the six modules that use `access` for their routes only. A JPQL string
+the layers inside a module, and the seven modules that use `access` for their routes only. A JPQL string
 naming another module's entity is invisible to both, and `CrossModuleQueriesTest` lists the four
 there are — the orphan sweeps, each with its reason. Production carries Modulith's annotations and nothing else, which `ModulithRuntimeInertTest`
 checks.
@@ -123,7 +123,7 @@ same name; decision records written before that date keep the names they had.
 | A repository is named `<Entity>Repository` and sits in its module's `persistence`; nothing else takes the suffix | `ArchitectureTest` |
 | The modules form no cycle; a module reaches another only through its root or a named interface, and uses only what its `package-info` lists; nothing uses `platform` or `config` | `ModularityTest` (Spring Modulith's `verify()`) |
 | Every module but `platform` declares its list, and each list is exactly what the module uses — the edges between foundation modules included, which `verify()` allows wholesale | `ModularityTest` |
-| The six modules that use `access` for their routes use it nowhere else | `ArchitectureTest` |
+| The seven modules that use `access` for their routes use it nowhere else | `ArchitectureTest` |
 | A query string naming another module's table is listed with its reason, and one against the modules' direction says so | `CrossModuleQueriesTest` |
 | Every class sits in a module's root, `web`, `internal` or `persistence`, or in `config`; a controller calls its own module's API | `ArchitectureTest` |
 | The gate's verdicts, the compliance captures and the weekly OWASP record are purged by one dial, not the payload window, zero purging none, and a failed purge skips only its table; a week of the OWASP record stays while any of it is inside the window, and the view answers a purged week as reconstructed | `EvidenceRetentionTest`, `OwaspWeeklyRetentionDatabaseTest`, `MaintenanceJobsTest` |
@@ -159,6 +159,7 @@ same name; decision records written before that date keep the names they had.
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
+| A forge connection's token is probed through the guard before it is kept — a private address only when the administrator states the server is internal, a private CA only when pinned for that server, never verification skipped — its scopes judged against a read-only allow-list, stored encrypted with its row as context and never returned, logged or audited | `ForgeProbesTest`, `ForgeConnectionsRoutesTest`, `ForgeCredentialTest` |
 | Every request body is read up to a ceiling — the route's own where it has one, never clamped to the default, and the default everywhere else — counted while it is read, whatever its declared length | `RequestBodyLimitFilterTest`, `RequestBodyLimitRoutesTest` |
 | An outbound answer is read up to a ceiling and within a deadline, and a scanner's output up to a ceiling; past either the call or the step fails | `PinnedHttpSenderTest`, `ContainerOutputLimitTest` |
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
@@ -365,7 +366,7 @@ historically experienced with abstractions:
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
 `MigrationsTest` applies the Flyway migrations to a database of their own on the suite's MySQL
-(`TestDatabase.scratch`), asserting that all sixty tables are created by name, that the twenty-seven
+(`TestDatabase.scratch`), asserting that all sixty-eight tables are created by name, that the twenty-seven
 foreign keys of the seventeen tables that carry one really exist, and that a second run changes
 nothing.
 

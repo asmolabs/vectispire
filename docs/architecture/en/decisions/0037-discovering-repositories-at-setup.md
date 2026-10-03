@@ -114,7 +114,7 @@ the account's address), and a token. It lives in a new table, `t_forge_connectio
   report this token's permissions; grant it Metadata: read only"*, which is a sentence, not a check, and
   is written as one.
 - **Stored like every other secret**: encrypted under `ENCRYPTION_KEY`, the row as its context
-  (`forge-connection:<id>`), so a ciphertext copied into another row does not decrypt; **never returned
+  (`forge_connection:<id>:token`), so a ciphertext copied into another row does not decrypt; **never returned
   by any route**. The list shows name, kind, base URL, owner, the scopes and expiry the forge reported,
   `encryptionState` (as the SSH keys and tokens show it, so a rotation of `ENCRYPTION_KEY` lists the row
   as *to rotate* — see [`KEY_ROTATION.md`](../../../en/KEY_ROTATION.md)), the last discovery and the
@@ -434,6 +434,39 @@ The product owner settled the eight questions the proposal left open, each as re
 7. **Personal namespaces are offered, unticked.**
 8. **The bounds stand**: 1,000 repositories per import, 20,000 per discovery, thirty minutes per
    discovery.
+
+## Built in D1
+
+Lot D1 — the connections — landed on 2026-10-03 as §2 describes, with these choices the text above did not
+make, each recorded here rather than left to the code:
+
+- **A per-connection CA, never a switch that skips verification.** The owner's estate is a self-managed
+  GitLab on an internal network, where a certificate from the organisation's own CA is the rule. A
+  connection may pin that CA (`caPem`): it must be a CA, currently valid, at most eight certificates, and
+  it is trusted for that connection alone, *instead of* the public CAs; hostname verification is unchanged.
+  The rule is the SIEM collector's (`CollectorCa`), extracted as `PinnedCa` so both share one reading, and
+  `PinnedHttpSender` takes it for one request. A cloud edition refuses both the CA and the internal-network
+  statement.
+- **`OutboundJson.answer`**: one request returning the status and the headers — GitHub states a token's
+  scopes, its expiry and its version in headers. D2's paged call with the rate-limit headers stays D2's.
+- **The probe.** GitLab: `GET /personal_access_tokens/self` (scopes, expiry, revoked — group and project
+  access tokens are personal tokens of a bot), judged before the token is presented again; `GET /version`
+  (16 or later); `GET /user` (`bot` tells a group or project token from a person's, shown as `gitlab_bot`
+  or `gitlab_personal`). GitHub: one `GET /users/{owner}`, whose 401 is the token's check and 404 the
+  owner's. A classic GitHub token on github.com or ghe.com is a refused scope (`VECTI-SEC-036`): a
+  fine-grained one is always available there.
+- **Unknown is not "no".** `canWrite` is `null` for a fine-grained GitHub token, whose permissions GitHub
+  does not report, rather than `false`.
+- **A third audit operation, `FORGE_CONNECTION_REFUSED`**, carries `VECTI-SEC-036`; the refusals an
+  administrator simply fixes (a mistyped token, an old server) are neither recorded nor signalled.
+  `VECTI-SEC-034` is named by its writer on creation, token replacement, a change of CA or network
+  statement, and deletion; a renaming is audited only.
+- **`PATCH` renames, or changes the CA or the network statement** (probed again with the stored token);
+  the address never changes — another server is another connection. Saving re-seals the token under the
+  current `ENCRYPTION_KEY`, which is how a key rotation reaches this store.
+- Deferred to their lots: Bitbucket's user name (D8); the last discovery and the number of targets
+  imported in the list (D3, D6); the fourteen-day expiry announcement (D7 — the expiry is stored and
+  returned now). `forges` lists `access::security` alone; `targets` arrives with the import (D6).
 
 ## Implementation, in lots
 

@@ -157,6 +157,14 @@ public final class SecretCipher {
         return "git_token:" + tokenId + ":token";
     }
 
+    /**
+     * Where a forge connection's token lives (decision 0037 §2) — the same rule as {@link
+     * #privateKeyContext}: a ciphertext copied into another connection's row does not decrypt there.
+     */
+    public static String forgeConnectionContext(String connectionId) {
+        return "forge_connection:" + connectionId + ":token";
+    }
+
     /** Constant-time comparison, for cases where the compared value is itself a secret. */
     public static boolean secretEquals(String left, String right) {
         return Arrays.constantTimeAreEqual(

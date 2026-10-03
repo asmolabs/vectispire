@@ -18,7 +18,7 @@
 > `-Dvectispire.c4.write=true` réécrit les parties générées, puis `scripts/generate-c4-diagrams.sh` les
 > diagrammes.
 
-## Ce que Modulith détecte : vingt-six domaines et `config`
+## Ce que Modulith détecte : vingt-huit domaines et `config`
 
 Modulith prend pour modules les paquetages situés directement sous la classe de l'application,
 `com.asmolabs.vectispire.core`. L'étape 2 en trouvait cinq, les couches d'un code découpé par couche —
@@ -28,8 +28,8 @@ entrailles d'un seul module.
 Les étapes 3 à 5 ont déplacé chaque domaine dans un paquetage à lui
 ([0028](decisions/0028-vertical-modules.md), [0029](decisions/0029-core-domains-become-modules.md)) :
 `core.<domaine>` pour l'API, `.web` pour les contrôleurs, `.internal` pour l'implémentation,
-`.persistence` pour les entités et les repositories. Modulith trouve désormais **27 modules** — `checklists`, ajouté avec la
-décision 0032, le dernier — et les paquetages par couche ont disparu :
+`.persistence` pour les entités et les repositories. Modulith trouve désormais **29 modules** — `forges`, ajouté avec la
+décision 0037, le dernier — et les paquetages par couche ont disparu :
 
 | Module | Nature | Autres domaines dont il dépend |
 |---|---|---|
@@ -52,6 +52,8 @@ décision 0032, le dernier — et les paquetages par couche ont disparu :
 | `compliance` | domaine | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domaine | `access`, `issues`, `scanning`, `targets` — implémente le port `ScanPlugins` de `scanning` ; la route des manifestes des agents l'atteint par ce port |
 | `checklists` | domaine | `access` — les marqueurs des routes, le compte connecté que compare le double contrôle, l'autorisation de l'appelant et le garde du projet entier ; `targets` — les dépôts d'un projet, leurs planifications, et `ProjectDeleted` ; `scanning`, `scanning::queries` — l'analyse la plus récente où une étape a produit, les analyses dans un âge, l'état de chaque plugin par analyse ; `issues` — le passif d'un périmètre, triage réglé exclu ; `plugins` — les imports sur lesquels une mesure repose ; `inventory` — les composants d'un SBOM (§6) |
+| `reportplugins` | domaine | `access`, `access::security`, `targets`, `scanning`, `scanning::queries`, `gate`, `issues`, `issues::queries`, `inventory`, `compliance`, `checklists` — l'export d'un projet lit chaque partie chez son propriétaire (décision 0035) |
+| `forges` | domaine | `access::security` — les seuls marqueurs de ses routes ; l'import (décision 0037, lot D6) ajoutera `targets`, dans un seul sens |
 | `platform` | la coque | tous ; utilisé par aucun |
 | `config` | infrastructure | — |
 
@@ -97,8 +99,8 @@ est parti et ce qui est resté).
 
 **Deux choses qu'une liste de module ne sait pas dire** restent hors de `verify()`. Le socle est partagé,
 et Modulith autorise tout module partagé à tout module, ceux du socle compris : `ModularityTest` tient la
-liste de chaque module du socle à ce qu'il utilise. Et six modules n'utilisent `access` que pour leurs
-routes — `siem`, `rules`, `inventory`, `threatintel`, `gate`, `exports` —, ce qu'une liste, une par
+liste de chaque module du socle à ce qu'il utilise. Et sept modules n'utilisent `access` que pour leurs
+routes — `siem`, `rules`, `inventory`, `threatintel`, `gate`, `exports`, `forges` —, ce qu'une liste, une par
 module, ne peut exprimer : `ArchitectureTest.accessForRoutesOnly` en tient leurs services à l'écart.
 
 **Les couplages que ni Modulith ni ArchUnit ne peuvent compter sont des chaînes** : des requêtes JPQL qui

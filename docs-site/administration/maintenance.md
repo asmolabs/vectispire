@@ -18,7 +18,9 @@ Previous keys are tried **for decryption only**. Never for writing.
 
 **3. Re-save the secrets.** Values move to the new key as they are re-saved. The
 [SSH keys](ssh-keys.md) page marks the rows that still depend on an old key — that marking
-is how you know the rotation is finished rather than merely started.
+is how you know the rotation is finished rather than merely started. A
+[forge connection](forge-connections.md) is re-sealed when it is saved, and shows
+`encryptionState: previous_key` until then.
 
 **4. Remove the old key** from the previous-keys list once nothing is marked.
 

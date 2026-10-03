@@ -442,7 +442,9 @@
       "report_plugin_enabled_changed": "Report plugin enabled or disabled",
       "report_plugin_activated": "Report plugin switched on for a project",
       "report_plugin_deactivated": "Report plugin switched off for a project",
-      "report_plugin_withdrawn": "Report plugin manifest withdrawn"
+      "report_plugin_withdrawn": "Report plugin manifest withdrawn",
+      "forge_connection_changed": "Forge connection created, changed or deleted",
+      "forge_connection_refused": "Forge connection refused"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

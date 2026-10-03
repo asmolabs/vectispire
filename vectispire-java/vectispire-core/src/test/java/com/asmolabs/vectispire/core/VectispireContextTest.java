@@ -80,6 +80,9 @@ public abstract class VectispireContextTest {
             "t_report_plugin_activation",
             "t_report_plugin_manifest",
             "t_report_plugin",
+            // The forge connections (V74, common, no foreign key). Left out, a connection one test created would
+            // hold its name against the next test's.
+            "t_forge_connection",
             "t_ai_review_result",
             // No foreign key either. Left out, the catalogue a test synchronised was the next test's,
             // and a status test read "SYNCED" before anything had been synchronised.

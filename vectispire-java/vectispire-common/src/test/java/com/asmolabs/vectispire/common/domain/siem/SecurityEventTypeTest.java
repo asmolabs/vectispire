@@ -53,6 +53,8 @@ class SecurityEventTypeTest {
         expected.put("SLA_BREACHED", "VECTI-SEC-030");
         expected.put("REPORT_PLUGIN_CHANGED", "VECTI-SEC-031");
         expected.put("PROJECT_EXPORTED", "VECTI-SEC-032");
+        expected.put("FORGE_CONNECTION_CHANGED", "VECTI-SEC-034");
+        expected.put("FORGE_CONNECTION_REFUSED", "VECTI-SEC-036");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
@@ -67,6 +69,15 @@ class SecurityEventTypeTest {
         // another event taking it would leave the decision two numbers. 031 is the registry's, since lot R2.
         assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
                 .doesNotContain("VECTI-SEC-033");
+    }
+
+    @Test
+    @DisplayName("035 stays reserved for the imports from a forge (decision 0037 §2)")
+    void forgeImportIdentifierIsReserved() {
+        // Reserved on 2026-10-03 for the import of repositories from a forge, which lot D6 emits once per
+        // import; 034 and 036 are the connections', since lot D1.
+        assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
+                .doesNotContain("VECTI-SEC-035");
     }
 
     @Test
@@ -143,6 +154,10 @@ class SecurityEventTypeTest {
             assertThat(SecurityEventType.signalledBy(operation)).as(operation.name())
                     .contains(SecurityEventType.REPORT_PLUGIN_CHANGED);
         }
+        // A forge connection refused for its address or its scopes is how an SSRF or a harvesting attempt
+        // through the form shows itself (decision 0037 §2).
+        assertThat(SecurityEventType.signalledBy(AuditOperation.FORGE_CONNECTION_REFUSED))
+                .contains(SecurityEventType.FORGE_CONNECTION_REFUSED);
         // A pipeline's upload is as frequent as its builds: the entry, not an event.
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_IMPORT_REFUSED))
@@ -185,6 +200,9 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.LOGIN_SUCCESS)).isEmpty();
         // A published version retired is VECTI-SEC-024, a draft set aside is nothing: the writer names it.
         assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_RETIRED)).isEmpty();
+        // A forge connection renamed is not an event; created, given a new token or trust, or deleted is
+        // VECTI-SEC-034, named by its writer.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.FORGE_CONNECTION_CHANGED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(null)).isEmpty();
     }
 }

@@ -106,6 +106,8 @@ const OPERATION_KEYS: Record<string, string> = {
     REPORT_PLUGIN_ACTIVATED: 'audit_log.operations.report_plugin_activated',
     REPORT_PLUGIN_DEACTIVATED: 'audit_log.operations.report_plugin_deactivated',
     REPORT_PLUGIN_WITHDRAWN: 'audit_log.operations.report_plugin_withdrawn',
+    FORGE_CONNECTION_CHANGED: 'audit_log.operations.forge_connection_changed',
+    FORGE_CONNECTION_REFUSED: 'audit_log.operations.forge_connection_refused',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',

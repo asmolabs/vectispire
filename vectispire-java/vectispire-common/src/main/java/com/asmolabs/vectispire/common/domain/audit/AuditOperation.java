@@ -447,7 +447,23 @@ public enum AuditOperation {
      * The platform governor withdrew a report plugin's manifest digest, with a justification the entry
      * carries: it never runs again, and every document it produced is served as withdrawn.
      */
-    REPORT_PLUGIN_WITHDRAWN;
+    REPORT_PLUGIN_WITHDRAWN,
+
+    /**
+     * A forge connection (decision 0037 §2) was created, renamed, given another token, another pinned CA or
+     * another network statement, or deleted: a standing read access to an organisation's whole list of
+     * repositories. Its own operation rather than {@code SETTING_UPDATED}, so an auditor finds it without
+     * reading every settings change. The entry names the forge, the address, the credential the forge
+     * identified and whether it can write — never the token.
+     */
+    FORGE_CONNECTION_CHANGED,
+
+    /**
+     * A forge connection was refused for what its address or its token is — a destination the outbound
+     * guard blocks, or a token broader than read-only (decision 0037 §2). The refusals an administrator
+     * simply fixes (a mistyped token, a server too old) are not recorded.
+     */
+    FORGE_CONNECTION_REFUSED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

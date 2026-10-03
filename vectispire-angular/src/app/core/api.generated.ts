@@ -1484,6 +1484,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forge-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List forge connections
+         * @description Never the token: the forge, the address, the owner, the credential the forge identified with its scopes (null when not reported — a GitHub fine-grained token), whether it can write (null when not reported), its expiry, the server's version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it.
+         */
+        get: operations["listForgeConnections"];
+        put?: never;
+        /**
+         * Create forge connection
+         * @description The token is probed against the forge before anything is kept, through the outbound guard — public addresses only unless internalNetwork, link-local and Vectispire's own endpoints never — and refused (400) when the forge rejects it, reports a scope outside the read-only allow-list (GitLab: read_api, read_repository, read_registry, read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036.
+         */
+        post: operations["createForgeConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forge-connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read forge connection
+         * @description 404 when no connection has that id.
+         */
+        get: operations["getForgeConnection"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete forge connection
+         * @description No target goes with it: an imported repository is a target like any other. Signalled VECTI-SEC-034.
+         */
+        delete: operations["deleteForgeConnection"];
+        options?: never;
+        head?: never;
+        /**
+         * Update forge connection
+         * @description Rename it, or change how its token is presented — the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token again first and signals VECTI-SEC-034. The address cannot change: another server is another connection. Saving re-seals the token under the current ENCRYPTION_KEY.
+         */
+        patch: operations["updateForgeConnection"];
+        trace?: never;
+    };
+    "/api/v1/forge-connections/{id}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace forge connection token
+         * @description Rotation in place: the new token is probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at creation; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.
+         */
+        put: operations["replaceForgeConnectionToken"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/gate": {
         parameters: {
             query?: never;
@@ -5596,6 +5668,51 @@ export interface components {
             date?: string;
             label?: string;
             product_ids?: string[];
+        };
+        ForgeConnectionChange: {
+            caPem?: string;
+            internalNetwork?: boolean;
+            name?: string;
+        };
+        ForgeConnectionRequest: {
+            baseUrl?: string;
+            caPem?: string;
+            internalNetwork?: boolean;
+            kind?: string;
+            name?: string;
+            owner?: string;
+            token?: string;
+        };
+        ForgeConnectionView: {
+            baseUrl?: string;
+            /** Format: date-time */
+            caNotAfter?: string;
+            caSubject?: string;
+            canWrite?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            createdBy?: string;
+            credentialKind?: string;
+            edition?: string;
+            encryptionState?: string;
+            forgeVersion?: string;
+            /** Format: uuid */
+            id?: string;
+            internalNetwork: boolean;
+            kind?: string;
+            name?: string;
+            owner?: string;
+            /** Format: date-time */
+            probedAt?: string;
+            scopes?: string[];
+            /** Format: date-time */
+            tokenExpiresAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            updatedBy?: string;
+        };
+        ForgeTokenReplacement: {
+            token?: string;
         };
         FullProductName: {
             name?: string;
@@ -10201,6 +10318,144 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["Register"];
+                };
+            };
+        };
+    };
+    listForgeConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeConnectionView"][];
+                };
+            };
+        };
+    };
+    createForgeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ForgeConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeConnectionView"];
+                };
+            };
+        };
+    };
+    getForgeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeConnectionView"];
+                };
+            };
+        };
+    };
+    deleteForgeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateForgeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ForgeConnectionChange"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeConnectionView"];
+                };
+            };
+        };
+    };
+    replaceForgeConnectionToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ForgeTokenReplacement"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeConnectionView"];
                 };
             };
         };
