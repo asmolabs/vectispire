@@ -601,6 +601,45 @@ ouverts ou énonçait sans précision. Le code est dans `core.reportplugins` (`P
   membres ; les problèmes sont comptés avant d'en lire un, le JSON écrit dans un tampon qui s'arrête à
   64 Mio.
 
+## Construit en R2 (2026-10-03) : là où le code en dit plus que le §4
+
+Le lot R2 — le registre — a tranché ces points que le §4 laissait ouverts. Le code est dans
+`core.reportplugins` (`ReportPluginService`, migration V70) et `common/domain/reportplugins`
+(`ReportPluginManifest`, `ReportMediaType`, `ReportPluginManifestStatus`) ; ce que les deux registres
+imposent pareillement (identifiant, nom, arguments, nom de sortie) est passé dans
+`common/domain/plugins/ManifestRules`, partagé comme code avec le manifeste de la 0017, dont les messages et
+le digest ne changent pas.
+
+- **Un digest de manifeste est dans l'un de quatre états** : `pending_approval`, `approved`, `superseded` —
+  en attente, et remplacé par un enregistrement ultérieur avant que quiconque l'approuve : il n'a jamais
+  tourné et ne peut plus être approuvé — et `withdrawn`, définitif. Un plugin tient au plus un digest
+  approuvé, celui qu'utilise une exécution, et un en attente.
+- **Un digest approuvé auparavant, et jamais retiré, sert à nouveau aussitôt** quand le gouverneur y ramène
+  le plugin : deux personnes ont répondu de ces octets-là. Un digest retiré est refusé (409
+  `report-plugin-withdrawn`).
+- **Les quatre yeux sont lus au moment de l'approbation**, comme pour la publication d'un modèle de
+  checklist : un manifeste resté en attente d'avant l'extinction de la règle peut alors être approuvé par
+  celui qui l'a enregistré. La comparaison se fait par identifiant de compte ; la route porte
+  `@RequiresSecurityLead` et le service vérifie à nouveau `canWriteGovernance`. Allumer les quatre yeux
+  demande déjà deux comptes qui écrivent la gouvernance (la règle des modèles de checklist), ce qu'il faut
+  aussi à une approbation : pas de garde propre.
+- **Le nom de la sortie finit par l'extension de son type** : le nom est ce qu'ouvre un destinataire, et un
+  classeur déclaré `.xlsx` nommé `.xlsm` s'ouvrirait comme un classeur à macros.
+- **`export_schema` doit être une majeure que l'installation produit** à l'enregistrement, plutôt qu'un
+  plugin enregistré pour être refusé à chaque exécution.
+- **Tout digest pas encore retiré peut l'être**, y compris un digest en attente, qui ne peut alors plus être
+  approuvé. Retirer le digest approuvé laisse le plugin sans aucun jusqu'à l'approbation d'un nouveau
+  manifeste.
+- **Activer un plugin demande un digest approuvé** (409 `report-plugin-not-approved`) et la garde de
+  l'export : toutes les cibles rangées dans le projet, images comprises. Les activations d'un projet sont
+  listées à tout compte qui le voit en entier — ceux qui en demanderont les rapports ; le registre lui-même
+  relève de la lecture de gouvernance.
+- **La ligne du plugin porte une révision optimiste** : une approbation qui croise une mise à jour échoue en
+  409 `report-plugin-changed` plutôt que d'installer un digest que la mise à jour venait d'écarter.
+- **Chaque 409 nomme sa cause** (`report-plugin-id-taken`, `-four-eyes`, `-not-pending`, `-not-approved`,
+  `-withdrawn`, `-changed`). Les sept opérations d'audit signalent chacune `VECTI-SEC-031`, comme
+  `REPORT_PLUGIN_CHANGED`.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

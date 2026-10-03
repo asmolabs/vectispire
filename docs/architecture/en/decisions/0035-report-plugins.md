@@ -555,6 +555,41 @@ loosely. The code is in `core.reportplugins` (`ProjectExportService`) and
 - **Over a bound, 409 `project-export-too-large`** with the part, the figure and the bound as members; the
   issues are counted before one is read, the JSON written into a buffer that stops at 64 MiB.
 
+## Built in R2 (2026-10-03): where the code says more than §4
+
+Lot R2 — the registry — settled these points §4 left open. The code is in `core.reportplugins`
+(`ReportPluginService`, migration V70) and `common/domain/reportplugins` (`ReportPluginManifest`,
+`ReportMediaType`, `ReportPluginManifestStatus`); what both registries enforce alike (id, name, arguments,
+output name) moved to `common/domain/plugins/ManifestRules`, shared as code with 0017's manifest, whose
+messages and digest are unchanged.
+
+- **A manifest digest is in one of four states**: `pending_approval`, `approved`, `superseded` — pending,
+  and replaced by a later registration before anybody approved it: it never ran and can no longer be
+  approved — and `withdrawn`, final. A plugin holds at most one approved digest, the one a run uses, and
+  one pending.
+- **A digest approved before, and never withdrawn, serves again at once** when the governor sets the
+  plugin back to it: two people have vouched for exactly those bytes. A withdrawn digest is refused (409
+  `report-plugin-withdrawn`).
+- **Four-eyes is read when the approval is given**, as for a checklist template's publication: a manifest
+  left pending from before the rule was switched off may then be approved by its registrant. The
+  comparison is by account id; the route carries `@RequiresSecurityLead` and the service checks
+  `canWriteGovernance` again. Switching four-eyes on already needs two accounts that write governance
+  (the checklist templates' rule), which is what an approval needs too: no guard of its own.
+- **The output's name ends with its media type's extension**: the name is what a recipient opens, and a
+  workbook declared `.xlsx` and named `.xlsm` would open as a macro-enabled one.
+- **`export_schema` must be a major this installation produces** at registration, rather than a plugin
+  registered to be refused at every run.
+- **Any digest not yet withdrawn may be withdrawn**, a pending one included, which can then no longer be
+  approved. Withdrawing the approved digest leaves the plugin with none until a new manifest is approved.
+- **Switching a plugin on needs an approved digest** (409 `report-plugin-not-approved`), and the export's
+  guard: every target filed in the project, images included. The activations of a project are listed to
+  any account that sees it whole — those who will request its reports; the registry itself is governance
+  reading.
+- **The plugin row carries an optimistic revision**: an approval racing an update fails as 409
+  `report-plugin-changed` rather than installing a digest the update had just set aside.
+- **Every 409 names its cause** (`report-plugin-id-taken`, `-four-eyes`, `-not-pending`, `-not-approved`,
+  `-withdrawn`, `-changed`). The seven audit operations each signal `VECTI-SEC-031`, as `REPORT_PLUGIN_CHANGED`.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |
