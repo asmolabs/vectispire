@@ -113,12 +113,25 @@ val integrationTest: SourceSet by sourceSets.creating {
 configurations["integrationTestImplementation"].extendsFrom(configurations.testImplementation.get())
 configurations["integrationTestRuntimeOnly"].extendsFrom(configurations.testRuntimeOnly.get())
 
+/**
+ * **The demonstration report plugin, as the image it ships as** (decision 0035 §6): built by Jib before the
+ * suite and run through `ContainerRunner` in a report plugin's closed shape, with its published manifest's
+ * arguments and bounds. Its classes are on the suite's classpath too, to compare the image's workbook with
+ * the one the same code renders in-process. Test scope: nothing of the plugin reaches this module.
+ */
+dependencies {
+    "integrationTestImplementation"(project(":vectispire-report-demo"))
+}
+
 tasks.register<Test>("integrationTest") {
     description = "Runs the scanner containers against a real Docker daemon."
     group = "verification"
     testClassesDirs = integrationTest.output.classesDirs
     classpath = configurations["integrationTestRuntimeClasspath"] + integrationTest.output + sourceSets.main.get().output
     shouldRunAfter(tasks.test)
+    dependsOn(":vectispire-report-demo:jibDockerBuild")
+    systemProperty("vectispire.reportDemo.image", "vectispire-report-demo:latest")
+    systemProperty("vectispire.reportDemo.dir", rootProject.file("vectispire-report-demo").absolutePath)
 }
 
 /**
