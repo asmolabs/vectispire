@@ -185,9 +185,9 @@ public enum SecurityEventType {
 
     /**
      * A report plugin was asked to run and refused (decision 0035 §4): no verified signer — another signer, none,
-     * or a registry that would not be read — or an export major no longer produced. How a tampered plugin shows
-     * itself; lot R4 adds an output refused for not being what it declared. A run failing for an ordinary reason —
-     * an exit code, a timeout — is audited, not signalled.
+     * or a registry that would not be read — or an export major no longer produced; or it ran and its output was
+     * not what it declared, and was discarded unsigned. How a tampered plugin shows itself. A run failing for an
+     * ordinary reason — an exit code, a timeout — is audited, not signalled.
      */
     REPORT_PLUGIN_REFUSED("VECTI-SEC-033", "Report plugin refused, or its output refused", 6, Outcome.FAILURE),
 
@@ -387,7 +387,9 @@ public enum SecurityEventType {
                     // A read an administrator asked for, like REPORT_REQUESTED and SCAN_TRIGGERED: the standing
                     // access is the connection, signalled VECTI-SEC-034, and a discovery stopped by a page or an
                     // address elsewhere is FORGE_CONNECTION_REFUSED's VECTI-SEC-036.
-                    FORGE_DISCOVERY_REQUESTED -> Optional.empty();
+                    FORGE_DISCOVERY_REQUESTED,
+                    // A download of what was produced, like CHECKLIST_EXPORTED: the export leaving was the event.
+                    REPORT_DOWNLOADED -> Optional.empty();
         };
     }
 }

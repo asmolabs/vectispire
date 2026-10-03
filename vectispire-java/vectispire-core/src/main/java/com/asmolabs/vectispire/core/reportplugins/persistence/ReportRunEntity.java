@@ -11,8 +11,8 @@ import java.time.Instant;
 
 /**
  * One report run (decision 0035 §2): requested for a project, claimed by the control plane's executor, and what
- * came of it — with the provenance the run knows, each a column so that the audit entry, the screen and lot R4's
- * signed statement read one record. {@code activeKey} is set while the run is pending or running and cleared when
+ * came of it — with the provenance the run knows, each a column so that the audit entry, the screen and the
+ * package's signed provenance ({@code ReportProvenance}) read one record. {@code activeKey} is set while the run is pending or running and cleared when
  * it ends: unique, it keeps one run of a plugin per project at a time.
  */
 @Entity
@@ -107,6 +107,15 @@ public class ReportRunEntity {
 
     @Column(name = "product_version", length = 100)
     private String productVersion;
+
+    @Column(name = "output_media_type", length = 120)
+    private String outputMediaType;
+
+    @Column(name = "signing_key_id", length = 64)
+    private String signingKeyId;
+
+    @Column(name = "package_sha256", length = 64)
+    private String packageSha256;
 
     public Long getId() {
         return id;
@@ -348,5 +357,29 @@ public class ReportRunEntity {
 
     public void setProductVersion(String productVersion) {
         this.productVersion = productVersion;
+    }
+
+    public String getOutputMediaType() {
+        return outputMediaType;
+    }
+
+    public void setOutputMediaType(String outputMediaType) {
+        this.outputMediaType = outputMediaType;
+    }
+
+    public String getSigningKeyId() {
+        return signingKeyId;
+    }
+
+    public void setSigningKeyId(String signingKeyId) {
+        this.signingKeyId = signingKeyId;
+    }
+
+    public String getPackageSha256() {
+        return packageSha256;
+    }
+
+    public void setPackageSha256(String packageSha256) {
+        this.packageSha256 = packageSha256;
     }
 }

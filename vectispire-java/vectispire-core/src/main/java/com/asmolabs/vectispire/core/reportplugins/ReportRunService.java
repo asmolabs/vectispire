@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentEntity;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginActivationRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginRepository;
@@ -55,6 +57,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * asking the same plugin for the same project render one export, not two. The insert is what arbitrates, and a
  * failed insert is not proof of a lost race — a lock timeout fails it too — so the committed row is asked before
  * the request is told to wait.
+ *
+ * <h2>The document</h2>
+ *
+ * <p>A produced run's package is downloaded by whoever may read the run — the whole project, as for the runs (§4)
+ * — and the download is audited, {@code REPORT_DOWNLOADED}. Every other answer is a 404 in words: the project's
+ * first, then the run's, then a run that produced nothing, then a document past the evidence window — the run is
+ * visible by then, so saying which is no disclosure.
  */
 @Service
 public class ReportRunService {
@@ -63,6 +72,7 @@ public class ReportRunService {
     static final int LISTED = 200;
 
     private final ReportRunRepository runs;
+    private final ReportDocumentRepository documents;
     private final ReportPluginRepository plugins;
     private final ReportPluginActivationRepository activations;
     private final SolutionQueryService projects;
@@ -73,6 +83,7 @@ public class ReportRunService {
 
     public ReportRunService(
             ReportRunRepository runs,
+            ReportDocumentRepository documents,
             ReportPluginRepository plugins,
             ReportPluginActivationRepository activations,
             SolutionQueryService projects,
@@ -81,6 +92,7 @@ public class ReportRunService {
             Clock clock,
             PlatformTransactionManager transactions) {
         this.runs = runs;
+        this.documents = documents;
         this.plugins = plugins;
         this.activations = activations;
         this.projects = projects;
@@ -177,6 +189,36 @@ public class ReportRunService {
                 .orElseThrow(() -> new NotFoundException("Report run " + runId + " not found."));
     }
 
+    /**
+     * A produced run's package, for a caller who sees the whole project — audited {@code REPORT_DOWNLOADED} once
+     * read.
+     *
+     * @throws NotFoundException "Project not found." for a project absent, hidden or seen only in part; then the
+     *     run's 404, a run that produced no document, or a document purged past the evidence window
+     */
+    public ReportDocumentDownload document(long projectId, long runId, VisibilityService.Allowance allowance,
+            RequestActor actor) {
+        ReportPluginService.requireWholeProject(projects, projectId, allowance);
+        ReportRunEntity run = runs.findByIdAndProjectId(runId, projectId)
+                .orElseThrow(() -> new NotFoundException("Report run " + runId + " not found."));
+        ReportRunState state = ReportRunState.ofStored(run.getState());
+        if (state != ReportRunState.PRODUCED) {
+            throw new NotFoundException("Report run " + runId + " has no document: it is " + state.wireName()
+                    + (state.ended() ? ", and only a produced run has one." : "; its document comes when it produces."));
+        }
+        ReportDocumentEntity document = documents.findById(runId).orElseThrow(() -> new NotFoundException(
+                "The document of report run " + runId + " is no longer kept: its bytes were purged past the evidence "
+                        + "window. The run keeps its digests — output " + run.getOutputSha256() + ", package "
+                        + run.getPackageSha256() + "."));
+
+        audit.record(actor.entry(AuditOperation.REPORT_DOWNLOADED, String.valueOf(runId),
+                "Report downloaded, run " + runId + ": output " + run.getOutputSha256() + ", package "
+                        + document.getSha256() + "; report plugin \"" + run.getPluginId() + "\", project \""
+                        + run.getProjectName() + "\" (" + projectId + ")."));
+        return new ReportDocumentDownload("report-" + runId + "-" + run.getPluginId() + ".zip", document.getSha256(),
+                document.getContent());
+    }
+
     /** What keeps one run of a plugin per project pending or running at a time. */
     public static String activeKey(String pluginId, long projectId) {
         return pluginId + "@" + projectId;
@@ -199,6 +241,6 @@ public class ReportRunService {
                 run.getFinishedAt(), run.getManifestDigest(), run.getImageDigest(), run.getSignerIdentity(),
                 run.getSignerIssuer(), run.getSignerKeySha256(), run.getExportSchemaVersion(), run.getExportSha256(),
                 run.getExportSize(), run.getExitCode(), run.getOutputSize(), run.getOutputSha256(),
-                run.getProductVersion());
+                run.getProductVersion(), run.getOutputMediaType(), run.getSigningKeyId(), run.getPackageSha256());
     }
 }

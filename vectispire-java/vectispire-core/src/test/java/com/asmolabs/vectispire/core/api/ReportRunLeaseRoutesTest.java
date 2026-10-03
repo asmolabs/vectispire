@@ -21,7 +21,6 @@ import com.asmolabs.vectispire.core.reportplugins.internal.ReportRunSweepTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportWorker;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -52,7 +51,8 @@ import org.springframework.test.web.servlet.ResultActions;
 class ReportRunLeaseRoutesTest extends ApiTestBase {
 
     private static final Duration LEASE = Duration.ofSeconds(3);
-    private static final byte[] DOCUMENT = "summary, rendered".getBytes(StandardCharsets.UTF_8);
+    /** A workbook, as the manifest declares: the run must pass the output check to produce. */
+    private static final byte[] DOCUMENT = ReportRunsRoutesTest.DOCUMENT;
 
     @MockitoBean
     private ReportExecutor executor;

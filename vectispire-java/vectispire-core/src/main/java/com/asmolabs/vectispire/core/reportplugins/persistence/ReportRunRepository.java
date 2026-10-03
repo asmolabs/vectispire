@@ -80,7 +80,9 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
                    r.signerIdentity = :signerIdentity, r.signerIssuer = :signerIssuer,
                    r.signerKeySha256 = :signerKeySha256, r.exportSchemaVersion = :exportSchemaVersion,
                    r.exportSha256 = :exportSha256, r.exportSize = :exportSize, r.exitCode = :exitCode,
-                   r.outputSize = :outputSize, r.outputSha256 = :outputSha256, r.productVersion = :productVersion
+                   r.outputSize = :outputSize, r.outputSha256 = :outputSha256, r.productVersion = :productVersion,
+                   r.outputMediaType = :outputMediaType, r.signingKeyId = :signingKeyId,
+                   r.packageSha256 = :packageSha256
              where r.id = :id and r.state = :running and r.claimedBy = :owner""")
     int finish(
             @Param("id") long id,
@@ -103,7 +105,10 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
             @Param("exitCode") Integer exitCode,
             @Param("outputSize") Long outputSize,
             @Param("outputSha256") String outputSha256,
-            @Param("productVersion") String productVersion);
+            @Param("productVersion") String productVersion,
+            @Param("outputMediaType") String outputMediaType,
+            @Param("signingKeyId") String signingKeyId,
+            @Param("packageSha256") String packageSha256);
 
     /**
      * Fails a run whose lease lapsed — and only while it still has: an executor that came back and finished it

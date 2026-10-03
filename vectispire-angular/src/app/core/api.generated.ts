@@ -2842,6 +2842,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/reports/{runId}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download project report document
+         * @description A produced run's package, a zip: the plugin's file as it wrote it, once checked against the media type its manifest declares; <file>.sig, its detached signature by the platform's key, to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub; and provenance.json, an in-toto statement whose subject is the file's SHA-256 — run, project, requester, plugin, manifest and image digests, the verified signer, the export's schema and SHA-256, the product version, the instants and the signing key — in a DSSE envelope signed by the same key, to check with cosign verify-blob-attestation --key --type https://vectispire.dev/report-provenance/v1. The signature states provenance, not that the document renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For a caller who sees the whole project; 404 "Project not found." otherwise, then 404 for a run that is not the project's, one that produced no document, or a document purged past the evidence window. Audited REPORT_DOWNLOADED.
+         */
+        get: operations["document"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quality/overview": {
         parameters: {
             query?: never;
@@ -7161,22 +7181,25 @@ export interface components {
             id?: number;
             imageDigest?: string;
             manifestDigest?: string;
+            outputMediaType?: string;
             outputSha256?: string;
             /** Format: int64 */
             outputSize?: number;
+            packageSha256?: string;
             pluginId?: string;
             productVersion?: string;
             /** Format: int64 */
             projectId?: number;
             projectName?: string;
             /** @enum {string} */
-            reason?: "unsigned" | "signature_unverified" | "registry_authentication_required" | "export_schema_unavailable" | "exit_code" | "timeout" | "output_full" | "output_missing" | "output_not_regular" | "export_too_large" | "requester_not_allowed" | "plugin_unavailable" | "executor_lost" | "executor_unavailable" | "executor_error";
+            reason?: "unsigned" | "signature_unverified" | "registry_authentication_required" | "export_schema_unavailable" | "output_refused" | "exit_code" | "timeout" | "output_full" | "output_missing" | "output_not_regular" | "export_too_large" | "requester_not_allowed" | "plugin_unavailable" | "executor_lost" | "executor_unavailable" | "executor_error";
             /** Format: date-time */
             requestedAt?: string;
             requestedBy?: string;
             signerIdentity?: string;
             signerIssuer?: string;
             signerKeySha256?: string;
+            signingKeyId?: string;
             /** Format: date-time */
             startedAt?: string;
             /** @enum {string} */
@@ -12683,6 +12706,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ReportRunView"];
+                };
+            };
+        };
+    };
+    document: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                runId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The package, application/zip */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
                 };
             };
         };

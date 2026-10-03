@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportExportCeiling;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentEntity;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportRunEntity;
@@ -32,8 +34,9 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 /**
  * The report runs' queue on a real engine (decision 0035 §2, lot R3, V75): the conditional take two executors
  * race on, the active key that keeps one run of a plugin per project — a unique index that must admit any number
- * of ended runs, whose key is null —, the owner's finish, the lapsed lease, and an export's bytes kept, purged by
- * age and by project through a subquery, and stored whole at the run's bound — which MySQL's packet lowers.
+ * of ended runs, whose key is null —, the owner's finish with every column the provenance reads (V77 added three),
+ * the lapsed lease, an export's and a document's bytes kept, purged by age and by project through a subquery, and
+ * an export stored whole at the run's bound — which MySQL's packet lowers.
  *
  * <p>Each is a statement an engine could answer differently: a unique index counting nulls as equal would refuse
  * the second report a project ever had, and a {@code delete … where run_id in (select …)} is what MySQL checks.
@@ -73,8 +76,12 @@ class ReportRunQueueIntegrationTest {
     @Autowired
     private ReportExportCeiling ceiling;
 
+    @Autowired
+    private ReportDocumentRepository documents;
+
     @BeforeEach
     void empty() {
+        documents.deleteAll();
         exports.deleteAll();
         runs.deleteAll();
     }
@@ -152,13 +159,16 @@ class ReportRunQueueIntegrationTest {
         assertThat(produced.getState()).isEqualTo("produced");
         assertThat(produced.getExportSha256()).isEqualTo("e".repeat(64));
         assertThat(produced.getSignerIdentity()).hasSize(500);
+        assertThat(produced.getOutputMediaType()).hasSize(120);
+        assertThat(produced.getSigningKeyId()).isEqualTo("k".repeat(64));
+        assertThat(produced.getPackageSha256()).isEqualTo("p".repeat(64));
         assertThat(produced.getActiveKey()).isNull();
     }
 
     private int finish(long id, String owner) {
         return runs.finish(id, RUNNING, owner, "produced", null, null, AT.plusSeconds(120), "Checkout", AT.plusSeconds(100),
                 "d".repeat(64), "sha256:" + "a".repeat(64), "i".repeat(500), "https://issuer.example", null, "1.0",
-                "e".repeat(64), 12L, 0, 34L, "f".repeat(64), "0.9.0");
+                "e".repeat(64), 12L, 0, 34L, "f".repeat(64), "0.9.0", "m".repeat(120), "k".repeat(64), "p".repeat(64));
     }
 
     @Test
@@ -219,6 +229,38 @@ class ReportRunQueueIntegrationTest {
             content[i] = pattern[i % pattern.length];
         }
         return content;
+    }
+
+    @Test
+    @DisplayName("a document's bytes come back whole, and go by age and with their project's runs")
+    void documentsKeptAndPurged() {
+        long kept = run(1, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+        long old = run(1, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+        long other = run(2, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+        // Larger than a MySQL blob's 64 KiB and a medium blob's 16 MiB: the column must hold an output at its ceiling.
+        byte[] content = new byte[20 * 1024 * 1024];
+        Arrays.fill(content, (byte) 'P');
+        document(kept, content, AT);
+        document(old, new byte[] {'P', 'K'}, AT.minusSeconds(86_400));
+        document(other, new byte[] {'P', 'K'}, AT);
+
+        assertThat(documents.findById(kept).orElseThrow().getContent()).isEqualTo(content);
+        assertThat(documents.deleteCreatedBefore(AT.minusSeconds(3600))).isOne();
+        assertThat(documents.existsById(old)).isFalse();
+        assertThat(runs.existsById(old)).as("the run and its digests stay").isTrue();
+
+        assertThat(documents.deleteByProject(1)).isOne();
+        assertThat(documents.existsById(other)).isTrue();
+    }
+
+    private void document(long runId, byte[] content, Instant at) {
+        ReportDocumentEntity document = new ReportDocumentEntity();
+        document.setRunId(runId);
+        document.setContent(content);
+        document.setSha256("0".repeat(64));
+        document.setSizeBytes((long) content.length);
+        document.setCreatedAt(at);
+        documents.saveAndFlush(document);
     }
 
     private void export(long runId, byte[] content, Instant at) {

@@ -8,8 +8,11 @@ import com.asmolabs.vectispire.common.domain.plugins.ImageDigest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportBounds;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportOutputCheck;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportPackage;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifestStatus;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportProvenance;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunReason;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.common.scanning.scanners.ReportPluginRenderer;
@@ -21,6 +24,8 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.reportplugins.ProjectExportService;
 import com.asmolabs.vectispire.core.reportplugins.ProjectExportTooLargeException;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentEntity;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginActivationRepository;
@@ -71,7 +76,17 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Every write names the run's state and its claimant, so an executor whose lease lapsed — its run failed as lost
  * meanwhile — writes nothing; its export is not stored either, in the same transaction. Audited after the commit:
  * {@code REPORT_PRODUCED}, {@code REPORT_FAILED}, or {@code REPORT_REFUSED}, which signals {@code VECTI-SEC-033}.
- * The output's bytes are not kept by this lot: their size and digest are, and lot R4 checks, signs and stores them.
+ *
+ * <h2>The output, checked, then signed</h2>
+ *
+ * <p>The file the plugin wrote is held to its manifest's media type on its bytes ({@link ReportOutputCheck}, 0035
+ * §3) before anything is signed. A file that is not what was declared is <b>refused</b>, {@code output_refused} —
+ * not failed: a document disguised as another is how a tampered plugin shows itself, and a refusal is what tells
+ * the SOC ({@code VECTI-SEC-033}). Its bytes are discarded; the run keeps their size and digest, and the signer
+ * that vouched for the image, so that a file found later can be matched to the run that refused it. A file that
+ * passes is signed and packaged with its provenance ({@link ReportPackager}) — outside the transaction — and the
+ * package is stored with the run's end, in the same transaction as the export: a run recorded produced always has
+ * its document, and a run that is no longer this executor's stores neither.
  */
 @Component
 public class ReportExecution {
@@ -83,6 +98,7 @@ public class ReportExecution {
 
     private final ReportRunRepository runs;
     private final ReportExportRepository exports;
+    private final ReportDocumentRepository documents;
     private final ReportPluginRepository plugins;
     private final ReportPluginManifestRepository manifests;
     private final ReportPluginActivationRepository activations;
@@ -91,6 +107,7 @@ public class ReportExecution {
     private final VisibilityService visibility;
     private final ReportExecutor executor;
     private final ReportExportCeiling ceiling;
+    private final ReportPackager packager;
     private final ProductVersion productVersion;
     private final AuditLogService audit;
     private final ObjectMapper json;
@@ -100,6 +117,7 @@ public class ReportExecution {
     public ReportExecution(
             ReportRunRepository runs,
             ReportExportRepository exports,
+            ReportDocumentRepository documents,
             ReportPluginRepository plugins,
             ReportPluginManifestRepository manifests,
             ReportPluginActivationRepository activations,
@@ -108,6 +126,7 @@ public class ReportExecution {
             VisibilityService visibility,
             ObjectProvider<ReportExecutor> executor,
             ReportExportCeiling ceiling,
+            ReportPackager packager,
             ProductVersion productVersion,
             AuditLogService audit,
             ObjectMapper json,
@@ -115,6 +134,7 @@ public class ReportExecution {
             PlatformTransactionManager transactions) {
         this.runs = runs;
         this.exports = exports;
+        this.documents = documents;
         this.plugins = plugins;
         this.manifests = manifests;
         this.activations = activations;
@@ -123,6 +143,7 @@ public class ReportExecution {
         this.visibility = visibility;
         this.executor = executor.getIfAvailable();
         this.ceiling = ceiling;
+        this.packager = packager;
         this.productVersion = productVersion;
         this.audit = audit;
         this.json = json;
@@ -133,21 +154,22 @@ public class ReportExecution {
     /** What the run learnt on its way, whatever became of it: what its row records. */
     private record Learnt(
             String projectName,
+            ReportPluginManifest manifest,
             String manifestDigest,
             String imageDigest,
             PluginSignature signer,
             Instant exportedAt,
             ProjectExportService.RunExport export) {
 
-        static final Learnt NOTHING = new Learnt(null, null, null, null, null, null);
+        static final Learnt NOTHING = new Learnt(null, null, null, null, null, null, null);
 
         Learnt withManifest(String digest, ReportPluginManifest manifest) {
-            return new Learnt(projectName, digest, ImageDigest.parse(manifest.image()).digest(), manifest.signature(),
-                    exportedAt, export);
+            return new Learnt(projectName, manifest, digest, ImageDigest.parse(manifest.image()).digest(),
+                    manifest.signature(), exportedAt, export);
         }
 
         Learnt withExport(Instant at, ProjectExportService.RunExport built) {
-            return new Learnt(built.projectName(), manifestDigest, imageDigest, signer, at, built);
+            return new Learnt(built.projectName(), manifest, manifestDigest, imageDigest, signer, at, built);
         }
     }
 
@@ -275,8 +297,9 @@ public class ReportExecution {
     }
 
     /**
-     * Records the outcome — the run's row, and for a produced run its export — if {@code owner} still holds the
-     * run, then audits it. A run that is no longer this owner's was decided without it: nothing is written.
+     * Records the outcome — the run's row, and for a produced run its export and its package — if {@code owner}
+     * still holds the run, then audits it. A run that is no longer this owner's was decided without it: nothing is
+     * written. A produced output is checked here, and signed and packaged once it passes.
      */
     private void finish(ReportRunEntity run, String owner, RequestActor requester, Learnt learnt,
             ReportPluginRenderer.Outcome outcome) {
@@ -284,17 +307,31 @@ public class ReportExecution {
         ReportRunState state;
         ReportRunReason reason;
         String detail;
-        Long outputSize = null;
-        String outputSha256 = null;
-        Integer exitCode = null;
+        // What the plugin wrote, when it ran to its end: recorded whether the file is kept or refused.
+        byte[] output = null;
+        String mediaType = null;
+        String signingKeyId = null;
+        ReportPackage.Packed packed = null;
         switch (outcome) {
             case ReportPluginRenderer.Outcome.Produced produced -> {
-                state = ReportRunState.PRODUCED;
-                reason = null;
-                detail = null;
-                outputSize = (long) produced.output().length;
-                outputSha256 = Digests.sha256Hex(produced.output());
-                exitCode = 0;
+                output = produced.output();
+                ReportPluginManifest manifest = learnt.manifest();
+                mediaType = manifest.mediaType().wireName();
+                switch (ReportOutputCheck.check(manifest.mediaType(), output, manifest.maxOutputBytes())) {
+                    case ReportOutputCheck.Verdict.Refused refusedOutput -> {
+                        state = ReportRunState.REFUSED;
+                        reason = ReportRunReason.OUTPUT_REFUSED;
+                        detail = bounded(refusedOutput.why() + " Nothing was signed, and the file was discarded.");
+                    }
+                    case ReportOutputCheck.Verdict.Accepted accepted -> {
+                        state = ReportRunState.PRODUCED;
+                        reason = null;
+                        detail = null;
+                        signingKeyId = packager.keyId();
+                        packed = packager.pack(manifest.output(), output,
+                                provenance(run, learnt, output, now, signingKeyId));
+                    }
+                }
             }
             case ReportPluginRenderer.Outcome.Failed failed -> {
                 state = ReportRunState.FAILED;
@@ -307,22 +344,27 @@ public class ReportExecution {
                 detail = bounded(refused.detail());
             }
         }
-        PluginSignature signer = state == ReportRunState.PRODUCED ? learnt.signer() : null;
+        // The signer cosign verified, once the plugin ran: a refused output names who vouched for the image too.
+        PluginSignature signer = output != null ? learnt.signer() : null;
         ProjectExportService.RunExport export = learnt.export();
-        Long finalOutputSize = outputSize;
-        String finalOutputSha256 = outputSha256;
-        Integer finalExitCode = exitCode;
+        Long outputSize = output == null ? null : (long) output.length;
+        String outputSha256 = output == null ? null : Digests.sha256Hex(output);
+        Integer exitCode = output == null ? null : 0;
+        String finalMediaType = mediaType;
+        String finalSigningKeyId = signingKeyId;
+        ReportPackage.Packed finalPacked = packed;
         boolean recorded = Boolean.TRUE.equals(transactions.execute(status -> {
             int ended = runs.finish(run.getId(), ReportRunState.RUNNING.wireName(), owner, state.wireName(),
                     reason == null ? null : reason.wireName(), detail, now,
                     export == null ? run.getProjectName() : export.projectName(), learnt.exportedAt(),
                     learnt.manifestDigest(), learnt.imageDigest(),
                     signer == null ? null : signer.identity(), signer == null ? null : signer.issuer(),
-                    signer == null || signer.publicKey() == null ? null : Digests.sha256Hex(signer.publicKey()),
+                    signerKeySha256(signer),
                     export == null ? null : ProjectExportSchema.VERSION,
                     export == null ? null : export.sha256(),
                     export == null ? null : (long) export.json().length,
-                    finalExitCode, finalOutputSize, finalOutputSha256, productVersion.get());
+                    exitCode, outputSize, outputSha256, productVersion.get(),
+                    finalMediaType, finalSigningKeyId, finalPacked == null ? null : finalPacked.sha256());
             if (ended != 1) {
                 return false;
             }
@@ -334,6 +376,13 @@ public class ReportExecution {
                 kept.setSizeBytes((long) export.json().length);
                 kept.setCreatedAt(now);
                 exports.save(kept);
+                ReportDocumentEntity document = new ReportDocumentEntity();
+                document.setRunId(run.getId());
+                document.setContent(finalPacked.content());
+                document.setSha256(finalPacked.sha256());
+                document.setSizeBytes((long) finalPacked.content().length);
+                document.setCreatedAt(now);
+                documents.save(document);
             }
             return true;
         }));
@@ -346,20 +395,48 @@ public class ReportExecution {
         String about = "Report run " + run.getId() + " of report plugin \"" + run.getPluginId() + "\" for project "
                 + run.getProjectId();
         switch (state) {
-            // The three digests first: the description is bounded where it is stored, and they are what a reader
-            // matches a document, its input and its code against.
+            // The digests first: the description is bounded where it is stored, and they are what a reader
+            // matches a document, its package, its input and its code against.
             case PRODUCED -> audit.record(requester.entry(AuditOperation.REPORT_PRODUCED, String.valueOf(run.getId()),
-                    "Report run " + run.getId() + " produced: output " + finalOutputSha256 + ", manifest "
-                            + learnt.manifestDigest() + ", export " + export.sha256() + "; report plugin \""
-                            + run.getPluginId() + "\", project " + run.getProjectId() + ", image " + learnt.imageDigest()
-                            + ", " + finalOutputSize + " bytes, not yet checked nor signed."));
+                    "Report run " + run.getId() + " produced: output " + outputSha256 + ", package "
+                            + finalPacked.sha256() + ", manifest " + learnt.manifestDigest() + ", export "
+                            + export.sha256() + "; report plugin \"" + run.getPluginId() + "\", project "
+                            + run.getProjectId() + ", image " + learnt.imageDigest() + ", " + outputSize + " bytes of "
+                            + finalMediaType + ", checked and signed with key " + finalSigningKeyId + "."));
             case FAILED -> audit.record(requester.entry(AuditOperation.REPORT_FAILED, String.valueOf(run.getId()),
                     about + " failed, " + reason.wireName() + ": " + detail));
             case REFUSED -> audit.record(requester.entry(AuditOperation.REPORT_REFUSED, String.valueOf(run.getId()),
-                    about + " refused, " + reason.wireName() + (learnt.manifestDigest() == null ? "" : ", manifest "
-                            + learnt.manifestDigest()) + ": " + detail));
+                    about + " refused, " + reason.wireName() + (outputSha256 == null ? "" : ", output " + outputSha256)
+                            + (learnt.manifestDigest() == null ? "" : ", manifest " + learnt.manifestDigest()) + ": "
+                            + detail));
             default -> throw new IllegalStateException("A run ends produced, failed or refused, not " + state + ".");
         }
+    }
+
+    /** What the package states of the run, every field one the run records (decision 0035 §3). */
+    private ReportProvenance provenance(ReportRunEntity run, Learnt learnt, byte[] output, Instant finishedAt,
+            String signingKeyId) {
+        ReportPluginManifest manifest = learnt.manifest();
+        ProjectExportService.RunExport export = learnt.export();
+        PluginSignature signer = learnt.signer();
+        return ReportProvenance.of(new ReportProvenance.Predicate(
+                new ReportProvenance.Run(run.getId(), run.getRequestedAt(), run.getStartedAt(), learnt.exportedAt(),
+                        finishedAt),
+                new ReportProvenance.Project(run.getProjectId(), export.projectName()),
+                new ReportProvenance.Requester(run.getRequestedById(), export.requester().displayName()),
+                new ReportProvenance.Plugin(run.getPluginId(), learnt.manifestDigest(), manifest.image(),
+                        learnt.imageDigest(), new ReportProvenance.Signer(signer.identity(), signer.issuer(),
+                                signerKeySha256(signer))),
+                new ReportProvenance.Export(ProjectExportSchema.NAME, ProjectExportSchema.VERSION, export.exportId(),
+                        export.sha256(), export.json().length),
+                new ReportProvenance.Output(manifest.output(), manifest.mediaType().wireName(),
+                        Digests.sha256Hex(output), output.length),
+                new ReportProvenance.Producer(productVersion.get(), signingKeyId),
+                ReportProvenance.CLAIM));
+    }
+
+    private static String signerKeySha256(PluginSignature signer) {
+        return signer == null || signer.publicKey() == null ? null : Digests.sha256Hex(signer.publicKey());
     }
 
     private static String bounded(String detail) {

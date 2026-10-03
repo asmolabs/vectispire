@@ -113,6 +113,7 @@ const OPERATION_KEYS: Record<string, string> = {
     REPORT_PRODUCED: 'audit_log.operations.report_produced',
     REPORT_FAILED: 'audit_log.operations.report_failed',
     REPORT_REFUSED: 'audit_log.operations.report_refused',
+    REPORT_DOWNLOADED: 'audit_log.operations.report_downloaded',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',

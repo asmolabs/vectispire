@@ -14,7 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.checklists.DocumentZip;
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunReason;
@@ -27,18 +30,26 @@ import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportExecution;
-import com.asmolabs.vectispire.core.reportplugins.internal.ReportExportRetentionTask;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportEvidenceRetentionTask;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportQueue;
 import com.asmolabs.vectispire.core.reportplugins.internal.ReportWorker;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -67,7 +78,33 @@ class ReportRunsRoutesTest extends ApiTestBase {
     static final String IMAGE = "registry.example.internal/reports/summary@sha256:" + "a".repeat(64);
     static final String OTHER_IMAGE = "registry.example.internal/reports/summary@sha256:" + "b".repeat(64);
     static final String PROJECT_NOT_FOUND = "Project not found.";
-    static final byte[] DOCUMENT = "summary, rendered".getBytes(StandardCharsets.UTF_8);
+    /** A one-sheet workbook: what the manifest declares, so that it passes the check. */
+    static final byte[] DOCUMENT = workbook(false);
+
+    /** The same workbook carrying a VBA project: a macro-enabled package under the declared {@code .xlsx}. */
+    static final byte[] DISGUISED = workbook(true);
+
+    static byte[] workbook(boolean withMacro) {
+        String relationships = "http://schemas.openxmlformats.org/package/2006/relationships";
+        LinkedHashMap<String, DocumentZip.Entry> parts = new LinkedHashMap<>();
+        parts.put("[Content_Types].xml", DocumentZip.Entry.of(("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+                + "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                + "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument."
+                + "spreadsheetml.sheet.main+xml\"/></Types>").getBytes(StandardCharsets.UTF_8)));
+        parts.put("_rels/.rels", DocumentZip.Entry.of(("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<Relationships xmlns=\"" + relationships + "\"><Relationship Id=\"rId1\" "
+                + "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" "
+                + "Target=\"xl/workbook.xml\"/></Relationships>").getBytes(StandardCharsets.UTF_8)));
+        parts.put("xl/workbook.xml", DocumentZip.Entry.of(("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets/></workbook>")
+                .getBytes(StandardCharsets.UTF_8)));
+        if (withMacro) {
+            parts.put("xl/vbaProject.bin", DocumentZip.Entry.of(new byte[] {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0}));
+        }
+        return DocumentZip.of(parts);
+    }
 
     @MockitoBean
     private ReportExecutor executor;
@@ -88,6 +125,9 @@ class ReportRunsRoutesTest extends ApiTestBase {
     private ReportExportRepository exports;
 
     @Autowired
+    private ReportDocumentRepository documents;
+
+    @Autowired
     private ReportWorker worker;
 
     @Autowired
@@ -97,7 +137,7 @@ class ReportRunsRoutesTest extends ApiTestBase {
     private ReportExecution execution;
 
     @Autowired
-    private ReportExportRetentionTask retention;
+    private ReportEvidenceRetentionTask retention;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -496,6 +536,199 @@ class ReportRunsRoutesTest extends ApiTestBase {
                     .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("name", "Ledger")))));
             assertThat(detailOf(mvc.perform(authenticated(get("/api/v1/projects/" + other + "/reports/" + runId), asAdmin()))
                     .andExpect(status().isNotFound()).andReturn())).isEqualTo("Report run " + runId + " not found.");
+        }
+    }
+
+    @Nested
+    @DisplayName("the document")
+    class Documents {
+
+        private ResultActions download(String token, long projectId, long runId) throws Exception {
+            return mvc.perform(authenticated(get("/api/v1/projects/" + projectId + "/reports/" + runId + "/document"),
+                    token));
+        }
+
+        private PublicKey publishedKey() throws Exception {
+            return CosignSigner.parsePublicKey(mvc.perform(get("/api/v1/crypto/public-key.pub"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        }
+
+        @Test
+        @DisplayName("produced: the file, its signature by the published key, and the signed provenance of every recorded field")
+        void package_() throws Exception {
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            JsonNode ended = run(runId);
+            assertThat(ended.at("/state").asText()).isEqualTo("produced");
+
+            var response = download(asAuditor(), project, runId).andExpect(status().isOk()).andReturn().getResponse();
+            assertThat(response.getContentType()).isEqualTo("application/zip");
+            assertThat(response.getHeader("Content-Disposition"))
+                    .startsWith("attachment").contains("report-" + runId + "-summary.zip");
+            assertThat(response.getHeaders("X-Content-Type-Options")).contains("nosniff");
+            assertThat(response.getHeaders("Content-Security-Policy")).contains("sandbox");
+
+            byte[] content = response.getContentAsByteArray();
+            Map<String, byte[]> entries = unzip(content);
+            assertThat(entries.keySet()).containsExactly("summary.xlsx", "summary.xlsx.sig", "provenance.json");
+            assertThat(entries.get("summary.xlsx")).as("the plugin's file, byte for byte").isEqualTo(DOCUMENT);
+
+            PublicKey key = publishedKey();
+            assertThat(CosignSigner.verify(DOCUMENT, new String(entries.get("summary.xlsx.sig"), StandardCharsets.US_ASCII),
+                    key)).as("the detached signature verifies against the published key").isTrue();
+            DsseEnvelope envelope = json.readValue(entries.get("provenance.json"), DsseEnvelope.class);
+            assertThat(envelope.payloadType()).isEqualTo("application/vnd.in-toto+json");
+            assertThat(CosignSigner.verifyDsse(envelope, key)).as("the provenance's envelope too").isTrue();
+
+            JsonNode statement = json.readTree(Base64.getDecoder().decode(envelope.payload()));
+            assertThat(statement.at("/_type").asText()).isEqualTo("https://in-toto.io/Statement/v1");
+            assertThat(statement.at("/predicateType").asText()).isEqualTo("https://vectispire.dev/report-provenance/v1");
+            assertThat(statement.at("/subject/0/name").asText()).isEqualTo("summary.xlsx");
+            assertThat(statement.at("/subject/0/digest/sha256").asText()).isEqualTo(Digests.sha256Hex(DOCUMENT));
+            JsonNode predicate = statement.at("/predicate");
+            assertThat(predicate.at("/run/id").asLong()).isEqualTo(runId);
+            for (String instant : List.of("requestedAt", "startedAt", "exportedAt", "finishedAt")) {
+                assertThat(Instant.parse(predicate.at("/run/" + instant).asText())).as(instant)
+                        .isEqualTo(Instant.parse(ended.at("/" + instant).asText()));
+            }
+            assertThat(predicate.at("/project/id").asLong()).isEqualTo(project);
+            assertThat(predicate.at("/project/name").asText()).isEqualTo("Checkout");
+            assertThat(predicate.at("/requester/accountId").asLong()).isPositive();
+            assertThat(predicate.at("/requester").has("displayName")).isTrue();
+            assertThat(predicate.at("/plugin/id").asText()).isEqualTo("summary");
+            assertThat(predicate.at("/plugin/manifestDigest").asText()).isEqualTo(approvedDigest());
+            assertThat(predicate.at("/plugin/image").asText()).isEqualTo(IMAGE);
+            assertThat(predicate.at("/plugin/imageDigest").asText()).isEqualTo("sha256:" + "a".repeat(64));
+            assertThat(predicate.at("/plugin/signer/identity").asText())
+                    .isEqualTo("https://ci.example.internal/reports/summary/release@refs/tags/v1");
+            assertThat(predicate.at("/plugin/signer/issuer").asText()).isEqualTo("https://ci.example.internal/oidc");
+            assertThat(predicate.at("/export/schema").asText()).isEqualTo("vectispire-project-export");
+            assertThat(predicate.at("/export/schemaVersion").asText()).isEqualTo("1.0");
+            assertThat(predicate.at("/export/sha256").asText()).isEqualTo(ended.at("/exportSha256").asText())
+                    .isEqualTo(Digests.sha256Hex(handed.get()));
+            assertThat(predicate.at("/export/id").asText()).isEqualTo(json.readTree(handed.get()).at("/export/id").asText());
+            assertThat(predicate.at("/output/mediaType").asText())
+                    .isEqualTo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            assertThat(predicate.at("/output/size").asLong()).isEqualTo(DOCUMENT.length);
+            assertThat(predicate.at("/producer/productVersion").asText()).isEqualTo(ended.at("/productVersion").asText());
+            assertThat(predicate.at("/producer/signingKeyId").asText()).isEqualTo(CosignSigner.computeKeyId(key))
+                    .isEqualTo(ended.at("/signingKeyId").asText());
+            assertThat(predicate.at("/claim").asText()).contains("does not claim the document is a true rendering");
+
+            assertThat(ended.at("/packageSha256").asText()).isEqualTo(Digests.sha256Hex(content));
+            assertThat(ended.at("/outputMediaType").asText())
+                    .isEqualTo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            assertThat(entries(AuditOperation.REPORT_PRODUCED)).singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains(Digests.sha256Hex(content)));
+            assertThat(entries(AuditOperation.REPORT_DOWNLOADED)).singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains(Digests.sha256Hex(content))
+                            .contains(Digests.sha256Hex(DOCUMENT)));
+        }
+
+        @Test
+        @DisplayName("an output that is not what it declares is refused, discarded unsigned, and signalled VECTI-SEC-033")
+        void refusedOutput() throws Exception {
+            siem();
+            when(executor.render(any(), any())).thenReturn(new ReportPluginRenderer.Outcome.Produced(DISGUISED));
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+
+            JsonNode ended = run(runId);
+            assertThat(ended.at("/state").asText()).isEqualTo("refused");
+            assertThat(ended.at("/reason").asText()).isEqualTo("output_refused");
+            assertThat(ended.at("/detail").asText()).contains("VBA project").contains("discarded");
+            assertThat(ended.at("/outputSha256").asText()).as("which file was refused").isEqualTo(Digests.sha256Hex(DISGUISED));
+            assertThat(ended.at("/signerIdentity").asText()).as("who vouched for the image that wrote it")
+                    .isEqualTo("https://ci.example.internal/reports/summary/release@refs/tags/v1");
+            assertThat(ended.at("/packageSha256").isNull()).isTrue();
+            assertThat(ended.at("/signingKeyId").isNull()).as("nothing was signed").isTrue();
+            assertThat(documents.existsById(runId)).isFalse();
+            assertThat(exports.existsById(runId)).isFalse();
+
+            assertThat(entries(AuditOperation.PROJECT_EXPORTED)).as("the export did reach the plugin").hasSize(1);
+            assertThat(entries(AuditOperation.REPORT_REFUSED)).singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains("output_refused")
+                            .contains(Digests.sha256Hex(DISGUISED)));
+            assertThat(entries(AuditOperation.REPORT_PRODUCED)).isEmpty();
+            assertThat(siemEvents()).contains("REPORT_PLUGIN_REFUSED", "PROJECT_EXPORTED");
+            assertThat(detailOf(download(asAdmin(), project, runId).andExpect(status().isNotFound()).andReturn()))
+                    .isEqualTo("Report run " + runId + " has no document: it is refused, and only a produced run has one.");
+        }
+
+        @Test
+        @DisplayName("who may read the run may download it; a project not seen whole is absent, in the same words")
+        void authorization() throws Exception {
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            assertThat(detailOf(download(asAdmin(), project, runId).andExpect(status().isNotFound()).andReturn()))
+                    .isEqualTo("Report run " + runId + " has no document: it is pending; its document comes when it "
+                            + "produces.");
+            worker.drain();
+
+            download(asReader(), project, runId).andExpect(status().isOk());
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+            assertThat(detailOf(download(asReader(), project, runId).andExpect(status().isNotFound()).andReturn()))
+                    .isEqualTo(PROJECT_NOT_FOUND);
+            assertThat(detailOf(download(asReader(), project + 100_000, runId).andExpect(status().isNotFound())
+                    .andReturn())).isEqualTo(PROJECT_NOT_FOUND);
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.EVERYONE.wireName());
+
+            long solution = idOf(mvc.perform(authenticated(post("/api/v1/solutions"), asAdmin())
+                    .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("name", "Other " + System.nanoTime())))));
+            long other = idOf(mvc.perform(authenticated(post("/api/v1/solutions/" + solution + "/projects"), asAdmin())
+                    .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("name", "Ledger")))));
+            assertThat(detailOf(download(asAdmin(), other, runId).andExpect(status().isNotFound()).andReturn()))
+                    .as("a run is downloaded through its own project only")
+                    .isEqualTo("Report run " + runId + " not found.");
+
+            String exporter = json.readTree(mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("name", "exporter", "scopes", List.of("export")))))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("secret").asText();
+            download(exporter, project, runId).andExpect(status().isForbidden());
+
+            assertThat(entries(AuditOperation.REPORT_DOWNLOADED)).as("only the one download that was served")
+                    .hasSize(1);
+        }
+
+        @Test
+        @DisplayName("the evidence window takes the document's bytes, never the run nor its digests; the download says so")
+        void retention() throws Exception {
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            String packageSha256 = run(runId).at("/packageSha256").asText();
+
+            ReportRunsRoutesTest.this.retention.run();
+            assertThat(documents.existsById(runId)).as("inside the window").isTrue();
+
+            jdbc.update("update t_report_document set created_at = ? where run_id = ?",
+                    Timestamp.from(Instant.now().minusSeconds(401L * 86_400)), runId);
+            ReportRunsRoutesTest.this.retention.run();
+            assertThat(documents.existsById(runId)).isFalse();
+            assertThat(exports.existsById(runId)).as("the export has its own date").isTrue();
+            assertThat(run(runId).at("/packageSha256").asText()).isEqualTo(packageSha256);
+            assertThat(detailOf(download(asAdmin(), project, runId).andExpect(status().isNotFound()).andReturn()))
+                    .contains("no longer kept").contains(packageSha256);
+        }
+
+        @Test
+        @DisplayName("deleting the project takes its documents, in the same transaction")
+        void projectDeleted() throws Exception {
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            assertThat(documents.existsById(runId)).isTrue();
+            mvc.perform(authenticated(delete("/api/v1/projects/" + project), asAdmin())).andExpect(status().isNoContent());
+            assertThat(documents.existsById(runId)).isFalse();
+        }
+
+        private Map<String, byte[]> unzip(byte[] content) throws IOException {
+            Map<String, byte[]> entries = new LinkedHashMap<>();
+            try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
+                ZipEntry entry;
+                while ((entry = zip.getNextEntry()) != null) {
+                    entries.put(entry.getName(), zip.readAllBytes());
+                }
+            }
+            return entries;
         }
     }
 

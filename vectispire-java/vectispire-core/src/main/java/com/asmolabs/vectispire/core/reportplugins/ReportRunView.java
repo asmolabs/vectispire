@@ -6,8 +6,8 @@ import java.time.Instant;
 
 /**
  * A report run, under the entity's property names (decision 0035 §2) — read by a caller who sees the whole
- * project. The output's bytes are not here, nor anywhere a route reaches yet: the run records their size and
- * digest, and lot R4 checks, signs and serves them.
+ * project. The output's bytes are not here: a produced run's package — the file, its signature and its provenance
+ * — is downloaded on its own route.
  *
  * @param reason the closed word of a failed or refused run, null otherwise
  * @param detail the sentence of a failed or refused run — the plugin's own words for an exit code, cosign's for a
@@ -16,6 +16,11 @@ import java.time.Instant;
  *     until claimed
  * @param signerKeySha256 the SHA-256 of the signer's public key, for a manifest signed by key; identity and issuer
  *     for one signed keyless
+ * @param outputSha256 the SHA-256 of the file the plugin wrote — kept for a produced run, discarded for an output
+ *     refused ({@code output_refused}), whose digest still says which file was refused
+ * @param outputMediaType the media type the manifest declared and the check held the file to
+ * @param signingKeyId the platform key the package was signed with, by its id; null unless produced
+ * @param packageSha256 the SHA-256 of the package a download hands out; null unless produced
  */
 public record ReportRunView(
         Long id,
@@ -41,4 +46,7 @@ public record ReportRunView(
         Integer exitCode,
         Long outputSize,
         String outputSha256,
-        String productVersion) {}
+        String productVersion,
+        String outputMediaType,
+        String signingKeyId,
+        String packageSha256) {}

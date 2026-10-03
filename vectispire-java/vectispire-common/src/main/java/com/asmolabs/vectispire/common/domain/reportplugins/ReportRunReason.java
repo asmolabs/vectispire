@@ -8,8 +8,9 @@ import java.util.Optional;
  * Why a report run ended without producing (decision 0035 §2): a closed word a screen and a SIEM rule read
  * without parsing a sentence, and the state it belongs to — a reason is never paired with the other state.
  *
- * <p>The refusals are the image's provenance or the export's version: nothing was started, and nothing of the
- * project left the control plane. The failures are everything else.
+ * <p>The refusals are the image's provenance, the export's version — nothing was started, and nothing of the
+ * project left the control plane — or an output that is not what was declared, which the platform would not
+ * sign. The failures are everything else.
  */
 public enum ReportRunReason {
     /** The manifest declares no signer. A report plugin always needs one, and there is no waiver. */
@@ -20,6 +21,13 @@ public enum ReportRunReason {
     REGISTRY_AUTHENTICATION_REQUIRED("registry_authentication_required", ReportRunState.REFUSED),
     /** The manifest reads an export major this installation no longer produces; never another one instead. */
     EXPORT_SCHEMA_UNAVAILABLE("export_schema_unavailable", ReportRunState.REFUSED),
+    /**
+     * The plugin ran and wrote a file that is not what its manifest declares — another type, a macro, a zip bomb,
+     * an invalid text (lot R4). A refusal rather than a failure, though the plugin ran: a document disguised as
+     * another is how a tampered plugin shows itself, the reason a SOC is told ({@code VECTI-SEC-033}), and the
+     * bytes are discarded unsigned.
+     */
+    OUTPUT_REFUSED("output_refused", ReportRunState.REFUSED),
 
     /** The plugin exited with a code other than {@code 0}: a renderer has no "found something" code. */
     EXIT_CODE("exit_code", ReportRunState.FAILED),

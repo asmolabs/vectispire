@@ -1,10 +1,12 @@
 /**
- * Report plugins (decision 0035) — so far its first three lots: a project's export, the {@code
+ * Report plugins (decision 0035) — so far its first four lots: a project's export, the {@code
  * vectispire-project-export} document a plugin receives, built for a caller who sees the whole project,
  * signed, and served on its own so an organisation can write its plugin against its own data (R1); the
  * registry — plugins, their manifests by digest with four-eyes approval and withdrawal, and their
- * activations per project (R2); and the executor — a report requested, queued, claimed by the control
- * plane's container endpoint, the export built at the claim and handed to the plugin in the closed shape (R3).
+ * activations per project (R2); the executor — a report requested, queued, claimed by the control
+ * plane's container endpoint, the export built at the claim and handed to the plugin in the closed shape (R3);
+ * and the document — the output checked on its bytes against its declared type, signed with its in-toto
+ * provenance, kept and downloaded as a package (R4).
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code ModularityTest},
  * decision 0030): a dependency on a module, or on a named interface ({@code module::name}), missing from

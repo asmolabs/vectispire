@@ -480,8 +480,9 @@ public enum AuditOperation {
     REPORT_REQUESTED,
 
     /**
-     * A report run produced: its plugin exited {@code 0} and wrote its file. The entry names the run, the manifest
-     * and image digests, the export's SHA-256 and the output's.
+     * A report run produced: its plugin exited {@code 0}, wrote its file, the file passed its declared type's
+     * check, and its package was signed and stored. The entry names the run, the output's and the package's
+     * SHA-256, the manifest and image digests, the export's SHA-256 and the signing key.
      */
     REPORT_PRODUCED,
 
@@ -489,10 +490,17 @@ public enum AuditOperation {
     REPORT_FAILED,
 
     /**
-     * A report plugin was not started for want of a verified signer, or of the export major it reads; the entry
-     * carries the reason and cosign's words.
+     * A report plugin was not started for want of a verified signer, or of the export major it reads; or it ran and
+     * its output was not what its manifest declares, and was discarded unsigned. The entry carries the reason, the
+     * refused output's SHA-256 where there was one, and cosign's or the check's words.
      */
-    REPORT_REFUSED;
+    REPORT_REFUSED,
+
+    /**
+     * A produced report's package — the document, its signature and its provenance — was downloaded (decision 0035
+     * §4). The entry names the run, the output's and the package's SHA-256.
+     */
+    REPORT_DOWNLOADED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

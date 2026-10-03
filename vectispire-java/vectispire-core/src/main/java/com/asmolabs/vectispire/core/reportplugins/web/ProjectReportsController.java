@@ -4,14 +4,22 @@ import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.reportplugins.ReportDocumentDownload;
 import com.asmolabs.vectispire.core.reportplugins.ReportRunService;
 import com.asmolabs.vectispire.core.reportplugins.ReportRunView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,8 +35,12 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>{@code @RequiresAccount} rather than a write marker: the auditor requests reports too (answer 4), and the one
  * role left out — the platform governor — is refused by the service, after the project. No integration key: a
- * report is somebody's request, and the export is built for them. No route serves a document yet: lot R4 checks,
- * signs and serves the output.
+ * report is somebody's request, and the export is built for them.
+ *
+ * <p><b>A document is served as a file to save, never a page to render</b> (0035 §3): an attachment, {@code nosniff}
+ * so no browser second-guesses the type, and {@code Content-Security-Policy: sandbox} so that one opened anyway runs
+ * in an origin of its own, without script — the type check is not a malware scan, and how the file is served is
+ * part of what bounds what it could carry.
  */
 @Tag(name = "Report plugins", description = "Signed container images turning a project export into one document")
 @RestController
@@ -89,6 +101,38 @@ public class ProjectReportsController {
             @PathVariable long runId,
             @AuthenticationPrincipal VectispirePrincipal principal) {
         return reports.run(projectId, runId, allowanceOf(principal));
+    }
+
+    @Operation(summary = "Download project report document", description = "A produced run's package, a zip: the "
+            + "plugin's file as it wrote it, once checked against the media type its manifest declares; "
+            + "<file>.sig, its detached signature by the platform's key, to check with cosign verify-blob --key "
+            + "against /api/v1/crypto/public-key.pub; and provenance.json, an in-toto statement whose subject is the "
+            + "file's SHA-256 — run, project, requester, plugin, manifest and image digests, the verified signer, the "
+            + "export's schema and SHA-256, the product version, the instants and the signing key — in a DSSE envelope "
+            + "signed by the same key, to check with cosign verify-blob-attestation --key --type "
+            + "https://vectispire.dev/report-provenance/v1. The signature states provenance, not that the document "
+            + "renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For "
+            + "a caller who sees the whole project; 404 \"Project not found.\" otherwise, then 404 for a run that is "
+            + "not the project's, one that produced no document, or a document purged past the evidence window. "
+            + "Audited REPORT_DOWNLOADED.")
+    @ApiResponse(responseCode = "200", description = "The package, application/zip",
+            content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
+    @GetMapping(value = "/{runId}/document", produces = "application/zip")
+    @RequiresAccount
+    public ResponseEntity<byte[]> document(
+            @PathVariable long projectId,
+            @PathVariable long runId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        ReportDocumentDownload document = reports.document(projectId, runId, allowanceOf(principal),
+                RequestActors.of(principal, request));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(document.fileName(), StandardCharsets.UTF_8).build().toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "sandbox")
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(document.content());
     }
 
     /** The account's grant intersected with the credential's restriction, with the projects granted as such. */

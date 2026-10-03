@@ -224,8 +224,8 @@ public class ProjectExportService {
     /**
      * The export a report run hands its plugin (decision 0035 §2): built at the claim — the instant the document
      * describes — for the requester as they see the project <em>now</em>, by the same rules as a download.
-     * Unsigned and not audited here: the run's provenance attests to it (lot R4), and the run records whether
-     * the export reached a plugin — a refused one never received it.
+     * Unsigned and not audited here: the package's provenance attests to it by its digest, and the run records
+     * whether the export reached a plugin — a refused one never received it.
      *
      * @param allowance the requester's visibility, read again at the claim; a report is asked through a session,
      *     never an integration key, so no credential narrows it
@@ -239,11 +239,18 @@ public class ProjectExportService {
             ProjectExportBounds bounds) {
         Built built = reading.execute(status -> build(projectId, requester, allowance, locale, bounds));
         return new RunExport(built.projectName(), built.json(), Digests.sha256Hex(built.json()), built.issueCount(),
-                built.componentCount());
+                built.componentCount(), built.about().id(), built.about().requester());
     }
 
-    /** An export handed to a report plugin, and what the run records of it. */
-    public record RunExport(String projectName, byte[] json, String sha256, int issueCount, int componentCount) {}
+    /**
+     * An export handed to a report plugin, and what the run records of it.
+     *
+     * @param exportId the export's own identifier, as {@code export.id} states it
+     * @param requester the requester as the export names them — by display name, never an e-mail address — which
+     *     the package's provenance repeats
+     */
+    public record RunExport(String projectName, byte[] json, String sha256, int issueCount, int componentCount,
+            String exportId, ProjectExport.Person requester) {}
 
     /** The requester's locale as a run keeps it: {@link #locale}, or nothing past a BCP 47 tag's usual length. */
     static String runLocale(String acceptLanguage) {
@@ -252,7 +259,8 @@ public class ProjectExportService {
     }
 
     /** The export's bytes and what the audit entry says of them. */
-    private record Built(String projectName, byte[] json, int issueCount, int componentCount) {}
+    private record Built(
+            String projectName, byte[] json, int issueCount, int componentCount, ProjectExport.About about) {}
 
     private Built build(long projectId, UserView requester, VisibilityService.Allowance allowance, String locale,
             ProjectExportBounds bounds) {
@@ -298,8 +306,9 @@ public class ProjectExportService {
         }));
         Map<String, AccountNames.Named> people = names.byUsername(recorded);
 
+        ProjectExport.About about = about(requester, locale);
         ProjectExport document = ProjectExport.of(
-                about(requester, locale),
+                about,
                 project(projectId, allowance, repositoryIds, members.map(SolutionQueryService.ProjectMembers::containerIds)
                         .orElse(List.of())),
                 scansOf(filed),
@@ -332,7 +341,7 @@ public class ProjectExportService {
             }
             throw new IllegalStateException("A project export could not be written.", failed);
         }
-        return new Built(whole.name(), buffer.toByteArray(), unresolved.size(), merged.components().size());
+        return new Built(whole.name(), buffer.toByteArray(), unresolved.size(), merged.components().size(), about);
     }
 
     /**
