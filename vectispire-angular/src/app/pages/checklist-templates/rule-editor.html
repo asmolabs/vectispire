@@ -310,6 +310,40 @@
                             </select>
                         </div>
                     </div>
+                    <fieldset class="border-0 p-0 m-0 flex flex-col gap-2" data-testid="rule-coverage-scope">
+                        <legend class="font-medium mb-1">
+                            {{ 'checklist_templates.rule_coverage_scope_legend' | translate }}
+                        </legend>
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div class="flex flex-col gap-1">
+                                <label for="rule-scope-include" class="font-medium">{{
+                                    'checklist_templates.rule_field_scope_include' | translate
+                                }}</label>
+                                <input
+                                    pInputText
+                                    id="rule-scope-include"
+                                    class="w-96"
+                                    [ngModel]="draft().scopeInclude"
+                                    (ngModelChange)="patch({ scopeInclude: $event })"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="rule-scope-exclude" class="font-medium">{{
+                                    'checklist_templates.rule_field_scope_exclude' | translate
+                                }}</label>
+                                <input
+                                    pInputText
+                                    id="rule-scope-exclude"
+                                    class="w-96"
+                                    [ngModel]="draft().scopeExclude"
+                                    (ngModelChange)="patch({ scopeExclude: $event })"
+                                />
+                            </div>
+                        </div>
+                        <small class="text-muted-color">{{
+                            'checklist_templates.rule_coverage_scope_hint' | translate
+                        }}</small>
+                    </fieldset>
                 }
 
                 @if (kind === 'test_suite_passed') {

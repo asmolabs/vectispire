@@ -1,5 +1,6 @@
 import type {
     ChecklistAllowedComponent,
+    ChecklistCoverageScope,
     ChecklistRule,
     ChecklistRuleKind,
     ChecklistSeverity,
@@ -100,7 +101,9 @@ export const RULE_BOUNDS = {
     maxVersions: 100,
     maxVersion: 255,
     /** `Ratios.SCALE`: four decimals keep the canonical form out of scientific notation. */
-    ratioDecimals: 4
+    ratioDecimals: 4,
+    /** `CoverageScope.MAX_PATTERNS`, in each of include and exclude; a pattern is `MAX_PATTERN` long at most. */
+    maxCoveragePatterns: 20
 } as const;
 
 /** What the form proposes for a new rule's maximum age, as decision 0032 §6 says it does — and nothing else. */
@@ -139,6 +142,9 @@ export interface RuleDraft {
     suitePattern: string;
     minimumTests: number | null;
     components: ComponentDraft[];
+    /** A coverage rule's packages, typed as lists separated by commas; both blank is the whole report. */
+    scopeInclude: string;
+    scopeExclude: string;
 }
 
 /** Why the form refuses a rule, in the order a person reads the form. */
@@ -154,6 +160,9 @@ export type RuleProblem =
     | 'metric'
     | 'minimum_ratio'
     | 'aggregation'
+    | 'coverage_patterns_count'
+    | 'coverage_pattern'
+    | 'coverage_pattern_twice'
     | 'pattern'
     | 'minimum_tests'
     | 'components_count'
@@ -174,6 +183,9 @@ export const RULE_PROBLEM_KEYS = {
     metric: 'checklist_rules.problem_metric',
     minimum_ratio: 'checklist_rules.problem_minimum_ratio',
     aggregation: 'checklist_rules.problem_aggregation',
+    coverage_patterns_count: 'checklist_rules.problem_coverage_patterns_count',
+    coverage_pattern: 'checklist_rules.problem_coverage_pattern',
+    coverage_pattern_twice: 'checklist_rules.problem_coverage_pattern_twice',
     pattern: 'checklist_rules.problem_pattern',
     minimum_tests: 'checklist_rules.problem_minimum_tests',
     components_count: 'checklist_rules.problem_components_count',
@@ -210,7 +222,9 @@ export function emptyDraft(kind: ChecklistRuleKind | null): RuleDraft {
         aggregation: null,
         suitePattern: '',
         minimumTests: null,
-        components: []
+        components: [],
+        scopeInclude: '',
+        scopeExclude: ''
     };
 }
 
@@ -252,7 +266,59 @@ export function draftOf(rule: ChecklistRule | null): RuleDraft {
         purlPrefix: component.purlPrefix,
         versions: component.versions.join(', ')
     }));
+    draft.scopeInclude = (rule.scope?.include ?? []).join(', ');
+    draft.scopeExclude = (rule.scope?.exclude ?? []).join(', ');
     return draft;
+}
+
+/** The patterns typed in one of a coverage scope's lists, blanks dropped. */
+export function patternsOf(typed: string): string[] {
+    return typed
+        .split(',')
+        .map((pattern) => pattern.trim())
+        .filter((pattern) => pattern.length > 0);
+}
+
+/**
+ * Whether the server's `CoverageScope.check` takes a pattern over package paths: `**` a whole segment,
+ * `*` within one, nothing else a wildcard; no leading, trailing or doubled slash, no backslash, no `.` or
+ * `..` segment, and not a dotted package name — `org/example/service`, never `org.example.service`.
+ */
+export function coveragePatternAllowed(pattern: string): boolean {
+    if (!pattern || pattern.length > RULE_BOUNDS.maxPattern || CONTROL.test(pattern)) return false;
+    if (/[\\?[\]{}!]/.test(pattern)) return false;
+    if (pattern.startsWith('/') || pattern.endsWith('/') || pattern.includes('//')) return false;
+    if (!pattern.includes('/') && pattern.includes('.')) return false;
+    return pattern
+        .split('/')
+        .every((segment) => segment !== '.' && segment !== '..' && (!segment.includes('**') || segment === '**'));
+}
+
+function coverageScopeRefusal(draft: RuleDraft): RuleRefusal | null {
+    for (const typed of [draft.scopeInclude, draft.scopeExclude]) {
+        const patterns = patternsOf(typed);
+        if (patterns.length > RULE_BOUNDS.maxCoveragePatterns) {
+            return { problem: 'coverage_patterns_count', params: { max: RULE_BOUNDS.maxCoveragePatterns } };
+        }
+        const seen = new Set<string>();
+        for (const pattern of patterns) {
+            if (!coveragePatternAllowed(pattern)) return { problem: 'coverage_pattern', params: { pattern } };
+            if (seen.has(pattern)) return { problem: 'coverage_pattern_twice', params: { pattern } };
+            seen.add(pattern);
+        }
+    }
+    return null;
+}
+
+/** The scope a draft states, or none when both lists are blank — the whole report, as before scopes. */
+function coverageScopeOf(draft: RuleDraft): ChecklistCoverageScope | null {
+    const include = patternsOf(draft.scopeInclude);
+    const exclude = patternsOf(draft.scopeExclude);
+    if (include.length === 0 && exclude.length === 0) return null;
+    const scope: ChecklistCoverageScope = {};
+    if (include.length > 0) scope.include = include;
+    if (exclude.length > 0) scope.exclude = exclude;
+    return scope;
 }
 
 /** A scope as the server keys it: an imported tool's name lowercased and trimmed, like `ToolKeys.imported`. */
@@ -340,7 +406,7 @@ export function ruleRefusal(draft: RuleDraft): RuleRefusal | null {
             if (!draft.metric) return { problem: 'metric', params: {} };
             if (!ratioAllowed(draft.minimumRatio, false)) return { problem: 'minimum_ratio', params: {} };
             if (!draft.aggregation) return { problem: 'aggregation', params: {} };
-            return null;
+            return coverageScopeRefusal(draft);
         case 'test_suite_passed': {
             const pattern = draft.suitePattern.trim();
             if (!pattern || pattern.length > RULE_BOUNDS.maxPattern || CONTROL.test(pattern)) {
@@ -417,14 +483,19 @@ export function ruleOf(draft: RuleDraft): ChecklistRule | null {
                 scopes: [...new Set(draft.scopes.map(normalizedScope))],
                 thresholds: thresholdsOf(draft)
             };
-        case 'coverage_threshold':
-            return {
+        case 'coverage_threshold': {
+            const rule: ChecklistRule = {
                 kind: draft.kind,
                 maxAgeDays,
                 metric: draft.metric!,
                 minimumRatio: draft.minimumRatio!,
                 aggregation: draft.aggregation!
             };
+            // Only when stated: a rule without one is the whole report, and keeps the digest it had.
+            const scope = coverageScopeOf(draft);
+            if (scope) rule.scope = scope;
+            return rule;
+        }
         case 'test_suite_passed':
             return {
                 kind: draft.kind,
@@ -454,6 +525,14 @@ export function canonicalRule(rule: ChecklistRule | null): string {
     if (!rule) return 'null';
     const copy: ChecklistRule = { ...rule };
     if (copy.scopes) copy.scopes = [...new Set(copy.scopes.map(normalizedScope))].sort();
+    if (copy.scope) {
+        const include = [...new Set(copy.scope.include ?? [])].sort();
+        const exclude = [...new Set(copy.scope.exclude ?? [])].sort();
+        copy.scope =
+            include.length === 0 && exclude.length === 0
+                ? null
+                : { ...(include.length ? { include } : {}), ...(exclude.length ? { exclude } : {}) };
+    }
     if (copy.components) {
         copy.components = copy.components
             .map((component) => ({
@@ -568,6 +647,16 @@ export function describeRule(i18n: I18nService, rule: ChecklistRule): string[] {
                     aggregation: rule.aggregation ? i18n.t(AGGREGATION_KEYS[rule.aggregation]) : '—'
                 })
             );
+            if (rule.scope?.include?.length) {
+                lines.push(
+                    i18n.t('checklist_rules.summary_scope_include', { patterns: rule.scope.include.join(', ') })
+                );
+            }
+            if (rule.scope?.exclude?.length) {
+                lines.push(
+                    i18n.t('checklist_rules.summary_scope_exclude', { patterns: rule.scope.exclude.join(', ') })
+                );
+            }
             break;
         case 'test_suite_passed':
             lines.push(

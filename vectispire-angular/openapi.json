@@ -511,7 +511,7 @@
             "type" : "integer"
           },
           "noDataReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "outcome" : {
@@ -1772,7 +1772,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
@@ -2038,6 +2038,9 @@
           },
           "requireSchedule" : {
             "type" : "boolean"
+          },
+          "scope" : {
+            "$ref" : "#/components/schemas/CoverageScopeForm"
           },
           "scopes" : {
             "items" : {
@@ -2803,6 +2806,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "packagesState" : {
+            "type" : "string"
+          },
           "repoId" : {
             "format" : "int64",
             "type" : "integer"
@@ -2819,6 +2825,23 @@
           }
         },
         "required" : [ "linesCovered", "linesTotal" ],
+        "type" : "object"
+      },
+      "CoverageScopeForm" : {
+        "properties" : {
+          "exclude" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "include" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
         "type" : "object"
       },
       "CreateTicketRequest" : {
@@ -5000,7 +5023,7 @@
             "type" : "integer"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "submittedOutcome" : {
@@ -5008,7 +5031,7 @@
             "type" : "string"
           },
           "submittedReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -7091,7 +7114,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },

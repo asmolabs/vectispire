@@ -318,6 +318,43 @@ describe('binding a rule to a template line', () => {
         answerRereads(BOUND_VERSION);
     });
 
+    it('binds a coverage rule over a scope of packages, refusing a dotted package name in words', async () => {
+        await start('CISO');
+        await edit(5);
+        choose('#rule-kind', 'Test coverage');
+        await settle();
+        choose('#rule-metric', 'lines');
+        type('#rule-minimum-ratio', '0.8');
+        choose('#rule-aggregation', 'on every repository');
+        type('#rule-scope-include', 'org.example.service');
+        button('rule-keep').click();
+        fixture.detectChanges();
+        expect(text('[data-testid="rule-error"]')).toContain('"org.example.service" is no pattern over package paths');
+
+        type('#rule-scope-include', 'org/example/**');
+        type('#rule-scope-exclude', '**/generated/**');
+        await settle();
+        expect(text('[data-testid="rule-described"]')).toContain('Except the packages matching **/generated/**');
+        const request = keepAndSave();
+        expect(request.request.body).toEqual({
+            items: [
+                {
+                    itemKey: ROW_5,
+                    rule: {
+                        kind: 'coverage_threshold',
+                        maxAgeDays: 7,
+                        metric: 'line',
+                        minimumRatio: 0.8,
+                        aggregation: 'per_repository',
+                        scope: { include: ['org/example/**'], exclude: ['**/generated/**'] }
+                    }
+                }
+            ]
+        });
+        request.flush(BOUND_VERSION);
+        answerRereads(BOUND_VERSION);
+    });
+
     it('binds a test-suite rule: a pattern and at least one test', async () => {
         await start('CISO');
         await edit(5);

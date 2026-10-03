@@ -15,6 +15,7 @@ import french from '../../../public/i18n/fr.json';
 import {
     AGGREGATION_KEYS,
     canonicalRule,
+    coveragePatternAllowed,
     describeRule,
     draftOf,
     emptyDraft,
@@ -140,6 +141,70 @@ describe('the checklist rules, as the form reads them', () => {
         expect(problem({ ...coverage, minimumRatio: 1 })).toBeNull();
     });
 
+    it("refuses a coverage scope's pattern as the server would, and takes both lists blank as the whole report", () => {
+        const coverage = (changes: Partial<RuleDraft> = {}): RuleDraft => ({
+            ...emptyDraft('coverage_threshold'),
+            metric: 'line',
+            minimumRatio: 0.8,
+            aggregation: 'per_repository',
+            ...changes
+        });
+        expect(problem(coverage())).toBeNull();
+        expect(problem(coverage({ scopeInclude: '**/service/**, org/example/*-api' }))).toBeNull();
+        expect(problem(coverage({ scopeExclude: '**/generated/**' }))).toBeNull();
+        for (const refused of [
+            'org.example.service',
+            '**/serv**',
+            'org/?/x',
+            'src/{ab}',
+            'src/[ab]',
+            '/org/example',
+            'org/example/',
+            'org//example',
+            'org\\example',
+            'org/../x',
+            'a/'.repeat(250) + 'a'
+        ]) {
+            expect(coveragePatternAllowed(refused), refused).toBe(false);
+            expect(ruleRefusal(coverage({ scopeInclude: refused }))).toEqual({
+                problem: 'coverage_pattern',
+                params: { pattern: refused }
+            });
+        }
+        expect(coveragePatternAllowed('a/'.repeat(249) + 'ab')).toBe(true);
+        expect(problem(coverage({ scopeExclude: 'a/b, a/b' }))).toBe('coverage_pattern_twice');
+        const many = Array.from({ length: 21 }, (_, at) => `p${at}/x`).join(', ');
+        expect(problem(coverage({ scopeInclude: many }))).toBe('coverage_patterns_count');
+        expect(problem(coverage({ scopeInclude: many.split(', ').slice(0, 20).join(', ') }))).toBeNull();
+    });
+
+    it('sends a coverage scope only when stated, each list only when it holds a pattern', () => {
+        const draft: RuleDraft = {
+            ...emptyDraft('coverage_threshold'),
+            metric: 'line',
+            minimumRatio: 0.8,
+            aggregation: 'per_repository',
+            scopeInclude: ' org/example/** , ',
+            scopeExclude: ''
+        };
+        expect(asSchema('ChecklistRuleForm', ruleOf(draft))).toEqual({
+            kind: 'coverage_threshold',
+            maxAgeDays: 7,
+            metric: 'line',
+            minimumRatio: 0.8,
+            aggregation: 'per_repository',
+            scope: { include: ['org/example/**'] }
+        });
+        expect(ruleOf({ ...draft, scopeInclude: ' , ' })).not.toHaveProperty('scope');
+        const reopened = draftOf({ ...COVERAGE_RULE, scope: { include: ['b/**', 'a/**'], exclude: ['**/gen/**'] } });
+        expect(reopened.scopeInclude).toBe('b/**, a/**');
+        expect(reopened.scopeExclude).toBe('**/gen/**');
+        expect(canonicalRule(ruleOf(reopened))).toBe(
+            canonicalRule({ ...COVERAGE_RULE, scope: { exclude: ['**/gen/**'], include: ['a/**', 'b/**'] } })
+        );
+        expect(canonicalRule({ ...COVERAGE_RULE, scope: null })).toBe(COVERAGE_CANONICAL);
+    });
+
     it('asks a test rule a pattern of 1 to 500 characters and at least one test', () => {
         const suite: RuleDraft = { ...emptyDraft('test_suite_passed'), suitePattern: 'com.example.*', minimumTests: 1 };
         expect(problem(suite)).toBeNull();
@@ -260,6 +325,17 @@ describe('the checklist rules, as the form reads them', () => {
         ]);
         expect(describeRule(i18n, COVERAGE_RULE)).toEqual([
             'Coverage of lines at least 80 %, on every repository',
+            'Evidence at most 14 days old'
+        ]);
+        expect(
+            describeRule(i18n, {
+                ...COVERAGE_RULE,
+                scope: { include: ['org/example/**'], exclude: ['**/generated/**'] }
+            })
+        ).toEqual([
+            'Coverage of lines at least 80 %, on every repository',
+            'Only the packages matching org/example/**',
+            'Except the packages matching **/generated/**',
             'Evidence at most 14 days old'
         ]);
         TestBed.resetTestingModule();

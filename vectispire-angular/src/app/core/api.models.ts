@@ -2459,6 +2459,11 @@ export type CoverageImport = Refine<
         importedAt: string;
         importedBy: string | null;
         apiKeyId: string | null;
+        /**
+         * `kept` when the report's counts per package were kept beside its totals; why not otherwise; null
+         * for an import accepted before packages were kept — a rule scoped to packages needs it re-imported.
+         */
+        packagesState?: 'kept' | 'too_many' | 'path_refused' | 'inconsistent' | null;
     }
 >;
 
@@ -2894,6 +2899,16 @@ export type ChecklistThreshold = Refine<
 export type ChecklistAllowedComponent = Refine<Schema<'ComponentForm'>, { purlPrefix: string; versions: string[] }>;
 
 /**
+ * The packages a coverage rule measures: matched by an `include` pattern — every package when none is
+ * given — and by no `exclude` pattern. Patterns over package paths (`org/example/service`), `**` whole
+ * segments, `*` characters within one.
+ */
+export type ChecklistCoverageScope = Refine<
+    Schema<'CoverageScopeForm'>,
+    { include?: string[] | null; exclude?: string[] | null }
+>;
+
+/**
  * A rule as the binding route reads it and as a line's view shows it — one shape for every kind, each
  * kind taking its own fields; an item's `boundRule` and a measurement's are this shape too. The server refuses a key another kind takes, so the client sends only the kind's own
  * and leaves the others out; a rule read back may carry them as null.
@@ -2912,6 +2927,7 @@ export type ChecklistRule = Refine<
         suitePattern?: string | null;
         minimumTests?: number | null;
         components?: ChecklistAllowedComponent[] | null;
+        scope?: ChecklistCoverageScope | null;
     }
 >;
 
