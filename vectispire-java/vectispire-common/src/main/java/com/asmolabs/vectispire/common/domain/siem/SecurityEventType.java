@@ -168,6 +168,13 @@ public enum SecurityEventType {
      */
     SLA_BREACHED("VECTI-SEC-030", "Remediation deadline passed", 6, Outcome.DETECTED, true),
 
+    /**
+     * A project's whole triaged state left the platform as an export (decision 0035 §4): who took it, of
+     * which project, and its digest. {@code 031} and {@code 033} are reserved for the report plugins'
+     * registry and their refusals, by the same decision, and are not to be taken by anything else.
+     */
+    PROJECT_EXPORTED("VECTI-SEC-032", "Project export left the platform", 4, Outcome.SUCCESS),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -293,6 +300,7 @@ public enum SecurityEventType {
             case SARIF_SOURCE_CHANGED -> Optional.of(SARIF_SOURCE_CHANGED);
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
+            case PROJECT_EXPORTED -> Optional.of(PROJECT_EXPORTED);
             case CHECKLIST_TEMPLATE_PUBLISHED -> Optional.of(CHECKLIST_TEMPLATE_CHANGED);
             case CHECKLIST_SIGNED_OFF -> Optional.of(CHECKLIST_SIGNED_OFF);
             // Returned is refused by another name: what was submitted for signature did not get it.

@@ -434,7 +434,8 @@
       "checklist_signed_off": "Project checklist signed off",
       "checklist_sign_off_refused": "Project checklist sign-off refused",
       "checklist_reopened": "Project checklist reopened",
-      "checklist_exported": "Project checklist document downloaded"
+      "checklist_exported": "Project checklist document downloaded",
+      "project_exported": "Project export downloaded"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

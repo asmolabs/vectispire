@@ -524,6 +524,34 @@ already reads as answered.
     decision, and is decided there, not here.
 11. **The SIEM numbers.** `VECTI-SEC-031` to `VECTI-SEC-033` are reserved from this day (§4).
 
+## Built in R1 (2026-10-03): where the code says more than §1
+
+Lot R1 — the export, its schema and its signed download — settled these points §1 left open or stated
+loosely. The code is in `core.reportplugins` (`ProjectExportService`) and
+`common/domain/reportplugins` (`ProjectExport`, `ProjectExportSchema`, `ProjectExportBounds`).
+
+- **The whole project includes its images.** The checklists' guard reads the repositories alone; an
+  export carries the images' scans, backlog and components too, so it is built only for a caller who
+  sees every target filed in the project (`RowVisibility.requireEveryTargetOfProject`), the checklists'
+  rule holding as well.
+- **The download is a zip** of `export.json` and `export.json.sig` — the checklist package's shape, the
+  signature as `cosign` writes it. The schema route asks for a signed-in account or an `export` key.
+- **The embedded statements name people by display name.** `checklist.json` records user names; the
+  export rewrites each to the account's display name, or null, and names the signed package by its
+  SHA-256 (`document_sha256`) — the statement under the signature is the package's. A display name that
+  is an e-mail address is left out as one.
+- **An issue's text travels for vulnerabilities, licences and end of life only** (`title`); for every
+  other type it is null, since a tool's message may quote the code it matched, and a secret's the secret.
+- **The gate's register keeps counts, not reasons**: the export carries the counts it recorded, the
+  policy's source and version, and no reason one by one.
+- **Components carry no licence in 1.0**: the inventory indexes none per component. A minor adds them
+  when it does.
+- **The installation is named by its brand name and its public URL**, where one is configured.
+- **A triage decision is one somebody recorded**: an issue under review by default, nobody named, has
+  `triage: null`; its status is in `issue_counts`, counted by type, severity, state and triage status.
+- **Over a bound, 409 `project-export-too-large`** with the part, the figure and the bound as members; the
+  issues are counted before one is read, the JSON written into a buffer that stops at 64 MiB.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

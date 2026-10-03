@@ -444,6 +444,36 @@ public class ScanCatalog {
     }
 
     /**
+     * A scan as a document describes it — what it examined and what failed — without the SBOM and the
+     * CVE list a whole {@link ScanView} carries, which for a project's targets would be held in memory at
+     * once to be ignored.
+     *
+     * @param examinedTypes empty where the scan did not record it, which is not the empty set (see {@link
+     *     ExaminedTypes})
+     * @param failures the failed steps as the scan recorded them, {@code step: reason} joined by {@code " | "};
+     *     null when none failed
+     */
+    public record ScanOutline(long id, Instant createdAt, Long durationMs, Optional<java.util.Set<FindingType>> examinedTypes,
+            String failures, List<PluginOutcome> plugins) {}
+
+    /**
+     * Each of these scans' outline, by scan id. A scan that does not exist is absent. A thousand
+     * identifiers per statement, as every lookup here.
+     */
+    public Map<Long, ScanOutline> outlinesOf(Collection<Long> scanIds) {
+        Map<Long, ScanOutline> outlines = new java.util.HashMap<>();
+        for (List<Long> batch : batches(scanIds)) {
+            for (Object[] row : scans.findOutlinesOf(batch)) {
+                long id = ((Number) row[0]).longValue();
+                outlines.put(id, new ScanOutline(id, (Instant) row[1],
+                        row[2] == null ? null : ((Number) row[2]).longValue(), ExaminedTypes.read((String) row[3]),
+                        (String) row[4], PluginOutcome.read((String) row[5])));
+            }
+        }
+        return Map.copyOf(outlines);
+    }
+
+    /**
      * Each of these scans' languages, by scan id — what a checklist compares, on the very scan a
      * measurement rests on, to tell a tree its static analysis read from one it did not (decision
      * 0032 §6). A scan that does not exist is absent. A thousand identifiers per statement: the scans

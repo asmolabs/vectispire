@@ -449,6 +449,18 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     List<Object[]> findLanguagesOf(@Param("ids") Collection<Long> ids);
 
     /**
+     * Each of these scans' id, queuing instant, duration, examined types, failure summary and plugin
+     * steps — a scan as a document describes it, without the SBOM and the CVE list every whole row
+     * carries. A scan that does not exist is absent.
+     *
+     * <p>{@code ids} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select s.id, s.createdAt, s.durationMs, s.examinedTypes, s.error, s.pluginSteps
+              from ScanEntity s where s.id in :ids""")
+    List<Object[]> findOutlinesOf(@Param("ids") Collection<Long> ids);
+
+    /**
      * Records the languages the Semgrep rules of a scan's task read, when the task is built — null for a
      * task without the SAST step.
      */

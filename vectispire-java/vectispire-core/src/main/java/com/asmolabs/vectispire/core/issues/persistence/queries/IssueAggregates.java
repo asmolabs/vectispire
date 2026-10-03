@@ -16,6 +16,13 @@ public final class IssueAggregates {
     public record SeverityTypeCount(String severity, String type, long count) {}
 
     /**
+     * How many issues carry each {@code (type, severity, state, triage status)} — the resolved ones too,
+     * which a project's export counts rather than lists (decision 0035 §1). At most one row per tuple;
+     * {@code triageStatus} null for issues nobody triaged.
+     */
+    public record StateCount(String type, String severity, String state, String triageStatus, long count) {}
+
+    /**
      * One vulnerable package, and everything the leverage score is computed from.
      *
      * @param distinctIdentifiers CVEs counted once however many targets carry them — the fix is

@@ -63,6 +63,20 @@
 
 ### Nouveautés
 
+- **L'export d'un projet, signé, et son schéma publié** — le premier lot des plugins de rapport
+  ([décision 0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md),
+  acceptée le 2026-10-03). `GET /api/v1/projects/{id}/export` renvoie un zip d'`export.json` — les cibles
+  du projet, leurs analyses les plus récentes, les verdicts de la barrière, les problèmes non résolus avec
+  leur triage, les décomptes, les composants, l'état de conformité et les énoncés de checklist, en
+  `vectispire-project-export` 1.0 — et d'`export.json.sig`, vérifiable par `cosign verify-blob --key`
+  contre la clé publique de l'instance. Pour les comptes en écriture et les auditeurs qui voient tout le
+  projet, images comprises, et les clés d'intégration de portée `export` ; ni source, ni valeur de secret,
+  ni identifiant, ni adresse e-mail. Au-delà de 100 000 problèmes ou composants ou de 64 Mio, il est
+  refusé (409 `project-export-too-large`), jamais tronqué. Le schéma est servi à
+  `GET /api/v1/schemas/project-export/1`. Audité `PROJECT_EXPORTED`, envoyé au SIEM comme le nouveau
+  `VECTI-SEC-032` ; `VECTI-SEC-031` et `033` sont réservés aux plugins eux-mêmes
+  ([comment](../guide/exports.fr.md#export-de-projet)).
+
 - **Expérimental : une formule candidate du scorecard, à côté de l'actuelle.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible visible des deux
   façons pour que le changement de formule se décide sur les chiffres du parc ; aucune note ne change

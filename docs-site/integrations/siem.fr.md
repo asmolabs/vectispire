@@ -185,6 +185,7 @@ changera pas de sens. Son préfixe a changé une fois, de `ZAN-SEC-` à `VECTI-S
 | `VECTI-SEC-028` | SIEM export switched off or redirected | 7 | l'export est coupé, ou son protocole ou son point d'arrivée change : envoyé de façon synchrone au collecteur quitté, quelle que soit la sévérité minimale (voir [Livraison](#livraison)) |
 | `VECTI-SEC-029` | Secret leaked in source code | 8 | un scan trouve un secret de sévérité élevée ou critique qui n'est pas encore un constat — chaque secret que rapporte l'analyseur fourni est classé élevé. Une fois par constat : la même fuite revue par le scan suivant, ou revenue après sa résolution, n'est pas annoncée à nouveau. `cs3` porte la règle, `msg` le fichier ; la valeur trouvée n'est jamais envoyée |
 | `VECTI-SEC-030` | Remediation deadline passed | 3–8 | un constat ouvert que personne n'a tranché dépasse son délai de remédiation (première détection + la fenêtre de sa sévérité — voir [Délais de correction](../guide/remediation-delays.md)). Relevé par le tour de maintenance horaire, daté de l'échéance elle-même, une fois par constat. Seules les échéances passées dans les sept derniers jours sont annoncées : le stock déjà en retard à la mise à jour — ou après qu'une fenêtre a été raccourcie — n'est pas annoncé d'un coup ; export coupé, un dépassement n'est pas rejoué quand il est rallumé. **Aussi sévère que le constat en retard** : 8 pour un critique, 7 pour un élevé, 5 pour un moyen, 3 pour un faible — le minimum par défaut (Élevée) transmet donc les dépassements critiques et élevés, Moyenne aussi les moyens. Un événement encore en file lors de la mise à jour depuis 0.10.0, où la sévérité valait 6, part à 6 |
+| `VECTI-SEC-032` | Project export left the platform | 4 | l'état trié entier d'un projet a été téléchargé comme son export signé ([Exports](../guide/exports.fr.md#export-de-projet)) : qui l'a pris, quel projet (la cible est l'identifiant du projet), et le SHA-256 d'`export.json` en tête du message |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.
@@ -193,6 +194,10 @@ Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.
 SLA sans jamais être émis ; ils restent retirés. Les événements qui portent aujourd'hui ces sens ont
 pris de nouveaux numéros, `029` et `030`, pour qu'une règle écrite contre l'ancienne déclaration ne se
 mette pas à se déclencher sur une définition pour laquelle elle n'a pas été écrite.
+
+`VECTI-SEC-031` et `VECTI-SEC-033` sont réservés aux plugins de rapport de la décision 0035 — un plugin
+enregistré, modifié, approuvé, activé ou retiré ; un plugin ou sa sortie refusés — et ne sont émis par
+aucune version pour l'instant.
 
 L'authentification unique, l'exigence de second facteur pour elle et les hôtes Git autorisés se
 règlent par variables d'environnement et ne changent qu'au redémarrage : ils n'émettent aucun

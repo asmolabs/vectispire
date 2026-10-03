@@ -205,6 +205,10 @@ dependencies {
     // depending on it.
     testImplementation(libs.bouncycastle)
     testImplementation(libs.bouncycastle.pkix)
+    // The project export's schema is a published contract (decision 0035 §1): every export the suite
+    // builds is validated against it. Test-only; its Jackson is the 3.x line the BOM already manages.
+    testImplementation(platform(libs.jackson3.bom))
+    testImplementation(libs.json.schema.validator)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

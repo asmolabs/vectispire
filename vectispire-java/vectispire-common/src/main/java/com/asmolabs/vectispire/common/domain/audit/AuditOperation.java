@@ -411,7 +411,14 @@ public enum AuditOperation {
      * package, or a revision not signed off rendered unsigned for the request. The entry names which, and
      * the package's SHA-256.
      */
-    CHECKLIST_EXPORTED;
+    CHECKLIST_EXPORTED,
+
+    /**
+     * A project's export — its whole triaged state as one signed JSON document (decision 0035 §1) — left
+     * the platform: downloaded by an account or an integration key. The entry names the project, the
+     * schema version, how many issues and components it carried, and its SHA-256.
+     */
+    PROJECT_EXPORTED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

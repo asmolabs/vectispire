@@ -115,6 +115,11 @@ public class IssueCatalog {
         return issues.countGroupedBySeverityAndType(IssueSpecifications.of(filters));
     }
 
+    /** Every issue the criteria select, counted by type, severity, state and triage status. */
+    public List<IssueAggregates.StateCount> countByTypeSeverityStateAndTriage(IssueFilters filters) {
+        return issues.countGroupedByTypeSeverityStateAndTriage(IssueSpecifications.of(filters));
+    }
+
     public List<IssueAggregates.TargetSeverityCount> countOpenByTargetAndSeverity(IssueFilters filters) {
         return issues.countOpenByTargetAndSeverity(IssueSpecifications.of(filters));
     }

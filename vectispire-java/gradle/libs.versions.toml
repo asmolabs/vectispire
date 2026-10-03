@@ -41,6 +41,14 @@ jib = "3.5.4"
 # one built against Spring Boot 4.1; the Spring Boot BOM does not manage Modulith, so its own BOM
 # below is the one authority for every `spring-modulith-*` version. Apache-2.0, like the rest.
 springModulith = "2.1.1"
+# **A JSON Schema validator, for the tests alone.** The project export's schema (decision 0035) is
+# held to the code by validating every export the suite builds against it; a hand-written check
+# would test the schema against the reader's idea of draft 2020-12. Apache-2.0, like its two
+# dependencies (`com.ethlo.time:itu`, Jackson's YAML module); on Jackson 3, which the BOM above manages.
+# **3.0.6, not the newest**: 3.0.7 asks for Jackson 3.2, which would raise the test classpath's
+# Jackson 3 above production's 3.1 — the tests would run a library the application does not ship.
+# Move it when the `jackson3` line above moves to 3.2.
+jsonSchemaValidator = "3.0.6"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -79,6 +87,7 @@ spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-b
 # production code uses and all it ships; the verification and the documenter are the test starter's.
 spring-modulith-api = { module = "org.springframework.modulith:spring-modulith-api" }
 spring-modulith-starter-test = { module = "org.springframework.modulith:spring-modulith-starter-test" }
+json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "jsonSchemaValidator" }
 
 [plugins]
 springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }

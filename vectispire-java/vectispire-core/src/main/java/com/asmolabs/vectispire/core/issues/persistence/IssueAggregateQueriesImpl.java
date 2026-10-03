@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.issues.persistence;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.OpenBacklog;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.OwaspCategoryCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.PackageDetail;
@@ -93,6 +94,23 @@ public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
 
         return entityManager.createQuery(query).getResultList().stream()
                 .map(row -> new SeverityTypeCount((String) row[0], (String) row[1], count(row[2])))
+                .toList();
+    }
+
+    @Override
+    public List<IssueAggregates.StateCount> countGroupedByTypeSeverityStateAndTriage(Specification<IssueEntity> filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object[]> query = builder.createQuery(Object[].class);
+        Root<IssueEntity> issue = query.from(IssueEntity.class);
+
+        query.select(builder.array(issue.get("type"), issue.get("severity"), issue.get("state"),
+                        issue.get("triageStatus"), builder.count(issue.get("id"))))
+                .groupBy(issue.get("type"), issue.get("severity"), issue.get("state"), issue.get("triageStatus"));
+        restrict(query, filter, issue, builder);
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new IssueAggregates.StateCount(
+                        (String) row[0], (String) row[1], (String) row[2], (String) row[3], count(row[4])))
                 .toList();
     }
 

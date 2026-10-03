@@ -2554,6 +2554,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download project export
+         * @description A zip: export.json — the project as the vectispire-project-export schema describes it (GET /api/v1/schemas/project-export/1): its targets, each one's newest completed scan and last gate verdict, every issue not resolved with its triage, the counts per type, severity, state and triage status, the consolidated components, the compliance state and the checklist statements — and export.json.sig, its detached signature by the platform's key, to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub. No source, no secret value, no credential, no e-mail address: people by display name, evidence by digest. Always an attachment. For write accounts and auditors who see the whole project, images included; accepts an integration key with the export scope. 404 "Project not found." for a project absent, hidden or seen only in part — a key restricted to one repository included; 403 for the platform governor; 409 project-export-too-large over 100,000 issues or components or 64 MiB of JSON, with part, found and limit — refused, never cut short. Audited PROJECT_EXPORTED, signalled VECTI-SEC-032.
+         */
+        get: operations["export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/plugins": {
         parameters: {
             query?: never;
@@ -3171,6 +3191,26 @@ export interface paths {
          * @description Returns the complete Software Bill of Materials (SBOM) produced during this scan.
          */
         get: operations["sbom"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/schemas/project-export/{major}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project export schema
+         * @description The JSON Schema (draft 2020-12) of one major of vectispire-project-export, as this installation produces it — what a report plugin's author writes against. A minor adds optional fields and never removes or changes one: a reader ignores what it does not know. 404 for a major this installation does not produce.
+         */
+        get: operations["schema"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11480,6 +11520,28 @@ export interface operations {
             };
         };
     };
+    export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export, application/zip */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+        };
+    };
     list_16: {
         parameters: {
             query?: never;
@@ -12490,6 +12552,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+        };
+    };
+    schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                major: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The schema, application/schema+json */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": string;
                 };
             };
         };

@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     List<UserEntity> findAllByOrderByUsernameAsc();
 
+    /** The accounts holding these user names; the caller bounds the list ({@code AccountNames}). */
+    List<UserEntity> findByUsernameIn(java.util.Collection<String> usernames);
+
     /**
      * How many active administrators there are apart from this one.
      *

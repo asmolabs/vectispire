@@ -98,6 +98,7 @@ const OPERATION_KEYS: Record<string, string> = {
     CHECKLIST_SIGN_OFF_REFUSED: 'audit_log.operations.checklist_sign_off_refused',
     CHECKLIST_REOPENED: 'audit_log.operations.checklist_reopened',
     CHECKLIST_EXPORTED: 'audit_log.operations.checklist_exported',
+    PROJECT_EXPORTED: 'audit_log.operations.project_exported',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',

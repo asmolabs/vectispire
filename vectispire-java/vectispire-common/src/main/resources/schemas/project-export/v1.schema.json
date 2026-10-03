@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vectispire:schema:project-export:1",
+  "title": "vectispire-project-export, major 1",
+  "description": "One project as a Vectispire installation knows it, for a report plugin or anybody rendering a document of their own (decision 0035). Versioned MAJOR.MINOR: a minor adds an optional field or an enumeration value and never removes or changes one, so a reader written for 1.0 reads every 1.x — and must ignore what it does not know. Anything else is a new major and a new schema. Every part is present: an empty array means 'produced, nothing in it'; null means 'not recorded', never zero. Values described as open may gain new ones in a minor. Deliberately absent: source code and anything quoted from it, secret values, credentials, evidence bytes (named by SHA-256), e-mail addresses, roles, teams, grants, the audit log, other projects and posture figures.",
+  "type": "object",
+  "required": ["schema", "schema_version", "export", "project", "scans", "gate", "issues", "issue_counts", "inventory", "compliance", "checklists"],
+  "properties": {
+    "schema": {"const": "vectispire-project-export"},
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+$", "description": "MAJOR.MINOR; this file describes 1.0."},
+    "export": {"$ref": "#/$defs/about"},
+    "project": {"$ref": "#/$defs/project"},
+    "scans": {"type": "array", "items": {"$ref": "#/$defs/targetScan"}, "description": "One entry per target filed in the project, repositories then images."},
+    "gate": {"type": "array", "items": {"$ref": "#/$defs/targetVerdict"}, "description": "One entry per target filed in the project, repositories then images."},
+    "issues": {"type": "array", "items": {"$ref": "#/$defs/issue"}, "description": "Every issue of the project's targets that is not resolved, by ascending id. Resolved issues are counted in issue_counts, not listed."},
+    "issue_counts": {"type": "array", "items": {"$ref": "#/$defs/issueCount"}},
+    "inventory": {"$ref": "#/$defs/inventory"},
+    "compliance": {"$ref": "#/$defs/compliance"},
+    "checklists": {"type": "array", "items": {"$ref": "#/$defs/checklist"}, "description": "Per template, the newest revision signed off with a signed package (oldest template first), then the project's open revision if there is one."}
+  },
+  "$defs": {
+    "nullableString": {"type": ["string", "null"]},
+    "instant": {"type": "string", "format": "date-time", "description": "ISO 8601, UTC."},
+    "nullableInstant": {"type": ["string", "null"], "format": "date-time"},
+    "target": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"enum": ["repository", "container"]},
+        "id": {"type": "integer"}
+      }
+    },
+    "person": {
+      "type": "object",
+      "description": "A person, by account and display name — never an e-mail address nor a user name. display_name is null where the account has none, or its display name is an address; both are null where the recorded name no longer resolves to an account.",
+      "required": ["account_id", "display_name"],
+      "properties": {
+        "account_id": {"type": ["integer", "null"]},
+        "display_name": {"$ref": "#/$defs/nullableString"}
+      }
+    },
+    "about": {
+      "type": "object",
+      "required": ["id", "generated_at", "product_version", "requester", "locale", "installation"],
+      "properties": {
+        "id": {"type": "string", "description": "A random identifier of this export."},
+        "generated_at": {"$ref": "#/$defs/instant"},
+        "product_version": {"$ref": "#/$defs/nullableString", "description": "The Vectispire version that built it; null when the build states none."},
+        "requester": {"$ref": "#/$defs/person"},
+        "locale": {"$ref": "#/$defs/nullableString", "description": "The requester's preferred language as a BCP 47 tag, when the request stated one."},
+        "installation": {
+          "type": "object",
+          "required": ["name", "public_url"],
+          "properties": {
+            "name": {"type": "string"},
+            "public_url": {"$ref": "#/$defs/nullableString"}
+          }
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["id", "name", "description", "created_at", "solution", "repositories", "containers"],
+      "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string"},
+        "description": {"$ref": "#/$defs/nullableString"},
+        "created_at": {"$ref": "#/$defs/nullableInstant"},
+        "solution": {
+          "type": ["object", "null"],
+          "required": ["id", "name"],
+          "properties": {
+            "id": {"type": "integer"},
+            "name": {"$ref": "#/$defs/nullableString"}
+          }
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "url", "branch", "sub_path"],
+            "properties": {
+              "id": {"type": "integer"},
+              "name": {"$ref": "#/$defs/nullableString"},
+              "url": {"$ref": "#/$defs/nullableString", "description": "As every screen shows it: a credential the stored URL carries is masked as ***."},
+              "branch": {"$ref": "#/$defs/nullableString"},
+              "sub_path": {"$ref": "#/$defs/nullableString"}
+            }
+          }
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "registry", "image", "tag"],
+            "properties": {
+              "id": {"type": "integer"},
+              "registry": {"$ref": "#/$defs/nullableString"},
+              "image": {"$ref": "#/$defs/nullableString"},
+              "tag": {"$ref": "#/$defs/nullableString"}
+            }
+          }
+        }
+      }
+    },
+    "targetScan": {
+      "type": "object",
+      "required": ["target", "scan"],
+      "properties": {
+        "target": {"$ref": "#/$defs/target"},
+        "scan": {
+          "description": "The target's newest completed scan; null when it has none.",
+          "type": ["object", "null"],
+          "required": ["id", "queued_at", "duration_ms", "examined_types", "failures", "plugins"],
+          "properties": {
+            "id": {"type": "integer"},
+            "queued_at": {"$ref": "#/$defs/instant"},
+            "duration_ms": {"type": ["integer", "null"]},
+            "examined_types": {"type": ["array", "null"], "items": {"type": "string"}, "description": "The built-in finding types whose step produced. null where the scan did not record it — not the empty array, 'recorded, and none produced'."},
+            "failures": {"type": "array", "items": {"type": "string"}, "description": "Each failed step, as 'step: reason'."},
+            "plugins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["plugin_id", "manifest_digest", "state", "findings", "languages", "reason", "refusal", "signature"],
+                "properties": {
+                  "plugin_id": {"type": "string"},
+                  "manifest_digest": {"$ref": "#/$defs/nullableString"},
+                  "state": {"type": "string", "description": "Open: produced, not_applicable, absent or refused (decision 0017 §4). Only produced resolved anything."},
+                  "findings": {"type": ["integer", "null"]},
+                  "languages": {"type": "array", "items": {"type": "string"}},
+                  "reason": {"$ref": "#/$defs/nullableString"},
+                  "refusal": {"$ref": "#/$defs/nullableString"},
+                  "signature": {"$ref": "#/$defs/nullableString"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "targetVerdict": {
+      "type": "object",
+      "required": ["target", "verdict"],
+      "properties": {
+        "target": {"$ref": "#/$defs/target"},
+        "verdict": {
+          "description": "The last verdict the gate recorded for the target; null when it never judged it. The register keeps counts, not the reasons one by one.",
+          "type": ["object", "null"],
+          "required": ["passed", "decided_at", "fail_on_severity", "policy_source", "policy_version", "relaxations_ignored", "evaluated", "violations", "critical", "high", "medium", "low"],
+          "properties": {
+            "passed": {"type": "boolean"},
+            "decided_at": {"$ref": "#/$defs/instant"},
+            "fail_on_severity": {"$ref": "#/$defs/nullableString"},
+            "policy_source": {"$ref": "#/$defs/nullableString"},
+            "policy_version": {"type": ["integer", "null"]},
+            "relaxations_ignored": {"type": "boolean"},
+            "evaluated": {"type": "integer"},
+            "violations": {"type": "integer"},
+            "critical": {"type": "integer"},
+            "high": {"type": "integer"},
+            "medium": {"type": "integer"},
+            "low": {"type": "integer"}
+          }
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "required": ["id", "target", "type", "severity", "identifier", "title", "tool", "component", "path", "line", "first_seen_at", "last_seen_at", "state", "kev", "epss", "cvss", "fix_versions", "triage", "remediation"],
+      "properties": {
+        "id": {"type": "integer"},
+        "target": {"$ref": "#/$defs/target"},
+        "type": {"type": "string", "description": "Open: vulnerability, secret, iac, license, eol, sast, ai_review, plugin, imported, quality."},
+        "severity": {"type": "string", "description": "Open: critical, high, medium, low, negligible, unknown."},
+        "identifier": {"$ref": "#/$defs/nullableString", "description": "The advisory id of a vulnerability, the rule of anything else."},
+        "title": {"$ref": "#/$defs/nullableString", "description": "The advisory's or the catalogue's text, for vulnerabilities, licences and end of life only; null for every other type, whose text may quote the code it matched."},
+        "tool": {"$ref": "#/$defs/nullableString", "description": "plugin:<id> or import:<source>/<tool> for a plugin's or an import's finding, else the built-in tool."},
+        "component": {
+          "type": ["object", "null"],
+          "required": ["name", "version", "purl"],
+          "properties": {
+            "name": {"$ref": "#/$defs/nullableString"},
+            "version": {"$ref": "#/$defs/nullableString"},
+            "purl": {"$ref": "#/$defs/nullableString"}
+          }
+        },
+        "path": {"$ref": "#/$defs/nullableString"},
+        "line": {"type": ["integer", "null"]},
+        "first_seen_at": {"$ref": "#/$defs/nullableInstant"},
+        "last_seen_at": {"$ref": "#/$defs/nullableInstant"},
+        "state": {"type": "string", "description": "Open: open."},
+        "kev": {"type": "boolean"},
+        "epss": {"type": ["number", "null"]},
+        "cvss": {"type": ["number", "null"]},
+        "fix_versions": {"$ref": "#/$defs/nullableString"},
+        "triage": {
+          "description": "The decision the issue carries; null when nobody recorded one — a new issue is under review by default, with nobody named, and that is no decision.",
+          "type": ["object", "null"],
+          "required": ["status", "justification", "comment", "decided_by", "decided_at", "review_at"],
+          "properties": {
+            "status": {"type": "string", "description": "Open: under_review, affected, pending_approval, not_affected, fixed."},
+            "justification": {"$ref": "#/$defs/nullableString"},
+            "comment": {"$ref": "#/$defs/nullableString"},
+            "decided_by": {"oneOf": [{"$ref": "#/$defs/person"}, {"type": "null"}]},
+            "decided_at": {"$ref": "#/$defs/nullableInstant"},
+            "review_at": {"$ref": "#/$defs/nullableInstant"}
+          }
+        },
+        "remediation": {
+          "description": "Where the issue stands against its remediation deadline; null where none applies.",
+          "type": ["object", "null"],
+          "required": ["due_at", "state"],
+          "properties": {
+            "due_at": {"$ref": "#/$defs/instant"},
+            "state": {"type": "string", "description": "Open: on_time, due_soon, overdue."}
+          }
+        }
+      }
+    },
+    "issueCount": {
+      "type": "object",
+      "required": ["type", "severity", "state", "triage_status", "count"],
+      "properties": {
+        "type": {"type": "string"},
+        "severity": {"type": "string"},
+        "state": {"type": "string", "description": "Open: open, resolved."},
+        "triage_status": {"$ref": "#/$defs/nullableString", "description": "As recorded: under_review also for an issue nobody has decided yet. Open."},
+        "count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["complete", "targets", "components"],
+      "properties": {
+        "complete": {"type": "boolean", "description": "Every target's inventory is known; false when one was never scanned or its newest scan holds none, and the components then do not speak for it."},
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["target", "scan_id", "state", "component_count"],
+            "properties": {
+              "target": {"$ref": "#/$defs/target"},
+              "scan_id": {"type": ["integer", "null"]},
+              "state": {"type": "string", "description": "Open: listed, empty, absent, never_scanned."},
+              "component_count": {"type": "integer"}
+            }
+          }
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "version", "purl", "type", "targets"],
+            "properties": {
+              "name": {"type": "string"},
+              "version": {"$ref": "#/$defs/nullableString"},
+              "purl": {"$ref": "#/$defs/nullableString"},
+              "type": {"$ref": "#/$defs/nullableString"},
+              "targets": {"type": "array", "items": {"$ref": "#/$defs/target"}}
+            }
+          }
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "required": ["monitored_targets", "observed_targets", "fresh_targets", "frameworks"],
+      "properties": {
+        "monitored_targets": {"type": "integer"},
+        "observed_targets": {"type": "integer"},
+        "fresh_targets": {"type": "integer"},
+        "frameworks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "status", "score", "controls"],
+            "properties": {
+              "id": {"type": "string"},
+              "title": {"type": "string"},
+              "status": {"type": "string", "description": "Open: COMPLIANT, PARTIAL, NON_COMPLIANT, NO_DATA."},
+              "score": {"type": "integer", "description": "Zero wherever the status is NO_DATA: read the status first."},
+              "controls": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "name", "category", "status", "score", "details"],
+                  "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "category": {"type": "string"},
+                    "status": {"type": "string"},
+                    "score": {"type": "integer"},
+                    "details": {"$ref": "#/$defs/nullableString"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "checklist": {
+      "type": "object",
+      "required": ["draft", "document_sha256", "statement"],
+      "properties": {
+        "draft": {"type": "boolean", "description": "The project's open revision, not signed off."},
+        "document_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$", "description": "The SHA-256 of the package signed at the sign-off; null for a draft."},
+        "statement": {
+          "description": "checklist.json (decision 0032 §10) in its own form, its fields camelCase. Its people are named by display name, or null; the signed package keeps the names recorded at the time.",
+          "type": "object",
+          "required": ["form", "status", "signed", "project", "revision", "template", "header", "opened", "submitted", "signedOff", "fourEyesRequired", "productVersion", "producedAt", "lines"],
+          "properties": {
+            "form": {"type": "integer"},
+            "status": {"type": "string"},
+            "signed": {"type": "boolean"},
+            "project": {"type": "object"},
+            "revision": {"type": "integer"},
+            "template": {"type": "object"},
+            "header": {"type": "object"},
+            "opened": {"type": "object"},
+            "submitted": {"type": ["object", "null"]},
+            "signedOff": {"type": ["object", "null"]},
+            "fourEyesRequired": {"type": ["boolean", "null"]},
+            "productVersion": {"$ref": "#/$defs/nullableString"},
+            "producedAt": {"$ref": "#/$defs/instant"},
+            "lines": {"type": "array", "items": {"type": "object"}}
+          }
+        }
+      }
+    }
+  }
+}

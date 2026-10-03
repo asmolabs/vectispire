@@ -45,6 +45,53 @@ Voir [Historique et preuves](history.md).
 
 Un ZIP signé cryptographiquement, couvert sous [Conformité](compliance.md).
 
+## Export de projet
+
+Un projet entier en un document JSON signé — l'entrée que recevra un [plugin de rapport](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md),
+et ce contre quoi une organisation écrit son propre plugin avant que Vectispire n'exécute quoi que ce
+soit. Pas encore de bouton : interrogez la route, avec votre session ou une clé d'intégration portant la
+portée `export`.
+
+```bash
+curl -H "X-API-Key: $KEY" -o export.zip https://vectispire.example.org/api/v1/projects/42/export
+unzip export.zip                       # export.json et export.json.sig
+cosign verify-blob --key public-key.pub --signature export.json.sig export.json
+```
+
+`public-key.pub` est `/api/v1/crypto/public-key.pub`, la clé qui signe chaque document de Vectispire.
+
+**Ce qu'il contient**, chaque partie présente même vide — une liste vide veut dire « rien », `null` « non
+enregistré », jamais zéro : le projet et les dépôts et images qui y sont rangés ; pour chaque cible,
+l'analyse terminée la plus récente (ce qu'elle a examiné, ce qui a échoué, l'état de chaque plugin) et le
+dernier verdict de la barrière ; chaque problème non résolu, avec sa décision de triage ; les décomptes
+par type, sévérité, état et statut de triage, problèmes résolus compris ; les composants consolidés ;
+l'état de conformité du projet ; et les énoncés de checklist — chacun de ceux qui ont été validés avec
+l'empreinte de son paquet signé, et la révision ouverte marquée `draft`.
+
+**Ce qu'il ne contient jamais** : du code source ou ce qui en est cité — le texte d'un problème n'est
+repris que pour les vulnérabilités, les licences et les fins de vie, jamais le message d'un secret ou
+d'une règle ; la valeur d'un secret ; un identifiant (un jeton dans l'URL d'un dépôt est masqué) ; les
+octets d'un fichier de preuve (nommé par SHA-256) ; une adresse e-mail — les personnes apparaissent par
+identifiant de compte et nom affiché, et un nom affiché qui est une adresse est omis.
+
+**Qui peut en prendre un** : un compte qui peut agir (pas le gouverneur de la plateforme) ou un auditeur,
+qui voit **tout** le projet, images comprises. Tout autre s'entend dire que le projet n'existe pas (404),
+dans les mêmes mots que pour un projet qui n'existe pas. Une clé d'intégration restreinte à un dépôt ne
+voit jamais un projet entier. Chaque téléchargement est audité (`PROJECT_EXPORTED`) et envoyé au SIEM
+comme `VECTI-SEC-032`.
+
+**Borné, jamais tronqué** : au-delà de 100 000 problèmes ou composants, ou de 64 Mio de JSON, l'export
+est refusé (409 `project-export-too-large`, nommant la partie, le chiffre et la borne) plutôt que signé
+incomplet.
+
+**Son schéma** est `vectispire-project-export`, versionné `MAJEURE.MINEURE` et indiqué dans les deux
+premiers champs de l'export. L'installation sert celui qu'elle produit à
+`/api/v1/schemas/project-export/1` ; le fichier est
+[`v1.schema.json`](https://github.com/asmolabs/vectispire/blob/main/vectispire-java/vectispire-common/src/main/resources/schemas/project-export/v1.schema.json)
+dans les sources. Une mineure ne fait qu'ajouter des champs optionnels : un plugin doit ignorer ce qu'il
+ne connaît pas. Une majeure est un nouveau fichier, et les notes de version disent quand elle apparaît et
+quand la précédente cesse d'être produite.
+
 ## Personnalisation
 
 Les exports et les rapports portent le nom de votre instance là où `VECTISPIRE_BRAND_NAME` est

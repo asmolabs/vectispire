@@ -180,6 +180,77 @@ public class ChecklistDocumentService {
                 signed, sha256, content);
     }
 
+    // ------------------------------------------------------------------ the project export's part
+
+    /**
+     * A revision's statement as the project export embeds it (decision 0035 §1).
+     *
+     * @param draft the project's open revision, rendered for this export, unsigned
+     * @param documentSha256 the SHA-256 of the package signed at the sign-off; null for the open revision
+     * @param statement a signed-off revision's statement as it was signed — read back from the stored
+     *     package, never rendered again; the open revision's as it stands, its measured lines measured now
+     */
+    public record ExportedStatement(boolean draft, String documentSha256, ChecklistStatement statement) {}
+
+    /**
+     * What a project's export says of its checklists: for each template, the newest revision signed off
+     * with a stored package, then the open revision if there is one — oldest template first.
+     *
+     * <p><b>The caller has refused the project already</b>, through the whole-project guard: this takes the
+     * proof it returns. A revision signed off before documents were signed has no package, and is not here:
+     * its statement was never signed, and the export says only what was.
+     */
+    public List<ExportedStatement> statementsForExport(VisibleProject project, List<Long> repositoryIds) {
+        List<ChecklistEntity> revisions = checklists.findByProjectIdOrderByRevisionDesc(project.projectId());
+        LinkedHashMap<Long, ExportedStatement> signedByTemplate = new LinkedHashMap<>();
+        ExportedStatement open = null;
+        for (ChecklistEntity revision : revisions) {
+            ChecklistStatus status = ChecklistStatus.ofStored(revision.getStatus());
+            if (status.isOpen()) {
+                ChecklistTemplateVersionEntity version = versions.findById(revision.getTemplateVersionId())
+                        .orElseThrow(() -> new IllegalStateException("The version of checklist " + revision.getId()
+                                + " is gone."));
+                ChecklistTemplateEntity template = templates.findById(version.getTemplateId())
+                        .orElseThrow(() -> new IllegalStateException("Template " + version.getTemplateId() + " is gone."));
+                open = new ExportedStatement(true, null, statement(project, repositoryIds, revision, version, template,
+                        forms.layout(version.getLayout()), false, clock.instant()));
+                continue;
+            }
+            if (revision.getSignedOffAt() == null) {
+                continue;
+            }
+            Long templateId = versions.findById(revision.getTemplateVersionId())
+                    .map(ChecklistTemplateVersionEntity::getTemplateId).orElse(null);
+            if (templateId == null || signedByTemplate.containsKey(templateId)) {
+                continue;
+            }
+            Optional<ChecklistDocumentEntity> stored = documents.findByChecklistId(revision.getId());
+            if (stored.isPresent()) {
+                signedByTemplate.put(templateId, new ExportedStatement(false, stored.get().getSha256(),
+                        signedStatement(stored.get().getContent())));
+            }
+        }
+        List<ExportedStatement> statements = new ArrayList<>(signedByTemplate.sequencedValues().reversed());
+        if (open != null) {
+            statements.add(open);
+        }
+        return List.copyOf(statements);
+    }
+
+    /** The {@code checklist.json} a stored package holds — the bytes that were signed, read back. */
+    private ChecklistStatement signedStatement(byte[] pack) {
+        try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(pack))) {
+            for (java.util.zip.ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                if (STATEMENT.equals(entry.getName())) {
+                    return json.readValue(zip.readAllBytes(), ChecklistStatement.class);
+                }
+            }
+        } catch (java.io.IOException unreadable) {
+            throw new IllegalStateException("A stored checklist document could not be read.", unreadable);
+        }
+        throw new IllegalStateException("A stored checklist document holds no " + STATEMENT + ".");
+    }
+
     // ------------------------------------------------------------------ the sign-off's document
 
     /**

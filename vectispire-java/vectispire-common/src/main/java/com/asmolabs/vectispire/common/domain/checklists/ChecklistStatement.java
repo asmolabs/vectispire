@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /**
  * One revision of a project's checklist as a document states it — {@code checklist.json}, and what the
@@ -67,6 +68,38 @@ public record ChecklistStatement(
         if (signed && (signedOff == null || header.date() == null)) {
             throw new IllegalArgumentException("A signed statement names its sign-off and is dated by it.");
         }
+    }
+
+    /**
+     * The same statement with every person it names renamed by {@code name} — the header's author, the
+     * acts, each answer's author and carrier, each proof's adder and withdrawer. An answer Vectispire gave
+     * keeps its name: it is no account's.
+     *
+     * <p>For the project export (decision 0035 §1), which names people by display name and never by the
+     * user name a statement records — an identity provider's user name is often an e-mail address. The
+     * signed {@code checklist.json} is not rewritten: it is what was signed.
+     */
+    public ChecklistStatement withNames(UnaryOperator<String> name) {
+        UnaryOperator<Act> act = given -> given == null ? null : new Act(name.apply(given.by()), given.at());
+        UnaryOperator<Answer> answer = given -> given == null ? null : new Answer(given.id(), given.value(),
+                given.word(), given.comment(), given.automatic() ? given.answeredBy() : name.apply(given.answeredBy()),
+                given.answeredByKind(), given.answeredAt(), given.carriedFrom(),
+                given.carriedBy() == null ? null : name.apply(given.carriedBy()), given.carriedAt(),
+                given.needsConfirmation(), given.withdrawn());
+        List<Line> renamed = lines.stream().map(line -> new Line(line.itemId(), line.key(), line.position(), line.row(),
+                        line.domain(), line.objective(), line.control(), line.contact(), line.kpi(), line.contentDigest(),
+                        line.evidenceRequired(), line.evidenceValidityMonths(), answer.apply(line.answer()),
+                        line.history().stream().map(answer).toList(), line.measurement(), line.reconciliation(),
+                        line.evidence().stream().map(proof -> new Proof(proof.id(), proof.kind(), proof.link(),
+                                proof.fileName(), proof.mediaType(), proof.size(), proof.sha256(), proof.performedOn(),
+                                proof.validUntil(), proof.addedBy() == null ? null : name.apply(proof.addedBy()),
+                                proof.addedAt(), proof.withdrawnBy() == null ? null : name.apply(proof.withdrawnBy()),
+                                proof.withdrawnAt())).toList()))
+                .toList();
+        return new ChecklistStatement(form, status, signed, project, revision, template,
+                new Header(header.product(), header.author() == null ? null : name.apply(header.author()), header.date()),
+                act.apply(opened), act.apply(submitted), act.apply(signedOff), fourEyesRequired, productVersion,
+                producedAt, renamed);
     }
 
     public record Project(long id, String name) {}

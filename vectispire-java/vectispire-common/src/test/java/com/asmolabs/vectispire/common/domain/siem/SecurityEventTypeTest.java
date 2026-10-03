@@ -50,11 +50,21 @@ class SecurityEventTypeTest {
         expected.put("SIEM_EXPORT_STOPPED", "VECTI-SEC-028");
         expected.put("SECRET_LEAK_DETECTED", "VECTI-SEC-029");
         expected.put("SLA_BREACHED", "VECTI-SEC-030");
+        expected.put("PROJECT_EXPORTED", "VECTI-SEC-032");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
                 .collect(Collectors.toMap(Enum::name, SecurityEventType::signatureId, (a, b) -> a, LinkedHashMap::new));
         assertThat(actual).containsExactlyEntriesOf(expected);
+    }
+
+    @Test
+    @DisplayName("031 and 033 stay reserved for the report plugins (decision 0035 §4)")
+    void reportPluginIdentifiersAreReserved() {
+        // Reserved on 2026-10-03 for the registry's changes and the refusals of report plugins, which
+        // later lots emit under these names; another event taking one would leave the decision two numbers.
+        assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
+                .doesNotContain("VECTI-SEC-031", "VECTI-SEC-033");
     }
 
     @Test
@@ -119,6 +129,9 @@ class SecurityEventTypeTest {
                 .contains(SecurityEventType.SARIF_SOURCE_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORT_REFUSED))
                 .contains(SecurityEventType.SARIF_IMPORT_REFUSED);
+        // A project's whole state leaving the platform is what a SOC wants to see, every time (decision 0035).
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PROJECT_EXPORTED))
+                .contains(SecurityEventType.PROJECT_EXPORTED);
         // A pipeline's upload is as frequent as its builds: the entry, not an event.
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_IMPORT_REFUSED))

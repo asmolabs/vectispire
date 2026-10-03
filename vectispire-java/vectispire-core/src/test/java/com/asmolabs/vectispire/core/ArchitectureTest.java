@@ -97,7 +97,9 @@ class ArchitectureTest {
             // After: third-party analysers and SARIF imports, over scanning, issues and targets.
             "plugins",
             // Security checklists (decision 0032): the organisation's templates, answered per project.
-            "checklists");
+            "checklists",
+            // Report plugins (decision 0035): a project's export, and the documents rendered from it.
+            "reportplugins");
 
     /**
      * The top-level packages that are no module's. Only {@code config} since step 5: the datasource,

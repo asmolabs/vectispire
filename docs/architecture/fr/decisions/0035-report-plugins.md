@@ -566,6 +566,38 @@ La proposition se terminait par onze questions ouvertes. Le responsable du produ
     0017 §6, une décision acceptée, et se décide là, pas ici.
 11. **Les numéros SIEM.** `VECTI-SEC-031` à `VECTI-SEC-033` sont réservés depuis ce jour (§4).
 
+## Construit en R1 (2026-10-03) : là où le code en dit plus que le §1
+
+Le lot R1 — l'export, son schéma et son téléchargement signé — a tranché ces points que le §1 laissait
+ouverts ou énonçait sans précision. Le code est dans `core.reportplugins` (`ProjectExportService`) et
+`common/domain/reportplugins` (`ProjectExport`, `ProjectExportSchema`, `ProjectExportBounds`).
+
+- **Le projet entier comprend ses images.** La garde des checklists ne lit que les dépôts ; un export
+  porte aussi les analyses, le backlog et les composants des images, il n'est donc construit que pour un
+  appelant qui voit chaque cible rangée dans le projet (`RowVisibility.requireEveryTargetOfProject`), la
+  règle des checklists valant aussi.
+- **Le téléchargement est un zip** d'`export.json` et d'`export.json.sig` — la forme du paquet de
+  checklist, la signature telle que `cosign` l'écrit. La route du schéma demande un compte connecté ou une
+  clé `export`.
+- **Les énoncés embarqués nomment les personnes par nom affiché.** `checklist.json` enregistre des noms
+  d'utilisateur ; l'export remplace chacun par le nom affiché du compte, ou null, et nomme le paquet signé
+  par son SHA-256 (`document_sha256`) — l'énoncé sous la signature est celui du paquet. Un nom affiché qui
+  est une adresse e-mail est omis comme tel.
+- **Le texte d'un problème n'est repris que pour les vulnérabilités, les licences et les fins de vie**
+  (`title`) ; pour tout autre type il est null, puisque le message d'un outil peut citer le code qu'il a
+  reconnu, et celui d'un secret le secret.
+- **Le registre de la barrière garde des décomptes, pas des raisons** : l'export porte les décomptes
+  enregistrés, la source et la version de la politique, et aucune raison une à une.
+- **Les composants ne portent pas de licence en 1.0** : l'inventaire n'en indexe aucune par composant.
+  Une mineure les ajoute quand il le fera.
+- **L'installation est nommée par son nom de marque et son URL publique**, là où elle est configurée.
+- **Une décision de triage est une décision que quelqu'un a enregistrée** : un problème en revue par
+  défaut, sans personne de nommé, a `triage: null` ; son statut est dans `issue_counts`, compté par type,
+  sévérité, état et statut de triage.
+- **Au-delà d'une borne, 409 `project-export-too-large`** avec la partie, le chiffre et la borne en
+  membres ; les problèmes sont comptés avant d'en lire un, le JSON écrit dans un tampon qui s'arrête à
+  64 Mio.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

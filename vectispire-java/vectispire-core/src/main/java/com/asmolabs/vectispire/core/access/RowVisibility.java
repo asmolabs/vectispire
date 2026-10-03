@@ -167,6 +167,30 @@ public final class RowVisibility {
     }
 
     /**
+     * A project the caller sees <b>whole, images included</b>, or "Project not found." — the project
+     * export's guard (decision 0035 §1), and a report's.
+     *
+     * <p><b>Stricter than {@link #requireWhollyVisibleProject}.</b> That one reads the repositories alone,
+     * because a checklist speaks for them alone (decision 0023, amendment of 2026-09-30). An export carries
+     * every target filed in the project — its images' scans, backlog and components too — so a caller who
+     * sees every repository and not an image would receive the image's state under the platform's
+     * signature. Both conditions hold, or the project is refused in the words of an absent one.
+     *
+     * @param repositoryIds every repository filed in the project now, visible or not
+     * @param filed every target filed in the project now, visible or not, repositories then images
+     * @return the scope, never {@code partial}: what the aggregates the export reuses take
+     */
+    public static VisibleScope requireEveryTargetOfProject(long projectId, Optional<String> name,
+            Collection<Long> repositoryIds, Collection<ScanTarget> filed, VisibilityService.Allowance allowance) {
+        requireWhollyVisibleProject(projectId, name, repositoryIds, allowance);
+        VisibleScope scope = requireVisibleProject(projectId, name, filed, allowance);
+        if (scope.partial()) {
+            throw new NotFoundException(PROJECT_NOT_FOUND);
+        }
+        return scope;
+    }
+
+    /**
      * A project as far as the caller sees it, or "Project not found." — for a project that does not
      * exist and one the caller sees nothing of, alike. The aggregates over a project (its read, its
      * compliance, its consolidated inventory) take what this returns.

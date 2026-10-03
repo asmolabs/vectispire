@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues.persistence;
 
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.OpenBacklog;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.OwaspCategoryCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates.PackageDetail;
@@ -71,6 +72,8 @@ public interface IssueAggregateQueries {
     long countDistinct(Specification<IssueEntity> filter, Axis axis);
 
     List<SeverityTypeCount> countGroupedBySeverityAndType(Specification<IssueEntity> filter);
+
+    List<IssueAggregates.StateCount> countGroupedByTypeSeverityStateAndTriage(Specification<IssueEntity> filter);
 
     /**
      * The open half of the scoreboard, as a {@code group by} rather than as rows.
