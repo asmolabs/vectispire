@@ -29,6 +29,8 @@ export const OUTCOME_KEYS = {
 export const NO_DATA_KEYS = {
     no_repository: 'project_checklist.reason_no_repository',
     never_examined: 'project_checklist.reason_never_examined',
+    forge_unlinked: 'project_checklist.reason_forge_unlinked',
+    forge_unreadable: 'project_checklist.reason_forge_unreadable',
     step_absent: 'project_checklist.reason_step_absent',
     plugin_unsigned: 'project_checklist.reason_plugin_unsigned',
     plugin_signature_unverified: 'project_checklist.reason_plugin_signature_unverified',
@@ -41,6 +43,8 @@ export const NO_DATA_KEYS = {
     packages_unrecorded: 'project_checklist.reason_packages_unrecorded',
     packages_not_kept: 'project_checklist.reason_packages_not_kept',
     scope_matches_nothing: 'project_checklist.reason_scope_matches_nothing',
+    review_incomplete: 'project_checklist.reason_review_incomplete',
+    no_change_merged: 'project_checklist.reason_no_change_merged',
     stale: 'project_checklist.reason_stale',
     not_applicable_anywhere: 'project_checklist.reason_not_applicable_anywhere',
     suite_not_found: 'project_checklist.reason_suite_not_found',
@@ -51,6 +55,8 @@ export const NO_DATA_KEYS = {
 export const NO_DATA_SHORT_KEYS = {
     no_repository: 'project_checklist.reason_short_no_repository',
     never_examined: 'project_checklist.reason_short_never_examined',
+    forge_unlinked: 'project_checklist.reason_short_forge_unlinked',
+    forge_unreadable: 'project_checklist.reason_short_forge_unreadable',
     step_absent: 'project_checklist.reason_short_step_absent',
     plugin_unsigned: 'project_checklist.reason_short_plugin_unsigned',
     plugin_signature_unverified: 'project_checklist.reason_short_plugin_signature_unverified',
@@ -63,6 +69,8 @@ export const NO_DATA_SHORT_KEYS = {
     packages_unrecorded: 'project_checklist.reason_short_packages_unrecorded',
     packages_not_kept: 'project_checklist.reason_short_packages_not_kept',
     scope_matches_nothing: 'project_checklist.reason_short_scope_matches_nothing',
+    review_incomplete: 'project_checklist.reason_short_review_incomplete',
+    no_change_merged: 'project_checklist.reason_short_no_change_merged',
     stale: 'project_checklist.reason_short_stale',
     not_applicable_anywhere: 'project_checklist.reason_short_not_applicable_anywhere',
     suite_not_found: 'project_checklist.reason_short_suite_not_found',
@@ -80,7 +88,8 @@ export const SOURCE_KEYS = {
     scan: 'project_checklist.source_scan',
     sarif_import: 'project_checklist.source_sarif_import',
     coverage_import: 'project_checklist.source_coverage_import',
-    test_report_import: 'project_checklist.source_test_report_import'
+    test_report_import: 'project_checklist.source_test_report_import',
+    forge_review: 'project_checklist.source_forge_review'
 } as const satisfies Record<MeasurementSource, string>;
 
 /** The statement of applicability's vocabulary: what the answer and the measurement say together. */

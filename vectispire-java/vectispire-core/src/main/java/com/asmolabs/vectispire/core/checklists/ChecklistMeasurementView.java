@@ -16,9 +16,11 @@ import java.util.function.Function;
  * typed, which is what {@code evidenceDigest} is the SHA-256 of.
  *
  * @param outcome {@code pass}, {@code fail} or {@code no_data} — no data is never a pass
- * @param reason for no data: {@code no_repository}, {@code never_examined}, {@code step_absent}, {@code
+ * @param reason for no data: {@code no_repository}, {@code never_examined}, {@code forge_unlinked}, {@code
+ *     forge_unreadable}, {@code step_absent}, {@code
  *     language_not_analysed}, {@code examination_unrecorded}, {@code languages_unrecorded}, {@code
- *     packages_unrecorded}, {@code packages_not_kept}, {@code scope_matches_nothing}, {@code stale}, {@code
+ *     packages_unrecorded}, {@code packages_not_kept}, {@code scope_matches_nothing}, {@code review_incomplete},
+ *     {@code no_change_merged}, {@code stale}, {@code
  *     not_applicable_anywhere}, {@code suite_not_found}, {@code no_test_ran} — {@code NoDataReason}; null otherwise
  * @param asOf the oldest evidence the measurement rests on; null when it rests on none
  * @param boundRule the rule applied, as the line held it, in the shape a line's {@code rule} has — structured,

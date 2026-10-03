@@ -53,6 +53,8 @@ public sealed interface ChecklistRule {
     int MAX_COMPONENTS = 50;
     int MAX_PATTERN = 500;
     int MAX_TESTS = 10_000_000;
+    int MAX_APPROVALS = 10;
+    int MAX_BRANCH = 255;
 
     Kind kind();
 
@@ -70,7 +72,8 @@ public sealed interface ChecklistRule {
         COVERAGE_THRESHOLD,
         TEST_SUITE_PASSED,
         COMPONENT_VERSIONS,
-        COMPONENT_PRESENT;
+        COMPONENT_PRESENT,
+        CHANGE_REVIEW;
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);
@@ -264,6 +267,57 @@ public sealed interface ChecklistRule {
         }
     }
 
+    /**
+     * Every change merged into the branch is reviewed by someone other than its author (decision 0037, lot G3):
+     * on every repository, a reading of its forge within the age either shows a configuration that requires the
+     * approvals before any merge — the author's own refused, a direct push refused — or shows that, of the
+     * merge requests or pull requests merged in the window, at least the share stated had at least the
+     * approvals stated, each by a person other than the author.
+     *
+     * @param minimumApprovals distinct approvals by people other than the author, 1 to {@link #MAX_APPROVALS}
+     * @param windowDays how far back the merged changes are counted, 1 to {@link #MAX_AGE_DAYS}
+     * @param minimumRatio the share of merged changes that must have them, above 0 to 1 — 1 for every one
+     * @param branch the branch changes are merged into; empty for the default branch the forge names
+     */
+    record ChangeReview(int maxAgeDays, int minimumApprovals, int windowDays, BigDecimal minimumRatio,
+            Optional<String> branch) implements ChecklistRule {
+
+        public ChangeReview {
+            requireAge(maxAgeDays);
+            if (minimumApprovals < 1 || minimumApprovals > MAX_APPROVALS) {
+                throw new InvalidInputException("minimumApprovals is 1 to " + MAX_APPROVALS + " — a review by nobody "
+                        + "is no review; " + minimumApprovals + " is not.");
+            }
+            if (windowDays < 1 || windowDays > MAX_AGE_DAYS) {
+                throw new InvalidInputException("windowDays is between 1 and " + MAX_AGE_DAYS + "; " + windowDays
+                        + " is not.");
+            }
+            minimumRatio = Ratios.require(Objects.requireNonNull(minimumRatio, "minimumRatio"), "minimumRatio", false);
+            Objects.requireNonNull(branch, "branch");
+            branch = branch.map(ChecklistRule::branchName);
+        }
+
+        @Override
+        public Kind kind() {
+            return Kind.CHANGE_REVIEW;
+        }
+    }
+
+    /**
+     * A branch as a rule names it: what Git accepts in a ref's last part and a forge's API in a path — no
+     * space, no control character, none of {@code ~ ^ : ? * [ \}, no {@code ..}.
+     */
+    private static String branchName(String value) {
+        String branch = value == null ? "" : value.strip();
+        if (branch.isEmpty() || branch.length() > MAX_BRANCH || branch.contains("..")
+                || branch.chars().anyMatch(c -> Character.isISOControl(c) || Character.isWhitespace(c)
+                        || "~^:?*[\\".indexOf(c) >= 0)) {
+            throw new InvalidInputException("branch names one branch, 1 to " + MAX_BRANCH + " characters as Git writes "
+                    + "it — main, release/2026; leave it out for the default branch.");
+        }
+        return branch;
+    }
+
     enum Metric {
         LINE,
         BRANCH;
@@ -321,6 +375,12 @@ public sealed interface ChecklistRule {
                 node.put("suitePattern", rule.suitePattern());
                 node.put("minimumTests", rule.minimumTests());
             }
+            case ChangeReview rule -> {
+                node.put("minimumApprovals", rule.minimumApprovals());
+                node.put("windowDays", rule.windowDays());
+                node.put("minimumRatio", rule.minimumRatio());
+                rule.branch().ifPresent(branch -> node.put("branch", branch));
+            }
             case ComponentVersions rule -> {
                 ArrayNode components = node.putArray("components");
                 for (AllowedComponent component : rule.components()) {
@@ -372,6 +432,7 @@ public sealed interface ChecklistRule {
             case COVERAGE_THRESHOLD -> Set.of("metric", "minimumRatio", "aggregation", "scope");
             case TEST_SUITE_PASSED -> Set.of("suitePattern", "minimumTests");
             case COMPONENT_VERSIONS, COMPONENT_PRESENT -> Set.of("components");
+            case CHANGE_REVIEW -> Set.of("minimumApprovals", "windowDays", "minimumRatio", "branch");
         };
         for (Map.Entry<String, JsonNode> field : node.properties()) {
             if (field.getValue().isNull() || field.getKey().equals("kind") || field.getKey().equals("maxAgeDays")) {
@@ -402,6 +463,14 @@ public sealed interface ChecklistRule {
                             + "of tests the matching suites must run, minimumTests.")));
             case COMPONENT_VERSIONS -> new ComponentVersions(maxAge, components(node.get("components"), stated));
             case COMPONENT_PRESENT -> new ComponentPresent(maxAge, present(node.get("components"), stated));
+            case CHANGE_REVIEW -> new ChangeReview(maxAge,
+                    integer(node, "minimumApprovals").orElseThrow(() -> new InvalidInputException("State how many "
+                            + "people other than the author must approve a change, minimumApprovals — 1 for a peer.")),
+                    integer(node, "windowDays").orElseThrow(() -> new InvalidInputException("State how far back the "
+                            + "merged changes are counted, windowDays — 30 for the last month.")),
+                    decimal(node, "minimumRatio").orElseThrow(() -> new InvalidInputException("State the share of "
+                            + "merged changes that must have been approved, minimumRatio — 1 for every one.")),
+                    text(node, "branch"));
         };
     }
 

@@ -79,6 +79,17 @@ public interface ForgeRepositoryRepository extends JpaRepository<ForgeRepository
                and r.goneBy is null""")
     List<ForgeRepositoryEntity> listedBy(@Param("connectionId") UUID connectionId, @Param("discoveryId") long discoveryId);
 
+    /**
+     * Every repository of every snapshot no completed run marked gone, by its clone URLs alone: the change-review
+     * reading matches a target that no import linked by its URL's identity. Bounded by the discoveries' own bound,
+     * twenty thousand per connection, and asked once per turn, only when a target is not linked.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.forges.persistence.SnapshotUrls(r.connectionId, r.forgeId, r.httpUrl,
+                   r.sshUrl)
+              from ForgeRepositoryEntity r where r.goneBy is null""")
+    List<SnapshotUrls> currentUrls();
+
     Page<ForgeRepositoryEntity> findByConnectionIdAndLastSeenBy(UUID connectionId, long discoveryId, Pageable page);
 
     Page<ForgeRepositoryEntity> findByConnectionIdAndFirstSeenBy(UUID connectionId, long discoveryId, Pageable page);

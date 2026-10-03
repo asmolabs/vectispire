@@ -2934,6 +2934,9 @@ export type ChecklistRule = Refine<
         minimumTests?: number | null;
         components?: ChecklistAllowedComponent[] | null;
         scope?: ChecklistCoverageScope | null;
+        minimumApprovals?: number | null;
+        windowDays?: number | null;
+        branch?: string | null;
     }
 >;
 

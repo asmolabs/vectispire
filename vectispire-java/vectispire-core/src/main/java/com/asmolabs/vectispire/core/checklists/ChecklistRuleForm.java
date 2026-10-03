@@ -25,7 +25,11 @@ import java.util.Map;
  *   <li>{@code component_versions}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} and its
  *       allowed {@code versions} — exact, or Maven ranges ({@code [1.17,2.0)}) on a {@code pkg:maven/} prefix;
  *   <li>{@code component_present}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} alone —
- *       present whatever its version.
+ *       present whatever its version;
+ *   <li>{@code change_review}: {@code maxAgeDays} — how old the forge's reading may be — {@code minimumApprovals}
+ *       (approvals by people other than the author, 1 to 10), {@code windowDays} (how far back merged changes are
+ *       counted, 1 to 366), {@code minimumRatio} (the share of them that must have the approvals, above 0 to 1)
+ *       and an optional {@code branch}; absent, the default branch the forge names.
  * </ul>
  *
  * @param maxAgeDays how old the evidence may be, 1 to 366 — required of every kind
@@ -44,7 +48,10 @@ public record ChecklistRuleForm(
         String suitePattern,
         Integer minimumTests,
         List<ComponentForm> components,
-        CoverageScopeForm scope) {
+        CoverageScopeForm scope,
+        Integer minimumApprovals,
+        Integer windowDays,
+        String branch) {
 
     /** @param minResolvedRatio resolved ÷ (resolved + open), 0 to 1, four decimals at most */
     public record ThresholdForm(Integer maxOpen, BigDecimal minResolvedRatio) {}

@@ -12,6 +12,19 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItemEnti
 
     List<ChecklistItemEntity> findByVersionIdOrderByPositionAsc(Long versionId);
 
+    /**
+     * The rules of one kind bound to the lines of the versions that project checklists answer, the superseded
+     * revisions left out, a project once per line. {@code kindToken} is the canonical form's own writing of the
+     * kind — {@code %"kind":"change_review"%}: keys sorted and no whitespace, so the text is matched, and each
+     * row is still read as a rule by the caller. No {@code distinct}: MySQL compares a long text by its first
+     * kilobyte only.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.checklists.persistence.BoundRuleUse(c.projectId, i.boundRule)
+              from ChecklistEntity c, ChecklistItemEntity i
+             where i.versionId = c.templateVersionId and c.status <> :superseded and i.boundRule like :kindToken""")
+    List<BoundRuleUse> boundInUse(@Param("superseded") String superseded, @Param("kindToken") String kindToken);
+
     /** A draft's items, before the ones its new layout or its new pairs read are written. */
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)

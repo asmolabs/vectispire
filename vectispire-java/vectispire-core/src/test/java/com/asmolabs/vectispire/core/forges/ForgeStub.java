@@ -70,6 +70,7 @@ public final class ForgeStub implements AutoCloseable {
     private final Map<String, Reply> routes = new ConcurrentHashMap<>();
     private final Map<String, java.util.Deque<Reply>> sequences = new ConcurrentHashMap<>();
     private final Map<String, Duration> delays = new ConcurrentHashMap<>();
+    private final Map<String, Reply> prefixes = new ConcurrentHashMap<>();
     private final HttpsServer server;
 
     private ForgeStub(String caPem, HttpsServer server) {
@@ -154,6 +155,15 @@ public final class ForgeStub implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Answers every path starting with {@code prefix} that has no route of its own — a listing whose query carries
+     * an instant the test cannot know, a window's start computed by the caller's clock.
+     */
+    public ForgeStub routePrefix(String prefix, Reply reply) {
+        prefixes.put(prefix, reply);
+        return this;
+    }
+
     /** Answers {@code first}, then {@code then} in order, then {@link #route}'s reply for the path (404 without one). */
     public ForgeStub sequence(String path, Reply first, Reply... then) {
         java.util.Deque<Reply> queue = new java.util.concurrent.ConcurrentLinkedDeque<>();
@@ -177,7 +187,16 @@ public final class ForgeStub implements AutoCloseable {
     private Reply reply(String path) {
         java.util.Deque<Reply> queue = sequences.get(path);
         Reply next = queue == null ? null : queue.poll();
-        return next != null ? next : routes.getOrDefault(path, Reply.status(404));
+        if (next != null) {
+            return next;
+        }
+        Reply routed = routes.get(path);
+        if (routed != null) {
+            return routed;
+        }
+        return prefixes.entrySet().stream().filter(prefix -> path.startsWith(prefix.getKey()))
+                .max(java.util.Map.Entry.comparingByKey(java.util.Comparator.comparingInt(String::length)))
+                .map(java.util.Map.Entry::getValue).orElse(Reply.status(404));
     }
 
     /** The web address, as an administrator would type it. */

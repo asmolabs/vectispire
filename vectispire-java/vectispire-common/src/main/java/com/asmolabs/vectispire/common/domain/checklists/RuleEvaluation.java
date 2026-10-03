@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.checklists;
 
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.ChangeReview;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.ComponentPresent;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.ComponentVersions;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule.CoverageThreshold;
@@ -110,6 +111,7 @@ public final class RuleEvaluation {
             case TestSuitePassed tests -> tests(tests, facts, repositories, since);
             case ComponentVersions components -> components(components, facts, repositories, since);
             case ComponentPresent present -> present(present, facts, repositories, since);
+            case ChangeReview review -> changeReview(review, facts, repositories, since);
         };
     }
 
@@ -686,6 +688,107 @@ public final class RuleEvaluation {
 
     // ------------------------------------------------------------------ thresholds
 
+    /**
+     * How changes reach each repository's branch, as the newest reading of its forge within the age recorded it
+     * (lot G3). A configuration that requires the approvals — the author's own refused, a direct push refused —
+     * passes on its own: it holds for every change, including the next one. Otherwise the history decides: of
+     * the changes merged in the window, the share with at least the approvals, each from someone other than the
+     * author. A window with nothing merged is no data, never a pass; a history cut short, or shorter than the
+     * window, is no data too — a part of the window is not the window.
+     */
+    private static Measurement changeReview(ChangeReview rule, MeasurementFacts facts, List<Long> repositories,
+            Instant since) {
+        Collector collector = new Collector();
+        for (long repository : repositories) {
+            MeasurementFacts.ReviewFacts recorded = facts.reviews().get(repository);
+            switch (recorded) {
+                case null -> collector.missing(repository, Optional.empty(), NoDataReason.NEVER_EXAMINED, Optional.empty(),
+                        "no reading of its forge yet: the change-review measurement runs hourly");
+                case MeasurementFacts.ReviewUnlinked unlinked -> collector.missing(repository, Optional.empty(),
+                        NoDataReason.FORGE_UNLINKED, Optional.of(unlinked.look()), unlinked.why());
+                case MeasurementFacts.ReviewUnreadable unreadable -> {
+                    if (unreadable.look().at().isBefore(since)) {
+                        collector.missing(repository, Optional.empty(), NoDataReason.STALE, Optional.of(unreadable.look()),
+                                null);
+                    } else {
+                        collector.missing(repository, Optional.empty(), NoDataReason.FORGE_UNREADABLE,
+                                Optional.of(unreadable.look()), unreadable.why());
+                    }
+                }
+                case MeasurementFacts.ReviewRead read -> reviewed(rule, collector, repository, read, since);
+            }
+        }
+        String what = "merged changes approved by at least " + peers(rule.minimumApprovals())
+                + (rule.minimumRatio().compareTo(BigDecimal.ONE) == 0 ? ", every one" : ", " + percent(rule.minimumRatio())
+                        + " of them") + ", in " + days(rule.windowDays()) + rule.branch().map(branch -> " on " + branch)
+                                .orElse(" on the default branch");
+        return collector.outcome(List.of(), List.of(), what, true);
+    }
+
+    private static void reviewed(ChangeReview rule, Collector collector, long repository, MeasurementFacts.ReviewRead read,
+            Instant since) {
+        Look look = read.look();
+        if (look.at().isBefore(since)) {
+            collector.missing(repository, Optional.empty(), NoDataReason.STALE, Optional.of(look), null);
+            return;
+        }
+        ChangeReviewEvidence evidence = read.evidence();
+        String where = evidence.project() + " " + evidence.branch();
+        Optional<ChangeReviewEvidence.Settings> settings = evidence.settings();
+        if (settings.isPresent() && settings.get().proves(rule.minimumApprovals())) {
+            collector.examined(repository, Optional.empty(), look, List.of(), where + ": settings: " + settings.get().described());
+            return;
+        }
+        String settingsNote = settings.map(stated -> "settings: " + stated.described() + ", not enough on their own")
+                .orElse("settings not read: " + evidence.settingsUnread().orElse("unknown"));
+        if (evidence.history().isEmpty()) {
+            collector.missing(repository, Optional.empty(), NoDataReason.FORGE_UNREADABLE, Optional.of(look),
+                    where + ": history not read: " + evidence.historyUnread().orElse("unknown") + "; " + settingsNote);
+            return;
+        }
+        ChangeReviewEvidence.History history = evidence.history().get();
+        if (!history.complete()) {
+            collector.missing(repository, Optional.empty(), NoDataReason.REVIEW_INCOMPLETE, Optional.of(look), where
+                    + ": more " + evidence.changes() + " were merged in the window than one reading takes ("
+                    + history.changes().size() + " read)");
+            return;
+        }
+        if (evidence.windowDays() < rule.windowDays()) {
+            collector.missing(repository, Optional.empty(), NoDataReason.REVIEW_INCOMPLETE, Optional.of(look), where
+                    + ": the reading covers " + days(evidence.windowDays()) + ", the rule " + days(rule.windowDays())
+                    + "; the next reading covers it");
+            return;
+        }
+        Instant from = look.at().minus(java.time.Duration.ofDays(rule.windowDays()));
+        List<ChangeReviewEvidence.MergedChange> merged = history.changes().stream()
+                .filter(change -> !change.mergedAt().isBefore(from)).toList();
+        if (merged.isEmpty()) {
+            collector.missing(repository, Optional.empty(), NoDataReason.NO_CHANGE_MERGED, Optional.of(look), where
+                    + ": no " + evidence.changes().replace("requests", "request") + " merged in " + days(rule.windowDays()));
+            return;
+        }
+        List<String> unapproved = merged.stream().filter(change -> change.peerApprovals() < rule.minimumApprovals())
+                .map(ChangeReviewEvidence.MergedChange::reference).toList();
+        long approved = merged.size() - unapproved.size();
+        long selfApproved = merged.stream().filter(ChangeReviewEvidence.MergedChange::authorApproved).count();
+        String counted = approved + " of " + merged.size() + " merged " + evidence.changes() + " approved by "
+                + (rule.minimumApprovals() == 1 ? "a peer" : peers(rule.minimumApprovals())) + " in "
+                + days(rule.windowDays()) + (selfApproved == 0 ? "" : " (" + selfApproved + " approved by their author too, "
+                        + "not counted)");
+        List<String> unmet = new ArrayList<>();
+        if (!Ratios.atLeast(approved, merged.size(), rule.minimumRatio())) {
+            unmet.add(counted + ", fewer than " + percent(rule.minimumRatio()) + "; without: "
+                    + String.join(", ", unapproved.subList(0, Math.min(unapproved.size(), 10)))
+                    + (unapproved.size() > 10 ? " and " + (unapproved.size() - 10) + " more" : ""));
+        }
+        collector.examined(repository, Optional.empty(), look, unmet, where + ": " + (unmet.isEmpty() ? counted + "; " : "")
+                + settingsNote);
+    }
+
+    private static String peers(int count) {
+        return count + (count == 1 ? " peer" : " peers");
+    }
+
     /** Complete data judged against the thresholds; incomplete data reported, unjudged. */
     private static Measurement judged(Collector collector, Map<Severity, SeverityThreshold> thresholds,
             Map<Severity, long[]> totals, List<Figure> figures, String what) {
@@ -816,8 +919,10 @@ public final class RuleEvaluation {
         }
 
         /** The headlines whose summary carries the first repository's own sentence. */
-        private static final Set<NoDataReason> EXPLAINED = EnumSet.of(NoDataReason.LANGUAGE_NOT_ANALYSED,
-                NoDataReason.LANGUAGES_UNRECORDED, NoDataReason.INVENTORY_ABSENT, NoDataReason.VERSION_UNRECORDED, NoDataReason.PACKAGES_UNRECORDED,
+        private static final Set<NoDataReason> EXPLAINED = EnumSet.of(NoDataReason.FORGE_UNLINKED,
+                NoDataReason.FORGE_UNREADABLE, NoDataReason.REVIEW_INCOMPLETE, NoDataReason.LANGUAGE_NOT_ANALYSED,
+                NoDataReason.LANGUAGES_UNRECORDED, NoDataReason.INVENTORY_ABSENT, NoDataReason.VERSION_UNRECORDED,
+                NoDataReason.PACKAGES_UNRECORDED,
                 NoDataReason.PACKAGES_NOT_KEPT, NoDataReason.SCOPE_MATCHES_NOTHING);
 
         /**

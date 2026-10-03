@@ -511,7 +511,7 @@
             "type" : "integer"
           },
           "noDataReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "outcome" : {
@@ -1772,7 +1772,7 @@
             "type" : "string"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "reconciliation" : {
@@ -1783,7 +1783,7 @@
             "type" : "string"
           },
           "ruleKind" : {
-            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions", "component_present" ],
+            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions", "component_present", "change_review" ],
             "type" : "string"
           }
         },
@@ -2011,6 +2011,9 @@
             "enum" : [ "per_repository", "project_weighted" ],
             "type" : "string"
           },
+          "branch" : {
+            "type" : "string"
+          },
           "components" : {
             "items" : {
               "$ref" : "#/components/schemas/ComponentForm"
@@ -2018,7 +2021,7 @@
             "type" : "array"
           },
           "kind" : {
-            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions", "component_present" ],
+            "enum" : [ "dependency_analysis", "findings_threshold", "coverage_threshold", "test_suite_passed", "component_versions", "component_present", "change_review" ],
             "type" : "string"
           },
           "maxAgeDays" : {
@@ -2028,6 +2031,10 @@
           "metric" : {
             "enum" : [ "line", "branch" ],
             "type" : "string"
+          },
+          "minimumApprovals" : {
+            "format" : "int32",
+            "type" : "integer"
           },
           "minimumRatio" : {
             "type" : "number"
@@ -2056,6 +2063,10 @@
               "$ref" : "#/components/schemas/ThresholdForm"
             },
             "type" : "object"
+          },
+          "windowDays" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -5881,7 +5892,7 @@
             "type" : "integer"
           },
           "reason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           },
           "submittedOutcome" : {
@@ -5889,7 +5900,7 @@
             "type" : "string"
           },
           "submittedReason" : {
-            "enum" : [ "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },
@@ -8315,7 +8326,7 @@
             "type" : "string"
           },
           "source" : {
-            "enum" : [ "scan", "sarif_import", "coverage_import", "test_report_import" ],
+            "enum" : [ "scan", "sarif_import", "coverage_import", "test_report_import", "forge_review" ],
             "type" : "string"
           },
           "sourceId" : {
@@ -8323,7 +8334,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
+            "enum" : [ "examined", "not_applicable", "no_repository", "never_examined", "forge_unlinked", "forge_unreadable", "step_absent", "plugin_unsigned", "plugin_signature_unverified", "plugin_registry_authentication_required", "language_not_analysed", "examination_unrecorded", "languages_unrecorded", "inventory_absent", "version_unrecorded", "packages_unrecorded", "packages_not_kept", "scope_matches_nothing", "review_incomplete", "no_change_merged", "stale", "not_applicable_anywhere", "suite_not_found", "no_test_ran" ],
             "type" : "string"
           }
         },

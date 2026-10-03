@@ -23,6 +23,7 @@ import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -96,6 +97,7 @@ public class ForgeConnectionService {
     private final ForgeDiscoveryRepository discoveries;
     private final ForgeRepositoryRepository snapshot;
     private final ForgeImportLinkRepository links;
+    private final ForgeReviewReadingRepository readings;
     private final ForgeProbes probes;
     private final EncryptionService encryption;
     private final AuditLogService audit;
@@ -107,6 +109,7 @@ public class ForgeConnectionService {
             ForgeDiscoveryRepository discoveries,
             ForgeRepositoryRepository snapshot,
             ForgeImportLinkRepository links,
+            ForgeReviewReadingRepository readings,
             ForgeProbes probes,
             EncryptionService encryption,
             AuditLogService audit,
@@ -116,6 +119,7 @@ public class ForgeConnectionService {
         this.discoveries = discoveries;
         this.snapshot = snapshot;
         this.links = links;
+        this.readings = readings;
         this.probes = probes;
         this.encryption = encryption;
         this.audit = audit;
@@ -280,6 +284,7 @@ public class ForgeConnectionService {
             discoveries.deleteByConnection(id);
             snapshot.deleteByConnection(id);
             links.deleteByConnection(id);
+            readings.deleteByConnection(id);
             connections.deleteById(id);
         });
         record(actor, id, "Forge connection deleted: " + describe(entity), true);

@@ -18,6 +18,9 @@ public interface ForgeImportLinkRepository extends JpaRepository<ForgeImportLink
     /** Every link of the connection: the selection table flags what it imported, its snapshot being bounded too. */
     List<ForgeImportLinkEntity> findByConnectionId(UUID connectionId);
 
+    /** Where these targets came from: the change-review reading asks the forge they were imported from. */
+    List<ForgeImportLinkEntity> findByRepositoryIdIn(Collection<Long> repositoryIds);
+
     /** How many targets the connection imported, as its listing shows it. */
     long countByConnectionId(UUID connectionId);
 

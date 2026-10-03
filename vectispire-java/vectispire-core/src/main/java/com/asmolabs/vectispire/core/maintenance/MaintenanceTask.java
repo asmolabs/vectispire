@@ -91,6 +91,8 @@ public interface MaintenanceTask {
         public static final int ABANDONED_REVIEWS = 830;
         public static final int KEV_CATALOGUE = 840;
         public static final int EPSS_SCORES = 850;
+        /** After the feeds: the forges' change-review readings, which call a forge for up to the turn's bound. */
+        public static final int CHANGE_REVIEWS = 860;
         public static final int ORPHANED_TARGET_ROWS = 900;
 
         private Sequence() {}

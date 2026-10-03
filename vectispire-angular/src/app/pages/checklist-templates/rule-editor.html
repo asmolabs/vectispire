@@ -381,6 +381,76 @@
                     <small class="text-muted-color">{{ 'checklist_templates.rule_pattern_hint' | translate }}</small>
                 }
 
+                @if (kind === 'change_review') {
+                    <div class="flex flex-wrap items-end gap-3" data-testid="rule-change-review">
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-minimum-approvals" class="font-medium">{{
+                                'checklist_templates.rule_field_minimum_approvals' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-minimum-approvals"
+                                type="number"
+                                class="w-32"
+                                step="1"
+                                min="1"
+                                [max]="bounds.maxApprovals"
+                                [ngModel]="draft().minimumApprovals"
+                                (ngModelChange)="patch({ minimumApprovals: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-window-days" class="font-medium">{{
+                                'checklist_templates.rule_field_window_days' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-window-days"
+                                type="number"
+                                class="w-32"
+                                step="1"
+                                [min]="bounds.minAgeDays"
+                                [max]="bounds.maxAgeDays"
+                                [ngModel]="draft().windowDays"
+                                (ngModelChange)="patch({ windowDays: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-review-share" class="font-medium">{{
+                                'checklist_templates.rule_field_review_share' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-review-share"
+                                type="number"
+                                class="w-32"
+                                step="0.01"
+                                min="0"
+                                max="1"
+                                [ngModel]="draft().minimumRatio"
+                                (ngModelChange)="patch({ minimumRatio: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="rule-branch" class="font-medium">{{
+                                'checklist_templates.rule_field_branch' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="rule-branch"
+                                class="w-64 font-mono"
+                                [maxlength]="bounds.maxBranch"
+                                [placeholder]="'checklist_templates.rule_branch_placeholder' | translate"
+                                [ngModel]="draft().branch"
+                                (ngModelChange)="patch({ branch: $event })"
+                            />
+                        </div>
+                    </div>
+                    <small class="text-muted-color">{{
+                        'checklist_templates.rule_change_review_hint' | translate
+                    }}</small>
+                }
+
                 @if (kind === 'component_versions' || kind === 'component_present') {
                     <fieldset class="border-0 p-0 m-0 flex flex-col gap-2" data-testid="rule-components">
                         <legend class="font-medium mb-1">

@@ -4627,7 +4627,7 @@ export interface components {
             /** Format: int64 */
             itemId: number;
             /** @enum {string} */
-            noDataReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            noDataReason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             outcome?: "pass" | "fail" | "no_data";
             /** Format: int32 */
@@ -5114,12 +5114,12 @@ export interface components {
             /** @enum {string} */
             purpose?: "read" | "answer" | "submission" | "sign_off";
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             reconciliation?: "consistent" | "contradicted" | "declared_not_measured" | "understated" | "excluded" | "not_measured_here" | "unanswered";
             ruleDigest?: string;
             /** @enum {string} */
-            ruleKind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions" | "component_present";
+            ruleKind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions" | "component_present" | "change_review";
         };
         ChecklistMeasurementsView: {
             /** Format: date-time */
@@ -5212,13 +5212,16 @@ export interface components {
         ChecklistRuleForm: {
             /** @enum {string} */
             aggregation?: "per_repository" | "project_weighted";
+            branch?: string;
             components?: components["schemas"]["ComponentForm"][];
             /** @enum {string} */
-            kind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions" | "component_present";
+            kind?: "dependency_analysis" | "findings_threshold" | "coverage_threshold" | "test_suite_passed" | "component_versions" | "component_present" | "change_review";
             /** Format: int32 */
             maxAgeDays?: number;
             /** @enum {string} */
             metric?: "line" | "branch";
+            /** Format: int32 */
+            minimumApprovals?: number;
             minimumRatio?: number;
             /** Format: int32 */
             minimumTests?: number;
@@ -5229,6 +5232,8 @@ export interface components {
             thresholds?: {
                 [key: string]: components["schemas"]["ThresholdForm"];
             };
+            /** Format: int32 */
+            windowDays?: number;
         };
         ChecklistRulesRequest: {
             items?: components["schemas"]["ChecklistItemRule"][];
@@ -6650,11 +6655,11 @@ export interface components {
             /** Format: int32 */
             position: number;
             /** @enum {string} */
-            reason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            reason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
             /** @enum {string} */
             submittedOutcome?: "pass" | "fail" | "no_data";
             /** @enum {string} */
-            submittedReason?: "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            submittedReason?: "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         MeasuredLineView: {
             /** @enum {string} */
@@ -7556,11 +7561,11 @@ export interface components {
             repositoryName?: string;
             scope?: string;
             /** @enum {string} */
-            source?: "scan" | "sarif_import" | "coverage_import" | "test_report_import";
+            source?: "scan" | "sarif_import" | "coverage_import" | "test_report_import" | "forge_review";
             /** Format: int64 */
             sourceId?: number;
             /** @enum {string} */
-            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+            status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "forge_unlinked" | "forge_unreadable" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "inventory_absent" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "review_incomplete" | "no_change_merged" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
         };
         RepositoryPage: {
             items?: components["schemas"]["ForgeRepositoryView"][];

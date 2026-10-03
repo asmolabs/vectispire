@@ -33,6 +33,8 @@ import java.util.Set;
  *     produced, at any age — the scan {@code scopes} names for {@code builtin:vulnerability}
  * @param languages by scan id, what the scans a language-scoped analysis produced in recorded of
  *     languages — the static analysis steps and the plugins; a scan missing here recorded nothing
+ * @param reviews for the change-review rule, what the forges' readings recorded of each repository; a
+ *     repository missing here was never read
  */
 public record MeasurementFacts(
         List<Long> repositoryIds,
@@ -42,7 +44,16 @@ public record MeasurementFacts(
         Map<Long, CoverageReport> coverage,
         Map<Long, TestReport> tests,
         Map<Long, List<Component>> components,
-        Map<Long, ScanLanguages> languages) {
+        Map<Long, ScanLanguages> languages,
+        Map<Long, ReviewFacts> reviews) {
+
+    /** Facts for rules that read no forge. */
+    public MeasurementFacts(List<Long> repositoryIds, Map<String, Map<Long, ScopeFacts>> scopes,
+            Map<String, Map<Long, List<IssueCount>>> counts, Map<Long, Boolean> scheduled,
+            Map<Long, CoverageReport> coverage, Map<Long, TestReport> tests, Map<Long, List<Component>> components,
+            Map<Long, ScanLanguages> languages) {
+        this(repositoryIds, scopes, counts, scheduled, coverage, tests, components, languages, Map.of());
+    }
 
     /** Facts for rules that read no language — every one but the static analysis and the plugins. */
     public MeasurementFacts(List<Long> repositoryIds, Map<String, Map<Long, ScopeFacts>> scopes,
@@ -60,6 +71,7 @@ public record MeasurementFacts(
         tests = Map.copyOf(tests);
         components = Map.copyOf(components);
         languages = Map.copyOf(languages);
+        reviews = Map.copyOf(reviews);
     }
 
     /** Where a piece of evidence was read. */
@@ -67,7 +79,9 @@ public record MeasurementFacts(
         SCAN,
         SARIF_IMPORT,
         COVERAGE_IMPORT,
-        TEST_REPORT_IMPORT;
+        TEST_REPORT_IMPORT,
+        /** A reading of a forge's merge requests or pull requests, and of its branch settings (lot G3). */
+        FORGE_REVIEW;
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);
@@ -272,6 +286,44 @@ public record MeasurementFacts(
                 return Optional.empty();
             }
             return Optional.of(version);
+        }
+    }
+
+    /**
+     * What the forges recorded of one repository for the change-review rule, by what could be known: whether
+     * it is linked to a forge's project at all, whether that forge could be read with the connection's token,
+     * and, when it could, what it said.
+     */
+    public sealed interface ReviewFacts permits ReviewUnlinked, ReviewUnreadable, ReviewRead {}
+
+    /**
+     * No forge connection imported the repository and no discovered repository has its URL: nothing to ask.
+     *
+     * @param look the reading that found it so, for its date
+     */
+    public record ReviewUnlinked(Look look, String why) implements ReviewFacts {
+
+        public ReviewUnlinked {
+            Objects.requireNonNull(look, "look");
+            Objects.requireNonNull(why, "why");
+        }
+    }
+
+    /** The forge would not answer about the project — the token refused, the project gone from its view. */
+    public record ReviewUnreadable(Look look, String why) implements ReviewFacts {
+
+        public ReviewUnreadable {
+            Objects.requireNonNull(look, "look");
+            Objects.requireNonNull(why, "why");
+        }
+    }
+
+    /** The forge answered: its settings, its history, or both — each source saying why where it did not. */
+    public record ReviewRead(Look look, ChangeReviewEvidence evidence) implements ReviewFacts {
+
+        public ReviewRead {
+            Objects.requireNonNull(look, "look");
+            Objects.requireNonNull(evidence, "evidence");
         }
     }
 }

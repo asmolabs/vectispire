@@ -449,6 +449,41 @@ describe('binding a rule to a template line', () => {
         answerRereads(BOUND_VERSION);
     });
 
+    it('binds a change-review rule: one peer, every change, thirty days proposed; a branch Git refuses refused in words', async () => {
+        await start('CISO');
+        await edit(5);
+        choose('#rule-kind', 'Changes reviewed by a peer');
+        await settle();
+
+        expect((fixture.nativeElement.querySelector('#rule-minimum-approvals') as HTMLInputElement).value).toBe('1');
+        expect((fixture.nativeElement.querySelector('#rule-window-days') as HTMLInputElement).value).toBe('30');
+        expect((fixture.nativeElement.querySelector('#rule-review-share') as HTMLInputElement).value).toBe('1');
+        type('#rule-branch', 'release 2026');
+        button('rule-keep').click();
+        fixture.detectChanges();
+        expect(text('[data-testid="rule-error"]')).toContain('A branch name as Git writes it');
+        type('#rule-branch', 'release/2026');
+        type('#rule-minimum-approvals', '2');
+        const request = keepAndSave();
+        expect(request.request.body).toEqual({
+            items: [
+                {
+                    itemKey: ROW_5,
+                    rule: {
+                        kind: 'change_review',
+                        maxAgeDays: 7,
+                        minimumApprovals: 2,
+                        windowDays: 30,
+                        minimumRatio: 1,
+                        branch: 'release/2026'
+                    }
+                }
+            ]
+        });
+        request.flush(BOUND_VERSION);
+        answerRereads(BOUND_VERSION);
+    });
+
     it('binds a Maven range as one version, its comma its own, and refuses one on another type', async () => {
         await start('CISO');
         await edit(5);

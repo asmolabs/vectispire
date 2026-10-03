@@ -93,6 +93,9 @@ public abstract class VectispireContextTest {
             // The provenance of imported targets (V78, common, no foreign key). Left out, a link one test wrote would
             // mark the next test's repository already imported, under an id the next test's target may take.
             "t_forge_import_link",
+            // The change-review readings (V83, common, no foreign key). Left out, a reading one test wrote would be
+            // the next test's, under a repository id the next test's target may take — and not due, so never read.
+            "t_forge_review_reading",
             // The forge connections (V74, common, no foreign key). Left out, a connection one test created would
             // hold its name against the next test's.
             "t_forge_connection",

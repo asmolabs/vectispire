@@ -4,7 +4,8 @@
  * forge through the outbound guard, its scopes judged against an allow-list, stored encrypted with its row as
  * context, never returned — the discoveries, queued, claimed by a control-plane instance under a lease, listed
  * page by page through the outbound pager and kept as a snapshot compared run to run; the selection over that
- * snapshot, its preview, and the import, with the provenance of each imported target.
+ * snapshot, its preview, and the import, with the provenance of each imported target. Lot G3: the change-review
+ * readings — how changes reach the branches the checklists ask about, read hourly through the same connections.
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code ModularityTest},
  * decision 0030): a dependency on a module, or on a named interface ({@code module::name}), missing from
@@ -18,11 +19,17 @@
  * credentials listed by {@code GitTokenAdministrationService} and {@code SshKeyAdministrationService}, the default
  * schedule read from {@code TargetSchedules}, and the provenance link dropped when it hears {@code TargetDeleted}.
  *
+ * <p>{@code checklists} for the change-review readings (lot G3): which repositories and branches the checklists'
+ * {@code change_review} lines ask about ({@code ChangeReviewDemand}), and the port through which those lines read
+ * what was read ({@code ChangeReviews}, implemented here). The checklists declare the port rather than reading this
+ * module, which holds the forge tokens: the dependency runs one way, from the module that calls the forge to the
+ * one that judges what it said.
+ *
  * <p>{@code access::security} for its routes alone: the markers, the principal and {@code RequestActors}.
  * Its services decide nothing about who the caller is — the routes are administrators' and name no target
  * ({@code ArchitectureTest.accessForRoutesOnly}).
  */
-@ApplicationModule(allowedDependencies = {"targets", "access::security"})
+@ApplicationModule(allowedDependencies = {"targets", "checklists", "access::security"})
 package com.asmolabs.vectispire.core.forges;
 
 import org.springframework.modulith.ApplicationModule;

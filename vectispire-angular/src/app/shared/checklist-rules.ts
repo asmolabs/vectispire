@@ -31,7 +31,8 @@ export const RULE_KINDS: readonly ChecklistRuleKind[] = [
     'coverage_threshold',
     'test_suite_passed',
     'component_versions',
-    'component_present'
+    'component_present',
+    'change_review'
 ];
 
 // Literal keys, so that a new value cannot ship as a raw key (decision 0019). The i18n check counts
@@ -42,7 +43,8 @@ export const RULE_KIND_KEYS = {
     coverage_threshold: 'checklist_rules.kind_coverage_threshold',
     test_suite_passed: 'checklist_rules.kind_test_suite_passed',
     component_versions: 'checklist_rules.kind_component_versions',
-    component_present: 'checklist_rules.kind_component_present'
+    component_present: 'checklist_rules.kind_component_present',
+    change_review: 'checklist_rules.kind_change_review'
 } as const satisfies Record<ChecklistRuleKind, string>;
 
 export const SEVERITIES: readonly ChecklistSeverity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'];
@@ -105,11 +107,21 @@ export const RULE_BOUNDS = {
     /** `Ratios.SCALE`: four decimals keep the canonical form out of scientific notation. */
     ratioDecimals: 4,
     /** `CoverageScope.MAX_PATTERNS`, in each of include and exclude; a pattern is `MAX_PATTERN` long at most. */
-    maxCoveragePatterns: 20
+    maxCoveragePatterns: 20,
+    /** `ChecklistRule.MAX_APPROVALS`, `MAX_BRANCH`; a change-review window is a maximum age's span. */
+    maxApprovals: 10,
+    maxBranch: 255
 } as const;
 
-/** What the form proposes for a new rule's maximum age, as decision 0032 §6 says it does — and nothing else. */
+/** What the form proposes for a new rule's maximum age, as decision 0032 §6 says it does. */
 export const PROPOSED_MAX_AGE_DAYS = 7;
+
+/**
+ * What the form proposes for a new change-review rule (decision 0037, lot G3): the words of the line it was
+ * written for — "every merge request is approved by at least one peer" — over the last thirty days. Proposed in
+ * the fields, where the person reads and changes them, never assumed by the server, which requires each one.
+ */
+export const PROPOSED_CHANGE_REVIEW = { minimumApprovals: 1, windowDays: 30, minimumRatio: 1 } as const;
 
 /** `PluginManifest.requireId`: 2 to 40, lowercase letters and digits, inner hyphens. */
 const PLUGIN_SCOPE = /^plugin:[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/;
@@ -117,6 +129,8 @@ const PLUGIN_SCOPE = /^plugin:[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/;
 const IMPORT_SCOPE = /^import:[a-z0-9][a-z0-9-]{0,38}[a-z0-9]\/(.+)$/;
 // eslint-disable-next-line no-control-regex -- the server refuses control characters; so does the form.
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
+/** `ChecklistRule.branchName`: what Git takes in a branch's name — no space, none of `~ ^ : ? * [ \`, no `..`. */
+const BRANCH_REFUSED = /[\s~^:?*[\\]|\.\./;
 
 /** One severity's threshold as the form edits it: either, both, or neither — neither states nothing. */
 export interface ThresholdDraft {
@@ -150,6 +164,11 @@ export interface RuleDraft {
     /** A coverage rule's packages, typed as lists separated by commas; both blank is the whole report. */
     scopeInclude: string;
     scopeExclude: string;
+    /** A change-review rule's approvals by people other than the author, and the window in days. */
+    minimumApprovals: number | null;
+    windowDays: number | null;
+    /** Blank for the default branch the forge names. */
+    branch: string;
 }
 
 /** Why the form refuses a rule, in the order a person reads the form. */
@@ -175,7 +194,11 @@ export type RuleProblem =
     | 'purl_twice'
     | 'versions'
     | 'version_length'
-    | 'version_range';
+    | 'version_range'
+    | 'minimum_approvals'
+    | 'window_days'
+    | 'review_share'
+    | 'branch';
 
 export const RULE_PROBLEM_KEYS = {
     max_age: 'checklist_rules.problem_max_age',
@@ -199,7 +222,11 @@ export const RULE_PROBLEM_KEYS = {
     purl_twice: 'checklist_rules.problem_purl_twice',
     versions: 'checklist_rules.problem_versions',
     version_length: 'checklist_rules.problem_version_length',
-    version_range: 'checklist_rules.problem_version_range'
+    version_range: 'checklist_rules.problem_version_range',
+    minimum_approvals: 'checklist_rules.problem_minimum_approvals',
+    window_days: 'checklist_rules.problem_window_days',
+    review_share: 'checklist_rules.problem_review_share',
+    branch: 'checklist_rules.problem_branch'
 } as const satisfies Record<RuleProblem, string>;
 
 /** A refusal and what its sentence names. */
@@ -216,8 +243,9 @@ function noThresholds(): Record<ChecklistSeverity, ThresholdDraft> {
     ) as Record<ChecklistSeverity, ThresholdDraft>;
 }
 
-/** A new rule of a kind: seven days proposed, nothing else. */
+/** A new rule of a kind: seven days proposed, and a change review's own words; nothing else. */
 export function emptyDraft(kind: ChecklistRuleKind | null): RuleDraft {
+    const review = kind === 'change_review';
     return {
         kind,
         maxAgeDays: kind ? PROPOSED_MAX_AGE_DAYS : null,
@@ -225,13 +253,16 @@ export function emptyDraft(kind: ChecklistRuleKind | null): RuleDraft {
         scopes: [],
         thresholds: noThresholds(),
         metric: null,
-        minimumRatio: null,
+        minimumRatio: review ? PROPOSED_CHANGE_REVIEW.minimumRatio : null,
         aggregation: null,
         suitePattern: '',
         minimumTests: null,
         components: [],
         scopeInclude: '',
-        scopeExclude: ''
+        scopeExclude: '',
+        minimumApprovals: review ? PROPOSED_CHANGE_REVIEW.minimumApprovals : null,
+        windowDays: review ? PROPOSED_CHANGE_REVIEW.windowDays : null,
+        branch: ''
     };
 }
 
@@ -275,6 +306,9 @@ export function draftOf(rule: ChecklistRule | null): RuleDraft {
     }));
     draft.scopeInclude = (rule.scope?.include ?? []).join(', ');
     draft.scopeExclude = (rule.scope?.exclude ?? []).join(', ');
+    draft.minimumApprovals = rule.minimumApprovals ?? null;
+    draft.windowDays = rule.windowDays ?? null;
+    draft.branch = rule.branch ?? '';
     return draft;
 }
 
@@ -485,6 +519,23 @@ export function ruleRefusal(draft: RuleDraft): RuleRefusal | null {
             }
             return null;
         }
+        case 'change_review': {
+            if (!wholeIn(draft.minimumApprovals, 1, RULE_BOUNDS.maxApprovals)) {
+                return { problem: 'minimum_approvals', params: { max: RULE_BOUNDS.maxApprovals } };
+            }
+            if (!wholeIn(draft.windowDays, RULE_BOUNDS.minAgeDays, RULE_BOUNDS.maxAgeDays)) {
+                return { problem: 'window_days', params: { min: RULE_BOUNDS.minAgeDays, max: RULE_BOUNDS.maxAgeDays } };
+            }
+            if (!ratioAllowed(draft.minimumRatio, false)) return { problem: 'review_share', params: {} };
+            const branch = draft.branch.trim();
+            if (
+                branch &&
+                (branch.length > RULE_BOUNDS.maxBranch || CONTROL.test(branch) || BRANCH_REFUSED.test(branch))
+            ) {
+                return { problem: 'branch', params: { max: RULE_BOUNDS.maxBranch } };
+            }
+            return null;
+        }
     }
 }
 
@@ -559,6 +610,19 @@ export function ruleOf(draft: RuleDraft): ChecklistRule | null {
                     purlPrefix: component.purlPrefix.trim()
                 }))
             };
+        case 'change_review': {
+            const rule: ChecklistRule = {
+                kind: draft.kind,
+                maxAgeDays,
+                minimumApprovals: draft.minimumApprovals!,
+                windowDays: draft.windowDays!,
+                minimumRatio: draft.minimumRatio!
+            };
+            // Only when named: blank is the default branch the forge names.
+            const branch = draft.branch.trim();
+            if (branch) rule.branch = branch;
+            return rule;
+        }
     }
 }
 
@@ -727,6 +791,23 @@ export function describeRule(i18n: I18nService, rule: ChecklistRule): string[] {
             for (const component of rule.components ?? []) {
                 lines.push(i18n.t('checklist_rules.summary_component_present', { prefix: component.purlPrefix }));
             }
+            break;
+        case 'change_review':
+            lines.push(
+                i18n.t('checklist_rules.summary_change_review', {
+                    count: rule.minimumApprovals ?? 0,
+                    percent:
+                        rule.minimumRatio !== null && rule.minimumRatio !== undefined
+                            ? percentOf(rule.minimumRatio)
+                            : '—',
+                    days: rule.windowDays ?? 0
+                })
+            );
+            lines.push(
+                rule.branch
+                    ? i18n.t('checklist_rules.summary_branch', { branch: rule.branch })
+                    : i18n.t('checklist_rules.summary_default_branch')
+            );
             break;
     }
     lines.push(i18n.t('checklist_rules.summary_age', { days: rule.maxAgeDays }));

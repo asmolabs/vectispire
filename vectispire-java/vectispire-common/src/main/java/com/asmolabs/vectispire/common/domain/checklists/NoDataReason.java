@@ -15,6 +15,17 @@ public enum NoDataReason {
     /** A repository has no scan or import in which the scope produced, at any age. */
     NEVER_EXAMINED,
     /**
+     * A change-review rule, on a repository no forge connection imported and whose URL no discovered repository
+     * has: there is no forge project to ask. Imported through a connection, or discovered by one, it is linked.
+     */
+    FORGE_UNLINKED,
+    /**
+     * A change-review rule, on a repository whose forge would not say how its changes are reviewed — the token
+     * refused (on GitHub, a fine-grained token without "Pull requests: read"), the project gone from its view, or
+     * neither the settings nor the history readable. The evidence carries the forge's own reason.
+     */
+    FORGE_UNREADABLE,
+    /**
      * The step or plugin was absent in every scan within the age — did not look, not found nothing. Also
      * a coverage report within the age that counted no branch, for a rule on branches: it did not count
      * them, which is not 0 of 0.
@@ -87,6 +98,17 @@ public enum NoDataReason {
      * layout than the report's — the evidence names how many packages there were.
      */
     SCOPE_MATCHES_NOTHING,
+    /**
+     * A change-review rule judged on the history, and the history read is not the window's: more changes were
+     * merged in it than one reading takes, or the reading covers fewer days than the rule asks (a rule whose
+     * window was just widened, until the next reading). A part of the window is not the window.
+     */
+    REVIEW_INCOMPLETE,
+    /**
+     * A change-review rule judged on the history, and no change was merged into the branch in the window:
+     * "every one of none was reviewed" is the vacuous truth refused, as for a project without repositories.
+     */
+    NO_CHANGE_MERGED,
     /** The newest scan or import in which the scope produced is older than the maximum age. */
     STALE,
     /** A plugin was not applicable on every repository: a line passed by a tool that looked at nothing is refused. */

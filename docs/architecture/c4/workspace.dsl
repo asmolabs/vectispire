@@ -96,6 +96,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
         m_exports -> m_scanning "uses"
         m_exports -> m_targets "uses"
         m_forges -> m_access "uses"
+        m_forges -> m_checklists "uses"
         m_forges -> m_targets "uses"
         m_gate -> m_access "uses"
         m_gate -> m_issues "uses"

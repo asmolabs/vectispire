@@ -294,6 +294,57 @@ describe('the checklist rules, as the form reads them', () => {
         ]);
     });
 
+    it('proposes a change review in the words of its line — one peer, every change, thirty days — each one editable', () => {
+        const review = emptyDraft('change_review');
+        expect(review.minimumApprovals).toBe(1);
+        expect(review.minimumRatio).toBe(1);
+        expect(review.windowDays).toBe(30);
+        expect(review.branch).toBe('');
+        expect(problem(review)).toBeNull();
+        // Blank is the default branch: the key is left out, never sent empty.
+        expect(asSchema('ChecklistRuleForm', ruleOf(review))).toEqual({
+            kind: 'change_review',
+            maxAgeDays: 7,
+            minimumApprovals: 1,
+            windowDays: 30,
+            minimumRatio: 1
+        });
+        expect(ruleOf({ ...review, branch: ' release/2026 ' })?.branch).toBe('release/2026');
+        // No other kind is proposed these.
+        expect(emptyDraft('coverage_threshold').minimumRatio).toBeNull();
+    });
+
+    it('holds a change review to the server bounds: 1 to 10 approvals, 1 to 366 days, a share above 0, a branch Git takes', () => {
+        const review = emptyDraft('change_review');
+        for (const [approvals, refused] of [
+            [0, true],
+            [1, false],
+            [10, false],
+            [11, true],
+            [1.5, true],
+            [null, true]
+        ] as const) {
+            expect(problem({ ...review, minimumApprovals: approvals }), `${approvals} approvals`).toBe(
+                refused ? 'minimum_approvals' : null
+            );
+        }
+        for (const [days, refused] of [
+            [0, true],
+            [1, false],
+            [366, false],
+            [367, true],
+            [null, true]
+        ] as const) {
+            expect(problem({ ...review, windowDays: days }), `${days} days`).toBe(refused ? 'window_days' : null);
+        }
+        expect(problem({ ...review, minimumRatio: 0 })).toBe('review_share');
+        expect(problem({ ...review, minimumRatio: 0.95 })).toBeNull();
+        for (const branch of ['a b', 'a..b', 'a~1', 'x:y', 'x*', 'x[1', 'x\\y', 'x'.repeat(256)]) {
+            expect(problem({ ...review, branch }), branch).toBe('branch');
+        }
+        expect(problem({ ...review, branch: 'release/2026' })).toBeNull();
+    });
+
     it('allows "no rule" always: it unbinds the line', () => {
         expect(ruleRefusal(emptyDraft(null))).toBeNull();
         expect(ruleOf(emptyDraft(null))).toBeNull();
@@ -338,6 +389,9 @@ describe('the checklist rules, as the form reads them', () => {
         ]);
         expect(keys({ ...everything, kind: 'component_versions' })).toEqual(['components', 'kind', 'maxAgeDays']);
         expect(keys({ ...everything, kind: 'component_present' })).toEqual(['components', 'kind', 'maxAgeDays']);
+        expect(
+            keys({ ...everything, kind: 'change_review', minimumApprovals: 1, windowDays: 30, branch: 'main' })
+        ).toEqual(['branch', 'kind', 'maxAgeDays', 'minimumApprovals', 'minimumRatio', 'windowDays']);
         // A dependency rule without thresholds says none, rather than an empty object.
         expect(ruleOf({ ...emptyDraft('dependency_analysis'), requireSchedule: false })).toEqual({
             kind: 'dependency_analysis',
@@ -393,6 +447,20 @@ describe('the checklist rules, as the form reads them', () => {
             'Only the packages matching org/example/**',
             'Except the packages matching **/generated/**',
             'Evidence at most 14 days old'
+        ]);
+        expect(
+            describeRule(i18n, {
+                kind: 'change_review',
+                maxAgeDays: 1,
+                minimumApprovals: 2,
+                windowDays: 30,
+                minimumRatio: 0.95,
+                branch: 'release/2026'
+            })
+        ).toEqual([
+            'At least 95 % of the changes merged in the last 30 days approved by at least 2 people other than their author — or a forge configuration requiring it',
+            'Changes merged into release/2026',
+            'Evidence at most 1 days old'
         ]);
         TestBed.resetTestingModule();
     });

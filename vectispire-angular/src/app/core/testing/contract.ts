@@ -126,7 +126,8 @@ const RULE_KINDS = [
     'coverage_threshold',
     'test_suite_passed',
     'component_versions',
-    'component_present'
+    'component_present',
+    'change_review'
 ]; // ChecklistRule.Kind
 const COVERAGE_METRICS = ['line', 'branch']; // ChecklistRule.Metric
 const COVERAGE_AGGREGATIONS = ['per_repository', 'project_weighted']; // ChecklistRule.Aggregation
@@ -134,6 +135,8 @@ const MEASUREMENT_OUTCOMES = ['pass', 'fail', 'no_data']; // MeasurementOutcome
 const NO_DATA_REASONS = [
     'no_repository',
     'never_examined',
+    'forge_unlinked',
+    'forge_unreadable',
     'step_absent',
     'plugin_unsigned',
     'plugin_signature_unverified',
@@ -146,6 +149,8 @@ const NO_DATA_REASONS = [
     'packages_unrecorded',
     'packages_not_kept',
     'scope_matches_nothing',
+    'review_incomplete',
+    'no_change_merged',
     'stale',
     'not_applicable_anywhere',
     'suite_not_found',
@@ -161,7 +166,7 @@ const RECONCILIATIONS = [
     'unanswered'
 ]; // Reconciliation
 const MEASUREMENT_PURPOSES = ['read', 'answer', 'submission', 'sign_off']; // MeasurementPurpose
-const EVIDENCE_SOURCES = ['scan', 'sarif_import', 'coverage_import', 'test_report_import']; // MeasurementFacts.Source
+const EVIDENCE_SOURCES = ['scan', 'sarif_import', 'coverage_import', 'test_report_import', 'forge_review']; // MeasurementFacts.Source
 /** A repository's status in a measurement: examined, not applicable, or the reason it has no data. */
 const LOOK_STATUSES = ['examined', 'not_applicable', ...NO_DATA_REASONS]; // Measurement.RepositoryEvidence
 

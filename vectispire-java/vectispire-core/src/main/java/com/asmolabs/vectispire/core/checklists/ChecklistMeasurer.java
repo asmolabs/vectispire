@@ -52,7 +52,8 @@ import org.springframework.stereotype.Component;
  * issues}); the inventory lists an SBOM's components ({@code inventory}); the repositories carry their
  * schedules ({@code targets}); the static analysis and the plugins are judged by the languages the scan
  * they produced in recorded — its census, its rules' languages ({@code scanning}), the manifest it named
- * ({@code plugins}). No other module's repository is read, and no statement names another
+ * ({@code plugins}); the forges' readings say how changes reach each repository ({@link ChangeReviews}, a port
+ * {@code forges} implements). No other module's repository is read, and no statement names another
  * module's entity: every question is a method of its owner's API.
  *
  * <p><b>Batched by the owners.</b> A project's repositories reach every one of those questions a
@@ -76,9 +77,10 @@ class ChecklistMeasurer {
     private final TargetCatalog targets;
     private final PluginService plugins;
     private final TargetSchedules schedules;
+    private final ChangeReviews reviews;
 
     ChecklistMeasurer(ScanCatalog scans, IssueCatalog issues, ReportImportCatalog imports, ComponentCatalog components,
-            TargetCatalog targets, PluginService plugins, TargetSchedules schedules) {
+            TargetCatalog targets, PluginService plugins, TargetSchedules schedules, ChangeReviews reviews) {
         this.scans = scans;
         this.issues = issues;
         this.imports = imports;
@@ -86,6 +88,7 @@ class ChecklistMeasurer {
         this.targets = targets;
         this.plugins = plugins;
         this.schedules = schedules;
+        this.reviews = reviews;
     }
 
     /** Every bound line of {@code items}, measured over these repositories at {@code now}, in their order. */
@@ -115,6 +118,7 @@ class ChecklistMeasurer {
         Map<Long, MeasurementFacts.CoverageReport> coverage = Map.of();
         Map<Long, MeasurementFacts.TestReport> tests = Map.of();
         Map<Long, List<MeasurementFacts.Component>> listed = Map.of();
+        Map<Long, MeasurementFacts.ReviewFacts> reviewed = Map.of();
         Set<Long> languageScans = new java.util.HashSet<>();
         if (repositories.isEmpty()) {
             return new MeasurementFacts(repositories, scopes, counts, scheduled, coverage, tests, listed);
@@ -171,9 +175,11 @@ class ChecklistMeasurer {
                 scopes.put(scope.key(), scanned.facts());
                 listed = components(scanned.newest());
             }
+            // Stored by the forges' hourly reading: nothing here calls a forge.
+            case ChecklistRule.ChangeReview review -> reviewed = reviews.recorded(repositories, review.branch());
         }
         return new MeasurementFacts(repositories, scopes, counts, scheduled, coverage, tests, listed,
-                languages(languageScans));
+                languages(languageScans), reviewed);
     }
 
     /** What the scans a language-scoped analysis produced in recorded of languages, by scan id. */

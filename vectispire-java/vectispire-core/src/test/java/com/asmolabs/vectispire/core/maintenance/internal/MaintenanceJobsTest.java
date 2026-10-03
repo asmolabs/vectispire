@@ -54,6 +54,8 @@ import com.asmolabs.vectispire.core.targets.TargetDeletionService;
 import com.asmolabs.vectispire.core.targets.internal.RepositoryIdentityTask;
 import com.asmolabs.vectispire.core.targets.internal.OrphanedTargetRowsTask;
 import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
+import com.asmolabs.vectispire.core.forges.ForgeReviewService;
+import com.asmolabs.vectispire.core.forges.internal.ChangeReviewTask;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssScoresSyncTask;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogueSyncTask;
 import com.asmolabs.vectispire.core.tickets.TicketSweepService;
@@ -117,6 +119,7 @@ class MaintenanceJobsTest {
             AbandonedReviewsTask.class,
             KevCatalogueSyncTask.class,
             EpssScoresSyncTask.class,
+            ChangeReviewTask.class,
             OrphanedTargetRowsTask.class);
 
     private RetentionService retention;
@@ -140,6 +143,7 @@ class MaintenanceJobsTest {
     private ReportExportRepository reportExports;
     private ReportQueue reportQueue;
     private ReportDocumentRepository reportDocuments;
+    private ForgeReviewService forgeReviews;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -166,6 +170,7 @@ class MaintenanceJobsTest {
         reportExports = mock(ReportExportRepository.class);
         reportQueue = mock(ReportQueue.class);
         reportDocuments = mock(ReportDocumentRepository.class);
+        forgeReviews = mock(ForgeReviewService.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
@@ -199,6 +204,7 @@ class MaintenanceJobsTest {
                 new AbandonedReviewsTask(reviews),
                 new KevCatalogueSyncTask(feed),
                 new EpssScoresSyncTask(feed),
+                new ChangeReviewTask(forgeReviews),
                 new OrphanedTargetRowsTask(targetDeletion));
         jobs = new MaintenanceJobs(tasks);
     }
@@ -233,7 +239,8 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, identities, triage, breaches, digest, complianceHistory,
-                owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, reviews, feed, targetDeletion);
+                owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, reviews, feed, forgeReviews,
+                targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
@@ -265,6 +272,9 @@ class MaintenanceJobsTest {
         turn.verify(feed).syncIfDue();
         // And the EPSS scores from being as old as that, or as the per-scan question they replace.
         turn.verify(feed).syncEpssIfDue();
+        // The only caller of the forges' change-review readings: without it every change_review line says "no
+        // reading yet" for as long as the install lives, and one reading goes stale after the rule's age.
+        turn.verify(forgeReviews).readDue();
         turn.verify(targetDeletion).purgeOrphanedTargetData();
     }
 
