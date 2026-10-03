@@ -106,6 +106,22 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/git-tokens/git-tokens').then((m) => m.GitTokens)
             },
             {
+                path: 'forge-connections',
+                title: 'titles.forge_connections',
+                canActivate: [requires('administrator')],
+                loadComponent: () =>
+                    import('./app/pages/forge-connections/forge-connections').then((m) => m.ForgeConnections)
+            },
+            {
+                // Discovery, selection and import of one connection: administrators, as the routes behind it —
+                // a discovery names repositories no grant covers yet (decision 0037 §3).
+                path: 'forge-connections/:connectionId',
+                title: 'titles.forge_discovery',
+                canActivate: [requires('administrator')],
+                loadComponent: () =>
+                    import('./app/pages/forge-discovery/forge-discovery').then((m) => m.ForgeDiscoveryPage)
+            },
+            {
                 path: 'users',
                 title: 'titles.users',
                 canActivate: [requires('administrator')],

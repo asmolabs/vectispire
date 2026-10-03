@@ -1,0 +1,534 @@
+<div class="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'forges.connections.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'forges.connections.subtitle' | translate }}</p>
+    </div>
+    <p-button
+        data-testid="add-connection"
+        [label]="'forges.connections.add' | translate"
+        icon="pi pi-plus"
+        (onClick)="openCreate()"
+    />
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full" data-testid="page-error">{{
+        message
+    }}</p-message>
+}
+
+@if (!loading() && connections().length === 0 && !error()) {
+    <p-card>
+        <p class="m-0 text-muted-color" data-testid="no-connection">{{ 'forges.connections.none' | translate }}</p>
+    </p-card>
+}
+
+<div class="flex flex-col gap-4">
+    @for (connection of connections(); track connection.id) {
+        <p-card data-testid="connection">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
+                <div class="min-w-0">
+                    <h2 class="text-xl font-semibold m-0 break-words" data-testid="connection-name">
+                        {{ connection.name }}
+                    </h2>
+                    <p class="m-0 mt-1 text-muted-color break-all">
+                        <span data-testid="connection-edition">{{ edition(connection) }}</span> ·
+                        <span class="font-mono text-sm" data-testid="connection-address">{{ connection.baseUrl }}</span>
+                        @if (connection.owner) {
+                            · <span data-testid="connection-owner">{{ connection.owner }}</span>
+                        }
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-2 shrink-0">
+                    <a
+                        pButton
+                        size="small"
+                        data-testid="connection-discover"
+                        [routerLink]="['/forge-connections', connection.id]"
+                        >{{ 'forges.connections.open_discovery' | translate }}</a
+                    >
+                    <p-button
+                        icon="pi pi-refresh"
+                        severity="secondary"
+                        [text]="true"
+                        [rounded]="true"
+                        data-testid="connection-rotate"
+                        [ariaLabel]="'forges.connections.aria_rotate' | translate: { name: connection.name }"
+                        [pTooltip]="'forges.connections.rotate' | translate"
+                        (onClick)="openRotate(connection)"
+                    />
+                    <p-button
+                        icon="pi pi-pencil"
+                        severity="secondary"
+                        [text]="true"
+                        [rounded]="true"
+                        data-testid="connection-edit"
+                        [ariaLabel]="'forges.connections.aria_edit' | translate: { name: connection.name }"
+                        [pTooltip]="'common.edit' | translate"
+                        (onClick)="openEdit(connection)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        data-testid="connection-delete"
+                        [ariaLabel]="'forges.connections.aria_delete' | translate: { name: connection.name }"
+                        [pTooltip]="'common.delete' | translate"
+                        (onClick)="askDelete(connection)"
+                    />
+                </div>
+            </div>
+
+            <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-3 m-0">
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.token' | translate }}</dt>
+                    <dd class="m-0" data-testid="connection-token">
+                        {{ credentialKind(connection) ?? ('common.unknown' | translate) }}
+                        @if (connection.scopes; as scopes) {
+                            <span class="font-mono text-sm">({{ scopes.join(', ') }})</span>
+                        } @else {
+                            <span class="block text-sm text-muted-color">{{
+                                'forges.connections.scopes_unreported' | translate
+                            }}</span>
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.can_write' | translate }}</dt>
+                    <dd class="m-0" data-testid="connection-can-write">
+                        @if (connection.canWrite === true) {
+                            <p-tag severity="warn" [value]="'forges.connections.can_write_yes' | translate" />
+                        } @else if (connection.canWrite === false) {
+                            <p-tag severity="success" [value]="'forges.connections.can_write_no' | translate" />
+                        } @else {
+                            <p-tag severity="secondary" [value]="'forges.connections.can_write_unknown' | translate" />
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.expiry' | translate }}</dt>
+                    <dd class="m-0" data-testid="connection-expiry">
+                        @switch (expiry(connection)) {
+                            @case ('none') {
+                                <span class="text-muted-color">{{ 'forges.connections.expiry_none' | translate }}</span>
+                            }
+                            @case ('expired') {
+                                <p-tag severity="danger" [value]="'forges.connections.expired' | translate" />
+                                {{ connection.tokenExpiresAt | date: 'yyyy-MM-dd' }}
+                            }
+                            @case ('soon') {
+                                <p-tag
+                                    severity="warn"
+                                    [value]="
+                                        'forges.connections.expires_soon' | translate: { count: daysLeft(connection) }
+                                    "
+                                />
+                                {{ connection.tokenExpiresAt | date: 'yyyy-MM-dd' }}
+                            }
+                            @default {
+                                {{ connection.tokenExpiresAt | date: 'yyyy-MM-dd' }}
+                            }
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.encryption' | translate }}</dt>
+                    <dd class="m-0">
+                        <p-tag
+                            [value]="badge(connection.encryptionState).label"
+                            [severity]="badge(connection.encryptionState).severity"
+                            [pTooltip]="badge(connection.encryptionState).hint"
+                            tooltipPosition="top"
+                        />
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.network' | translate }}</dt>
+                    <dd class="m-0" data-testid="connection-network">
+                        @if (connection.internalNetwork) {
+                            {{ 'forges.connections.network_internal' | translate }}
+                        } @else {
+                            {{ 'forges.connections.network_public' | translate }}
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.ca' | translate }}</dt>
+                    <dd class="m-0 break-words" data-testid="connection-ca">
+                        @if (connection.caSubject) {
+                            {{ connection.caSubject }}
+                            <span class="block text-sm text-muted-color">{{
+                                'forges.connections.ca_until'
+                                    | translate: { date: (connection.caNotAfter | date: 'yyyy-MM-dd') ?? '' }
+                            }}</span>
+                        } @else {
+                            <span class="text-muted-color">{{ 'forges.connections.ca_none' | translate }}</span>
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.last_discovery' | translate }}</dt>
+                    <dd class="m-0" data-testid="connection-last-discovery">
+                        @if (connection.lastDiscovery; as last) {
+                            <p-tag
+                                [value]="stateKeys[last.state] | translate"
+                                [severity]="
+                                    last.state === 'failed' ? 'danger' : last.state === 'partial' ? 'warn' : 'info'
+                                "
+                            />
+                            {{ last.requestedAt | date: 'yyyy-MM-dd HH:mm' }}
+                        } @else {
+                            <span class="text-muted-color">{{
+                                'forges.connections.never_discovered' | translate
+                            }}</span>
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-muted-color">{{ 'forges.connections.imported' | translate }}</dt>
+                    <dd class="m-0" data-testid="connection-imported">{{ connection.importedTargets }}</dd>
+                </div>
+            </dl>
+            @if (connection.forgeVersion) {
+                <p class="m-0 mt-3 text-sm text-muted-color">
+                    {{ 'forges.connections.version' | translate: { version: connection.forgeVersion } }}
+                </p>
+            }
+        </p-card>
+    }
+</div>
+
+<!-- Creation -->
+<p-dialog
+    [header]="'forges.connections.create_title' | translate"
+    [visible]="createVisible()"
+    (visibleChange)="$event ? createVisible.set(true) : closeCreate()"
+    [modal]="true"
+    [style]="{ width: '40rem' }"
+    [breakpoints]="{ '640px': '95vw' }"
+>
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="forge-kind" class="font-medium">{{ 'forges.connections.kind' | translate }}</label>
+            <select
+                id="forge-kind"
+                [(ngModel)]="form.kind"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="gitlab">{{ 'forges.kind.gitlab' | translate }}</option>
+                <option value="github">{{ 'forges.kind.github' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="forge-name" class="font-medium">{{ 'common.name' | translate }}</label>
+            <input pInputText id="forge-name" [(ngModel)]="form.name" autocomplete="off" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="forge-address" class="font-medium"
+                >{{ 'forges.connections.address' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="forge-address"
+                [(ngModel)]="form.baseUrl"
+                placeholder="https://gitlab.example.internal"
+                autocomplete="off"
+                aria-describedby="forge-address-hint"
+            />
+            <small id="forge-address-hint" class="text-muted-color">{{
+                'forges.connections.address_hint' | translate
+            }}</small>
+        </div>
+        @if (form.kind === 'github') {
+            <div class="flex flex-col gap-2">
+                <label for="forge-owner" class="font-medium">{{ 'forges.connections.owner' | translate }}</label>
+                <input pInputText id="forge-owner" [(ngModel)]="form.owner" autocomplete="off" />
+                <small class="text-muted-color">{{ 'forges.connections.owner_hint' | translate }}</small>
+            </div>
+        }
+        <div class="flex flex-col gap-2">
+            <label for="forge-token" class="font-medium">{{ 'forges.connections.token' | translate }}</label>
+            <!-- `new-password`: browsers ignore `off` on a password field and would offer to save the token. -->
+            <input
+                pInputText
+                id="forge-token"
+                type="password"
+                autocomplete="new-password"
+                [(ngModel)]="form.token"
+                aria-describedby="forge-token-hint"
+            />
+            <small id="forge-token-hint" class="text-muted-color">
+                @if (form.kind === 'github') {
+                    {{ 'forges.connections.token_hint_github' | translate }}
+                } @else {
+                    {{ 'forges.connections.token_hint_gitlab' | translate }}
+                }
+            </small>
+        </div>
+
+        <fieldset class="border border-surface-200 dark:border-surface-700 rounded-md p-3 m-0 flex flex-col gap-3">
+            <legend class="font-medium px-1">{{ 'forges.connections.trust' | translate }}</legend>
+            @if (cloud()) {
+                <p class="m-0 text-sm text-muted-color" data-testid="cloud-trust">
+                    {{ 'forges.connections.cloud_trust' | translate }}
+                </p>
+            } @else {
+                <label class="flex items-start gap-2" for="forge-internal">
+                    <input type="checkbox" id="forge-internal" class="mt-1" [(ngModel)]="form.internalNetwork" />
+                    <span>
+                        {{ 'forges.connections.internal' | translate }}
+                        <small class="block text-muted-color">{{
+                            'forges.connections.internal_hint' | translate
+                        }}</small>
+                    </span>
+                </label>
+                <div class="flex flex-col gap-2">
+                    <label for="forge-ca" class="font-medium"
+                        >{{ 'forges.connections.ca_pem' | translate }}
+                        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+                    >
+                    <textarea
+                        pTextarea
+                        id="forge-ca"
+                        rows="5"
+                        class="font-mono text-xs"
+                        [(ngModel)]="form.caPem"
+                        aria-describedby="forge-ca-feedback"
+                    ></textarea>
+                    <small id="forge-ca-feedback" data-testid="ca-feedback" aria-live="polite">
+                        @if (caFeedback(form.caPem); as feedback) {
+                            @if (feedback.problem) {
+                                <span class="text-red-600 dark:text-red-400">{{ feedback.problem }}</span>
+                            } @else if (feedback.count > 0) {
+                                <span class="text-muted-color">{{
+                                    'forges.ca.read' | translate: { count: feedback.count }
+                                }}</span>
+                            } @else {
+                                <span class="text-muted-color">{{ 'forges.connections.ca_hint' | translate }}</span>
+                            }
+                        }
+                    </small>
+                </div>
+            }
+        </fieldset>
+
+        <p class="m-0 text-sm text-muted-color" data-testid="probe-explained">
+            {{ 'forges.connections.probe_explained' | translate }}
+        </p>
+
+        @if (createError(); as message) {
+            <p-message severity="error" [closable]="false" data-testid="create-error">
+                <span class="font-medium block">{{ 'forges.connections.refused' | translate }}</span>
+                {{ message }}
+            </p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeCreate()" />
+        <p-button
+            data-testid="create-submit"
+            [label]="'forges.connections.create_submit' | translate"
+            [loading]="saving()"
+            [disabled]="!cloud() && caFeedback(form.caPem).problem !== null"
+            (onClick)="create()"
+        />
+    </ng-template>
+</p-dialog>
+
+<!-- Changes: name, network statement, CA -->
+<p-dialog
+    [header]="'forges.connections.edit_title' | translate"
+    [visible]="editing() !== null"
+    (visibleChange)="$event ? null : closeEdit()"
+    [modal]="true"
+    [style]="{ width: '40rem' }"
+    [breakpoints]="{ '640px': '95vw' }"
+>
+    @if (editing(); as connection) {
+        <div class="flex flex-col gap-4">
+            <p class="m-0 text-sm text-muted-color">
+                {{ 'forges.connections.address_fixed' | translate: { address: connection.baseUrl } }}
+            </p>
+            <div class="flex flex-col gap-2">
+                <label for="forge-edit-name" class="font-medium">{{ 'common.name' | translate }}</label>
+                <input pInputText id="forge-edit-name" [(ngModel)]="editForm.name" autocomplete="off" />
+            </div>
+            @if (!editCloud()) {
+                <label class="flex items-start gap-2" for="forge-edit-internal">
+                    <input
+                        type="checkbox"
+                        id="forge-edit-internal"
+                        class="mt-1"
+                        [(ngModel)]="editForm.internalNetwork"
+                    />
+                    <span>
+                        {{ 'forges.connections.internal' | translate }}
+                        <small class="block text-muted-color">{{
+                            'forges.connections.internal_hint' | translate
+                        }}</small>
+                    </span>
+                </label>
+                <fieldset
+                    class="border border-surface-200 dark:border-surface-700 rounded-md p-3 m-0 flex flex-col gap-2"
+                >
+                    <legend class="font-medium px-1">{{ 'forges.connections.ca' | translate }}</legend>
+                    <label class="flex items-center gap-2" for="forge-ca-keep">
+                        <input
+                            type="radio"
+                            id="forge-ca-keep"
+                            name="ca-mode"
+                            value="keep"
+                            [(ngModel)]="editForm.caMode"
+                        />
+                        @if (connection.caSubject) {
+                            {{ 'forges.connections.ca_keep' | translate: { subject: connection.caSubject } }}
+                        } @else {
+                            {{ 'forges.connections.ca_keep_none' | translate }}
+                        }
+                    </label>
+                    <label class="flex items-center gap-2" for="forge-ca-replace">
+                        <input
+                            type="radio"
+                            id="forge-ca-replace"
+                            name="ca-mode"
+                            value="replace"
+                            [(ngModel)]="editForm.caMode"
+                        />
+                        {{ 'forges.connections.ca_replace' | translate }}
+                    </label>
+                    @if (connection.caSubject) {
+                        <label class="flex items-center gap-2" for="forge-ca-unpin">
+                            <input
+                                type="radio"
+                                id="forge-ca-unpin"
+                                name="ca-mode"
+                                value="unpin"
+                                [(ngModel)]="editForm.caMode"
+                            />
+                            {{ 'forges.connections.ca_unpin' | translate }}
+                        </label>
+                    }
+                    @if (editForm.caMode === 'replace') {
+                        <label for="forge-edit-ca" class="sr-only">{{ 'forges.connections.ca_pem' | translate }}</label>
+                        <textarea
+                            pTextarea
+                            id="forge-edit-ca"
+                            rows="5"
+                            class="font-mono text-xs"
+                            [(ngModel)]="editForm.caPem"
+                            aria-describedby="forge-edit-ca-feedback"
+                        ></textarea>
+                        <small id="forge-edit-ca-feedback" data-testid="edit-ca-feedback" aria-live="polite">
+                            @if (caFeedback(editForm.caPem); as feedback) {
+                                @if (feedback.problem) {
+                                    <span class="text-red-600 dark:text-red-400">{{ feedback.problem }}</span>
+                                } @else if (feedback.count > 0) {
+                                    <span class="text-muted-color">{{
+                                        'forges.ca.read' | translate: { count: feedback.count }
+                                    }}</span>
+                                } @else {
+                                    <span class="text-muted-color">{{ 'forges.connections.ca_hint' | translate }}</span>
+                                }
+                            }
+                        </small>
+                    }
+                </fieldset>
+                <p class="m-0 text-sm text-muted-color">{{ 'forges.connections.reprobe_hint' | translate }}</p>
+            }
+            @if (editError(); as message) {
+                <p-message severity="error" [closable]="false" data-testid="edit-error">
+                    <span class="font-medium block">{{ 'forges.connections.refused' | translate }}</span>
+                    {{ message }}
+                </p-message>
+            }
+        </div>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeEdit()" />
+        <p-button
+            data-testid="edit-submit"
+            [label]="'common.save' | translate"
+            [loading]="saving()"
+            [disabled]="
+                editForm.caMode === 'replace' && (!editForm.caPem.trim() || caFeedback(editForm.caPem).problem !== null)
+            "
+            (onClick)="saveEdit()"
+        />
+    </ng-template>
+</p-dialog>
+
+<!-- Token rotation -->
+<p-dialog
+    [header]="'forges.connections.rotate_title' | translate"
+    [visible]="rotating() !== null"
+    (visibleChange)="$event ? null : closeRotate()"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+    [breakpoints]="{ '640px': '95vw' }"
+>
+    @if (rotating(); as connection) {
+        <div class="flex flex-col gap-4">
+            <p class="m-0">{{ 'forges.connections.rotate_explained' | translate: { name: connection.name } }}</p>
+            <div class="flex flex-col gap-2">
+                <label for="forge-rotate-token" class="font-medium">{{
+                    'forges.connections.new_token' | translate
+                }}</label>
+                <input
+                    pInputText
+                    id="forge-rotate-token"
+                    type="password"
+                    autocomplete="new-password"
+                    [(ngModel)]="rotateToken"
+                />
+            </div>
+            @if (rotateError(); as message) {
+                <p-message severity="error" [closable]="false" data-testid="rotate-error">
+                    <span class="font-medium block">{{ 'forges.connections.refused' | translate }}</span>
+                    {{ message }}
+                    <span class="block mt-1 text-sm">{{ 'forges.connections.rotate_kept' | translate }}</span>
+                </p-message>
+            }
+        </div>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="closeRotate()" />
+        <p-button
+            data-testid="rotate-submit"
+            [label]="'forges.connections.rotate' | translate"
+            [loading]="saving()"
+            [disabled]="!rotateToken.trim()"
+            (onClick)="rotate()"
+        />
+    </ng-template>
+</p-dialog>
+
+<!-- Deletion -->
+<p-dialog
+    [header]="'forges.connections.delete_title' | translate"
+    [visible]="deleting() !== null"
+    (visibleChange)="$event ? null : deleting.set(null)"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+    [breakpoints]="{ '640px': '95vw' }"
+>
+    @if (deleting(); as connection) {
+        <p class="m-0" data-testid="delete-confirm">
+            {{
+                'forges.connections.delete_confirm'
+                    | translate: { name: connection.name, count: connection.importedTargets }
+            }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleting.set(null)" />
+        <p-button
+            data-testid="delete-submit"
+            [label]="'common.delete' | translate"
+            severity="danger"
+            [loading]="saving()"
+            (onClick)="confirmDelete()"
+        />
+    </ng-template>
+</p-dialog>

@@ -1,0 +1,450 @@
+<div class="mb-4">
+    <a routerLink="/forge-connections" class="text-sm" data-testid="back">{{ 'forges.discovery.back' | translate }}</a>
+</div>
+
+@if (notFound()) {
+    <p-message severity="warn" [closable]="false" styleClass="w-full" data-testid="not-found">{{
+        'forges.discovery.not_found' | translate
+    }}</p-message>
+} @else {
+    @if (error(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+    }
+
+    @if (connection(); as c) {
+        <div class="mb-4">
+            <h1 class="text-2xl font-semibold m-0 break-words" data-testid="connection-title">{{ c.name }}</h1>
+            <p class="text-muted-color mt-1 mb-0 break-all">
+                <span class="font-mono text-sm">{{ c.baseUrl }}</span>
+            </p>
+        </div>
+    }
+
+    <nav class="flex flex-wrap gap-2 mb-4" [attr.aria-label]="'forges.discovery.steps' | translate">
+        <p-button
+            data-testid="step-discovery"
+            [label]="'forges.discovery.step_discovery' | translate"
+            [outlined]="step() !== 'discovery'"
+            size="small"
+            [attr.aria-current]="step() === 'discovery' ? 'step' : null"
+            (onClick)="goTo('discovery')"
+        />
+        <p-button
+            data-testid="step-selection"
+            [label]="'forges.discovery.step_selection' | translate"
+            [outlined]="step() !== 'selection'"
+            size="small"
+            [disabled]="selectionDiscovery() === null"
+            [attr.aria-current]="step() === 'selection' ? 'step' : null"
+            (onClick)="goTo('selection')"
+        />
+        <p-button
+            data-testid="step-import"
+            [label]="'forges.discovery.step_import' | translate: { count: selected().length }"
+            [outlined]="step() !== 'import'"
+            size="small"
+            [disabled]="selected().length === 0 && imported() === null"
+            [attr.aria-current]="step() === 'import' ? 'step' : null"
+            (onClick)="goTo('import')"
+        />
+    </nav>
+
+    @switch (step()) {
+        @case ('discovery') {
+            <p-card styleClass="mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                    <div>
+                        <h2 class="text-xl font-semibold m-0">{{ 'forges.discovery.title' | translate }}</h2>
+                        <p class="text-muted-color mt-1 mb-0">{{ 'forges.discovery.subtitle' | translate }}</p>
+                    </div>
+                    <p-button
+                        data-testid="discover"
+                        icon="pi pi-search"
+                        [label]="'forges.discovery.start' | translate"
+                        [loading]="requesting()"
+                        [disabled]="running()"
+                        (onClick)="discover()"
+                    />
+                </div>
+
+                @if (inProgressId(); as runningId) {
+                    <p-message severity="info" [closable]="false" styleClass="mb-3 w-full" data-testid="in-progress">
+                        {{ 'forges.discovery.in_progress' | translate: { id: runningId } }}
+                        <button
+                            type="button"
+                            class="underline ml-1"
+                            data-testid="follow-running"
+                            (click)="follow(runningId)"
+                        >
+                            {{ 'forges.discovery.follow' | translate }}
+                        </button>
+                    </p-message>
+                }
+                @if (unsupported()) {
+                    <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="unsupported">{{
+                        'forges.discovery.unsupported' | translate
+                    }}</p-message>
+                }
+                @if (requestError(); as message) {
+                    <p-message
+                        severity="error"
+                        [closable]="false"
+                        styleClass="mb-3 w-full"
+                        data-testid="request-error"
+                        >{{ message }}</p-message
+                    >
+                }
+
+                @if (discovery(); as run) {
+                    <div data-testid="discovery" aria-live="polite">
+                        <p class="m-0 mb-3 flex flex-wrap items-center gap-2">
+                            <p-tag
+                                data-testid="discovery-state"
+                                [value]="stateKeys[run.state] | translate"
+                                [severity]="
+                                    run.state === 'failed'
+                                        ? 'danger'
+                                        : run.state === 'partial'
+                                          ? 'warn'
+                                          : run.state === 'completed'
+                                            ? 'success'
+                                            : 'info'
+                                "
+                            />
+                            <span class="text-sm text-muted-color">{{
+                                'forges.discovery.requested'
+                                    | translate
+                                        : {
+                                              id: run.id,
+                                              date: (run.requestedAt | date: 'yyyy-MM-dd HH:mm') ?? '',
+                                              who: run.requestedBy ?? '—'
+                                          }
+                            }}</span>
+                        </p>
+
+                        @if (run.state === 'pending') {
+                            <p class="m-0 mb-3" data-testid="pending">{{ 'forges.discovery.pending' | translate }}</p>
+                        }
+                        @if (run.state === 'running') {
+                            <p class="m-0 mb-3" data-testid="running">{{ 'forges.discovery.running' | translate }}</p>
+                        }
+
+                        <dl class="grid grid-cols-2 md:grid-cols-5 gap-3 m-0 mb-3" data-testid="counters">
+                            <div>
+                                <dt class="text-sm text-muted-color">
+                                    {{ 'forges.discovery.namespaces' | translate }}
+                                </dt>
+                                <dd class="m-0 text-xl font-semibold" data-testid="namespaces">
+                                    {{ run.namespacesSeen }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm text-muted-color">
+                                    {{ 'forges.discovery.repositories' | translate }}
+                                </dt>
+                                <dd class="m-0 text-xl font-semibold" data-testid="repositories">
+                                    {{ run.repositoriesSeen }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm text-muted-color">{{ 'forges.discovery.requests' | translate }}</dt>
+                                <dd class="m-0 text-xl font-semibold" data-testid="requests">{{ run.requestsMade }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm text-muted-color">{{ 'forges.discovery.waited' | translate }}</dt>
+                                <dd class="m-0 text-xl font-semibold" data-testid="waited">
+                                    {{ 'forges.discovery.seconds' | translate: { count: run.rateLimitWaitSeconds } }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm text-muted-color">{{ 'forges.discovery.skipped' | translate }}</dt>
+                                <dd class="m-0 text-xl font-semibold" data-testid="skipped">
+                                    {{ run.repositoriesSkipped }}
+                                </dd>
+                            </div>
+                        </dl>
+                        @if (run.repositoriesSkipped > 0) {
+                            <p class="m-0 mb-3 text-sm text-muted-color">
+                                {{ 'forges.discovery.skipped_explained' | translate }}
+                            </p>
+                        }
+
+                        @if (run.reason; as reason) {
+                            <p-message
+                                [severity]="run.state === 'failed' ? 'error' : 'warn'"
+                                [closable]="false"
+                                styleClass="mb-3 w-full"
+                                data-testid="reason"
+                            >
+                                <span class="block">{{ reasonKeys[reason] | translate }}</span>
+                                @if (reason === 'rate_limited' && run.rateLimitResetAt) {
+                                    <span class="block mt-1" data-testid="reset-at">{{
+                                        'forges.discovery.reset_at'
+                                            | translate
+                                                : { date: (run.rateLimitResetAt | date: 'yyyy-MM-dd HH:mm') ?? '' }
+                                    }}</span>
+                                }
+                                @if (run.state === 'partial') {
+                                    <span class="block mt-1 text-sm">{{
+                                        'forges.discovery.partial_explained' | translate
+                                    }}</span>
+                                }
+                                @if (run.detail) {
+                                    <span class="block mt-1 text-sm" data-testid="reason-detail">{{ run.detail }}</span>
+                                }
+                            </p-message>
+                        }
+
+                        @if (pollError(); as message) {
+                            <p-message
+                                severity="warn"
+                                [closable]="false"
+                                styleClass="mb-3 w-full"
+                                data-testid="poll-error"
+                                >{{ message }}</p-message
+                            >
+                        }
+
+                        @if (run.state === 'completed' || run.state === 'partial') {
+                            <h3 class="text-lg font-semibold mt-4 mb-2">
+                                {{ 'forges.discovery.comparison' | translate }}
+                            </h3>
+                            <div class="flex flex-wrap gap-2 mb-2" data-testid="comparison">
+                                <p-button
+                                    data-testid="count-new"
+                                    [label]="'forges.discovery.new' | translate: { count: run.newCount ?? 0 }"
+                                    severity="success"
+                                    [outlined]="change() !== 'new'"
+                                    size="small"
+                                    (onClick)="openChange('new')"
+                                />
+                                <p-button
+                                    data-testid="count-changed"
+                                    [label]="'forges.discovery.changed' | translate: { count: run.changedCount ?? 0 }"
+                                    severity="info"
+                                    [outlined]="change() !== 'changed'"
+                                    size="small"
+                                    (onClick)="openChange('changed')"
+                                />
+                                @if (run.goneCount !== null) {
+                                    <p-button
+                                        data-testid="count-gone"
+                                        [label]="'forges.discovery.gone' | translate: { count: run.goneCount }"
+                                        severity="warn"
+                                        [outlined]="change() !== 'gone'"
+                                        size="small"
+                                        (onClick)="openChange('gone')"
+                                    />
+                                }
+                                <p-button
+                                    data-testid="count-all"
+                                    [label]="'forges.discovery.all' | translate"
+                                    severity="secondary"
+                                    [outlined]="change() !== 'all'"
+                                    size="small"
+                                    (onClick)="openChange('all')"
+                                />
+                            </div>
+                            @if (run.goneCount === null) {
+                                <p class="m-0 mb-2 text-sm text-muted-color" data-testid="gone-not-counted">
+                                    {{ 'forges.discovery.gone_not_counted' | translate }}
+                                </p>
+                            }
+                            <p class="m-0 mb-3 text-sm text-muted-color">
+                                {{ 'forges.discovery.gone_kept' | translate }}
+                            </p>
+
+                            @if (change(); as shown) {
+                                <div data-testid="changes">
+                                    @if (changedError(); as message) {
+                                        <p-message severity="error" [closable]="false" styleClass="mb-2 w-full">{{
+                                            message
+                                        }}</p-message>
+                                    }
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-sm border-collapse">
+                                            <thead>
+                                                <tr
+                                                    class="text-left border-b border-surface-200 dark:border-surface-700"
+                                                >
+                                                    <th class="py-2 pr-3">
+                                                        {{ 'forges.repository.path' | translate }}
+                                                    </th>
+                                                    <th class="py-2 pr-3">
+                                                        {{ 'forges.repository.branch' | translate }}
+                                                    </th>
+                                                    <th class="py-2 pr-3">
+                                                        {{ 'forges.repository.activity' | translate }}
+                                                    </th>
+                                                    @if (shown === 'changed') {
+                                                        <th class="py-2 pr-3">
+                                                            {{ 'forges.discovery.what_changed' | translate }}
+                                                        </th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (repository of changed(); track repository.forgeId) {
+                                                    <tr
+                                                        class="border-b border-surface-100 dark:border-surface-800"
+                                                        data-testid="changed-row"
+                                                    >
+                                                        <td class="py-2 pr-3 font-mono break-all">
+                                                            @if (repository.webUrl) {
+                                                                <a
+                                                                    [href]="repository.webUrl"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    >{{ repository.fullPath }}</a
+                                                                >
+                                                            } @else {
+                                                                {{ repository.fullPath }}
+                                                            }
+                                                        </td>
+                                                        <td class="py-2 pr-3">
+                                                            {{
+                                                                repository.defaultBranch ??
+                                                                    ('common.unknown' | translate)
+                                                            }}
+                                                        </td>
+                                                        <td class="py-2 pr-3">
+                                                            @if (repository.lastActivityAt) {
+                                                                {{ repository.lastActivityAt | date: 'yyyy-MM-dd' }}
+                                                            } @else {
+                                                                {{ 'common.unknown' | translate }}
+                                                            }
+                                                        </td>
+                                                        @if (shown === 'changed') {
+                                                            <td class="py-2 pr-3">{{ repository.changeSummary }}</td>
+                                                        }
+                                                    </tr>
+                                                } @empty {
+                                                    <tr>
+                                                        <td colspan="4" class="py-4 text-center text-muted-color">
+                                                            {{ 'forges.discovery.no_change' | translate }}
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    @if (changedTotal() > comparisonLimit) {
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <p-button
+                                                [label]="'common.previous' | translate"
+                                                size="small"
+                                                [text]="true"
+                                                [disabled]="changedOffset() === 0"
+                                                (onClick)="openChange(shown, changedOffset() - comparisonLimit)"
+                                            />
+                                            <span class="text-sm text-muted-color">{{
+                                                'common.page_range'
+                                                    | translate
+                                                        : {
+                                                              from: changedOffset() + 1,
+                                                              to: changedOffset() + changed().length,
+                                                              total: changedTotal()
+                                                          }
+                                            }}</span>
+                                            <p-button
+                                                [label]="'common.next' | translate"
+                                                size="small"
+                                                [text]="true"
+                                                [disabled]="changedOffset() + comparisonLimit >= changedTotal()"
+                                                (onClick)="openChange(shown, changedOffset() + comparisonLimit)"
+                                            />
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <div class="mt-4">
+                                <p-button
+                                    data-testid="to-selection"
+                                    icon="pi pi-list-check"
+                                    [label]="'forges.discovery.to_selection' | translate"
+                                    (onClick)="goTo('selection')"
+                                />
+                            </div>
+                        }
+                    </div>
+                } @else {
+                    <p class="m-0 text-muted-color" data-testid="never">{{ 'forges.discovery.never' | translate }}</p>
+                }
+            </p-card>
+
+            @if (history().length > 0) {
+                <p-card>
+                    <h2 class="text-lg font-semibold mt-0 mb-2">{{ 'forges.discovery.history' | translate }}</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border-collapse" data-testid="history">
+                            <thead>
+                                <tr class="text-left border-b border-surface-200 dark:border-surface-700">
+                                    <th class="py-2 pr-3">#</th>
+                                    <th class="py-2 pr-3">{{ 'common.status' | translate }}</th>
+                                    <th class="py-2 pr-3">{{ 'common.date' | translate }}</th>
+                                    <th class="py-2 pr-3 text-right">
+                                        {{ 'forges.discovery.repositories' | translate }}
+                                    </th>
+                                    <th class="py-2 pr-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (run of history(); track run.id) {
+                                    <tr
+                                        class="border-b border-surface-100 dark:border-surface-800"
+                                        data-testid="history-row"
+                                    >
+                                        <td class="py-2 pr-3">{{ run.id }}</td>
+                                        <td class="py-2 pr-3">
+                                            {{ stateKeys[run.state] | translate }}
+                                            @if (run.reason; as reason) {
+                                                <span class="block text-xs text-muted-color">{{
+                                                    reasonKeys[reason] | translate
+                                                }}</span>
+                                            }
+                                        </td>
+                                        <td class="py-2 pr-3">{{ run.requestedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
+                                        <td class="py-2 pr-3 text-right">{{ run.repositoriesSeen }}</td>
+                                        <td class="py-2 pr-3 text-right">
+                                            <p-button
+                                                [label]="'common.view' | translate"
+                                                size="small"
+                                                [text]="true"
+                                                [ariaLabel]="'forges.discovery.aria_view' | translate: { id: run.id }"
+                                                (onClick)="show(run)"
+                                            />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </p-card>
+            }
+        }
+        @case ('selection') {
+            @if (selectionDiscovery(); as discoveryId) {
+                <app-forge-selection
+                    [connectionId]="connectionId()"
+                    [discoveryId]="discoveryId"
+                    [(selected)]="selected"
+                    (superseded)="onSuperseded($event)"
+                    (proceed)="goTo('import')"
+                />
+            }
+        }
+        @case ('import') {
+            @if (selectionDiscovery(); as discoveryId) {
+                <app-forge-import
+                    [connectionId]="connectionId()"
+                    [discoveryId]="discoveryId"
+                    [forgeIds]="selected()"
+                    [result]="imported()"
+                    (imported)="onImported($event)"
+                    (back)="backToSelection()"
+                />
+            }
+        }
+    }
+}

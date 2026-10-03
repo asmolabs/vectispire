@@ -323,6 +323,8 @@ describe('every screen', () => {
         'projects/:projectId/checklist':
             'takes its project from the route; its own spec mounts it, empty project included',
         'projects/:projectId': 'takes its project from the route; its own spec mounts it, empty project included',
+        'forge-connections/:connectionId':
+            'takes its connection from the route; its own spec mounts it, a connection never discovered included',
         'solutions/:solutionId/compliance':
             'takes its solution from the route; its own spec mounts it, a scope with nothing scanned included'
     };

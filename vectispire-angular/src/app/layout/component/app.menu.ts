@@ -257,6 +257,12 @@ export class AppMenu {
                 adminItems.push(
                     { label: this.i18n.t('menu.api_keys'), icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
                     { label: this.i18n.t('menu.agents'), icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
+                    // Where repositories are discovered and imported: an administrator's, as creating targets is.
+                    {
+                        label: this.i18n.t('menu.forge_connections'),
+                        icon: 'pi pi-fw pi-cloud-download',
+                        routerLink: ['/forge-connections']
+                    },
                     { label: this.i18n.t('menu.users'), icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
                     { label: this.i18n.t('menu.teams'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] }
                 );

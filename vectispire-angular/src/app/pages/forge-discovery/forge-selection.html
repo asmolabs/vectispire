@@ -1,0 +1,392 @@
+<p-card styleClass="mb-4">
+    <h2 class="text-xl font-semibold m-0">{{ 'forges.selection.title' | translate }}</h2>
+    <p class="text-muted-color mt-1 mb-3">{{ 'forges.selection.subtitle' | translate: { id: discoveryId() } }}</p>
+
+    @if (blocked(); as message) {
+        <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="blocked">{{
+            message
+        }}</p-message>
+    }
+    @if (error(); as message) {
+        <p-message severity="error" [closable]="false" styleClass="mb-3 w-full" data-testid="selection-error">{{
+            message
+        }}</p-message>
+    }
+
+    <form
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-3"
+        data-testid="filters"
+        (ngSubmit)="applyFilters()"
+    >
+        <div class="flex flex-col gap-1">
+            <label for="filter-archived" class="text-sm font-medium">{{
+                'forges.selection.archived' | translate
+            }}</label>
+            <select
+                id="filter-archived"
+                name="archived"
+                [(ngModel)]="form.archived"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="hide">{{ 'forges.selection.hide' | translate }}</option>
+                <option value="show">{{ 'forges.selection.show' | translate }}</option>
+                <option value="only">{{ 'forges.selection.only' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-forks" class="text-sm font-medium">{{ 'forges.selection.forks' | translate }}</label>
+            <select
+                id="filter-forks"
+                name="forks"
+                [(ngModel)]="form.forks"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="hide">{{ 'forges.selection.hide' | translate }}</option>
+                <option value="show">{{ 'forges.selection.show' | translate }}</option>
+                <option value="only">{{ 'forges.selection.only' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-personal" class="text-sm font-medium">{{
+                'forges.selection.personal' | translate
+            }}</label>
+            <select
+                id="filter-personal"
+                name="personal"
+                [(ngModel)]="form.personal"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="show">{{ 'forges.selection.show' | translate }}</option>
+                <option value="hide">{{ 'forges.selection.hide' | translate }}</option>
+                <option value="only">{{ 'forges.selection.only' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-present" class="text-sm font-medium">{{ 'forges.selection.present' | translate }}</label>
+            <select
+                id="filter-present"
+                name="present"
+                [(ngModel)]="form.present"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="show">{{ 'forges.selection.show' | translate }}</option>
+                <option value="hide">{{ 'forges.selection.hide' | translate }}</option>
+                <option value="only">{{ 'forges.selection.only' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-visibility" class="text-sm font-medium">{{
+                'forges.selection.visibility' | translate
+            }}</label>
+            <select
+                id="filter-visibility"
+                name="visibility"
+                [(ngModel)]="form.visibility"
+                class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+            >
+                <option value="">{{ 'common.all' | translate }}</option>
+                <option value="public">{{ 'forges.visibility.public' | translate }}</option>
+                <option value="internal">{{ 'forges.visibility.internal' | translate }}</option>
+                <option value="private">{{ 'forges.visibility.private' | translate }}</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-inactive" class="text-sm font-medium">{{
+                'forges.selection.inactive' | translate
+            }}</label>
+            <input
+                pInputText
+                id="filter-inactive"
+                name="inactiveDays"
+                type="number"
+                min="1"
+                max="3650"
+                [(ngModel)]="form.inactiveDays"
+            />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-language" class="text-sm font-medium">{{
+                'forges.selection.language' | translate
+            }}</label>
+            <input pInputText id="filter-language" name="language" [(ngModel)]="form.language" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label for="filter-namespace" class="text-sm font-medium">{{
+                'forges.selection.namespace' | translate
+            }}</label>
+            <input pInputText id="filter-namespace" name="namespace" [(ngModel)]="form.namespace" />
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+            <label for="filter-path" class="text-sm font-medium">{{ 'forges.selection.path' | translate }}</label>
+            <input
+                pInputText
+                id="filter-path"
+                name="path"
+                [(ngModel)]="form.path"
+                aria-describedby="filter-path-hint"
+            />
+            <small id="filter-path-hint" class="text-muted-color">{{ 'forges.selection.path_hint' | translate }}</small>
+        </div>
+        <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-5">
+            <p-button
+                type="submit"
+                data-testid="apply-filters"
+                icon="pi pi-filter"
+                [label]="'forges.selection.apply' | translate"
+                size="small"
+            />
+            <p-button [label]="'common.clear' | translate" size="small" [text]="true" (onClick)="resetFilters()" />
+        </div>
+    </form>
+
+    @if (unjudged().length > 0) {
+        <div class="mb-3 text-sm" data-testid="unjudged">
+            <p class="m-0 font-medium">{{ 'forges.selection.unjudged_title' | translate }}</p>
+            <ul class="m-0 pl-5">
+                @for (line of unjudged(); track line) {
+                    <li>{{ line }}</li>
+                }
+            </ul>
+            <p class="m-0 text-muted-color">{{ 'forges.selection.unjudged_explained' | translate }}</p>
+        </div>
+    }
+
+    <div
+        class="flex flex-wrap items-center gap-2 mb-2"
+        role="group"
+        [attr.aria-label]="'forges.selection.operations' | translate"
+    >
+        <p-button
+            data-testid="op-proposed"
+            [label]="'forges.selection.op_proposed' | translate"
+            size="small"
+            [outlined]="true"
+            [disabled]="changing()"
+            (onClick)="apply('proposed')"
+        />
+        <p-button
+            data-testid="op-all"
+            [label]="'forges.selection.op_all' | translate"
+            size="small"
+            [outlined]="true"
+            [disabled]="changing()"
+            (onClick)="apply('all')"
+        />
+        <p-button
+            data-testid="op-none"
+            [label]="'forges.selection.op_none' | translate"
+            size="small"
+            [outlined]="true"
+            [disabled]="changing()"
+            (onClick)="apply('none')"
+        />
+        <p-button
+            data-testid="op-invert"
+            [label]="'forges.selection.op_invert' | translate"
+            size="small"
+            [outlined]="true"
+            [disabled]="changing()"
+            (onClick)="apply('invert')"
+        />
+        <span class="text-sm font-medium ml-auto" data-testid="selected-count" aria-live="polite">{{
+            'forges.selection.selected' | translate: { count: selected().length }
+        }}</span>
+    </div>
+    <p class="m-0 mb-3 text-sm text-muted-color">{{ 'forges.selection.operations_explained' | translate }}</p>
+
+    <div class="flex flex-col sm:flex-row gap-2 mb-3">
+        <label for="select-by-id" class="sr-only">{{ 'forges.selection.by_id' | translate }}</label>
+        <input
+            pInputText
+            id="select-by-id"
+            class="flex-1"
+            [(ngModel)]="byIds"
+            [placeholder]="'forges.selection.by_id' | translate"
+        />
+        <p-button
+            data-testid="add-by-id"
+            [label]="'forges.selection.add_ids' | translate"
+            size="small"
+            [outlined]="true"
+            (onClick)="addByIds()"
+        />
+        <p-button
+            data-testid="remove-by-id"
+            [label]="'forges.selection.remove_ids' | translate"
+            size="small"
+            [outlined]="true"
+            (onClick)="removeByIds()"
+        />
+    </div>
+
+    @if (dropped().length > 0) {
+        <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="dropped">
+            {{ 'forges.selection.dropped' | translate: { count: dropped().length } }}
+            <span class="block font-mono text-sm break-all">{{ dropped().join(', ') }}</span>
+        </p-message>
+    }
+
+    @if (page(); as current) {
+        <p class="m-0 mb-2 text-sm text-muted-color" data-testid="matching">
+            {{ 'forges.selection.matching' | translate: { count: current.total, listed: current.listed } }}
+        </p>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse" data-testid="candidates">
+                <thead>
+                    <tr class="text-left border-b border-surface-200 dark:border-surface-700">
+                        <th class="py-2 pr-2 w-1">
+                            <span class="sr-only">{{ 'forges.selection.tick' | translate }}</span>
+                        </th>
+                        <th class="py-2 pr-3">{{ 'forges.repository.path' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.repository.traits' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.repository.language' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.repository.activity' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.repository.branch' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.selection.state' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.selection.proposed_placement' | translate }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (candidate of current.items; track candidate.repository.forgeId) {
+                        <tr
+                            class="border-b border-surface-100 dark:border-surface-800"
+                            [class.opacity-60]="!candidate.selectable"
+                            data-testid="candidate"
+                            [attr.data-forge-id]="candidate.repository.forgeId"
+                        >
+                            <td class="py-2 pr-2">
+                                <input
+                                    type="checkbox"
+                                    data-testid="tick"
+                                    [id]="'tick-' + candidate.repository.forgeId"
+                                    [checked]="selectedSet().has(candidate.repository.forgeId)"
+                                    [disabled]="!candidate.selectable || changing()"
+                                    [attr.aria-label]="
+                                        'forges.selection.aria_tick'
+                                            | translate: { path: candidate.repository.fullPath }
+                                    "
+                                    (change)="toggle(candidate, $any($event.target).checked)"
+                                />
+                            </td>
+                            <td class="py-2 pr-3 font-mono break-all">
+                                @if (candidate.repository.webUrl) {
+                                    <a [href]="candidate.repository.webUrl" target="_blank" rel="noopener noreferrer">{{
+                                        candidate.repository.fullPath
+                                    }}</a>
+                                } @else {
+                                    {{ candidate.repository.fullPath }}
+                                }
+                                <span class="block text-xs text-muted-color">{{ candidate.repository.forgeId }}</span>
+                            </td>
+                            <td class="py-2 pr-3">
+                                <div class="flex flex-wrap gap-1">
+                                    @if (candidate.repository.personal) {
+                                        <p-tag
+                                            data-testid="personal"
+                                            severity="secondary"
+                                            [value]="'forges.repository.personal' | translate"
+                                        />
+                                    }
+                                    @if (candidate.repository.archived === true) {
+                                        <p-tag severity="warn" [value]="'forges.repository.archived' | translate" />
+                                    } @else if (candidate.repository.archived === null) {
+                                        <p-tag
+                                            severity="secondary"
+                                            [value]="'forges.repository.archived_unknown' | translate"
+                                        />
+                                    }
+                                    @if (candidate.repository.fork === true) {
+                                        <p-tag severity="info" [value]="'forges.repository.fork' | translate" />
+                                    }
+                                    @if (candidate.repository.visibility; as visibility) {
+                                        <p-tag severity="secondary" [value]="visibility" />
+                                    }
+                                </div>
+                            </td>
+                            <td class="py-2 pr-3">
+                                {{ candidate.repository.language ?? ('common.unknown' | translate) }}
+                            </td>
+                            <td class="py-2 pr-3">
+                                @if (candidate.repository.lastActivityAt) {
+                                    {{ candidate.repository.lastActivityAt | date: 'yyyy-MM-dd' }}
+                                } @else {
+                                    {{ 'common.unknown' | translate }}
+                                }
+                            </td>
+                            <td class="py-2 pr-3">
+                                {{ candidate.repository.defaultBranch ?? ('common.unknown' | translate) }}
+                            </td>
+                            <td class="py-2 pr-3" data-testid="candidate-state">
+                                @if (candidate.notSelectable === 'already_present') {
+                                    {{
+                                        'forges.selection.present_as'
+                                            | translate: { count: candidate.presentAs?.length ?? 0 }
+                                    }}
+                                } @else if (candidate.notSelectable === 'already_imported') {
+                                    {{ 'forges.selection.imported_as' | translate: { id: candidate.importedAs ?? '' } }}
+                                } @else if (skipKey(candidate); as key) {
+                                    {{ key | translate }}
+                                } @else if (candidate.notSelectable) {
+                                    {{ candidate.notSelectable }}
+                                } @else if (candidate.offered) {
+                                    <span class="text-muted-color">{{ 'forges.selection.offered' | translate }}</span>
+                                } @else if (candidate.repository.personal) {
+                                    <span class="text-muted-color">{{
+                                        'forges.selection.personal_unticked' | translate
+                                    }}</span>
+                                }
+                            </td>
+                            <td class="py-2 pr-3">
+                                @if (candidate.proposedProject) {
+                                    {{ candidate.proposedSolution }} / {{ candidate.proposedProject }}
+                                } @else if (candidate.proposedSolution) {
+                                    {{ candidate.proposedSolution }}
+                                } @else {
+                                    <span class="text-muted-color">{{ 'forges.mapping.no_project' | translate }}</span>
+                                }
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td colspan="8" class="py-4 text-center text-muted-color">
+                                {{ 'forges.selection.none_matching' | translate }}
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (current.total > limit) {
+            <div class="flex items-center gap-2 mt-2">
+                <p-button
+                    [label]="'common.previous' | translate"
+                    size="small"
+                    [text]="true"
+                    [disabled]="offset() === 0"
+                    (onClick)="goToPage(offset() - limit)"
+                />
+                <span class="text-sm text-muted-color">{{
+                    'common.page_range'
+                        | translate: { from: offset() + 1, to: offset() + current.items.length, total: current.total }
+                }}</span>
+                <p-button
+                    [label]="'common.next' | translate"
+                    size="small"
+                    [text]="true"
+                    [disabled]="offset() + limit >= current.total"
+                    (onClick)="goToPage(offset() + limit)"
+                />
+            </div>
+        }
+    }
+
+    <div class="mt-4">
+        <p-button
+            data-testid="to-import"
+            icon="pi pi-arrow-right"
+            [label]="'forges.selection.to_import' | translate: { count: selected().length }"
+            [disabled]="selected().length === 0"
+            (onClick)="proceed.emit()"
+        />
+    </div>
+</p-card>

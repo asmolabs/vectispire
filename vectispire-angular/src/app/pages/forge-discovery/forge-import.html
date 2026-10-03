@@ -1,0 +1,510 @@
+@if (result(); as done) {
+    <!-- The import's result: what exists now, and where the record of it is. -->
+    <p-card data-testid="result">
+        <h2 class="text-xl font-semibold m-0">{{ 'forges.result.title' | translate }}</h2>
+        <p class="mt-1 mb-3" data-testid="result-summary">
+            {{ 'forges.result.created' | translate: { count: done.created.length } }}
+            {{ 'forges.result.skipped' | translate: { count: done.skipped.length } }}
+        </p>
+
+        @if (done.solutionsCreated.length > 0 || done.projectsCreated.length > 0) {
+            <p class="m-0 mb-3 text-sm" data-testid="result-filed">
+                @if (done.solutionsCreated.length > 0) {
+                    <span class="block">{{
+                        'forges.result.solutions_created' | translate: { names: done.solutionsCreated.join(', ') }
+                    }}</span>
+                }
+                @if (done.projectsCreated.length > 0) {
+                    <span class="block">{{
+                        'forges.result.projects_created' | translate: { names: done.projectsCreated.join(', ') }
+                    }}</span>
+                }
+            </p>
+        }
+
+        @if (done.created.length > 0) {
+            <div class="overflow-x-auto mb-3">
+                <table class="w-full text-sm border-collapse" data-testid="created">
+                    <thead>
+                        <tr class="text-left border-b border-surface-200 dark:border-surface-700">
+                            <th class="py-2 pr-3">{{ 'forges.repository.path' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.import.placement' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.import.first_scan' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'common.actions' | translate }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (target of done.created; track target.repositoryId) {
+                            <tr class="border-b border-surface-100 dark:border-surface-800" data-testid="created-row">
+                                <td class="py-2 pr-3 font-mono break-all">{{ target.fullPath }}</td>
+                                <td class="py-2 pr-3">
+                                    @if (target.project) {
+                                        {{ target.solution }} / {{ target.project }}
+                                    } @else {
+                                        <span class="text-muted-color">{{
+                                            'forges.mapping.no_project' | translate
+                                        }}</span>
+                                    }
+                                </td>
+                                <td class="py-2 pr-3">
+                                    @if (target.firstScanId) {
+                                        <a
+                                            [routerLink]="['/scans', target.firstScanId]"
+                                            data-testid="first-scan-link"
+                                            >{{
+                                                'forges.result.first_scan_at'
+                                                    | translate
+                                                        : {
+                                                              date:
+                                                                  (target.firstScanNotBefore
+                                                                      | date: 'yyyy-MM-dd HH:mm') ?? ''
+                                                          }
+                                            }}</a
+                                        >
+                                    } @else {
+                                        <span class="text-muted-color">{{
+                                            'forges.result.no_first_scan' | translate
+                                        }}</span>
+                                    }
+                                </td>
+                                <td class="py-2 pr-3">
+                                    <a
+                                        [routerLink]="['/issues']"
+                                        [queryParams]="{ repository_id: target.repositoryId }"
+                                        data-testid="target-link"
+                                        >{{ 'forges.result.open_target' | translate: { id: target.repositoryId } }}</a
+                                    >
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="m-0 mb-3 text-sm">
+                <a routerLink="/repositories" data-testid="repositories-link">{{
+                    'forges.result.repositories' | translate
+                }}</a>
+            </p>
+        }
+
+        @if (done.skipped.length > 0) {
+            <h3 class="text-lg font-semibold mt-3 mb-2">{{ 'forges.import.skipped_title' | translate }}</h3>
+            <ul class="m-0 mb-3 pl-5 text-sm" data-testid="result-skipped">
+                @for (skip of done.skipped; track skip.forgeId) {
+                    <li>
+                        <span class="font-mono break-all">{{ skip.fullPath }}</span> — {{ skipReason(skip) }}
+                    </li>
+                }
+            </ul>
+        }
+
+        <p-message severity="info" [closable]="false" styleClass="w-full mb-3" data-testid="audit-hint">
+            {{
+                'forges.result.audit'
+                    | translate: { operation: 'audit_log.operations.forge_import_applied' | translate }
+            }}
+            <a routerLink="/audit-log" class="underline ml-1">{{ 'forges.result.audit_link' | translate }}</a>
+        </p-message>
+
+        <p-button
+            data-testid="continue"
+            [label]="'forges.result.continue' | translate"
+            [outlined]="true"
+            (onClick)="back.emit()"
+        />
+    </p-card>
+} @else {
+    <p-card styleClass="mb-4">
+        <h2 class="text-xl font-semibold m-0">{{ 'forges.import.title' | translate }}</h2>
+        <p class="text-muted-color mt-1 mb-3">
+            {{ 'forges.import.subtitle' | translate: { count: batch().length } }}
+        </p>
+        @if (forgeIds().length > maxImport) {
+            <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="batch-bound">{{
+                'forges.import.batch_bound' | translate: { count: forgeIds().length, max: maxImport }
+            }}</p-message>
+        }
+
+        <datalist id="forge-solution-names">
+            @for (name of solutionNames(); track name) {
+                <option [value]="name"></option>
+            }
+        </datalist>
+        <datalist id="forge-project-names">
+            @for (name of projectNames(); track name) {
+                <option [value]="name"></option>
+            }
+        </datalist>
+
+        <!-- Placement: proposed per namespace, editable per namespace or repository. -->
+        <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.mapping.title' | translate }}</h3>
+        <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.mapping.explained' | translate }}</p>
+        <label class="flex items-center gap-2 mb-2 text-sm" for="per-repository">
+            <input
+                type="checkbox"
+                id="per-repository"
+                [checked]="perRepository()"
+                (change)="perRepository.set($any($event.target).checked)"
+            />
+            {{ 'forges.mapping.per_repository' | translate }}
+        </label>
+        <div class="overflow-x-auto mb-4">
+            <table class="w-full text-sm border-collapse" data-testid="mapping">
+                <thead>
+                    <tr class="text-left border-b border-surface-200 dark:border-surface-700">
+                        <th class="py-2 pr-3">
+                            @if (perRepository()) {
+                                {{ 'forges.repository.path' | translate }}
+                            } @else {
+                                {{ 'forges.mapping.namespace' | translate }}
+                            }
+                        </th>
+                        <th class="py-2 pr-3">{{ 'forges.mapping.solution' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.mapping.project' | translate }}</th>
+                        <th class="py-2 pr-3">{{ 'forges.mapping.no_project' | translate }}</th>
+                        <th class="py-2 pr-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (placement of perRepository() ? repositories() : namespaces(); track placement.key) {
+                        <tr class="border-b border-surface-100 dark:border-surface-800" data-testid="placement">
+                            <td class="py-2 pr-3 font-mono break-all">
+                                {{ placement.label || '—' }}
+                                @if (!perRepository()) {
+                                    <span class="block text-xs text-muted-color font-sans">{{
+                                        'forges.mapping.repositories' | translate: { count: placement.repositories }
+                                    }}</span>
+                                }
+                            </td>
+                            <td class="py-2 pr-3">
+                                <input
+                                    pInputText
+                                    class="w-full min-w-32"
+                                    list="forge-solution-names"
+                                    data-testid="placement-solution"
+                                    [attr.aria-label]="
+                                        'forges.mapping.aria_solution' | translate: { name: placement.label }
+                                    "
+                                    [ngModel]="placement.solution"
+                                    (ngModelChange)="place(placement, 'solution', $event)"
+                                />
+                            </td>
+                            <td class="py-2 pr-3">
+                                <input
+                                    pInputText
+                                    class="w-full min-w-32"
+                                    list="forge-project-names"
+                                    data-testid="placement-project"
+                                    [attr.aria-label]="
+                                        'forges.mapping.aria_project' | translate: { name: placement.label }
+                                    "
+                                    [ngModel]="placement.project"
+                                    [disabled]="placement.noProject"
+                                    (ngModelChange)="place(placement, 'project', $event)"
+                                />
+                            </td>
+                            <td class="py-2 pr-3">
+                                <input
+                                    type="checkbox"
+                                    data-testid="placement-no-project"
+                                    [attr.aria-label]="
+                                        'forges.mapping.aria_no_project' | translate: { name: placement.label }
+                                    "
+                                    [checked]="placement.noProject"
+                                    (change)="place(placement, 'noProject', $any($event.target).checked)"
+                                />
+                            </td>
+                            <td class="py-2 pr-3">
+                                @if (edited(placement)) {
+                                    <p-button
+                                        [label]="'forges.mapping.undo' | translate"
+                                        size="small"
+                                        [text]="true"
+                                        [ariaLabel]="'forges.mapping.aria_undo' | translate: { name: placement.label }"
+                                        (onClick)="forget(placement)"
+                                    />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Clone credentials per host, and the first scans. -->
+        @if (preview(); as plan) {
+            <h3 class="text-lg font-semibold mt-2 mb-1">{{ 'forges.import.credentials' | translate }}</h3>
+            <p class="m-0 mb-2 text-sm text-muted-color">{{ 'forges.import.credentials_explained' | translate }}</p>
+            <div class="flex flex-col gap-3 mb-4" data-testid="credentials">
+                @for (host of plan.credentials; track host.host) {
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <label [for]="'credential-' + $index" class="font-mono text-sm sm:w-64 break-all">
+                            {{ host.host }}
+                            <span class="block font-sans text-xs text-muted-color">{{
+                                'forges.mapping.repositories' | translate: { count: host.repositories }
+                            }}</span>
+                        </label>
+                        <select
+                            [id]="'credential-' + $index"
+                            data-testid="credential-choice"
+                            class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0 flex-1"
+                            [value]="choiceFor(host)"
+                            (change)="choose(host.host, $any($event.target).value)"
+                        >
+                            <option value="none" [selected]="choiceFor(host) === 'none'">
+                                {{ 'forges.import.credential_none' | translate }}
+                            </option>
+                            @for (token of tokensFor(host.host); track token.id) {
+                                <option
+                                    [value]="'https:' + token.id"
+                                    [selected]="choiceFor(host) === 'https:' + token.id"
+                                >
+                                    {{ 'forges.import.credential_https_token' | translate }} — {{ token.name }}
+                                </option>
+                            }
+                            @for (key of sshKeys(); track key.id) {
+                                <option [value]="'ssh:' + key.id" [selected]="choiceFor(host) === 'ssh:' + key.id">
+                                    {{ 'forges.import.credential_ssh_key' | translate }} — {{ key.name }}
+                                </option>
+                            }
+                        </select>
+                        @if (host.proposed && !choices().has(host.host)) {
+                            <p-tag severity="info" [value]="'forges.import.proposed' | translate" />
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <fieldset class="border border-surface-200 dark:border-surface-700 rounded-md p-3 m-0 mb-4 flex flex-col gap-3">
+            <legend class="font-medium px-1">{{ 'forges.import.first_scans' | translate }}</legend>
+            <label class="flex items-start gap-2" for="first-scan">
+                <input
+                    type="checkbox"
+                    id="first-scan"
+                    class="mt-1"
+                    [(ngModel)]="firstScan"
+                    (ngModelChange)="optionsChanged()"
+                />
+                <span>
+                    {{ 'forges.import.first_scan_toggle' | translate }}
+                    <small class="block text-muted-color">{{ 'forges.import.first_scan_hint' | translate }}</small>
+                </span>
+            </label>
+            @if (firstScan) {
+                <div class="flex flex-col gap-1">
+                    <label for="spacing" class="text-sm font-medium">{{ 'forges.import.spacing' | translate }}</label>
+                    <input
+                        pInputText
+                        id="spacing"
+                        type="number"
+                        class="w-40"
+                        [min]="minSpacing"
+                        [max]="maxSpacing"
+                        [(ngModel)]="spacingSeconds"
+                        (ngModelChange)="optionsChanged()"
+                        aria-describedby="spacing-hint"
+                    />
+                    <small id="spacing-hint" [class.text-red-600]="!spacingValid()" data-testid="spacing-hint">{{
+                        'forges.import.spacing_hint' | translate: { min: minSpacing, max: maxSpacing }
+                    }}</small>
+                </div>
+            }
+            <div class="flex flex-col gap-1">
+                <label for="agent-label" class="text-sm font-medium"
+                    >{{ 'forges.import.agent_label' | translate }}
+                    <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+                >
+                <input
+                    pInputText
+                    id="agent-label"
+                    class="sm:w-80"
+                    [(ngModel)]="requiredAgentLabel"
+                    (ngModelChange)="optionsChanged()"
+                />
+            </div>
+        </fieldset>
+
+        <div class="flex flex-wrap gap-2 mb-2">
+            <p-button
+                data-testid="preview"
+                icon="pi pi-eye"
+                [label]="'forges.import.preview' | translate"
+                [outlined]="!stale()"
+                [loading]="previewing()"
+                (onClick)="runPreview()"
+            />
+            <p-button [label]="'forges.import.back' | translate" [text]="true" (onClick)="back.emit()" />
+        </div>
+        @if (stale()) {
+            <p class="m-0 text-sm text-orange-600 dark:text-orange-400" data-testid="stale">
+                {{ 'forges.import.stale' | translate }}
+            </p>
+        }
+        @if (previewError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="mt-2 w-full" data-testid="preview-error">{{
+                message
+            }}</p-message>
+        }
+    </p-card>
+
+    @if (preview(); as plan) {
+        <p-card styleClass="mb-4" data-testid="preview-result">
+            <h3 class="text-lg font-semibold mt-0 mb-2">{{ 'forges.import.what_happens' | translate }}</h3>
+            <ul class="m-0 mb-3 pl-5" data-testid="preview-summary">
+                <li>{{ 'forges.import.will_create' | translate: { count: plan.targets.length } }}</li>
+                <li>{{ 'forges.import.will_skip' | translate: { count: plan.skipped.length } }}</li>
+                @if (plan.refused.length > 0) {
+                    <li class="text-red-600 dark:text-red-400 font-medium">
+                        {{ 'forges.import.will_refuse' | translate: { count: plan.refused.length } }}
+                    </li>
+                }
+                <li>{{ 'forges.import.schedule' | translate: { count: plan.defaultIntervalDays } }}</li>
+                <li data-testid="first-scans-summary">
+                    @if (plan.firstScans; as scans) {
+                        {{
+                            'forges.import.first_scans_planned'
+                                | translate
+                                    : {
+                                          count: scans.count,
+                                          spacing: scans.spacingSeconds,
+                                          from: (scans.firstAt | date: 'yyyy-MM-dd HH:mm') ?? '',
+                                          to: (scans.lastAt | date: 'yyyy-MM-dd HH:mm') ?? ''
+                                      }
+                        }}
+                    } @else {
+                        {{ 'forges.import.no_first_scans' | translate }}
+                    }
+                </li>
+                <li>{{ 'forges.import.no_grant' | translate }}</li>
+            </ul>
+
+            @if (plan.refused.length > 0) {
+                <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.refused_title' | translate }}</h4>
+                <p class="m-0 mb-1 text-sm text-muted-color">{{ 'forges.import.refused_explained' | translate }}</p>
+                <ul class="m-0 mb-3 pl-5 text-sm" data-testid="refused">
+                    @for (refusal of plan.refused; track refusal.forgeId) {
+                        <li>
+                            <span class="font-mono break-all">{{ refusal.fullPath }}</span> — {{ refusal.refusal }}
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (plan.skipped.length > 0) {
+                <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.skipped_title' | translate }}</h4>
+                <ul class="m-0 mb-3 pl-5 text-sm" data-testid="skipped">
+                    @for (skip of plan.skipped; track skip.forgeId) {
+                        <li>
+                            <span class="font-mono break-all">{{ skip.fullPath }}</span> — {{ skipReason(skip) }}
+                            @if (skip.repositoryIds && skip.repositoryIds.length > 0) {
+                                <span class="text-muted-color">{{
+                                    'forges.import.present_targets' | translate: { ids: skip.repositoryIds.join(', ') }
+                                }}</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (plan.solutions.length > 0 || plan.projects.length > 0) {
+                <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.filing_title' | translate }}</h4>
+                <ul class="m-0 mb-3 pl-5 text-sm" data-testid="filing">
+                    @for (solution of plan.solutions; track solution.name) {
+                        <li>
+                            @if (solution.existingId !== null) {
+                                {{ 'forges.import.solution_reused' | translate: { name: solution.name } }}
+                            } @else {
+                                {{ 'forges.import.solution_created' | translate: { name: solution.name } }}
+                            }
+                        </li>
+                    }
+                    @for (project of plan.projects; track project.solution + '/' + project.name) {
+                        <li>
+                            @if (project.existingId !== null) {
+                                {{
+                                    'forges.import.project_reused'
+                                        | translate
+                                            : {
+                                                  name: project.solution + ' / ' + project.name,
+                                                  count: project.targets,
+                                                  accounts: project.accounts,
+                                                  teams: project.teams
+                                              }
+                                }}
+                            } @else {
+                                {{
+                                    'forges.import.project_created'
+                                        | translate
+                                            : { name: project.solution + ' / ' + project.name, count: project.targets }
+                                }}
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            <div class="overflow-x-auto mb-3">
+                <table class="w-full text-sm border-collapse" data-testid="planned">
+                    <thead>
+                        <tr class="text-left border-b border-surface-200 dark:border-surface-700">
+                            <th class="py-2 pr-3">{{ 'forges.repository.path' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.repository.branch' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.import.credential' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.import.placement' | translate }}</th>
+                            <th class="py-2 pr-3">{{ 'forges.import.visible_to' | translate }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (target of plan.targets; track target.forgeId) {
+                            <tr
+                                class="border-b border-surface-100 dark:border-surface-800 align-top"
+                                data-testid="planned-row"
+                            >
+                                <td class="py-2 pr-3 font-mono break-all">
+                                    {{ target.fullPath }}
+                                    @if (target.warning) {
+                                        <span
+                                            class="block font-sans text-orange-600 dark:text-orange-400"
+                                            data-testid="warning"
+                                            >{{ target.warning }}</span
+                                        >
+                                    }
+                                </td>
+                                <td class="py-2 pr-3">{{ target.branch ?? ('common.unknown' | translate) }}</td>
+                                <td class="py-2 pr-3">{{ credential(target.credential) }}</td>
+                                <td class="py-2 pr-3">
+                                    @if (target.project) {
+                                        {{ target.solution }} / {{ target.project }}
+                                    } @else {
+                                        <span class="text-muted-color">{{
+                                            'forges.mapping.no_project' | translate
+                                        }}</span>
+                                    }
+                                </td>
+                                <td class="py-2 pr-3" data-testid="visible-to">{{ visibleTo(target) }}</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (importError(); as message) {
+                <p-message severity="error" [closable]="false" styleClass="mb-3 w-full" data-testid="import-error">{{
+                    message
+                }}</p-message>
+            }
+            <p-button
+                data-testid="import"
+                icon="pi pi-download"
+                [label]="'forges.import.submit' | translate: { count: plan.targets.length }"
+                [loading]="importing()"
+                [disabled]="!canImport()"
+                (onClick)="doImport()"
+            />
+            @if (plan.refused.length > 0) {
+                <p class="m-0 mt-2 text-sm" data-testid="import-blocked">{{ 'forges.import.blocked' | translate }}</p>
+            }
+        </p-card>
+    }
+}

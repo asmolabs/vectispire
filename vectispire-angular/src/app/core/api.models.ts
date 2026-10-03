@@ -3217,5 +3217,198 @@ export type ReportRun = Refine<
         signingKeyId: string | null;
         packageSha256: string | null;
         productVersion: string | null;
+
+/** Where a forge discovery stands (decision 0037 §3) — the document's own enum. */
+export type ForgeDiscoveryState = NonNullable<Schema<'ForgeDiscoveryView'>['state']>;
+
+/** Why a discovery ended `partial` or `failed` — the document's own enum. */
+export type ForgeDiscoveryReason = NonNullable<Schema<'ForgeDiscoveryView'>['reason']>;
+
+/**
+ * One discovery of a forge connection. The counters are primitives the document marks required; the
+ * comparison's counts are `null` until the run ended, and `goneCount` stays `null` unless it completed —
+ * a partial listing proves nothing about what it did not reach (decision 0007).
+ */
+export type ForgeDiscovery = Refine<
+    Schema<'ForgeDiscoveryView'>,
+    {
+        connectionId: string;
+        state: ForgeDiscoveryState;
+        reason: ForgeDiscoveryReason | null;
+        detail: string | null;
+        requestedAt: string;
+        requestedBy: string | null;
+        startedAt: string | null;
+        finishedAt: string | null;
+        rateLimitResetAt: string | null;
+        newCount: number | null;
+        changedCount: number | null;
+        goneCount: number | null;
+    }
+>;
+
+/**
+ * A read-only connection to a forge. Never the token. `scopes` and `canWrite` are `null` when the forge
+ * does not report them — a GitHub fine-grained token — which is *unknown*, never *read-only*.
+ */
+export type ForgeConnection = Refine<
+    Schema<'ForgeConnectionView'>,
+    {
+        id: string;
+        name: string;
+        kind: string;
+        edition: string;
+        baseUrl: string;
+        owner: string | null;
+        credentialKind: string | null;
+        scopes: string[] | null;
+        canWrite: boolean | null;
+        tokenExpiresAt: string | null;
+        forgeVersion: string | null;
+        caSubject: string | null;
+        caNotAfter: string | null;
+        encryptionState: EncryptionState;
+        lastDiscovery: ForgeDiscovery | null;
+        createdAt: string;
+        createdBy: string | null;
+    }
+>;
+
+/** One repository of a discovery's snapshot. A value the forge did not give is `null`: unknown, never zero. */
+export type ForgeRepository = Refine<
+    Schema<'ForgeRepositoryView'>,
+    {
+        forgeId: string;
+        fullPath: string;
+        namespacePath: string;
+        name: string;
+        defaultBranch: string | null;
+        archived: boolean | null;
+        fork: boolean | null;
+        visibility: string | null;
+        language: string | null;
+        lastActivityAt: string | null;
+        sizeBytes: number | null;
+        webUrl: string | null;
+        changeSummary: string | null;
+    }
+>;
+
+/** `GET …/discoveries/{id}/repositories` — one page of a discovery's comparison. */
+export type ForgeRepositoryPage = Refine<Schema<'RepositoryPage'>, { items: ForgeRepository[] }>;
+
+/** Why a repository is not offered, or was skipped by an import — the document's own enum. */
+export type ForgeSkipReason = NonNullable<Schema<'ForgeSkippedImport'>['reason']>;
+
+/** One row of the selection table. */
+export type ForgeCandidate = Refine<
+    Schema<'ForgeCandidate'>,
+    {
+        repository: ForgeRepository;
+        notSelectable: ForgeSkipReason | null;
+        presentAs: number[] | null;
+        importedAs: number | null;
+        proposedSolution: string | null;
+        proposedProject: string | null;
+    }
+>;
+
+/** `GET …/selection` — `unjudged` counts, per filter, the repositories it could not judge. */
+export type ForgeCandidatePage = Refine<
+    Schema<'ForgeCandidatePage'>,
+    { items: ForgeCandidate[]; unjudged: Record<string, number> | null }
+>;
+
+/** The selection as the server answers it: what stays ticked, and the ids it could not tick. */
+export type ForgeSelection = Refine<Schema<'ForgeSelection'>, { selected: string[]; dropped: string[] | null }>;
+
+/** The filters of the selection table, as the query and the selection's body both spell them. */
+export type ForgeSelectionFilters = Schema<'ForgeSelectionFilters'>;
+
+/** The body of a preview and of an import: the same, so that what was previewed is what is imported. */
+export type ForgeImportRequest = Schema<'ForgeImportRequest'>;
+
+/** A credential the preview proposes or the request chose: `ssh_key`, `https_token` or `none`. */
+export type ForgeCredentialView = Refine<
+    Schema<'ForgeCredentialView'>,
+    { kind: string; id: string | null; name: string | null }
+>;
+
+export type ForgePlannedTarget = Refine<
+    Schema<'ForgePlannedTarget'>,
+    {
+        forgeId: string;
+        fullPath: string;
+        url: string;
+        branch: string | null;
+        credential: ForgeCredentialView;
+        solution: string | null;
+        project: string | null;
+        firstScanNotBefore: string | null;
+        warning: string | null;
+    }
+>;
+
+export type ForgeSkippedImport = Refine<
+    Schema<'ForgeSkippedImport'>,
+    { forgeId: string; fullPath: string; reason: ForgeSkipReason; repositoryIds: number[] | null }
+>;
+
+export type ForgeRefusedImport = Refine<
+    Schema<'ForgeRefusedImport'>,
+    { forgeId: string; fullPath: string; refusal: string }
+>;
+
+export type ForgeHostCredential = Refine<
+    Schema<'ForgeHostCredential'>,
+    { host: string; credential: ForgeCredentialView }
+>;
+
+export type ForgeProjectPlan = Refine<
+    Schema<'ForgeProjectPlan'>,
+    { name: string; solution: string; existingId: number | null }
+>;
+
+export type ForgeSolutionPlan = Refine<Schema<'ForgeSolutionPlan'>, { name: string; existingId: number | null }>;
+
+export type ForgeFirstScans = Refine<Schema<'ForgeFirstScans'>, { firstAt: string | null; lastAt: string | null }>;
+
+/** `POST …/imports/preview` — what the import would do, nothing written. */
+export type ForgeImportPreview = Refine<
+    Schema<'ForgeImportPreview'>,
+    {
+        targets: ForgePlannedTarget[];
+        skipped: ForgeSkippedImport[];
+        refused: ForgeRefusedImport[];
+        solutions: ForgeSolutionPlan[];
+        projects: ForgeProjectPlan[];
+        credentials: ForgeHostCredential[];
+        firstScans: ForgeFirstScans | null;
+        visibilityMode: string;
+    }
+>;
+
+export type ForgeImportedTarget = Refine<
+    Schema<'ForgeImportedTarget'>,
+    {
+        forgeId: string;
+        fullPath: string;
+        url: string;
+        solution: string | null;
+        project: string | null;
+        firstScanId: number | null;
+        firstScanNotBefore: string | null;
+    }
+>;
+
+/** `POST …/imports` — what the import created and skipped. */
+export type ForgeImportResult = Refine<
+    Schema<'ForgeImportResult'>,
+    {
+        created: ForgeImportedTarget[];
+        skipped: ForgeSkippedImport[];
+        solutionsCreated: string[];
+        projectsCreated: string[];
+        firstScans: ForgeFirstScans | null;
     }
 >;

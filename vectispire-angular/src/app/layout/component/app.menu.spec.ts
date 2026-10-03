@@ -55,6 +55,21 @@ describe('the sidebar', () => {
         });
     }
 
+    // Discovering and importing repositories creates targets: an administrator's, like the routes behind it.
+    for (const role of ['SUPERUSER', 'ADMIN']) {
+        it(`files the forge connections under Administration for ${role}`, async () => {
+            const fixture = await render(role);
+            expect(holding(fixture, '/forge-connections')).toEqual(['Administration']);
+        });
+    }
+
+    for (const role of ['CISO', 'AUDITOR', 'SECURITY_CHAMPION', 'USER']) {
+        it(`offers ${role} no link to the forge connections`, async () => {
+            const fixture = await render(role);
+            expect(holding(fixture, '/forge-connections')).toEqual([]);
+        });
+    }
+
     // **The accepted cost.** These accounts lose the menu link — not the page, whose route stays open
     // to them — and are offered no Administration section to find it in.
     for (const role of ['SECURITY_CHAMPION', 'USER']) {
