@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
@@ -33,7 +34,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class OutboundJson {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    /** Every request's bound: a silent server holds nobody for longer. */
+    public static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private final PinnedHttpSender sender;
     private final OutboundUrlGuard guard;
@@ -128,7 +130,7 @@ public class OutboundJson {
      * <p>The same door as {@link #get}: the guard, the pin, no redirect, ten seconds. What differs is
      * that no status is an exception here — only an exchange that produced no answer, or a 2xx that is
      * not JSON. Lot D1 of decision 0037 needs one request's headers (a token's scopes and expiry, a
-     * server's version); the paged form with the rate-limit headers is lot D2's.
+     * server's version); a listing goes through {@link #pager}.
      *
      * @param trust the CA the server must chain to, in place of the runtime's store; empty for that store
      * @throws com.asmolabs.vectispire.common.domain.net.UnsafeUrlException when the guard refuses the URL
@@ -136,6 +138,21 @@ public class OutboundJson {
      */
     public Answer answer(
             String url, OutboundPolicy policy, String label, Map<String, String> headers, Optional<PinnedCa> trust) {
+        return answer(url, policy, label, headers, trust, TIMEOUT);
+    }
+
+    /**
+     * A listing read page by page, every page through this door (decision 0037 §3, lot D2): the next page
+     * followed only on the origin the pager was opened for, the credential attached to that origin alone,
+     * rate limits waited out within a bound, a failing server retried. See {@link OutboundPager}.
+     */
+    public OutboundPager pager(OutboundPager.Settings settings, Clock clock, OutboundPager.Sleeper sleeper) {
+        return new OutboundPager(this, settings, clock, sleeper);
+    }
+
+    /** {@link #answer}, with the timeout a pager was given. */
+    Answer answer(String url, OutboundPolicy policy, String label, Map<String, String> headers,
+            Optional<PinnedCa> trust, Duration timeout) {
         Map<String, String> all = new java.util.LinkedHashMap<>(headers);
         all.put("Accept", "application/json");
 
@@ -144,7 +161,7 @@ public class OutboundJson {
                 guard.validateAndResolve(url, policy, label),
                 Map.copyOf(all),
                 null,
-                TIMEOUT,
+                timeout,
                 label,
                 PinnedHttpSender.DEFAULT_MAX_BODY_BYTES,
                 trust);

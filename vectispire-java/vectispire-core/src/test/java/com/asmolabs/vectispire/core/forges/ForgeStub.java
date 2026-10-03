@@ -68,6 +68,8 @@ public final class ForgeStub implements AutoCloseable {
     public final String caPem;
     public final List<Seen> seen = new CopyOnWriteArrayList<>();
     private final Map<String, Reply> routes = new ConcurrentHashMap<>();
+    private final Map<String, java.util.Deque<Reply>> sequences = new ConcurrentHashMap<>();
+    private final Map<String, Duration> delays = new ConcurrentHashMap<>();
     private final HttpsServer server;
 
     private ForgeStub(String caPem, HttpsServer server) {
@@ -127,7 +129,15 @@ public final class ForgeStub implements AutoCloseable {
             exchange.getRequestHeaders().forEach((name, values) -> headers.put(name.toLowerCase(java.util.Locale.ROOT),
                     String.join(",", values)));
             stub.seen.add(new Seen(exchange.getRequestMethod(), path, headers));
-            Reply reply = stub.routes.getOrDefault(path, Reply.status(404));
+            Reply reply = stub.reply(path);
+            Duration delay = stub.delays.get(path);
+            if (delay != null) {
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             reply.headers().forEach(exchange.getResponseHeaders()::add);
             byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(reply.status(), bytes.length == 0 ? -1 : bytes.length);
@@ -142,6 +152,32 @@ public final class ForgeStub implements AutoCloseable {
     public ForgeStub route(String path, Reply reply) {
         routes.put(path, reply);
         return this;
+    }
+
+    /** Answers {@code first}, then {@code then} in order, then {@link #route}'s reply for the path (404 without one). */
+    public ForgeStub sequence(String path, Reply first, Reply... then) {
+        java.util.Deque<Reply> queue = new java.util.concurrent.ConcurrentLinkedDeque<>();
+        queue.add(first);
+        queue.addAll(List.of(then));
+        sequences.put(path, queue);
+        return this;
+    }
+
+    /** Holds every answer to {@code path} for {@code delay} before sending it — a server that does not answer in time. */
+    public ForgeStub slow(String path, Duration delay) {
+        delays.put(path, delay);
+        return this;
+    }
+
+    /** The requests received for a path, its query included. */
+    public long count(String path) {
+        return seen.stream().filter(request -> request.path().equals(path)).count();
+    }
+
+    private Reply reply(String path) {
+        java.util.Deque<Reply> queue = sequences.get(path);
+        Reply next = queue == null ? null : queue.poll();
+        return next != null ? next : routes.getOrDefault(path, Reply.status(404));
     }
 
     /** The web address, as an administrator would type it. */

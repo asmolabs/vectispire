@@ -407,6 +407,12 @@ public class PinnedHttpSender {
                 // new host; both are kept because a defence that only works by accident is one
                 // nobody may rely on.
                 .disableRedirectHandling()
+                // **No retry of the client's own.** Its default strategy sends a GET again after a 429 or a
+                // 503, sleeping whatever Retry-After says, and after a dropped connection — invisible to the
+                // caller, outside every bound the caller keeps: a forge listing raced its rate limit and slept
+                // on a thread that had a deadline (decision 0037 §3). A caller that retries says how
+                // (`OutboundPager`); one that does not, fails once.
+                .disableAutomaticRetries()
                 .setDefaultRequestConfig(RequestConfig.custom()
                         .setResponseTimeout(Timeout.of(timeout))
                         .setConnectionRequestTimeout(Timeout.of(timeout))
