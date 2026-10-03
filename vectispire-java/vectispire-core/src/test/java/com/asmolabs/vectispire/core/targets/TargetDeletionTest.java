@@ -176,22 +176,15 @@ class TargetDeletionTest extends VectispireContextTest {
             return null;
         });
 
-        try {
-            deletion.purgeOrphanedTargetData();
+        deletion.purgeOrphanedTargetData();
 
-            Map<String, Integer> left = fixture.rowsNaming(gone);
-            // Grants and gate policies have no parent to be orphaned from, and the sweep never took
-            // them; the verdicts are the schema's cascade, which the checks were off for.
-            for (String table : List.of("t_scan", "t_issue", "t_issue_triage_event", "t_issue_ticket", "t_finding",
-                    "t_component", "t_ai_review_result")) {
-                assertThat(left.get(table)).as(table).isZero();
-            }
-            assertThat(fixture.rowsNaming(survivor)).as("a target that exists is not an orphan").isEqualTo(before);
-        } finally {
-            // The suite empties its tables by deleting the repositories and letting verdicts cascade;
-            // this one's repository is already gone, so its verdict would outlive the test and be
-            // counted by the next one to read the gate register.
-            jdbc.update("delete from t_gate_verdict where repo_id = ?", repoId);
+        Map<String, Integer> left = fixture.rowsNaming(gone);
+        // Grants and gate policies have no parent to be orphaned from, and the sweep never took
+        // them; the verdicts are the schema's cascade, which the checks were off for.
+        for (String table : List.of("t_scan", "t_issue", "t_issue_triage_event", "t_issue_ticket", "t_finding",
+                "t_component", "t_ai_review_result")) {
+            assertThat(left.get(table)).as(table).isZero();
         }
+        assertThat(fixture.rowsNaming(survivor)).as("a target that exists is not an orphan").isEqualTo(before);
     }
 }

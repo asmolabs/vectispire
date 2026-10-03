@@ -22,8 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,16 +63,6 @@ class LicenceTalliesDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private JdbcTemplate jdbc;
-
-    /**
-     * The policy is a row the suite's emptying does not reach: a case refusing unknown licences would
-     * otherwise refuse them for every case after it, here and in other classes.
-     */
-    @BeforeEach
-    @AfterEach
-    void defaultPolicy() {
-        licences.updatePolicy(LicensePolicy.defaultPolicy());
-    }
 
     @Test
     @DisplayName("count what the inventory counts, for an administrator and for a restricted reader, served warm or cold")

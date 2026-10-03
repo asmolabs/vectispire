@@ -68,10 +68,6 @@ class OwaspCoverageDatabaseTest extends VectispireContextTest {
 
     @BeforeEach
     void seed() {
-        issues.deleteAll();
-        scans.deleteAll();
-        repositories.deleteAll();
-
         settings.set(Setting.SAST_ENABLED, "true");
         ruleSets.deactivateAll(null);
 

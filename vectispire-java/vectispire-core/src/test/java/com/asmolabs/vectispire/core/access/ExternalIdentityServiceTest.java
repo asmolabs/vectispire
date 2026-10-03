@@ -8,7 +8,6 @@ import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Instant;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,11 +28,6 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
 
     @Autowired
     private UserRepository users;
-
-    @BeforeEach
-    void emptyDirectory() {
-        users.deleteAll();
-    }
 
     @Test
     @DisplayName("an unknown identity is refused, because sign-on is not authorization")

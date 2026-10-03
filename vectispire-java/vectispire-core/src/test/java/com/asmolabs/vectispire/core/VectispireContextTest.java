@@ -44,9 +44,11 @@ public abstract class VectispireContextTest {
      *
      * <p>Listed rather than discovered: a generated order would be right until the day a new
      * foreign key changes it, and the failure — a delete refused mid-cleanup — reads as a broken
-     * test rather than as a missing entry here.
+     * test rather than as a missing entry here. A table missing from the list is found by {@link
+     * TableEmptyingTest}, which reads the schema: listed, emptied by a cascade from a listed one, or
+     * kept there with its reason.
      */
-    private static final List<String> TABLES_CHILDREN_FIRST = List.of(
+    static final List<String> TABLES_CHILDREN_FIRST = List.of(
             // No foreign key in or out (a common migration, decision 0027), so first or anywhere; left
             // out, a plugin registered by one test would conflict with the next test's registration.
             // No foreign key either (V51, common). Left out, a template imported by one test would hold
@@ -83,6 +85,9 @@ public abstract class VectispireContextTest {
             "t_issue",
             "t_scan",
             "t_gate_policy",
+            // Each verdict names a repository or a container, and goes with it through a cascade — but both
+            // columns are nullable, so the cascade proves nothing about a row naming neither: named here.
+            "t_gate_verdict",
             // No foreign key to cascade from, unlike t_gate_verdict which a repository takes with
             // it: a declaration belongs to the management system, not to a target. Left out, it
             // would survive into the next test and the failure would read as a duplicate write.
@@ -106,6 +111,9 @@ public abstract class VectispireContextTest {
             // The webhook's shared ceiling: left behind, one test's deliveries count against the
             // next's, all of them from the one address MockMvc gives.
             "t_rate_window",
+            // The tracker deliveries already acted on (V35). Left out, a delivery one test sent would be
+            // refused as a replay in the next test that sends the same body.
+            "t_webhook_delivery",
             "t_session",
             "t_api_key",
             "t_agent",
@@ -123,6 +131,10 @@ public abstract class VectispireContextTest {
             "t_leader_lease",
             "t_one_shot_job",
             "t_setting",
+            // A singleton row the migration seeds (V13); absent, the service reads the default policy, the
+            // one seeded. Left out, a case refusing unknown licences refused them in every class run after
+            // it, and the tallies' suite reset it by hand around each case.
+            "t_license_policy",
             "t_user");
 
     @BeforeEach
