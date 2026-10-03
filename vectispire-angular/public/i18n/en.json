@@ -3658,7 +3658,11 @@
       "disabled": "The platform governor has disabled this plugin: no report runs until it is enabled again.",
       "executor_unavailable": "This installation cannot run report plugins: its built-in worker is switched off and this version does not run them on agents.",
       "run_in_progress": "A report of this plugin for this project is already waiting or running: it is the one to wait for."
-    }
+    },
+    "withdrawn_tag": "Withdrawn",
+    "withdrawn_since": "Its manifest was withdrawn on {{date}} by {{who}}: the installation no longer stands by this document.",
+    "withdrawn_download": "This document was withdrawn: its signature still verifies, but the installation no longer stands by it.",
+    "withdrawn_download_since": "This document was withdrawn on {{date}}: its signature still verifies, but the installation no longer stands by it. Reason: {{reason}}"
   },
   "forges": {
     "kind": {

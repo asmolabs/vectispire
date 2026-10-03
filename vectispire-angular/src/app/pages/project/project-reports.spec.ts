@@ -229,6 +229,70 @@ describe('a project’s reports', () => {
         expect(saved).toEqual([{ name: 'report-34-quarterly-summary.zip' }]);
     });
 
+    describe('a withdrawn manifest’s document', () => {
+        const WITHDRAWN = {
+            ...PRODUCED_RUN,
+            id: 36,
+            withdrawnAt: '2026-10-03T14:02:10Z',
+            withdrawnBy: 'governor',
+            withdrawalJustification: 'The renderer dropped accepted issues from the sheet.'
+        };
+
+        const downloadAnswered = (id: number, status: 'upheld' | 'withdrawn') => {
+            button(`[data-testid="download-${id}"]`)!.click();
+            http.expectOne({ method: 'GET', url: `${BASE}/reports/${id}/document` }).flush(new Blob(['PK']), {
+                headers: new HttpHeaders({
+                    'Content-Disposition': `attachment; filename="report-${id}-quarterly-summary.zip"`,
+                    'Vectispire-Document-Status': status
+                })
+            });
+            fixture.detectChanges();
+        };
+
+        it('is marked withdrawn on its row, with the date, who withdrew it and why, and stays downloadable', async () => {
+            await open('USER', [WITHDRAWN, PRODUCED_RUN]);
+
+            const mark = row(36).querySelector('[data-testid="run-withdrawn"]');
+            expect(mark).not.toBeNull();
+            expect(text('p-tag', mark!)).toBe('Withdrawn');
+            expect(mark!.textContent).toContain('03/10/2026');
+            expect(mark!.textContent).toContain('by governor');
+            expect(mark!.textContent).toContain('The renderer dropped accepted issues from the sheet.');
+            expect(button('[data-testid="download-36"]')).not.toBeNull();
+            expect(row(34).querySelector('[data-testid="run-withdrawn"]')).toBeNull();
+        });
+
+        it('says after the download what the document is worth, and nothing for one that stands', async () => {
+            await open('USER', [WITHDRAWN, PRODUCED_RUN]);
+
+            downloadAnswered(34, 'upheld');
+            expect(dom().querySelector('[data-testid="download-withdrawn"]')).toBeNull();
+
+            downloadAnswered(36, 'withdrawn');
+            expect(saved.map((one) => one.name)).toEqual([
+                'report-34-quarterly-summary.zip',
+                'report-36-quarterly-summary.zip'
+            ]);
+            const notice = text('[data-testid="download-withdrawn"]');
+            expect(notice).toContain('no longer stands by it');
+            expect(notice).toContain('The renderer dropped accepted issues from the sheet.');
+        });
+
+        it('believes the server over a row read before the withdrawal, and reads the runs again', async () => {
+            await open('USER', [PRODUCED_RUN]);
+
+            downloadAnswered(34, 'withdrawn');
+            expect(text('[data-testid="download-withdrawn"]')).toBe(
+                'This document was withdrawn: its signature still verifies, but the installation no longer stands by it.'
+            );
+            http.expectOne({ method: 'GET', url: `${BASE}/reports` }).flush(
+                asSchemaList('ReportRunView', [{ ...WITHDRAWN, id: 34 }])
+            );
+            fixture.detectChanges();
+            expect(row(34).querySelector('[data-testid="run-withdrawn"]')).not.toBeNull();
+        });
+    });
+
     it('says a purged document is gone, rather than that the download failed', async () => {
         await open('USER');
         button('[data-testid="download-34"]')!.click();

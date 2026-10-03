@@ -3780,7 +3780,11 @@
       "disabled": "Le gouverneur de la plateforme a désactivé ce plugin : aucun rapport ne s'exécute avant sa réactivation.",
       "executor_unavailable": "Cette installation ne peut pas exécuter de plugins de rapport : son worker intégré est désactivé et cette version ne les exécute pas sur les agents.",
       "run_in_progress": "Un rapport de ce plugin pour ce projet est déjà en attente ou en cours : c'est celui-là qu'il faut attendre."
-    }
+    },
+    "withdrawn_tag": "Retiré",
+    "withdrawn_since": "Son manifeste a été retiré le {{date}} par {{who}} : l'installation ne se porte plus garante de ce document.",
+    "withdrawn_download": "Ce document a été retiré : sa signature se vérifie toujours, mais l'installation ne s'en porte plus garante.",
+    "withdrawn_download_since": "Ce document a été retiré le {{date}} : sa signature se vérifie toujours, mais l'installation ne s'en porte plus garante. Raison : {{reason}}"
   },
   "forges": {
     "kind": {

@@ -3,6 +3,11 @@
         message
     }}</p-message>
 }
+@if (withdrawnNotice(); as message) {
+    <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="download-withdrawn">{{
+        message
+    }}</p-message>
+}
 @if (notice(); as message) {
     <p-message severity="success" [closable]="false" styleClass="mb-3 w-full" data-testid="reports-notice">{{
         message
@@ -191,10 +196,27 @@
                     <td class="text-sm">
                         @if (run.state === 'produced') {
                             <!--
-                                R7 (decision 0035 §4, withdrawal): a run whose manifest was withdrawn is to be
-                                marked here — "withdrawn", with the justification — once the run view says so.
-                                Until then its document is served, and shown, unmarked.
+                                Decision 0035 §4: a withdrawn manifest's document is still downloadable — evidence
+                                of what was handed out — and says, before the click, that it no longer stands.
                             -->
+                            @if (run.withdrawnAt) {
+                                <div class="mb-2" data-testid="run-withdrawn">
+                                    <p-tag severity="danger" [value]="'reports.withdrawn_tag' | translate" />
+                                    <div class="text-xs mt-1">
+                                        {{
+                                            'reports.withdrawn_since'
+                                                | translate
+                                                    : {
+                                                          date: (run.withdrawnAt | date: 'dd/MM/yyyy') ?? '',
+                                                          who: run.withdrawnBy ?? '—'
+                                                      }
+                                        }}
+                                    </div>
+                                    <div class="text-xs text-muted-color mt-1 whitespace-pre-wrap break-words">
+                                        {{ run.withdrawalJustification }}
+                                    </div>
+                                </div>
+                            }
                             <p-button
                                 icon="pi pi-download"
                                 size="small"

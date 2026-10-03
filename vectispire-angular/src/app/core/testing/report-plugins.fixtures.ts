@@ -115,7 +115,10 @@ export const PRODUCED_RUN: ReportRun = asSchema('ReportRunView', {
     outputMediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     signingKeyId: 'key-1',
     packageSha256: 'e'.repeat(64),
-    productVersion: '0.11.0'
+    productVersion: '0.11.0',
+    withdrawnAt: null,
+    withdrawnBy: null,
+    withdrawalJustification: null
 });
 
 export const PENDING_RUN: ReportRun = asSchema('ReportRunView', {

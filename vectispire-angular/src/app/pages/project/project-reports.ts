@@ -35,6 +35,12 @@ export const VERIFY_DOC = {
     fr: 'https://asmolabs.github.io/vectispire/fr/administration/report-plugins/#le-document-et-comment-le-verifier'
 } as const;
 
+/**
+ * Whether the installation still stands by a downloaded document — `upheld` or `withdrawn` — sent on every
+ * package (decision 0035 §4, lot R7).
+ */
+export const DOCUMENT_STATUS_HEADER = 'Vectispire-Document-Status';
+
 /** A run moves in seconds to minutes; five seconds is what the scans wait too. */
 export const POLL_MS = 5000;
 
@@ -81,6 +87,8 @@ export class ProjectReports {
     readonly registry = signal<ReportPlugin[]>([]);
     readonly error = signal<string | null>(null);
     readonly notice = signal<string | null>(null);
+    /** Said after a download the server served as withdrawn: the file left, and what it is worth goes with it. */
+    readonly withdrawnNotice = signal<string | null>(null);
     readonly busy = signal<string | null>(null);
     readonly exporting = signal(false);
     readonly toActivate = signal<string | null>(null);
@@ -125,6 +133,7 @@ export class ProjectReports {
     private load(id: number): void {
         this.error.set(null);
         this.notice.set(null);
+        this.withdrawnNotice.set(null);
         this.activations.set(null);
         this.runs.set(null);
         this.api.projectReportPlugins(id).subscribe({
@@ -280,10 +289,17 @@ export class ProjectReports {
     download(run: ReportRun): void {
         this.busy.set(`download:${run.id}`);
         this.error.set(null);
+        this.withdrawnNotice.set(null);
         this.api.downloadReportPackage(this.projectId(), run.id).subscribe({
             next: (response) => {
                 this.busy.set(null);
                 saveDocument(response, `report-${run.id}-${run.pluginId}.zip`);
+                // The header is the server's word at the instant of the download; the row may predate a
+                // withdrawal, in which case the runs are read again to show its date and reason.
+                if (response.headers.get(DOCUMENT_STATUS_HEADER) === 'withdrawn') {
+                    this.withdrawnNotice.set(this.withdrawnSentence(run));
+                    if (!run.withdrawnAt) this.loadRuns(this.projectId());
+                }
             },
             error: (failure) => {
                 this.busy.set(null);
@@ -291,6 +307,15 @@ export class ProjectReports {
                     this.i18n.t(isNotFound(failure) ? 'reports.error_document_gone' : 'reports.error_download')
                 );
             }
+        });
+    }
+
+    /** What a downloaded withdrawn document is worth, with the withdrawal's date and reason when the row has them. */
+    private withdrawnSentence(run: ReportRun): string {
+        if (!run.withdrawnAt) return this.i18n.t('reports.withdrawn_download');
+        return this.i18n.t('reports.withdrawn_download_since', {
+            date: new Date(run.withdrawnAt).toLocaleDateString(this.i18n.currentLang()),
+            reason: run.withdrawalJustification ?? '—'
         });
     }
 

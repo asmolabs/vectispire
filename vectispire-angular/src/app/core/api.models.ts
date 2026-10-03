@@ -3217,6 +3217,13 @@ export type ReportRun = Refine<
         signingKeyId: string | null;
         packageSha256: string | null;
         productVersion: string | null;
+        /**
+         * Set once the platform governor withdrew the manifest the run used (decision 0035 §4): its document
+         * is still served, but the installation no longer stands by it. Null while the manifest stands.
+         */
+        withdrawnAt: string | null;
+        withdrawnBy: string | null;
+        withdrawalJustification: string | null;
     }
 >;
 
