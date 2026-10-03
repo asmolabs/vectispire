@@ -783,6 +783,63 @@ que le §3 laissait ouverts ou énonçait vaguement. Le code est dans `common/do
   manifeste retiré marqués comme retirés relèvent de R7, comme le dit le tableau des lots : d'ici là, les documents
   d'un digest retiré sont servis sans marque.
 
+## Construit en R5 (2026-10-03) : là où le code en dit plus que le §6
+
+Le lot R5 — le plugin de démonstration — a tranché ces points que le §6 laissait ouverts. Le code est
+`vectispire-java/vectispire-report-demo` (`ReportDemo`, `ExportDocument`, `SummaryWorkbook`, `Xlsx`), son
+modèle de manifeste à côté, le test de contrat en processus dans `ProjectExportRoutesTest`, celui en conteneur
+dans `ReportDemoImageIntegrationTest`, et le job `images` de `ci.yml` et les deux jobs de `release.yml`.
+
+- **Il s'appelle `--in {input} --out {output}`** et sort en **0** écrit, **1** pour un export qu'il ne peut
+  pas lire — pas du JSON, deux valeurs pour une clé, une partie qu'il rend absente — ou une sortie qu'il ne
+  peut pas écrire, **2** pour un autre schéma ou une autre majeure, **64** pour d'autres arguments ; chaque
+  sortie non nulle dit pourquoi en une phrase sur stderr, que l'exécution enregistre comme son détail. **Une
+  partie absente, c'est la sortie 1, jamais une feuille vide** ([0007](0007-none-is-not-an-empty-list.md)) : la
+  synthèse d'un export sans ses `issues` affirmerait « aucun problème » sous la clé de la plateforme. Les
+  champs et parties inconnus sont ignorés, donc tout 1.x se rend.
+- **Le déterminisme est une propriété de l'image, mesurée au-delà.** Chaînes en ligne, un ordre des parties,
+  un niveau de compression fixe, et chaque entrée datée du **1980-02-01** en date-heure locale. Pas du
+  1980-01-01 : le JDK lit cet instant comme « avant l'époque du format » et stocke un horodatage étendu
+  converti par le fuseau de l'hôte, si bien que le même export donnait d'autres octets dans un autre fuseau —
+  un test rend sous un autre fuseau et compare. L'export d'exemple rendu en processus (macOS, aarch64,
+  Temurin 25.0.4) et dans l'image (linux/amd64, le Temurin 25.0.4.1 de distroless) a donné le même SHA-256 ;
+  l'affirmation faite n'est que celle de l'image.
+- **Ce qu'un classeur ne peut pas contenir est dit, pas perdu** : un texte au-delà des 32 767 caractères
+  d'Excel est coupé avec une marque qui donne la longueur dans l'export — le lecteur de la plateforme refuse
+  un fichier entier pour une telle cellule — et les caractères que XML 1.0 ne peut pas porter deviennent
+  U+FFFD. Un null reste une cellule vide.
+- **L'image est distroless** (`gcr.io/distroless/java25-debian13:nonroot`, par empreinte d'index), pas le JRE
+  Alpine des deux autres : un moteur de rendu n'a besoin que d'une JVM — ni shell, ni répertoire personnel. Son
+  utilisateur est 65532 ; l'exécuteur le lance de toute façon comme le propriétaire du répertoire de
+  l'exécution. Le plugin Gradle de Spring Boot est déclaré et non appliqué, pour que Jib résolve le classpath
+  de plugins que les deux images vérifient déjà : R5 n'a ajouté aucun artefact à `verification-metadata.xml`.
+- **Les tests atteignent ce que le plugin n'atteint pas** : `vectispire-common` en portée de test, pour le
+  lecteur de classeurs de la plateforme (`Workbook.read` : gardes du zip, types de contenu, pas de macro) et
+  le schéma publié, contre lequel chaque jeu d'essai est validé. Le classpath du plugin porte Jackson et rien
+  de Vectispire.
+- **Le manifeste est un modèle à deux marqueurs**, l'image et l'identité, que seul un tag connaît. `publish`
+  les remplit avec `jq` à partir de l'empreinte qu'il vient de signer et vérifier et de l'identité du tag,
+  refuse un marqueur restant, signe le résultat comme un blob et le vérifie avec la commande du consommateur
+  avant de le joindre. `ManifestTemplateTest` le remplit de la même façon et le tient au `validated()` du
+  registre et à la convention d'arguments du plugin ; il lie aussi l'`export_schema` du manifeste à la majeure
+  que la plateforme produit et que le plugin lit — **une montée de majeure qui oublie la démo fait échouer le
+  job `jvm`**, pas seulement la suite de conteneurs que nommait le §6.
+- **Ce qui tourne où.** Le job `jvm` (`./gradlew build`) : les tests du plugin, et le test de contrat en
+  processus — l'export que construit la route, validé par le schéma, rendu, relu : chaque problème une ligne,
+  le total des comptes celui de l'export, chaque ligne de checklist une ligne, les mêmes octets deux fois. Le
+  job `images` : l'image construite par Jib à côté des deux autres, exécutée deux fois dans la forme fermée
+  avec un simple `docker run` et comparée octet par octet, une autre majeure sortant en 2.
+  `:vectispire-common:integrationTest` — une suite que la CI ne lance pas, démarrée à la main comme le reste de
+  la campagne de conteneurs — exécute l'image par le vrai `ContainerRunner` avec les montages du moteur de
+  rendu, la sortie bornée, seize inodes, les arguments et limites du manifeste.
+- **Ce que le second test du §6 ne fait pas encore.** Il assemble le `ContainerRun` que le moteur de rendu
+  construit après la vérification du signataire, sans la vérification : une image construite localement n'a
+  ni registre ni signature, et la suite du moteur de rendu exécute déjà le vérificateur contre une image
+  publique signée. Enregistrer le plugin dans une installation de test, la vérification de type de R4, la
+  signature du paquet et son `cosign verify-blob` contre la clé de l'installation attendent R4. La signature de
+  l'image, sa vérification et celle du manifeste ne sont faites que par un tag : une répétition de
+  `release.yml` ne publie rien et n'en signe donc aucune.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

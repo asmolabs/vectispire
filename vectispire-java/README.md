@@ -36,6 +36,14 @@ agent's existence is precisely what it does not have ([decision
 the build graph rather than a rule somebody enforces: the violation does not fail review, it
 fails to compile.
 
+**A fourth Gradle project, outside the product: `vectispire-report-demo`**, the demonstration report plugin
+([decision 0035](../docs/architecture/en/decisions/0035-report-plugins.md) §6). It depends on none of the
+three — a plugin knows the export's schema, not the platform — reads `export.json` with Jackson, writes a
+deterministic `summary.xlsx` with the JDK, and ships as an image of its own, signed by the release like the two
+others. Its tests take `vectispire-common` in test scope for the platform's workbook reader and the published
+schema; `vectispire-core`'s HTTP suite renders the exports it builds with it, and
+`:vectispire-common:integrationTest` runs its image through `ContainerRunner`.
+
 **What that costs.** The layers *inside* `vectispire-core` — persistence, services, web — can no
 longer be expressed by the module graph, so `ArchitectureTest` enforces them with ArchUnit, in every
 module, and Spring Modulith verifies the boundaries between modules against the list each module

@@ -231,6 +231,87 @@ kept with the run for the evidence window and its SHA-256 is in the statement, t
 and a deterministic renderer given the same export writes the same bytes — anybody who doubts the document
 renders the export again with the same image and compares.
 
+## The demonstration plugin
+
+Vectispire publishes one report plugin of its own, **`vectispire-report-demo`**: a reference to read, a
+starting point to copy, and the contract's executable test (decision 0035 §6). Nobody is expected to keep
+it switched on.
+
+**What it renders**: `summary.xlsx`, three sheets drawn from the export and from nothing else —
+
+| Sheet | Content |
+|---|---|
+| `Summary` | The project, its solution, who asked, the installation, the Vectispire version, the export's instant and id; the gate's last verdict per target (`never judged` where there is none); the export's counts per type, severity, state and triage status, and their total. |
+| `Issues` | One row per issue the export lists, in its order: target, type, severity, identifier, title, tool, component, path and line, first and last seen, KEV, EPSS, CVSS, fix versions, the triage decision with who made it and when, the remediation deadline. |
+| `Checklists` | One row per line of each checklist the export embeds: the template, the revision and its status, the answer, its comment, who gave it and whether it was a person or Vectispire, the measurement, the proofs still standing named by file name and SHA-256. |
+
+A value the export leaves null stays an empty cell — never a zero nobody measured. It reads every 1.x export
+and ignores what it does not know; an export of another schema or another major makes it exit 2, one with a
+part missing exit 1, each with its reason on stderr — which the run records as its detail.
+
+**The same export gives the same bytes.** The workbook carries no "now": the instant it states is the
+export's, every zip entry is dated 1980-02-01, the parts go in one order. A run's output SHA-256 can
+therefore be checked by anybody holding the export it was given, by rendering it again with the same image.
+This version keeps that export with the run and does not serve it yet; an
+[export](../guide/exports.md#project-export) downloaded later is another document — its own id and instant —
+and renders another workbook. To see the property for yourself, download one export, put it in `in/` as
+`export.json`, and render it twice —
+
+```bash
+docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
+  -v "$PWD/in:/report/input:ro" -v "$PWD/out:/report/output" \
+  ghcr.io/asmolabs/vectispire-report-demo@sha256:<digest> \
+  --in /report/input/export.json --out /report/output/summary.xlsx
+sha256sum out/summary.xlsx
+```
+
+**Registering it.** Each release attaches the plugin's manifest, `vectispire-report-demo.manifest.json`, with
+its Sigstore bundle. The manifest names the image by the digest the release pushed and signed, and that
+release's signing identity — `https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>`,
+issuer `https://token.actions.githubusercontent.com`. Verify it before you paste it anywhere:
+
+```bash
+cosign verify-blob \
+  --bundle vectispire-report-demo.manifest.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  vectispire-report-demo.manifest.json
+```
+
+then, as the platform governor, `POST /api/v1/report-plugins` with the file as the body. It looks like this,
+the image and the identity being the release's:
+
+```json
+{
+  "id": "vectispire-report-demo",
+  "name": "Vectispire demonstration summary",
+  "image": "ghcr.io/asmolabs/vectispire-report-demo@sha256:<digest>",
+  "export_schema": 1,
+  "arguments": ["--in", "{input}", "--out", "{output}"],
+  "output": "summary.xlsx",
+  "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "max_output_bytes": 20971520,
+  "timeout_seconds": 120,
+  "signature": {
+    "identity": "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>",
+    "issuer": "https://token.actions.githubusercontent.com"
+  }
+}
+```
+
+Have it approved (by somebody else with four-eyes on), switch it on for a project and request a report, as
+above. The image is public on GHCR: the control plane needs to reach `ghcr.io` and Sigstore's public
+transparency log, and no registry credential. An installation that mirrors its plugins
+(`VECTISPIRE_PLUGIN_REGISTRY`) copies the image **with its signature**.
+
+**Writing your own from it.** The source is
+[`vectispire-java/vectispire-report-demo`](https://github.com/asmolabs/vectispire/tree/main/vectispire-java/vectispire-report-demo):
+a Java program depending on nothing of Vectispire — a plugin knows the export's
+[schema](../guide/exports.md#project-export), not the platform — built into a distroless image by Jib. What
+to keep from it whatever you write yours in: read the export as a tree and ignore what you do not know;
+refuse another major rather than guess; never render an absent part as an empty one; write the file once,
+whole; take no instant from the clock.
+
 ## What is recorded
 
 Every gesture is written to the [audit log](audit-log.md) — `REPORT_PLUGIN_REGISTERED`,

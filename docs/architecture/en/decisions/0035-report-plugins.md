@@ -717,6 +717,57 @@ or stated loosely. The code is in `common/domain/reportplugins` (`ReportOutputCh
   documents as withdrawn are R7's, as the lots table says: a withdrawn digest's documents are served unmarked until
   then.
 
+## Built in R5 (2026-10-03): where the code says more than §6
+
+Lot R5 — the demonstration plugin — settled these points §6 left open. The code is
+`vectispire-java/vectispire-report-demo` (`ReportDemo`, `ExportDocument`, `SummaryWorkbook`, `Xlsx`), its
+manifest template beside it, the in-process contract test in `ProjectExportRoutesTest`, the container one in
+`ReportDemoImageIntegrationTest`, and the `images` job of `ci.yml` and both jobs of `release.yml`.
+
+- **It is called `--in {input} --out {output}`** and exits **0** written, **1** for an export it cannot read —
+  not JSON, two values for one key, a part it renders missing — or an output it cannot write, **2** for
+  another schema or another major, **64** for other arguments; each non-zero exit says why in one sentence on
+  stderr, which the run records as its detail. **A part missing is exit 1, never an empty sheet**
+  ([0007](0007-none-is-not-an-empty-list.md)): a summary of an export without its `issues` would state "no
+  issue" under the platform's key. Unknown fields and parts are ignored, so every 1.x renders.
+- **Determinism is a property of the image, measured beyond it.** Inline strings, one part order, a fixed
+  deflate level, and every entry dated **1980-02-01** as a local date-time. Not 1980-01-01: the JDK reads that
+  instant as "before the format's epoch" and stores an extended timestamp converted through the host's time
+  zone, so the same export gave other bytes in another zone — a test renders under another zone and compares.
+  The sample export rendered in-process (macOS, aarch64, Temurin 25.0.4) and in the image (linux/amd64,
+  distroless's Temurin 25.0.4.1) gave the same SHA-256; the claim made is only the image's.
+- **What a workbook cannot hold is said, not dropped**: text past Excel's 32,767 characters is cut with a
+  marker naming the export's length — the platform's reader refuses a whole file for one such cell — and
+  characters XML 1.0 cannot carry become U+FFFD. A null stays an empty cell.
+- **The image is distroless** (`gcr.io/distroless/java25-debian13:nonroot`, by index digest), not the Alpine
+  JRE of the two others: a renderer needs a JVM and nothing else — no shell, no home. Its user is 65532; the
+  executor runs it as the run directory's owner regardless. The Spring Boot Gradle plugin is declared and not
+  applied, so Jib resolves the plugin classpath the two images already verify: R5 added no artifact to
+  `verification-metadata.xml`.
+- **The tests reach what the plugin does not**: `vectispire-common` in test scope, for the platform's own
+  workbook reader (`Workbook.read`: zip guards, content types, no macro) and the published schema, which
+  every fixture is validated against. The plugin's classpath holds Jackson and nothing of Vectispire.
+- **The manifest is a template with two placeholders**, the image and the identity, which only a tag knows.
+  `publish` fills them with `jq` from the digest it has just signed and verified and the tag's identity,
+  refuses a leftover placeholder, signs the result as a blob and verifies it with the consumer's command
+  before attaching it. `ManifestTemplateTest` fills it the same way and holds it to the registry's
+  `validated()` and to the plugin's own argument convention; it also pins the manifest's `export_schema` to
+  the major the platform produces and the plugin reads — so **a major bump that forgets the demo fails the
+  `jvm` job**, not only the container suite §6 named.
+- **What runs where.** The `jvm` job (`./gradlew build`): the plugin's tests, and the in-process contract test
+  — the export the route builds, validated by the schema, rendered, read back: every issue a row, the counts'
+  total the export's, every checklist line a row, the same bytes twice. The `images` job: the image built with
+  Jib beside the two, run twice in the closed shape with plain `docker run` and compared byte for byte, another
+  major exiting 2. `:vectispire-common:integrationTest` — a suite CI does not run, started by hand like the rest
+  of the container campaign — runs the image through the real `ContainerRunner` with the renderer's mounts,
+  bounded output, sixteen inodes, the manifest's arguments and limits.
+- **What §6's second test does not do yet.** It assembles the `ContainerRun` the renderer builds after the
+  signer check, without the check: a locally built image has no registry and no signature, and the
+  renderer's own suite already runs the verifier against a signed public image. Registering the plugin in a
+  test installation, R4's type check, the package's signature and its `cosign verify-blob` against the
+  installation's key wait for R4. The image's own signature, its verification and the manifest's are made only
+  by a tag: a rehearsal of `release.yml` publishes nothing and so signs none of them.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

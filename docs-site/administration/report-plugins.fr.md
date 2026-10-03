@@ -240,6 +240,90 @@ son SHA-256 figure dans la déclaration, l'image est épinglée par digest, et u
 qui l'on donne le même export écrit les mêmes octets — quiconque doute du document refait le rendu de l'export
 avec la même image et compare.
 
+## Le plugin de démonstration
+
+Vectispire publie un plugin de rapport à lui, **`vectispire-report-demo`** : une référence à lire, un point
+de départ à copier, et le test exécutable du contrat (décision 0035 §6). Personne n'est censé le garder
+activé.
+
+**Ce qu'il rend** : `summary.xlsx`, trois feuilles tirées de l'export et de rien d'autre —
+
+| Feuille | Contenu |
+|---|---|
+| `Summary` | Le projet, sa solution, qui a demandé, l'installation, la version de Vectispire, l'instant et l'identifiant de l'export ; le dernier verdict de la barrière par cible (`never judged` quand il n'y en a pas) ; les comptes de l'export par type, sévérité, état et statut de tri, et leur total. |
+| `Issues` | Une ligne par problème que l'export liste, dans son ordre : cible, type, sévérité, identifiant, titre, outil, composant, chemin et ligne, première et dernière détection, KEV, EPSS, CVSS, versions correctives, la décision de tri avec qui l'a prise et quand, l'échéance de remédiation. |
+| `Checklists` | Une ligne par ligne de chaque checklist que l'export embarque : le modèle, la révision et son statut, la réponse, son commentaire, qui l'a donnée et si c'était une personne ou Vectispire, la mesure, les preuves encore en vigueur nommées par nom de fichier et SHA-256. |
+
+Les intitulés de feuilles et de colonnes sont en anglais, comme le schéma de l'export. Une valeur que
+l'export laisse nulle reste une cellule vide — jamais un zéro que personne n'a mesuré. Il lit tout export
+1.x et ignore ce qu'il ne connaît pas ; un export d'un autre schéma ou d'une autre majeure le fait sortir en
+2, un export auquel manque une partie en 1, chacun avec sa raison sur stderr — que l'exécution enregistre
+comme son détail.
+
+**Le même export donne les mêmes octets.** Le classeur ne porte aucun « maintenant » : l'instant qu'il
+énonce est celui de l'export, chaque entrée du zip est datée du 1980-02-01, les parties vont dans un ordre
+fixe. Le SHA-256 de la sortie d'une exécution peut donc être vérifié par quiconque détient l'export qu'elle a
+reçu, en le rendant à nouveau avec la même image. Cette version conserve cet export avec l'exécution et ne le
+sert pas encore ; un [export](../guide/exports.fr.md#export-de-projet) téléchargé plus tard est un autre
+document — son propre identifiant, son propre instant — et rend un autre classeur. Pour constater la propriété
+vous-même, téléchargez un export, posez-le dans `in/` sous le nom `export.json`, et rendez-le deux fois —
+
+```bash
+docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
+  -v "$PWD/in:/report/input:ro" -v "$PWD/out:/report/output" \
+  ghcr.io/asmolabs/vectispire-report-demo@sha256:<digest> \
+  --in /report/input/export.json --out /report/output/summary.xlsx
+sha256sum out/summary.xlsx
+```
+
+**L'enregistrer.** Chaque version joint le manifeste du plugin, `vectispire-report-demo.manifest.json`, avec
+son paquet Sigstore. Le manifeste nomme l'image par l'empreinte que la version a poussée et signée, et
+l'identité de signature de cette version —
+`https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>`, émetteur
+`https://token.actions.githubusercontent.com`. Vérifiez-le avant de le coller où que ce soit :
+
+```bash
+cosign verify-blob \
+  --bundle vectispire-report-demo.manifest.json.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  vectispire-report-demo.manifest.json
+```
+
+puis, en gouverneur de la plateforme, `POST /api/v1/report-plugins` avec le fichier pour corps. Il ressemble
+à ceci, l'image et l'identité étant celles de la version :
+
+```json
+{
+  "id": "vectispire-report-demo",
+  "name": "Vectispire demonstration summary",
+  "image": "ghcr.io/asmolabs/vectispire-report-demo@sha256:<digest>",
+  "export_schema": 1,
+  "arguments": ["--in", "{input}", "--out", "{output}"],
+  "output": "summary.xlsx",
+  "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "max_output_bytes": 20971520,
+  "timeout_seconds": 120,
+  "signature": {
+    "identity": "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>",
+    "issuer": "https://token.actions.githubusercontent.com"
+  }
+}
+```
+
+Faites-le approuver (par quelqu'un d'autre si les quatre yeux sont actifs), activez-le pour un projet et
+demandez un rapport, comme plus haut. L'image est publique sur GHCR : le plan de contrôle doit joindre
+`ghcr.io` et le journal de transparence public de Sigstore, et n'a besoin d'aucun identifiant de registre.
+Une installation qui reflète ses plugins (`VECTISPIRE_PLUGIN_REGISTRY`) copie l'image **avec sa signature**.
+
+**Écrire le vôtre à partir de lui.** Le source est
+[`vectispire-java/vectispire-report-demo`](https://github.com/asmolabs/vectispire/tree/main/vectispire-java/vectispire-report-demo) :
+un programme Java qui ne dépend de rien de Vectispire — un plugin connaît le
+[schéma](../guide/exports.fr.md#export-de-projet) de l'export, pas la plateforme — construit en image distroless
+par Jib. Ce qu'il faut en garder, quel que soit le langage du vôtre : lire l'export comme un arbre et ignorer
+ce qu'on ne connaît pas ; refuser une autre majeure plutôt que deviner ; ne jamais rendre une partie absente
+comme une partie vide ; écrire le fichier une fois, en entier ; ne prendre aucun instant à l'horloge.
+
 ## Ce qui est enregistré
 
 Chaque geste est écrit au [journal d'audit](audit-log.fr.md) — `REPORT_PLUGIN_REGISTERED`,

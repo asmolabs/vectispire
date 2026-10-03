@@ -298,6 +298,18 @@ another branch, is another target and is accepted as before.
   `outputMediaType`, `signingKeyId` and `packageSha256`
   ([how](../administration/report-plugins.md#the-document-and-how-to-verify-it)).
 
+- **The demonstration report plugin** — the fifth lot of decision 0035. `vectispire-report-demo` renders a
+  project's export into `summary.xlsx` — a `Summary` sheet (the project, who asked, the version, the export's
+  instant, the gate per target, the counts), one row per issue on `Issues`, one per checklist line on
+  `Checklists` — and the same export into the same bytes: no clock, fixed zip dates and order. Another schema
+  or major exits 2, an export missing a part exits 1, each with its reason. **A third image is released**,
+  `ghcr.io/asmolabs/vectispire-report-demo`, distroless, signed by digest with the same identity as the two
+  others, its SBOM and provenance attested; its manifest is a release asset,
+  `vectispire-report-demo.manifest.json`, filled with that digest and the tag's identity and signed with its
+  Sigstore bundle — verify it, then register it like any report plugin. It is the contract's test as much as a
+  sample: every build renders the exports the suite generates and checks the workbook
+  ([how](../administration/report-plugins.md#the-demonstration-plugin)).
+
 - **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
   solution under the card's formula and under the weights asked for, with each row's risk points; with

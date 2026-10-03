@@ -320,6 +320,19 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   manifeste. Les exécutions gagnent `outputMediaType`, `signingKeyId`
   et `packageSha256` ([comment](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier)).
 
+- **Le plugin de rapport de démonstration** — le cinquième lot de la décision 0035. `vectispire-report-demo`
+  rend l'export d'un projet en `summary.xlsx` — une feuille `Summary` (le projet, qui a demandé, la version,
+  l'instant de l'export, la barrière par cible, les comptes), une ligne par problème sur `Issues`, une par
+  ligne de checklist sur `Checklists` — et le même export en les mêmes octets : pas d'horloge, dates et ordre
+  du zip fixes. Un autre schéma ou une autre majeure le fait sortir en 2, un export auquel manque une partie
+  en 1, chacun avec sa raison. **Une troisième image est publiée**, `ghcr.io/asmolabs/vectispire-report-demo`,
+  distroless, signée par empreinte avec la même identité que les deux autres, son SBOM et sa provenance
+  attestés ; son manifeste est joint à la version, `vectispire-report-demo.manifest.json`, rempli avec cette
+  empreinte et l'identité du tag et signé avec son paquet Sigstore — vérifiez-le, puis enregistrez-le comme
+  n'importe quel plugin de rapport. C'est le test du contrat autant qu'un exemple : chaque build rend les
+  exports que la suite génère et vérifie le classeur
+  ([comment](../administration/report-plugins.fr.md#le-plugin-de-demonstration)).
+
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et
   chaque solution visibles avec la formule de la fiche et avec les poids demandés, avec les points de
