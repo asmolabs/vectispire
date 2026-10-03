@@ -173,6 +173,7 @@ change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in
 | `VECTI-SEC-028` | SIEM export switched off or redirected | 7 | the export is switched off, or its protocol or endpoint changes: sent synchronously to the collector being left, whatever the minimum severity (see [Delivery](#delivery)) |
 | `VECTI-SEC-029` | Secret leaked in source code | 8 | a scan finds a secret of high or critical severity that is not yet an issue — every secret the bundled scanner reports is graded high. Once per issue: the same leak seen by the next scan, or come back after being resolved, is not announced again. `cs3` carries the rule, `msg` the file; the matched value is never sent |
 | `VECTI-SEC-030` | Remediation deadline passed | 3–8 | an open issue nobody has settled passes its remediation deadline (first seen + the severity's window — see [Remediation times](../guide/remediation-delays.md)). Noticed by the hourly maintenance turn, stamped with the deadline itself, once per issue. Only deadlines passed within the last seven days are announced, so the backlog already late at the upgrade — or after a window is shortened — is not announced at once; with the export off, a breach is not replayed when it is switched back on. **As severe as the late issue**: 8 for a critical, 7 for a high, 5 for a medium, 3 for a low — so the default minimum (High) forwards the critical and high breaches, Medium the medium ones too. An event still queued when upgrading from 0.10.0, where the severity was a fixed 6, leaves at 6 |
+| `VECTI-SEC-031` | Report plugin registered, changed, approved, activated or withdrawn | 6 | a report plugin is registered or given another manifest by the platform governor, a manifest digest is approved (by a second person under four-eyes), the plugin is enabled or disabled, switched on or off for a project, or a manifest is withdrawn ([Report plugins](../administration/report-plugins.md)) — third-party code gains or loses access to a project's whole triaged state, or the right to produce documents under the installation's key. The digest is in the message |
 | `VECTI-SEC-032` | Project export left the platform | 4 | a project's whole triaged state was downloaded as its signed export ([Exports](../guide/exports.md#project-export)): who took it, which project (the target is the project's id), and the SHA-256 of `export.json` first in the message |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | the connection test |
 
@@ -181,9 +182,8 @@ emitted; they stay retired. The events that now carry those meanings took new nu
 `030`, so that a rule written against the old declaration does not start firing on a definition it
 was not written for.
 
-`VECTI-SEC-031` and `VECTI-SEC-033` are reserved for the report plugins of decision 0035 — a plugin
-registered, changed, approved, activated or withdrawn; a plugin or its output refused — and are emitted
-by no version yet.
+`VECTI-SEC-033` is reserved for the report plugins of decision 0035 — a plugin or its output refused —
+and is emitted by no version yet.
 
 Single sign-on, the MFA requirement for single sign-on and the allowed Git hosts are set by
 environment variables and change only with a restart, so they emit no event; their change is a

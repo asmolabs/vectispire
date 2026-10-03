@@ -48,6 +48,11 @@ n'a joint ni retiré aucune preuve, ni ne l'a soumise — et ce sont souvent les
 remplissent les checklists : avec un seul, ce qu'il aurait répondu pourrait être soumis et jamais
 approuvé. Créez-en d'abord un second.
 
+Le même décompte couvre les **plugins de rapport** : sous les quatre yeux, le manifeste d'un plugin de
+rapport est approuvé par une personne qui écrit la gouvernance autre que le gouverneur qui l'a
+enregistré, si bien que les deux comptes qui permettent de publier des modèles permettent aussi
+d'approuver des manifestes ([Plugins de rapport](report-plugins.fr.md#enregistrer-approuver-activer)).
+
 L'**éteindre** reste possible dans tous les cas : c'est l'activation qui demande un second.
 
 ## Approuver une checklist

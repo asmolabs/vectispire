@@ -148,6 +148,7 @@ plugins:
             Agents: Agents
             Semgrep rule sets: Jeux de règles Semgrep
             Plugins and SARIF imports: Plugins et imports SARIF
+            Report plugins: Plugins de rapport
             Checklist templates: Modèles de checklists
             Settings: Réglages
             Audit log: Journal d'audit
@@ -229,6 +230,7 @@ nav:
       - Agents: administration/agents.md
       - Semgrep rule sets: administration/rule-sets.md
       - Plugins and SARIF imports: administration/plugins.md
+      - Report plugins: administration/report-plugins.md
       - Checklist templates: administration/checklist-templates.md
       - Settings: administration/settings.md
       - Audit log: administration/audit-log.md

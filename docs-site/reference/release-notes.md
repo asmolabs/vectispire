@@ -180,8 +180,24 @@ told apart from the ones nobody scheduled, so all of them move to the default at
   source, secret value, credential or e-mail address. Over 100,000 issues or components or 64 MiB, it is
   refused (409 `project-export-too-large`), never cut short. The schema is served at
   `GET /api/v1/schemas/project-export/1`. Audited `PROJECT_EXPORTED`, sent to the SIEM as the new
-  `VECTI-SEC-032`; `VECTI-SEC-031` and `033` are reserved for the plugins themselves
+  `VECTI-SEC-032`; `VECTI-SEC-033` is reserved for the plugins themselves
   ([how](../guide/exports.md#project-export)).
+
+- **The report plugins' registry** — the second lot of decision 0035. The platform governor registers a
+  report plugin from its manifest — an image pinned by digest, the export major it reads, the one file it
+  writes and its media type from a closed list (Office Open XML, OpenDocument, PDF, CSV, plain text; no
+  HTML, no macro-enabled package), its output ceiling and timeout, and a signer, **required with no
+  waiver** — at `POST /api/v1/report-plugins`. **With four-eyes on, each manifest digest waits for a second
+  person**: an administrator, a CISO or another governor approves it
+  (`POST /api/v1/report-plugins/{id}/manifests/{digest}/approval`), never the account that registered it
+  (409 `report-plugin-four-eyes`), while the previously approved manifest keeps serving. A security lead
+  switches an approved plugin on for a project they see whole
+  (`PUT /api/v1/projects/{id}/report-plugins/{pluginId}`); the governor withdraws a digest with a
+  justification, and it never runs nor registers again. No delete. Every gesture is audited
+  (`REPORT_PLUGIN_*`) and sent to the SIEM as the new `VECTI-SEC-031`. **Nothing renders a report yet** —
+  the runner is the next lot. A private plugin image will be pulled and verified with the control plane's
+  Docker configuration: the manifest holds no credential, and Vectispire stores none
+  ([how](../administration/report-plugins.md)).
 
 - **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and

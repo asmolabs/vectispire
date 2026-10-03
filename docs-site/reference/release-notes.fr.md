@@ -194,8 +194,24 @@ défaut à la mise à jour.
   ni identifiant, ni adresse e-mail. Au-delà de 100 000 problèmes ou composants ou de 64 Mio, il est
   refusé (409 `project-export-too-large`), jamais tronqué. Le schéma est servi à
   `GET /api/v1/schemas/project-export/1`. Audité `PROJECT_EXPORTED`, envoyé au SIEM comme le nouveau
-  `VECTI-SEC-032` ; `VECTI-SEC-031` et `033` sont réservés aux plugins eux-mêmes
+  `VECTI-SEC-032` ; `VECTI-SEC-033` est réservé aux plugins eux-mêmes
   ([comment](../guide/exports.fr.md#export-de-projet)).
+
+- **Le registre des plugins de rapport** — le deuxième lot de la décision 0035. Le gouverneur de la
+  plateforme enregistre un plugin de rapport à partir de son manifeste — une image épinglée par digest, la
+  majeure d'export qu'il lit, l'unique fichier qu'il écrit et son type tiré d'une liste fermée (Office Open
+  XML, OpenDocument, PDF, CSV, texte brut ; ni HTML, ni paquet à macros), le plafond de sa sortie et son
+  délai, et un signataire, **obligatoire sans dérogation** — par `POST /api/v1/report-plugins`. **Quatre
+  yeux actifs, chaque digest de manifeste attend une seconde personne** : un administrateur, un CISO ou un
+  autre gouverneur l'approuve (`POST /api/v1/report-plugins/{id}/manifests/{digest}/approval`), jamais le
+  compte qui l'a enregistré (409 `report-plugin-four-eyes`), pendant que le manifeste approuvé précédent
+  continue de servir. Un responsable sécurité active un plugin approuvé pour un projet qu'il voit en entier
+  (`PUT /api/v1/projects/{id}/report-plugins/{pluginId}`) ; le gouverneur retire un digest avec une
+  justification, et celui-ci ne tourne ni ne s'enregistre plus jamais. Pas de suppression. Chaque geste est
+  audité (`REPORT_PLUGIN_*`) et envoyé au SIEM comme le nouveau `VECTI-SEC-031`. **Rien ne rend encore de
+  rapport** — l'exécuteur est le lot suivant. L'image d'un plugin privé sera tirée et vérifiée avec la
+  configuration Docker du plan de contrôle : le manifeste ne porte aucun identifiant, et Vectispire n'en
+  stocke aucun ([comment](../administration/report-plugins.fr.md)).
 
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et

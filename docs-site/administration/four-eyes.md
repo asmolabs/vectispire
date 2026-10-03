@@ -45,6 +45,11 @@ of it — who did not open it, answer or confirm a line, attach or withdraw a pr
 and approvers are often who fill checklists in: with a single one, whatever that approver answered
 could be submitted and never signed off. Create a second one first.
 
+The same count covers **report plugins**: under four-eyes a report plugin's manifest is approved by a
+governance writer other than the platform governor who registered it, so the two accounts that let
+templates be published let manifests be approved too
+([Report plugins](report-plugins.md#registering-approving-switching-on)).
+
 Switching it **off** stays possible either way: it is enabling that needs a second person.
 
 ## Signing a checklist off
