@@ -108,6 +108,7 @@ const OPERATION_KEYS: Record<string, string> = {
     REPORT_PLUGIN_WITHDRAWN: 'audit_log.operations.report_plugin_withdrawn',
     FORGE_CONNECTION_CHANGED: 'audit_log.operations.forge_connection_changed',
     FORGE_CONNECTION_REFUSED: 'audit_log.operations.forge_connection_refused',
+    FORGE_DISCOVERY_REQUESTED: 'audit_log.operations.forge_discovery_requested',
     REPORT_REQUESTED: 'audit_log.operations.report_requested',
     REPORT_PRODUCED: 'audit_log.operations.report_produced',
     REPORT_FAILED: 'audit_log.operations.report_failed',

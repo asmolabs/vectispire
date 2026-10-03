@@ -209,7 +209,9 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   attente de limite de débit d'au plus une minute passée dans l'exécution — au-delà de l'une d'elles,
   l'exécution finit `partial`. Chaque requête passe par la garde sortante et l'AC épinglée de la connexion ;
   une page suivante sur une autre origine n'est jamais suivie — l'exécution échoue, journalisée
-  `FORGE_CONNECTION_REFUSED` et signalée `VECTI-SEC-036`. Administrateurs seulement, pas encore d'écran.
+  `FORGE_CONNECTION_REFUSED` et signalée `VECTI-SEC-036`. Chaque découverte mise en file est journalisée
+  `FORGE_DISCOVERY_REQUESTED` (une demande répondue 409 n'écrit rien), sans signal SIEM. Administrateurs
+  seulement, pas encore d'écran.
 - **Plus aucune requête n'est réessayée dans le dos de son appelant.** Le client HTTP par lequel passe
   chaque appel sortant renvoyait un GET après un 429 ou un 503, en dormant ce que disait `Retry-After`, et
   après une connexion coupée ; un webhook, un ticket, une revue de modèle ou un téléchargement de catalogue

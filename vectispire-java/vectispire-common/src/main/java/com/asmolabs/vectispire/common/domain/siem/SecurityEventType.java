@@ -383,7 +383,11 @@ public enum SecurityEventType {
                     FORGE_CONNECTION_CHANGED,
                     // Work going right or wrong, not a security event (0035 §4): the export each one handed a
                     // plugin is signalled on its own, as PROJECT_EXPORTED.
-                    REPORT_REQUESTED, REPORT_PRODUCED, REPORT_FAILED -> Optional.empty();
+                    REPORT_REQUESTED, REPORT_PRODUCED, REPORT_FAILED,
+                    // A read an administrator asked for, like REPORT_REQUESTED and SCAN_TRIGGERED: the standing
+                    // access is the connection, signalled VECTI-SEC-034, and a discovery stopped by a page or an
+                    // address elsewhere is FORGE_CONNECTION_REFUSED's VECTI-SEC-036.
+                    FORGE_DISCOVERY_REQUESTED -> Optional.empty();
         };
     }
 }

@@ -1,11 +1,13 @@
 package com.asmolabs.vectispire.core.forges;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.forges.internal.DiscoveryExecution;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
@@ -40,6 +42,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p><b>One per connection at a time.</b> The connection's id is the run's active key, unique while it is pending
  * or running: a second request is answered with the first one's id. A refused insert is not read as that answer
  * until the committed row says so — a lock timeout or a dropped connection fail an insert too.
+ *
+ * <p><b>A queued discovery is audited</b> ({@code FORGE_DISCOVERY_REQUESTED}, in the requester's name, after the
+ * commit): it reads the name of every repository an organisation holds. A refused request queues nothing and
+ * records nothing.
  */
 @Service
 public class ForgeDiscoveryService {
@@ -84,6 +90,7 @@ public class ForgeDiscoveryService {
     private final ForgeDiscoveryRepository discoveries;
     private final ForgeRepositoryRepository repositories;
     private final DiscoveryExecution execution;
+    private final AuditLogService audit;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
@@ -92,12 +99,14 @@ public class ForgeDiscoveryService {
             ForgeDiscoveryRepository discoveries,
             ForgeRepositoryRepository repositories,
             DiscoveryExecution execution,
+            AuditLogService audit,
             Clock clock,
             PlatformTransactionManager transactions) {
         this.connections = connections;
         this.discoveries = discoveries;
         this.repositories = repositories;
         this.execution = execution;
+        this.audit = audit;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactions);
     }
@@ -140,6 +149,11 @@ public class ForgeDiscoveryService {
             }
             throw refused;
         }
+        // After the commit, as every entry here: the log opens a transaction of its own.
+        audit.record(actor.entry(AuditOperation.FORGE_DISCOVERY_REQUESTED, connectionId.toString(),
+                "Forge discovery " + saved.getId() + " requested of connection " + connection.getName() + " ("
+                        + connectionId + ", " + kind.wireName() + " at " + connection.getBaseUrl()
+                        + "): queued for the control plane."));
         return view(saved);
     }
 

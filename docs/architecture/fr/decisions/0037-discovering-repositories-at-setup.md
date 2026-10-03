@@ -558,8 +558,11 @@ Les lots D2 — l'appel paginé — et D3 — la tâche de découverte, son inst
   `rateLimitResetAt`). `failed` : `token_rejected`, `destination_blocked`, `cross_origin_page`,
   `forge_unavailable`, `forge_refused`, `connection_unusable` (le jeton ne se déchiffre plus, l'AC épinglée a
   expiré), `unsupported`, `executor_lost`, `internal_error`. `cross_origin_page` et `destination_blocked`
-  sont journalisés `FORGE_CONNECTION_REFUSED` au nom du demandeur, ce qui signale `VECTI-SEC-036`. Demander
-  une découverte n'écrit aucune entrée d'audit : le §3 n'en nomme aucune, et une découverte lit.
+  sont journalisés `FORGE_CONNECTION_REFUSED` au nom du demandeur, ce qui signale `VECTI-SEC-036`. Une
+  découverte mise en file est journalisée `FORGE_DISCOVERY_REQUESTED` au nom du demandeur — la connexion et
+  l'exécution, décidé par le responsable produit après la livraison de D3 : elle lit le nom de chaque dépôt
+  d'une organisation. Une demande répondue 409 n'écrit rien. Pas de signal, comme `REPORT_REQUESTED` et
+  `SCAN_TRIGGERED` : l'accès permanent est le `VECTI-SEC-034` de la connexion.
 - **Le bail.** Trois minutes, renouvelé avec la progression avant une requête dès que quinze secondes sont
   passées, et dans la transaction qui écrit chaque page — annulée quand l'exécution n'est plus à cette
   instance. Une exécution dont le bail a expiré revient à `pending` et est relistée depuis sa première page

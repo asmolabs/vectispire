@@ -513,8 +513,11 @@ Lots D2 — the paged call — and D3 — the discovery job, its snapshot and Gi
   `rateLimitResetAt`). `failed`: `token_rejected`, `destination_blocked`, `cross_origin_page`,
   `forge_unavailable`, `forge_refused`, `connection_unusable` (the token no longer decrypts, the pinned CA
   expired), `unsupported`, `executor_lost`, `internal_error`. `cross_origin_page` and `destination_blocked`
-  are recorded `FORGE_CONNECTION_REFUSED` in the requester's name, which signals `VECTI-SEC-036`. Requesting
-  a discovery writes no audit entry: §3 names none, and a discovery reads.
+  are recorded `FORGE_CONNECTION_REFUSED` in the requester's name, which signals `VECTI-SEC-036`. A queued
+  discovery is audited `FORGE_DISCOVERY_REQUESTED` in the requester's name — the connection and the run,
+  decided by the owner after D3 landed: it reads the name of every repository an organisation holds. A
+  request answered 409 records nothing. Not signalled, like `REPORT_REQUESTED` and `SCAN_TRIGGERED`: the
+  standing access is the connection's `VECTI-SEC-034`.
 - **The lease.** Three minutes, renewed with the progress before a request once fifteen seconds have passed,
   and in the transaction that writes each page — rolled back when the run is no longer this instance's. A
   lapsed run goes back to `pending` and is listed again from its first page (the snapshot is written by

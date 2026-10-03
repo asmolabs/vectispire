@@ -445,6 +445,7 @@
       "report_plugin_withdrawn": "Report plugin manifest withdrawn",
       "forge_connection_changed": "Forge connection created, changed or deleted",
       "forge_connection_refused": "Forge connection refused",
+      "forge_discovery_requested": "Forge discovery requested",
       "report_requested": "Report requested",
       "report_produced": "Report produced",
       "report_failed": "Report run failed",

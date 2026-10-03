@@ -194,7 +194,8 @@ another branch, is another target and is accepted as before.
   rate-limit wait of up to a minute spent inside it — past any of them the run ends `partial`. Every
   request goes through the outbound guard and the connection's pinned CA; a next page on another origin is
   never followed — the run fails, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`.
-  Administrators only, no screen yet.
+  Each discovery queued is audited `FORGE_DISCOVERY_REQUESTED` (a request answered 409 records nothing),
+  not signalled. Administrators only, no screen yet.
 - **No request is retried behind its caller's back any more.** The HTTP client every outbound call goes
   through sent a GET again after a 429 or a 503, sleeping whatever `Retry-After` said, and after a dropped
   connection; a webhook, a ticket, a model review or a catalogue download that failed once now fails once,

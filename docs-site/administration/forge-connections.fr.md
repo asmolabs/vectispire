@@ -167,7 +167,8 @@ chaque instance, quel que soit l'interrupteur du worker intégré, jamais sur un
 reprend l'exécution depuis sa première page ; après trois tentatives perdues, elle échoue `executor_lost`.
 
 **Administrateurs seulement**, comme la connexion : une découverte nomme des dépôts qu'aucun droit ne couvre
-encore.
+encore. Chaque découverte mise en file est journalisée `FORGE_DISCOVERY_REQUESTED` au nom du demandeur ;
+elle n'est pas signalée au SIEM — l'accès permanent est la connexion, signalée `VECTI-SEC-034`.
 
 ## Chiffrement
 
@@ -185,6 +186,7 @@ la clé courante.
 | Renommée | `FORGE_CONNECTION_CHANGED` | — |
 | Refusée pour une adresse bloquée ou une portée refusée | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, échec) |
 | Refusée pour autre chose — un jeton mal saisi, un serveur ancien | — | — |
+| Une découverte mise en file — jamais une demande refusée parce qu'une autre tourne déjà | `FORGE_DISCOVERY_REQUESTED` (la connexion, l'identifiant de la découverte, le demandeur) | — |
 | Une découverte arrêtée par une page suivante sur une autre origine, ou une adresse que la garde refuse | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, échec) |
 
 Les entrées nomment la forge, l'adresse, le propriétaire, le type de jeton, ses portées et s'il peut

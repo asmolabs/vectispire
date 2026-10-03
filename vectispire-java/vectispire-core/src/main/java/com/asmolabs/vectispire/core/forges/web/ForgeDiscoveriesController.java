@@ -44,7 +44,8 @@ public class ForgeDiscoveriesController {
             + "CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand "
             + "repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. "
             + "404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending "
-            + "or running; 409 forge-discovery-unsupported for a GitHub connection, whose listing arrives with lot D4.")
+            + "or running; 409 forge-discovery-unsupported for a GitHub connection, whose listing arrives with lot D4. "
+            + "A queued discovery is audited FORGE_DISCOVERY_REQUESTED; a refused request records nothing.")
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ForgeDiscoveryView requestForgeDiscovery(

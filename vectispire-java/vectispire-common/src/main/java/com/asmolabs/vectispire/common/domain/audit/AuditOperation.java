@@ -466,6 +466,14 @@ public enum AuditOperation {
     FORGE_CONNECTION_REFUSED,
 
     /**
+     * A discovery of a forge connection was queued (decision 0037 §3): an administrator asked for the list of
+     * every repository the connection's token can read. Written when the run is queued, never on a refusal (a
+     * discovery already running answers with that one). The entry names the connection and the run — never the
+     * token.
+     */
+    FORGE_DISCOVERY_REQUESTED,
+
+    /**
      * A report was requested of a report plugin for a project (decision 0035 §2): queued for the control plane's
      * executor. The entry names the plugin and the run.
      */

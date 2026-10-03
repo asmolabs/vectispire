@@ -410,6 +410,14 @@ class ForgeDiscoveriesRoutesTest extends ApiTestBase {
         assertThat(conflict.at("/type").asText()).endsWith("forge-discovery-in-progress");
         assertThat(conflict.at("/discoveryId").asLong()).isEqualTo(first);
         assertThat(discoveries.count()).isOne();
+        // Audited once, for the run queued: the 409 queued nothing and records nothing.
+        assertThat(entries(AuditOperation.FORGE_DISCOVERY_REQUESTED)).singleElement().satisfies(entry -> {
+            assertThat(entry.getResourceId()).isEqualTo(connectionId);
+            assertThat(entry.getUserId()).startsWith("admin-");
+            assertThat(entry.getDescription()).contains("Forge discovery " + first).contains(connectionId)
+                    .doesNotContain(TOKEN);
+        });
+        assertThat(queued("FORGE_DISCOVERY_REQUESTED")).as("not a security event").isEmpty();
     }
 
     @Test
@@ -555,5 +563,6 @@ class ForgeDiscoveriesRoutesTest extends ApiTestBase {
         }
         assertThat(discoveries.count()).isZero();
         assertThat(read("/api/v1/forge-connections/" + connectionId + "/discoveries")).isEmpty();
+        assertThat(entries(AuditOperation.FORGE_DISCOVERY_REQUESTED)).isEmpty();
     }
 }

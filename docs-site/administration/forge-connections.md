@@ -164,7 +164,8 @@ discovery runs on the control plane, on every instance, whatever the built-in wo
 agent. A restart in the middle resumes the run from its first page; after three lost attempts it fails
 `executor_lost`.
 
-**Administrators only**, like the connection: a discovery names repositories no grant covers yet.
+**Administrators only**, like the connection: a discovery names repositories no grant covers yet. Each discovery queued is audited `FORGE_DISCOVERY_REQUESTED` in the requester's name; it is not
+signalled to the SIEM — the standing access is the connection, signalled `VECTI-SEC-034`.
 
 ## Encryption
 
@@ -181,6 +182,7 @@ another row does not decrypt. It is never returned by any route, written in the 
 | Renamed | `FORGE_CONNECTION_CHANGED` | — |
 | Refused for a blocked address or a refused scope | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, failure) |
 | Refused for anything else — a mistyped token, an old server | — | — |
+| A discovery queued — never a request refused because one is already running | `FORGE_DISCOVERY_REQUESTED` (the connection, the discovery's id, the requester) | — |
 | A discovery stopped by a next page on another origin, or an address the guard refuses | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, failure) |
 
 The entries name the forge, the address, the owner, the kind of token, its scopes and whether it can
