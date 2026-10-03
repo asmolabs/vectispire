@@ -7,11 +7,17 @@ export, checks the file it writes, and signs it with the platform's key. Decisio
 [0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0035-report-plugins.md)
 records why it works the way it does.
 
-!!! warning "No screen yet, and a withdrawal is not yet stated on a document"
-    Everything on this page is done through the API: the screens come in a later release. A withdrawn
-    manifest's documents are still served, and their package does not yet say they were withdrawn, nor
-    does a route yet answer whether the installation still stands by a document; both come in a later
-    release.
+**On screen**: the registry is under **Administration → Report plugins** — every plugin with its approved
+and pending digests and its manifest history; the governor pastes a manifest, which is checked in words
+before it is sent, enables, disables and withdraws; a security lead approves, and under four-eyes the account
+that registered a digest sees why it cannot approve it. A project's page carries the plugins switched on for
+it, the runs, the downloads and the project export: see [Reports](../guide/exports.md#reports) in the user
+guide. Every route below is also there for automation.
+
+!!! warning "A withdrawal is not yet stated on a document"
+    A withdrawn manifest's documents are still served, and neither their package nor the project page yet
+    says they were withdrawn, nor does a route yet answer whether the installation still stands by a
+    document; both come in a later release.
 
 ## The manifest
 

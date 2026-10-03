@@ -8,11 +8,18 @@ la plateforme. La décision
 [0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md)
 explique pourquoi il fonctionne ainsi.
 
-!!! warning "Pas encore d'écran, et un retrait n'est pas encore indiqué sur un document"
-    Tout ce que décrit cette page se fait par l'API : les écrans viennent dans une version ultérieure. Les
-    documents d'un manifeste retiré sont encore servis, leur paquet ne dit pas encore qu'il a été retiré, et
-    aucune route ne répond encore si l'installation se porte toujours garante d'un document ; les deux
-    viennent dans une version ultérieure.
+**À l'écran** : le registre est sous **Administration → Plugins de rapport** — chaque plugin avec ses
+digests approuvé et en attente et l'historique de ses manifestes ; le gouverneur colle un manifeste, vérifié
+en mots avant d'être envoyé, active, désactive et retire ; un responsable sécurité approuve, et sous les
+quatre yeux le compte qui a enregistré un digest voit pourquoi il ne peut pas l'approuver. La page d'un
+projet porte les plugins activés pour lui, les exécutions, les téléchargements et l'export du projet : voir
+[Rapports](../guide/exports.fr.md#rapports) dans le guide utilisateur. Chaque route ci-dessous reste là pour
+l'automatisation.
+
+!!! warning "Un retrait n'est pas encore indiqué sur un document"
+    Les documents d'un manifeste retiré sont encore servis, ni leur paquet ni la page du projet ne disent
+    encore qu'il a été retiré, et aucune route ne répond encore si l'installation se porte toujours garante
+    d'un document ; les deux viennent dans une version ultérieure.
 
 ## Le manifeste
 

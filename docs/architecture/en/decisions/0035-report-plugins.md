@@ -771,6 +771,30 @@ manifest template beside it, the in-process contract test in `ProjectExportRoute
   signature, its verification and the manifest's are made only
   by a tag: a rehearsal of `release.yml` publishes nothing and so signs none of them.
 
+## Built in R6 (2026-10-03): where the code says more than §4
+
+Lot R6 — the interface — needed no route of its own. The code is in `vectispire-angular`: the
+`ReportPluginsApi` client, the registry (`pages/report-plugins`) and a project's **Reports** section
+(`pages/project/project-reports`), the words in `shared/report-plugins.ts`.
+
+- **A section of the project's page, not a tab**, and only for a reader who sees the whole project: every
+  route it reads answers 404 to a partial reader, so the page does not ask them and says why.
+- **The governor's buttons stay visible, disabled, with the reason** — requesting a report and taking the
+  export — rather than hidden: the role is the one people expect to hold every right, and a missing button
+  reads as a defect.
+- **Four-eyes is stated before the click.** The approval is disabled for the account that registered the
+  digest while `triage_four_eyes_required` — the setting `FOUR_EYES_APPROVAL_REQUIRED` reads — is on or
+  unknown, with the sentence of §4; the comparison is by user name on screen, by account id on the server.
+- **Every 409 is read from the problem's `type`** (`urn:vectispire:problem:<token>`) and worded in the
+  reader's language; a 404 is said as an absence — a plugin switched off since the page loaded, a document
+  the evidence window purged.
+- **A refusal and a failure never look alike** — red and amber — for 0017's reason: one is a security
+  event, the other work going wrong.
+- **The pasted manifest is checked on the page** against the rules of `ReportPluginManifest.validated()`,
+  every problem at once and in words; the server stays the judge.
+- **The withdrawal mark is R7's**: the run view does not say a run's manifest was withdrawn yet, and the
+  runs table leaves a marked place for it.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

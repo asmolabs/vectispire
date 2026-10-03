@@ -843,6 +843,32 @@ dans `ReportDemoImageIntegrationTest`, et le job `images` de `ci.yml` et les deu
   La signature de l'image, sa vérification et celle du manifeste ne sont faites que par un tag : une répétition de
   `release.yml` ne publie rien et n'en signe donc aucune.
 
+## Construit en R6 (2026-10-03) : là où le code en dit plus que le §4
+
+Le lot R6 — l'interface — n'a demandé aucune route. Le code est dans `vectispire-angular` : le client
+`ReportPluginsApi`, le registre (`pages/report-plugins`) et la section **Rapports** de la page d'un projet
+(`pages/project/project-reports`), les mots dans `shared/report-plugins.ts`.
+
+- **Une section de la page du projet, pas un onglet**, et seulement pour un lecteur qui voit le projet
+  entier : chaque route qu'elle lit répond 404 à un lecteur partiel, la page ne l'interroge donc pas et dit
+  pourquoi.
+- **Les boutons du gouverneur restent visibles, désactivés, avec la raison** — demander un rapport et
+  prendre l'export — plutôt que cachés : c'est le rôle dont on attend qu'il ait tous les droits, et un
+  bouton absent se lit comme un défaut.
+- **La double validation est dite avant le clic.** L'approbation est désactivée pour le compte qui a
+  enregistré le digest tant que `triage_four_eyes_required` — le réglage que lit
+  `FOUR_EYES_APPROVAL_REQUIRED` — est actif ou inconnu, avec la phrase du §4 ; la comparaison se fait par nom
+  d'utilisateur à l'écran, par identifiant de compte sur le serveur.
+- **Chaque 409 est lu dans le `type` du problème** (`urn:vectispire:problem:<jeton>`) et dit dans la langue
+  du lecteur ; un 404 est dit comme une absence — un plugin désactivé depuis le chargement de la page, un
+  document purgé par la fenêtre de conservation des preuves.
+- **Un refus et un échec ne se ressemblent jamais** — rouge et orange — pour la raison de 0017 : l'un est un
+  événement de sécurité, l'autre un travail qui a mal tourné.
+- **Le manifeste collé est vérifié sur la page** selon les règles de `ReportPluginManifest.validated()`,
+  tous les problèmes à la fois et en mots ; le serveur reste juge.
+- **La marque du retrait revient à R7** : la vue d'une exécution ne dit pas encore que son manifeste a été
+  retiré, et le tableau des exécutions lui laisse une place marquée.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

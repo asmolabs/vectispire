@@ -351,6 +351,23 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   exports que la suite génère et vérifie le classeur
   ([comment](../administration/report-plugins.fr.md#le-plugin-de-demonstration)).
 
+- **Les plugins de rapport à l'écran** — le sixième lot de la décision 0035. **Administration → Plugins de
+  rapport**, pour les rôles qui lisent la gouvernance, liste chaque plugin de rapport avec ses empreintes
+  approuvée et en attente et l'historique de ses manifestes — qui a enregistré, approuvé et retiré chacun, et
+  si la double validation s'appliquait. Le gouverneur de la plateforme enregistre un plugin ou lui donne un
+  nouveau manifeste en collant le JSON, que la page vérifie champ par champ et explique en mots avant de
+  l'envoyer ; il l'active et le désactive, et retire une empreinte avec une justification de 20 à 500
+  caractères. Un responsable sécurité approuve une empreinte en attente ; sous la double validation, le
+  compte qui l'a enregistrée voit le bouton désactivé et pourquoi. La page d'un projet gagne une section
+  **Rapports**, pour un lecteur qui voit le projet entier : les plugins activés pour lui (les responsables
+  sécurité les activent et les désactivent), **Demander un rapport** pour les comptes en écriture et les
+  auditeurs, les exécutions avec leur état et leur raison en mots — un refus distinct d'un échec —, suivies
+  tant qu'une attend ou tourne, le téléchargement du paquet signé d'une exécution produite, ce qu'il contient
+  et le lien vers les commandes qui le vérifient, et **Télécharger l'export**. Chaque refus que le serveur
+  nomme (un plugin désactivé, aucun manifeste approuvé, aucun exécuteur, une exécution déjà en cours, la
+  double validation) est dit dans la langue du lecteur. Marquer les documents d'un manifeste retiré vient
+  avec le lot suivant ([comment](../guide/exports.fr.md#rapports)).
+
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et
   chaque solution visibles avec la formule de la fiche et avec les poids demandés, avec les points de

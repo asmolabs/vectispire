@@ -327,6 +327,21 @@ another branch, is another target and is accepted as before.
   sample: every build renders the exports the suite generates and checks the workbook
   ([how](../administration/report-plugins.md#the-demonstration-plugin)).
 
+- **Report plugins on screen** — the sixth lot of decision 0035. **Administration → Report plugins**, for
+  the roles that read governance, lists every report plugin with its approved and pending digests and the
+  history of its manifests — who registered, approved and withdrew each, and whether four-eyes applied. The
+  platform governor registers a plugin or gives it a new manifest by pasting the JSON, which the page checks
+  field by field and words before sending; enables and disables it; and withdraws a digest with a
+  justification of 20 to 500 characters. A security lead approves a waiting digest; under four-eyes the
+  account that registered it sees the button disabled and why. A project's page gains a **Reports** section,
+  for a reader who sees the whole project: the plugins switched on for it (security leads switch them on and
+  off), **Request a report** for write accounts and auditors, the runs with their state and reason in words —
+  a refusal shown apart from a failure —, followed while one is waiting or running, the download of a
+  produced run's signed package, what it holds and the link to the commands that verify it, and **Download
+  the export**. Every refusal the server names (a disabled plugin, no approved manifest, no executor, a run
+  already under way, four-eyes) is said in the reader's language. Marking a withdrawn manifest's documents
+  comes with the next lot ([how](../guide/exports.md#reports)).
+
 - **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
   solution under the card's formula and under the weights asked for, with each row's risk points; with

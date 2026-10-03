@@ -47,10 +47,10 @@ Un ZIP signé cryptographiquement, couvert sous [Conformité](compliance.md).
 
 ## Export de projet
 
-Un projet entier en un document JSON signé — l'entrée que recevra un [plugin de rapport](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md),
-et ce contre quoi une organisation écrit son propre plugin avant que Vectispire n'exécute quoi que ce
-soit. Pas encore de bouton : interrogez la route, avec votre session ou une clé d'intégration portant la
-portée `export`.
+Un projet entier en un document JSON signé — l'entrée que reçoit un [plugin de rapport](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md),
+et ce contre quoi une organisation écrit son propre plugin. **Télécharger l'export**, dans la section
+**Rapports** de la page du projet ([plus bas](#rapports)), l'enregistre avec votre session ; un pipeline
+interroge la route avec une clé d'intégration portant la portée `export`.
 
 ```bash
 curl -H "X-API-Key: $KEY" -o export.zip https://vectispire.example.org/api/v1/projects/42/export
@@ -92,16 +92,92 @@ dans les sources. Une mineure ne fait qu'ajouter des champs optionnels : un plug
 ne connaît pas. Une majeure est un nouveau fichier, et les notes de version disent quand elle apparaît et
 quand la précédente cesse d'être produite.
 
-## Documents de rapport
+## Rapports
 
-Un document qu'un [plugin de rapport](../administration/report-plugins.fr.md) a rendu à partir de l'export
-d'un projet arrive sous forme d'un zip de trois fichiers : le document lui-même, sa signature détachée
-`<fichier>.sig`, et `provenance.json` — une déclaration signée de quel export de quel projet a été donné à
-quelle image, vérifiée comme construite par quel signataire, à la demande de qui, et le SHA-256 du document.
-Les deux se vérifient avec `cosign` contre la clé publique de l'instance
-([les commandes](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier)). La signature
-atteste **la provenance, pas la vérité** : elle ne dit pas que le document rend fidèlement l'export, et
-l'export conservé avec l'exécution est ce qui permet de le vérifier.
+Un **rapport** est le document propre à votre organisation — une checklist dans la mise en page de tableur
+de votre fonction sécurité, une synthèse trimestrielle dans le modèle de votre direction — rendu à partir de
+l'export d'un projet par un [plugin de rapport](../administration/report-plugins.fr.md) que vos
+administrateurs ont enregistré et approuvé. Vectispire donne l'export au plugin, vérifie le fichier qu'il
+écrit et le signe avec la clé de la plateforme. Les rapports se trouvent sur la page du projet, dans la
+section **Rapports**.
+
+### Qui voit quoi
+
+La section est montrée à quiconque voit le projet **entier**, images comprises : un rapport et l'export
+décrivent tout le projet, ils ne sont donc construits pour personne qui n'en voit qu'une partie. Un lecteur
+qui n'en voit qu'une partie en est averti, et rien ne lui est proposé.
+
+| Vous êtes | Vous pouvez |
+|---|---|
+| Tout compte qui voit le projet entier | lire les plugins activés pour lui et chaque exécution, et télécharger un document produit |
+| Un compte en écriture (développeur, champion sécurité, administrateur, RSSI) ou un auditeur | aussi **demander un rapport** et **télécharger l'export** |
+| Un responsable sécurité (gouverneur de la plateforme, administrateur, RSSI) | aussi **activer ou désactiver** un plugin approuvé pour le projet |
+
+Le gouverneur de la plateforme n'agit sur rien de ce que contient un projet : les deux boutons lui restent
+visibles, désactivés, avec la raison. Chaque demande et chaque téléchargement de l'export sont inscrits au
+journal d'audit, et un export qui quitte la plateforme est signalé au SIEM.
+
+### Demander un rapport
+
+Sous **Plugins de rapport activés**, appuyez sur **Demander un rapport** à côté du plugin. L'exécution
+apparaît sous **Exécutions de rapport**, *En attente*, et la page la suit jusqu'à sa fin : elle interroge à
+nouveau le serveur toutes les cinq secondes tant qu'une exécution attend ou tourne, et s'arrête dès qu'il
+n'y en a plus. **Une exécution d'un plugin à la fois** : le bouton reste désactivé pendant qu'une est en
+cours, et c'est celle-là qu'il faut attendre.
+
+Une exécution se termine dans l'un de trois états :
+
+| État | Ce qu'il signifie |
+|---|---|
+| **Produit** | Le plugin a écrit son document, le document est ce que déclare son manifeste, et son paquet signé est conservé. |
+| **Échec** | Le travail a mal tourné : le plugin est sorti en erreur, a dépassé son délai, n'a rien écrit ou trop, ou aucun exécuteur n'a pris l'exécution. La raison est donnée en mots, avec le message du plugin lui-même quand il en a écrit un. Redemandez une fois la cause corrigée. |
+| **Refusé** | L'image n'avait pas de signataire vérifié, ou le fichier qu'elle a écrit n'est pas ce que déclare son manifeste. **Refusé n'est pas un échec**, et s'affiche en rouge plutôt qu'en orange : c'est ainsi qu'un plugin altéré, ou dont personne ne répond, se trahit. Prévenez vos administrateurs. |
+
+Quand la demande elle-même est refusée, la page dit pourquoi : le gouverneur de la plateforme a désactivé
+le plugin, il n'a aucun manifeste approuvé, une exécution est déjà en attente ou en cours, ou cette
+installation ne peut pas exécuter de plugins de rapport du tout — son worker intégré est désactivé, et cette
+version ne les exécute pas sur les agents.
+
+**Provenance**, sous chaque exécution, liste ce avec quoi elle a tourné : les empreintes du manifeste et de
+l'image, le signataire, le SHA-256 et la version de schéma de l'export, les SHA-256 du document et du
+paquet, et la clé de signature.
+
+### Télécharger un document
+
+**Télécharger** sur une exécution produite enregistre son **paquet**, un zip nommé par le serveur,
+`report-<exécution>-<plugin>.zip`, de trois fichiers :
+
+- le document, tel que le plugin l'a écrit, une fois vérifié par rapport au type que déclare son manifeste ;
+- `<document>.sig`, sa signature détachée par la clé de la plateforme ;
+- `provenance.json`, une déclaration signée de quel export de ce projet a été remis à quelle image,
+  vérifiée comme construite par quel signataire, à la demande de qui, et le SHA-256 du document.
+
+Un document est conservé pendant la fenêtre de conservation des preuves. Passé ce délai, la page dit que le
+document n'est plus disponible ; l'exécution et ses empreintes restent.
+
+### Vérifier un document
+
+Vérifiez le paquet avec la clé publique de l'instance, obtenue séparément — jamais une clé remise avec le
+document. Les commandes sont dans le guide d'administration,
+[le document, et comment le vérifier](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier),
+et la section **Rapports** y renvoie.
+
+**Ce que signifie la signature : la provenance, pas la vérité.** Elle dit quel export cette installation a
+remis à quelle image, à la demande de qui, et que ce sont les octets que l'image a écrits. Elle ne dit pas
+que le document rend fidèlement l'export : l'export est conservé avec l'exécution et l'image est épinglée,
+quiconque doute d'un document peut donc rendre l'export à nouveau avec la même image et comparer.
+
+!!! note "Les documents d'un plugin retiré ne sont pas encore marqués"
+    Quand un administrateur retire le manifeste d'un plugin, les documents qu'il a produits restent
+    conservés et sont encore proposés au téléchargement sans marque. Les marquer comme retirés, et répondre
+    si l'installation se porte toujours garante d'un document, viennent dans une version ultérieure.
+
+### Activer un plugin pour un projet
+
+Les responsables sécurité voient un sélecteur **Activer** sous les plugins, qui propose les plugins
+approuvés pas encore activés pour le projet. **Désactiver** à côté d'un plugin arrête les nouvelles
+demandes ; ses exécutions et ses documents restent. Enregistrer, approuver et retirer des plugins se fait
+sous **Administration → Plugins de rapport** ([comment](../administration/report-plugins.fr.md)).
 
 ## Personnalisation
 
