@@ -381,23 +381,26 @@ nomme. Le dépôt porte le schéma, le mécanisme et le plugin de démonstration
 son plugin dans son propre dépôt, construit par sa propre chaîne, signé par son propre signataire, poussé
 dans son propre registre, et déclaré dans la base de sa propre installation.
 
-**Tirer d'un registre privé.** Les identifiants de registre que Vectispire stocke déjà pour l'analyse de
-conteneurs — chiffrés sous `ENCRYPTION_KEY`, choisis par hôte de registre — servent pour l'image d'un
-plugin de rapport : pour le pull, remis au démon pour ce seul pull, et pour la vérification de signature.
-La seconde moitié est un changement parallèle : la 0017 liste « des identifiants de registre pour le
-vérificateur » comme non construit, et le vérificateur n'en détient aujourd'hui aucun, donc **une image
-signée qu'un registre ne sert qu'à un client authentifié ne peut pas être vérifiée, et est refusée**. Ce
-changement rend l'identifiant stocké utilisable par le vérificateur (un `config.json` écrit dans le
-montage du vérificateur, en lecture seule et en mémoire, pour cette exécution seulement). Les plugins de
-rapport en dépendent pour les registres privés ; d'ici là, le registre d'un plugin privé doit servir
-l'image et sa signature à un pull anonyme depuis le réseau du plan de contrôle, ou être recopié vers un
-registre qui le fait via `VECTISPIRE_PLUGIN_REGISTRY` (qui garde le digest et exige que les signatures
-soient copiées avec).
+**Tirer d'un registre privé.** *(Corrigé le 2026-10-03 : le texte accepté disait que Vectispire stocke
+des identifiants de registre pour l'analyse de conteneurs, chiffrés sous `ENCRYPTION_KEY`, et que le
+vérificateur ne pouvait pas encore s'en servir. Ni l'un ni l'autre n'était vrai — rien dans le code ne
+stocke d'identifiant de registre — et le vérificateur lit un registre privé depuis la
+[0017](0017-custom-checks-as-container-images.md) §9.2.)* **Vectispire ne stocke aucun identifiant de
+registre.** Le pull d'une image — et, depuis la 0017 §9.2, la vérification de signature qui le précède —
+utilise la configuration Docker de la machine qui l'exécute (`DOCKER_CONFIG`, `~/.docker/config.json`,
+ou les propriétés `registry.*` de docker-java) : le démon reçoit ce que docker-java résout pour cette
+référence, et le vérificateur reçoit exactement cela, pour une exécution, dans une configuration à une
+entrée en lecture seule effacée avec le conteneur. Un registre qui refuse la lecture est refusé comme
+`registry_authentication_required`, jamais comme un signataire non vérifié.
 
-Comme les rapports s'exécutent sur le plan de contrôle (§2), **l'identifiant ne le quitte jamais** — pas
-de scellement vers un agent, pas de configuration côté agent. Le gouverneur ne nomme rien dans le
-manifeste : l'identifiant est choisi par l'hôte de registre de l'image, comme pour une analyse de
-conteneur, si bien qu'un manifeste reste sans secret et son digest sans rien qui tourne.
+Un plugin de rapport s'exécute sur le plan de contrôle (§2), donc **l'image d'un plugin privé est tirée
+et vérifiée avec la configuration Docker du plan de contrôle** — l'exploitant y donne les identifiants
+de ce registre, comme il donne ceux d'un exécuteur pour un plugin d'analyse. Rien ne traverse la base,
+le protocole des agents ni `ENCRYPTION_KEY` ; rien n'est scellé vers un agent. **Le manifeste ne porte
+aucun secret et ne nomme aucun identifiant** : l'identifiant est celui que résout le pull de la
+référence de l'image, si bien que le digest d'un manifeste ne porte rien qui tourne. Un registre qui ne
+peut pas tenir d'identifiant utilisable par le plan de contrôle peut être recopié via
+`VECTISPIRE_PLUGIN_REGISTRY`, qui garde le digest et exige que les signatures soient copiées avec.
 
 **Un signataire privé.** La `signature` du manifeste accepte la clé propre d'une organisation
 (`public_key`, vérifiée sans le journal de transparence, 0017 §9) ou son propre émetteur OIDC et son
@@ -522,8 +525,8 @@ vivent dans `vectispire-common/domain/reportplugins`, JDK et Jackson seulement.
 - Une troisième image construite et signée par la release, et son digest dans les notes de version.
 - **Une installation sans point d'accès conteneurs sur le plan de contrôle n'a pas de plugins de
   rapport** tant que l'exécution sur agent n'est pas construite.
-- **Un registre privé exigeant une authentification ne fonctionne qu'une fois que le vérificateur peut
-  utiliser les identifiants de registre stockés** (le changement parallèle dont dépend le §5).
+- **Un registre privé exigeant une authentification est lu avec la configuration Docker du plan de
+  contrôle** (§5) : l'exploitant l'y fournit ; Vectispire n'en stocke aucune.
 - La signature de la plateforme sur un rapport signifie *provenance*, pas *vérité* ; le guide
   utilisateur le dit en ces termes, et un destinataire qui a besoin de plus rend à nouveau l'export
   gardé.
@@ -610,7 +613,7 @@ ouverts ou énonçait sans précision. Le code est dans `core.reportplugins` (`P
 | R6 | L'interface : écrans du registre et de l'approbation, un onglet **Rapports** par projet, états des exécutions, téléchargements, retrait | M |
 | R7 | Le retrait et la route d'état d'un document | S |
 | R8 | Documentation en anglais et en français : administration, guide, référence du schéma, catalogue SIEM, notes de montée de version | M |
-| Plus tard | Exécution sur agent avec un export scellé ; registres privés une fois que le vérificateur détient des identifiants (changement parallèle) | L |
+| Plus tard | Exécution sur agent avec un export scellé | L |
 
 R1 est utile seul — une organisation peut commencer à écrire son plugin contre son propre export — et
 R2 à R4 sont livrés ensemble, puisqu'un registre que rien n'exécute, ou un exécuteur que rien ne

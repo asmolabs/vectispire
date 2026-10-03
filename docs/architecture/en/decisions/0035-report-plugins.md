@@ -355,22 +355,25 @@ The repository carries the schema, the mechanism and the demonstration plugin of
 carries its plugin in its own repository, built by its own pipeline, signed by its own signer, pushed
 to its own registry, and declared in its own installation's database.
 
-**Pulling from a private registry.** The registry credentials Vectispire already stores for container
-scanning — encrypted under `ENCRYPTION_KEY`, matched by registry host — are used for a report plugin's
-image: for the pull, handed to the daemon for that one pull, and for the signature check. The second
-half is a parallel change: 0017 lists "registry credentials for the verifier" as not built, and the
-verifier today holds none, so **a signed image a registry serves only to an authenticated client cannot
-be verified, and is refused**. That change makes the stored credential usable by the verifier (a
-`config.json` written into the verifier's read-only, memory-backed mount, for that run only). Report
-plugins depend on it for private registries; until it lands, a private plugin's registry must serve
-the image and its signature to an anonymous pull from the control plane's network, or be mirrored to
-one that does through `VECTISPIRE_PLUGIN_REGISTRY` (which keeps the digest and requires the signatures
-to be copied with it).
+**Pulling from a private registry.** *(Corrected on 2026-10-03: the accepted text said Vectispire
+stores registry credentials for container scanning, encrypted under `ENCRYPTION_KEY`, and that the
+verifier could not use them yet. Neither was true — nothing in the code stores a registry credential —
+and the verifier has read a private registry since [0017](0017-custom-checks-as-container-images.md)
+§9.2.)* **Vectispire stores no registry credential.** An image pull — and, since 0017 §9.2, the
+signature check before it — uses the Docker configuration of the machine that runs it (`DOCKER_CONFIG`,
+`~/.docker/config.json`, or docker-java's `registry.*` properties): the daemon receives what docker-java
+resolves for that reference, and the verifier is handed exactly that, for one run, in a read-only
+one-entry configuration erased with the container. A registry that will not be read is refused as
+`registry_authentication_required`, never as an unverified signer.
 
-Because reports run on the control plane (§2), **the credential never leaves it** — no sealing to an
-agent, no agent-side configuration. The governor names nothing in the manifest: the credential is
-chosen by the image's registry host, like a container scan's, so a manifest stays free of secrets and
-its digest of anything that rotates.
+A report plugin runs on the control plane (§2), so **a private plugin image is pulled and verified with
+the control plane's Docker configuration** — the operator gives the control plane's container
+credentials for that registry, as they give an executor's for a scanner plugin. Nothing crosses the
+database, the agent protocol or `ENCRYPTION_KEY`; nothing is sealed to an agent. **The manifest holds no
+secret and names no credential**: the credential is the one the pull of the image's reference resolves,
+so a manifest's digest carries nothing that rotates. A registry that cannot hold a credential the
+control plane may use can be mirrored through `VECTISPIRE_PLUGIN_REGISTRY`, which keeps the digest and
+requires the signatures to be copied with it.
 
 **A private signer.** The manifest's `signature` accepts an organisation's own key (`public_key`,
 verified without the transparency log, 0017 §9) or its own OIDC issuer and CI identity: neither has to
@@ -482,8 +485,8 @@ the pure parts — the export's records, its writer, the output type checks — 
 - A third image built and signed by the release, and its digest in the release notes.
 - **An installation without a container endpoint on the control plane has no report plugins** until
   agent execution is built.
-- **A private registry requiring authentication works only once the verifier can use stored registry
-  credentials** (the parallel change §5 depends on).
+- **A private registry requiring authentication is read with the control plane's Docker
+  configuration** (§5): the operator provides it there; Vectispire stores none.
 - The platform's signature on a report means *provenance*, not *truth*; the user guide says so in those
   words, and a recipient who needs more re-renders the kept export.
 - Documentation in both languages: an administration page for report plugins (registry, approval,
@@ -564,7 +567,7 @@ loosely. The code is in `core.reportplugins` (`ProjectExportService`) and
 | R6 | The interface: registry and approval screens, a project's **Reports** tab, run states, downloads, withdrawal | M |
 | R7 | Withdrawal and the document status route | S |
 | R8 | Documentation in English and French: administration, guide, schema reference, SIEM catalogue, upgrade notes | M |
-| Later | Agent execution with a sealed export; private registries once the verifier holds credentials (parallel change) | L |
+| Later | Agent execution with a sealed export | L |
 
 R1 is useful alone — an organisation can start writing its plugin against its own export — and R2 to
 R4 ship together, since a registry nothing runs, or a runner nothing governs, is not a feature.
