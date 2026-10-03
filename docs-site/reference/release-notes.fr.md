@@ -504,6 +504,13 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Corrigé
 
+- **Un démon Docker en `tcp://` avec `DOCKER_TLS_VERIFY` est joint en TLS.** Le client lisait
+  `DOCKER_TLS_VERIFY` et `DOCKER_CERT_PATH` puis construisait sa connexion sans eux : un démon à
+  l'écoute en TLS sur 2376 recevait du HTTP en clair, et chaque appel échouait. Le certificat client
+  sous `DOCKER_CERT_PATH` (`ca.pem`, `cert.pem`, `key.pem`) est désormais utilisé ; un répertoire auquel
+  il en manque un arrête l'exécuteur avec un message qui nomme les fichiers, plutôt que de joindre le
+  démon en clair
+  ([décision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0038-deploying-on-kubernetes.md)).
 - **Un plugin signé dont l'image vit dans un registre privé est vérifié au lieu d'être refusé.** Le
   vérificateur de signature interrogeait le registre de façon anonyme, si bien qu'un registre qui ne
   sert rien à un pull anonyme répondait « unauthorized » et que le plugin était refusé comme

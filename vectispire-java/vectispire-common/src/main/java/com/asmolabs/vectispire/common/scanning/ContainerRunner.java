@@ -25,12 +25,14 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import javax.net.ssl.SSLContext;
 
 /**
  * Running a scanner container.
@@ -132,11 +134,44 @@ public final class ContainerRunner {
         if (host != null && !host.isBlank()) {
             builder.withDockerHost(host);
         }
-        DefaultDockerClientConfig config = builder.build();
-        return DockerClientImpl.getInstance(
-                config,
-                new OneRequestPerConnection(
-                        new ApacheDockerHttpClient.Builder().dockerHost(config.getDockerHost()).build()));
+        return clientOf(builder.build());
+    }
+
+    /**
+     * The client of the daemon {@code config} names, over TLS when the configuration asks for it.
+     *
+     * <p><b>The transport is handed the configuration's TLS settings, and it was not.</b> The
+     * configuration reads {@code DOCKER_TLS_VERIFY} and {@code DOCKER_CERT_PATH}; the transport was
+     * built from the host alone, and docker-java speaks {@code https} to a {@code tcp://} host only
+     * when its transport holds an SSL context. A daemon on {@code tcp://…:2376} with client
+     * certificates — a remote daemon, the only kind a Kubernetes pod can reach (decision 0038) — was
+     * spoken to in plain HTTP, and every call failed.
+     *
+     * <p><b>Refused, not downgraded, when the certificates are missing.</b> docker-java's directory
+     * configuration answers no context at all when {@code ca.pem}, {@code cert.pem} or {@code key.pem}
+     * is absent, and the transport then falls back to plain HTTP in silence: an operator who asked for
+     * TLS would get a daemon spoken to in the clear. Building the context here, once, makes that a
+     * failure that names the files. docker-java registers BouncyCastle as the JVM's last provider while
+     * it reads them; last, so it answers only what no provider before it does.
+     */
+    static DockerClient clientOf(DefaultDockerClientConfig config) {
+        ApacheDockerHttpClient.Builder transport = new ApacheDockerHttpClient.Builder().dockerHost(config.getDockerHost());
+        com.github.dockerjava.transport.SSLConfig tls = config.getSSLConfig();
+        if (tls != null) {
+            SSLContext context;
+            try {
+                context = tls.getSSLContext();
+            } catch (GeneralSecurityException unreadable) {
+                throw new IllegalStateException("DOCKER_TLS_VERIFY is set, and the certificates under DOCKER_CERT_PATH "
+                        + "could not be read: " + unreadable.getMessage(), unreadable);
+            }
+            if (context == null) {
+                throw new IllegalStateException("DOCKER_TLS_VERIFY is set, and DOCKER_CERT_PATH does not hold ca.pem, "
+                        + "cert.pem and key.pem; the daemon is not spoken to in the clear instead.");
+            }
+            transport.sslConfig(() -> context);
+        }
+        return DockerClientImpl.getInstance(config, new OneRequestPerConnection(transport.build()));
     }
 
     /**

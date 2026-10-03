@@ -464,6 +464,12 @@ another branch, is another target and is accepted as before.
 
 ### Fixed
 
+- **A Docker daemon on `tcp://` with `DOCKER_TLS_VERIFY` is spoken to over TLS.** The client read
+  `DOCKER_TLS_VERIFY` and `DOCKER_CERT_PATH` and then built its connection without them, so a daemon
+  listening with TLS on 2376 was sent plain HTTP and every call failed. The client certificate under
+  `DOCKER_CERT_PATH` (`ca.pem`, `cert.pem`, `key.pem`) is now used; a directory missing one of them
+  stops the executor with a message naming the files, rather than reaching the daemon in the clear
+  ([decision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0038-deploying-on-kubernetes.md)).
 - **A signed plugin whose image lives in a private registry is verified instead of refused.** The
   signature verifier asked the registry anonymously, so a registry that serves nothing to an anonymous
   pull answered "unauthorized" and the plugin was refused as `signature_unverified` — a signer problem
