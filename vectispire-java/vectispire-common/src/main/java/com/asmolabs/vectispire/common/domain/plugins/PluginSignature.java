@@ -105,8 +105,8 @@ public record PluginSignature(
         return this;
     }
 
-    /** What the manifest's digest covers, in a fixed order. */
-    List<String> digestFields() {
+    /** What a manifest's digest covers, in a fixed order — a scanner plugin's and a report plugin's alike. */
+    public List<String> digestFields() {
         return List.of("signature/" + form().name().toLowerCase(java.util.Locale.ROOT),
                 identity == null ? "" : identity,
                 issuer == null ? "" : issuer,

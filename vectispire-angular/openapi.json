@@ -6976,6 +6976,165 @@
         },
         "type" : "object"
       },
+      "ReportPluginActivationView" : {
+        "properties" : {
+          "activatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "activatedBy" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "pluginId" : {
+            "type" : "string"
+          },
+          "pluginName" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ReportPluginEnabled" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "ReportPluginManifest" : {
+        "properties" : {
+          "arguments" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "export_schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "image" : {
+            "type" : "string"
+          },
+          "max_output_bytes" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "media_type" : {
+            "enum" : [ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.text", "application/pdf", "text/csv", "text/plain" ],
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "output" : {
+            "type" : "string"
+          },
+          "signature" : {
+            "$ref" : "#/components/schemas/PluginSignature"
+          },
+          "timeout_seconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ReportPluginManifestView" : {
+        "properties" : {
+          "approvalFourEyes" : {
+            "type" : "boolean"
+          },
+          "approvedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "approvedBy" : {
+            "type" : "string"
+          },
+          "digest" : {
+            "type" : "string"
+          },
+          "manifest" : {
+            "$ref" : "#/components/schemas/ReportPluginManifest"
+          },
+          "registeredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "registeredBy" : {
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "pending_approval", "approved", "superseded", "withdrawn" ],
+            "type" : "string"
+          },
+          "withdrawalJustification" : {
+            "type" : "string"
+          },
+          "withdrawnAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "withdrawnBy" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ReportPluginView" : {
+        "properties" : {
+          "approvedDigest" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "manifests" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ReportPluginManifestView"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "pendingDigest" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "enabled" ],
+        "type" : "object"
+      },
       "Repository" : {
         "properties" : {
           "branch" : {
@@ -10409,6 +10568,14 @@
         },
         "required" : [ "matched" ],
         "type" : "object"
+      },
+      "WithdrawalRequest" : {
+        "properties" : {
+          "justification" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
       }
     },
     "securitySchemes" : {
@@ -10443,7 +10610,7 @@
   "paths" : {
     "/api/v1/admin/agents" : {
       "get" : {
-        "operationId" : "list_14",
+        "operationId" : "list_15",
         "responses" : {
           "200" : {
             "content" : {
@@ -10565,7 +10732,7 @@
         "tags" : [ "agents-admin-controller" ]
       },
       "patch" : {
-        "operationId" : "update_7",
+        "operationId" : "update_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -10993,7 +11160,7 @@
     },
     "/api/v1/api-keys" : {
       "get" : {
-        "operationId" : "list_13",
+        "operationId" : "list_14",
         "responses" : {
           "200" : {
             "content" : {
@@ -11199,7 +11366,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_19",
+        "operationId" : "list_21",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -12501,7 +12668,7 @@
     },
     "/api/v1/containers" : {
       "get" : {
-        "operationId" : "list_12",
+        "operationId" : "list_13",
         "responses" : {
           "200" : {
             "content" : {
@@ -12566,7 +12733,7 @@
         "tags" : [ "containers-controller" ]
       },
       "patch" : {
-        "operationId" : "update_6",
+        "operationId" : "update_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12951,7 +13118,7 @@
     "/api/v1/exceptions" : {
       "get" : {
         "description" : "Risk acceptances and dismissals, newest first, narrowed to what the caller may see.",
-        "operationId" : "register_2",
+        "operationId" : "register_3",
         "parameters" : [ {
           "in" : "query",
           "name" : "limit",
@@ -13066,7 +13233,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_18",
+        "operationId" : "list_20",
         "responses" : {
           "200" : {
             "content" : {
@@ -13182,7 +13349,7 @@
     "/api/v1/gate/verdicts" : {
       "get" : {
         "description" : "The gate's recent answers, newest first, narrowed to what the caller may see.",
-        "operationId" : "register_1",
+        "operationId" : "register_2",
         "parameters" : [ {
           "in" : "query",
           "name" : "limit",
@@ -13218,7 +13385,7 @@
     },
     "/api/v1/git-tokens" : {
       "get" : {
-        "operationId" : "list_11",
+        "operationId" : "list_12",
         "responses" : {
           "200" : {
             "content" : {
@@ -13460,7 +13627,7 @@
     },
     "/api/v1/issues" : {
       "get" : {
-        "operationId" : "list_17",
+        "operationId" : "list_19",
         "parameters" : [ {
           "in" : "query",
           "name" : "state",
@@ -13784,7 +13951,7 @@
     },
     "/api/v1/issues/{issueId}/tickets" : {
       "get" : {
-        "operationId" : "list_10",
+        "operationId" : "list_11",
         "parameters" : [ {
           "in" : "path",
           "name" : "issueId",
@@ -14190,7 +14357,7 @@
     "/api/v1/plugins" : {
       "get" : {
         "description" : "Every registered plugin, with the manifest it runs.",
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "responses" : {
           "200" : {
             "content" : {
@@ -14211,7 +14378,7 @@
       },
       "post" : {
         "description" : "Platform governor only. The image is pinned by digest; the id is never reused. 409 when the id is taken.",
-        "operationId" : "register",
+        "operationId" : "register_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -14240,7 +14407,7 @@
     },
     "/api/v1/plugins/{id}" : {
       "get" : {
-        "operationId" : "get",
+        "operationId" : "get_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -14266,7 +14433,7 @@
       },
       "put" : {
         "description" : "Platform governor only. A new manifest under the same id — a new image version keeps the id, and with it every issue's triage.",
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -14304,7 +14471,7 @@
     "/api/v1/plugins/{id}/enabled" : {
       "put" : {
         "description" : "Platform governor only. Disabling stops every activation from the next scan without forgetting them.",
-        "operationId" : "setEnabled_1",
+        "operationId" : "setEnabled_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -14455,7 +14622,7 @@
       },
       "get" : {
         "description" : "One project as its node in the solutions tree describes it — its solution named, its repositories and images, open issues by severity over both, partial, checklistsVisible, detected languages — as far as the caller may see. The tree's rule decides: a caller sees the project when it sees everything, holds the project as such, or sees one of its repositories or images; a project that does not exist and one the caller sees nothing of both answer 404, \"Project not found.\".",
-        "operationId" : "get_1",
+        "operationId" : "get_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -14482,7 +14649,7 @@
       },
       "patch" : {
         "description" : "A solutionId moves the project to that solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.",
-        "operationId" : "update_5",
+        "operationId" : "update_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -14695,7 +14862,7 @@
     "/api/v1/projects/{projectId}/checklists" : {
       "get" : {
         "description" : "Every revision of the project's checklist, newest first. 404 for a project the caller does not see whole.",
-        "operationId" : "list_8",
+        "operationId" : "list_9",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -15003,7 +15170,7 @@
     "/api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/withdrawal" : {
       "post" : {
         "description" : "On a draft: the proof stops counting; its row stays, dated and attributed. 409 checklist-evidence-withdrawn, and those of answering.",
-        "operationId" : "withdraw",
+        "operationId" : "withdraw_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -15636,7 +15803,7 @@
     "/api/v1/projects/{projectId}/plugins" : {
       "get" : {
         "description" : "404 when the project does not exist.",
-        "operationId" : "list_16",
+        "operationId" : "list_18",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -15668,7 +15835,7 @@
     "/api/v1/projects/{projectId}/plugins/{pluginId}" : {
       "delete" : {
         "description" : "Its open issues are left as they are. 404 when it was not on.",
-        "operationId" : "deactivate",
+        "operationId" : "deactivate_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -15695,7 +15862,7 @@
       },
       "put" : {
         "description" : "Its repositories run the plugin from the next scan, where one of its languages is present. Repeating it changes nothing.",
-        "operationId" : "activate",
+        "operationId" : "activate_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -15726,6 +15893,101 @@
         },
         "summary" : "Switch plugin on for project",
         "tags" : [ "Plugins" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/report-plugins" : {
+      "get" : {
+        "description" : "For a caller who sees the whole project, images included; 404 \"Project not found.\" otherwise, and for a project that does not exist.",
+        "operationId" : "list_17",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReportPluginActivationView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List report plugins switched on for project",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/report-plugins/{pluginId}" : {
+      "delete" : {
+        "description" : "404 when it was not on.",
+        "operationId" : "deactivate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "pluginId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Switch report plugin off for project",
+        "tags" : [ "Report plugins" ]
+      },
+      "put" : {
+        "description" : "Security leads who see the whole project. 409 report-plugin-not-approved for a plugin with no approved manifest — awaiting approval, or withdrawn. Repeating it changes nothing. Audited, and signalled to the SIEM as VECTI-SEC-031.",
+        "operationId" : "activate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "pluginId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginActivationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Switch report plugin on for project",
+        "tags" : [ "Report plugins" ]
       }
     },
     "/api/v1/quality/overview" : {
@@ -15895,6 +16157,237 @@
         "tags" : [ "security-debt-controller" ]
       }
     },
+    "/api/v1/report-plugins" : {
+      "get" : {
+        "description" : "Every registered report plugin, with the manifest history of each: status, approval, withdrawal.",
+        "operationId" : "list_8",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReportPluginView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List report plugins",
+        "tags" : [ "Report plugins" ]
+      },
+      "post" : {
+        "description" : "Platform governor only. The image is pinned by digest, the signer is required, the output's media type is one of the closed list, and the export major one this installation produces; 400 otherwise. With four-eyes on the manifest waits for a second person's approval; with it off it serves at once. 409 report-plugin-id-taken when the id is taken — ids are never reused. Audited, and signalled to the SIEM as VECTI-SEC-031.",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportPluginManifest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Register report plugin",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/report-plugins/{id}" : {
+      "get" : {
+        "description" : "404 when no plugin has that id.",
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read report plugin",
+        "tags" : [ "Report plugins" ]
+      },
+      "put" : {
+        "description" : "Platform governor only. A new manifest under the same id: with four-eyes on it waits for approval and the approved one keeps serving; a manifest approved before serves at once; 409 report-plugin-withdrawn for a withdrawn one. The same manifest again changes nothing.",
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportPluginManifest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Update report plugin",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/report-plugins/{id}/enabled" : {
+      "put" : {
+        "description" : "Platform governor only. Disabling stops every activation from rendering without forgetting them.",
+        "operationId" : "setEnabled_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportPluginEnabled"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Enable or disable report plugin",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/report-plugins/{id}/manifests/{digest}/approval" : {
+      "post" : {
+        "description" : "Governance writers. Approves the plugin's pending manifest digest: its runs use it from now on. With four-eyes on, 409 report-plugin-four-eyes for the account that registered it; 409 report-plugin-not-pending for a digest not awaiting approval; 404 for a plugin or digest that does not exist.",
+        "operationId" : "approve",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "digest",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Approve report plugin manifest",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/report-plugins/{id}/manifests/{digest}/withdrawal" : {
+      "post" : {
+        "description" : "Platform governor only. The digest never runs again and cannot be registered again; the documents it produced stay stored, served as withdrawn. The justification is required, 20 to 500 characters; 400 without it; 409 report-plugin-withdrawn when it already was.",
+        "operationId" : "withdraw",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "digest",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WithdrawalRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportPluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Withdraw report plugin manifest",
+        "tags" : [ "Report plugins" ]
+      }
+    },
     "/api/v1/repositories" : {
       "get" : {
         "description" : "Returns all git repositories monitored by Vectispire visible to the caller.",
@@ -15970,7 +16463,7 @@
       },
       "patch" : {
         "description" : "Updates configuration, schedule or credentials of a monitored repository.",
-        "operationId" : "update_4",
+        "operationId" : "update_5",
         "parameters" : [ {
           "description" : "Repository identifier",
           "in" : "path",
@@ -16590,7 +17083,7 @@
     "/api/v1/rule-sets/deactivate" : {
       "post" : {
         "description" : "Returns to the bundled rules alone. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.",
-        "operationId" : "deactivate_1",
+        "operationId" : "deactivate_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -16648,7 +17141,7 @@
     "/api/v1/rule-sets/{id}/activate" : {
       "post" : {
         "description" : "Makes this set the active one, beside the bundled rules. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.",
-        "operationId" : "activate_1",
+        "operationId" : "activate_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -16905,7 +17398,7 @@
     "/api/v1/scans" : {
       "get" : {
         "description" : "Returns historical security scans with filtering by repository or container target.",
-        "operationId" : "list_15",
+        "operationId" : "list_16",
         "parameters" : [ {
           "description" : "Filter by repository ID",
           "in" : "query",
@@ -17772,7 +18265,7 @@
       },
       "patch" : {
         "description" : "A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.",
-        "operationId" : "update_3",
+        "operationId" : "update_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -18596,7 +19089,7 @@
         "tags" : [ "users-controller" ]
       },
       "patch" : {
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -19193,6 +19686,9 @@
   }, {
     "description" : "Security scan lifecycle, pipeline execution and status reporting",
     "name" : "Scans"
+  }, {
+    "description" : "Signed container images turning a project export into one document",
+    "name" : "Report plugins"
   }, {
     "description" : "Target repository inventory, Git synchronization and scan triggers",
     "name" : "Repositories"

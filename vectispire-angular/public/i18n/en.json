@@ -435,7 +435,14 @@
       "checklist_sign_off_refused": "Project checklist sign-off refused",
       "checklist_reopened": "Project checklist reopened",
       "checklist_exported": "Project checklist document downloaded",
-      "project_exported": "Project export downloaded"
+      "project_exported": "Project export downloaded",
+      "report_plugin_registered": "Report plugin registered",
+      "report_plugin_updated": "Report plugin manifest changed",
+      "report_plugin_approved": "Report plugin manifest approved",
+      "report_plugin_enabled_changed": "Report plugin enabled or disabled",
+      "report_plugin_activated": "Report plugin switched on for a project",
+      "report_plugin_deactivated": "Report plugin switched off for a project",
+      "report_plugin_withdrawn": "Report plugin manifest withdrawn"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

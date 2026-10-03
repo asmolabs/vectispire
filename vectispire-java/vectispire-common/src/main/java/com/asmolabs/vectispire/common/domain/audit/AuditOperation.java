@@ -418,7 +418,36 @@ public enum AuditOperation {
      * the platform: downloaded by an account or an integration key. The entry names the project, the
      * schema version, how many issues and components it carried, and its SHA-256.
      */
-    PROJECT_EXPORTED;
+    PROJECT_EXPORTED,
+
+    /**
+     * The platform governor registered a report plugin (decision 0035 §4): the entry names the manifest's
+     * digest, its image, its export major, its output and its signer, and whether it serves at once
+     * (four-eyes off) or waits for a second person's approval.
+     */
+    REPORT_PLUGIN_REGISTERED,
+
+    /** A report plugin was given another manifest — pending approval, or serving at once. */
+    REPORT_PLUGIN_UPDATED,
+
+    /**
+     * A second person approved a report plugin's manifest digest — or, four-eyes off, anybody who writes
+     * governance: code may now produce documents under the installation's key.
+     */
+    REPORT_PLUGIN_APPROVED,
+
+    REPORT_PLUGIN_ENABLED_CHANGED,
+
+    /** A report plugin was switched on for a project: it may be given that project's whole export. */
+    REPORT_PLUGIN_ACTIVATED,
+
+    REPORT_PLUGIN_DEACTIVATED,
+
+    /**
+     * The platform governor withdrew a report plugin's manifest digest, with a justification the entry
+     * carries: it never runs again, and every document it produced is served as withdrawn.
+     */
+    REPORT_PLUGIN_WITHDRAWN;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

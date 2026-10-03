@@ -435,7 +435,14 @@
       "checklist_sign_off_refused": "Approbation de checklist de projet refusée",
       "checklist_reopened": "Checklist de projet rouverte",
       "checklist_exported": "Document de checklist de projet téléchargé",
-      "project_exported": "Export de projet téléchargé"
+      "project_exported": "Export de projet téléchargé",
+      "report_plugin_registered": "Plugin de rapport enregistré",
+      "report_plugin_updated": "Manifeste de plugin de rapport modifié",
+      "report_plugin_approved": "Manifeste de plugin de rapport approuvé",
+      "report_plugin_enabled_changed": "Plugin de rapport activé ou désactivé",
+      "report_plugin_activated": "Plugin de rapport activé pour un projet",
+      "report_plugin_deactivated": "Plugin de rapport désactivé pour un projet",
+      "report_plugin_withdrawn": "Manifeste de plugin de rapport retiré"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",

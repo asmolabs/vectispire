@@ -169,9 +169,18 @@ public enum SecurityEventType {
     SLA_BREACHED("VECTI-SEC-030", "Remediation deadline passed", 6, Outcome.DETECTED, true),
 
     /**
+     * A report plugin was registered, given another manifest, approved, enabled or disabled, switched on or
+     * off for a project, or had a manifest withdrawn (decision 0035 §4): third-party code gained or lost
+     * access to a project's whole triaged state, or the right to produce documents under the installation's
+     * key.
+     */
+    REPORT_PLUGIN_CHANGED("VECTI-SEC-031", "Report plugin registered, changed, approved, activated or withdrawn", 6,
+            Outcome.SUCCESS),
+
+    /**
      * A project's whole triaged state left the platform as an export (decision 0035 §4): who took it, of
-     * which project, and its digest. {@code 031} and {@code 033} are reserved for the report plugins'
-     * registry and their refusals, by the same decision, and are not to be taken by anything else.
+     * which project, and its digest. {@code 033} is reserved for the report plugins' refusals, by the same
+     * decision, and is not to be taken by anything else.
      */
     PROJECT_EXPORTED("VECTI-SEC-032", "Project export left the platform", 4, Outcome.SUCCESS),
 
@@ -301,6 +310,9 @@ public enum SecurityEventType {
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
             case PROJECT_EXPORTED -> Optional.of(PROJECT_EXPORTED);
+            case REPORT_PLUGIN_REGISTERED, REPORT_PLUGIN_UPDATED, REPORT_PLUGIN_APPROVED, REPORT_PLUGIN_ENABLED_CHANGED,
+                    REPORT_PLUGIN_ACTIVATED, REPORT_PLUGIN_DEACTIVATED, REPORT_PLUGIN_WITHDRAWN ->
+                    Optional.of(REPORT_PLUGIN_CHANGED);
             case CHECKLIST_TEMPLATE_PUBLISHED -> Optional.of(CHECKLIST_TEMPLATE_CHANGED);
             case CHECKLIST_SIGNED_OFF -> Optional.of(CHECKLIST_SIGNED_OFF);
             // Returned is refused by another name: what was submitted for signature did not get it.

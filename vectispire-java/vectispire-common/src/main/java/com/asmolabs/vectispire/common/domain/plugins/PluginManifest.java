@@ -70,10 +70,10 @@ public record PluginManifest(
     public static final int MAX_TIMEOUT_SECONDS = 900;
 
     static final int MIN_TIMEOUT_SECONDS = 10;
-    static final int MAX_ID = 40;
-    static final int MAX_NAME = 100;
-    static final int MAX_ARGUMENTS = 32;
-    static final int MAX_ARGUMENT = 4_096;
+    static final int MAX_ID = ManifestRules.MAX_ID;
+    static final int MAX_NAME = ManifestRules.MAX_NAME;
+    static final int MAX_ARGUMENTS = ManifestRules.MAX_ARGUMENTS;
+    static final int MAX_ARGUMENT = ManifestRules.MAX_ARGUMENT;
     static final int MAX_EXIT_CODES = 8;
     static final int MIN_JUSTIFICATION = 20;
     static final int MAX_JUSTIFICATION = 500;
@@ -115,20 +115,8 @@ public record PluginManifest(
             throw new InvalidPluginException("A plugin declares the languages it reads, from " + Language.wireNames()
                     + ": it runs only on a repository where one of them is present.");
         }
-        if (arguments.size() > MAX_ARGUMENTS) {
-            throw new InvalidPluginException("A plugin takes at most " + MAX_ARGUMENTS + " arguments.");
-        }
-        for (String argument : arguments) {
-            // A newline or a tab is an ordinary character of an argv entry — a `sh -c` script inside
-            // the image has several lines — and no shell on this side reads them. Every other
-            // control character is refused, the digest's list separator among them.
-            if (argument == null || argument.length() > MAX_ARGUMENT
-                    || hasControl(argument.replace('\n', ' ').replace('\t', ' '))) {
-                throw new InvalidPluginException("Each argument is a string of at most " + MAX_ARGUMENT
-                        + " characters with no control character but a newline or a tab.");
-            }
-        }
-        requireOutput(output);
+        ManifestRules.requireArguments(arguments);
+        ManifestRules.requireOutputName(output, OUTPUT);
         if (exitCodes.size() > MAX_EXIT_CODES) {
             throw new InvalidPluginException("A plugin declares at most " + MAX_EXIT_CODES + " exit codes.");
         }
@@ -201,52 +189,14 @@ public record PluginManifest(
 
     /** The plugin's id checked alone — for a route that names one in its path. */
     public static String requireId(String id) {
-        if (id == null || id.length() < 2 || id.length() > MAX_ID) {
-            throw new InvalidPluginException("A plugin id is 2 to " + MAX_ID + " characters.");
-        }
-        for (int i = 0; i < id.length(); i++) {
-            char c = id.charAt(i);
-            boolean alphanumeric = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
-            boolean edge = i == 0 || i == id.length() - 1;
-            if (!alphanumeric && (edge || c != '-')) {
-                throw new InvalidPluginException("A plugin id is lowercase letters, digits and inner hyphens: "
-                        + "it enters every issue's fingerprint and is never renamed.");
-            }
-        }
-        return id;
-    }
-
-    private static void requireOutput(String output) {
-        if (output.length() > MAX_NAME || output.startsWith(".")) {
-            throw new InvalidPluginException("The output is a file name of at most " + MAX_NAME
-                    + " characters, not starting with a dot.");
-        }
-        for (int i = 0; i < output.length(); i++) {
-            char c = output.charAt(i);
-            boolean allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-                    || c == '.' || c == '_' || c == '-';
-            if (!allowed) {
-                throw new InvalidPluginException("The output is a file name in " + OUTPUT
-                        + " — letters, digits, dots, hyphens and underscores, no directory.");
-            }
-        }
+        return ManifestRules.requireId(id, "it enters every issue's fingerprint and is never renamed.");
     }
 
     private static void requireText(String value, int max, String what) {
-        if (value == null || value.isEmpty()) {
-            throw new InvalidPluginException(what + " is required.");
-        }
-        if (value.length() > max || hasControl(value)) {
-            throw new InvalidPluginException(what + " is at most " + max + " characters, with no control character.");
-        }
+        ManifestRules.requireText(value, max, what);
     }
 
     private static boolean hasControl(String value) {
-        for (int i = 0; i < value.length(); i++) {
-            if (Character.isISOControl(value.charAt(i))) {
-                return true;
-            }
-        }
-        return false;
+        return ManifestRules.hasControl(value);
     }
 }

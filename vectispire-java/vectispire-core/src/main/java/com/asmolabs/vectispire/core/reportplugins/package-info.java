@@ -1,7 +1,9 @@
 /**
- * Report plugins (decision 0035) — so far its first lot: a project's export, the {@code
+ * Report plugins (decision 0035) — so far its first two lots: a project's export, the {@code
  * vectispire-project-export} document a plugin will receive, built for a caller who sees the whole
- * project, signed, and served on its own so an organisation can write its plugin against its own data.
+ * project, signed, and served on its own so an organisation can write its plugin against its own data
+ * (R1); and the registry — plugins, their manifests by digest with four-eyes approval and withdrawal, and
+ * their activations per project (R2).
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code ModularityTest},
  * decision 0030): a dependency on a module, or on a named interface ({@code module::name}), missing from
@@ -15,6 +17,9 @@
  * one — and the requester's role is checked here too (write accounts and auditors, decision 0035 answer 4).
  * {@code AccountNames} turns the user names the rows record into display names, never an e-mail address.
  *
+ * The registry's activations are refused by the same whole-project guard: a plugin switched on for a
+ * project renders all of it.
+ *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code RequestActors}.
  *
  * <p>Each part of the export is read from its owner, through a method of its owner's API — never a
@@ -22,7 +27,8 @@
  *
  * <ul>
  *   <li>{@code targets}: the project, its solution and the targets filed in it ({@code SolutionQueryService},
- *       {@code TargetCatalog});
+ *       {@code TargetCatalog}) — the registry's guard reads them too, and its listener purges a deleted
+ *       project's activations on {@code ProjectDeleted};
  *   <li>{@code scanning}, {@code scanning::queries}: each target's newest completed scan ({@code
  *       NewestCompletedScanRow}, a published query record) and its outline ({@code ScanCatalog});
  *   <li>{@code gate}: each target's last recorded verdict ({@code GateRegisterService});

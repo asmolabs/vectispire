@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,7 @@ class SecurityEventTypeTest {
         expected.put("SIEM_EXPORT_STOPPED", "VECTI-SEC-028");
         expected.put("SECRET_LEAK_DETECTED", "VECTI-SEC-029");
         expected.put("SLA_BREACHED", "VECTI-SEC-030");
+        expected.put("REPORT_PLUGIN_CHANGED", "VECTI-SEC-031");
         expected.put("PROJECT_EXPORTED", "VECTI-SEC-032");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
@@ -59,12 +61,12 @@ class SecurityEventTypeTest {
     }
 
     @Test
-    @DisplayName("031 and 033 stay reserved for the report plugins (decision 0035 §4)")
+    @DisplayName("033 stays reserved for the report plugins' refusals (decision 0035 §4)")
     void reportPluginIdentifiersAreReserved() {
-        // Reserved on 2026-10-03 for the registry's changes and the refusals of report plugins, which
-        // later lots emit under these names; another event taking one would leave the decision two numbers.
+        // Reserved on 2026-10-03 for the refusals of report plugins, which lot R4 emits under this name;
+        // another event taking it would leave the decision two numbers. 031 is the registry's, since lot R2.
         assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
-                .doesNotContain("VECTI-SEC-031", "VECTI-SEC-033");
+                .doesNotContain("VECTI-SEC-033");
     }
 
     @Test
@@ -132,6 +134,15 @@ class SecurityEventTypeTest {
         // A project's whole state leaving the platform is what a SOC wants to see, every time (decision 0035).
         assertThat(SecurityEventType.signalledBy(AuditOperation.PROJECT_EXPORTED))
                 .contains(SecurityEventType.PROJECT_EXPORTED);
+        // Every gesture on the report plugins' registry: code gaining or losing a project's whole state, or
+        // the right to produce documents under the installation's key (decision 0035 §4).
+        for (AuditOperation operation : List.of(AuditOperation.REPORT_PLUGIN_REGISTERED,
+                AuditOperation.REPORT_PLUGIN_UPDATED, AuditOperation.REPORT_PLUGIN_APPROVED,
+                AuditOperation.REPORT_PLUGIN_ENABLED_CHANGED, AuditOperation.REPORT_PLUGIN_ACTIVATED,
+                AuditOperation.REPORT_PLUGIN_DEACTIVATED, AuditOperation.REPORT_PLUGIN_WITHDRAWN)) {
+            assertThat(SecurityEventType.signalledBy(operation)).as(operation.name())
+                    .contains(SecurityEventType.REPORT_PLUGIN_CHANGED);
+        }
         // A pipeline's upload is as frequent as its builds: the entry, not an event.
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_IMPORT_REFUSED))

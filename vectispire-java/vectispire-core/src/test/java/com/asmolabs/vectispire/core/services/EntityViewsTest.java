@@ -44,6 +44,8 @@ class EntityViewsTest {
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.PluginActivationEntity.class,
                         com.asmolabs.vectispire.core.plugins.PluginActivationView.class,
                         Set.of("projectName", "solutionId", "solutionName")),
+                Arguments.of(com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginActivationEntity.class,
+                        com.asmolabs.vectispire.core.reportplugins.ReportPluginActivationView.class, Set.of("pluginName")),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity.class,
                         com.asmolabs.vectispire.core.plugins.SarifSourceView.class, Set.of("apiKeyName")),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity.class,

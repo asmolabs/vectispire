@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_15"];
         put?: never;
         post: operations["create_9"];
         delete?: never;
@@ -81,7 +81,7 @@ export interface paths {
         delete: operations["remove_6"];
         options?: never;
         head?: never;
-        patch: operations["update_7"];
+        patch: operations["update_8"];
         trace?: never;
     };
     "/api/v1/admin/agents/{id}/sealing-key": {
@@ -299,7 +299,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_14"];
         put?: never;
         post: operations["create_8"];
         delete?: never;
@@ -427,7 +427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_19"];
+        get: operations["list_21"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1175,7 +1175,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post: operations["create_7"];
         delete?: never;
@@ -1197,7 +1197,7 @@ export interface paths {
         delete: operations["remove_5"];
         options?: never;
         head?: never;
-        patch: operations["update_6"];
+        patch: operations["update_7"];
         trace?: never;
     };
     "/api/v1/containers/{id}/scan": {
@@ -1455,7 +1455,7 @@ export interface paths {
          * The exceptions register
          * @description Risk acceptances and dismissals, newest first, narrowed to what the caller may see.
          */
-        get: operations["register_2"];
+        get: operations["register_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1511,7 +1511,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_18"];
+        get: operations["list_20"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1563,7 +1563,7 @@ export interface paths {
          * Gate verdict register
          * @description The gate's recent answers, newest first, narrowed to what the caller may see.
          */
-        get: operations["register_1"];
+        get: operations["register_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1579,7 +1579,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post: operations["create_6"];
         delete?: never;
@@ -1707,7 +1707,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_17"];
+        get: operations["list_19"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1787,7 +1787,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post: operations["create_5"];
         delete?: never;
@@ -1979,13 +1979,13 @@ export interface paths {
          * List plugins
          * @description Every registered plugin, with the manifest it runs.
          */
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         /**
          * Register plugin
          * @description Platform governor only. The image is pinned by digest; the id is never reused. 409 when the id is taken.
          */
-        post: operations["register"];
+        post: operations["register_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2000,12 +2000,12 @@ export interface paths {
             cookie?: never;
         };
         /** Read plugin */
-        get: operations["get"];
+        get: operations["get_1"];
         /**
          * Update plugin
          * @description Platform governor only. A new manifest under the same id — a new image version keeps the id, and with it every issue's triage.
          */
-        put: operations["update_1"];
+        put: operations["update_2"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2025,7 +2025,7 @@ export interface paths {
          * Enable or disable plugin
          * @description Platform governor only. Disabling stops every activation from the next scan without forgetting them.
          */
-        put: operations["setEnabled_1"];
+        put: operations["setEnabled_2"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2085,7 +2085,7 @@ export interface paths {
          * Project
          * @description One project as its node in the solutions tree describes it — its solution named, its repositories and images, open issues by severity over both, partial, checklistsVisible, detected languages — as far as the caller may see. The tree's rule decides: a caller sees the project when it sees everything, holds the project as such, or sees one of its repositories or images; a project that does not exist and one the caller sees nothing of both answer 404, "Project not found.".
          */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         /**
@@ -2099,7 +2099,7 @@ export interface paths {
          * Rename, describe or move project
          * @description A solutionId moves the project to that solution; its repositories, images, grants, checklists, plugin activations and SARIF sources follow it. The solution it is already in changes nothing. A solution that does not exist answers 404. A name the solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with the type urn:vectispire:problem:project-name-taken.
          */
-        patch: operations["update_5"];
+        patch: operations["update_6"];
         trace?: never;
     };
     "/api/v1/projects/{id}/compliance": {
@@ -2201,7 +2201,7 @@ export interface paths {
          * List project checklists
          * @description Every revision of the project's checklist, newest first. 404 for a project the caller does not see whole.
          */
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
         /**
          * Open project checklist
@@ -2347,7 +2347,7 @@ export interface paths {
          * Withdraw checklist proof
          * @description On a draft: the proof stops counting; its row stays, dated and attributed. 409 checklist-evidence-withdrawn, and those of answering.
          */
-        post: operations["withdraw"];
+        post: operations["withdraw_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2585,7 +2585,7 @@ export interface paths {
          * List plugins switched on for project
          * @description 404 when the project does not exist.
          */
-        get: operations["list_16"];
+        get: operations["list_18"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2606,11 +2606,55 @@ export interface paths {
          * Switch plugin on for project
          * @description Its repositories run the plugin from the next scan, where one of its languages is present. Repeating it changes nothing.
          */
-        put: operations["activate"];
+        put: operations["activate_1"];
         post?: never;
         /**
          * Switch plugin off for project
          * @description Its open issues are left as they are. 404 when it was not on.
+         */
+        delete: operations["deactivate_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/report-plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List report plugins switched on for project
+         * @description For a caller who sees the whole project, images included; 404 "Project not found." otherwise, and for a project that does not exist.
+         */
+        get: operations["list_17"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/report-plugins/{pluginId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch report plugin on for project
+         * @description Security leads who see the whole project. 409 report-plugin-not-approved for a plugin with no approved manifest — awaiting approval, or withdrawn. Repeating it changes nothing. Audited, and signalled to the SIEM as VECTI-SEC-031.
+         */
+        put: operations["activate"];
+        post?: never;
+        /**
+         * Switch report plugin off for project
+         * @description 404 when it was not on.
          */
         delete: operations["deactivate"];
         options?: never;
@@ -2706,6 +2750,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report-plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List report plugins
+         * @description Every registered report plugin, with the manifest history of each: status, approval, withdrawal.
+         */
+        get: operations["list_8"];
+        put?: never;
+        /**
+         * Register report plugin
+         * @description Platform governor only. The image is pinned by digest, the signer is required, the output's media type is one of the closed list, and the export major one this installation produces; 400 otherwise. With four-eyes on the manifest waits for a second person's approval; with it off it serves at once. 409 report-plugin-id-taken when the id is taken — ids are never reused. Audited, and signalled to the SIEM as VECTI-SEC-031.
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-plugins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read report plugin
+         * @description 404 when no plugin has that id.
+         */
+        get: operations["get"];
+        /**
+         * Update report plugin
+         * @description Platform governor only. A new manifest under the same id: with four-eyes on it waits for approval and the approved one keeps serving; a manifest approved before serves at once; 409 report-plugin-withdrawn for a withdrawn one. The same manifest again changes nothing.
+         */
+        put: operations["update_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-plugins/{id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable report plugin
+         * @description Platform governor only. Disabling stops every activation from rendering without forgetting them.
+         */
+        put: operations["setEnabled_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-plugins/{id}/manifests/{digest}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve report plugin manifest
+         * @description Governance writers. Approves the plugin's pending manifest digest: its runs use it from now on. With four-eyes on, 409 report-plugin-four-eyes for the account that registered it; 409 report-plugin-not-pending for a digest not awaiting approval; 404 for a plugin or digest that does not exist.
+         */
+        post: operations["approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-plugins/{id}/manifests/{digest}/withdrawal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw report plugin manifest
+         * @description Platform governor only. The digest never runs again and cannot be registered again; the documents it produced stay stored, served as withdrawn. The justification is required, 20 to 500 characters; 400 without it; 409 report-plugin-withdrawn when it already was.
+         */
+        post: operations["withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories": {
         parameters: {
             query?: never;
@@ -2751,7 +2903,7 @@ export interface paths {
          * Update repository
          * @description Updates configuration, schedule or credentials of a monitored repository.
          */
-        patch: operations["update_4"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/repositories/{id}/apis": {
@@ -2987,7 +3139,7 @@ export interface paths {
          * Deactivate rule sets
          * @description Returns to the bundled rules alone. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.
          */
-        post: operations["deactivate_1"];
+        post: operations["deactivate_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3023,7 +3175,7 @@ export interface paths {
          * Activate rule set
          * @description Makes this set the active one, beside the bundled rules. A change that would resolve open issues at the next scan — their rules leave the active set — answers 409 with the type urn:vectispire:problem:rule-set-activation-loses-issues, its affectedIssues and losingIssues members read at the refusal, unless acceptLosing equals affectedIssues: a lower, higher or stale number is refused with the current one. A change that resolves nothing needs no acceptLosing.
          */
-        post: operations["activate_1"];
+        post: operations["activate_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3150,7 +3302,7 @@ export interface paths {
          * List scan history
          * @description Returns historical security scans with filtering by repository or container target.
          */
-        get: operations["list_15"];
+        get: operations["list_16"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3531,7 +3683,7 @@ export interface paths {
          * Rename or describe solution
          * @description A name another solution holds, case aside, answers 409 with the type urn:vectispire:problem:solution-name-taken.
          */
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/solutions/{id}/compliance": {
@@ -3847,7 +3999,7 @@ export interface paths {
         delete: operations["remove"];
         options?: never;
         head?: never;
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/users/{id}/targets": {
@@ -6601,6 +6753,67 @@ export interface components {
             scanId?: number;
             status?: string;
         };
+        ReportPluginActivationView: {
+            /** Format: date-time */
+            activatedAt?: string;
+            activatedBy?: string;
+            /** Format: int64 */
+            id?: number;
+            pluginId?: string;
+            pluginName?: string;
+            /** Format: int64 */
+            projectId?: number;
+        };
+        ReportPluginEnabled: {
+            enabled?: boolean;
+        };
+        ReportPluginManifest: {
+            arguments?: string[];
+            /** Format: int32 */
+            export_schema?: number;
+            id?: string;
+            image?: string;
+            /** Format: int64 */
+            max_output_bytes?: number;
+            /** @enum {string} */
+            media_type?: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" | "application/vnd.openxmlformats-officedocument.wordprocessingml.document" | "application/vnd.openxmlformats-officedocument.presentationml.presentation" | "application/vnd.oasis.opendocument.spreadsheet" | "application/vnd.oasis.opendocument.text" | "application/pdf" | "text/csv" | "text/plain";
+            name?: string;
+            output?: string;
+            signature?: components["schemas"]["PluginSignature"];
+            /** Format: int32 */
+            timeout_seconds?: number;
+        };
+        ReportPluginManifestView: {
+            approvalFourEyes?: boolean;
+            /** Format: date-time */
+            approvedAt?: string;
+            approvedBy?: string;
+            digest?: string;
+            manifest?: components["schemas"]["ReportPluginManifest"];
+            /** Format: date-time */
+            registeredAt?: string;
+            registeredBy?: string;
+            /** @enum {string} */
+            status?: "pending_approval" | "approved" | "superseded" | "withdrawn";
+            withdrawalJustification?: string;
+            /** Format: date-time */
+            withdrawnAt?: string;
+            withdrawnBy?: string;
+        };
+        ReportPluginView: {
+            approvedDigest?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            createdBy?: string;
+            enabled: boolean;
+            id?: string;
+            manifests?: components["schemas"]["ReportPluginManifestView"][];
+            name?: string;
+            pendingDigest?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            updatedBy?: string;
+        };
         Repository: {
             branch?: string;
             /** Format: int64 */
@@ -7893,6 +8106,9 @@ export interface components {
             matched: boolean;
             ticketRef?: string;
         };
+        WithdrawalRequest: {
+            justification?: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -7902,7 +8118,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_14: {
+    list_15: {
         parameters: {
             query?: never;
             header?: never;
@@ -8026,7 +8242,7 @@ export interface operations {
             };
         };
     };
-    update_7: {
+    update_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -8361,7 +8577,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_14: {
         parameters: {
             query?: never;
             header?: never;
@@ -8557,7 +8773,7 @@ export interface operations {
             };
         };
     };
-    list_19: {
+    list_21: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -9495,7 +9711,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -9559,7 +9775,7 @@ export interface operations {
             };
         };
     };
-    update_6: {
+    update_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -9905,7 +10121,7 @@ export interface operations {
             };
         };
     };
-    register_2: {
+    register_3: {
         parameters: {
             query?: {
                 limit?: number;
@@ -9987,7 +10203,7 @@ export interface operations {
             };
         };
     };
-    list_18: {
+    list_20: {
         parameters: {
             query?: never;
             header?: never;
@@ -10079,7 +10295,7 @@ export interface operations {
             };
         };
     };
-    register_1: {
+    register_2: {
         parameters: {
             query?: {
                 limit?: number;
@@ -10102,7 +10318,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: never;
             header?: never;
@@ -10299,7 +10515,7 @@ export interface operations {
             };
         };
     };
-    list_17: {
+    list_19: {
         parameters: {
             query?: {
                 state?: string;
@@ -10441,7 +10657,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: never;
             header?: never;
@@ -10736,7 +10952,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -10756,7 +10972,7 @@ export interface operations {
             };
         };
     };
-    register: {
+    register_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -10780,7 +10996,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -10802,7 +11018,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -10828,7 +11044,7 @@ export interface operations {
             };
         };
     };
-    setEnabled_1: {
+    setEnabled_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -10924,7 +11140,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -10966,7 +11182,7 @@ export interface operations {
             };
         };
     };
-    update_5: {
+    update_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -11120,7 +11336,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -11318,7 +11534,7 @@ export interface operations {
             };
         };
     };
-    withdraw: {
+    withdraw_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -11659,7 +11875,7 @@ export interface operations {
             };
         };
     };
-    list_16: {
+    list_18: {
         parameters: {
             query?: never;
             header?: never;
@@ -11677,6 +11893,72 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PluginActivationView"][];
+                };
+            };
+        };
+    };
+    activate_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginActivationView"];
+                };
+            };
+        };
+    };
+    deactivate_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_17: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginActivationView"][];
                 };
             };
         };
@@ -11699,7 +11981,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PluginActivationView"];
+                    "*/*": components["schemas"]["ReportPluginActivationView"];
                 };
             };
         };
@@ -11837,6 +12119,174 @@ export interface operations {
             };
         };
     };
+    list_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"][];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportPluginManifest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportPluginManifest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"];
+                };
+            };
+        };
+    };
+    setEnabled_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReportPluginEnabled"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"];
+                };
+            };
+        };
+    };
+    approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                digest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                digest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WithdrawalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportPluginView"];
+                };
+            };
+        };
+    };
     list_7: {
         parameters: {
             query?: never;
@@ -11902,7 +12352,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -12350,7 +12800,7 @@ export interface operations {
             };
         };
     };
-    deactivate_1: {
+    deactivate_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12405,7 +12855,7 @@ export interface operations {
             };
         };
     };
-    activate_1: {
+    activate_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12600,7 +13050,7 @@ export interface operations {
             };
         };
     };
-    list_15: {
+    list_16: {
         parameters: {
             query?: {
                 /** @description Filter by repository ID */
@@ -13318,7 +13768,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -13928,7 +14378,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;

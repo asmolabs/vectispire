@@ -99,6 +99,13 @@ const OPERATION_KEYS: Record<string, string> = {
     CHECKLIST_REOPENED: 'audit_log.operations.checklist_reopened',
     CHECKLIST_EXPORTED: 'audit_log.operations.checklist_exported',
     PROJECT_EXPORTED: 'audit_log.operations.project_exported',
+    REPORT_PLUGIN_REGISTERED: 'audit_log.operations.report_plugin_registered',
+    REPORT_PLUGIN_UPDATED: 'audit_log.operations.report_plugin_updated',
+    REPORT_PLUGIN_APPROVED: 'audit_log.operations.report_plugin_approved',
+    REPORT_PLUGIN_ENABLED_CHANGED: 'audit_log.operations.report_plugin_enabled_changed',
+    REPORT_PLUGIN_ACTIVATED: 'audit_log.operations.report_plugin_activated',
+    REPORT_PLUGIN_DEACTIVATED: 'audit_log.operations.report_plugin_deactivated',
+    REPORT_PLUGIN_WITHDRAWN: 'audit_log.operations.report_plugin_withdrawn',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',
