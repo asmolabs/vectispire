@@ -2915,7 +2915,7 @@ export interface paths {
         };
         /**
          * Download project report document
-         * @description A produced run's package, a zip: the plugin's file as it wrote it, once checked against the media type its manifest declares; <file>.sig, its detached signature by the platform's key, to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub; and provenance.json, an in-toto statement whose subject is the file's SHA-256 — run, project, requester, plugin, manifest and image digests, the verified signer, the export's schema and SHA-256, the product version, the instants and the signing key — in a DSSE envelope signed by the same key, to check with cosign verify-blob-attestation --key --type https://vectispire.dev/report-provenance/v1. The signature states provenance, not that the document renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For a caller who sees the whole project; 404 "Project not found." otherwise, then 404 for a run that is not the project's, one that produced no document, or a document purged past the evidence window. Audited REPORT_DOWNLOADED.
+         * @description A produced run's package, a zip: the plugin's file as it wrote it, once checked against the media type its manifest declares; <file>.sig, its detached signature by the platform's key, to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub; and provenance.json, an in-toto statement whose subject is the file's SHA-256 — run, project, requester, plugin, manifest and image digests, the verified signer, the export's schema and SHA-256, the product version, the instants and the signing key — in a DSSE envelope signed by the same key, to check with cosign verify-blob-attestation --key --type https://vectispire.dev/report-provenance/v1. The signature states provenance, not that the document renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For a caller who sees the whole project; 404 "Project not found." otherwise, then 404 for a run that is not the project's, one that produced no document, or a document purged past the evidence window. A document whose manifest the platform governor withdrew is still served: the header Vectispire-Document-Status says withdrawn (upheld otherwise), and the run carries the withdrawal's instant, author and justification. Audited REPORT_DOWNLOADED.
          */
         get: operations["document"];
         put?: never;
@@ -3006,6 +3006,26 @@ export interface paths {
             cookie?: never;
         };
         get: operations["highImpactFixes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-documents/{sha256}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get report document status
+         * @description Whether this installation still stands by a report document, named by its SHA-256 — of the package a download handed out, or of the file inside it (the provenance's subject); 64 hexadecimal characters, a sha256: prefix accepted, 400 otherwise. standing is upheld, withdrawn — the platform governor withdrew the manifest that produced it: its signature still verifies, but the installation no longer stands by it — or unknown. productions lists the runs that produced it, newest first: project, plugin, manifest and image digests, produced at, the signing key's id, whether the package is still kept, and the withdrawal's instant, author and justification. Only documents of projects the caller sees whole are shown: one never produced here, one of a deleted project and one of a project the caller does not see whole all answer unknown, alike. Always 200 for a well-formed digest.
+         */
+        get: operations["documentStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7349,6 +7369,35 @@ export interface components {
             scanId?: number;
             status?: string;
         };
+        ReportDocumentProduction: {
+            documentKept: boolean;
+            imageDigest?: string;
+            manifestDigest?: string;
+            /** @enum {string} */
+            matched?: "package" | "output";
+            outputMediaType?: string;
+            outputSha256?: string;
+            packageSha256?: string;
+            pluginId?: string;
+            /** Format: date-time */
+            producedAt?: string;
+            /** Format: int64 */
+            projectId?: number;
+            projectName?: string;
+            /** Format: int64 */
+            runId?: number;
+            signingKeyId?: string;
+            withdrawalJustification?: string;
+            /** Format: date-time */
+            withdrawnAt?: string;
+            withdrawnBy?: string;
+        };
+        ReportDocumentStatusView: {
+            productions?: components["schemas"]["ReportDocumentProduction"][];
+            sha256?: string;
+            /** @enum {string} */
+            standing?: "upheld" | "withdrawn" | "unknown";
+        };
         ReportPluginActivationView: {
             /** Format: date-time */
             activatedAt?: string;
@@ -7452,6 +7501,10 @@ export interface components {
             startedAt?: string;
             /** @enum {string} */
             state?: "pending" | "running" | "produced" | "failed" | "refused";
+            withdrawalJustification?: string;
+            /** Format: date-time */
+            withdrawnAt?: string;
+            withdrawnBy?: string;
         };
         Repository: {
             branch?: string;
@@ -13087,6 +13140,8 @@ export interface operations {
             /** @description The package, application/zip */
             200: {
                 headers: {
+                    /** @description upheld, or withdrawn when the manifest that produced the document was withdrawn */
+                    "Vectispire-Document-Status"?: "upheld" | "withdrawn";
                     [name: string]: unknown;
                 };
                 content: {
@@ -13203,6 +13258,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["HighImpactFix"][];
+                };
+            };
+        };
+    };
+    documentStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportDocumentStatusView"];
                 };
             };
         };

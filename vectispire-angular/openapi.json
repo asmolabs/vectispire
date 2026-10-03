@@ -7828,6 +7828,83 @@
         },
         "type" : "object"
       },
+      "ReportDocumentProduction" : {
+        "properties" : {
+          "documentKept" : {
+            "type" : "boolean"
+          },
+          "imageDigest" : {
+            "type" : "string"
+          },
+          "manifestDigest" : {
+            "type" : "string"
+          },
+          "matched" : {
+            "enum" : [ "package", "output" ],
+            "type" : "string"
+          },
+          "outputMediaType" : {
+            "type" : "string"
+          },
+          "outputSha256" : {
+            "type" : "string"
+          },
+          "packageSha256" : {
+            "type" : "string"
+          },
+          "pluginId" : {
+            "type" : "string"
+          },
+          "producedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "projectName" : {
+            "type" : "string"
+          },
+          "runId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "signingKeyId" : {
+            "type" : "string"
+          },
+          "withdrawalJustification" : {
+            "type" : "string"
+          },
+          "withdrawnAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "withdrawnBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "documentKept" ],
+        "type" : "object"
+      },
+      "ReportDocumentStatusView" : {
+        "properties" : {
+          "productions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ReportDocumentProduction"
+            },
+            "type" : "array"
+          },
+          "sha256" : {
+            "type" : "string"
+          },
+          "standing" : {
+            "enum" : [ "upheld", "withdrawn", "unknown" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ReportPluginActivationView" : {
         "properties" : {
           "activatedAt" : {
@@ -8087,6 +8164,16 @@
           },
           "state" : {
             "enum" : [ "pending", "running", "produced", "failed", "refused" ],
+            "type" : "string"
+          },
+          "withdrawalJustification" : {
+            "type" : "string"
+          },
+          "withdrawnAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "withdrawnBy" : {
             "type" : "string"
           }
         },
@@ -17645,7 +17732,7 @@
     },
     "/api/v1/projects/{projectId}/reports/{runId}/document" : {
       "get" : {
-        "description" : "A produced run's package, a zip: the plugin's file as it wrote it, once checked against the media type its manifest declares; <file>.sig, its detached signature by the platform's key, to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub; and provenance.json, an in-toto statement whose subject is the file's SHA-256 — run, project, requester, plugin, manifest and image digests, the verified signer, the export's schema and SHA-256, the product version, the instants and the signing key — in a DSSE envelope signed by the same key, to check with cosign verify-blob-attestation --key --type https://vectispire.dev/report-provenance/v1. The signature states provenance, not that the document renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For a caller who sees the whole project; 404 \"Project not found.\" otherwise, then 404 for a run that is not the project's, one that produced no document, or a document purged past the evidence window. Audited REPORT_DOWNLOADED.",
+        "description" : "A produced run's package, a zip: the plugin's file as it wrote it, once checked against the media type its manifest declares; <file>.sig, its detached signature by the platform's key, to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub; and provenance.json, an in-toto statement whose subject is the file's SHA-256 — run, project, requester, plugin, manifest and image digests, the verified signer, the export's schema and SHA-256, the product version, the instants and the signing key — in a DSSE envelope signed by the same key, to check with cosign verify-blob-attestation --key --type https://vectispire.dev/report-provenance/v1. The signature states provenance, not that the document renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For a caller who sees the whole project; 404 \"Project not found.\" otherwise, then 404 for a run that is not the project's, one that produced no document, or a document purged past the evidence window. A document whose manifest the platform governor withdrew is still served: the header Vectispire-Document-Status says withdrawn (upheld otherwise), and the run carries the withdrawal's instant, author and justification. Audited REPORT_DOWNLOADED.",
         "operationId" : "document",
         "parameters" : [ {
           "in" : "path",
@@ -17674,7 +17761,17 @@
                 }
               }
             },
-            "description" : "The package, application/zip"
+            "description" : "The package, application/zip",
+            "headers" : {
+              "Vectispire-Document-Status" : {
+                "description" : "upheld, or withdrawn when the manifest that produced the document was withdrawn",
+                "schema" : {
+                  "enum" : [ "upheld", "withdrawn" ],
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
           }
         },
         "summary" : "Download project report document",
@@ -17846,6 +17943,34 @@
           }
         },
         "tags" : [ "security-debt-controller" ]
+      }
+    },
+    "/api/v1/report-documents/{sha256}" : {
+      "get" : {
+        "description" : "Whether this installation still stands by a report document, named by its SHA-256 — of the package a download handed out, or of the file inside it (the provenance's subject); 64 hexadecimal characters, a sha256: prefix accepted, 400 otherwise. standing is upheld, withdrawn — the platform governor withdrew the manifest that produced it: its signature still verifies, but the installation no longer stands by it — or unknown. productions lists the runs that produced it, newest first: project, plugin, manifest and image digests, produced at, the signing key's id, whether the package is still kept, and the withdrawal's instant, author and justification. Only documents of projects the caller sees whole are shown: one never produced here, one of a deleted project and one of a project the caller does not see whole all answer unknown, alike. Always 200 for a well-formed digest.",
+        "operationId" : "documentStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "sha256",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportDocumentStatusView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Get report document status",
+        "tags" : [ "Report plugins" ]
       }
     },
     "/api/v1/report-plugins" : {
