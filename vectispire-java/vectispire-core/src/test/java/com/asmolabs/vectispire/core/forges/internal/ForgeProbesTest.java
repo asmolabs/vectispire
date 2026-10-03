@@ -177,6 +177,24 @@ class ForgeProbesTest {
         }
 
         @Test
+        @DisplayName("a certificate the pinned CA issued for another host is refused: the CA replaces the anchors, not the name")
+        void anotherHostsCertificateIsRefused() throws Exception {
+            // The same private CA, pinned, and a certificate it issued for 127.0.0.2 presented at 127.0.0.1: trusted,
+            // and for the wrong name. Accepting it would let any server holding a certificate from that CA — another
+            // internal host, compromised or merely misconfigured — answer for the forge and receive its token.
+            try (ForgeStub impostor = ForgeStub.startCertifiedFor("127.0.0.2")) {
+                impostor.gitlab("16.11.2", "[\"read_api\"]", true);
+                PinnedCa itsCa = PinnedCa.parse(impostor.caPem, Instant.now(), new PinnedCa.Subject("The forge's CA",
+                        "the forge"));
+                ForgeClient.Target pinned = new ForgeClient.Target(ForgeAddress.of(ForgeKind.GITLAB, impostor.baseUrl()),
+                        null, OutboundPolicy.INTERNAL_ALLOWED, Optional.of(itsCa));
+
+                assertThat(refusal(() -> probes.probe(pinned, TOKEN))).isEqualTo(Reason.UNREACHABLE);
+                assertThat(impostor.seen).as("not a byte of the request, the token least of all").isEmpty();
+            }
+        }
+
+        @Test
         @DisplayName("an internal address under PUBLIC_ONLY is blocked before any byte is sent, and signalled")
         void anInternalAddressIsBlockedUnlessStated() {
             forge.gitlab("16.11.2", "[\"read_api\"]", true);

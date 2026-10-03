@@ -75,8 +75,20 @@ public final class ForgeStub implements AutoCloseable {
         this.server = server;
     }
 
-    /** Started, with a CA valid from yesterday for a year. */
+    /** Started, with a CA valid from yesterday for a year, and a certificate for the address it listens on. */
     public static ForgeStub start() throws Exception {
+        return start(new GeneralName(GeneralName.iPAddress, "127.0.0.1"), new GeneralName(GeneralName.dNSName, "localhost"));
+    }
+
+    /**
+     * Started on loopback, {@code 127.0.0.1}, with a certificate the same CA issued for {@code otherAddress} alone:
+     * a server presenting another host's certificate — trusted, and for the wrong name.
+     */
+    public static ForgeStub startCertifiedFor(String otherAddress) throws Exception {
+        return start(new GeneralName(GeneralName.iPAddress, otherAddress));
+    }
+
+    private static ForgeStub start(GeneralName... names) throws Exception {
         KeyPair caKeys = keys();
         X500Name ca = new X500Name("CN=Forge Test CA");
         X509v3CertificateBuilder root = new X509v3CertificateBuilder(ca, BigInteger.valueOf(System.nanoTime()),
@@ -90,8 +102,7 @@ public final class ForgeStub implements AutoCloseable {
         X509v3CertificateBuilder leaf = new X509v3CertificateBuilder(ca, BigInteger.valueOf(System.nanoTime()),
                 Date.from(Instant.now().minus(Duration.ofDays(1))), Date.from(Instant.now().plus(Duration.ofDays(30))),
                 new X500Name("CN=forge"), SubjectPublicKeyInfo.getInstance(leafKeys.getPublic().getEncoded()));
-        leaf.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(new GeneralName[] {
-            new GeneralName(GeneralName.iPAddress, "127.0.0.1"), new GeneralName(GeneralName.dNSName, "localhost")}));
+        leaf.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(names));
         byte[] leafDer = sign(leaf, caKeys);
 
         CertificateFactory x509 = CertificateFactory.getInstance("X.509");
