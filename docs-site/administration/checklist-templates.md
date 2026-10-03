@@ -152,7 +152,7 @@ shows each line's rule in words and nothing to change. A script does the same wi
 |---|---|---|
 | `dependency_analysis` | the newest scan whose dependency step produced | it is within the maximum age and kept its SBOM; if `requireSchedule`, the repository is scheduled at least as often as the maximum age; optional `thresholds` on the open vulnerabilities |
 | `findings_threshold` | for each of its `scopes` — `builtin:secret`, `builtin:sast`, `builtin:iac`, `builtin:vulnerability`, `builtin:quality`, `builtin:eol`, `builtin:license`, `plugin:<id>`, `import:<source>/<tool>` — the newest scan or import in which that scope produced | every scope produced within the maximum age — for `builtin:sast`, `builtin:quality` and a plugin, on a tree whose languages it read ([what the analysis read](../guide/security-checklists.md#measured-lines)) — and the backlog meets the `thresholds` per severity: `maxOpen`, `minResolvedRatio` (resolved ÷ resolved and open), settled triage left out of both |
-| `coverage_threshold` | the newest coverage import | it is within the maximum age and its `line` or `branch` ratio (`metric`) is at least `minimumRatio` — `per_repository`, or `project_weighted` (`aggregation`) |
+| `coverage_threshold` | the newest coverage import | it is within the maximum age and its `line` or `branch` ratio (`metric`) is at least `minimumRatio` — `per_repository`, or `project_weighted` (`aggregation`) — over the whole report, or over the packages its optional `scope` names ([below](#coverage-over-a-scope-of-packages)) |
 | `test_suite_passed` | the newest test-report import | a suite matches `suitePattern` (`*` and `?`), those that match ran at least `minimumTests` (skipped ones not counted), none failed or errored |
 | `component_versions` | the components of the newest analysed SBOM | every declared package (`purlPrefix`) is present at one of its listed `versions` — an explicit list, no version ordering |
 
@@ -169,6 +169,69 @@ exactly it or continues it with `/`, `@`, `?` or `#` — `pkg:npm/left` does not
 `pkg:maven/com.example.tools`, not `pkg:maven/com.example.tools/`, which named no package and is
 refused when bound. A line bound with the trailing `/` before that refusal keeps its text — its
 digest reads it — and its measurement says it names no package; derive a draft to bind it again.
+
+### Coverage over a scope of packages
+
+A `coverage_threshold` rule measures the whole report unless it names a **scope**: the packages it
+measures, decided by the organisation in the template. Filtering in each build instead — JaCoCo's
+`<includes>` in a `pom.xml`, a `--include` on the coverage tool — changes the figure where nobody
+reviewing the checklist sees it; a scope is bound with the rule, shown beside its measurement and
+printed in the signed document.
+
+```json
+{
+  "kind": "coverage_threshold", "maxAgeDays": 7, "metric": "line", "minimumRatio": 0.8,
+  "aggregation": "per_repository",
+  "scope": { "include": ["**/service/**", "org/example/billing/**"], "exclude": ["**/generated/**"] }
+}
+```
+
+In the form, **Packages measured** holds the two lists, patterns separated by commas; both blank is
+the whole report.
+
+**Patterns are over package paths**, as a coverage import keeps them: a JaCoCo package as JaCoCo
+writes it (`org/example/service`), a Cobertura package with its dots read as slashes
+(`org.example.service` is `org/example/service`; coverage.py's top-level `.` is the empty path), and
+for lcov the directory holding each `SF:` file, as the tracefile spells it — an absolute path
+included, which is why a pattern for lcov is best started with `**/`.
+
+| Pattern | Matches | Does not match |
+|---|---|---|
+| `**/service/**` | `service`, `org/example/service`, `org/example/service/impl` | `org/example/services` |
+| `org/example/**` | `org/example` and everything under it | `org/examples` |
+| `org/example` | that package alone | `org/example/service` |
+| `org/example/*-api` | `org/example/billing-api` | `org/example/billing/api` |
+| `src/app/**` | `src/app`, `src/app/orders/web` (lcov) | `/builds/shop/src/app` — write `**/src/app/**` |
+
+`**` is any number of whole segments, none included; `*` is any characters within one segment;
+nothing else is a wildcard, and the comparison is case-sensitive. A package is **in the scope** when
+an `include` pattern matches it — every package when `include` is empty — and no `exclude` pattern
+does. Up to twenty patterns in each list.
+
+**Refused when the rule is bound**, in words, rather than left to match nothing: a dotted package name
+(`org.example.service` — write `org/example/service`), `**` inside a segment (`**/serv**`), `?`,
+brackets, braces or `!` (which a reader would take for wildcards), a backslash, a leading, trailing or
+doubled slash, a `.` or `..` segment, an empty pattern, one past 500 characters, a pattern listed twice,
+and a scope with no pattern at all — leave `scope` out to measure the whole report.
+
+**What it measures.** Lines (or branches) covered over those counted, summed over the matching
+packages of each repository's newest coverage import — per repository, or over the project weighted
+by size, as `aggregation` says. Each repository's evidence names how many packages matched —
+*2 of 14 packages in the scope; 412 of 480 lines covered* — and the measurement's summary, which the
+signed document's `Evidence` sheet prints, states the scope beside the figure, a pass included.
+
+**No data, never a figure that is not the scope's:**
+
+- `scope_matches_nothing` — no package of the report is in the scope: neither 0 % nor 100 %. Compare
+  the patterns with the report's paths (lcov's are often absolute).
+- `packages_unrecorded` — the newest import was accepted before imports kept their packages; only its
+  totals are known. The pipeline's next upload measures the scope.
+- `packages_not_kept` — the import kept its totals and not its packages: more than 10,000 of them, a
+  path longer than 1,000 characters or carrying a control character, or per-package counts that did
+  not add up to the report's totals ([what an import keeps](plugins.md#importing-coverage-and-test-reports)).
+
+A rule without a scope is measured exactly as before, and keeps the canonical form — and so the
+content digest — it had.
 
 A binding is **part of what the line asks**, like its proof requirement: a line whose binding moved
 is *changed* against the previous version, and a project's answer carried onto it waits for

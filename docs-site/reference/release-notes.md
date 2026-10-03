@@ -93,6 +93,14 @@ told apart from the ones nobody scheduled, so all of them move to the default at
 
 #### Other changes
 
+- **A coverage import answers `packagesState`**, and a checklist measurement has three more reasons.
+  `POST` and `GET /api/v1/repositories/{id}/coverage-imports` carry `packagesState` — `kept`, `too_many`,
+  `path_refused`, `inconsistent`, or `null` for an import accepted before this version — and a rule's
+  `reason` may read `packages_unrecorded`, `packages_not_kept` or `scope_matches_nothing`, only on a
+  coverage line [scoped to packages](../administration/checklist-templates.md#coverage-over-a-scope-of-packages).
+  A client that switches over `reason` should handle them; one that does not still reads no data. A
+  rule's form (`boundRule`, the rules route) gains an optional `scope`; a rule without one keeps its
+  canonical form and its content digest. Schema V70 adds a column and a table, nothing to do.
 - **A plugin refusal has a third reason, `registry_authentication_required`**, and a checklist
   measurement a matching reason, `plugin_registry_authentication_required`: the plugin's image declares
   a signer, and its registry would not let the signature be read. A client that switches over
@@ -147,6 +155,20 @@ told apart from the ones nobody scheduled, so all of them move to the default at
   `unrenderable` — the trial's `detail` and the same `cells` — which is null on every other version.
 
 ### New
+
+- **A coverage line may measure a scope of packages**
+  ([how to write one](../administration/checklist-templates.md#coverage-over-a-scope-of-packages)). A
+  `coverage_threshold` rule takes an optional `scope` — `include` and `exclude` patterns over package
+  paths, `**/service/**`, `org/example/**`, `**` for whole segments and `*` within one — decided in the
+  template rather than in each build's coverage filter, where a reviewer never saw it. The figure is
+  covered over total across the matching packages; the evidence names how many matched, and the
+  measurement's summary — the signed document's `Evidence` sheet — states the scope beside the figure. To
+  measure it, a coverage import now keeps its counts per package beside its totals (a JaCoCo or Cobertura
+  `<package>`, an lcov file's directory), up to 10,000 packages and only when they add up to the totals.
+  A scope matching nothing, an import from before this version (upload the report again) or one whose
+  packages were not kept is no data in those words — never 0 %, 100 % or the report's totals. Patterns
+  that would not read as written — `org.example.service`, `**/serv**`, `?` — are refused when the rule is
+  bound. Until a line is rebound with a scope, nothing changes.
 
 - **A project's export, signed, and its published schema** — the first lot of report plugins
   ([decision 0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0035-report-plugins.md),

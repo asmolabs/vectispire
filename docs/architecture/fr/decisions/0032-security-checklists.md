@@ -772,3 +772,46 @@ chemin existant ; le précédent est `EXAMINATION_UNRECORDED`. Les règles qu'un
 propre `VECTISPIRE_SEMGREP_RULES_DIR` ne sont pas comptées, et une règle `javascript/` qui lit aussi
 TypeScript compte pour JavaScript seul : les deux erreurs empêchent une ligne de passer et n'en font
 jamais passer une. Les outils importés n'enregistrent aucun langage et n'en sont pas jugés.
+
+## Amendement (2026-10-03) — la couverture par paquet, et le périmètre d'une règle de couverture
+
+**Le manque.** Le §7 conservait les totaux d'un rapport de couverture et le §11 laissait de côté la
+couverture par fichier. Une organisation dont l'indicateur est *« 80 % de la couche service »* ne
+pouvait que filtrer dans chaque build — les `<includes>` de JaCoCo dans un `pom.xml` — et écrire le
+filtre dans le texte de l'indicateur : le chiffre sur lequel la ligne était mesurée se décidait alors
+là où personne qui signe la checklist ne le voyait, et un build qui perdait le filtre montait ou
+baissait le chiffre en silence.
+
+**La résolution.** Une règle `coverage_threshold` accepte un **`scope`** facultatif, `{ include: [...],
+exclude: [...] }`, décidé dans le modèle comme tout autre paramètre (§6), et mesure le couvert sur le
+total des paquets qui lui correspondent. Pour le lire, un import conserve ses comptes par paquet à côté
+de ses totaux (`t_coverage_package`, V70).
+
+- **Un paquet est un chemin.** Un `<package>` JaCoCo tel que JaCoCo le nomme, un `<package>` Cobertura
+  avec ses points lus comme des barres obliques, le répertoire d'un fichier `SF:` lcov. Par
+  *répertoire* plutôt que par fichier : le même chemin pour les trois formats, et la borne ci-dessous
+  n'atteint un fichier de trace de 50 000 fichiers que s'ils occupent plus de 10 000 répertoires. Les
+  motifs portent sur ces chemins — `**` des segments entiers, `*` au sein d'un seul, rien d'autre n'est
+  un joker — et un motif qui ne se lirait pas comme écrit (un nom de paquet à points, `**` au sein d'un
+  segment, `?`, des accolades) est refusé à la liaison de la règle, seule voie par laquelle une règle
+  entre dans une version : une version publiée ne peut pas en porter.
+- **Conservés entiers, ou pas du tout, et dit.** Les paquets ne sont conservés que s'ils s'additionnent
+  aux totaux du rapport ; plus de 10 000 paquets, un chemin de plus de 1 000 caractères (jamais tronqué :
+  deux chemins tronqués pourraient n'en faire qu'un) ou portant un caractère de contrôle, ou des comptes
+  en désaccord, ne conservent que les totaux et enregistrent pourquoi (`packages_state`). Une liste
+  tronquée mesurerait une partie du rapport comme si c'était le périmètre ; refuser l'envoi refuserait
+  des rapports que le §7 accepte, pour une raison qui ne concerne que les règles à périmètre. Les paquets
+  vivent autant que leur import, qui vit autant que son dépôt — la règle des suites de tests.
+- **Pas de données, jamais un autre chiffre.** Trois raisons rejoignent l'ensemble fermé :
+  `packages_unrecorded` — l'import le plus récent précède V70, réimport nécessaire ;
+  `packages_not_kept` ; `scope_matches_nothing` — ni 0 % ni 100 %. Les totaux du rapport ne prennent
+  jamais la place du périmètre.
+- **Montré là où l'on signe.** La preuve de chaque dépôt dit combien de paquets correspondent, et le
+  résumé — la feuille `Evidence` du §10 — énonce le périmètre à côté du chiffre, réussite comprise, pour
+  que le relecteur signe le filtre avec le chiffre.
+- **Sans périmètre, la règle d'aujourd'hui.** Le périmètre n'entre dans la forme canonique que s'il est
+  présent : une règle liée auparavant garde ses octets et son empreinte de contenu (§4), et se mesure
+  exactement comme avant.
+
+Les cas de test et les tendances restent hors champ (§11). La syntaxe est dans le
+[guide des modèles](../../../../docs-site/administration/checklist-templates.fr.md#couverture-sur-un-perimetre-de-paquets).

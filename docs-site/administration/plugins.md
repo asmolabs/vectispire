@@ -510,6 +510,19 @@ with no test case, says the step did not run — and "ran, found nothing" is a d
 The readers load no DTD and resolve no entity; a zip is inflated in memory and counted as it comes out,
 at most 5,000 entries, 32 MB each and 256 MB in all, and an archive inside it is refused.
 
+**A coverage report is kept per package too**, for the checklist rules that measure
+[a scope of packages](checklist-templates.md#coverage-over-a-scope-of-packages): each JaCoCo
+`<package>` with its own counters, each Cobertura `<package>` counted from the lines of its classes
+(never those repeated under a method), and for lcov each directory holding an `SF:` file, its records
+merged as for the totals. The packages are kept **only when they add up to the report's totals**, and
+the answer's `packagesState` says what happened: `kept`; `too_many` — more than 10,000 packages;
+`path_refused` — a path longer than 1,000 characters, or carrying a control character, which is never
+clipped; `inconsistent` — counts per package that do not add up to the totals, or that do not read.
+Whatever it says, the report is accepted and its totals are what they were: only a rule with a scope
+reads the packages, and has no data where none were kept. An import from before this version has no
+`packagesState` (`null`) and no package; upload the report again to measure a scope on it. Packages go
+with their import, which goes with its repository.
+
 **On screen**, the repository's **Imports** dialog opens with its latest coverage — lines and
 branches as a percentage with their counts, or *Not counted by the report* when there were no
 branches, the format and tool version, the commit and branch as the pipeline stated them, when and

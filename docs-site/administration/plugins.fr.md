@@ -527,6 +527,20 @@ Les lecteurs ne chargent aucune DTD et ne résolvent aucune entité ; un zip est
 compté à mesure, au plus 5 000 entrées, 32 Mo chacune et 256 Mo en tout, et une archive à l'intérieur
 est refusée.
 
+**Un rapport de couverture est aussi conservé par paquet**, pour les règles de checklist qui mesurent
+[un périmètre de paquets](checklist-templates.fr.md#couverture-sur-un-perimetre-de-paquets) : chaque
+`<package>` JaCoCo avec ses propres compteurs, chaque `<package>` Cobertura compté à partir des lignes de
+ses classes (jamais celles répétées sous une méthode), et pour lcov chaque répertoire qui contient un
+fichier `SF:`, ses enregistrements fusionnés comme pour les totaux. Les paquets ne sont conservés **que
+s'ils s'additionnent aux totaux du rapport**, et le `packagesState` de la réponse dit ce qu'il en est :
+`kept` ; `too_many` — plus de 10 000 paquets ; `path_refused` — un chemin de plus de 1 000 caractères,
+ou portant un caractère de contrôle, jamais tronqué ; `inconsistent` — des comptes par paquet qui ne
+s'additionnent pas aux totaux, ou qui ne se lisent pas. Quoi qu'il dise, le rapport est accepté et ses
+totaux sont ce qu'ils étaient : seule une règle avec un périmètre lit les paquets, et n'a pas de données
+là où aucun n'a été conservé. Un import antérieur à cette version n'a pas de `packagesState` (`null`) ni
+de paquet ; envoyer le rapport à nouveau pour y mesurer un périmètre. Les paquets partent avec leur
+import, qui part avec son dépôt.
+
 **À l'écran**, la fenêtre **Imports** du dépôt s'ouvre sur sa dernière couverture — lignes et branches
 en pourcentage avec leurs nombres, ou *Non comptées par le rapport* quand il n'y avait pas de branches,
 le format et la version de l'outil, le commit et la branche tels que le pipeline les a énoncés, quand et

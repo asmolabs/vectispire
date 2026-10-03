@@ -100,6 +100,15 @@ défaut à la mise à jour.
 
 #### Autres changements
 
+- **Un import de couverture répond `packagesState`**, et une mesure de checklist a trois raisons de
+  plus. `POST` et `GET /api/v1/repositories/{id}/coverage-imports` portent `packagesState` — `kept`,
+  `too_many`, `path_refused`, `inconsistent`, ou `null` pour un import accepté avant cette version — et la
+  `reason` d'une règle peut valoir `packages_unrecorded`, `packages_not_kept` ou `scope_matches_nothing`,
+  seulement sur une ligne de couverture [limitée à un périmètre de paquets](../administration/checklist-templates.fr.md#couverture-sur-un-perimetre-de-paquets).
+  Un client qui distingue les valeurs de `reason` doit les traiter ; celui qui ne les connaît pas lit
+  toujours une absence de données. Le formulaire d'une règle (`boundRule`, la route des règles) gagne un
+  `scope` facultatif ; une règle qui n'en a pas garde sa forme canonique et son empreinte de contenu. Le
+  schéma V70 ajoute une colonne et une table, rien à faire.
 - **Un refus de plugin a une troisième raison, `registry_authentication_required`**, et une mesure de
   checklist une raison assortie, `plugin_registry_authentication_required` : l'image du plugin déclare
   un signataire, et son registre n'a pas laissé lire la signature. Un client qui distingue les valeurs
@@ -158,6 +167,21 @@ défaut à la mise à jour.
   `unrenderable` — le `detail` de l'essai et les mêmes `cells` —, null sur toute autre version.
 
 ### Nouveautés
+
+- **Une ligne de couverture peut mesurer un périmètre de paquets**
+  ([comment l'écrire](../administration/checklist-templates.fr.md#couverture-sur-un-perimetre-de-paquets)).
+  Une règle `coverage_threshold` accepte un `scope` facultatif — des motifs `include` et `exclude` sur les
+  chemins des paquets, `**/service/**`, `org/example/**`, `**` pour des segments entiers et `*` au sein
+  d'un seul — décidé dans le modèle plutôt que dans le filtre de couverture de chaque build, où aucun
+  relecteur ne le voyait. Le chiffre est le couvert sur le total des paquets correspondants ; la preuve
+  dit combien correspondent, et le résumé de la mesure — la feuille `Evidence` du document signé — énonce
+  le périmètre à côté du chiffre. Pour le mesurer, un import de couverture conserve désormais ses comptes
+  par paquet à côté de ses totaux (un `<package>` JaCoCo ou Cobertura, le répertoire d'un fichier lcov),
+  jusqu'à 10 000 paquets et seulement s'ils s'additionnent aux totaux. Un périmètre qui ne correspond à
+  rien, un import antérieur à cette version (renvoyer le rapport) ou un import dont les paquets n'ont pas
+  été conservés est une absence de données dite en ces mots — jamais 0 %, 100 % ni les totaux du rapport.
+  Les motifs qui ne se liraient pas comme écrits — `org.example.service`, `**/serv**`, `?` — sont refusés à
+  la liaison de la règle. Tant qu'une ligne n'est pas liée de nouveau avec un périmètre, rien ne change.
 
 - **L'export d'un projet, signé, et son schéma publié** — le premier lot des plugins de rapport
   ([décision 0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md),

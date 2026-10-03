@@ -162,7 +162,7 @@ son `itemKey` avec sa `rule`, ou `null` pour la délier.
 |---|---|---|
 | `dependency_analysis` | l'analyse la plus récente dont l'étape des dépendances a produit | elle date de moins que l'âge maximal et a conservé son SBOM ; si `requireSchedule`, le dépôt est planifié au moins aussi souvent que l'âge maximal ; des `thresholds` facultatifs sur les vulnérabilités ouvertes |
 | `findings_threshold` | pour chacun de ses `scopes` — `builtin:secret`, `builtin:sast`, `builtin:iac`, `builtin:vulnerability`, `builtin:quality`, `builtin:eol`, `builtin:license`, `plugin:<id>`, `import:<source>/<outil>` — l'analyse ou l'import le plus récent où ce périmètre a produit | chaque périmètre a produit dans l'âge maximal — pour `builtin:sast`, `builtin:quality` et un plugin, sur un arbre dont il a lu les langages ([ce que l'analyse a lu](../guide/security-checklists.md#lignes-mesurees)) — et le passif respecte les `thresholds` par sévérité : `maxOpen`, `minResolvedRatio` (résolus ÷ résolus et ouverts), le triage réglé exclu des deux côtés |
-| `coverage_threshold` | l'import de couverture le plus récent | il date de moins que l'âge maximal et son taux de `line` ou de `branch` (`metric`) atteint `minimumRatio` — `per_repository`, ou `project_weighted` (`aggregation`) |
+| `coverage_threshold` | l'import de couverture le plus récent | il date de moins que l'âge maximal et son taux de `line` ou de `branch` (`metric`) atteint `minimumRatio` — `per_repository`, ou `project_weighted` (`aggregation`) — sur tout le rapport, ou sur les paquets que nomme son `scope` facultatif ([ci-dessous](#couverture-sur-un-perimetre-de-paquets)) |
 | `test_suite_passed` | l'import de rapport de tests le plus récent | une suite correspond à `suitePattern` (`*` et `?`), celles qui correspondent ont exécuté au moins `minimumTests` tests (les ignorés non comptés), aucun en échec ni en erreur |
 | `component_versions` | les composants du SBOM analysé le plus récent | chaque paquet déclaré (`purlPrefix`) est présent à l'une de ses `versions` listées — une liste explicite, sans ordre de versions |
 
@@ -180,6 +180,72 @@ est exactement lui, ou le prolonge par `/`, `@`, `?` ou `#` — `pkg:npm/left` n
 et est refusé à la liaison. Une ligne liée avec le `/` final avant ce refus garde son texte — son
 empreinte le lit — et sa mesure indique qu'il ne désigne aucun paquet ; dérivez un brouillon pour la
 lier à nouveau.
+
+### Couverture sur un périmètre de paquets
+
+Une règle `coverage_threshold` mesure tout le rapport, sauf si elle nomme un **périmètre** (`scope`) :
+les paquets qu'elle mesure, décidés par l'organisation dans le modèle. Filtrer plutôt dans chaque build
+— les `<includes>` de JaCoCo dans un `pom.xml`, un `--include` de l'outil de couverture — change le
+chiffre là où personne qui relit la checklist ne le voit ; un périmètre est lié avec la règle, affiché à
+côté de sa mesure et imprimé dans le document signé.
+
+```json
+{
+  "kind": "coverage_threshold", "maxAgeDays": 7, "metric": "line", "minimumRatio": 0.8,
+  "aggregation": "per_repository",
+  "scope": { "include": ["**/service/**", "org/example/billing/**"], "exclude": ["**/generated/**"] }
+}
+```
+
+Dans le formulaire, **Paquets mesurés** porte les deux listes, motifs séparés par des virgules ; les
+deux vides valent tout le rapport.
+
+**Les motifs portent sur les chemins des paquets**, tels qu'un import de couverture les conserve : un
+paquet JaCoCo tel que JaCoCo l'écrit (`org/example/service`), un paquet Cobertura avec ses points lus
+comme des barres obliques (`org.example.service` devient `org/example/service` ; le `.` de premier
+niveau de coverage.py est le chemin vide), et pour lcov le répertoire qui contient chaque fichier `SF:`,
+tel que le fichier de trace l'écrit — chemin absolu compris, d'où l'intérêt de commencer un motif pour
+lcov par `**/`.
+
+| Motif | Correspond à | Ne correspond pas à |
+|---|---|---|
+| `**/service/**` | `service`, `org/example/service`, `org/example/service/impl` | `org/example/services` |
+| `org/example/**` | `org/example` et tout ce qu'il contient | `org/examples` |
+| `org/example` | ce seul paquet | `org/example/service` |
+| `org/example/*-api` | `org/example/billing-api` | `org/example/billing/api` |
+| `src/app/**` | `src/app`, `src/app/orders/web` (lcov) | `/builds/shop/src/app` — écrire `**/src/app/**` |
+
+`**` vaut un nombre quelconque de segments entiers, aucun compris ; `*` vaut des caractères au sein
+d'un segment ; rien d'autre n'est un joker, et la comparaison respecte la casse. Un paquet est **dans le
+périmètre** quand un motif d'`include` lui correspond — tout paquet quand `include` est vide — et
+qu'aucun motif d'`exclude` ne lui correspond. Vingt motifs au plus dans chaque liste.
+
+**Refusé à la liaison de la règle**, en mots, plutôt que laissé ne rien désigner : un nom de paquet à
+points (`org.example.service` — écrire `org/example/service`), `**` au sein d'un segment (`**/serv**`),
+`?`, crochets, accolades ou `!` (qu'un lecteur prendrait pour des jokers), une barre oblique inverse,
+une barre oblique au début, à la fin ou doublée, un segment `.` ou `..`, un motif vide, un motif de plus
+de 500 caractères, un motif listé deux fois, et un périmètre sans aucun motif — omettre `scope` pour
+mesurer tout le rapport.
+
+**Ce qu'il mesure.** Les lignes (ou branches) couvertes sur celles comptées, additionnées sur les
+paquets du périmètre dans l'import de couverture le plus récent de chaque dépôt — par dépôt, ou sur le
+projet pondéré par la taille, selon `aggregation`. La preuve de chaque dépôt dit combien de paquets
+correspondent — *2 of 14 packages in the scope; 412 of 480 lines covered* — et le résumé de la mesure,
+que la feuille `Evidence` du document signé imprime, énonce le périmètre à côté du chiffre, réussite
+comprise.
+
+**Pas de données, jamais un chiffre qui ne serait pas celui du périmètre :**
+
+- `scope_matches_nothing` — aucun paquet du rapport n'entre dans le périmètre : ni 0 %, ni 100 %.
+  Comparer les motifs aux chemins du rapport (ceux de lcov sont souvent absolus).
+- `packages_unrecorded` — l'import le plus récent a été accepté avant que les imports ne conservent
+  leurs paquets ; seuls ses totaux sont connus. Le prochain envoi du pipeline mesure le périmètre.
+- `packages_not_kept` — l'import a conservé ses totaux et pas ses paquets : plus de 10 000, un chemin de
+  plus de 1 000 caractères ou portant un caractère de contrôle, ou des comptes par paquet qui ne
+  s'additionnent pas aux totaux du rapport ([ce qu'un import conserve](plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests)).
+
+Une règle sans périmètre est mesurée exactement comme avant, et garde la forme canonique — donc
+l'empreinte de contenu — qu'elle avait.
 
 Une liaison **fait partie de ce que la ligne demande**, comme son exigence de preuve : une ligne dont
 la liaison a changé est *modifiée* par rapport à la version précédente, et la réponse d'un projet

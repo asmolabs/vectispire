@@ -128,7 +128,8 @@ L1 and L2 have no dependency on the checklist and can start at once, in parallel
 - Report plugins (the P3 block): containers receiving `checklist.json`, their output signed by core
   — a decision record of its own before any code.
 - Signed checklists in the compliance evidence bundle.
-- Version ordering for component versions; coverage per file; assignment from the contact column.
+- Version ordering for component versions; coverage per file — done per package, with a coverage rule's
+  scope, on 2026-10-03 (0032's amendment of that date); assignment from the contact column.
 
 ## What every lot runs before it is pushed
 

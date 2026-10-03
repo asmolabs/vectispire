@@ -709,3 +709,42 @@ path; the precedent is `EXAMINATION_UNRECORDED`. Rules an executor reads from it
 `VECTISPIRE_SEMGREP_RULES_DIR` are not counted, and a `javascript/` rule that also reads TypeScript
 counts for JavaScript alone: both errors keep a line from passing and never make one pass. Imported
 tools record no language and are not judged by it.
+
+## Amendment (2026-10-03) — coverage per package, and the scope of a coverage rule
+
+**The gap.** §7 kept a coverage report's totals and §11 left coverage per file out. An organisation
+whose KPI is *"80 % of the service layer"* could only filter in each build — JaCoCo's `<includes>` in a
+`pom.xml` — and write the filter into the KPI's text: the figure the line was measured on was then
+decided where nobody signing the checklist could see it, and a build that dropped the filter raised or
+lowered the figure silently.
+
+**The resolution.** A `coverage_threshold` rule takes an optional **`scope`**, `{ include: [...],
+exclude: [...] }`, decided in the template like every other parameter (§6), and measures covered over
+total across the packages it matches. To read it, an import keeps its counts per package beside its
+totals (`t_coverage_package`, V70).
+
+- **A package is a path.** A JaCoCo `<package>` as JaCoCo names it, a Cobertura `<package>` with its
+  dots read as slashes, the directory of an lcov `SF:` file. Per *directory* rather than per file: the
+  same path for the three formats, and the bound below reaches a tracefile of 50,000 files only when
+  they sit in more than 10,000 directories. Patterns are over those paths — `**` whole segments, `*`
+  within one, nothing else a wildcard — and a pattern that would not read as written (a dotted package
+  name, `**` inside a segment, `?`, braces) is refused when the rule is bound, the only way a rule
+  enters a version: a published version cannot hold one.
+- **Kept whole, or not at all, and said.** The packages are kept only when they add up to the report's
+  totals; more than 10,000 packages, a path past 1,000 characters (never clipped: two clipped paths
+  could become one) or carrying a control character, or counts that disagree, keep the totals alone and
+  record why (`packages_state`). A truncated list would measure a part of the report as if it were the
+  scope; refusing the upload would refuse reports §7 accepts, for a reason that concerns only scoped
+  rules. The packages live as long as their import, which lives as long as its repository — the test
+  suites' rule.
+- **No data, never another figure.** Three reasons join the closed set: `packages_unrecorded` — the
+  newest import predates V70, re-import needed; `packages_not_kept`; `scope_matches_nothing` — neither
+  0 % nor 100 %. The report's totals are never put in the scope's place.
+- **Shown where it is signed.** The evidence of each repository names how many packages matched, and
+  the summary — the `Evidence` sheet of §10 — states the scope beside the figure, a scoped pass
+  included, so that the reviewer signs the filter with the figure.
+- **No scope is today's rule.** The scope enters the canonical form only when present, so a rule
+  bound before keeps its bytes and its content digest (§4), and is measured exactly as it was.
+
+Test cases and trends stay out of scope (§11). The authoring syntax is in the
+[template guide](../../../../docs-site/administration/checklist-templates.md#coverage-over-a-scope-of-packages).
