@@ -3278,6 +3278,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scorecards/simulation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Simulate a candidate scorecard formula (experimental)
+         * @description Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × open issues / k), an exploited issue capping the grade at D, and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.
+         */
+        get: operations["simulateScores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/security/overview": {
         parameters: {
             query?: never;
@@ -6949,6 +6969,59 @@ export interface components {
             cvss_v3?: {
                 [key: string]: unknown;
             };
+        };
+        ScoreSimulation: {
+            grades?: components["schemas"]["ScoreSimulationGrade"][];
+            targets?: components["schemas"]["ScoreSimulationTarget"][];
+            weights?: components["schemas"]["ScoreSimulationWeights"];
+        };
+        ScoreSimulationGrade: {
+            /** Format: int64 */
+            candidate: number;
+            /** Format: int64 */
+            current: number;
+            /** @enum {string} */
+            grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+        };
+        ScoreSimulationTarget: {
+            /** Format: double */
+            candidateExact?: number;
+            /** @enum {string} */
+            candidateGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: int32 */
+            candidateScore?: number;
+            /** Format: int64 */
+            critical: number;
+            /** @enum {string} */
+            currentGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: int32 */
+            currentScore?: number;
+            /** Format: int64 */
+            exploited: number;
+            /** Format: int64 */
+            high: number;
+            /** Format: int64 */
+            low: number;
+            /** Format: int64 */
+            medium: number;
+            /** Format: int64 */
+            targetId: number;
+            targetKind?: string;
+            targetName?: string;
+        };
+        ScoreSimulationWeights: {
+            /** Format: double */
+            critical: number;
+            /** Format: double */
+            exploited: number;
+            /** Format: double */
+            high: number;
+            /** Format: double */
+            k: number;
+            /** Format: double */
+            low: number;
+            /** Format: double */
+            medium: number;
         };
         SealingKeyRequest: {
             /** Format: int64 */
@@ -12579,6 +12652,48 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BadgeState"];
+                };
+            };
+        };
+    };
+    simulateScores: {
+        parameters: {
+            query?: {
+                /** @description Weight of an actively exploited (CISA KEV) issue, any severity */
+                exploited?: number;
+                /** @description Weight of a critical issue */
+                critical?: number;
+                /** @description Weight of a high issue */
+                high?: number;
+                /** @description Weight of a medium issue (or one with no severity) */
+                medium?: number;
+                /** @description Weight of a low issue */
+                low?: number;
+                /** @description The weighted backlog that brings the score to 100/e (about 37) */
+                k?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Both formulas over the caller's estate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScoreSimulation"];
+                };
+            };
+            /** @description A weight that is negative or not finite, or a k that is not positive */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScoreSimulation"];
                 };
             };
         };

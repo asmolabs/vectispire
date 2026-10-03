@@ -4,10 +4,12 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.access.web.security.Visibilities;
+import com.asmolabs.vectispire.core.posture.ScoreSimulationService;
 import com.asmolabs.vectispire.core.posture.ScorecardBadgeService;
 import com.asmolabs.vectispire.core.posture.SecurityScorecardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -40,12 +43,17 @@ public class ScorecardController {
     private final SecurityScorecardService scorecardService;
     private final VisibilityService visibility;
     private final ScorecardBadgeService badges;
+    private final ScoreSimulationService simulations;
 
     public ScorecardController(
-            SecurityScorecardService scorecardService, VisibilityService visibility, ScorecardBadgeService badges) {
+            SecurityScorecardService scorecardService,
+            VisibilityService visibility,
+            ScorecardBadgeService badges,
+            ScoreSimulationService simulations) {
         this.scorecardService = scorecardService;
         this.visibility = visibility;
         this.badges = badges;
+        this.simulations = simulations;
     }
 
     @Operation(summary = "Get repository scorecard", description = "Calculates security grade (A+ to F), risk posture, and metric breakdown for a repository.")
@@ -80,6 +88,35 @@ public class ScorecardController {
     public SecurityScorecard getGlobalScorecard(@AuthenticationPrincipal VectispirePrincipal principal) {
         return scorecardService.getGlobalScorecard(
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    }
+
+    /**
+     * <b>Experimental.</b> Every visible target's score under the production formula beside a
+     * candidate's, and how many targets read each grade under each — so that a change of formula is
+     * decided on the estate's own figures. Grades nothing that is shown elsewhere, writes nothing.
+     *
+     * <p><b>Administrators only</b>, because what it serves is a deliberation about the product, not a
+     * figure anyone acts on — and still narrowed to the caller's allowance like every figure of the
+     * estate, so that the day the marker admits a narrower role the route does not leak.
+     */
+    @Operation(summary = "Simulate a candidate scorecard formula (experimental)",
+            description = "Lists every visible target's current score and grade beside the candidate's, "
+                    + "100 × exp(−Σ weight × open issues / k), an exploited issue capping the grade at D, "
+                    + "and the grade distribution under each. Parameters left out take the proposed values. "
+                    + "Experimental: nothing is stored and no card, badge or ranking changes.")
+    @ApiResponse(responseCode = "200", description = "Both formulas over the caller's estate")
+    @ApiResponse(responseCode = "400", description = "A weight that is negative or not finite, or a k that is not positive")
+    @GetMapping("/simulation")
+    @RequiresAdministrator
+    public ScoreSimulationService.ScoreSimulation simulateScores(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = "Weight of an actively exploited (CISA KEV) issue, any severity") @RequestParam(value = "exploited", required = false) Double exploited,
+            @Parameter(description = "Weight of a critical issue") @RequestParam(value = "critical", required = false) Double critical,
+            @Parameter(description = "Weight of a high issue") @RequestParam(value = "high", required = false) Double high,
+            @Parameter(description = "Weight of a medium issue (or one with no severity)") @RequestParam(value = "medium", required = false) Double medium,
+            @Parameter(description = "Weight of a low issue") @RequestParam(value = "low", required = false) Double low,
+            @Parameter(description = "The weighted backlog that brings the score to 100/e (about 37)") @RequestParam(value = "k", required = false) Double k) {
+        return simulations.simulate(allowed(principal), exploited, critical, high, medium, low, k);
     }
 
     /** @param url what to paste into a README, absent when no badge is published */

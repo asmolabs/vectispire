@@ -8123,6 +8123,130 @@
         },
         "type" : "object"
       },
+      "ScoreSimulation" : {
+        "properties" : {
+          "grades" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ScoreSimulationGrade"
+            },
+            "type" : "array"
+          },
+          "targets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ScoreSimulationTarget"
+            },
+            "type" : "array"
+          },
+          "weights" : {
+            "$ref" : "#/components/schemas/ScoreSimulationWeights"
+          }
+        },
+        "type" : "object"
+      },
+      "ScoreSimulationGrade" : {
+        "properties" : {
+          "candidate" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "current" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "grade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "candidate", "current" ],
+        "type" : "object"
+      },
+      "ScoreSimulationTarget" : {
+        "properties" : {
+          "candidateExact" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "candidateGrade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "candidateScore" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "critical" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "currentGrade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "currentScore" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "exploited" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "high" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "low" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "medium" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "critical", "exploited", "high", "low", "medium", "targetId" ],
+        "type" : "object"
+      },
+      "ScoreSimulationWeights" : {
+        "properties" : {
+          "critical" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "exploited" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "high" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "k" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "low" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "medium" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "critical", "exploited", "high", "k", "low", "medium" ],
+        "type" : "object"
+      },
       "SealingKeyRequest" : {
         "properties" : {
           "generation" : {
@@ -16759,6 +16883,91 @@
           }
         },
         "summary" : "Publish a repository's security badge",
+        "tags" : [ "Scorecards" ]
+      }
+    },
+    "/api/v1/scorecards/simulation" : {
+      "get" : {
+        "description" : "Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × open issues / k), an exploited issue capping the grade at D, and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.",
+        "operationId" : "simulateScores",
+        "parameters" : [ {
+          "description" : "Weight of an actively exploited (CISA KEV) issue, any severity",
+          "in" : "query",
+          "name" : "exploited",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        }, {
+          "description" : "Weight of a critical issue",
+          "in" : "query",
+          "name" : "critical",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        }, {
+          "description" : "Weight of a high issue",
+          "in" : "query",
+          "name" : "high",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        }, {
+          "description" : "Weight of a medium issue (or one with no severity)",
+          "in" : "query",
+          "name" : "medium",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        }, {
+          "description" : "Weight of a low issue",
+          "in" : "query",
+          "name" : "low",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        }, {
+          "description" : "The weighted backlog that brings the score to 100/e (about 37)",
+          "in" : "query",
+          "name" : "k",
+          "required" : false,
+          "schema" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScoreSimulation"
+                }
+              }
+            },
+            "description" : "Both formulas over the caller's estate"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScoreSimulation"
+                }
+              }
+            },
+            "description" : "A weight that is negative or not finite, or a k that is not positive"
+          }
+        },
+        "summary" : "Simulate a candidate scorecard formula (experimental)",
         "tags" : [ "Scorecards" ]
       }
     },

@@ -224,6 +224,32 @@ compteurs de la fiche, pas seulement la lettre.
 Cette note est aussi celle du classement de maturité du tableau de bord : une cible y lit le même
 score et la même lettre — voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
 
+### Une formule candidate, pour comparer (expérimental) {#score-simulation}
+
+**Expérimental — rien ne change sur une fiche, une pastille ni le classement.** Pour décider s'il faut
+remplacer la formule ci-dessus, un administrateur peut voir chaque cible notée des deux façons sur le
+backlog réel du parc : `GET /api/v1/scorecards/simulation`. Rien n'est enregistré ni consigné.
+
+La candidate est **100 × exp(−Σ poids × problèmes ouverts / k)** : chaque problème retire une part de
+ce qui reste au lieu d'un nombre fixe de points, le score continue donc de baisser avec le backlog sans
+jamais atteindre 0, et cinquante moyennes ne se lisent plus comme cinq cents. Les poids proposés sont
+25 pour un problème activement exploité (CISA KEV, quelle que soit sa sévérité — compté dans cette
+classe seulement), 10 pour un critique, 4 pour un haut, 1 pour un moyen et 0,25 pour un bas, avec
+**k = 55**. Tout problème exploité plafonne la note à **D** (score 54 au plus). Les seuils de note sont
+ceux du tableau ci-dessus, inchangés. Les mêmes problèmes comptent que pour le score actuel — ouverts,
+triage non réglé — et une cible sans scan terminé est `NO_DATA` dans les deux. La candidate laisse de
+côté les termes de licence et de scan terminé.
+
+Avec ces valeurs, un critique donne 83 (B), un critique exploité 54 (D, plafonné), cinquante moyennes
+40 (D), cinq cents moyennes 1 (F) et vingt-sept hautes 14 (F). Avec les moyennes à 1, aucun `k` ne
+donne à la fois B pour un critique et C pour cinquante moyennes ; à 0,5, cinquante moyennes donnent
+63 (C).
+
+Chacun de `exploited`, `critical`, `high`, `medium`, `low` et `k` peut être passé en paramètre de
+requête pour essayer d'autres valeurs ; un paramètre absent prend la valeur proposée. La réponse liste
+pour chaque cible le score et la note actuels et candidats avec ses compteurs, et combien de cibles
+lisent chaque note sous chaque formule.
+
 ## Langages {#languages}
 
 Chaque dépôt montre, sous ses détails, les langages recensés par son **scan terminé le plus récent**,

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
+import com.asmolabs.vectispire.common.domain.scorecard.CandidateScore;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -218,6 +219,44 @@ public class SecurityScorecardService {
                     card.score(), card.grade(), open.critical(), open.high(), open.medium(), open.low()));
         }
         return grades;
+    }
+
+    /**
+     * <b>Experimental, for the score simulation only</b> ({@link ScoreSimulationService}): every
+     * visible target's open backlog in the classes {@link CandidateScore} weighs — read through the
+     * same grouped query, the same allowance and the same open-and-unsettled rule as {@link #gradeEach},
+     * so that the two formulas are compared on the same issues. An exploited issue is counted as
+     * exploited and under no severity; an issue with no severity is a medium, as the ranking counts it;
+     * a severity neither critical, high nor medium is a low.
+     *
+     * <p>A target with nothing open is absent; the caller reads it as {@link CandidateScore.Counts#NONE}.
+     */
+    public Map<ScanTarget, CandidateScore.Counts> candidateCounts(Visibility allowed) {
+        Map<ScanTarget, long[]> sums = new LinkedHashMap<>();
+        for (IssueAggregates.TargetGradingCount row : issuesRepo.countForGradingByTarget(openWithin(allowed))) {
+            ScanTarget target = targetOf(row.repoId(), row.containerId());
+            if (target == null || !Terms.isOpen(row.state())) {
+                continue;
+            }
+            long[] sum = sums.computeIfAbsent(target, key -> new long[5]);
+            String severity = row.severity() == null ? null : row.severity().toUpperCase(Locale.ROOT);
+            int slot;
+            if (row.kev()) {
+                slot = 0;
+            } else if ("CRITICAL".equals(severity)) {
+                slot = 1;
+            } else if ("HIGH".equals(severity)) {
+                slot = 2;
+            } else if (severity == null || "MEDIUM".equals(severity)) {
+                slot = 3;
+            } else {
+                slot = 4;
+            }
+            sum[slot] += row.count();
+        }
+        Map<ScanTarget, CandidateScore.Counts> counts = new LinkedHashMap<>();
+        sums.forEach((target, sum) -> counts.put(target, new CandidateScore.Counts(sum[0], sum[1], sum[2], sum[3], sum[4])));
+        return counts;
     }
 
     /** How many entries of an inventory the policy refuses: five points each on the score. */

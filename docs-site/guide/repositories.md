@@ -216,6 +216,29 @@ scorecard, not only the letter.
 This grade is also the one in the dashboard's maturity ranking: a target reads the same score and
 the same letter there — see [Dashboard](dashboard.md#security-posture-grade).
 
+### A candidate formula, to compare (experimental) {#score-simulation}
+
+**Experimental — nothing on a card, a badge or the ranking changes.** To decide whether to replace
+the formula above, an administrator can see every target scored both ways on the estate's own
+backlog: `GET /api/v1/scorecards/simulation`. Nothing is stored and nothing is recorded.
+
+The candidate is **100 × exp(−Σ weight × open issues / k)**: each issue removes a share of what is
+left instead of a fixed number of points, so the score keeps falling with the backlog without ever
+reaching 0, and fifty mediums no longer read like five hundred. The proposed weights are 25 for an
+actively exploited issue (CISA KEV, whatever its severity — counted in that class only), 10 for a
+critical, 4 for a high, 1 for a medium and 0.25 for a low, with **k = 55**. Any exploited issue caps
+the grade at **D** (score 54 at most). The grade bands are the table above, unchanged. The same issues
+count as for the current score — open, triage not settled — and a target with no completed scan is
+`NO_DATA` under both. The candidate leaves out the licence and completed-scan terms.
+
+With these values one critical reads 83 (B), one exploited critical 54 (D, capped), fifty mediums 40
+(D), five hundred mediums 1 (F) and twenty-seven highs 14 (F). With mediums at 1, no `k` makes both
+one critical a B and fifty mediums a C; at 0.5, fifty mediums read 63 (C).
+
+Each of `exploited`, `critical`, `high`, `medium`, `low` and `k` can be passed as a query parameter
+to try other values; one left out takes the proposed value. The answer lists each target's current and
+candidate score and grade with its counts, and how many targets read each grade under each formula.
+
 ## Languages {#languages}
 
 Each repository shows, under its details, the languages its **newest completed scan** counted, as

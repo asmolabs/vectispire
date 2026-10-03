@@ -56,6 +56,10 @@
 
 ### Nouveautés
 
+- **Expérimental : une formule candidate du scorecard, à côté de l'actuelle.**
+  `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible visible des deux
+  façons pour que le changement de formule se décide sur les chiffres du parc ; aucune note ne change
+  ([comment](../guide/repositories.fr.md#score-simulation)).
 - **Un relevé hebdomadaire de la couverture OWASP Top 10 commence maintenant.** Toutes les six heures au
   plus, le passage de maintenance enregistre, pour chaque dépôt et chaque image — analysés ou non — et pour
   chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien
