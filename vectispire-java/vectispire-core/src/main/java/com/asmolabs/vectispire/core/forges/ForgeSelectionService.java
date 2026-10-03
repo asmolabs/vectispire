@@ -141,18 +141,18 @@ public class ForgeSelectionService {
         if (operation == Operation.PROPOSED) {
             result.clear();
         }
+        // Every operation works on ids; what may not be ticked leaves the selection once, below, whatever put it there.
         for (Row row : rows) {
             String id = row.repository().getForgeId();
             boolean matches = filter.judge(candidate(row), now).matches();
-            boolean selectable = row.notSelectable().isEmpty();
             switch (operation) {
                 case PROPOSED -> {
-                    if (matches && selectable && !row.repository().getPersonal()) {
+                    if (matches && !row.repository().getPersonal()) {
                         result.add(id);
                     }
                 }
                 case ALL -> {
-                    if (matches && selectable) {
+                    if (matches) {
                         result.add(id);
                     }
                 }
@@ -162,7 +162,7 @@ public class ForgeSelectionService {
                     }
                 }
                 case INVERT -> {
-                    if (matches && selectable && !result.remove(id)) {
+                    if (matches && !result.remove(id)) {
                         result.add(id);
                     }
                 }
