@@ -559,6 +559,93 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("a service holds no query API: it hands its repository criteria, and the repository writes the query")
+    void servicesHoldNoQueryApi() {
+        // `onlyRepositoriesReachTheDatabase` closed the drivers and Hibernate; the doors beside them stayed
+        // open. A service holding an `EntityManager`, a `CriteriaBuilder` or a `JdbcTemplate` writes SQL
+        // where no query-shape rule reads it — `CrossModuleQueriesTest` scans the repositories' JPQL, the
+        // engines campaign runs the repositories' statements, and a query assembled in a service is in
+        // neither. The same is true of Spring Data JPA's own query API: `IssueCatalog` and `SlaService`
+        // drove a `Specification`'s fluent query themselves until this rule moved it into
+        // `IssueRepository.findAllAs`. What a service keeps: its module's entities (it is the layer above
+        // them, and reads and changes them), Spring Data's paging vocabulary (`org.springframework.data.
+        // domain` — `Page`, `PageRequest`, `Sort`, `Limit`), a repository's inherited methods
+        // (`assignments::save` is a reference to `CrudRepository.save`), and the exceptions Spring
+        // translates into `org.springframework.dao`. Not `jakarta.persistence` at all — not even its
+        // exceptions, which reach a service only already translated.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer("", ".internal.."))
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "jakarta.persistence..",
+                        "org.springframework.data.jpa..",
+                        "org.springframework.jdbc..",
+                        "org.springframework.orm.jpa..")
+                .check(classes);
+        // And nothing outside a module's `persistence` is a repository — a class as much as an interface:
+        // `repositoriesAreNamedAndPlacedAsRepositories` reads interfaces, and a service implementing
+        // `CrudRepository` by hand would be a second persistence layer no rule of that file sees.
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().areAssignableTo(SPRING_DATA_REPOSITORY)
+                .should().resideInAnyPackage(layer(".persistence.."))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a controller holds nothing of JPA, Spring Data or JDBC")
+    void controllersHoldNoPersistenceApi() {
+        // `apiNeverTouchesPersistence` keeps the modules' own `persistence` packages away from `web`; this
+        // keeps the libraries under them away too, which that rule cannot see: a controller injecting an
+        // `EntityManager` or a `JdbcTemplate` names no class of ours. All of Spring Data, `domain` included:
+        // a `Pageable` parameter or a `Page` in a response makes Spring Data's page shape the wire contract
+        // — its JSON is not stable across releases, Spring Data says so itself — where a route answers a
+        // record of its own and the contract test reads it.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "jakarta.persistence..",
+                        "org.springframework.data..",
+                        "org.springframework.jdbc..",
+                        "org.springframework.orm..",
+                        "org.hibernate..",
+                        "java.sql..",
+                        "javax.sql..")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("core.config sits under every module: it uses none, and none uses it")
+    void configSitsUnderEveryModule() {
+        // `core.config` is the datasource, the per-engine migration placeholders, the mapper, the clock
+        // and the schedulers — what every module is built on and no domain owns. Modulith sees it as a
+        // module with no list, which to Modulith means "may use anything", and `platform`, which declares
+        // no list either, may use it: neither direction is checked anywhere else. Downwards, it may use
+        // the common domain and the frameworks: a line of `config` reaching a module is a domain decision
+        // made in the composition, the thing the package is not for, and it closes a cycle with every
+        // module that receives the beans `config` makes. `layersOnlyReachDownwards` refuses this direction
+        // too, but only as a side effect — a class in no layer counts as an outsider to every layer's
+        // "may only be accessed by" — and a change to that rule's shape would drop it without a word.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(CORE + ".config..")
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "belong to a module of core",
+                        (JavaClass type) -> type.getPackageName().startsWith(CORE + ".")
+                                && !type.getPackageName().startsWith(CORE + ".config")))
+                .check(classes);
+        // Upwards: a module receives what `config` makes by its type (`ObjectMapper`, `Clock`, a
+        // `DataSource`), never by a class of `config`. One that read `MigrationDialect` or a properties
+        // record of `config` would make the composition part of its API, and the next change to the
+        // engines' setup a change to that domain.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + "..")
+                .and().resideOutsideOfPackage(CORE + ".config..")
+                .should().dependOnClassesThat().resideInAPackage(CORE + ".config..")
+                .check(classes);
+    }
+
+    @Test
     @DisplayName("an outbound call goes through the door that validates and pins")
     void onlyTheOutboundDoorSpeaksHttpOutwards() {
         // **The rule the guard cannot enforce for itself.** `OutboundUrlGuard` refuses a URL
@@ -580,6 +667,28 @@ class ArchitectureTest {
                 .and().haveNameNotMatching(".*\\.(PinnedHttpSender|OutboundPost|OutboundJson)(\\$.*)?")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("java.net.http..", "org.apache.hc..")
+                .check(classes);
+        // **And no other client, not even in the door.** The rule above named the two clients the door
+        // is built on; Spring's own — `RestClient`, `RestTemplate`, `WebClient`, the request factories
+        // under them — and the JDK's `URLConnection` were open to any class, and each would reach a
+        // setting's URL with no `OutboundUrlGuard`, no pinned address and redirects followed: the SSRF the
+        // guard exists to refuse, to the Docker proxy or the database host. The door is Apache's client
+        // with its resolver pinned, so none of these is needed anywhere; `java.net.URL` stays a value
+        // (a principal's issuer is one) and is closed only where it opens a connection.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "org.springframework.web.client..",
+                        "org.springframework.web.reactive.function.client..",
+                        "org.springframework.http.client..",
+                        "org.apache.http..",
+                        "okhttp3..")
+                .orShould().dependOnClassesThat().areAssignableTo(java.net.URLConnection.class)
+                .orShould().callMethodWhere(DescribedPredicate.describe(
+                        "URL.openConnection or URL.openStream",
+                        call -> call.getTargetOwner().isEquivalentTo(java.net.URL.class)
+                                && Set.of("openConnection", "openStream").contains(call.getName())))
                 .check(classes);
     }
 

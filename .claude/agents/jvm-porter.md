@@ -53,9 +53,17 @@ core.<module>.persistence   its entities, its repositories, and the projections 
 A package-private class stays at the root beside its users — moving it to `internal` means widening
 it. The packages by layer — `core.api`, `core.services`, `core.repositories`, `core.persistence` — are
 gone, and so is `shared`; `core.config` (the datasource, the engines' setup, the mapper, the
-schedulers) is the one package outside a module, and nothing domain-shaped goes into it. **Inside a
-module the layers hold**: `web` calls the module's root, never `internal`
-(`controllersCallTheirModuleApi`) and never any `persistence` (`apiNeverTouchesPersistence`);
+schedulers) is the one package outside a module, and nothing domain-shaped goes into it: it uses
+no module, and no module uses a class of it — a module receives its beans by their type
+(`configSitsUnderEveryModule`). **Inside a module the layers hold**: `web` calls the module's root,
+never `internal` (`controllersCallTheirModuleApi`) and never any `persistence`
+(`apiNeverTouchesPersistence`), nor anything of JPA, Spring Data — `Pageable` and `Page` included,
+whose JSON is not a contract — or JDBC (`controllersHoldNoPersistenceApi`); the services hold no query
+API — no `EntityManager`, `CriteriaBuilder`, `Specification` or fluent query, no `JdbcTemplate`, nothing
+of `jakarta.persistence` — and hand their repository criteria instead (`IssueRepository.findAllAs`
+drives the fluent query `IssueCatalog` and `SlaService` once drove themselves); only Spring Data's
+paging vocabulary, the inherited repository methods and the translated `org.springframework.dao`
+exceptions cross (`servicesHoldNoQueryApi`), and nothing outside `persistence` implements a repository;
 `persistence` reaches nothing above it, and an entity names no repository. **Between modules, only the
 root or a named interface**: reading another module's repository is the coupling the modules exist to
 show — add a method to the owner's API instead (`TargetCatalog`, `ScanCatalog`, `IssueCatalog` run the
@@ -399,7 +407,8 @@ one screen and none from the other. Keep the body private and the wrapper the on
 
 **Every outbound call goes through `OutboundJson`/`OutboundPost` → `PinnedHttpSender`**, which
 resolves, pins and classifies the address and refuses redirects. Never build an `HttpClient` of
-your own. A destination a non-administrator can set must not be able to reach the Docker proxy or
+your own — nor a `RestClient`, `RestTemplate`, `WebClient` or `URLConnection`, which
+`onlyTheOutboundDoorSpeaksHttpOutwards` refuses everywhere, the door included. A destination a non-administrator can set must not be able to reach the Docker proxy or
 the database host.
 
 **Figures of risk leave settled triage out** — grades, rankings, plans, attack paths, per-severity

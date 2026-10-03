@@ -129,7 +129,14 @@ vertical module ([0028](docs/architecture/en/decisions/0028-vertical-modules.md)
 [0029](docs/architecture/en/decisions/0029-core-domains-become-modules.md)). A service writing
 SQL, or a domain class importing Spring, fails the suite. Every domain is `core/<module>/` with
 `web`, `internal` and `persistence` beneath; the packages by layer are gone and `core/config/` is the
-one package outside a module. **Between modules, Spring Modulith is the authority**
+one package outside a module — it uses no module and no module uses it (`configSitsUnderEveryModule`).
+A service (a module's root or `internal`) holds no query API — nothing of `jakarta.persistence`,
+Spring Data JPA, `org.springframework.jdbc` or a driver; it hands its repository criteria, and only
+Spring Data's paging vocabulary (`org.springframework.data.domain`) crosses (`servicesHoldNoQueryApi`).
+A controller holds nothing of JPA, Spring Data or JDBC at all (`controllersHoldNoPersistenceApi`). No
+class reaches the network through `RestClient`, `RestTemplate`, `WebClient` or a `URLConnection`: an
+outbound call goes through `PinnedHttpSender` and the guard in front of it
+(`onlyTheOutboundDoorSpeaksHttpOutwards`). **Between modules, Spring Modulith is the authority**
 ([0030](docs/architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)):
 `ModularityTest` runs `verify()` and fails the build on a cycle, on a reach into another module's
 internals, and on a dependency the module's `package-info` does not list in
