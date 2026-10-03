@@ -20,6 +20,8 @@ import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
@@ -75,6 +77,7 @@ public class ReportRunService {
     private final ReportDocumentRepository documents;
     private final ReportPluginRepository plugins;
     private final ReportPluginActivationRepository activations;
+    private final ReportWithdrawals withdrawals;
     private final SolutionQueryService projects;
     private final ObjectProvider<ReportExecutor> executor;
     private final AuditLogService audit;
@@ -86,6 +89,7 @@ public class ReportRunService {
             ReportDocumentRepository documents,
             ReportPluginRepository plugins,
             ReportPluginActivationRepository activations,
+            ReportWithdrawals withdrawals,
             SolutionQueryService projects,
             ObjectProvider<ReportExecutor> executor,
             AuditLogService audit,
@@ -95,6 +99,7 @@ public class ReportRunService {
         this.documents = documents;
         this.plugins = plugins;
         this.activations = activations;
+        this.withdrawals = withdrawals;
         this.projects = projects;
         this.executor = executor;
         this.audit = audit;
@@ -171,27 +176,31 @@ public class ReportRunService {
         audit.record(actor.entry(AuditOperation.REPORT_REQUESTED, String.valueOf(saved.getId()),
                 "Report requested of report plugin \"" + pluginId + "\" for project \"" + projectName + "\" ("
                         + projectId + "), run " + saved.getId() + ": queued for the control plane's executor."));
-        return view(saved);
+        return view(saved, Optional.empty());
     }
 
     /** The project's runs, newest first, for a caller who sees the whole project; 404 otherwise. */
     public List<ReportRunView> runs(long projectId, VisibilityService.Allowance allowance) {
         ReportPluginService.requireWholeProject(projects, projectId, allowance);
-        return runs.findByProjectIdOrderByRequestedAtDescIdDesc(projectId, PageRequest.of(0, LISTED)).stream()
-                .map(ReportRunService::view)
+        List<ReportRunEntity> page = runs.findByProjectIdOrderByRequestedAtDescIdDesc(projectId, PageRequest.of(0, LISTED));
+        Map<String, ReportWithdrawal> withdrawn = withdrawals.of(page.stream().map(ReportRunEntity::getManifestDigest).toList());
+        return page.stream()
+                .map(run -> view(run, Optional.ofNullable(run.getManifestDigest()).map(withdrawn::get)))
                 .toList();
     }
 
     /** One run of the project; the project's 404 first, then the run's. */
     public ReportRunView run(long projectId, long runId, VisibilityService.Allowance allowance) {
         ReportPluginService.requireWholeProject(projects, projectId, allowance);
-        return runs.findByIdAndProjectId(runId, projectId).map(ReportRunService::view)
+        return runs.findByIdAndProjectId(runId, projectId).map(run -> view(run, withdrawals.of(run.getManifestDigest())))
                 .orElseThrow(() -> new NotFoundException("Report run " + runId + " not found."));
     }
 
     /**
      * A produced run's package, for a caller who sees the whole project — audited {@code REPORT_DOWNLOADED} once
-     * read.
+     * read. A document whose manifest was withdrawn is handed over all the same, with its withdrawal: it is
+     * evidence of what was handed out, and refusing it would leave its holders unable to compare their copy, while
+     * the response and the run say that the installation no longer stands by it (0035 §4).
      *
      * @throws NotFoundException "Project not found." for a project absent, hidden or seen only in part; then the
      *     run's 404, a run that produced no document, or a document purged past the evidence window
@@ -211,12 +220,16 @@ public class ReportRunService {
                         + "window. The run keeps its digests — output " + run.getOutputSha256() + ", package "
                         + run.getPackageSha256() + "."));
 
+        Optional<ReportWithdrawal> withdrawal = withdrawals.of(run.getManifestDigest());
+
         audit.record(actor.entry(AuditOperation.REPORT_DOWNLOADED, String.valueOf(runId),
                 "Report downloaded, run " + runId + ": output " + run.getOutputSha256() + ", package "
                         + document.getSha256() + "; report plugin \"" + run.getPluginId() + "\", project \""
-                        + run.getProjectName() + "\" (" + projectId + ")."));
+                        + run.getProjectName() + "\" (" + projectId + ")"
+                        + withdrawal.map(found -> "; served as withdrawn, its manifest withdrawn at "
+                                + found.withdrawnAt() + ".").orElse(".")));
         return new ReportDocumentDownload("report-" + runId + "-" + run.getPluginId() + ".zip", document.getSha256(),
-                document.getContent());
+                document.getContent(), withdrawal);
     }
 
     /** What keeps one run of a plugin per project pending or running at a time. */
@@ -234,13 +247,16 @@ public class ReportRunService {
         return "Report plugin \"" + pluginId + "\" is not switched on for project " + projectId + ".";
     }
 
-    static ReportRunView view(ReportRunEntity run) {
+    static ReportRunView view(ReportRunEntity run, Optional<ReportWithdrawal> withdrawal) {
         return new ReportRunView(run.getId(), run.getProjectId(), run.getProjectName(), run.getPluginId(),
                 ReportRunState.ofStored(run.getState()), ReportRunReason.ofStored(run.getReason()).orElse(null),
                 run.getDetail(), run.getRequestedAt(), run.getRequestedBy(), run.getStartedAt(), run.getExportedAt(),
                 run.getFinishedAt(), run.getManifestDigest(), run.getImageDigest(), run.getSignerIdentity(),
                 run.getSignerIssuer(), run.getSignerKeySha256(), run.getExportSchemaVersion(), run.getExportSha256(),
                 run.getExportSize(), run.getExitCode(), run.getOutputSize(), run.getOutputSha256(),
-                run.getProductVersion(), run.getOutputMediaType(), run.getSigningKeyId(), run.getPackageSha256());
+                run.getProductVersion(), run.getOutputMediaType(), run.getSigningKeyId(), run.getPackageSha256(),
+                withdrawal.map(ReportWithdrawal::withdrawnAt).orElse(null),
+                withdrawal.map(ReportWithdrawal::withdrawnBy).orElse(null),
+                withdrawal.map(ReportWithdrawal::withdrawalJustification).orElse(null));
     }
 }

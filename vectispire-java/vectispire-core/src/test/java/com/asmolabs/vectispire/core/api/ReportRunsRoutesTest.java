@@ -732,6 +732,211 @@ class ReportRunsRoutesTest extends ApiTestBase {
         }
     }
 
+    @Nested
+    @DisplayName("withdrawal, and a document's standing")
+    class Withdrawal {
+
+        static final String JUSTIFICATION = "The renderer dropped accepted issues from the sheet.";
+
+        private ResultActions download(String token, long runId) throws Exception {
+            return mvc.perform(authenticated(get("/api/v1/projects/" + project + "/reports/" + runId + "/document"),
+                    token));
+        }
+
+        private ResultActions standingOf(String token, String sha256) throws Exception {
+            return mvc.perform(authenticated(get("/api/v1/report-documents/" + sha256), token));
+        }
+
+        private long produced() throws Exception {
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            assertThat(run(runId).at("/state").asText()).isEqualTo("produced");
+            return runId;
+        }
+
+        /** The answer to a digest nothing produced, for the same caller: what a hidden document must equal. */
+        private JsonNode unknownTo(String token, String sha256) throws Exception {
+            return body(standingOf(token, sha256).andExpect(status().isOk()));
+        }
+
+        @Test
+        @DisplayName("withdrawing a digest withdraws every document it produced, and only those; they stay downloadable, flagged")
+        void everyDocumentOfTheDigest() throws Exception {
+            String first = approvedDigest();
+            long one = produced();
+            long two = produced();
+            // A run of the same digest that produced nothing: no document, none to count.
+            when(executor.render(any(), any())).thenReturn(new ReportPluginRenderer.Outcome.Produced(DISGUISED));
+            long refused = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            when(executor.render(any(), any())).thenReturn(new ReportPluginRenderer.Outcome.Produced(DOCUMENT));
+
+            mvc.perform(authenticated(put("/api/v1/report-plugins/summary"), governor)
+                            .contentType(MediaType.APPLICATION_JSON).content(write(ReportPluginsRoutesTest.manifest(OTHER_IMAGE))))
+                    .andExpect(status().isOk());
+            String second = approvedDigest();
+            assertThat(second).isNotEqualTo(first);
+            long three = produced();
+            assertThat(download(asAdmin(), one).andReturn().getResponse().getHeader("Vectispire-Document-Status"))
+                    .as("before the withdrawal").isEqualTo("upheld");
+
+            withdraw(first);
+
+            for (long withdrawn : List.of(one, two)) {
+                JsonNode view = run(withdrawn);
+                assertThat(Instant.parse(view.at("/withdrawnAt").asText())).isBeforeOrEqualTo(Instant.now());
+                assertThat(view.at("/withdrawnBy").asText()).startsWith("governor-");
+                assertThat(view.at("/withdrawalJustification").asText()).isEqualTo(JUSTIFICATION);
+                var response = download(asAdmin(), withdrawn).andExpect(status().isOk()).andReturn().getResponse();
+                assertThat(response.getHeader("Vectispire-Document-Status")).isEqualTo("withdrawn");
+                assertThat(Digests.sha256Hex(response.getContentAsByteArray()))
+                        .as("the package kept as it was handed out").isEqualTo(view.at("/packageSha256").asText());
+                JsonNode standing = body(standingOf(asReader(), view.at("/packageSha256").asText()).andExpect(status().isOk()));
+                assertThat(standing.at("/standing").asText()).isEqualTo("withdrawn");
+                assertThat(standing.at("/productions/0/withdrawalJustification").asText()).isEqualTo(JUSTIFICATION);
+            }
+            JsonNode standing = run(three);
+            assertThat(standing.at("/withdrawnAt").isNull()).as("another digest's document stands").isTrue();
+            assertThat(standing.at("/withdrawalJustification").isNull()).isTrue();
+            assertThat(download(asAdmin(), three).andReturn().getResponse().getHeader("Vectispire-Document-Status"))
+                    .isEqualTo("upheld");
+            assertThat(body(standingOf(asReader(), standing.at("/packageSha256").asText())).at("/standing").asText())
+                    .isEqualTo("upheld");
+            // The three wrote the same file: the bytes are still vouched for by the digest that stands.
+            JsonNode sameFile = body(standingOf(asReader(), Digests.sha256Hex(DOCUMENT)).andExpect(status().isOk()));
+            assertThat(sameFile.at("/standing").asText()).isEqualTo("upheld");
+            assertThat(sameFile.at("/productions").findValuesAsText("runId")).containsExactly(
+                    String.valueOf(three), String.valueOf(two), String.valueOf(one));
+
+            Map<Long, Boolean> listed = new LinkedHashMap<>();
+            body(mvc.perform(authenticated(get("/api/v1/projects/" + project + "/reports"), asReader()))
+                    .andExpect(status().isOk())).forEach(row -> listed.put(row.at("/id").asLong(),
+                            JUSTIFICATION.equals(row.at("/withdrawalJustification").asText(null))));
+            assertThat(listed).as("every run of the digest says so, the refused one too; the other digest's does not")
+                    .containsExactlyInAnyOrderEntriesOf(Map.of(one, true, two, true, refused, true, three, false));
+
+            assertThat(entries(AuditOperation.REPORT_PLUGIN_WITHDRAWN)).singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains("2 document(s) withdrawn with it"));
+            assertThat(entries(AuditOperation.REPORT_DOWNLOADED))
+                    .filteredOn(entry -> entry.getDescription().contains("served as withdrawn")).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("the status route: known by its package or its file, unknown otherwise, a malformed digest a 400")
+        void knownAndUnknown() throws Exception {
+            long runId = produced();
+            JsonNode ended = run(runId);
+            String packageSha256 = ended.at("/packageSha256").asText();
+
+            JsonNode known = body(standingOf(asAuditor(), packageSha256.toUpperCase()).andExpect(status().isOk()));
+            assertThat(known.at("/sha256").asText()).isEqualTo(packageSha256);
+            assertThat(known.at("/standing").asText()).isEqualTo("upheld");
+            assertThat(known.at("/productions")).hasSize(1);
+            JsonNode production = known.at("/productions/0");
+            assertThat(production.at("/matched").asText()).isEqualTo("package");
+            assertThat(production.at("/runId").asLong()).isEqualTo(runId);
+            assertThat(production.at("/projectId").asLong()).isEqualTo(project);
+            assertThat(production.at("/projectName").asText()).isEqualTo("Checkout");
+            assertThat(production.at("/pluginId").asText()).isEqualTo("summary");
+            assertThat(production.at("/manifestDigest").asText()).isEqualTo(approvedDigest());
+            assertThat(production.at("/imageDigest").asText()).isEqualTo(ended.at("/imageDigest").asText());
+            assertThat(production.at("/signingKeyId").asText()).isEqualTo(ended.at("/signingKeyId").asText()).isNotBlank();
+            assertThat(Instant.parse(production.at("/producedAt").asText()))
+                    .isEqualTo(Instant.parse(ended.at("/finishedAt").asText()));
+            assertThat(production.at("/documentKept").asBoolean()).isTrue();
+            assertThat(production.at("/withdrawnAt").isNull()).isTrue();
+
+            JsonNode byFile = body(standingOf(asAuditor(), "sha256:" + Digests.sha256Hex(DOCUMENT)).andExpect(status().isOk()));
+            assertThat(byFile.at("/standing").asText()).isEqualTo("upheld");
+            assertThat(byFile.at("/productions/0/matched").asText()).isEqualTo("output");
+            assertThat(byFile.at("/productions/0/runId").asLong()).isEqualTo(runId);
+
+            String nothing = Digests.sha256Hex(("never produced " + System.nanoTime()).getBytes(StandardCharsets.UTF_8));
+            JsonNode unknown = unknownTo(asAuditor(), nothing);
+            assertThat(unknown.at("/standing").asText()).isEqualTo("unknown");
+            assertThat(unknown.at("/productions")).isEmpty();
+            assertThat(unknown.at("/sha256").asText()).isEqualTo(nothing);
+            // Refused output: its file is named by its run, but nothing this installation signed.
+            when(executor.render(any(), any())).thenReturn(new ReportPluginRenderer.Outcome.Produced(DISGUISED));
+            request(asAdmin()).andExpect(status().isAccepted());
+            worker.drain();
+            assertThat(body(standingOf(asAuditor(), Digests.sha256Hex(DISGUISED))).at("/standing").asText())
+                    .isEqualTo("unknown");
+
+            for (String malformed : List.of("abc", "z".repeat(64), packageSha256 + "0")) {
+                standingOf(asAuditor(), malformed).andExpect(status().isBadRequest());
+            }
+            mvc.perform(get("/api/v1/report-documents/" + packageSha256)).andExpect(status().isUnauthorized());
+            String exporter = json.readTree(mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("name", "exporter", "scopes", List.of("export")))))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("secret").asText();
+            standingOf(exporter, packageSha256).andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("a document of a project not seen whole, or deleted, answers exactly as one never produced")
+        void hiddenIsUnknown() throws Exception {
+            long runId = produced();
+            String packageSha256 = run(runId).at("/packageSha256").asText();
+            String nothing = Digests.sha256Hex(("never produced " + System.nanoTime()).getBytes(StandardCharsets.UTF_8));
+            assertThat(body(standingOf(asReader(), packageSha256)).at("/standing").asText()).isEqualTo("upheld");
+
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+            String hidden = standingOf(asReader(), packageSha256).andExpect(status().isOk()).andReturn().getResponse()
+                    .getContentAsString();
+            String absent = standingOf(asReader(), nothing).andExpect(status().isOk()).andReturn().getResponse()
+                    .getContentAsString();
+            assertThat(hidden).isEqualTo(absent.replace(nothing, packageSha256));
+            assertThat(body(standingOf(asAdmin(), packageSha256)).at("/standing").asText())
+                    .as("an administrator sees every project").isEqualTo("upheld");
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.EVERYONE.wireName());
+
+            withdraw(approvedDigest());
+            mvc.perform(authenticated(delete("/api/v1/projects/" + project), asAdmin())).andExpect(status().isNoContent());
+            assertThat(standingOf(asAdmin(), packageSha256).andReturn().getResponse().getContentAsString())
+                    .isEqualTo(standingOf(asAdmin(), nothing).andReturn().getResponse().getContentAsString()
+                            .replace(nothing, packageSha256));
+        }
+
+        @Test
+        @DisplayName("past the evidence window the document is no longer kept, and its standing is still answered")
+        void purgedStillAnswered() throws Exception {
+            long runId = produced();
+            String packageSha256 = run(runId).at("/packageSha256").asText();
+            withdraw(approvedDigest());
+            jdbc.update("update t_report_document set created_at = ? where run_id = ?",
+                    Timestamp.from(Instant.now().minusSeconds(401L * 86_400)), runId);
+            ReportRunsRoutesTest.this.retention.run();
+
+            JsonNode standing = body(standingOf(asReader(), packageSha256).andExpect(status().isOk()));
+            assertThat(standing.at("/standing").asText()).isEqualTo("withdrawn");
+            assertThat(standing.at("/productions/0/documentKept").asBoolean()).isFalse();
+        }
+
+        @Test
+        @DisplayName("withdrawn while the run was in hand: nothing is signed, the run fails plugin_unavailable")
+        void withdrawnWhileRunning() throws Exception {
+            String digest = approvedDigest();
+            when(executor.render(any(), any())).thenAnswer(call -> {
+                withdraw(digest);
+                return new ReportPluginRenderer.Outcome.Produced(DOCUMENT);
+            });
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+
+            JsonNode ended = run(runId);
+            assertThat(ended.at("/state").asText()).isEqualTo("failed");
+            assertThat(ended.at("/reason").asText()).isEqualTo("plugin_unavailable");
+            assertThat(ended.at("/detail").asText()).contains("withdrawn while it ran").contains("nothing was signed");
+            assertThat(ended.at("/signingKeyId").isNull()).isTrue();
+            assertThat(ended.at("/withdrawalJustification").asText()).isEqualTo(JUSTIFICATION);
+            assertThat(documents.existsById(runId)).isFalse();
+            assertThat(entries(AuditOperation.REPORT_PRODUCED)).isEmpty();
+            assertThat(entries(AuditOperation.REPORT_FAILED)).hasSize(1);
+        }
+    }
+
     private String approvedDigest() throws Exception {
         return body(mvc.perform(authenticated(get("/api/v1/report-plugins/summary"), governor)).andExpect(status().isOk()))
                 .at("/approvedDigest").asText();

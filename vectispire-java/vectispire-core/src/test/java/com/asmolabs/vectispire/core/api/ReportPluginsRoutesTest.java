@@ -351,7 +351,8 @@ class ReportPluginsRoutesTest extends ApiTestBase {
             assertThat(withdrawn.at("/manifests/0/status").asText()).isEqualTo("withdrawn");
             assertThat(withdrawn.at("/manifests/0/withdrawalJustification").asText()).isEqualTo(reason);
             assertThat(entries(AuditOperation.REPORT_PLUGIN_WITHDRAWN)).singleElement()
-                    .satisfies(entry -> assertThat(entry.getDescription()).contains(digest, "(was approved): " + reason));
+                    .satisfies(entry -> assertThat(entry.getDescription())
+                            .contains(digest, "(was approved, 0 document(s) withdrawn with it): " + reason));
 
             assertConflict(activate(asCiso(), project), "report-plugin-not-approved");
             assertConflict(update(governor, manifest(IMAGE_A)), "report-plugin-withdrawn");

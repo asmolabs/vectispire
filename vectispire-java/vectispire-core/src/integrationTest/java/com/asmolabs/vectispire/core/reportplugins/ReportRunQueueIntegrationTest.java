@@ -37,7 +37,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * race on, the active key that keeps one run of a plugin per project — a unique index that must admit any number
  * of ended runs, whose key is null —, the owner's finish with every column the provenance reads (V77 added three),
  * the lapsed lease, an export's and a document's bytes kept, purged by age and by project through a subquery, and
- * an export stored whole at the run's bound — which MySQL's packet lowers.
+ * an export stored whole at the run's bound — which MySQL's packet lowers; and a document looked up by its digest
+ * among the produced runs, as the status route of lot R7 does over V79's indexes.
  *
  * <p>Each is a statement an engine could answer differently: a unique index counting nulls as equal would refuse
  * the second report a project ever had, and a {@code delete … where run_id in (select …)} is what MySQL checks.
@@ -112,6 +113,39 @@ class ReportRunQueueIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThat(runs.existsByActiveKey(ReportRunService.activeKey("summary", 1))).isTrue();
         assertThat(runs.count()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("a document is found by its package or its file among produced runs only, newest first; a withdrawal counts them")
+    void documentsByDigest() {
+        String manifest = "d".repeat(64);
+        String file = "f".repeat(64);
+        ReportRunEntity older = produced(1, manifest, "1".repeat(64), file, AT);
+        ReportRunEntity newer = produced(2, manifest, "2".repeat(64), file, AT.plusSeconds(30));
+        produced(3, "e".repeat(64), "3".repeat(64), "0".repeat(64), AT);
+        ReportRunEntity refused = run(4, ReportRunState.REFUSED.wireName(), null, AT);
+        refused.setManifestDigest(manifest);
+        refused.setOutputSha256(file);
+        runs.saveAndFlush(refused);
+        String producedState = ReportRunState.PRODUCED.wireName();
+
+        assertThat(runs.producedWithDigest(producedState, "1".repeat(64), PageRequest.of(0, 10)))
+                .extracting(ReportRunEntity::getId).containsExactly(older.getId());
+        assertThat(runs.producedWithDigest(producedState, file, PageRequest.of(0, 10)))
+                .as("the file twice, the refused run's never").extracting(ReportRunEntity::getId)
+                .containsExactly(newer.getId(), older.getId());
+        assertThat(runs.producedWithDigest(producedState, "9".repeat(64), PageRequest.of(0, 10))).isEmpty();
+        assertThat(runs.countByManifestDigestAndState(manifest, producedState)).isEqualTo(2);
+    }
+
+    private ReportRunEntity produced(long projectId, String manifest, String packageSha256, String outputSha256,
+            Instant finishedAt) {
+        ReportRunEntity run = run(projectId, ReportRunState.PRODUCED.wireName(), null, AT);
+        run.setManifestDigest(manifest);
+        run.setPackageSha256(packageSha256);
+        run.setOutputSha256(outputSha256);
+        run.setFinishedAt(finishedAt);
+        return runs.saveAndFlush(run);
     }
 
     @Test

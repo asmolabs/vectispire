@@ -87,7 +87,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * that vouched for the image, so that a file found later can be matched to the run that refused it. A file that
  * passes is signed and packaged with its provenance ({@link ReportPackager}) — outside the transaction — and the
  * package is stored with the run's end, in the same transaction as the export: a run recorded produced always has
- * its document, and a run that is no longer this executor's stores neither.
+ * its document, and a run that is no longer this executor's stores neither. A file that passes from a manifest the
+ * governor withdrew while the run was in hand is not signed either: failed, {@code plugin_unavailable}, as at the
+ * claim (lot R7).
  */
 @Component
 public class ReportExecution {
@@ -296,6 +298,13 @@ public class ReportExecution {
         });
     }
 
+    /** Whether the manifest a run was claimed with has been withdrawn since. */
+    private boolean withdrawn(String manifestDigest) {
+        return manifests.findById(manifestDigest)
+                .filter(row -> ReportPluginManifestStatus.ofStored(row.getStatus()) == ReportPluginManifestStatus.WITHDRAWN)
+                .isPresent();
+    }
+
     private ReportPluginManifest parse(ReportPluginManifestEntity row) {
         try {
             return json.readValue(row.getManifest(), ReportPluginManifest.class).validated();
@@ -336,6 +345,15 @@ public class ReportExecution {
                         state = ReportRunState.REFUSED;
                         reason = ReportRunReason.OUTPUT_REFUSED;
                         detail = bounded(refusedOutput.why() + " Nothing was signed, and the file was discarded.");
+                    }
+                    case ReportOutputCheck.Verdict.Accepted accepted when withdrawn(learnt.manifestDigest()) -> {
+                        // Withdrawn while it ran: the installation's key does not sign what its governor has just
+                        // disowned. A withdrawal landing after this read still reaches the document, which reads its
+                        // standing off the manifest — this only keeps the key off code already withdrawn.
+                        state = ReportRunState.FAILED;
+                        reason = ReportRunReason.PLUGIN_UNAVAILABLE;
+                        detail = "Its manifest " + learnt.manifestDigest() + " was withdrawn while it ran: nothing was "
+                                + "signed, and the file was discarded.";
                     }
                     case ReportOutputCheck.Verdict.Accepted accepted -> {
                         state = ReportRunState.PRODUCED;

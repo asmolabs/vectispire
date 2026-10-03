@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifestStatus;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -22,6 +23,7 @@ import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginEntity
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginManifestEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginManifestRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportPluginRepository;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportRunRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -85,6 +87,7 @@ public class ReportPluginService {
     private final ReportPluginRepository plugins;
     private final ReportPluginManifestRepository manifests;
     private final ReportPluginActivationRepository activations;
+    private final ReportRunRepository runs;
     private final SolutionQueryService projects;
     private final SettingsService settings;
     private final AuditLogService audit;
@@ -96,6 +99,7 @@ public class ReportPluginService {
             ReportPluginRepository plugins,
             ReportPluginManifestRepository manifests,
             ReportPluginActivationRepository activations,
+            ReportRunRepository runs,
             SolutionQueryService projects,
             SettingsService settings,
             AuditLogService audit,
@@ -105,6 +109,7 @@ public class ReportPluginService {
         this.plugins = plugins;
         this.manifests = manifests;
         this.activations = activations;
+        this.runs = runs;
         this.projects = projects;
         this.settings = settings;
         this.audit = audit;
@@ -311,7 +316,9 @@ public class ReportPluginService {
     /**
      * Withdraws a digest, with its justification: it never runs again and cannot be registered again; the
      * plugin's pending or approved digest, if it was this one, is cleared — a fixed image is a new manifest.
-     * The documents it produced stay stored, and lot R7 serves them as withdrawn.
+     * <b>Every document it produced is withdrawn with it</b> — read off this row by the run's manifest digest,
+     * never copied onto the documents — and stays stored: its download and its run say so, and the status route
+     * answers a holder that the installation no longer stands by it. The audit entry counts them.
      *
      * @throws InvalidInputException without a justification of {@value #MIN_JUSTIFICATION} to {@value
      *     #MAX_JUSTIFICATION} characters
@@ -322,7 +329,7 @@ public class ReportPluginService {
         String reason = requireJustification(justification);
         Instant now = clock.instant();
 
-        record Withdrawn(ReportPluginEntity plugin, String was) {}
+        record Withdrawn(ReportPluginEntity plugin, String was, long documents) {}
 
         Withdrawn withdrawn = write(() -> transactions.execute(status -> {
             ReportPluginEntity plugin = require(id);
@@ -345,13 +352,15 @@ public class ReportPluginService {
             }
             plugin.setUpdatedAt(now);
             plugin.setUpdatedBy(governor.username());
-            return new Withdrawn(plugins.save(plugin), was.wireName());
+            return new Withdrawn(plugins.save(plugin), was.wireName(),
+                    runs.countByManifestDigestAndState(digest, ReportRunState.PRODUCED.wireName()));
         }));
 
         audit.record(actor.entry(AuditOperation.REPORT_PLUGIN_WITHDRAWN, id,
                 // The justification right after the digest: the column holds 255 characters, the row keeps it whole.
-                "Report plugin \"" + id + "\" manifest " + digest + " withdrawn (was " + withdrawn.was() + "): "
-                        + reason));
+                // The documents it withdraws in a few characters before it, for the same reason.
+                "Report plugin \"" + id + "\" manifest " + digest + " withdrawn (was " + withdrawn.was() + ", "
+                        + withdrawn.documents() + " document(s) withdrawn with it): " + reason));
         return view(withdrawn.plugin());
     }
 

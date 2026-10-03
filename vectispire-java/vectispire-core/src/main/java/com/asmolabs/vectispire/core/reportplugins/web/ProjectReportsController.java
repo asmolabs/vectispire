@@ -5,9 +5,11 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.reportplugins.ReportDocumentDownload;
+import com.asmolabs.vectispire.core.reportplugins.ReportDocumentStanding;
 import com.asmolabs.vectispire.core.reportplugins.ReportRunService;
 import com.asmolabs.vectispire.core.reportplugins.ReportRunView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -46,6 +48,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/reports")
 public class ProjectReportsController {
+
+    /**
+     * Whether the installation still stands by the document served — {@code upheld} or {@code withdrawn} (0035 §4):
+     * a withdrawn manifest's documents are still handed over, as evidence of what was handed out, and say so.
+     */
+    public static final String DOCUMENT_STATUS = "Vectispire-Document-Status";
 
     private final ReportRunService reports;
     private final VisibilityService visibility;
@@ -114,9 +122,14 @@ public class ProjectReportsController {
             + "renders the export truly. Always an attachment, nosniff, under a sandbox content security policy. For "
             + "a caller who sees the whole project; 404 \"Project not found.\" otherwise, then 404 for a run that is "
             + "not the project's, one that produced no document, or a document purged past the evidence window. "
-            + "Audited REPORT_DOWNLOADED.")
+            + "A document whose manifest the platform governor withdrew is still served: the header "
+            + "Vectispire-Document-Status says withdrawn (upheld otherwise), and the run carries the withdrawal's "
+            + "instant, author and justification. Audited REPORT_DOWNLOADED.")
     @ApiResponse(responseCode = "200", description = "The package, application/zip",
-            content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
+            content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")),
+            headers = @Header(name = DOCUMENT_STATUS, description = "upheld, or withdrawn when the manifest that "
+                    + "produced the document was withdrawn", schema = @Schema(type = "string",
+                    allowableValues = {"upheld", "withdrawn"})))
     @GetMapping(value = "/{runId}/document", produces = "application/zip")
     @RequiresAccount
     public ResponseEntity<byte[]> document(
@@ -131,6 +144,10 @@ public class ProjectReportsController {
                         .filename(document.fileName(), StandardCharsets.UTF_8).build().toString())
                 .header("X-Content-Type-Options", "nosniff")
                 .header("Content-Security-Policy", "sandbox")
+                // Always sent, so that a client can tell "upheld" from a version that does not say: the reason is the
+                // run's and the status route's to give — a header carries ASCII, a justification any language.
+                .header(DOCUMENT_STATUS, (document.withdrawal().isPresent()
+                        ? ReportDocumentStanding.WITHDRAWN : ReportDocumentStanding.UPHELD).wireName())
                 .contentType(MediaType.parseMediaType("application/zip"))
                 .body(document.content());
     }

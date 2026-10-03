@@ -169,6 +169,22 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
 
     Optional<ReportRunEntity> findByIdAndProjectId(long id, long projectId);
 
+    /**
+     * The runs that produced a document with this SHA-256 — as the package a download hands out, or as the file
+     * inside it — newest first, a page at a time. Read off the run, whose digests outlive the document's bytes.
+     * Several only for a file: a package names its run in its provenance, but a renderer may write the same bytes
+     * twice.
+     */
+    @Query("""
+            select r from ReportRunEntity r
+             where r.state = :produced and (r.packageSha256 = :sha256 or r.outputSha256 = :sha256)
+             order by r.finishedAt desc, r.id desc""")
+    List<ReportRunEntity> producedWithDigest(
+            @Param("produced") String produced, @Param("sha256") String sha256, Pageable page);
+
+    /** How many runs of a manifest ended in a state — the documents a withdrawal withdraws. */
+    long countByManifestDigestAndState(String manifestDigest, String state);
+
     /** Every run of a project that is going away — its listener's, in the deleting transaction. */
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)

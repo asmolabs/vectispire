@@ -21,6 +21,10 @@ import java.time.Instant;
  * @param outputMediaType the media type the manifest declared and the check held the file to
  * @param signingKeyId the platform key the package was signed with, by its id; null unless produced
  * @param packageSha256 the SHA-256 of the package a download hands out; null unless produced
+ * @param withdrawnAt when the platform governor withdrew the manifest the run used — its document, if it produced
+ *     one, is withdrawn with it: still downloadable, but no longer stood by; null while the manifest stands (lot R7)
+ * @param withdrawnBy who withdrew it; null while it stands
+ * @param withdrawalJustification why, as the governor wrote it; null while it stands
  */
 public record ReportRunView(
         Long id,
@@ -49,4 +53,7 @@ public record ReportRunView(
         String productVersion,
         String outputMediaType,
         String signingKeyId,
-        String packageSha256) {}
+        String packageSha256,
+        Instant withdrawnAt,
+        String withdrawnBy,
+        String withdrawalJustification) {}
