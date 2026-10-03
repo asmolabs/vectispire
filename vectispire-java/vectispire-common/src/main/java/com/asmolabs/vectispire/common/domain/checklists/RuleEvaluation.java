@@ -10,7 +10,12 @@ import com.asmolabs.vectispire.common.domain.checklists.Measurement.RepositoryEv
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.CoverageReport;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Imported;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.IssueCount;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Kept;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Look;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.NotKept;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.NotRead;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PackageCounts;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Unrecorded;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PluginRun;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PluginRuns;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PluginState;
@@ -349,13 +354,23 @@ public final class RuleEvaluation {
             }
             long covered;
             long total;
-            if (rule.metric() == ChecklistRule.Metric.BRANCH) {
-                if (report.branchesTotal().isEmpty() || report.branchesCovered().isEmpty()) {
-                    // Counted no branch: not 0 of 0, and not a pass — it did not look.
-                    collector.missing(repository, Optional.empty(), NoDataReason.STEP_ABSENT, Optional.of(report.look()),
-                            "the report counted no branch");
+            if (rule.metric() == ChecklistRule.Metric.BRANCH
+                    && (report.branchesTotal().isEmpty() || report.branchesCovered().isEmpty())) {
+                // Counted no branch: not 0 of 0, and not a pass — it did not look.
+                collector.missing(repository, Optional.empty(), NoDataReason.STEP_ABSENT, Optional.of(report.look()),
+                        "the report counted no branch");
+                continue;
+            }
+            String inScope = "";
+            if (rule.scope().isPresent()) {
+                Optional<long[]> scoped = scoped(rule, report, repository, collector);
+                if (scoped.isEmpty()) {
                     continue;
                 }
+                covered = scoped.get()[0];
+                total = scoped.get()[1];
+                inScope = scoped.get()[2] + " of " + scoped.get()[3] + " packages in the scope; ";
+            } else if (rule.metric() == ChecklistRule.Metric.BRANCH) {
                 covered = report.branchesCovered().get();
                 total = report.branchesTotal().get();
             } else {
@@ -364,12 +379,13 @@ public final class RuleEvaluation {
             }
             if (total <= 0) {
                 collector.missing(repository, Optional.empty(), NoDataReason.STEP_ABSENT, Optional.of(report.look()),
-                        "the report counted nothing");
+                        rule.scope().isPresent() ? inScope + "they count no " + rule.metric().wireName()
+                                : "the report counted nothing");
                 continue;
             }
             coveredSum += covered;
             totalSum += total;
-            String ratio = covered + " of " + total + " " + rule.metric().wireName() + "s covered";
+            String ratio = inScope + covered + " of " + total + " " + rule.metric().wireName() + "s covered";
             if (rule.aggregation() == ChecklistRule.Aggregation.PER_REPOSITORY) {
                 collector.examined(repository, Optional.empty(), report.look(),
                         Ratios.atLeast(covered, total, rule.minimumRatio())
@@ -385,8 +401,58 @@ public final class RuleEvaluation {
             projectUnmet.add("the project's " + coveredSum + " of " + totalSum + " " + rule.metric().wireName()
                     + "s covered is under " + percent(rule.minimumRatio()));
         }
+        // A scoped pass states its figures too: the document a reviewer signs shows the filter beside the
+        // figure it produced, not a "pass" over a part of the report that names no part.
         return collector.outcome(projectUnmet, List.of(), rule.metric().wireName() + " coverage of at least "
-                + percent(rule.minimumRatio()));
+                + percent(rule.minimumRatio()) + rule.scope().map(scope -> " over " + scope.describe()).orElse(""),
+                rule.scope().isPresent());
+    }
+
+    /**
+     * The scope's figure on one repository: covered, total, packages matched, packages kept — or no data,
+     * already reported to the collector. Never the totals in the scope's place: an import that kept no
+     * package has no figure for a part of it.
+     */
+    private static Optional<long[]> scoped(CoverageThreshold rule, CoverageReport report, long repository,
+            Collector collector) {
+        CoverageScope scope = rule.scope().orElseThrow();
+        switch (report.packages()) {
+            case NotRead ignored -> throw new IllegalStateException("A scoped coverage rule was handed a report whose "
+                    + "packages were not read.");
+            case Unrecorded ignored -> {
+                collector.missing(repository, Optional.empty(), NoDataReason.PACKAGES_UNRECORDED,
+                        Optional.of(report.look()), "the import predates per-package counts: re-import the report to "
+                                + "measure " + scope.describe());
+                return Optional.empty();
+            }
+            case NotKept notKept -> {
+                collector.missing(repository, Optional.empty(), NoDataReason.PACKAGES_NOT_KEPT,
+                        Optional.of(report.look()), notKept.why());
+                return Optional.empty();
+            }
+            case Kept kept -> {
+                List<PackageCounts> matched = kept.packages().stream().filter(part -> scope.matches(part.path())).toList();
+                if (matched.isEmpty()) {
+                    collector.missing(repository, Optional.empty(), NoDataReason.SCOPE_MATCHES_NOTHING,
+                            Optional.of(report.look()), "none of the report's " + kept.packages().size()
+                                    + (kept.packages().size() == 1 ? " package" : " packages") + " is in "
+                                    + scope.describe());
+                    return Optional.empty();
+                }
+                long covered = 0;
+                long total = 0;
+                for (PackageCounts part : matched) {
+                    if (rule.metric() == ChecklistRule.Metric.BRANCH) {
+                        covered += part.branchesCovered().orElse(0L);
+                        total += part.branchesTotal().orElse(0L);
+                    } else {
+                        covered += part.linesCovered();
+                        total += part.linesTotal();
+                    }
+                }
+                return Optional.of(new long[] {covered, total, matched.size(), kept.packages().size()});
+            }
+        }
     }
 
     private static Measurement tests(TestSuitePassed rule, MeasurementFacts facts, List<Long> repositories, Instant since) {
@@ -631,13 +697,17 @@ public final class RuleEvaluation {
             looks.add(look.at());
         }
 
+        /** The headlines whose summary carries the first repository's own sentence. */
+        private static final Set<NoDataReason> EXPLAINED = EnumSet.of(NoDataReason.LANGUAGE_NOT_ANALYSED,
+                NoDataReason.LANGUAGES_UNRECORDED, NoDataReason.VERSION_UNRECORDED, NoDataReason.PACKAGES_UNRECORDED,
+                NoDataReason.PACKAGES_NOT_KEPT, NoDataReason.SCOPE_MATCHES_NOTHING);
+
         /**
          * Where a headline's words alone do not say what to do — which languages nobody read, which
          * record is missing — the first repository's own sentence, so the line's summary names them.
          */
         private String firstReason(NoDataReason headline) {
-            if (headline != NoDataReason.LANGUAGE_NOT_ANALYSED && headline != NoDataReason.LANGUAGES_UNRECORDED
-                    && headline != NoDataReason.VERSION_UNRECORDED) {
+            if (!EXPLAINED.contains(headline)) {
                 return "";
             }
             return evidence.stream()
@@ -656,6 +726,11 @@ public final class RuleEvaluation {
         }
 
         Measurement outcome(List<String> projectUnmet, List<Figure> figures, String what) {
+            return outcome(projectUnmet, figures, what, false);
+        }
+
+        /** @param passFigures whether a pass names each repository's figure, as a failure does */
+        Measurement outcome(List<String> projectUnmet, List<Figure> figures, String what, boolean passFigures) {
             Optional<Instant> asOf = looks.stream().min(Comparator.naturalOrder());
             if (!missing.isEmpty()) {
                 NoDataReason headline = missing.stream().min(Comparator.naturalOrder()).orElseThrow();
@@ -677,9 +752,16 @@ public final class RuleEvaluation {
                         "Fail, " + what + ": " + String.join("; ", failures.subList(0, Math.min(failures.size(), 10)))
                                 + (failures.size() > 10 ? "; and " + (failures.size() - 10) + " more." : "."));
             }
+            List<String> passed = !passFigures ? List.of() : evidence.stream()
+                    .filter(line -> line.detail().isPresent())
+                    .map(line -> "repository " + line.repositoryId() + ": " + line.detail().get())
+                    .toList();
             return new Measurement(MeasurementOutcome.PASS, Optional.empty(), asOf, evidence, figures,
                     "Pass, " + what + ", on " + included.size() + (included.size() == 1 ? " repository" : " repositories")
-                            + asOf.map(at -> ", as of " + at).orElse("") + ".");
+                            + asOf.map(at -> ", as of " + at).orElse("")
+                            + (passed.isEmpty() ? "" : ": " + String.join("; ", passed.subList(0, Math.min(passed.size(), 10)))
+                                    + (passed.size() > 10 ? "; and " + (passed.size() - 10) + " more" : ""))
+                            + ".");
         }
     }
 

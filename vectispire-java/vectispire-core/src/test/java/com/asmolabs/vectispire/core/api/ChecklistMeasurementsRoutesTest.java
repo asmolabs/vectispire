@@ -23,6 +23,8 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
@@ -102,6 +104,9 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
 
     @Autowired
     private CoverageImportRepository coverageImports;
+
+    @Autowired
+    private CoveragePackageRepository coveragePackages;
 
     @Autowired
     private TestReportImportRepository testReports;
@@ -403,6 +408,49 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
 
             coverageImport(second, 85, 100, hoursAgo(0));
             assertThat(measurements(developer, project, 1).at("/lines/0/measurement/outcome").asText()).isEqualTo("pass");
+        }
+
+        @Test
+        @DisplayName("coverage over a scope: the matching packages' figure, the scope in the summary, an old import no data")
+        void coverageScope() throws Exception {
+            publishWithRule(Map.of("kind", "coverage_threshold", "maxAgeDays", 7, "metric", "line", "minimumRatio", 0.8,
+                    "aggregation", "per_repository",
+                    "scope", Map.of("include", List.of("org/example/**"), "exclude", List.of("**/generated/**"))));
+            // An import from before packages were kept: its totals pass, and still the scope has no data.
+            coverageImport(first, 90, 100, hoursAgo(2));
+            coverageImport(second, 90, 100, hoursAgo(2));
+            open(developer, project);
+            JsonNode old = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(old.at("/outcome").asText()).isEqualTo("no_data");
+            assertThat(old.at("/reason").asText()).isEqualTo("packages_unrecorded");
+            assertThat(old.at("/evidence/summary").asText()).contains("re-import the report");
+
+            // The service layer at 45 of 50, the generated code at 0 of 50: the scope leaves it out.
+            long kept = coverageImport(first, 45, 100, hoursAgo(1), "kept");
+            coveragePackage(kept, "org/example/generated", 0, 50);
+            coveragePackage(kept, "org/example/service", 45, 50);
+            long elsewhere = coverageImport(second, 10, 10, hoursAgo(1), "kept");
+            coveragePackage(elsewhere, "com/other", 10, 10);
+            JsonNode measured = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(measured.at("/reason").asText()).isEqualTo("scope_matches_nothing");
+            assertThat(repository(measured, first).at("/detail").asText())
+                    .isEqualTo("1 of 2 packages in the scope; 45 of 50 lines covered");
+            assertThat(repository(measured, second).at("/detail").asText())
+                    .isEqualTo("none of the report's 1 package is in packages matching org/example/**, excluding **/generated/**");
+
+            long tooMany = coverageImport(second, 10, 10, hoursAgo(0), "too_many");
+            assertThat(tooMany).isPositive();
+            measured = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(measured.at("/reason").asText()).isEqualTo("packages_not_kept");
+            assertThat(repository(measured, second).at("/detail").asText()).contains("more than 10000 packages");
+
+            long fine = coverageImport(second, 10, 10, hoursAgo(0), "kept");
+            coveragePackage(fine, "org/example/web", 9, 10);
+            measured = measurements(developer, project, 1).at("/lines/0/measurement");
+            assertThat(measured.at("/outcome").asText()).isEqualTo("pass");
+            assertThat(measured.at("/evidence/summary").asText())
+                    .contains("over packages matching org/example/**, excluding **/generated/**")
+                    .contains("1 of 2 packages in the scope; 45 of 50 lines covered");
         }
 
         @Test
@@ -1217,7 +1265,22 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
     }
 
     private void coverageImport(long repositoryId, long covered, long total, Instant at) {
+        coverageImport(repositoryId, covered, total, at, null);
+    }
+
+    private void coveragePackage(long importId, String path, long covered, long total) {
+        CoveragePackageEntity row = new CoveragePackageEntity();
+        row.setImportId(importId);
+        row.setPath(path);
+        row.setLinesCovered(covered);
+        row.setLinesTotal(total);
+        coveragePackages.save(row);
+    }
+
+    /** @param packagesState null for an import accepted before packages were kept */
+    private long coverageImport(long repositoryId, long covered, long total, Instant at, String packagesState) {
         CoverageImportEntity row = new CoverageImportEntity();
+        row.setPackagesState(packagesState);
         row.setSourceId(1L);
         row.setSourceSlug("ledger-ci");
         row.setRepoId(repositoryId);
@@ -1228,7 +1291,7 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         row.setImportedAt(at);
         row.setImportedBy("pipeline");
         row.setApiKeyId(UUID.randomUUID());
-        coverageImports.save(row);
+        return coverageImports.save(row).getId();
     }
 
     private void testReport(long repositoryId, Instant at, String suite, int tests, int failures) {

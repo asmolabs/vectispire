@@ -752,6 +752,31 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a coverage rule's scope is bound and read back structured; a pattern it would misread is refused in words")
+        void coverageScope() throws Exception {
+            int revision = draftWithLayout("release");
+            String key = keys(version("release", 1)).getFirst();
+            Map<String, Object> scoped = new LinkedHashMap<>(Map.of("kind", "coverage_threshold", "maxAgeDays", 7,
+                    "metric", "line", "minimumRatio", 0.8, "aggregation", "per_repository"));
+
+            scoped.put("scope", Map.of("include", List.of("org.example.service")));
+            assertThat(detailOf(rules(reviewer, "release", 1, List.of(bound(key, scoped)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("write org/example/service");
+            scoped.put("scope", Map.of("exclude", List.of("**/gen**")));
+            assertThat(detailOf(rules(reviewer, "release", 1, List.of(bound(key, scoped)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("** inside a segment");
+            assertThat(version("release", 1).at("/version/revision").asInt()).as("no refusal writes").isEqualTo(revision);
+
+            scoped.put("scope", Map.of("include", List.of("org/example/**"), "exclude", List.of("**/generated/**")));
+            JsonNode bound = read(rules(reviewer, "release", 1, List.of(bound(key, scoped)), revision)
+                    .andExpect(status().isOk())).at("/items/0/boundRule");
+            assertThat(bound.at("/scope/include").toString()).isEqualTo("[\"org/example/**\"]");
+            assertThat(bound.at("/scope/exclude").toString()).isEqualTo("[\"**/generated/**\"]");
+            assertThat(json.treeToValue(bound, com.asmolabs.vectispire.core.checklists.ChecklistRuleForm.class).scope()
+                    .include()).containsExactly("org/example/**");
+        }
+
+        @Test
         @DisplayName("names the revision read, on a draft with a layout, and refuses in words a rule the kind refuses")
         void refusals() throws Exception {
             importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")

@@ -137,15 +137,27 @@ public sealed interface ChecklistRule {
         }
     }
 
-    /** The newest coverage import of each repository within the age, its ratio at least the minimum. */
-    record CoverageThreshold(int maxAgeDays, Metric metric, BigDecimal minimumRatio, Aggregation aggregation)
-            implements ChecklistRule {
+    /**
+     * The newest coverage import of each repository within the age, its ratio at least the minimum —
+     * over the whole report, or over the packages its scope names.
+     *
+     * @param scope empty to measure the report's totals, exactly as before scopes existed; present to
+     *     measure the packages it matches, which the import must have kept
+     */
+    record CoverageThreshold(int maxAgeDays, Metric metric, BigDecimal minimumRatio, Aggregation aggregation,
+            Optional<CoverageScope> scope) implements ChecklistRule {
 
         public CoverageThreshold {
             requireAge(maxAgeDays);
             Objects.requireNonNull(metric, "metric");
             Objects.requireNonNull(aggregation, "aggregation");
+            Objects.requireNonNull(scope, "scope");
             minimumRatio = Ratios.require(Objects.requireNonNull(minimumRatio, "minimumRatio"), "minimumRatio", false);
+        }
+
+        /** Over the whole report. */
+        public CoverageThreshold(int maxAgeDays, Metric metric, BigDecimal minimumRatio, Aggregation aggregation) {
+            this(maxAgeDays, metric, minimumRatio, aggregation, Optional.empty());
         }
 
         @Override
@@ -253,6 +265,16 @@ public sealed interface ChecklistRule {
                 node.put("metric", rule.metric().wireName());
                 node.put("minimumRatio", rule.minimumRatio());
                 node.put("aggregation", rule.aggregation().wireName());
+                // Only when present: a rule bound before scopes existed keeps its bytes, and its digest.
+                rule.scope().ifPresent(scope -> {
+                    ObjectNode written = node.putObject("scope");
+                    if (!scope.include().isEmpty()) {
+                        scope.include().forEach(written.putArray("include")::add);
+                    }
+                    if (!scope.exclude().isEmpty()) {
+                        scope.exclude().forEach(written.putArray("exclude")::add);
+                    }
+                });
             }
             case TestSuitePassed rule -> {
                 node.put("suitePattern", rule.suitePattern());
@@ -301,7 +323,7 @@ public sealed interface ChecklistRule {
         Set<String> allowed = switch (kind) {
             case DEPENDENCY_ANALYSIS -> Set.of("requireSchedule", "thresholds");
             case FINDINGS_THRESHOLD -> Set.of("scopes", "thresholds");
-            case COVERAGE_THRESHOLD -> Set.of("metric", "minimumRatio", "aggregation");
+            case COVERAGE_THRESHOLD -> Set.of("metric", "minimumRatio", "aggregation", "scope");
             case TEST_SUITE_PASSED -> Set.of("suitePattern", "minimumTests");
             case COMPONENT_VERSIONS -> Set.of("components");
         };
@@ -327,7 +349,8 @@ public sealed interface ChecklistRule {
                     decimal(node, "minimumRatio").orElseThrow(() -> new InvalidInputException("State the minimum "
                             + "coverage, minimumRatio — 0.8 for 80 %.")),
                     named(Aggregation.values(), Aggregation::wireName, text(node, "aggregation").orElse(null),
-                            "aggregation"));
+                            "aggregation"),
+                    coverageScope(node.get("scope")));
             case TEST_SUITE_PASSED -> new TestSuitePassed(maxAge, text(node, "suitePattern").orElse(null),
                     integer(node, "minimumTests").orElseThrow(() -> new InvalidInputException("State the least number "
                             + "of tests the matching suites must run, minimumTests.")));
@@ -408,6 +431,42 @@ public sealed interface ChecklistRule {
             scopes.add(ToolScope.parse(scope.asText()));
         }
         return scopes;
+    }
+
+    /** {@code {"include": [...], "exclude": [...]}}, either list optional; absent or null is no scope. */
+    private static Optional<CoverageScope> coverageScope(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return Optional.empty();
+        }
+        if (!node.isObject()) {
+            throw new InvalidInputException("scope is an object — include and exclude, each a list of patterns "
+                    + "over package paths, **/service/**.");
+        }
+        for (Map.Entry<String, JsonNode> field : node.properties()) {
+            if (!field.getKey().equals("include") && !field.getKey().equals("exclude") && !field.getValue().isNull()) {
+                throw new InvalidInputException("A coverage scope takes include and exclude; \""
+                        + BoundedText.clip(field.getKey(), 40) + "\" is neither.");
+            }
+        }
+        return Optional.of(new CoverageScope(patternList(node.get("include"), "include"),
+                patternList(node.get("exclude"), "exclude")));
+    }
+
+    private static List<String> patternList(JsonNode node, String what) {
+        if (node == null || node.isNull()) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            throw new InvalidInputException("The coverage scope's " + what + " is a list of patterns.");
+        }
+        List<String> patterns = new ArrayList<>();
+        for (JsonNode pattern : node) {
+            if (!pattern.isTextual()) {
+                throw new InvalidInputException("A pattern in the coverage scope's " + what + " is a string.");
+            }
+            patterns.add(pattern.asText());
+        }
+        return patterns;
     }
 
     private static List<AllowedComponent> components(JsonNode node, boolean stated) {

@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.common.scanning.PluginStep;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
 import com.asmolabs.vectispire.core.inventory.ComponentCatalog;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
+import com.asmolabs.vectispire.common.domain.reports.CoveragePackages;
 import com.asmolabs.vectispire.core.plugins.CoverageImportView;
 import com.asmolabs.vectispire.core.plugins.LatestTestReport;
 import com.asmolabs.vectispire.core.plugins.PluginService;
@@ -154,7 +155,7 @@ class ChecklistMeasurer {
                     }
                 }
             }
-            case ChecklistRule.CoverageThreshold ignored -> coverage = coverage(repositories);
+            case ChecklistRule.CoverageThreshold threshold -> coverage = coverage(repositories, threshold.scope().isPresent());
             case ChecklistRule.TestSuitePassed ignored -> tests = tests(repositories);
             case ChecklistRule.ComponentVersions ignored -> {
                 ToolScope.BuiltIn scope = new ToolScope.BuiltIn(FindingType.VULNERABILITY);
@@ -286,16 +287,40 @@ class ChecklistMeasurer {
         return scheduled;
     }
 
-    private Map<Long, MeasurementFacts.CoverageReport> coverage(List<Long> repositories) {
+    /**
+     * The newest coverage import of each repository — and, for a scoped rule, what it kept of its packages,
+     * read one import at a time: a kept import holds up to ten thousand, and an unscoped rule reads none.
+     */
+    private Map<Long, MeasurementFacts.CoverageReport> coverage(List<Long> repositories, boolean scoped) {
         Map<Long, MeasurementFacts.CoverageReport> reports = new HashMap<>();
         for (Map.Entry<Long, CoverageImportView> entry : imports.newestCoverage(repositories).entrySet()) {
             CoverageImportView row = entry.getValue();
             reports.put(entry.getKey(), new MeasurementFacts.CoverageReport(
                     new Look(Source.COVERAGE_IMPORT, row.id(), row.importedAt(), Optional.ofNullable(row.documentSha256())),
                     row.linesCovered(), row.linesTotal(), Optional.ofNullable(row.branchesCovered()),
-                    Optional.ofNullable(row.branchesTotal())));
+                    Optional.ofNullable(row.branchesTotal()),
+                    scoped ? packages(row) : new MeasurementFacts.NotRead()));
         }
         return reports;
+    }
+
+    /** What an import kept of its packages; a state this version does not know kept nothing it can read. */
+    private MeasurementFacts.Packages packages(CoverageImportView row) {
+        if (row.packagesState() == null) {
+            return new MeasurementFacts.Unrecorded();
+        }
+        Optional<CoveragePackages.State> state = CoveragePackages.State.ofStored(row.packagesState());
+        if (state.isEmpty()) {
+            return new MeasurementFacts.NotKept("the import's packages are in a state this version does not know ("
+                    + row.packagesState() + ")");
+        }
+        if (state.get() != CoveragePackages.State.KEPT) {
+            return new MeasurementFacts.NotKept(state.get().why());
+        }
+        return new MeasurementFacts.Kept(imports.coveragePackages(row.id()).stream()
+                .map(part -> new MeasurementFacts.PackageCounts(part.path(), part.linesCovered(), part.linesTotal(),
+                        Optional.ofNullable(part.branchesCovered()), Optional.ofNullable(part.branchesTotal())))
+                .toList());
     }
 
     private Map<Long, MeasurementFacts.TestReport> tests(List<Long> repositories) {

@@ -189,9 +189,57 @@ public record MeasurementFacts(
 
     /**
      * @param branchesCovered and {@code branchesTotal}: empty when the report counted no branch
+     * @param packages what the import kept of its packages — read only for a rule with a scope
      */
     public record CoverageReport(Look look, long linesCovered, long linesTotal, Optional<Long> branchesCovered,
-            Optional<Long> branchesTotal) {}
+            Optional<Long> branchesTotal, Packages packages) {
+
+        public CoverageReport {
+            Objects.requireNonNull(packages, "packages");
+        }
+
+        /** For a rule over the whole report, which reads no package. */
+        public CoverageReport(Look look, long linesCovered, long linesTotal, Optional<Long> branchesCovered,
+                Optional<Long> branchesTotal) {
+            this(look, linesCovered, linesTotal, branchesCovered, branchesTotal, new NotRead());
+        }
+    }
+
+    /** What a coverage import kept of its packages, as the rules read it. */
+    public sealed interface Packages permits NotRead, Unrecorded, NotKept, Kept {}
+
+    /** Not asked: the rule has no scope. A scoped rule handed this is a defect, never a figure. */
+    public record NotRead() implements Packages {}
+
+    /** The import predates the record of packages (V70): it kept none, and nobody knows what they were. */
+    public record Unrecorded() implements Packages {}
+
+    /** @param why the import's own reason, in the words its evidence prints */
+    public record NotKept(String why) implements Packages {
+
+        public NotKept {
+            Objects.requireNonNull(why, "why");
+        }
+    }
+
+    /** Every package the report counted something in, by path; adding up to its totals. */
+    public record Kept(List<PackageCounts> packages) implements Packages {
+
+        public Kept {
+            packages = List.copyOf(packages);
+        }
+    }
+
+    /** @param branchesCovered and {@code branchesTotal}: empty when the report counted no branch */
+    public record PackageCounts(String path, long linesCovered, long linesTotal, Optional<Long> branchesCovered,
+            Optional<Long> branchesTotal) {
+
+        public PackageCounts {
+            Objects.requireNonNull(path, "path");
+            Objects.requireNonNull(branchesCovered, "branchesCovered");
+            Objects.requireNonNull(branchesTotal, "branchesTotal");
+        }
+    }
 
     public record TestReport(Look look, List<Suite> suites) {
 

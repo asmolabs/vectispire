@@ -62,6 +62,24 @@ public enum NoDataReason {
      * version", which would answer "no" for a module that is present.
      */
     VERSION_UNRECORDED,
+    /**
+     * A coverage rule scoped to packages, on an import accepted before imports kept their packages (V70):
+     * the report was never read package by package, and only importing it again can tell. Never the
+     * report's totals in the scope's place, which would be a figure over packages the scope leaves out.
+     */
+    PACKAGES_UNRECORDED,
+    /**
+     * A coverage rule scoped to packages, on an import whose packages were not kept — more than the
+     * limit, a path that could not be stored whole, or counts that did not add up to the totals; the
+     * evidence says which.
+     */
+    PACKAGES_NOT_KEPT,
+    /**
+     * A coverage rule scoped to packages, and none of the report's packages is in the scope. Not 0 %,
+     * and not 100 %: nothing in the scope was counted, which may be a scope written against another
+     * layout than the report's — the evidence names how many packages there were.
+     */
+    SCOPE_MATCHES_NOTHING,
     /** The newest scan or import in which the scope produced is older than the maximum age. */
     STALE,
     /** A plugin was not applicable on every repository: a line passed by a tool that looked at nothing is refused. */

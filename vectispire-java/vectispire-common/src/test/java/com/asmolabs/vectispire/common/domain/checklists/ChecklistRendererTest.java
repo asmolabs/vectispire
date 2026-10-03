@@ -335,6 +335,45 @@ class ChecklistRendererTest {
         assertThat(text(evidence, "D7")).isEqualTo("Vectispire (automatic, from its measurement)");
     }
 
+    @Test
+    @DisplayName("a scoped coverage line prints its scope beside its figure: the reviewer signs the filter too")
+    void aCoverageScopeIsPrinted() {
+        byte[] template = new XlsxFixture().bytes();
+        ChecklistStatement statement = statement(template, true);
+        ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"coverage_threshold\",\"maxAgeDays\":7,\"metric\":\"line\","
+                + "\"minimumRatio\":0.8,\"aggregation\":\"per_repository\","
+                + "\"scope\":{\"include\":[\"org/example/**\"],\"exclude\":[\"**/generated/**\"]}}");
+        Instant at = Instant.parse("2026-09-28T00:00:00Z");
+        Measurement measurement = RuleEvaluation.evaluate(rule, new MeasurementFacts(List.of(1L), Map.of(), Map.of(),
+                Map.of(), Map.of(1L, new MeasurementFacts.CoverageReport(
+                        new MeasurementFacts.Look(MeasurementFacts.Source.COVERAGE_IMPORT, 3, at, Optional.of("ab")),
+                        50, 100, Optional.empty(), Optional.empty(), new MeasurementFacts.Kept(List.of(
+                                new MeasurementFacts.PackageCounts("org/example/generated", 0, 50, Optional.empty(),
+                                        Optional.empty()),
+                                new MeasurementFacts.PackageCounts("org/example/service", 45, 50, Optional.empty(),
+                                        Optional.empty()))))),
+                Map.of(), Map.of()), SIGNED);
+        List<ChecklistStatement.Line> lines = new ArrayList<>(statement.lines());
+        ChecklistStatement.Line line = lines.get(3);
+        lines.set(3, new ChecklistStatement.Line(line.itemId(), line.key(), line.position(), line.row(), line.domain(),
+                line.objective(), line.control(), line.contact(), line.kpi(), line.contentDigest(), line.evidenceRequired(),
+                line.evidenceValidityMonths(), line.answer(), line.history(), new ChecklistStatement.Measured("sign_off",
+                        "coverage_threshold", rule.digest(), rule.canonical(), "pass", null, at, SIGNED,
+                        measurement.summary(), measurement.evidenceDigest(), null),
+                line.reconciliation(), line.evidence()));
+        ChecklistStatement scoped = new ChecklistStatement(statement.form(), statement.status(), statement.signed(),
+                statement.project(), statement.revision(), statement.template(), statement.header(), statement.opened(),
+                statement.submitted(), statement.signedOff(), statement.fourEyesRequired(), statement.productVersion(),
+                statement.producedAt(), lines);
+
+        Sheet evidence = Workbook.read(ChecklistRenderer.render(template, layout(), scoped), 10L * 1024 * 1024)
+                .sheet(ChecklistRenderer.EVIDENCE_SHEET).orElseThrow();
+        assertThat(text(evidence, "I7"))
+                .startsWith("Pass, line coverage of at least 80 % over packages matching org/example/**, excluding "
+                        + "**/generated/**, on 1 repository")
+                .contains("repository 1: 1 of 2 packages in the scope; 45 of 50 lines covered");
+    }
+
     private static ChecklistStatement.Line withAnswer(ChecklistStatement.Line line, ChecklistStatement.Answer answer) {
         return new ChecklistStatement.Line(line.itemId(), line.key(), line.position(), line.row(), line.domain(),
                 line.objective(), line.control(), line.contact(), line.kpi(), line.contentDigest(), line.evidenceRequired(),

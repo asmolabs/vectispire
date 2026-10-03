@@ -17,7 +17,9 @@ import java.util.Map;
  *       builtin:eol}, {@code builtin:license}, {@code plugin:<id>}, {@code import:<source>/<tool>}) and {@code
  *       thresholds};
  *   <li>{@code coverage_threshold}: {@code maxAgeDays}, {@code metric} ({@code line} or {@code branch}), {@code
- *       minimumRatio} (above 0, to 1) and {@code aggregation} ({@code per_repository} or {@code project_weighted});
+ *       minimumRatio} (above 0, to 1), {@code aggregation} ({@code per_repository} or {@code project_weighted}) and
+ *       an optional {@code scope} — the packages measured, {@code include} and {@code exclude} patterns over
+ *       package paths; absent, the whole report;
  *   <li>{@code test_suite_passed}: {@code maxAgeDays}, {@code suitePattern} (a glob, {@code *} and {@code ?}) and
  *       {@code minimumTests};
  *   <li>{@code component_versions}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} and its
@@ -39,10 +41,20 @@ public record ChecklistRuleForm(
         String aggregation,
         String suitePattern,
         Integer minimumTests,
-        List<ComponentForm> components) {
+        List<ComponentForm> components,
+        CoverageScopeForm scope) {
 
     /** @param minResolvedRatio resolved ÷ (resolved + open), 0 to 1, four decimals at most */
     public record ThresholdForm(Integer maxOpen, BigDecimal minResolvedRatio) {}
+
+    /**
+     * The packages a coverage rule measures: those an {@code include} pattern matches — every package
+     * when none is given — and no {@code exclude} pattern does. Patterns are over package paths
+     * ({@code org/example/service}, an lcov file's directory): {@code **} any number of whole segments,
+     * {@code *} characters within one; nothing else is a wildcard. At least one pattern, at most twenty
+     * in each list.
+     */
+    public record CoverageScopeForm(List<String> include, List<String> exclude) {}
 
     /** @param purlPrefix a package URL without its version, {@code pkg:maven/com.example/ledger-core} */
     public record ComponentForm(String purlPrefix, List<String> versions) {}
