@@ -1,9 +1,10 @@
 # 0037 — Repositories are discovered through a read-only forge connection, chosen by a person, and imported as ordinary targets
 
-**Date:** 2026-10-03 · **Status:** proposed · **Builds on:** [0002](0002-the-database-carries-the-queue.md), [0022](0022-https-clone-tokens-are-bound-to-a-host.md), [0023](0023-solutions-projects-and-repositories.md), [0025](0025-siem-events-leave-through-the-outbox.md), [0030](0030-modulith-verifies-the-module-boundaries.md) · **Decider:** Laurent Boucher
+**Date:** 2026-10-03 · **Status:** accepted · **Builds on:** [0002](0002-the-database-carries-the-queue.md), [0022](0022-https-clone-tokens-are-bound-to-a-host.md), [0023](0023-solutions-projects-and-repositories.md), [0025](0025-siem-events-leave-through-the-outbox.md), [0030](0030-modulith-verifies-the-module-boundaries.md) · **Decider:** Laurent Boucher
 
-*Proposed, not accepted: nothing of it is built. The open questions at the end are the owner's to
-settle; each recommendation becomes part of the decision only when he accepts it.*
+*Accepted on 2026-10-03 by the product owner, every open question settled as recommended — the
+answers are at the end, under "Decided on 2026-10-03", and the body below is written as decided.
+Bitbucket is the lot after the first (D8); v1 is GitHub and GitLab.*
 
 ## Context
 
@@ -79,7 +80,7 @@ the snapshot, the selection and the import are written once.
   decision, not deferred out of it: its two editions share nothing but a name — Cloud's authentication
   changed under it in 2025–2026 (app passwords withdrawn in favour of scoped API tokens), and Data
   Center returns the default branch only through one call per repository — and it ships as its own lot
-  against the same interface rather than delaying the other two (open question 1).
+  (D8) against the same interface rather than delaying the other two.
 
 *Rejected:* **GraphQL** (GitHub v4, GitLab's). It would fetch repositories and their languages in one
 request, and that is its only advantage here. GitHub prices GraphQL by computed cost, which is harder
@@ -99,7 +100,7 @@ the account's address), and a token. It lives in a new table, `t_forge_connectio
 | Forge | Credential | Scopes required | Refused |
 |---|---|---|---|
 | GitHub (cloud, data residency, GHES that offer it) | fine-grained personal access token, resource owner = the connection's owner, repository access "All repositories" or a selection | **Metadata: read** — and nothing else | — (fine-grained permissions are not readable through the API; see below) |
-| GHES without fine-grained tokens | classic personal access token | `repo` is the only classic scope that lists private repositories, and it writes | accepted only there, flagged (open question 2) |
+| GHES without fine-grained tokens | classic personal access token | `repo` is the only classic scope that lists private repositories, and it writes | accepted only there, **flagged as able to write** — in the list, the audit entry and `VECTI-SEC-034`'s details |
 | GitLab | **group access token** (preferred: a bot member that outlives the person who made it) or personal access token, role Reporter on the groups to discover | **`read_api`** | any scope outside `read_api`, `read_repository`, `read_registry`, `read_user` — `api`, `write_repository`, `sudo`, `admin_mode`, runner and Kubernetes scopes |
 | Bitbucket Cloud | Atlassian API token with scopes, or a workspace access token | `read:workspace:bitbucket`, `read:project:bitbucket`, `read:repository:bitbucket` (names checked against Atlassian's list when lot D8 starts) | any `write:`, `admin:` or `delete:` scope where the response states them |
 | Bitbucket Data Center | HTTP access token (project or personal) | permission **Project read** / **Repository read** | write and admin permissions |
@@ -254,7 +255,8 @@ full path (`acme/payments/*`), *already a target* (shown, greyed, not selectable
 matching / none / invert**. The selection is a set of forge ids; what is imported is what was ticked,
 never what a filter matches at import time.
 
-**Recognising a repository already present.** A new rule beside `normalizeHost`, `RepositoryUrl.identity`:
+**Recognising a repository already present.** A new rule beside `normalizeHost`, `RepositoryUrl.identity`
+(brought by the repository form's duplicate refusal, answer 6, and reused here):
 the host as `normalizeHost` writes it, then the path — without `.git`, without trailing slash, lower
 case — and nothing of scheme, user or port, the scp form `git@host:group/repo.git` read as its path. A
 discovered repository **is already present** when the identity of its HTTPS *or* its SSH clone URL
@@ -276,10 +278,10 @@ proposal is shown and a person confirms it, which is the difference between infe
 | Forge | Solution proposed | Project proposed |
 |---|---|---|
 | GitLab | the top-level group | the repository's parent group below it (`acme/backend/payments/api` → project `backend/payments`); a repository directly under the top-level group → a project named after that group |
-| GitHub | the organisation | one project per repository, named after it — GitHub has no level between them (open question 3) |
+| GitHub | the organisation | one project per repository, named after it — GitHub has no level between them; editable like every proposal |
 | Bitbucket Cloud | the workspace | the Bitbucket project |
 | Bitbucket Data Center | one solution named after the connection | the Bitbucket project |
-| any | personal namespaces: none | none — the repository is imported into no project |
+| any | personal namespaces: none — listed, **unticked** | none — the repository is imported into no project |
 
 - An existing solution or project **of the same name** (as `SolutionAdministrationService` compares
   names) is **reused**, marked *existing*, never renamed or moved.
@@ -320,13 +322,15 @@ estate to clean up by hand. A larger selection is several imports.
   without it an imported target would have no schedule at all, which is the state the default was made
   to end.
 - **First scan: optional, off by default, staggered.** When asked, each new target is queued through
-  `TargetScans.queue` with `not_before` = now + *k* × spacing (sixty seconds by default; three hundred
-  repositories over five hours). A target already waiting is skipped, as the scan button skips it.
+  `TargetScans.queue` with `not_before` = now + *k* × spacing (sixty seconds by default, editable in the
+  import between ten seconds and ten minutes; three hundred repositories over five hours at the
+  default). A target already waiting is skipped, as the scan button skips it.
 - **Idempotent by construction.** A repository already linked to the connection, or already present by
   identity, is skipped and reported *already imported*; replaying the same request creates nothing.
 - **Visibility.** The import creates **no grant**. New targets are visible to administrators and,
   through 0023, to whoever holds a grant on the project they are filed into. Granting stays on its own
-  screen, audited as `TEAM_ACCESS_CHANGED` and signalled as `VECTI-SEC-011` (open question 5).
+  screen, audited as `TEAM_ACCESS_CHANGED` and signalled as `VECTI-SEC-011` — folded into a bulk import, a
+  grant would be easy to miss in review.
 - **Audit and SIEM.** Each target gets the entry the form writes (*Repository added: …*, redacted), with
   *imported from connection N, discovery M*; each solution and project created gets its usual entry; one
   `FORGE_IMPORT_APPLIED` entry summarises the import (counts, connection, discovery, actor); and
@@ -368,7 +372,8 @@ dependency runs one way, and a target never knows it was imported. `Architecture
 6. **Other forges**: Azure DevOps, Gitea and Forgejo.
 7. **Discovery through an agent**, for a forge the control plane cannot reach: the connection's token
    would have to be sealed to one designated agent, as 0035 plans for its exports.
-8. **Grants at import** (a team named on the projects created), if open question 5 is answered so.
+8. **Grants at import** (a team named on the projects created) — refused for v1 (decided 2026-10-03,
+   answer 5); reopened only by a decision of its own.
 9. **Integration API keys** on the discovery and import routes, for scripted onboarding.
 
 ## Alternatives considered
@@ -396,9 +401,9 @@ Each section records its own rejections; the larger ones, together:
   vendor directory is needed (0027). `integrationTestAll` runs on the lot, as for every migration.
 - One more encrypted store, which `ENCRYPTION_KEY`'s rotation procedure has to list beside the SSH keys
   and tokens.
-- A new identity rule for repositories, `RepositoryUrl.identity`. It applies to the import only in v1;
-  whether the repository form should refuse a duplicate by the same rule is a question this decision
-  raises and does not settle (open question 6).
+- A new identity rule for repositories, `RepositoryUrl.identity`. **The repository form refuses a
+  duplicate by the same rule too** (decided 2026-10-03, answer 6), as a separate change built on its own
+  branch: the rule lands there, and the lots here reuse it rather than write a second one.
 - `OutboundJson` gains a paged call that returns headers; every adapter goes through it.
 - Two audit operations (`FORGE_CONNECTION_CHANGED`, `FORGE_IMPORT_APPLIED`), three SIEM identifiers and a
   catalogue entry for each, in both languages.
@@ -411,25 +416,24 @@ Each section records its own rejections; the larger ones, together:
 - A forge the control plane cannot reach (an internal GitLab reachable only from an agent's network)
   cannot be discovered in v1.
 
-## Open questions for the owner
+## Decided on 2026-10-03
 
-1. **Bitbucket in v1, or in the lot after?** Recommended: the lot after (D8), GitLab and GitHub first.
-   If the first estates are on Bitbucket, D8 moves before D4.
-2. **Classic GitHub tokens on GHES without fine-grained tokens**: accept them, flagged as able to write,
-   or refuse them? Recommended: accept, flagged in the list, the audit entry and `VECTI-SEC-034`'s
-   details — refusing would exclude those servers entirely.
-3. **GitHub's project proposal**: one project per repository (recommended, editable), one project per
-   organisation, or no project?
-4. **The first scans' spacing**: sixty seconds by default, editable in the import between ten seconds
-   and ten minutes? And should the first scan be on by default?
-5. **Grants at import**: may the importer name a team to be granted the projects the import creates?
-   Recommended: not in v1 — a grant is a separate, audited gesture with its own SIEM event, and folding it
-   into a bulk import makes it easy to miss in review.
-6. **Duplicates on the repository form**: should the form refuse a URL whose identity is already a
-   target (outside a different sub-path)? Recommended: yes, as a separate small change.
-7. **Personal namespaces**: offered (unticked) or not listed at all?
-8. **The bounds**: 1,000 repositories per import, 20,000 per discovery, thirty minutes per discovery —
-   right for the estates in view?
+The product owner settled the eight questions the proposal left open, each as recommended:
+
+1. **Bitbucket in the lot after** (D8); v1 is GitHub and GitLab. If the first estates turn out to be on
+   Bitbucket, D8 moves before D4.
+2. **Classic GitHub tokens on a GHES without fine-grained tokens are accepted, flagged as able to
+   write** — in the list, the audit entry and `VECTI-SEC-034`'s details. Refusing them would exclude
+   those servers entirely.
+3. **GitHub: one project per repository**, named after it, editable like every proposal.
+4. **The first scan at import is off by default**; when asked, the scans are spaced **sixty seconds**
+   apart by default, editable between **ten seconds and ten minutes**.
+5. **No team grants at import in v1.** A grant stays a separate, audited gesture with its own SIEM event.
+6. **The manual repository form refuses a duplicate by the identity rule too**, as a separate change
+   built in parallel. `RepositoryUrl.identity` lands with it; these lots reuse it.
+7. **Personal namespaces are offered, unticked.**
+8. **The bounds stand**: 1,000 repositories per import, 20,000 per discovery, thirty minutes per
+   discovery.
 
 ## Implementation, in lots
 
@@ -439,7 +443,7 @@ Each section records its own rejections; the larger ones, together:
 | D2 | `OutboundJson`'s paged call with headers; same-origin next pages; `Retry-After` and rate-limit waits; the token attached to its host only | S |
 | D3 | The discovery job (`t_forge_discovery`, claim and lease, progress, `partial`), the snapshot and its comparison; the GitLab adapter, with recorded-response tests asserting `membership=true` and `min_access_level` | L |
 | D4 | The GitHub adapter (cloud, data residency, GHES), recorded-response tests | M |
-| D5 | `RepositoryUrl.identity` and its test table; the selection routes, filters, mapping proposal, preview | M |
+| D5 | The selection routes (reusing `RepositoryUrl.identity`, which the repository form's duplicate refusal brings), filters, mapping proposal, preview | M |
 | D6 | The import through the existing services, credentials per host, staggered first scans on `not_before`, provenance links and their `TargetDeleted` listener, `FORGE_IMPORT_APPLIED`, `VECTI-SEC-035` — after the weekly default has landed | M |
 | D7 | The interface: connections, discovery with progress and comparison, selection table, mapping editor, preview, import result | L |
 | D8 | The Bitbucket Cloud and Data Center adapters | M |

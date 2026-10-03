@@ -1,9 +1,10 @@
 # 0037 — Les dépôts sont découverts par une connexion de forge en lecture seule, choisis par une personne, et importés comme des cibles ordinaires
 
-**Date :** 2026-10-03 · **Statut :** proposée · **S'appuie sur :** [0002](0002-the-database-carries-the-queue.md), [0022](0022-https-clone-tokens-are-bound-to-a-host.md), [0023](0023-solutions-projects-and-repositories.md), [0025](0025-siem-events-leave-through-the-outbox.md), [0030](0030-modulith-verifies-the-module-boundaries.md) · **Décideur :** Laurent Boucher
+**Date :** 2026-10-03 · **Statut :** acceptée · **S'appuie sur :** [0002](0002-the-database-carries-the-queue.md), [0022](0022-https-clone-tokens-are-bound-to-a-host.md), [0023](0023-solutions-projects-and-repositories.md), [0025](0025-siem-events-leave-through-the-outbox.md), [0030](0030-modulith-verifies-the-module-boundaries.md) · **Décideur :** Laurent Boucher
 
-*Proposée, non acceptée : rien n'en est construit. Les questions ouvertes à la fin reviennent au
-responsable produit ; chaque recommandation ne fait partie de la décision que lorsqu'il l'accepte.*
+*Acceptée le 2026-10-03 par le responsable produit, chaque question ouverte tranchée comme recommandé —
+les réponses sont à la fin, sous « Tranché le 2026-10-03 », et le corps ci-dessous est écrit tel que
+décidé. Bitbucket est le lot qui suit le premier (D8) ; la v1 est GitHub et GitLab.*
 
 ## Contexte
 
@@ -82,8 +83,7 @@ de lignes de correspondance ; la tâche, l'instantané, la sélection et l'impor
   cette décision, pas reporté hors d'elle : ses deux éditions ne partagent qu'un nom — l'authentification
   de Cloud a changé sous ses pieds en 2025–2026 (mots de passe d'application retirés au profit de jetons
   d'API à portées), et Data Center ne renvoie la branche par défaut que par un appel par dépôt — et il
-  arrive comme un lot à part sur la même interface plutôt que de retarder les deux autres (question
-  ouverte 1).
+  arrive comme un lot à part (D8) sur la même interface plutôt que de retarder les deux autres.
 
 *Écartées :* **GraphQL** (GitHub v4, celui de GitLab). Il ramènerait les dépôts et leurs langages en une
 requête, et c'est son seul avantage ici. GitHub facture GraphQL par coût calculé, plus difficile à borner
@@ -105,7 +105,7 @@ nouvelle table, `t_forge_connection`.
 | Forge | Identifiant | Portées requises | Refusées |
 |---|---|---|---|
 | GitHub (cloud, résidence des données, GHES qui les proposent) | jeton d'accès personnel *fine-grained*, propriétaire de ressource = celui de la connexion, accès « All repositories » ou une sélection | **Metadata: read** — et rien d'autre | — (les permissions *fine-grained* ne se lisent pas par l'API ; voir ci-dessous) |
-| GHES sans jetons *fine-grained* | jeton d'accès personnel classique | `repo` est la seule portée classique qui liste les dépôts privés, et elle écrit | acceptée seulement là, signalée (question ouverte 2) |
+| GHES sans jetons *fine-grained* | jeton d'accès personnel classique | `repo` est la seule portée classique qui liste les dépôts privés, et elle écrit | acceptée seulement là, **signalée comme capable d'écrire** — dans la liste, l'entrée d'audit et les détails de `VECTI-SEC-034` |
 | GitLab | **jeton d'accès de groupe** (préféré : un membre robot qui survit à la personne qui l'a créé) ou jeton d'accès personnel, rôle Reporter sur les groupes à découvrir | **`read_api`** | toute portée hors de `read_api`, `read_repository`, `read_registry`, `read_user` — `api`, `write_repository`, `sudo`, `admin_mode`, les portées runner et Kubernetes |
 | Bitbucket Cloud | jeton d'API Atlassian à portées, ou jeton d'accès d'espace de travail | `read:workspace:bitbucket`, `read:project:bitbucket`, `read:repository:bitbucket` (noms vérifiés sur la liste d'Atlassian au début du lot D8) | toute portée `write:`, `admin:` ou `delete:` quand la réponse les indique |
 | Bitbucket Data Center | jeton d'accès HTTP (projet ou personnel) | permission **Project read** / **Repository read** | permissions d'écriture et d'administration |
@@ -275,7 +275,8 @@ ensemble d'identifiants de forge ; ce qui est importé est ce qui a été coché
 retient au moment de l'import.
 
 **Reconnaître un dépôt déjà présent.** Une nouvelle règle à côté de `normalizeHost`,
-`RepositoryUrl.identity` : l'hôte tel que `normalizeHost` l'écrit, puis le chemin — sans `.git`, sans
+`RepositoryUrl.identity` (apportée par le refus des doublons du formulaire de dépôt, réponse 6, et
+réutilisée ici) : l'hôte tel que `normalizeHost` l'écrit, puis le chemin — sans `.git`, sans
 barre oblique finale, en minuscules — et rien du schéma, de l'utilisateur ni du port, la forme scp
 `git@host:group/repo.git` lue comme son chemin. Un dépôt découvert **est déjà présent** quand l'identité de
 son URL de clonage HTTPS *ou* SSH est égale à l'identité de l'URL d'une cible existante, **quel que soit le
@@ -299,10 +300,10 @@ et suggérer :
 | Forge | Solution proposée | Projet proposé |
 |---|---|---|
 | GitLab | le groupe de premier niveau | le groupe parent du dépôt sous celui-ci (`acme/backend/payments/api` → projet `backend/payments`) ; un dépôt directement sous le groupe de premier niveau → un projet nommé d'après ce groupe |
-| GitHub | l'organisation | un projet par dépôt, nommé d'après lui — GitHub n'a pas de niveau entre les deux (question ouverte 3) |
+| GitHub | l'organisation | un projet par dépôt, nommé d'après lui — GitHub n'a pas de niveau entre les deux ; modifiable comme toute proposition |
 | Bitbucket Cloud | l'espace de travail | le projet Bitbucket |
 | Bitbucket Data Center | une solution nommée d'après la connexion | le projet Bitbucket |
-| toutes | espaces de noms personnels : aucune | aucun — le dépôt est importé dans aucun projet |
+| toutes | espaces de noms personnels : aucune — listés, **non cochés** | aucun — le dépôt est importé dans aucun projet |
 
 - Une solution ou un projet existant **du même nom** (tel que `SolutionAdministrationService` compare les
   noms) est **réutilisé**, marqué *existant*, jamais renommé ni déplacé.
@@ -347,14 +348,15 @@ laisse aucun parc à moitié classé à nettoyer à la main. Une sélection plus
   aucune planification, l'état que le défaut a été fait pour supprimer.
 - **Première analyse : facultative, désactivée par défaut, étalée.** Sur demande, chaque nouvelle cible est
   mise en file par `TargetScans.queue` avec `not_before` = maintenant + *k* × espacement (soixante secondes
-  par défaut ; trois cents dépôts sur cinq heures). Une cible déjà en attente est sautée, comme le bouton
+  par défaut, modifiable à l'import entre dix secondes et dix minutes ; trois cents dépôts sur cinq heures
+  au défaut). Une cible déjà en attente est sautée, comme le bouton
   d'analyse la saute.
 - **Idempotent par construction.** Un dépôt déjà lié à la connexion, ou déjà présent par identité, est
   sauté et signalé *déjà importé* ; rejouer la même requête ne crée rien.
 - **Visibilité.** L'import ne crée **aucun droit**. Les nouvelles cibles sont visibles des administrateurs
   et, par la 0023, de qui détient un droit sur le projet où elles sont classées. L'attribution de droits
-  reste sur son propre écran, journalisée `TEAM_ACCESS_CHANGED` et signalée `VECTI-SEC-011` (question
-  ouverte 5).
+  reste sur son propre écran, journalisée `TEAM_ACCESS_CHANGED` et signalée `VECTI-SEC-011` — noyé dans
+  un import en masse, un droit serait facile à manquer en revue.
 - **Audit et SIEM.** Chaque cible reçoit l'entrée qu'écrit le formulaire (*Repository added: …*, masquée),
   avec *importé par la connexion N, découverte M* ; chaque solution et projet créé reçoit son entrée
   habituelle ; une entrée `FORGE_IMPORT_APPLIED` résume l'import (nombres, connexion, découverte, acteur) ;
@@ -399,8 +401,8 @@ dépendance va dans un seul sens, et une cible ne sait jamais qu'elle a été im
 6. **D'autres forges** : Azure DevOps, Gitea et Forgejo.
 7. **La découverte par un agent**, pour une forge que le plan de contrôle ne peut atteindre : le jeton de
    la connexion devrait être scellé pour un agent désigné, comme la 0035 le prévoit pour ses exports.
-8. **Des droits à l'import** (une équipe nommée sur les projets créés), si la question ouverte 5 est
-   tranchée en ce sens.
+8. **Des droits à l'import** (une équipe nommée sur les projets créés) — refusés pour la v1 (tranché le
+   2026-10-03, réponse 5) ; rouverts seulement par une décision propre.
 9. **Les clés API d'intégration** sur les routes de découverte et d'import, pour une intégration scriptée.
 
 ## Alternatives envisagées
@@ -429,9 +431,10 @@ Chaque section consigne ses propres rejets ; les plus importants, ensemble :
   `integrationTestAll` tourne sur le lot, comme pour toute migration.
 - Un stockage chiffré de plus, que la procédure de rotation d'`ENCRYPTION_KEY` doit lister à côté des clés
   SSH et des jetons.
-- Une nouvelle règle d'identité des dépôts, `RepositoryUrl.identity`. Elle ne s'applique qu'à l'import en
-  v1 ; savoir si le formulaire de dépôt devrait refuser un doublon selon la même règle est une question
-  que cette décision soulève et ne tranche pas (question ouverte 6).
+- Une nouvelle règle d'identité des dépôts, `RepositoryUrl.identity`. **Le formulaire de dépôt refuse
+  lui aussi un doublon selon cette règle** (tranché le 2026-10-03, réponse 6), par un changement séparé
+  construit sur sa propre branche : la règle arrive là, et les lots d'ici la réutilisent au lieu d'en
+  écrire une seconde.
 - `OutboundJson` gagne un appel paginé qui renvoie les en-têtes ; chaque adaptateur passe par lui.
 - Deux opérations d'audit (`FORGE_CONNECTION_CHANGED`, `FORGE_IMPORT_APPLIED`), trois identifiants SIEM et
   une entrée de catalogue pour chacun, dans les deux langues.
@@ -444,25 +447,27 @@ Chaque section consigne ses propres rejets ; les plus importants, ensemble :
 - Une forge que le plan de contrôle ne peut atteindre (un GitLab interne joignable seulement depuis le
   réseau d'un agent) ne peut être découverte en v1.
 
-## Questions ouvertes pour le responsable produit
+## Tranché le 2026-10-03
 
-1. **Bitbucket en v1, ou au lot suivant ?** Recommandé : au lot suivant (D8), GitLab et GitHub d'abord. Si
-   les premiers parcs sont sur Bitbucket, D8 passe avant D4.
-2. **Les jetons GitHub classiques sur un GHES sans jetons *fine-grained*** : les accepter, signalés comme
-   capables d'écrire, ou les refuser ? Recommandé : les accepter, signalés dans la liste, l'entrée d'audit
-   et les détails de `VECTI-SEC-034` — les refuser exclurait entièrement ces serveurs.
-3. **La proposition de projet pour GitHub** : un projet par dépôt (recommandé, modifiable), un projet par
-   organisation, ou aucun projet ?
-4. **L'espacement des premières analyses** : soixante secondes par défaut, modifiable à l'import entre dix
-   secondes et dix minutes ? Et la première analyse doit-elle être activée par défaut ?
-5. **Des droits à l'import** : l'importateur peut-il nommer une équipe à qui accorder les projets que
-   l'import crée ? Recommandé : pas en v1 — un droit est un geste séparé, journalisé, avec son propre
-   événement SIEM, et le noyer dans un import en masse le rend facile à manquer en revue.
-6. **Les doublons dans le formulaire de dépôt** : le formulaire doit-il refuser une URL dont l'identité est
-   déjà une cible (hors sous-chemin différent) ? Recommandé : oui, comme un petit changement séparé.
-7. **Les espaces de noms personnels** : proposés (non cochés) ou pas listés du tout ?
-8. **Les bornes** : 1 000 dépôts par import, 20 000 par découverte, trente minutes par découverte —
-   adaptées aux parcs envisagés ?
+Le responsable produit a tranché les huit questions que la proposition laissait ouvertes, chacune comme
+recommandé :
+
+1. **Bitbucket au lot suivant** (D8) ; la v1 est GitHub et GitLab. Si les premiers parcs se révèlent être
+   sur Bitbucket, D8 passe avant D4.
+2. **Les jetons GitHub classiques sur un GHES sans jetons *fine-grained* sont acceptés, signalés comme
+   capables d'écrire** — dans la liste, l'entrée d'audit et les détails de `VECTI-SEC-034`. Les refuser
+   exclurait entièrement ces serveurs.
+3. **GitHub : un projet par dépôt**, nommé d'après lui, modifiable comme toute proposition.
+4. **La première analyse à l'import est désactivée par défaut** ; sur demande, les analyses sont espacées
+   de **soixante secondes** par défaut, modifiable entre **dix secondes et dix minutes**.
+5. **Pas de droits d'équipe à l'import en v1.** Un droit reste un geste séparé, journalisé, avec son
+   propre événement SIEM.
+6. **Le formulaire de dépôt manuel refuse lui aussi un doublon selon la règle d'identité**, par un
+   changement séparé construit en parallèle. `RepositoryUrl.identity` arrive avec lui ; ces lots la
+   réutilisent.
+7. **Les espaces de noms personnels sont proposés, non cochés.**
+8. **Les bornes tiennent** : 1 000 dépôts par import, 20 000 par découverte, trente minutes par
+   découverte.
 
 ## Mise en œuvre, par lots
 
@@ -472,7 +477,7 @@ Chaque section consigne ses propres rejets ; les plus importants, ensemble :
 | D2 | L'appel paginé d'`OutboundJson` avec en-têtes ; pages suivantes de même origine ; attentes sur `Retry-After` et les limites de débit ; le jeton joint à son seul hôte | S |
 | D3 | La tâche de découverte (`t_forge_discovery`, prise et bail, progression, `partial`), l'instantané et sa comparaison ; l'adaptateur GitLab, avec des tests sur réponses enregistrées qui vérifient `membership=true` et `min_access_level` | L |
 | D4 | L'adaptateur GitHub (cloud, résidence des données, GHES), tests sur réponses enregistrées | M |
-| D5 | `RepositoryUrl.identity` et sa table de tests ; les routes de sélection, filtres, proposition de correspondance, aperçu | M |
+| D5 | Les routes de sélection (qui réutilisent `RepositoryUrl.identity`, qu'apporte le refus des doublons du formulaire de dépôt), filtres, proposition de correspondance, aperçu | M |
 | D6 | L'import par les services existants, identifiants par hôte, premières analyses étalées sur `not_before`, liens de provenance et leur écouteur de `TargetDeleted`, `FORGE_IMPORT_APPLIED`, `VECTI-SEC-035` — après l'arrivée de la planification hebdomadaire par défaut | M |
 | D7 | L'interface : connexions, découverte avec progression et comparaison, tableau de sélection, éditeur de correspondance, aperçu, résultat de l'import | L |
 | D8 | Les adaptateurs Bitbucket Cloud et Data Center | M |
