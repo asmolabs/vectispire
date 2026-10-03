@@ -1,9 +1,10 @@
 # 0035 — A report plugin is a signed container image that turns a project export into one document, which the platform validates, signs and keeps with its provenance
 
-**Date:** 2026-10-03 · **Status:** proposed · **Builds on:** [0017](0017-custom-checks-as-container-images.md), [0032](0032-security-checklists.md) §10 · **Decider:** Laurent Boucher
+**Date:** 2026-10-03 · **Status:** accepted · **Builds on:** [0017](0017-custom-checks-as-container-images.md), [0032](0032-security-checklists.md) §10 · **Decider:** Laurent Boucher
 
-*Proposed, not accepted: nothing of it is built. The open questions at the end are the owner's to
-settle; each recommendation becomes part of the decision only when he accepts it.*
+*Accepted on 2026-10-03: the owner settled the open questions the proposal ended with, and the
+answers are written into the body and listed in "Decided on 2026-10-03" at the end. Nothing of it was
+built when it was accepted; the lots at the end say in which order it is.*
 
 ## Context
 
@@ -88,6 +89,7 @@ document needs must be in the export, and whatever is not in the export the plug
 | `issues` | every issue **not resolved** on the project's targets: id, type, severity, rule, title, tool key, package and version, advisory ids, path and line, first and last seen, status, the triage decision with its justification, who decided and when, the review date, the remediation deadline |
 | `issue_counts` | per type and severity, open, accepted, false positive and resolved — so a document can state totals without carrying the resolved backlog |
 | `inventory` | the project's consolidated components: name, version, purl, licences, the targets they come from |
+| `compliance` | the project's compliance state, computed over its targets as the project's compliance screen computes it: per framework, its status and score, and per control its id, name, status, score and details; the targets monitored, observed and fresh, which cap those verdicts — a checklist line and a document citing it need the state the checklist was measured against |
 | `checklists` | per template, the newest **signed-off** revision's statement, embedded verbatim — the `checklist.json` of [0032](0032-security-checklists.md) §10, with its own version — and the open revision's, if any, marked `"draft": true` |
 
 **What is out, deliberately:**
@@ -98,9 +100,14 @@ document needs must be in the export, and whatever is not in the export the plug
   installation's settings.
 - **Evidence files' bytes**: named by name, media type, size and SHA-256, as `checklist.json` already
   does. A report can cite a file; it cannot carry it.
-- **Accounts beyond their display name**: no e-mail address, no role, no team, no grant.
+- **Accounts beyond their display name**: no e-mail address, no role, no team, no grant. The names
+  that are in it are those of the requester, of triage deciders and of checklist authors — already on
+  every signed checklist; an e-mail address never is, not even where an account has no display name
+  (the export then carries the account id alone).
 - **The audit log, other projects, the organisation-wide statement of applicability and the SIEM
   configuration.** A project report speaks for one project.
+- **Posture**: the security score, the scorecard and its candidate, the ranking and the plans. They are
+  figures of the portfolio, tuned on their own calendar; a document that needs one cites the screen.
 - **Resolved issues one by one** — counted in `issue_counts`, not listed: a resolved backlog over
   years would dominate every export and serve almost no document.
 
@@ -119,8 +126,9 @@ admits the caller (account grant intersected with the integration key's restrict
 project. The export service takes the `VisibleProject` the guard mints, never a bare id.
 
 **The export is downloadable on its own**, signed: `GET /api/v1/projects/{id}/export` returns
-`export.json` and its detached signature, to the same callers, under `@AcceptsApiKey(EXPORT)`, audited
-`PROJECT_EXPORTED`. This is how an organisation writes and tests its private plugin against its own
+`export.json` and its detached signature, to the callers who may request a report (§4: write accounts
+and auditors seeing the whole project), under `@AcceptsApiKey(EXPORT)`, audited `PROJECT_EXPORTED` and
+signalled `VECTI-SEC-032`. This is how an organisation writes and tests its private plugin against its own
 data **without Vectispire running it** — and it gives nobody anything they could not already read
 through the routes; it only gathers it.
 
@@ -204,7 +212,8 @@ JVM, and never sees the database, `ENCRYPTION_KEY` or the signing key; only the 
 An installation with no container endpoint on the control plane — the built-in worker switched off,
 every scan on agents — **cannot run report plugins in this version**, and the screens and the route
 say so (409, `report-executor-unavailable`) rather than queue a run nobody will claim. Running on an
-agent is designed below as a later lot (open question 1).
+agent is a later lot (decided on 2026-10-03, answer 1); until it is built, an installation whose scans
+all run on agents gets the 409.
 
 **Runs are queued in the database, not held in a request.** `POST /api/v1/projects/{id}/reports`
 records a run (`pending`) and answers 202 with its id; a bounded pool on the control plane (two runs
@@ -294,7 +303,7 @@ relocation by `VECTISPIRE_PLUGIN_REGISTRY`, the cosign verifier and the bounded 
 | Register a plugin, update its manifest, enable or disable it | platform governor | `@RequiresPlatformGovernor`, as 0017 §6 |
 | **Approve** a registered or updated manifest | with `FOUR_EYES_APPROVAL_REQUIRED` on, **another person** holding `canWriteGovernance` (governor, administrator, CISO); with it off, the registration takes effect at once | `@RequiresSecurityLead` + the comparison in the service |
 | Activate or deactivate it for a project | security lead, whole project visible | `@RequiresSecurityLead` + the guard |
-| Request a report, download the export | `canCauseEffects`, whole project visible | `@RequiresWriteAccount` + the guard (export: `@AcceptsApiKey(EXPORT)` too) |
+| Request a report, download the export | write accounts (`canCauseEffects`) **and auditors** (`AUDITOR`), whole project visible — the platform governor is neither | `@RequiresAccount` + the role check and the guard, both in the service (export: `@AcceptsApiKey(EXPORT)` too); each request audited |
 | Read a project's runs and download a produced document | whole project visible | `@RequiresAccount` + the guard |
 | Withdraw a manifest's documents | platform governor | `@RequiresPlatformGovernor` |
 
@@ -305,7 +314,8 @@ a scanner plugin's output is checked again by every scan, a report plugin's leav
 installation's key, and one person deciding alone which code may produce signed documents is the
 concentration four-eyes exists to split. It follows the platform setting rather than always applying,
 for 0032's reason: an installation with one approver could otherwise never register one. Whether
-scanner plugins should gain the same rule is open question 5, not decided here.
+scanner plugins should gain the same rule is left to a change of its own (decided on 2026-10-03): it
+would amend an accepted decision, 0017 §6.
 
 **Nothing global, no delete** — as 0017 §6: a report plugin runs only for a project it is activated
 for; disabling keeps the activations and runs nothing; deleting a project takes its activations, its
@@ -324,9 +334,8 @@ installation still stands by it. Withdrawing disables the digest; a fixed image 
 `REPORT_REQUESTED`, `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED`, `REPORT_DOWNLOADED`.
 
 **SIEM**, through the outbox ([0025](0025-siem-events-leave-through-the-outbox.md)). The highest
-identifier emitted today is `VECTI-SEC-030`; these are proposed after it and frozen by
-`SecurityEventTypeTest` only when emitted — a parallel change taking a number first moves these, not
-that one:
+identifier emitted when this was accepted is `VECTI-SEC-030`; these three are **reserved** from that
+day — no other event takes them — and frozen by `SecurityEventTypeTest` as each lot emits its own:
 
 | Id | Event | Severity | Why a SOC wants it |
 |---|---|---|---|
@@ -404,11 +413,11 @@ test and a starting point — not a product feature anybody is expected to activ
 ### 7. Where it sits
 
 A new vertical module **`core.reportplugins`** (decisions 0028–0030), above `checklists` — the export embeds
-their statements — and beside `compliance`. Its `package-info` lists, each with its reason:
+their statements — and above `compliance`, whose project state the export carries (answer 8). Its `package-info` lists, each with its reason:
 `access`, `access::security` (the markers, the whole-project guard), `targets` (the project, its
 targets, `ProjectDeleted`), `scanning` (newest scans, plugin steps), `issues`, `issues::queries` (the
 backlog, through `IssueFilters`), `inventory` (consolidated components), `gate` (verdicts),
-`checklists` (signed-off statements). The foundation (`audit`, `settings`, `crypto`) is shared. The
+`checklists` (signed-off statements), `compliance` (the project's compliance state). The foundation (`audit`, `settings`, `crypto`) is shared. The
 module's name avoids `reporting`, which is the PDF pagination four domains share, and
 `common/domain/reports`, which holds the coverage and test-report imports.
 
@@ -433,8 +442,8 @@ the pure parts — the export's records, its writer, the output type checks — 
   contract to version; one export with parts, each present or absent, is one schema to keep.
 - **Partial visibility, with the omissions marked** — how a project's CycloneDX export behaves (built
   for "the project as far as the caller sees it"). Acceptable for an inventory, not for a signed
-  statement about a project: a recipient reads the title, not a footnote. Open question 2 asks whether
-  a marked partial report is ever wanted.
+  statement about a project: a recipient reads the title, not a footnote. A marked partial report stays
+  possible as a later option if somebody asks for one (answer 2); nobody has.
 - **Running on agents, as 0017 does for checks.** See §2: the data would leave the control plane for a
   host that never held it. Designed as a later lot, with the export sealed to one agent the governor
   designates, using the sealing keys of [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md).
@@ -481,32 +490,39 @@ the pure parts — the export's records, its writer, the output type checks — 
   activation, withdrawal), a guide page for requesting and verifying a report, a reference page for the
   export schema and for plugin authors, and the SIEM catalogue.
 
-## Open questions for the owner
+## Decided on 2026-10-03
 
-1. **Installations whose scans all run on agents.** *Recommended: ship control-plane execution first;
-   design agent execution (an export sealed to one designated agent, 0031's keys) when an installation
-   needs it.*
-2. **Whole project or nothing.** *Recommended: yes, as checklists. A partial report, marked as such on
-   its first page, could be a later option if somebody asks.*
-3. **Names in the export.** *Recommended: display names of the requester, of triage deciders and of
-   checklist authors — they are already on the signed checklist; never e-mail addresses.*
-4. **Who may request a report.** *Recommended: write accounts with the whole project visible. An
-   auditor reads produced documents but does not request them, as he reads checklists but does not
-   answer them.*
-5. **Four-eyes on scanner plugins too.** *Recommended: not in this record; decide it on its own, since
-   it would change an accepted decision (0017 §6).*
-6. **No waiver and no network for report plugins.** *Recommended: confirm both as written.*
-7. **The media types.** *Recommended: the list of §3; HTML refused; legacy binary Office formats and
-   macro-enabled packages refused.*
-8. **Retention.** *Recommended: the evidence window for exports and documents; run rows kept with the
-   audit log.*
-9. **Compliance and posture in the export.** *Recommended: not in 1.0 — the statement of applicability
-   is organisation-wide, and the weekly OWASP record has no project form yet. A 1.x minor adds a part
-   when one exists.*
-10. **Scheduled reports** (a monthly document, unattended). *Recommended: out of scope; a requester is
-    part of what a document states, and a schedule has none.*
-11. **The SIEM numbers** are proposed after `VECTI-SEC-030`; whichever change lands first takes the next
-    number.
+The proposal ended with eleven open questions. The owner answered them on 2026-10-03; the body above
+already reads as answered.
+
+1. **Installations whose scans all run on agents.** Control-plane execution first; agent execution —
+   an export sealed to one designated agent, with 0031's keys — is a later lot. Until it lands, an
+   installation with no container endpoint on the control plane gets the 409
+   `report-executor-unavailable` (§2).
+2. **Whole project or nothing.** Yes: the export and every report are built only for a caller who sees
+   the whole project, and anybody else gets the 404 of an absent project (§1). A marked partial report
+   is not offered.
+3. **Names in the export.** The display names of the requester, of triage deciders and of checklist
+   authors are in the export; e-mail addresses never are (§1).
+4. **Who may request a report.** **Write accounts and auditors** (`Role.AUDITOR`) who see the whole
+   project — the proposal had left the auditor out. An auditor reads a project's whole state already;
+   handing the same state to a document is reading, not acting, and an audit is precisely where an
+   organisation's own document is wanted. The platform governor, who causes no effects and holds no
+   triage, does not request reports. Every request is audited (`PROJECT_EXPORTED`, `REPORT_REQUESTED`),
+   and an export leaving the platform raises `VECTI-SEC-032` (§4).
+5. **The media types.** Office Open XML (`.xlsx`, `.docx`, `.pptx`), OpenDocument (`.ods`, `.odt`),
+   PDF and CSV (plain text with it); HTML, the legacy binary Office formats and macro-enabled packages
+   are refused (§3).
+6. **No network and a required signer with no waiver.** Confirmed as written (§2).
+7. **Retention.** The evidence window — `evidence_retention_days`, 400 days by default — for exports
+   and documents; run rows are kept with the audit log (§3).
+8. **Compliance and posture in the export.** Export 1.0 carries the project's **compliance state** —
+   a checklist's measured lines and the documents built on them cite it — and **not posture** (§1).
+9. **Scheduled reports.** Out of scope: a requester is part of what a document states, and a schedule
+   has none.
+10. **Four-eyes on scanner plugins.** Left to a separate change: it would amend 0017 §6, an accepted
+    decision, and is decided there, not here.
+11. **The SIEM numbers.** `VECTI-SEC-031` to `VECTI-SEC-033` are reserved from this day (§4).
 
 ## Implementation, in lots
 

@@ -1,10 +1,11 @@
 # 0035 — Un plugin de rapport est une image de conteneur signée qui transforme un export de projet en un document, que la plateforme vérifie, signe et conserve avec sa provenance
 
-**Date :** 2026-10-03 · **Statut :** proposée · **S'appuie sur :** [0017](0017-custom-checks-as-container-images.md), [0032](0032-security-checklists.md) §10 · **Décideur :** Laurent Boucher
+**Date :** 2026-10-03 · **Statut :** acceptée · **S'appuie sur :** [0017](0017-custom-checks-as-container-images.md), [0032](0032-security-checklists.md) §10 · **Décideur :** Laurent Boucher
 
-*Proposée, pas acceptée : rien n'en est construit. Les questions ouvertes à la fin reviennent au
-responsable du produit ; chaque recommandation ne fait partie de la décision qu'une fois acceptée par
-lui.*
+*Acceptée le 2026-10-03 : le responsable du produit a tranché les questions ouvertes sur lesquelles se
+terminait la proposition ; les réponses sont reportées dans le corps et listées dans « Décidé le
+2026-10-03 » à la fin. Rien n'en était construit à l'acceptation ; les lots à la fin disent dans quel
+ordre ce l'est.*
 
 ## Contexte
 
@@ -93,6 +94,7 @@ signifie « non produite », un tableau vide « produite, rien dedans »
 | `issues` | chaque problème **non résolu** des cibles du projet : identifiant, type, sévérité, règle, titre, clé d'outil, paquet et version, identifiants d'avis, chemin et ligne, première et dernière détection, statut, la décision de triage avec sa justification, qui a décidé et quand, la date de revue, l'échéance de remédiation |
 | `issue_counts` | par type et sévérité : ouverts, acceptés, faux positifs et résolus — pour qu'un document donne des totaux sans porter l'historique résolu |
 | `inventory` | les composants consolidés du projet : nom, version, purl, licences, les cibles d'où ils viennent |
+| `compliance` | l'état de conformité du projet, calculé sur ses cibles comme l'écran de conformité du projet le calcule : par référentiel, son statut et son score, et par contrôle son identifiant, son nom, son statut, son score et ses détails ; les cibles suivies, observées et fraîches, qui plafonnent ces verdicts — une ligne de checklist et un document qui la cite ont besoin de l'état contre lequel la checklist a été mesurée |
 | `checklists` | par modèle, l'énoncé de la plus récente révision **validée**, embarqué tel quel — le `checklist.json` de la [0032](0032-security-checklists.md) §10, avec sa propre version — et celui de la révision ouverte s'il y en a une, marqué `"draft": true` |
 
 **Ce qui en est exclu, délibérément :**
@@ -104,8 +106,14 @@ signifie « non produite », un tableau vide « produite, rien dedans »
 - **Les octets des fichiers de preuve** : nommés par nom, type de média, taille et SHA-256, comme
   `checklist.json` le fait déjà. Un rapport peut citer un fichier ; il ne peut pas le porter.
 - **Les comptes au-delà de leur nom affiché** : ni adresse e-mail, ni rôle, ni équipe, ni attribution.
+  Les noms qui y figurent sont ceux du demandeur, des auteurs des décisions de triage et des auteurs de
+  checklist — déjà sur chaque checklist signée ; une adresse e-mail n'y est jamais, même pour un compte
+  sans nom affiché (l'export porte alors l'identifiant du compte seul).
 - **Le journal d'audit, les autres projets, la déclaration d'applicabilité de l'organisation et la
   configuration SIEM.** Un rapport de projet parle pour un projet.
+- **La posture** : le score de sécurité, le scorecard et son candidat, le classement et les plans. Ce
+  sont des chiffres du portefeuille, réglés à leur propre rythme ; un document qui en a besoin cite
+  l'écran.
 - **Les problèmes résolus un par un** — comptés dans `issue_counts`, pas listés : un historique résolu
   sur des années dominerait chaque export et ne servirait presque aucun document.
 
@@ -124,8 +132,9 @@ admet l'appelant (l'attribution du compte intersectée avec la restriction de la
 Le service d'export prend le `VisibleProject` que la garde produit, jamais un identifiant nu.
 
 **L'export se télécharge aussi seul**, signé : `GET /api/v1/projects/{id}/export` renvoie `export.json`
-et sa signature détachée, aux mêmes appelants, sous `@AcceptsApiKey(EXPORT)`, audité
-`PROJECT_EXPORTED`. C'est ainsi qu'une organisation écrit et teste son plugin privé contre ses propres
+et sa signature détachée, aux appelants qui peuvent demander un rapport (§4 : les comptes en écriture
+et les auditeurs voyant tout le projet), sous `@AcceptsApiKey(EXPORT)`, audité `PROJECT_EXPORTED` et
+signalé `VECTI-SEC-032`. C'est ainsi qu'une organisation écrit et teste son plugin privé contre ses propres
 données **sans que Vectispire l'exécute** — et cela ne donne à personne rien qu'il ne pouvait déjà lire
 par les routes ; cela le rassemble seulement.
 
@@ -216,8 +225,9 @@ l'atteint.
 Une installation sans point d'accès conteneurs sur le plan de contrôle — le worker intégré coupé, toutes
 les analyses sur des agents — **ne peut pas exécuter de plugin de rapport dans cette version**, et les
 écrans comme la route le disent (409, `report-executor-unavailable`) plutôt que de mettre en file une
-exécution que personne ne prendra. L'exécution sur un agent est esquissée plus bas comme un lot ultérieur
-(question ouverte 1).
+exécution que personne ne prendra. L'exécution sur un agent est un lot ultérieur
+(décidé le 2026-10-03, réponse 1) ; d'ici là, une installation dont toutes les analyses tournent sur des
+agents reçoit le 409.
 
 **Les exécutions sont mises en file dans la base, pas tenues dans une requête.**
 `POST /api/v1/projects/{id}/reports` enregistre une exécution (`pending`) et répond 202 avec son
@@ -316,7 +326,7 @@ bornée, tous dans `vectispire-common`.
 | Enregistrer un plugin, mettre à jour son manifeste, l'activer ou le désactiver | gouverneur de la plateforme | `@RequiresPlatformGovernor`, comme la 0017 §6 |
 | **Approuver** un manifeste enregistré ou mis à jour | avec `FOUR_EYES_APPROVAL_REQUIRED` activé, **une autre personne** détenant `canWriteGovernance` (gouverneur, administrateur, RSSI) ; désactivé, l'enregistrement prend effet aussitôt | `@RequiresSecurityLead` + la comparaison dans le service |
 | L'activer ou le désactiver pour un projet | responsable sécurité, tout le projet visible | `@RequiresSecurityLead` + la garde |
-| Demander un rapport, télécharger l'export | `canCauseEffects`, tout le projet visible | `@RequiresWriteAccount` + la garde (export : `@AcceptsApiKey(EXPORT)` aussi) |
+| Demander un rapport, télécharger l'export | les comptes en écriture (`canCauseEffects`) **et les auditeurs** (`AUDITOR`), tout le projet visible — le gouverneur de la plateforme n'est ni l'un ni l'autre | `@RequiresAccount` + le contrôle du rôle et la garde, tous deux dans le service (export : `@AcceptsApiKey(EXPORT)` aussi) ; chaque demande auditée |
 | Lire les exécutions d'un projet et télécharger un document produit | tout le projet visible | `@RequiresAccount` + la garde |
 | Retirer les documents d'un manifeste | gouverneur de la plateforme | `@RequiresPlatformGovernor` |
 
@@ -328,7 +338,8 @@ analyse, celle d'un plugin de rapport part sous la clé de l'installation, et un
 quel code peut produire des documents signés est la concentration que les quatre yeux existent pour
 séparer. La règle suit le paramètre de la plateforme plutôt que de s'appliquer toujours, pour la raison
 de la 0032 : une installation avec un seul approbateur ne pourrait sinon jamais en enregistrer. Savoir si
-les plugins d'analyse doivent gagner la même règle est la question ouverte 5, pas décidée ici.
+les plugins d'analyse doivent gagner la même règle est laissé à un changement à part (décidé le
+2026-10-03) : il amenderait une décision acceptée, la 0017 §6.
 
 **Rien de global, pas de suppression** — comme la 0017 §6 : un plugin de rapport ne s'exécute que pour un
 projet où il est activé ; le désactiver garde les activations et n'exécute rien ; supprimer un projet
@@ -349,9 +360,8 @@ manifeste.
 `REPORT_REQUESTED`, `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED`, `REPORT_DOWNLOADED`.
 
 **SIEM**, par l'outbox ([0025](0025-siem-events-leave-through-the-outbox.md)). Le plus haut identifiant
-émis aujourd'hui est `VECTI-SEC-030` ; ceux-ci sont proposés à sa suite et figés par
-`SecurityEventTypeTest` seulement quand ils sont émis — si un changement parallèle prend un numéro
-d'abord, ce sont ceux-ci qui bougent, pas le sien :
+émis à l'acceptation est `VECTI-SEC-030` ; ces trois-là sont **réservés** depuis ce jour — aucun autre
+événement ne les prend — et figés par `SecurityEventTypeTest` à mesure que chaque lot émet le sien :
 
 | Id | Événement | Sévérité | Pourquoi un SOC le veut |
 |---|---|---|---|
@@ -432,11 +442,13 @@ test et un point de départ — pas une fonctionnalité qu'on s'attend à voir a
 ### 7. Où il se place
 
 Un nouveau module vertical **`core.reportplugins`** (décisions 0028–0030), au-dessus de `checklists` —
-l'export embarque leurs énoncés — et à côté de `compliance`. Son `package-info` liste, chacun avec sa
+l'export embarque leurs énoncés — et au-dessus de `compliance`, dont l'export porte l'état du projet
+(réponse 8). Son `package-info` liste, chacun avec sa
 raison : `access`, `access::security` (les marqueurs, la garde du projet entier), `targets` (le projet,
 ses cibles, `ProjectDeleted`), `scanning` (les analyses les plus récentes, les étapes de plugins),
 `issues`, `issues::queries` (le backlog, par `IssueFilters`), `inventory` (les composants consolidés),
-`gate` (les verdicts), `checklists` (les énoncés validés). Le socle (`audit`, `settings`, `crypto`) est
+`gate` (les verdicts), `checklists` (les énoncés validés), `compliance` (l'état de conformité du
+projet). Le socle (`audit`, `settings`, `crypto`) est
 partagé. Le nom du module évite `reporting`, qui est la pagination PDF que partagent quatre domaines, et
 `common/domain/reports`, qui porte les imports de couverture et de rapports de tests.
 
@@ -463,7 +475,8 @@ vivent dans `vectispire-common/domain/reportplugins`, JDK et Jackson seulement.
 - **Une visibilité partielle, avec les omissions marquées** — le comportement de l'export CycloneDX d'un
   projet (construit pour « le projet tel que l'appelant le voit »). Acceptable pour un inventaire, pas
   pour une affirmation signée sur un projet : un destinataire lit le titre, pas une note de bas de page.
-  La question ouverte 2 demande si un rapport partiel marqué est un jour souhaité.
+  Un rapport partiel marqué reste possible comme option ultérieure si quelqu'un le demande (réponse 2) ;
+  personne ne l'a fait.
 - **L'exécution sur des agents, comme la 0017 pour les checks.** Voir le §2 : les données quitteraient le
   plan de contrôle pour un hôte qui ne les a jamais détenues. Esquissée comme lot ultérieur, avec l'export
   scellé pour un agent que le gouverneur désigne, par les clés de scellement de la
@@ -518,34 +531,40 @@ vivent dans `vectispire-common/domain/reportplugins`, JDK et Jackson seulement.
   approbation, activation, retrait), une page de guide pour demander et vérifier un rapport, une page de
   référence pour le schéma d'export et les auteurs de plugins, et le catalogue SIEM.
 
-## Questions ouvertes pour le responsable du produit
+## Décidé le 2026-10-03
 
-1. **Les installations dont toutes les analyses tournent sur des agents.** *Recommandé : livrer d'abord
-   l'exécution sur le plan de contrôle ; concevoir l'exécution sur agent (un export scellé pour un agent
-   désigné, les clés de la 0031) quand une installation en a besoin.*
-2. **Tout le projet ou rien.** *Recommandé : oui, comme les checklists. Un rapport partiel, marqué comme
-   tel en première page, pourrait être une option ultérieure si quelqu'un le demande.*
-3. **Les noms dans l'export.** *Recommandé : les noms affichés du demandeur, des auteurs des décisions de
-   triage et des auteurs de checklist — ils sont déjà sur la checklist signée ; jamais d'adresse
-   e-mail.*
-4. **Qui peut demander un rapport.** *Recommandé : les comptes en écriture voyant tout le projet. Un
-   auditeur lit les documents produits mais ne les demande pas, comme il lit les checklists sans y
-   répondre.*
-5. **Les quatre yeux sur les plugins d'analyse aussi.** *Recommandé : pas dans cette décision ; à décider
-   à part, puisque cela changerait une décision acceptée (0017 §6).*
-6. **Ni dérogation ni réseau pour les plugins de rapport.** *Recommandé : confirmer les deux tels
-   qu'écrits.*
-7. **Les types de média.** *Recommandé : la liste du §3 ; HTML refusé ; anciens formats Office binaires
-   et paquets à macros refusés.*
-8. **La conservation.** *Recommandé : la fenêtre des preuves pour les exports et les documents ; les
-   lignes d'exécution gardées avec le journal d'audit.*
-9. **Conformité et posture dans l'export.** *Recommandé : pas en 1.0 — la déclaration d'applicabilité
-   est à l'échelle de l'organisation, et l'enregistrement hebdomadaire OWASP n'a pas encore de forme par
-   projet. Une mineure 1.x ajoute une partie quand il en existe une.*
-10. **Les rapports planifiés** (un document mensuel, sans personne). *Recommandé : hors périmètre ; un
-    demandeur fait partie de ce qu'affirme un document, et un calendrier n'en a pas.*
-11. **Les numéros SIEM** sont proposés après `VECTI-SEC-030` ; le premier changement qui arrive prend le
-    numéro suivant.
+La proposition se terminait par onze questions ouvertes. Le responsable du produit y a répondu le
+2026-10-03 ; le corps ci-dessus se lit déjà avec ses réponses.
+
+1. **Les installations dont toutes les analyses tournent sur des agents.** L'exécution sur le plan de
+   contrôle d'abord ; l'exécution sur agent — un export scellé pour un agent désigné, par les clés de la
+   0031 — est un lot ultérieur. D'ici là, une installation sans point d'accès conteneurs sur le plan de
+   contrôle reçoit le 409 `report-executor-unavailable` (§2).
+2. **Tout le projet ou rien.** Oui : l'export et chaque rapport ne sont construits que pour un appelant
+   qui voit tout le projet, et tout autre reçoit le 404 d'un projet absent (§1). Aucun rapport partiel
+   marqué n'est proposé.
+3. **Les noms dans l'export.** Les noms affichés du demandeur, des auteurs des décisions de triage et des
+   auteurs de checklist sont dans l'export ; les adresses e-mail jamais (§1).
+4. **Qui peut demander un rapport.** **Les comptes en écriture et les auditeurs** (`Role.AUDITOR`) qui
+   voient tout le projet — la proposition laissait l'auditeur de côté. Un auditeur lit déjà l'état entier
+   d'un projet ; remettre ce même état à un document, c'est lire, pas agir, et un audit est précisément
+   l'endroit où le document propre à une organisation est attendu. Le gouverneur de la plateforme, qui
+   ne cause aucun effet et ne trie rien, ne demande pas de rapport. Chaque demande est auditée
+   (`PROJECT_EXPORTED`, `REPORT_REQUESTED`), et un export qui quitte la plateforme lève
+   `VECTI-SEC-032` (§4).
+5. **Les types de média.** Office Open XML (`.xlsx`, `.docx`, `.pptx`), OpenDocument (`.ods`, `.odt`),
+   PDF et CSV (le texte brut avec lui) ; HTML, les anciens formats Office binaires et les paquets à
+   macros sont refusés (§3).
+6. **Ni réseau, et un signataire exigé sans dérogation.** Confirmé tel qu'écrit (§2).
+7. **La conservation.** La fenêtre des preuves — `evidence_retention_days`, 400 jours par défaut — pour
+   les exports et les documents ; les lignes d'exécution sont gardées avec le journal d'audit (§3).
+8. **Conformité et posture dans l'export.** L'export 1.0 porte **l'état de conformité** du projet — les
+   lignes mesurées d'une checklist et les documents bâtis dessus le citent — et **pas la posture** (§1).
+9. **Les rapports planifiés.** Hors périmètre : un demandeur fait partie de ce qu'affirme un document,
+   et un calendrier n'en a pas.
+10. **Les quatre yeux sur les plugins d'analyse.** Laissés à un changement à part : il amenderait la
+    0017 §6, une décision acceptée, et se décide là, pas ici.
+11. **Les numéros SIEM.** `VECTI-SEC-031` à `VECTI-SEC-033` sont réservés depuis ce jour (§4).
 
 ## Mise en œuvre, en lots
 
