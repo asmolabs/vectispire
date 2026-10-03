@@ -96,7 +96,8 @@ report: a tmpfs does not outlive the container.)
 
 The digest says **what** runs; a signature says **who built it**. Declare the signer in the manifest
 and every executor verifies the image with cosign **before pulling it**; an image that does not verify
-is never run, and the plugin is **refused** (`signature_unverified`) with cosign's reason.
+is never run, and the plugin is **refused** (`signature_unverified`) with cosign's reason — or
+(`registry_authentication_required`) when its registry would not let the signature be read.
 
 **A signer is required by default.** A plugin whose manifest declares none is **refused** (`unsigned`)
 on every executor, and nothing of it is started — unless the platform governor
@@ -122,9 +123,17 @@ cosign verify --certificate-identity "<identity>" --certificate-oidc-issuer "<is
 cosign verify --key cosign.pub --insecure-ignore-tlog=true <image>@<digest>
 ```
 
-Changing the signer is a new manifest, audited like any other change. The verifier does not log in to
-your registry: the signature must be readable without credentials. A mirror set with
+Changing the signer is a new manifest, audited like any other change. A mirror set with
 `VECTISPIRE_PLUGIN_REGISTRY` must carry the signatures as well (`cosign copy` copies both).
+
+**A private registry is read with the executor's pull credentials.** The verifier is handed, for the
+length of its run, the credentials the executor's own pulls send to the image's registry — those of its
+Docker configuration, see [Registry credentials](../guide/containers.md#registry-credentials) — in a file
+readable by the executor's user alone, mounted read-only, erased with the container, and redacted from
+anything cosign says. Vectispire stores none of them. If the registry still will not let the signature
+be read — the executor holds no credentials for it, or the ones it holds are refused — the plugin is
+**refused** (`registry_authentication_required`) with the reason saying which, never reported as an
+image without a signature: nothing was read.
 
 ### Running an unsigned plugin
 
@@ -225,7 +234,7 @@ Each plugin of a scan ends in one of four states:
 |---|---|---|
 | **produced** | It ran and its report was read. | Opened for what it reports; **resolved for what it no longer reports** — its own issues only. |
 | **not applicable** | None of its languages is in the repository; it was not started. | Left as they are. Not a failure. |
-| **refused** | The executor would not start it: `unsigned` — no signer declared, a signer required, no waiver — or `signature_unverified` — cosign did not verify the image against the declared signer. | Left as they are, and the scan lists the failure under `plugin <id>`. |
+| **refused** | The executor would not start it: `unsigned` — no signer declared, a signer required, no waiver — `signature_unverified` — cosign did not verify the image against the declared signer — or `registry_authentication_required` — the image's registry would not let the signature be read. | Left as they are, and the scan lists the failure under `plugin <id>`. |
 | **absent** | It should have run and gave no usable report (pull failed, undeclared exit code, output directory full, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
 
 The scan's detail lists each plugin with its state (`plugins`: `produced` with its number of findings
@@ -233,13 +242,14 @@ and `signature` — `verified`, `waived` or `not_required` — `not_applicable` 
 looked for, `refused` with its `refusal` and the reason, `absent` with the reason). On the scan's page,
 the **Plugins** card shows them apart on purpose: **produced** in green with the number of findings in
 its report — and **ran unsigned (waiver)** when it ran under a waiver — **not applicable** in grey with
-the languages it looked for, **refused — unsigned** or **refused — signature not verified** in red,
+the languages it looked for, **refused — unsigned**, **refused — signature not verified** or **refused — registry authentication
+required** in red,
 **absent — failed** in red with the reason. Each names its plugin, linked to the registry, and its
 manifest digest. A plugin's findings say which tool and version reported them.
 
 A [checklist line](../guide/security-checklists.md) measured on a plugin that was refused, and did not
-produce since within the line's age, has **no data**, with the reason `plugin_unsigned` or
-`plugin_signature_unverified` rather than `step_absent`.
+produce since within the line's age, has **no data**, with the reason `plugin_unsigned`,
+`plugin_signature_unverified` or `plugin_registry_authentication_required` rather than `step_absent`.
 
 Languages are detected from file names and manifests (`pom.xml`, `package.json`, `pyproject.toml`,
 `go.mod`…), within a bound; a repository too large to count runs every plugin rather than skipping

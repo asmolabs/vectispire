@@ -186,7 +186,7 @@ Chaque plugin d'une analyse finit dans exactement un de trois états, portés pa
 | `produced` | Il a tourné, est sorti sur un code déclaré, et son rapport a été lu : chaque run a réussi et porte un tableau `results`. | Ses constats deviennent des issues `plugin` ; **ses propres** issues ouvertes sur la cible qu'il n'a pas rapportées sont résolues — un rapport vide les résout toutes, et rien d'autre. |
 | `not_applicable` | Aucun de ses langages n'est dans l'arbre ; il n'a pas été lancé. | Ses issues restent telles quelles. **Pas un échec** : l'analyse dit « non applicable », pas « échoué ». |
 | `absent` | Il aurait dû tourner et n'a produit aucun rapport exploitable — définition non obtenue ou ne correspondant pas à son digest, code de sortie non déclaré, pas de rapport, rapport refusé (taille, lien, emplacement hors de l'arbre, mal formé), un run qui dit `executionSuccessful: false`, un run sans `results`, ou aucun run. | Ses issues restent telles quelles, **et la raison est un échec de l'analyse**, sous `plugin <id>`. |
-| `refused` *(§9.1, 2026-09-30)* | L'exécuteur ne l'a pas démarré faute de signataire vérifié : `unsigned` ou `signature_unverified`. | Comme absent — laissées telles quelles, un échec de l'analyse — distingué parce que le remède est la provenance de l'image, pas son code. |
+| `refused` *(§9.1, 2026-09-30)* | L'exécuteur ne l'a pas démarré faute de signataire vérifié : `unsigned`, `signature_unverified`, ou `registry_authentication_required` (§9.2). | Comme absent — laissées telles quelles, un échec de l'analyse — distingué parce que le remède est la provenance de l'image, pas son code. |
 
 Absent et non applicable laissent le backlog en paix pour la même raison — rien n'a été examiné — et
 sont distingués parce qu'un seul des deux est le problème de quelqu'un. Rapporter un plugin Java sur un
@@ -382,8 +382,9 @@ cible** : ni arbre, ni espace de travail ; la seule clé publique, montée en le
 manifeste en déclare une. La vérification sans clé récupère la racine de confiance de Sigstore depuis
 son dépôt TUF et vérifie l'inclusion dans le journal hors ligne, depuis le bundle de la signature ; la
 vérification par clé n'atteint que le registre — **la forme hors ligne**, pour ce qui est de Sigstore.
-Le vérificateur ne reçoit **aucun identifiant de registre** : une image qu'un registre ne sert qu'à un
-pull authentifié ne peut pas être vérifiée, et elle est refusée. Un miroir réglé par
+*La première version ne donnait au vérificateur aucun identifiant de registre, si bien qu'une image
+qu'un registre ne sert qu'à un pull authentifié était refusée comme non vérifiée ; le §9.2 lui remet
+les identifiants des tirages.* Un miroir réglé par
 `VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` le fait) : la référence
 vérifiée est celle qui est tirée.
 
@@ -391,7 +392,8 @@ vérifiée est celle qui est tirée.
 du plugin soit créé, donc avant que son image soit récupérée : une image que personne n'a vérifiée
 n'est même pas sur l'hôte. Toute réponse autre que la sortie 0 de cosign — aucune signature, un autre
 signataire, un registre ou une racine de confiance injoignable — rend le plugin **refusé**
-(`signature_unverified`, §9.1), avec les mots de cosign comme raison ; un vérificateur incapable de
+(`signature_unverified`, §9.1, ou `registry_authentication_required` quand le registre n'a pas laissé
+lire, §9.2), avec les mots de cosign comme raison ; un vérificateur incapable de
 démarrer n'a rien dit de l'image et laisse le plugin absent. Dans les deux cas l'image ne tourne jamais.
 Rien n'est mis en cache : chaque analyse vérifie chaque plugin signé, un aller-retour au registre
 chacun, un coût accepté pour qu'une signature révoquée ou repoussée se voie à l'analyse suivante.
@@ -471,6 +473,51 @@ exécuteurs décident sur les mêmes faits et qu'aucun ne demande.
   consigné `not_required` et justifié nulle part. La dérogation nomme un plugin, dit pourquoi, et reste
   au dossier — c'est pourquoi la documentation y renvoie.
 
+### 9.2. Un registre privé est lu avec les identifiants des tirages (2026-10-03)
+
+**Le défaut.** Le vérificateur interrogeait le registre de façon anonyme. Un registre qui ne sert rien à
+un pull anonyme — la plupart des registres privés — répondait `UNAUTHORIZED`, cosign sortait en 1, et le
+plugin était refusé comme `signature_unverified` : un problème de signataire à l'écran et dans la
+checklist, pour une image dont personne n'avait lu la signature. Reproduit contre `registry:2` derrière
+htpasswd, contenant distroless et sa signature sans clé, avec les identifiants dans la configuration
+Docker de l'exécuteur — le démon l'aurait tirée ; le vérificateur ne pouvait pas la lire.
+
+**Où sont les identifiants.** Vectispire ne stocke aucun identifiant de registre (« registry
+credentials belong to the Docker configuration of whichever machine scans », dit le README) :
+docker-java résout, pour chaque tirage, une entrée de la configuration Docker de l'exécuteur
+(`DOCKER_CONFIG`, `~/.docker/config.json`) ou ses propriétés `registry.*`, et l'envoie au démon. Il n'y
+a donc pas d'`ENCRYPTION_KEY` sur ce chemin — rien ne traverse le plan de contrôle, la base ni le
+protocole des agents — et le vérificateur a besoin exactement de ce qu'enverrait le tirage de la même
+référence.
+
+**La règle du tirage, relue plutôt que réécrite.** Le runner construit la commande de tirage de la
+référence qu'il vérifie — jamais exécutée — et prend les identifiants que docker-java y a résolus. Un
+second appariement (hôte, clé historique de Docker Hub, propriétés qui priment sur toute entrée) serait
+une seconde réponse à « quels identifiants reçoit cette image », et le premier registre qu'il clé
+autrement serait vérifié anonymement alors que le démon le tire authentifié.
+
+**Remis pour une exécution, détenus par personne d'autre.** `ContainerRun.withRegistryLoginFor(reference,
+directory)` nomme l'image, pas les identifiants : le runner écrit une configuration Docker à une entrée
+(mode 0600, dans un répertoire 0700 de l'espace de travail qu'aucun plugin ne lit), la monte en lecture
+seule avec `DOCKER_CONFIG`, et l'efface dans le `finally` qui supprime le conteneur ; ce qu'affiche
+cosign est expurgé du mot de passe, de sa forme base64 et des jetons. Pas d'options en ligne de
+commande, que `docker inspect` et la table des processus montrent ; pas l'environnement, que `docker
+inspect` montre aussi. Le conteneur du plugin lui-même n'en reçoit jamais. Une entrée gardée par un
+assistant (`credsStore`) est vide dans le fichier et docker-java ne la résout pas : le tirage n'envoie
+rien, le vérificateur non plus.
+
+**Un registre qui ne se laisse pas lire est un refus à part.** `registry_authentication_required`, avec
+une phrase qui dit lequel — « holds no credentials for it » ou « refused the credentials this
+executor's pulls use » — et la raison de checklist `plugin_registry_authentication_required`. Jamais
+`signature_unverified` : rien n'a été lu, donc rien ne peut être dit du signataire, et le remède est la
+configuration de l'exécuteur, pas l'image. cosign sort en 1 pour ce cas comme pour une racine de
+confiance injoignable, donc la nature est lue dans son texte — la réponse du registre telle que la cite
+go-containerregistry, les codes de la spécification de distribution `UNAUTHORIZED` et `DENIED` en
+capitales, ou une ligne de statut `401 Unauthorized` / `403 Forbidden` (le point de jetons de Docker
+Hub). Un texte qui ne correspond à aucun reste `signature_unverified` ; dans les deux cas l'image ne
+tourne pas. Un registre qui cache un dépôt privé derrière un `404` ne se distingue pas d'une image sans
+signature, et il est refusé comme non vérifié.
+
 ### 10. Ce qu'écrit un plugin est borné
 
 La première version montait en écriture un répertoire de l'espace de travail sur `/repo/output`, et
@@ -538,15 +585,16 @@ filtre de la composition (`SocketProxyIntegrationTest`).
 - **Un plugin non signé est refusé par défaut** (§9.1) : une organisation qui ne peut pas encore signer
   une image enregistre une dérogation pour elle, ou désactive l'exigence sur un exécuteur.
 - **Un plugin signé a besoin du registre depuis l'exécuteur à chaque analyse**, la vérification sans
-  clé du dépôt TUF de Sigstore aussi. Un registre qui exige une authentification pour la lecture ne peut
-  pas encore être vérifié : le vérificateur ne détient aucun identifiant.
+  clé du dépôt TUF de Sigstore aussi. Un registre qui exige une authentification est lu avec les
+  identifiants des tirages de l'exécuteur (§9.2) ; celui qui refuse encore donne
+  `registry_authentication_required`.
 - **Ce qui est abandonné** : l'extension dans le processus ; un plugin voit un arbre et émet des
   constats sur cet arbre, et un contrôle qui a besoin du corpus est une règle sur les données ingérées,
   pas un plugin.
 - **Ce qu'écrit un plugin est borné** (§10) : le plafond et 4 096 fichiers dans `/repo/output`, aucun
   fichier plus grand que le plafond nulle part, en mémoire plutôt que sur le disque de l'hôte. Un plugin
   qui a besoin d'écrire plus que le plafond de sortie des scanners ne peut pas tourner ici.
-- **Non construit** : des identifiants de registre pour le vérificateur ; une vérification sans clé
+- **Non construit** : une vérification sans clé
   entièrement hors ligne (un fichier de racine de confiance et un bundle de signature livrés avec le
   manifeste) ; la mise en cache d'une vérification d'une analyse à l'autre.
 

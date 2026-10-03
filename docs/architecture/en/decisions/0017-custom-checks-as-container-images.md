@@ -181,7 +181,7 @@ sealed `PluginStep` with a discriminator on the wire:
 | `produced` | It ran, exited on a declared code, and its report was read: every run succeeded and carried a `results` array. | Its findings become `plugin` issues; **its own** open issues on the target that it did not report are resolved — an empty report resolves them all, and nothing else. |
 | `not_applicable` | None of its languages is in the tree; it was not started. | Its issues are left as they are. **Not a failure**: the scan says "not applicable", not "failed". |
 | `absent` | It should have run and produced no usable report — definition not obtained or not matching its digest, undeclared exit code, no report, report refused (size, link, location outside the tree, malformed), a run that says `executionSuccessful: false`, a run without `results`, or no run at all. | Its issues are left as they are, **and the reason is a failure of the scan**, under `plugin <id>`. |
-| `refused` *(§9.1, 2026-09-30)* | The executor would not start it for want of a verified signer: `unsigned` or `signature_unverified`. | As absent — left as they are, a failure of the scan — told apart because the fix is the image's provenance, not its code. |
+| `refused` *(§9.1, 2026-09-30)* | The executor would not start it for want of a verified signer: `unsigned`, `signature_unverified`, or `registry_authentication_required` (§9.2). | As absent — left as they are, a failure of the scan — told apart because the fix is the image's provenance, not its code. |
 
 Absent and not-applicable leave the backlog alone for the same reason — nothing was examined — and
 are told apart because only one of them is somebody's problem. Reporting a Java plugin on a Python
@@ -363,15 +363,17 @@ Grype precedent, on Vectispire's own pinned tool. It is given **no file of the t
 workspace; the public key alone, mounted read-only, when the manifest declares one. Keyless
 verification fetches Sigstore's trust root from its TUF repository and checks the log's inclusion
 offline, from the signature's bundle; key verification reaches the registry and nothing else — **the
-offline form**, as far as Sigstore is concerned. The verifier is given **no registry credential**: an
-image a registry serves only to an authenticated pull cannot be verified, and is refused. A mirror set
+offline form**, as far as Sigstore is concerned. *The first version gave the verifier no registry
+credential, so an image a registry serves only to an authenticated pull was refused as unverified;
+§9.2 hands it the pulls' credentials.* A mirror set
 by `VECTISPIRE_PLUGIN_REGISTRY` must carry the signatures too (`cosign copy` does): the reference
 verified is the one pulled.
 
 **Before the pull, and the verification is the gate.** The verifier runs before the plugin's container
 is created, hence before its image is fetched: an image nobody verified is not even on the host. Any
 answer but cosign's exit 0 — no signature, another signer, a registry or a trust root unreachable — makes
-the plugin **refused** (`signature_unverified`, §9.1), with cosign's own words as the reason; a verifier
+the plugin **refused** (`signature_unverified`, §9.1, or `registry_authentication_required` when the
+registry would not be read, §9.2), with cosign's own words as the reason; a verifier
 unable to start at all said nothing about the image and leaves the plugin absent. Either way the image
 never runs. Nothing is cached: every scan verifies every signed plugin, one registry round
 trip each, a cost accepted so that a revoked or re-pushed signature is seen at the next scan.
@@ -445,6 +447,48 @@ reference (`PluginRef.runsUnsigned`), so both executors decide on the same facts
   `not_required` and justified nowhere. The waiver names one plugin, says why, and is on the record —
   which is why the documentation points to it.
 
+### 9.2. A private registry is read with the pulls' credentials (2026-10-03)
+
+**The defect.** The verifier asked the registry anonymously. A registry that serves nothing to an
+anonymous pull — most private ones — answered `UNAUTHORIZED`, cosign exited 1, and the plugin was
+refused as `signature_unverified`: a signer problem on screen and in the checklist, for an image whose
+signature nobody had read. Reproduced against `registry:2` behind htpasswd holding distroless and its
+keyless signature, with the credentials in the executor's Docker configuration — the daemon would
+have pulled it; the verifier could not read it.
+
+**Where the credentials are.** Vectispire stores no registry credential (the README's "registry
+credentials belong to the Docker configuration of whichever machine scans"): docker-java resolves, for
+each pull, an entry of the executor's Docker configuration (`DOCKER_CONFIG`, `~/.docker/config.json`)
+or its `registry.*` properties, and sends it to the daemon. So there is no `ENCRYPTION_KEY` in this
+path — nothing crosses the control plane, the database or the agent protocol — and the verifier needs
+exactly what the pull of the same reference would send.
+
+**The pull's rule, read back rather than restated.** The runner builds the pull command of the
+reference it verifies — never executed — and takes the credentials docker-java resolved into it. A
+second matcher (host, Docker Hub's legacy key, the properties overriding every entry) would be a second
+answer to "which credentials does this image get", and the first registry it keyed differently would
+verify anonymously what the daemon then pulls authenticated.
+
+**Handed for one run, held by nobody else.** `ContainerRun.withRegistryLoginFor(reference, directory)`
+names the image, not the credentials: the runner writes a one-entry Docker configuration (mode 0600, in
+a 0700 directory of the workspace no plugin reads), mounts it read-only with `DOCKER_CONFIG`, and erases
+it in the `finally` that removes the container; what cosign prints is redacted of the password, its
+base64 form and the tokens. Not command-line flags, which `docker inspect` and the process table show;
+not the environment, which `docker inspect` shows too. The plugin's own container never receives one.
+An entry a credential helper keeps (`credsStore`) is empty in the file and docker-java does not resolve
+it: the pull sends nothing, and neither does the verifier.
+
+**A registry that will not be read is its own refusal.** `registry_authentication_required`, with a
+sentence that says which — "holds no credentials for it" or "refused the credentials this executor's
+pulls use" — and the checklist reason `plugin_registry_authentication_required`. Never
+`signature_unverified`: nothing was read, so nothing can be said of the signer, and the remedy is the
+executor's configuration, not the image. cosign exits 1 for this as for an unreachable trust root, so
+the kind is read from its text — the registry's own answer as go-containerregistry quotes it, the
+distribution codes `UNAUTHORIZED` and `DENIED` in capitals, or a `401 Unauthorized` / `403 Forbidden`
+status line (Docker Hub's token endpoint). A text matching neither stays `signature_unverified`; either
+way the image is not run. A registry that hides a private repository behind `404` cannot be told from
+one without the signature, and is refused as unverified.
+
 ### 10. What a plugin writes is bounded
 
 The first version bound a directory of the workspace writable at `/repo/output`, and **a bind mount
@@ -509,14 +553,14 @@ through the pinned socket proxy with the composition's filter (`SocketProxyInteg
 - **An unsigned plugin is refused by default** (§9.1): an organisation that cannot sign an image yet
   records a waiver for it, or switches the requirement off on an executor.
 - **A signed plugin needs the registry from the executor at every scan**, keyless verification
-  Sigstore's TUF repository too. A registry that requires authentication to read cannot be verified
-  yet: the verifier holds no credential.
+  Sigstore's TUF repository too. A registry that requires authentication is read with the credentials
+  the executor's pulls use (§9.2); one that still refuses is `registry_authentication_required`.
 - **What is given up**: in-process extension; a plugin sees a tree and emits findings about it, and a
   check needing the corpus is a rule over ingested data, not a plugin.
 - **What a plugin writes is bounded** (§10): the ceiling and 4,096 files in `/repo/output`, no file
   larger than the ceiling anywhere, in memory rather than on the host's disk. A plugin that needs to
   write more than the scanner output ceiling cannot run here.
-- **Not built**: registry credentials for the verifier; a fully offline keyless verification (a
+- **Not built**: a fully offline keyless verification (a
   trusted-root file and a signature bundle shipped with the manifest); caching a verification across
   scans.
 

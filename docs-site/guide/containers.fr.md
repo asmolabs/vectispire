@@ -33,9 +33,18 @@ et il change des accès : une attribution sur un projet couvre les images qui y 
 
 ## Identifiants de registre
 
-Les registres privés demandent des identifiants. Ils sont stockés chiffrés avec la même
-`ENCRYPTION_KEY` que les clés de déploiement, sous le même refus de stocker quoi que ce soit
-avant que cette clé existe.
+Les registres privés demandent des identifiants, et **Vectispire ne les stocke pas** : une image est
+tirée par le démon Docker pour le compte de l'exécuteur qui l'analyse — le worker intégré ou un agent —
+avec les identifiants de la configuration Docker de cet exécuteur (`DOCKER_CONFIG`, par défaut
+`~/.docker/config.json` de l'utilisateur sous lequel il tourne, une entrée `auths` par registre, telle
+que l'écrit `docker login`). Rien d'eux n'atteint le plan de contrôle, la base ni le protocole des
+agents. Donnez à chaque exécuteur susceptible d'analyser une image privée les identifiants de son
+registre. Une configuration qui les garde dans un assistant (`credsStore`, comme Docker Desktop) ne
+laisse rien que l'exécuteur puisse lire : écrivez l'entrée dans le fichier lui-même, pour un compte en
+lecture seule.
+
+Les mêmes identifiants servent à lire la signature d'un [plugin](../administration/plugins.md#signer-limage)
+dans son registre.
 
 ## Scan et récurrence
 

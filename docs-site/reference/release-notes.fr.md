@@ -4,6 +4,11 @@
 
 ### Changements visibles d'une intégration
 
+- **Un refus de plugin a une troisième raison, `registry_authentication_required`**, et une mesure de
+  checklist une raison assortie, `plugin_registry_authentication_required` : l'image du plugin déclare
+  un signataire, et son registre n'a pas laissé lire la signature. Un client qui distingue les valeurs
+  de `refusal` ou de la `reason` d'une mesure doit traiter la nouvelle ; celui qui ne la connaît pas lit
+  toujours un refus.
 - **Les réponses automatiques d'une checklist arrivent en moins d'une minute après une analyse ou un
   rapport, et non plus aussitôt.** Une analyse terminée, ou un rapport SARIF, de couverture ou de tests
   accepté, les met en file avec ses propres résultats, et le prochain passage du relais du planificateur
@@ -124,6 +129,18 @@
 
 ### Corrigé
 
+- **Un plugin signé dont l'image vit dans un registre privé est vérifié au lieu d'être refusé.** Le
+  vérificateur de signature interrogeait le registre de façon anonyme, si bien qu'un registre qui ne
+  sert rien à un pull anonyme répondait « unauthorized » et que le plugin était refusé comme
+  `signature_unverified` — un problème de signataire à l'écran pour une signature que personne n'avait
+  lue. cosign reçoit désormais, le temps de son exécution, les identifiants que les tirages de
+  l'exécuteur utilisent pour ce registre (sa configuration Docker ; Vectispire n'en stocke aucun), en
+  lecture seule et effacés avec le conteneur. Un registre qui refuse encore — pas d'identifiants, ou
+  ceux détenus refusés — donne le nouveau refus `registry_authentication_required`, qui dit lequel.
+- **Le guide des conteneurs disait les identifiants de registre stockés chiffrés avec
+  `ENCRYPTION_KEY`.** Ils ne l'ont jamais été : un tirage utilise la configuration Docker de l'exécuteur
+  qui analyse. Le guide le dit désormais, et explique comment donner à un exécuteur les identifiants
+  d'un registre privé.
 - **Les licences de l'interface voyagent désormais avec elle.** `ng build` écrit les notices des
   paquets npm qu'il embarque (Angular, Optimus UI, chart.js…, MIT pour la plupart) à côté du dossier
   `browser/`, et seul ce dossier arrivait dans le jar et l'image ; la notice MIT du shell (Sparked,

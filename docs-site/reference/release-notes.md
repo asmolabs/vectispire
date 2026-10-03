@@ -4,6 +4,11 @@
 
 ### Changes an integration can see
 
+- **A plugin refusal has a third reason, `registry_authentication_required`**, and a checklist
+  measurement a matching reason, `plugin_registry_authentication_required`: the plugin's image declares
+  a signer, and its registry would not let the signature be read. A client that switches over
+  `refusal` or over a measurement's `reason` should handle the new token; one that does not know it
+  still reads a refusal.
 - **A checklist's automatic answers arrive within a minute of a scan or a report, not at once.** A
   completed scan, or an accepted SARIF, coverage or test report, queues them with its own results, and
   the scheduler's next relay gives them, retrying if answering fails. They used to be given just after
@@ -114,6 +119,16 @@
 
 ### Fixed
 
+- **A signed plugin whose image lives in a private registry is verified instead of refused.** The
+  signature verifier asked the registry anonymously, so a registry that serves nothing to an anonymous
+  pull answered "unauthorized" and the plugin was refused as `signature_unverified` — a signer problem
+  on screen for a signature nobody had read. cosign is now handed, for its run alone, the credentials
+  the executor's own pulls use for that registry (its Docker configuration; Vectispire stores none),
+  read-only and erased with the container. A registry that still refuses — no credentials held, or the
+  ones held refused — gives the new refusal `registry_authentication_required`, which says which.
+- **The container guide said registry credentials were stored encrypted with `ENCRYPTION_KEY`.** They
+  never were: a pull uses the Docker configuration of the executor that scans. The guide now says so,
+  and how to give an executor credentials for a private registry.
 - **The licences of the interface now ship with it.** `ng build` writes the notices of the npm
   packages it bundles (Angular, Optimus UI, chart.js…, mostly MIT) beside the `browser/` folder, and
   only that folder reached the jar and the image; the MIT notice of the shell (Sparked, PrimeTek's

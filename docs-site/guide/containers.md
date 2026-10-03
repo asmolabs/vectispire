@@ -32,9 +32,17 @@ an access change: a grant on a project covers the images filed in it.
 
 ## Registry credentials
 
-Private registries need credentials. They are stored encrypted with the same
-`ENCRYPTION_KEY` as deploy keys, under the same refusal to store anything before that key
-exists.
+Private registries need credentials, and **Vectispire does not store them**: an image is pulled by
+the Docker daemon on behalf of whichever executor scans it — the built-in worker or an agent — with
+the credentials of that executor's own Docker configuration (`DOCKER_CONFIG`, by default
+`~/.docker/config.json` of the user it runs as, an `auths` entry per registry as `docker login`
+writes it). Nothing of them reaches the control plane, the database or the agent protocol. Give each
+executor that may scan a private image the credentials for its registry. A configuration that keeps
+them in a credential helper (`credsStore`, as Docker Desktop does) leaves nothing the executor can
+read: write the entry into the file itself, for a read-only account.
+
+The same credentials are used to read a [plugin](../administration/plugins.md#signing-the-image)'s
+signature from its registry.
 
 ## Scanning and recurrence
 

@@ -121,8 +121,14 @@ no log line, and a dashboard that looks better afterwards.
 **A plugin has four states, not two** (decision 0017). `PluginStep` is `produced` (ran; an empty
 list resolves *its* issues), `not_applicable` (none of its languages in the tree: resolves nothing,
 and is not a failure), `absent` (should have run and did not: resolves nothing, and is a failure) or
-`refused` (its image's signature was not accepted — `unsigned` or `signature_unverified`: resolves
-nothing, is a failure, and a checklist line on it reads NO_DATA with that reason, never a pass).
+`refused` (its image's signature was not accepted — `unsigned`, `signature_unverified` or
+`registry_authentication_required`: resolves nothing, is a failure, and a checklist line on it reads
+NO_DATA with that reason, never a pass). A registry that would not let the signature be read is
+`registry_authentication_required`, never "no signature": the verifier reads a private registry with
+what the executor's pulls send there (`ContainerRun.withRegistryLoginFor` — the runner reads it back
+from the pull command docker-java builds, never a second matcher; a 0600 file mounted read-only for
+the run and erased with it, never a flag or an environment value `docker inspect` shows). Vectispire
+stores no registry credential; the executor's Docker configuration holds them.
 A plugin missing from `ScanArtifacts.plugins` is absent; a `produced` step whose findings did not
 arrive is absent. A SARIF run without `results`, or with `executionSuccessful: false`, is never read
 as clean — SARIF itself says absent is not empty. And a tool-scoped type (`PLUGIN`, `IMPORTED`) is

@@ -98,7 +98,8 @@ rapport : un tmpfs ne survit pas au conteneur.)
 Le digest dit **ce qui** tourne ; une signature dit **qui l'a construit**. Déclarez le signataire dans le
 manifeste et chaque exécuteur vérifie l'image avec cosign **avant de la tirer** ; une image qui ne se
 vérifie pas n'est jamais lancée, et le plugin est **refusé** (`signature_unverified`) avec la raison
-donnée par cosign.
+donnée par cosign — ou (`registry_authentication_required`) quand son registre n'a pas laissé lire la
+signature.
 
 **Un signataire est exigé par défaut.** Un plugin dont le manifeste n'en déclare aucun est **refusé**
 (`unsigned`) sur chaque exécuteur, et rien de lui n'est démarré — sauf si le gouverneur de la
@@ -124,9 +125,17 @@ cosign verify --certificate-identity "<identité>" --certificate-oidc-issuer "<�
 cosign verify --key cosign.pub --insecure-ignore-tlog=true <image>@<digest>
 ```
 
-Changer de signataire est un nouveau manifeste, audité comme tout autre changement. Le vérificateur ne
-s'authentifie pas auprès de votre registre : la signature doit être lisible sans identifiants. Un miroir
-réglé par `VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` copie les deux).
+Changer de signataire est un nouveau manifeste, audité comme tout autre changement. Un miroir réglé par
+`VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` copie les deux).
+
+**Un registre privé est lu avec les identifiants de tirage de l'exécuteur.** Le vérificateur reçoit,
+le temps de son exécution, les identifiants que les tirages de l'exécuteur envoient au registre de
+l'image — ceux de sa configuration Docker, voir [Identifiants de registre](../guide/containers.md#identifiants-de-registre)
+— dans un fichier lisible par le seul utilisateur de l'exécuteur, monté en lecture seule, effacé avec le
+conteneur, et masqué dans tout ce que dit cosign. Vectispire n'en stocke aucun. Si le registre ne laisse
+toujours pas lire la signature — l'exécuteur n'a pas d'identifiants pour lui, ou ceux qu'il a sont
+refusés — le plugin est **refusé** (`registry_authentication_required`) avec une raison qui dit
+lequel, et jamais présenté comme une image sans signature : rien n'a été lu.
 
 ### Faire tourner un plugin non signé
 
@@ -231,7 +240,7 @@ Chaque plugin d'un scan finit dans l'un de quatre états :
 |---|---|---|
 | **produit** | Il a tourné et son rapport a été lu. | Ouvertes pour ce qu'il rapporte ; **résolues pour ce qu'il ne rapporte plus** — ses propres issues seulement. |
 | **non applicable** | Aucun de ses langages n'est dans le dépôt ; il n'a pas été lancé. | Laissées telles quelles. Pas un échec. |
-| **refusé** | L'exécuteur ne l'a pas démarré : `unsigned` — aucun signataire déclaré, un signataire exigé, pas de dérogation — ou `signature_unverified` — cosign n'a pas vérifié l'image face au signataire déclaré. | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
+| **refusé** | L'exécuteur ne l'a pas démarré : `unsigned` — aucun signataire déclaré, un signataire exigé, pas de dérogation — `signature_unverified` — cosign n'a pas vérifié l'image face au signataire déclaré — ou `registry_authentication_required` — le registre de l'image n'a pas laissé lire la signature. | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
 | **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (pull en échec, code de sortie non déclaré, répertoire de sortie plein, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
 
 Le détail du scan liste chaque plugin avec son état (`plugins` : `produced` avec son nombre de
@@ -239,14 +248,14 @@ constats et `signature` — `verified`, `waived` ou `not_required` — `not_appl
 qu'il cherchait, `refused` avec son `refusal` et la raison, `absent` avec la raison). Sur la page du
 scan, la carte **Plugins** les montre distinctement, à dessein : **produit** en vert avec le nombre de
 constats de son rapport — et **sans signature (dérogation)** quand il a tourné sous dérogation — **non
-applicable** en gris avec les langages qu'il cherchait, **refusé — non signé** ou **refusé — signature
-non vérifiée** en rouge, **absent — échec** en rouge avec la raison. Chacun nomme son plugin, lié au
+applicable** en gris avec les langages qu'il cherchait, **refusé — non signé**, **refusé — signature
+non vérifiée** ou **refusé — authentification au registre requise** en rouge, **absent — échec** en rouge avec la raison. Chacun nomme son plugin, lié au
 registre, et le digest de son manifeste. Les constats d'un plugin disent quel outil et quelle version
 les ont rapportés.
 
 Une [ligne de checklist](../guide/security-checklists.md) mesurée sur un plugin refusé, qui n'a pas
-produit depuis dans l'âge de la ligne, est **sans données**, avec la raison `plugin_unsigned` ou
-`plugin_signature_unverified` plutôt que `step_absent`.
+produit depuis dans l'âge de la ligne, est **sans données**, avec la raison `plugin_unsigned`,
+`plugin_signature_unverified` ou `plugin_registry_authentication_required` plutôt que `step_absent`.
 
 Les langages sont détectés à partir des noms de fichiers et des manifestes (`pom.xml`, `package.json`,
 `pyproject.toml`, `go.mod`…), dans une borne ; un dépôt trop grand pour être recensé lance tous les
