@@ -209,6 +209,10 @@ dependencies {
     // builds is validated against it. Test-only; its Jackson is the 3.x line the BOM already manages.
     testImplementation(platform(libs.jackson3.bom))
     testImplementation(libs.json.schema.validator)
+    // **The demonstration report plugin, run in-process on exports this suite builds** (decision 0035 §6):
+    // the contract test of the export. A schema change the plugin no longer reads fails here, on the
+    // generator's own output, before a release. Test scope: nothing of it reaches the control plane.
+    testImplementation(project(":vectispire-report-demo"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -7,12 +7,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.checklists.CellRef;
+import com.asmolabs.vectispire.common.domain.checklists.Sheet;
+import com.asmolabs.vectispire.common.domain.checklists.Workbook;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
+import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -36,6 +40,7 @@ import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.reportdemo.ReportDemo;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -308,6 +313,88 @@ class ProjectExportRoutesTest extends ApiTestBase {
                             .header("Accept-Language", "fr-BE,fr;q=0.9,en;q=0.5"))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
             assertThat(json.readTree(unzip(zip).get("export.json")).at("/export/locale").asText()).isEqualTo("fr-BE");
+        }
+    }
+
+    /**
+     * The contract test of decision 0035 §6, first half: the demonstration plugin, run in-process on the export
+     * this route builds — the generator's own output, validated by the schema first — and its workbook read by
+     * the platform's own reader. A change to the export that the plugin no longer reads, or reads wrong, fails
+     * here, in the {@code jvm} job, before anything is released; the image itself is run by the container suite.
+     */
+    @Nested
+    @DisplayName("the demonstration plugin, on the export this route builds")
+    class TheDemonstrationPlugin {
+
+        @Test
+        @DisplayName("every issue a row, every count carried, every checklist line a row — and the same bytes twice")
+        void rendersTheExport() throws Exception {
+            signedOffRevisionOne();
+            byte[] export = unzip(download(developer.token())).get("export.json");
+            ProjectExportContract.conforms(export);
+            JsonNode document = json.readTree(export);
+
+            byte[] xlsx = ReportDemo.render(export);
+            Workbook workbook = Workbook.read(xlsx, ReportPluginManifest.DEFAULT_OUTPUT_BYTES);
+            assertThat(ReportDemo.render(export)).as("deterministic: the same export, the same bytes").isEqualTo(xlsx);
+            assertThat(workbook.sheets()).extracting(Sheet::name).containsExactly("Summary", "Issues", "Checklists");
+
+            List<String> listed = new ArrayList<>();
+            document.at("/issues").forEach(issue -> listed.add(issue.path("id").asText()));
+            assertThat(listed).hasSize(3);
+            Sheet issueSheet = workbook.sheet("Issues").orElseThrow();
+            assertThat(column(issueSheet, "Id")).containsExactlyElementsOf(listed);
+            assertThat(column(issueSheet, "Triage status")).contains("under_review");
+            assertThat(column(issueSheet, "Decided by")).contains("Ada Developer");
+
+            Sheet summary = workbook.sheet("Summary").orElseThrow();
+            assertThat(labelled(summary, "Project")).isEqualTo("Checkout");
+            assertThat(labelled(summary, "Requested by")).isEqualTo("Ada Developer");
+            assertThat(labelled(summary, "Exported at")).isEqualTo(document.at("/export/generated_at").asText());
+            assertThat(labelled(summary, "Issues listed")).isEqualTo("3");
+            long counted = 0;
+            for (JsonNode count : document.at("/issue_counts")) {
+                counted += count.path("count").asLong();
+            }
+            assertThat(counted).as("open and resolved, counted").isEqualTo(4);
+            assertThat(labelledLast(summary, "Total", 5)).isEqualTo(String.valueOf(counted));
+            assertThat(labelled(summary, "repository checkout-api.git")).isEqualTo("failed");
+
+            int lines = 0;
+            for (JsonNode checklist : document.at("/checklists")) {
+                lines += checklist.at("/statement/lines").size();
+            }
+            assertThat(document.at("/checklists")).as("the signed-off revision").hasSize(1);
+            Sheet checklistSheet = workbook.sheet("Checklists").orElseThrow();
+            assertThat(column(checklistSheet, "Line")).hasSize(lines).isNotEmpty();
+            assertThat(column(checklistSheet, "Signed")).containsOnly("yes");
+            assertThat(column(checklistSheet, "Answered by")).contains("Ada Developer");
+        }
+
+        /** The text of a column, by its title in row 1, for each row after it. */
+        private static List<String> column(Sheet sheet, String title) {
+            int column = sheet.row(1).entrySet().stream()
+                    .filter(cell -> sheet.text(cell.getKey()).equals(title))
+                    .findFirst().orElseThrow(() -> new AssertionError("no column " + title)).getKey().column();
+            List<String> values = new ArrayList<>();
+            for (int row = 2; row <= sheet.lastRow(); row++) {
+                values.add(sheet.text(new CellRef(column, row)));
+            }
+            return values;
+        }
+
+        private static String labelled(Sheet sheet, String label) {
+            return labelledLast(sheet, label, 2);
+        }
+
+        /** The cell in {@code column} of the last row whose first cell is {@code label}. */
+        private static String labelledLast(Sheet sheet, String label, int column) {
+            for (int row = sheet.lastRow(); row >= 1; row--) {
+                if (sheet.text(new CellRef(1, row)).equals(label)) {
+                    return sheet.text(new CellRef(column, row));
+                }
+            }
+            throw new AssertionError("no row labelled " + label);
         }
     }
 
