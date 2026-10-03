@@ -7278,6 +7278,102 @@
         "required" : [ "enabled" ],
         "type" : "object"
       },
+      "ReportRequest" : {
+        "properties" : {
+          "pluginId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ReportRunView" : {
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "exitCode" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "exportSchemaVersion" : {
+            "type" : "string"
+          },
+          "exportSha256" : {
+            "type" : "string"
+          },
+          "exportSize" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "exportedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "finishedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "imageDigest" : {
+            "type" : "string"
+          },
+          "manifestDigest" : {
+            "type" : "string"
+          },
+          "outputSha256" : {
+            "type" : "string"
+          },
+          "outputSize" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "pluginId" : {
+            "type" : "string"
+          },
+          "productVersion" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "projectName" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "enum" : [ "unsigned", "signature_unverified", "registry_authentication_required", "export_schema_unavailable", "exit_code", "timeout", "output_full", "output_missing", "output_not_regular", "export_too_large", "requester_not_allowed", "plugin_unavailable", "executor_lost", "executor_error" ],
+            "type" : "string"
+          },
+          "requestedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "requestedBy" : {
+            "type" : "string"
+          },
+          "signerIdentity" : {
+            "type" : "string"
+          },
+          "signerIssuer" : {
+            "type" : "string"
+          },
+          "signerKeySha256" : {
+            "type" : "string"
+          },
+          "startedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "enum" : [ "pending", "running", "produced", "failed", "refused" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Repository" : {
         "properties" : {
           "branch" : {
@@ -10753,7 +10849,7 @@
   "paths" : {
     "/api/v1/admin/agents" : {
       "get" : {
-        "operationId" : "list_15",
+        "operationId" : "list_16",
         "responses" : {
           "200" : {
             "content" : {
@@ -11303,7 +11399,7 @@
     },
     "/api/v1/api-keys" : {
       "get" : {
-        "operationId" : "list_14",
+        "operationId" : "list_15",
         "responses" : {
           "200" : {
             "content" : {
@@ -11509,7 +11605,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_21",
+        "operationId" : "list_22",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -12811,7 +12907,7 @@
     },
     "/api/v1/containers" : {
       "get" : {
-        "operationId" : "list_13",
+        "operationId" : "list_14",
         "responses" : {
           "200" : {
             "content" : {
@@ -13549,7 +13645,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_20",
+        "operationId" : "list_21",
         "responses" : {
           "200" : {
             "content" : {
@@ -13701,7 +13797,7 @@
     },
     "/api/v1/git-tokens" : {
       "get" : {
-        "operationId" : "list_12",
+        "operationId" : "list_13",
         "responses" : {
           "200" : {
             "content" : {
@@ -13943,7 +14039,7 @@
     },
     "/api/v1/issues" : {
       "get" : {
-        "operationId" : "list_19",
+        "operationId" : "list_20",
         "parameters" : [ {
           "in" : "query",
           "name" : "state",
@@ -14267,7 +14363,7 @@
     },
     "/api/v1/issues/{issueId}/tickets" : {
       "get" : {
-        "operationId" : "list_11",
+        "operationId" : "list_12",
         "parameters" : [ {
           "in" : "path",
           "name" : "issueId",
@@ -14673,7 +14769,7 @@
     "/api/v1/plugins" : {
       "get" : {
         "description" : "Every registered plugin, with the manifest it runs.",
-        "operationId" : "list_10",
+        "operationId" : "list_11",
         "responses" : {
           "200" : {
             "content" : {
@@ -15178,7 +15274,7 @@
     "/api/v1/projects/{projectId}/checklists" : {
       "get" : {
         "description" : "Every revision of the project's checklist, newest first. 404 for a project the caller does not see whole.",
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -16119,7 +16215,7 @@
     "/api/v1/projects/{projectId}/plugins" : {
       "get" : {
         "description" : "404 when the project does not exist.",
-        "operationId" : "list_18",
+        "operationId" : "list_19",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -16214,7 +16310,7 @@
     "/api/v1/projects/{projectId}/report-plugins" : {
       "get" : {
         "description" : "For a caller who sees the whole project, images included; 404 \"Project not found.\" otherwise, and for a project that does not exist.",
-        "operationId" : "list_17",
+        "operationId" : "list_18",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -16303,6 +16399,112 @@
           }
         },
         "summary" : "Switch report plugin on for project",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/reports" : {
+      "get" : {
+        "description" : "The project's report runs, newest first, the latest 200: state (pending, running, produced, failed, refused), the reason and detail of a run that did not produce, the manifest, image, signer and export it ran with, the output's size and SHA-256. For a caller who sees the whole project; 404 \"Project not found.\" otherwise.",
+        "operationId" : "list_9",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReportRunView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List project reports",
+        "tags" : [ "Report plugins" ]
+      },
+      "post" : {
+        "description" : "Queues a report of the project by a report plugin switched on for it, for the control plane's executor: 202 with the run, pending. The executor builds the project's export for the requester at the claim and runs the plugin's approved manifest — signer verified, no network, the export read-only, the output bounded. For write accounts and auditors who see the whole project, images included: 404 \"Project not found.\" otherwise; 403 for the platform governor; 404 for a plugin not switched on for the project; 409 report-plugin-disabled, report-plugin-not-approved, report-executor-unavailable (the built-in worker is switched off: this version runs report plugins on the control plane only), report-run-in-progress (one run of a plugin per project at a time). Audited REPORT_REQUESTED; the export handed to the plugin is audited PROJECT_EXPORTED and signalled VECTI-SEC-032, a refused run REPORT_REFUSED and VECTI-SEC-033.",
+        "operationId" : "request",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportRunView"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Request report",
+        "tags" : [ "Report plugins" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/reports/{runId}" : {
+      "get" : {
+        "description" : "One report run of the project. 404 \"Project not found.\" for a project not seen whole, then 404 for a run that is not the project's.",
+        "operationId" : "get_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "runId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReportRunView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Get project report",
         "tags" : [ "Report plugins" ]
       }
     },
@@ -17737,7 +17939,7 @@
     "/api/v1/scans" : {
       "get" : {
         "description" : "Returns historical security scans with filtering by repository or container target.",
-        "operationId" : "list_16",
+        "operationId" : "list_17",
         "parameters" : [ {
           "description" : "Filter by repository ID",
           "in" : "query",

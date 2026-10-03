@@ -178,11 +178,18 @@ public enum SecurityEventType {
             Outcome.SUCCESS),
 
     /**
-     * A project's whole triaged state left the platform as an export (decision 0035 §4): who took it, of
-     * which project, and its digest. {@code 033} is reserved for the report plugins' refusals, by the same
-     * decision, and is not to be taken by anything else.
+     * A project's whole triaged state left the platform as an export (decision 0035 §4): downloaded, or handed to
+     * a report plugin's container — who took it, of which project, and its digest.
      */
     PROJECT_EXPORTED("VECTI-SEC-032", "Project export left the platform", 4, Outcome.SUCCESS),
+
+    /**
+     * A report plugin was asked to run and refused (decision 0035 §4): no verified signer — another signer, none,
+     * or a registry that would not be read — or an export major no longer produced. How a tampered plugin shows
+     * itself; lot R4 adds an output refused for not being what it declared. A run failing for an ordinary reason —
+     * an exit code, a timeout — is audited, not signalled.
+     */
+    REPORT_PLUGIN_REFUSED("VECTI-SEC-033", "Report plugin refused, or its output refused", 6, Outcome.FAILURE),
 
     /**
      * A forge connection was created, given another token or another trust — a pinned CA, a network
@@ -328,6 +335,7 @@ public enum SecurityEventType {
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
             case PROJECT_EXPORTED -> Optional.of(PROJECT_EXPORTED);
+            case REPORT_REFUSED -> Optional.of(REPORT_PLUGIN_REFUSED);
             case FORGE_CONNECTION_REFUSED -> Optional.of(FORGE_CONNECTION_REFUSED);
             case REPORT_PLUGIN_REGISTERED, REPORT_PLUGIN_UPDATED, REPORT_PLUGIN_APPROVED, REPORT_PLUGIN_ENABLED_CHANGED,
                     REPORT_PLUGIN_ACTIVATED, REPORT_PLUGIN_DEACTIVATED, REPORT_PLUGIN_WITHDRAWN ->
@@ -372,7 +380,10 @@ public enum SecurityEventType {
                     CHECKLIST_EXPORTED,
                     // A renaming is a forge connection's change too, and not an event: the writer names
                     // VECTI-SEC-034 on the creation, the new token or trust, and the deletion.
-                    FORGE_CONNECTION_CHANGED -> Optional.empty();
+                    FORGE_CONNECTION_CHANGED,
+                    // Work going right or wrong, not a security event (0035 §4): the export each one handed a
+                    // plugin is signalled on its own, as PROJECT_EXPORTED.
+                    REPORT_REQUESTED, REPORT_PRODUCED, REPORT_FAILED -> Optional.empty();
         };
     }
 }

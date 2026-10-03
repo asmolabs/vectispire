@@ -463,7 +463,28 @@ public enum AuditOperation {
      * guard blocks, or a token broader than read-only (decision 0037 §2). The refusals an administrator
      * simply fixes (a mistyped token, a server too old) are not recorded.
      */
-    FORGE_CONNECTION_REFUSED;
+    FORGE_CONNECTION_REFUSED,
+
+    /**
+     * A report was requested of a report plugin for a project (decision 0035 §2): queued for the control plane's
+     * executor. The entry names the plugin and the run.
+     */
+    REPORT_REQUESTED,
+
+    /**
+     * A report run produced: its plugin exited {@code 0} and wrote its file. The entry names the run, the manifest
+     * and image digests, the export's SHA-256 and the output's.
+     */
+    REPORT_PRODUCED,
+
+    /** A report run failed — an exit code, a timeout, a full output, a lost executor — with its reason. */
+    REPORT_FAILED,
+
+    /**
+     * A report plugin was not started for want of a verified signer, or of the export major it reads; the entry
+     * carries the reason and cosign's words.
+     */
+    REPORT_REFUSED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

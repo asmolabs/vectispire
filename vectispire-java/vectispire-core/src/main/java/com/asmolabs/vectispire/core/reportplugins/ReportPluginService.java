@@ -424,6 +424,11 @@ public class ReportPluginService {
      * The export's guard (0035 §1): a plugin switched on here renders the whole project, images included.
      */
     private String requireWholeProject(long projectId, VisibilityService.Allowance allowance) {
+        return requireWholeProject(projects, projectId, allowance);
+    }
+
+    /** The guard itself, which a report request applies too: one rule for who may have a project rendered. */
+    static String requireWholeProject(SolutionQueryService projects, long projectId, VisibilityService.Allowance allowance) {
         Optional<SolutionQueryService.ProjectMembers> members = projects.members(projectId);
         Optional<String> name = members.map(SolutionQueryService.ProjectMembers::name);
         List<Long> repositoryIds = members.map(SolutionQueryService.ProjectMembers::repositoryIds).orElse(List.of());

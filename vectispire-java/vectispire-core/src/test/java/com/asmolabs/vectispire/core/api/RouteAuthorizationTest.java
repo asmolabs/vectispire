@@ -353,7 +353,14 @@ class RouteAuthorizationTest extends ApiTestBase {
             java.util.Map.entry("POST /api/v1/auth/mfa/setup", "enrols the caller's own second factor"),
             java.util.Map.entry("POST /api/v1/auth/mfa/enable", "enables the caller's own second factor"),
             java.util.Map.entry("POST /api/v1/auth/mfa/disable", "the caller's own second factor"),
-            java.util.Map.entry("POST /api/v1/crypto/verify", "checks a signature against the instance's public key: a computation, nothing is written"));
+            java.util.Map.entry("POST /api/v1/crypto/verify", "checks a signature against the instance's public key: a computation, nothing is written"),
+            // The one entry that queues work rather than acting on the caller's own account, and it is the owner's
+            // decision, not this list's: decision 0035, answer 4. An auditor reads a project's whole state already;
+            // having a report plugin render that state is reading it in another layout. It changes nothing of the
+            // estate — no target, no triage, no setting — and the run, its export and the document are the auditor's
+            // own request, audited in their name.
+            java.util.Map.entry("POST /api/v1/projects/{projectId}/reports",
+                    "asks for a report of a project the auditor reads whole: reading, not acting (decision 0035, answer 4)"));
 
     @Test
     @DisplayName("an auditor changes nothing: every writing route refuses it, but those about its own account")

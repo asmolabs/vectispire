@@ -221,6 +221,34 @@ public class ProjectExportService {
         return new ProjectExportDownload("project-" + projectId + "-export.zip", sha256, content);
     }
 
+    /**
+     * The export a report run hands its plugin (decision 0035 §2): built at the claim — the instant the document
+     * describes — for the requester as they see the project <em>now</em>, by the same rules as a download.
+     * Unsigned and not audited here: the run's provenance attests to it (lot R4), and the run records whether
+     * the export reached a plugin — a refused one never received it.
+     *
+     * @param allowance the requester's visibility, read again at the claim; a report is asked through a session,
+     *     never an integration key, so no credential narrows it
+     * @param locale the requester's locale, as the request named it
+     * @throws NotFoundException "Project not found." for a project gone, or no longer seen whole
+     * @throws AccessDeniedException for a role that may no longer take an export
+     * @throws ProjectExportTooLargeException over a bound
+     */
+    public RunExport forRun(long projectId, UserView requester, VisibilityService.Allowance allowance, String locale) {
+        Built built = reading.execute(status -> build(projectId, requester, allowance, locale, ProjectExportBounds.STANDARD));
+        return new RunExport(built.projectName(), built.json(), Digests.sha256Hex(built.json()), built.issueCount(),
+                built.componentCount());
+    }
+
+    /** An export handed to a report plugin, and what the run records of it. */
+    public record RunExport(String projectName, byte[] json, String sha256, int issueCount, int componentCount) {}
+
+    /** The requester's locale as a run keeps it: {@link #locale}, or nothing past a BCP 47 tag's usual length. */
+    static String runLocale(String acceptLanguage) {
+        String locale = locale(acceptLanguage);
+        return locale == null || locale.length() > 35 ? null : locale;
+    }
+
     /** The export's bytes and what the audit entry says of them. */
     private record Built(String projectName, byte[] json, int issueCount, int componentCount) {}
 
@@ -309,7 +337,7 @@ public class ProjectExportService {
      * Write accounts and auditors (decision 0035, answer 4): an auditor reads a project's whole state
      * already, and an export is reading. The governor — no effects, no triage — is the one role left out.
      */
-    private static void requireMayExport(UserView requester) {
+    static void requireMayExport(UserView requester) {
         Optional<Role> role = Optional.ofNullable(requester).flatMap(user -> Role.of(user.role()));
         if (role.isEmpty() || !(role.get().canCauseEffects() || role.get() == Role.AUDITOR)) {
             throw new AccessDeniedException("A project export is taken by a write account or an auditor; the platform "

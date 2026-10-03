@@ -267,6 +267,15 @@ vectispire:
     labels: ${VECTISPIRE_WORKER_LABELS:}
     interval: ${VECTISPIRE_WORKER_INTERVAL:15s}
 
+  reports:
+    # **The report plugins' executor (decision 0035 §2)** — on the control plane's own container endpoint,
+    # under the built-in worker's switch: with VECTISPIRE_EMBEDDED_WORKER=false there is none, and a report
+    # request is refused (409 report-executor-unavailable) rather than queued for nobody. How many runs it
+    # carries out at once — each a pull, a signature check and a container of up to five minutes — and how
+    # often it looks for waiting ones.
+    concurrency: ${VECTISPIRE_REPORT_CONCURRENCY:2}
+    interval: ${VECTISPIRE_REPORT_INTERVAL:10s}
+
   jobs:
     relay-interval: ${VECTISPIRE_RELAY_INTERVAL:60s}
     scheduler-interval: ${VECTISPIRE_SCHEDULER_INTERVAL:60s}

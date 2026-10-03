@@ -15,6 +15,9 @@ vectispire:
   worker:
     enabled: false
     initial-delay: 24h
+  # The report executor's turn too: a test drives it through `ReportWorker.drain`, on its own thread.
+  reports:
+    initial-delay: 24h
   jobs:
     # The interval spaces the runs that follow; the initial delay is what stops the first one
     # firing the instant the context is ready — which is inside every test.

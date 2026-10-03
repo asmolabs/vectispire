@@ -1,9 +1,10 @@
 /**
- * Report plugins (decision 0035) — so far its first two lots: a project's export, the {@code
- * vectispire-project-export} document a plugin will receive, built for a caller who sees the whole
- * project, signed, and served on its own so an organisation can write its plugin against its own data
- * (R1); and the registry — plugins, their manifests by digest with four-eyes approval and withdrawal, and
- * their activations per project (R2).
+ * Report plugins (decision 0035) — so far its first three lots: a project's export, the {@code
+ * vectispire-project-export} document a plugin receives, built for a caller who sees the whole project,
+ * signed, and served on its own so an organisation can write its plugin against its own data (R1); the
+ * registry — plugins, their manifests by digest with four-eyes approval and withdrawal, and their
+ * activations per project (R2); and the executor — a report requested, queued, claimed by the control
+ * plane's container endpoint, the export built at the claim and handed to the plugin in the closed shape (R3).
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code ModularityTest},
  * decision 0030): a dependency on a module, or on a named interface ({@code module::name}), missing from
@@ -18,7 +19,8 @@
  * {@code AccountNames} turns the user names the rows record into display names, never an e-mail address.
  *
  * The registry's activations are refused by the same whole-project guard: a plugin switched on for a
- * project renders all of it.
+ * project renders all of it; so are a project's report requests and runs. {@code AuthService} reads a run's
+ * requester again at the claim: a report is built for an account that may still act.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code RequestActors}.
  *

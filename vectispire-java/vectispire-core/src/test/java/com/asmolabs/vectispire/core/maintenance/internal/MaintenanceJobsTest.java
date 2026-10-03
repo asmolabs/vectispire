@@ -39,6 +39,8 @@ import com.asmolabs.vectispire.core.outbox.internal.NotificationRelayTask;
 import com.asmolabs.vectispire.core.outbox.internal.SentMessagesTask;
 import com.asmolabs.vectispire.core.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.posture.internal.WeeklyDigestTask;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportExportRetentionTask;
+import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.scanning.RetentionService;
 import com.asmolabs.vectispire.core.scanning.SchedulerService;
 import com.asmolabs.vectispire.core.scanning.internal.ScanRetentionTask;
@@ -107,6 +109,7 @@ class MaintenanceJobsTest {
             VerdictRetentionTask.class,
             SnapshotRetentionTask.class,
             OwaspWeeklyRetentionTask.class,
+            ReportExportRetentionTask.class,
             AbandonedReviewsTask.class,
             KevCatalogueSyncTask.class,
             EpssScoresSyncTask.class,
@@ -130,6 +133,7 @@ class MaintenanceJobsTest {
     private ComplianceSnapshotRepository snapshots;
     private OwaspReviewService reviews;
     private ThreatIntelFeedService feed;
+    private ReportExportRepository reportExports;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -153,6 +157,7 @@ class MaintenanceJobsTest {
         snapshots = mock(ComplianceSnapshotRepository.class);
         reviews = mock(OwaspReviewService.class);
         feed = mock(ThreatIntelFeedService.class);
+        reportExports = mock(ReportExportRepository.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
@@ -181,6 +186,7 @@ class MaintenanceJobsTest {
                 new VerdictRetentionTask(verdicts, settings, clock),
                 new SnapshotRetentionTask(snapshots, settings, clock),
                 new OwaspWeeklyRetentionTask(owaspWeekly, settings, clock),
+                new ReportExportRetentionTask(reportExports, settings, clock),
                 new AbandonedReviewsTask(reviews),
                 new KevCatalogueSyncTask(feed),
                 new EpssScoresSyncTask(feed),
@@ -218,7 +224,7 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, identities, triage, breaches, digest, complianceHistory,
-                owaspWeekly, sessions, verdicts, snapshots, reviews, feed, targetDeletion);
+                owaspWeekly, sessions, verdicts, snapshots, reportExports, reviews, feed, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
@@ -241,6 +247,8 @@ class MaintenanceJobsTest {
         // The only purge of the weekly record by age: without it the table grows by ten rows per target
         // and week for as long as the install lives.
         turn.verify(owaspWeekly).purgeEndedBefore(any());
+        // The only purge of the exports report runs were given — a project's whole state, up to 64 MiB a run.
+        turn.verify(reportExports).deleteCreatedBefore(any());
         turn.verify(reviews).settleAbandoned();
         // The only thing that keeps the KEV catalogue from being as old as the last button press.
         turn.verify(feed).syncIfDue();

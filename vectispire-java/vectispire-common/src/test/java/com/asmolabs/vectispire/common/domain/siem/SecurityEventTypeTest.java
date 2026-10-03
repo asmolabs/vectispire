@@ -53,6 +53,7 @@ class SecurityEventTypeTest {
         expected.put("SLA_BREACHED", "VECTI-SEC-030");
         expected.put("REPORT_PLUGIN_CHANGED", "VECTI-SEC-031");
         expected.put("PROJECT_EXPORTED", "VECTI-SEC-032");
+        expected.put("REPORT_PLUGIN_REFUSED", "VECTI-SEC-033");
         expected.put("FORGE_CONNECTION_CHANGED", "VECTI-SEC-034");
         expected.put("FORGE_CONNECTION_REFUSED", "VECTI-SEC-036");
         expected.put("PING_TEST", "VECTI-SEC-999");
@@ -63,12 +64,15 @@ class SecurityEventTypeTest {
     }
 
     @Test
-    @DisplayName("033 stays reserved for the report plugins' refusals (decision 0035 §4)")
-    void reportPluginIdentifiersAreReserved() {
-        // Reserved on 2026-10-03 for the refusals of report plugins, which lot R4 emits under this name;
-        // another event taking it would leave the decision two numbers. 031 is the registry's, since lot R2.
-        assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
-                .doesNotContain("VECTI-SEC-033");
+    @DisplayName("033 is the report plugins' refusal, signalled by REPORT_REFUSED alone (decision 0035 §4)")
+    void reportPluginRefusalIsThirtyThree() {
+        // Reserved on 2026-10-03 for the refusals of report plugins; emitted since lot R3. A failed run for an
+        // ordinary reason is audited, not signalled — work going wrong, not a security event.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_REFUSED)).contains(SecurityEventType.REPORT_PLUGIN_REFUSED);
+        assertThat(SecurityEventType.REPORT_PLUGIN_REFUSED.cefSeverity()).isEqualTo(6);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_FAILED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_REQUESTED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_PRODUCED)).isEmpty();
     }
 
     @Test

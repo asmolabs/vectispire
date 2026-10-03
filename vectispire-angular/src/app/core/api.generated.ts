@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_15"];
+        get: operations["list_16"];
         put?: never;
         post: operations["create_9"];
         delete?: never;
@@ -299,7 +299,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_15"];
         put?: never;
         post: operations["create_8"];
         delete?: never;
@@ -427,7 +427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_21"];
+        get: operations["list_22"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1175,7 +1175,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_14"];
         put?: never;
         post: operations["create_7"];
         delete?: never;
@@ -1583,7 +1583,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_20"];
+        get: operations["list_21"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1651,7 +1651,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post: operations["create_6"];
         delete?: never;
@@ -1779,7 +1779,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_19"];
+        get: operations["list_20"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1859,7 +1859,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post: operations["create_5"];
         delete?: never;
@@ -2051,7 +2051,7 @@ export interface paths {
          * List plugins
          * @description Every registered plugin, with the manifest it runs.
          */
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         /**
          * Register plugin
@@ -2273,7 +2273,7 @@ export interface paths {
          * List project checklists
          * @description Every revision of the project's checklist, newest first. 404 for a project the caller does not see whole.
          */
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         /**
          * Open project checklist
@@ -2657,7 +2657,7 @@ export interface paths {
          * List plugins switched on for project
          * @description 404 when the project does not exist.
          */
-        get: operations["list_18"];
+        get: operations["list_19"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2701,7 +2701,7 @@ export interface paths {
          * List report plugins switched on for project
          * @description For a caller who sees the whole project, images included; 404 "Project not found." otherwise, and for a project that does not exist.
          */
-        get: operations["list_17"];
+        get: operations["list_18"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2729,6 +2729,50 @@ export interface paths {
          * @description 404 when it was not on.
          */
         delete: operations["deactivate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List project reports
+         * @description The project's report runs, newest first, the latest 200: state (pending, running, produced, failed, refused), the reason and detail of a run that did not produce, the manifest, image, signer and export it ran with, the output's size and SHA-256. For a caller who sees the whole project; 404 "Project not found." otherwise.
+         */
+        get: operations["list_9"];
+        put?: never;
+        /**
+         * Request report
+         * @description Queues a report of the project by a report plugin switched on for it, for the control plane's executor: 202 with the run, pending. The executor builds the project's export for the requester at the claim and runs the plugin's approved manifest — signer verified, no network, the export read-only, the output bounded. For write accounts and auditors who see the whole project, images included: 404 "Project not found." otherwise; 403 for the platform governor; 404 for a plugin not switched on for the project; 409 report-plugin-disabled, report-plugin-not-approved, report-executor-unavailable (the built-in worker is switched off: this version runs report plugins on the control plane only), report-run-in-progress (one run of a plugin per project at a time). Audited REPORT_REQUESTED; the export handed to the plugin is audited PROJECT_EXPORTED and signalled VECTI-SEC-032, a refused run REPORT_REFUSED and VECTI-SEC-033.
+         */
+        post: operations["request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/reports/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project report
+         * @description One report run of the project. 404 "Project not found." for a project not seen whole, then 404 for a run that is not the project's.
+         */
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3394,7 +3438,7 @@ export interface paths {
          * List scan history
          * @description Returns historical security scans with filtering by repository or container target.
          */
-        get: operations["list_16"];
+        get: operations["list_17"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6957,6 +7001,46 @@ export interface components {
             updatedAt?: string;
             updatedBy?: string;
         };
+        ReportRequest: {
+            pluginId?: string;
+        };
+        ReportRunView: {
+            detail?: string;
+            /** Format: int32 */
+            exitCode?: number;
+            exportSchemaVersion?: string;
+            exportSha256?: string;
+            /** Format: int64 */
+            exportSize?: number;
+            /** Format: date-time */
+            exportedAt?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: int64 */
+            id?: number;
+            imageDigest?: string;
+            manifestDigest?: string;
+            outputSha256?: string;
+            /** Format: int64 */
+            outputSize?: number;
+            pluginId?: string;
+            productVersion?: string;
+            /** Format: int64 */
+            projectId?: number;
+            projectName?: string;
+            /** @enum {string} */
+            reason?: "unsigned" | "signature_unverified" | "registry_authentication_required" | "export_schema_unavailable" | "exit_code" | "timeout" | "output_full" | "output_missing" | "output_not_regular" | "export_too_large" | "requester_not_allowed" | "plugin_unavailable" | "executor_lost" | "executor_error";
+            /** Format: date-time */
+            requestedAt?: string;
+            requestedBy?: string;
+            signerIdentity?: string;
+            signerIssuer?: string;
+            signerKeySha256?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** @enum {string} */
+            state?: "pending" | "running" | "produced" | "failed" | "refused";
+        };
         Repository: {
             branch?: string;
             /** Format: int64 */
@@ -8261,7 +8345,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_15: {
+    list_16: {
         parameters: {
             query?: never;
             header?: never;
@@ -8720,7 +8804,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_15: {
         parameters: {
             query?: never;
             header?: never;
@@ -8916,7 +9000,7 @@ export interface operations {
             };
         };
     };
-    list_21: {
+    list_22: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -9854,7 +9938,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_14: {
         parameters: {
             query?: never;
             header?: never;
@@ -10484,7 +10568,7 @@ export interface operations {
             };
         };
     };
-    list_20: {
+    list_21: {
         parameters: {
             query?: never;
             header?: never;
@@ -10599,7 +10683,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -10796,7 +10880,7 @@ export interface operations {
             };
         };
     };
-    list_19: {
+    list_20: {
         parameters: {
             query?: {
                 state?: string;
@@ -10938,7 +11022,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: never;
             header?: never;
@@ -11233,7 +11317,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: never;
             header?: never;
@@ -11617,7 +11701,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -12156,7 +12240,7 @@ export interface operations {
             };
         };
     };
-    list_18: {
+    list_19: {
         parameters: {
             query?: never;
             header?: never;
@@ -12222,7 +12306,7 @@ export interface operations {
             };
         };
     };
-    list_17: {
+    list_18: {
         parameters: {
             query?: never;
             header?: never;
@@ -12285,6 +12369,77 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_9: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportRunView"][];
+                };
+            };
+        };
+    };
+    request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportRunView"];
+                };
+            };
+        };
+    };
+    get_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                runId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReportRunView"];
+                };
             };
         };
     };
@@ -13351,7 +13506,7 @@ export interface operations {
             };
         };
     };
-    list_16: {
+    list_17: {
         parameters: {
             query?: {
                 /** @description Filter by repository ID */

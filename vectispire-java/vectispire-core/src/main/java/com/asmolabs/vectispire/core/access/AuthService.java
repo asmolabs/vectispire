@@ -335,6 +335,16 @@ public class AuthService {
     }
 
     /**
+     * An account by its id, if it may still act — for a gesture asked now and carried out later, read again
+     * when it is carried out: a report run builds its export for its requester at the claim (decision 0035
+     * §2), and an account deactivated in between has nobody's export built for it.
+     */
+    @Transactional(readOnly = true)
+    public Optional<UserView> activeAccount(long accountId) {
+        return users.findById(accountId).filter(UserEntity::getIsActive).map(UserView::of);
+    }
+
+    /**
      * Resolves a token into an active session, refreshing its activity timestamp.
      *
      * <p>An expired session is <b>deleted</b> rather than merely refused: leaving it would grow

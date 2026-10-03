@@ -444,7 +444,11 @@
       "report_plugin_deactivated": "Plugin de rapport désactivé pour un projet",
       "report_plugin_withdrawn": "Manifeste de plugin de rapport retiré",
       "forge_connection_changed": "Connexion de forge créée, modifiée ou supprimée",
-      "forge_connection_refused": "Connexion de forge refusée"
+      "forge_connection_refused": "Connexion de forge refusée",
+      "report_requested": "Rapport demandé",
+      "report_produced": "Rapport produit",
+      "report_failed": "Exécution de rapport en échec",
+      "report_refused": "Plugin de rapport refusé"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",
