@@ -98,6 +98,32 @@ défaut à la mise à jour.
   le défaut** : un dépôt sans planification propre, sous un défaut hebdomadaire, satisfait désormais un
   âge maximal de sept jours ; un dépôt en manuel uniquement jamais.
 
+#### Une cible dépôt n'est enregistrée qu'une fois (0.11.0)
+
+**Ajouter un dépôt qui est déjà une cible — le même dépôt, sur la même branche et le même sous-chemin —
+est refusé, comme une modification qui ferait d'une cible le doublon d'une autre.** Deux URL désignent le
+même dépôt une fois écartés le schéma, la partie utilisateur, le port, la casse, un `.git` final et les
+barres obliques finales : `git@gitlab.example.org:Team/API.git` et `https://gitlab.example.org/team/api`
+n'en font qu'un ([la règle et ses limites](../guide/repositories.fr.md#filed-once)). Un autre répertoire
+d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
+
+- **`POST /api/v1/repositories` et `PATCH /api/v1/repositories/{id}` répondent 409** avec le type
+  `urn:vectispire:problem:target-already-registered`. Quand l'appelant voit la cible existante, le
+  problème porte son identifiant dans `existingRepositoryId` et le `detail` la nomme ; sinon ni l'un ni
+  l'autre — le refus dit que la cible existe, rien de laquelle. Un script qui enregistre des dépôts sans
+  condition doit lire ce 409 comme « déjà là ».
+- **La base l'impose** (migration V74, un index unique sur une empreinte des trois parties) : deux
+  créations qui passent la vérification en même temps donnent une cible et un 409, sur PostgreSQL comme
+  sur MySQL.
+- **Rien n'est supprimé à la mise à jour.** Les cibles déjà enregistrées deux fois continuent de
+  fonctionner, sont analysées et restent modifiables ; la plus ancienne de chaque paire est celle à
+  laquelle un nouvel enregistrement est comparé. **Une nouvelle route, `GET
+  /api/v1/repositories/duplicates`** (administrateurs), les liste, groupées, la plus ancienne d'abord,
+  chaque cible sous la forme de la liste des dépôts, pour les [fusionner à la main](../guide/repositories.fr.md#filed-twice-before-this-release).
+- **Jusqu'au premier tour de maintenance après la mise à jour** (trente secondes après le démarrage,
+  puis toutes les heures), les cibles enregistrées avant elle ne sont pas encore comparées, et le doublon
+  de l'une d'elles est accepté — puis listé par la route ci-dessus.
+
 #### Autres changements
 
 - **Un import de couverture répond `packagesState`**, et une mesure de checklist a trois raisons de

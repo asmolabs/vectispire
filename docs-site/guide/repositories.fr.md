@@ -18,6 +18,60 @@ sous-chemin, et une récurrence.
 | **Niveau de criticité métier** | Niveau 1 · critique pour la mission, niveau 2 · opérationnel, niveau 3 · interne. |
 | **Agent requis** | Épingle le scan à un agent. Laissez vide, sauf si le dépôt n'est routable que depuis un segment réseau particulier. |
 
+### Enregistré une seule fois {#filed-once}
+
+Une cible est un dépôt, une branche et un sous-chemin, et chacune n'est enregistrée qu'une fois : ajouter
+une cible qui existe déjà — ou modifier une cible jusqu'à en faire le doublon d'une autre — est refusé
+avec *« Ce dépôt est déjà une cible, sur la même branche et le même sous-chemin »*, suivi du nom de la
+cible existante quand vous la voyez.
+
+Deux URL désignent le même dépôt quand elles concordent une fois écartés le schéma, la partie
+utilisateur, le port, la casse, un `.git` final et les barres obliques finales.
+`git@gitlab.example.org:Team/API.git`, `ssh://git@gitlab.example.org:2222/team/api` et
+`https://gitlab.example.org/team/api/` sont un seul dépôt, `gitlab.example.org/team/api`.
+
+- **Un autre répertoire d'un monodépôt est une autre cible**, et **une autre branche** aussi — une
+  `release/2.x` maintenue à côté de `main` a ses propres dépendances et son propre arriéré. Un
+  sous-chemin est comparé tel qu'il est écrit, casse comprise (`Services/API` n'est pas `services/api`) ;
+  une branche aussi.
+- **Ce qui n'est pas reconnu.** Deux noms d'un même serveur — `git.example.org` et `gitlab.example.org`,
+  un nom et son adresse IP — sont deux dépôts, comme une forge qui sert SSH et HTTPS sous des chemins
+  différents (le préfixe `/scm/` de Bitbucket Data Center). Deux serveurs sur un même nom d'hôte et deux
+  ports sont pris pour un seul.
+- **La casse du chemin est ignorée** : deux dépôts qui ne diffèrent que par la casse sur un serveur
+  sensible à la casse seraient pris pour un seul. GitHub, GitLab et Bitbucket refusent tous une telle
+  paire.
+- **Une cible que vous ne voyez pas n'est pas nommée.** Le refus dit alors que le dépôt est déjà une
+  cible, et rien de laquelle. Seuls les administrateurs enregistrent des dépôts, et ils voient toutes les
+  cibles.
+
+#### Enregistrés deux fois avant cette version {#filed-twice-before-this-release}
+
+Les cibles enregistrées deux fois avant la 0.11.0 sont conservées : les deux sont analysées, les deux
+restent modifiables, et rien n'est supprimé à la mise à jour — l'une ou l'autre peut porter le triage à
+garder. La plus ancienne de chaque groupe est celle à laquelle un nouvel enregistrement est comparé. Un
+administrateur les liste avec :
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" https://vectispire.example.org/api/v1/repositories/duplicates
+```
+
+Chaque groupe donne le dépôt, la branche et le sous-chemin partagés, et ses cibles de la plus ancienne à
+la plus récente, sous la forme de la liste des dépôts (`id`, `displayName`, `openIssues`, `projectId`,
+`lastScan`…). Pour en fusionner un :
+
+1. **Choisissez la cible à garder** — celle dont les constats portent le triage à conserver : les
+   constats et leur triage appartiennent à une cible et ne passent pas de l'une à l'autre. Quand aucune
+   n'en a, gardez la plus ancienne, la première du groupe.
+2. **Reportez ce que l'autre porte** et qui manque à celle gardée : son projet, son niveau, sa
+   planification, son identifiant, l'agent requis, le périmètre certifié, le badge publié.
+3. **Exportez l'[historique de détection et de triage](history.fr.md)** de l'autre si la trace doit lui
+   survivre.
+4. **Supprimez l'autre** (voir [Supprimer un dépôt](#deleting-a-repository)).
+
+La route ne liste alors plus le groupe. Si la cible gardée n'était pas la plus ancienne, elle est comparée
+aux nouveaux enregistrements dès le tour de maintenance suivant — dans l'heure.
+
 ## Identifiants {#credentials}
 
 Les dépôts privés s'authentifient avec une clé de déploiement enregistrée sous
@@ -317,7 +371,7 @@ dépôt appartient à son auteur : un lien commité vers `/dev/zero` ou vers un 
 fichier source d'un gigaoctet, faisait tomber le processus ou lisait l'hôte. Un point d'accès
 déclaré seulement dans un tel fichier n'est pas découvert.
 
-## Supprimer un dépôt
+## Supprimer un dépôt {#deleting-a-repository}
 
 Retirer un dépôt retire ses scans et son historique d'issues avec lui. Là où vous devez garder
 la trace, exportez d'abord

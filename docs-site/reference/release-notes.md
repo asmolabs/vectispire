@@ -91,6 +91,30 @@ told apart from the ones nobody scheduled, so all of them move to the default at
   repository with no schedule of its own, under a weekly default, now matches a seven-day maximum age;
   one set to manual only never does.
 
+#### A repository target is filed once (0.11.0)
+
+**Adding a repository that is already a target — the same repository, on the same branch and sub-path —
+is refused, and so is an edit that would make one target another's twin.** Two URLs name the same
+repository once the scheme, the user part, the port, the case, a trailing `.git` and trailing slashes are
+set aside: `git@gitlab.example.org:Team/API.git` and `https://gitlab.example.org/team/api` are one
+([the rule and its limits](../guide/repositories.md#filed-once)). Another directory of a monorepo, or
+another branch, is another target and is accepted as before.
+
+- **`POST /api/v1/repositories` and `PATCH /api/v1/repositories/{id}` answer 409** with the type
+  `urn:vectispire:problem:target-already-registered`. When the caller sees the existing target, the
+  problem carries its id as `existingRepositoryId` and the `detail` names it; otherwise neither — the
+  refusal says the target exists and nothing of which one. A script that registers repositories
+  unconditionally must treat this 409 as "already there".
+- **The database enforces it** (migration V74, a unique index on a hash of the three parts): two
+  creations racing past the check end in one target and one 409, on PostgreSQL and MySQL.
+- **Nothing is deleted at the upgrade.** Targets already filed twice keep working, are scanned and are
+  editable; the oldest of each pair is the one a new filing is compared with. **A new route, `GET
+  /api/v1/repositories/duplicates`** (administrators), lists them, grouped, oldest first, each target in
+  the shape of the repository list, to [merge by hand](../guide/repositories.md#filed-twice-before-this-release).
+- **Until the first maintenance turn after the upgrade** (thirty seconds after the start, then hourly),
+  targets registered before it are not yet compared, and a duplicate of one of them is accepted — and
+  then listed by the route above.
+
 #### Other changes
 
 - **A coverage import answers `packagesState`**, and a checklist measurement has three more reasons.

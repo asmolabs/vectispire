@@ -18,6 +18,53 @@ recurrence.
 | **Business criticality tier** | Tier 1 · Mission Critical, Tier 2 · Operational, Tier 3 · Internal. |
 | **Required agent** | Pins the scan to one agent. Leave empty unless the repository is only routable from a particular network segment. |
 
+### Filed once {#filed-once}
+
+A target is a repository, a branch and a sub-path, and each is filed once: adding one that already
+exists — or editing a target into another's twin — is refused with *"This repository is already a
+target, on the same branch and sub-path"*, followed by the existing target's name when you can see it.
+
+Two URLs are the same repository when they agree once the scheme, the user part, the port, the case, a
+trailing `.git` and trailing slashes are set aside. `git@gitlab.example.org:Team/API.git`,
+`ssh://git@gitlab.example.org:2222/team/api` and `https://gitlab.example.org/team/api/` are one
+repository, `gitlab.example.org/team/api`.
+
+- **Another directory of a monorepo is another target**, and so is **another branch** — a maintained
+  `release/2.x` beside `main` has its own dependencies and its own backlog. A sub-path is compared as
+  written, case included (`Services/API` is not `services/api`); so is a branch.
+- **What is not recognised.** Two names of one server — `git.example.org` and `gitlab.example.org`, a
+  name and its IP address — are two repositories, and so is a forge that serves SSH and HTTPS under
+  different paths (Bitbucket Data Center's `/scm/` prefix). Two servers on one host name and two ports
+  are taken for one.
+- **Case is ignored in the path**: two repositories differing only by case on a case-sensitive server
+  would be taken for one. GitHub, GitLab and Bitbucket all refuse such a pair.
+- **A target you cannot see is not named.** The refusal then says the repository is already a target
+  and nothing of which one. Only administrators register repositories, and they see every target.
+
+#### Filed twice before this release {#filed-twice-before-this-release}
+
+Targets registered twice before 0.11.0 are kept: both are scanned, both stay editable, and nothing is
+deleted at the upgrade — either one may hold the triage you want to keep. The oldest of each group is
+the one a new filing is compared with. An administrator lists them with:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" https://vectispire.example.org/api/v1/repositories/duplicates
+```
+
+Each group gives the shared repository, branch and sub-path, and its targets oldest first, in the shape
+of the repository list (`id`, `displayName`, `openIssues`, `projectId`, `lastScan`…). To merge one:
+
+1. **Choose the target to keep** — the one whose issues carry the triage you want: issues and their
+   triage belong to a target and are not moved from one to another. When neither has any, keep the
+   oldest, the first of the group.
+2. **Carry over what the other holds** and the kept one lacks: its project, tier, schedule, credential,
+   required agent, certified scope, published badge.
+3. **Export the other one's [detection and triage history](history.md)** if the record must outlive it.
+4. **Delete the other one** (see [Deleting a repository](#deleting-a-repository)).
+
+The route then no longer lists the group. If the target you kept was not the oldest, it is compared with
+new filings from the next maintenance turn on — within the hour.
+
 ## Credentials
 
 Private repositories authenticate with a deploy key registered under
