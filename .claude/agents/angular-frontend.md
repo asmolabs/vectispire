@@ -81,7 +81,11 @@ message is a `key_one`/`key_other` pair read with `t(key, { count })`, never "(s
 
 **Translation keys are literal.** `'prefix.' + value | translate` and `` t(`…${x}`) `` are invisible
 to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
-(`Record<Union, 'a.b'>`) instead (decision 0019).
+(`Record<Union, 'a.b'>`) instead (decision 0019), look the value up with `keyFor` (`core/i18n/literal-keys.ts`)
+and show a value the client does not know as sent. `check-i18n-keys.mjs` now **refuses** a built key
+(the one exception, the settings catalogue's optional `settings.keys.*`, is written in the script with
+its reason) and counts the literals a map holds — so a new map moves `EXPECTED_KEYS`, and a spec checks
+its values with `missingFromBundles` (`core/testing/bundles.ts`).
 
 **A finding type has one list: `shared/finding-types.ts`.** Three screens spelt it, none alike — the
 scan detail built `issues.types.${type}`, the issue detail translated `sast` alone — so a new type
