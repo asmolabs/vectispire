@@ -89,7 +89,7 @@
 
         @if (done.skipped.length > 0) {
             <h3 class="text-lg font-semibold mt-3 mb-2">{{ 'forges.import.skipped_title' | translate }}</h3>
-            <ul class="m-0 mb-3 pl-5 text-sm" data-testid="result-skipped">
+            <ul class="list-disc m-0 mb-3 pl-5 text-sm" data-testid="result-skipped">
                 @for (skip of done.skipped; track skip.forgeId) {
                     <li>
                         <span class="font-mono break-all">{{ skip.fullPath }}</span> — {{ skipReason(skip) }}
@@ -351,7 +351,7 @@
     @if (preview(); as plan) {
         <p-card styleClass="mb-4" data-testid="preview-result">
             <h3 class="text-lg font-semibold mt-0 mb-2">{{ 'forges.import.what_happens' | translate }}</h3>
-            <ul class="m-0 mb-3 pl-5" data-testid="preview-summary">
+            <ul class="list-disc m-0 mb-3 pl-5" data-testid="preview-summary">
                 <li>{{ 'forges.import.will_create' | translate: { count: plan.targets.length } }}</li>
                 <li>{{ 'forges.import.will_skip' | translate: { count: plan.skipped.length } }}</li>
                 @if (plan.refused.length > 0) {
@@ -382,7 +382,7 @@
             @if (plan.refused.length > 0) {
                 <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.refused_title' | translate }}</h4>
                 <p class="m-0 mb-1 text-sm text-muted-color">{{ 'forges.import.refused_explained' | translate }}</p>
-                <ul class="m-0 mb-3 pl-5 text-sm" data-testid="refused">
+                <ul class="list-disc m-0 mb-3 pl-5 text-sm" data-testid="refused">
                     @for (refusal of plan.refused; track refusal.forgeId) {
                         <li>
                             <span class="font-mono break-all">{{ refusal.fullPath }}</span> — {{ refusal.refusal }}
@@ -393,7 +393,7 @@
 
             @if (plan.skipped.length > 0) {
                 <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.skipped_title' | translate }}</h4>
-                <ul class="m-0 mb-3 pl-5 text-sm" data-testid="skipped">
+                <ul class="list-disc m-0 mb-3 pl-5 text-sm" data-testid="skipped">
                     @for (skip of plan.skipped; track skip.forgeId) {
                         <li>
                             <span class="font-mono break-all">{{ skip.fullPath }}</span> — {{ skipReason(skip) }}
@@ -409,7 +409,7 @@
 
             @if (plan.solutions.length > 0 || plan.projects.length > 0) {
                 <h4 class="text-base font-semibold mt-3 mb-1">{{ 'forges.import.filing_title' | translate }}</h4>
-                <ul class="m-0 mb-3 pl-5 text-sm" data-testid="filing">
+                <ul class="list-disc m-0 mb-3 pl-5 text-sm" data-testid="filing">
                     @for (solution of plan.solutions; track solution.name) {
                         <li>
                             @if (solution.existingId !== null) {
@@ -461,11 +461,11 @@
                                 class="border-b border-surface-100 dark:border-surface-800 align-top"
                                 data-testid="planned-row"
                             >
-                                <td class="py-2 pr-3 font-mono break-all">
-                                    {{ target.fullPath }}
+                                <td class="py-2 pr-3 min-w-56">
+                                    <span class="font-mono break-all">{{ target.fullPath }}</span>
                                     @if (target.warning) {
                                         <span
-                                            class="block font-sans text-orange-600 dark:text-orange-400"
+                                            class="block text-orange-600 dark:text-orange-400"
                                             data-testid="warning"
                                             >{{ target.warning }}</span
                                         >

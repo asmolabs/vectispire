@@ -142,7 +142,7 @@
     @if (unjudged().length > 0) {
         <div class="mb-3 text-sm" data-testid="unjudged">
             <p class="m-0 font-medium">{{ 'forges.selection.unjudged_title' | translate }}</p>
-            <ul class="m-0 pl-5">
+            <ul class="list-disc m-0 pl-5">
                 @for (line of unjudged(); track line) {
                     <li>{{ line }}</li>
                 }
