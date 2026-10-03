@@ -175,11 +175,10 @@ class ScanQueueIntegrationTest {
         //
         // **Rounds, not one burst, and that is not the test being lenient.** Agents poll; a
         // round is a poll. One burst would also be a weaker test — it exercises the race once,
-        // where this exercises it until the queue is empty. And on MySQL one burst genuinely
-        // cannot drain it: skipped rows count against the `LIMIT` there, so a claimant whose
-        // candidates are all locked comes back with nothing while rows remain. That is the
-        // defect the retry loop exists for, and asserting "one burst serves everything" would
-        // be asserting a property no engine owes us.
+        // where this exercises it until the queue is empty. And one burst cannot be relied on to
+        // drain it: eight claimants read the same oldest rows, each is taken by one of them, and
+        // the others come back short and try again a bounded number of times. Asserting "one
+        // burst serves everything" would be asserting a property the claim does not promise.
         enqueue(20, null);
 
         int workers = 8;
@@ -209,7 +208,7 @@ class ScanQueueIntegrationTest {
     }
 
     @Test
-    @DisplayName("an agent only takes what it is entitled to, and the filter is inside the lock")
+    @DisplayName("an agent only takes what it is entitled to, and the filter is inside the selection")
     void respectsTheRoutingLabel() {
         enqueue(3, "production");
         enqueue(2, null);

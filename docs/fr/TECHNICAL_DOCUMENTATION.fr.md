@@ -281,7 +281,7 @@ sequenceDiagram
 
     T->>Q: INSERT scan(status="queued")
     T-->>T: rend la main immédiatement
-    W->>Q: réclame (FOR UPDATE SKIP LOCKED + bail)
+    W->>Q: réclame (mise à jour conditionnelle + bail)
     W->>R: run(task)
     R->>R: clone (depth 1) ou export de l'image
     R->>R: syft → grype → gitleaks → checkov → semgrep

@@ -277,7 +277,7 @@ sequenceDiagram
 
     T->>Q: INSERT scan(status="queued")
     T-->>T: returns immediately
-    W->>Q: claim (FOR UPDATE SKIP LOCKED + lease)
+    W->>Q: claim (conditional update + lease)
     W->>R: run(task)
     R->>R: clone (depth 1) or export the image
     R->>R: syft → grype → gitleaks → checkov → semgrep

@@ -83,8 +83,8 @@ public class ScanQueue {
             if (claimed.size() >= limit) {
                 break;
             }
-            // Nothing taken: the queue is empty, *everything is locked elsewhere*, or nothing is
-            // destined for this agent. Another turn tells the second case from the others, and
+            // Nothing taken: the queue is empty, *everything read was taken elsewhere meanwhile*, or
+            // nothing is destined for this agent. Another turn tells the second case from the others, and
             // the loop is bounded. Counted among the scans due: one waiting out its retry delay is
             // no reason to turn again, and every tick of a queue in backoff would otherwise run the
             // whole loop for nothing.
@@ -588,8 +588,8 @@ public class ScanQueue {
      * locked comes back empty while rows remain — and the queue stops draining. Both were found
      * by the campaign, on those two engines only.
      *
-     * <p>It also removes the capability branch this class used to carry. One path on four
-     * engines is one path to reason about.
+     * <p>It also removes the capability branch this class used to carry: one path on every
+     * engine is one path to reason about.
      */
     private List<ScanEntity> takeBatch(int wanted, String worker, Collection<String> agentLabels) {
         Instant claimedAt = clock.instant();

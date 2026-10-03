@@ -151,7 +151,7 @@ See [`docs/architecture/en/04-runtime-and-deployment.md`](docs/architecture/en/0
 for the decisions and the known limits.
 
 **Running more than one web instance.** Most of what made that unsafe is now fixed: the
-scan claim is transactional (`FOR UPDATE SKIP LOCKED`), the periodic work has exactly
+scan claim takes each scan by a conditional update that only one worker can win, the periodic work has exactly
 one owner across the fleet, startup recovery no longer fails another worker's scans, and
 the login throttle is counted in the database rather than in process memory. What it requires:
 
@@ -377,17 +377,20 @@ several.
 | | PostgreSQL | MySQL |
 |---|---|---|
 | Transactional scan claim | yes | yes |
-| Complete claim batch under contention | yes | **no** |
 | Millisecond timestamps | yes | yes |
 | `NULLS LAST` | yes | no |
 | Concurrent writers | yes | yes |
 
 Every "no" comes from a defect found by running, and **none of them raises an error**:
 
-- **MySQL returns short claim batches.** Rows skipped by `SKIP LOCKED` count against the
-  `LIMIT`, so a worker asking for two scans may get none while the queue is not empty. No
-  row is ever handed to two workers — measured, not assumed — and the rest goes out on the
-  next tick. It is a throughput characteristic, not a correctness defect.
+- **A claim batch can come back short under contention, on both engines.** The candidates
+  are read, then each is taken by a conditional update; a scan another worker took in
+  between drops out, and the claim tries again a bounded number of times. No row is ever
+  handed to two workers — measured, not assumed — and the rest goes out on the next tick.
+  It is a throughput characteristic, not a correctness defect. (`FOR UPDATE SKIP LOCKED`,
+  the earlier claim, made it worse on MySQL — skipped rows counted against the `LIMIT` —
+  and deadlocked there; [ADR 0002](docs/architecture/en/decisions/0002-the-database-carries-the-queue.md)
+  says why it was dropped.)
 - **Timestamps need declared precision on MySQL.** A bare `DATETIME` truncates to the
   second, which would make the audit chain fail its own verification and declare itself
   tampered with. `datetime(6)` is declared once in the migrations rather than
