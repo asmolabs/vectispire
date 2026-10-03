@@ -42,6 +42,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0036](0036-the-posture-score-formula.md) | Le score de posture baisse d'une part par problème, une licence pèse comme un haut, un problème exploité plafonne à D, une portée est notée par sa cible la plus faible, le portefeuille par sa répartition, et les points de risque sont affichés | acceptée |
 | [0037](0037-discovering-repositories-at-setup.md) | Les dépôts sont découverts par une connexion de forge en lecture seule, choisis par une personne, et importés comme des cibles ordinaires | acceptée |
 | [0038](0038-deploying-on-kubernetes.md) | Sur Kubernetes, le plan de contrôle tourne sans point d'accès aux conteneurs, les scans tournent sur des agents dotés de leur propre démon Docker, la base est externe, et les plugins de rapport attendent un exécuteur capable de joindre un démon distant | acceptée |
+| [0039](0039-a-build-sbom-completes-the-scanners-inventory.md) | Le SBOM d'un build complète l'inventaire du scanner : l'union, la version déclarée par le build l'emporte, le plus récent pour chaque scan suivant | proposée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

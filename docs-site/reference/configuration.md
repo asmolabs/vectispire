@@ -83,6 +83,7 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — the result carries the SBOM |
 | `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | every `POST /api/v1/auth/…` — a login, a one-time code or a session exchange is a few hundred bytes |
 | `VECTISPIRE_MAX_BODY_SARIF_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/sarif-imports` — an internal tool's SARIF report for one repository; see [Plugins and SARIF imports](../administration/plugins.md) |
+| `VECTISPIRE_MAX_BODY_SBOM_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/build-sbom-imports` — a build's CycloneDX SBOM, a few megabytes for a large multi-module build; read again up to 50,000 components — see [Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom) |
 
 ## Cloning
 

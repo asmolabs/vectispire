@@ -146,6 +146,13 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   `no_change_merged`, le `status` d'un dépôt de même, et sa `source` `forge_review`. Seulement sur une ligne
   liée au nouveau type ; un client qui traite ces vocabulaires de façon exhaustive a besoin des nouveaux
   membres.
+- **L'export de projet passe au schéma 1.1** : chaque `inventory.components[]` gagne `sources` — `build`,
+  `scanner` ou les deux, qui a listé le composant sur ses cibles. Un champ facultatif, selon la règle du
+  schéma ; un plugin écrit pour 1.0 lit 1.1 comme il lisait 1.0. Les occurrences de
+  `GET /api/v1/inventory/search` gagnent `source` (`scanner`, `build`, `both`) et `scannerVersion`, et les
+  composants consolidés du projet (`GET /api/v1/projects/{id}/components`) `sources`. Les `kinds` d'une
+  source peuvent désormais contenir `sbom` ; un client qui les liste doit montrer tel quel un type qu'il
+  ne connaît pas, comme le fait l'écran.
 - **Un import de couverture répond `packagesState`**, et une mesure de checklist a trois raisons de
   plus. `POST` et `GET /api/v1/repositories/{id}/coverage-imports` portent `packagesState` — `kept`,
   `too_many`, `path_refused`, `inconsistent`, ou `null` pour un import accepté avant cette version — et la
@@ -260,6 +267,25 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   read** ; le `read_api` de GitLab le couvre déjà), plus de 500 changements dans la fenêtre, ou rien de
   fusionné. L'éditeur de modèles propose le type, avec un pair, tous les changements et trente jours.
   Migration V81 (`t_forge_review_reading`).
+- **Le SBOM d'un build complète l'inventaire du scanner** ([Importer le SBOM d'un build](../administration/plugins.md#importer-le-sbom-dun-build),
+  [décision 0039](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0039-a-build-sbom-completes-the-scanners-inventory.md),
+  lot G10). Le scanner lit les poms d'une arborescence Maven : une version gérée par la BOM d'un parent
+  sortait en `UNKNOWN`, et une bibliothèque tirée transitivement n'était pas listée du tout, si bien
+  qu'une ligne de checklist demandant si elle est utilisée répondait un faux « non ». Une source déclarée
+  peut désormais livrer `sbom` : `POST /api/v1/repositories/{id}/build-sbom-imports` prend le JSON
+  CycloneDX que le build a écrit (le `makeAggregateBom` de `cyclonedx-maven-plugin`, le plugin CycloneDX
+  de Gradle), spécification 1.4 à 1.6, jusqu'à 32 Mo (`VECTISPIRE_MAX_BODY_SBOM_IMPORT`) et 50 000
+  composants, sans rien récupérer de ce à quoi il renvoie ; la commande `build-sbom` de la CLI l'envoie.
+  **L'inventaire de chaque scan est celui du scanner, complété par le SBOM de build le plus récent de sa
+  branche** : l'union des deux, reconnue par purl, la version déclarée par le build l'emportant, celle du
+  scanner gardée à côté. Le scan terminé le plus récent est complété dès la réponse à l'import, et chaque
+  scan suivant quand son inventaire est écrit ; les scans plus anciens gardent ce qu'ils ont reçu. La
+  recherche de composants, l'inventaire consolidé, son export CycloneDX, l'export de projet, l'inventaire
+  des licences et ses décomptes, et les lignes de checklist `component_versions` lisent tous les lignes
+  complétées, chacune disant qui l'a listée. La correspondance des vulnérabilités est inchangée, et un
+  SBOM n'ouvre aucune issue. Audité `BUILD_SBOM_IMPORTED` ; un refus `REPORT_IMPORT_REFUSED`,
+  `VECTI-SEC-027`. Les SBOM partent avec la fenêtre de preuve et avec leur dépôt. Migration V82
+  (`t_build_sbom`, `t_build_sbom_component`, cinq colonnes de `t_component`), rien à faire.
 - **Découvertes de forge : les dépôts d'un GitHub aussi** — github.com, Enterprise Cloud avec résidence des
   données (`<sous-domaine>.ghe.com`) et Enterprise Server 3.12 ou ultérieur sous `/api/v3`
   ([ce qui est listé](../administration/forge-connections.fr.md#decouvrir-les-depots), décision 0037, lot D4).

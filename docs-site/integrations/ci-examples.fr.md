@@ -3,8 +3,8 @@
 Trois pipelines commentés, chacun avec la clé dont il a besoin et rien de plus :
 
 1. [**GitLab CI**](#gitlab-ci) — analyser un dépôt, attendre le résultat, faire échouer le pipeline
-   sur le verdict de la barrière avec le modèle livré, et envoyer la couverture JaCoCo et les
-   résultats JUnit ;
+   sur le verdict de la barrière avec le modèle livré, et envoyer la couverture JaCoCo, les
+   résultats JUnit et le SBOM CycloneDX du build ;
 2. [**Jenkins**](#jenkins) — la même chose dans un pipeline déclaratif, le verdict comme résultat de
    l'étape ;
 3. [**SonarQube**](#sonarqube) — exporter les issues de SonarQube en SARIF et les importer par une
@@ -23,7 +23,7 @@ chaque job fait une chose et qu'une clé qui fuit ne doit livrer que cette chose
 | Clé | Portées | Limitée à | Déclarée comme source | Utilisée par |
 |---|---|---|---|---|
 | **Barrière CI** | `scan`, `read` | le dépôt que le pipeline construit | non | le scan et la barrière |
-| **Rapports** | `report_import` | le dépôt | oui, livrant `coverage` et `test_report` | l'envoi de la couverture et du JUnit |
+| **Rapports** | `report_import` | le dépôt | oui, livrant `coverage`, `test_report` et `sbom` | l'envoi de la couverture, du JUnit et du SBOM de build |
 | **SonarQube** | `sarif_import` | le dépôt — ou aucune, quand la source couvre un projet de plusieurs dépôts | oui, livrant `sarif` de l'outil `SonarQube` | l'envoi du SARIF |
 
 **Pourquoi `read` sur la clé de barrière.** Déclencher un scan et demander un verdict demandent
@@ -162,7 +162,7 @@ arrêtent sur *set VECTISPIRE_TOKEN…* au lieu d'envoyer une requête. C'est l'
 est hors de portée de qui peut pousser une branche.
 
 La clé des rapports est déclarée une fois par le gouverneur de la plateforme, sur
-**Administration → Sources déclarées** (types `coverage` et `test_report`, portée le dépôt ou son
+**Administration → Sources déclarées** (types `coverage`, `test_report` et `sbom`, portée le dépôt ou son
 projet) ; voir
 [Importer des rapports de couverture et de tests](../administration/plugins.md#importer-des-rapports-de-couverture-et-de-tests).
 
@@ -192,10 +192,21 @@ unit-tests:
       - target/site/jacoco/jacoco.xml
       - target/surefire-reports/
 
+# Le SBOM que le build a résolu, pour tous les modules du ledger d'org.example : les versions que
+# gèrent les BOM du parent, que le scanner lit UNKNOWN, et les bibliothèques tirées transitivement.
+build-sbom:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+  artifacts:
+    paths:
+      - target/bom.json
+
 vectispire-reports:
   stage: vectispire
   image: alpine:3.22
-  needs: [unit-tests]
+  needs: [unit-tests, build-sbom]
   before_script:
     - apk add --no-cache curl zip
   script:
@@ -212,6 +223,10 @@ vectispire-reports:
         --url-query "commit=$CI_COMMIT_SHA" --url-query "branch=$CI_COMMIT_REF_NAME" \
         -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" -H "Content-Type: application/zip" \
         --data-binary @target/surefire-reports.zip
+      curl --fail-with-body -sS -X POST "$api/build-sbom-imports" \
+        --url-query "commit=$CI_COMMIT_SHA" --url-query "branch=$CI_COMMIT_REF_NAME" \
+        -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" -H "Content-Type: application/vnd.cyclonedx+json" \
+        --data-binary @target/bom.json
 
 vectispire-scan:
   stage: vectispire
@@ -244,6 +259,13 @@ valeur globale.
 - **Le rapport de tests est zippé** parce que Surefire écrit un fichier par classe de test ; un
   seul fichier JUnit XML s'envoie en `application/xml`. Avec Gradle, les fichiers sont
   `build/reports/jacoco/test/jacocoTestReport.xml` et `build/test-results/test/TEST-*.xml`.
+- **Le SBOM du build** complète ce que le scanner liste du dépôt : pour le ledger d'`org.example`,
+  `spring-core` à la version que gère `spring-framework-bom` au lieu d'`UNKNOWN`, et `spring-jcl`, que
+  seul le build embarque. Une ligne de checklist demandant si une bibliothèque est utilisée répond
+  alors d'après ce que le build a livré ; voir
+  [Importer le SBOM d'un build](../administration/plugins.md#importer-le-sbom-dun-build). La `branch`
+  qu'il énonce le limite aux scans de cette branche. Avec Gradle, appliquez `org.cyclonedx.bom` et
+  envoyez `build/reports/bom.json`.
 - **Le job de barrière** télécharge le `vectispire-gate.sh` de la version, compare son SHA-256 à
   l'empreinte que porte le modèle, et ne le lance que si elles concordent : un script qui n'est pas
   celui publié à côté du modèle arrête le job, de même qu'un `VECTISPIRE_GATE_VERSION` nommant une
@@ -278,10 +300,11 @@ boucle.
 | `HTTP 404` | l'identifiant du dépôt est faux, **ou hors de la restriction de la clé** — la même réponse, exprès | comparez l'identifiant à la cible de la clé |
 | `HTTP 400` *Unknown severity* | une faute de frappe dans `VECTISPIRE_FAIL_ON_SEVERITY` | `critical`, `high`, `medium`, `low` ou `none` |
 | `HTTP 429` | le budget de requêtes par minute de la clé est épuisé | attendez `Retry-After` ; une boucle interroge trop vite |
-| rapports : `403` | la clé des rapports ne détient pas `report_import`, ou aucune source active n'est déclarée pour elle, ou pas pour ce type | faites-la déclarer par le gouverneur avec `coverage` et `test_report` |
+| rapports : `403` | la clé des rapports ne détient pas `report_import`, ou aucune source active n'est déclarée pour elle, ou pas pour ce type | faites-la déclarer par le gouverneur avec `coverage`, `test_report` et `sbom` |
 | rapports : `404` | le dépôt est hors de la restriction de la clé ou de la portée de la source | accordez l'identifiant, la clé et la source |
 | rapports : `400` | le format n'est pas `jacoco`, `cobertura` ou `lcov`, le corps ne se lit pas comme tel, il ne compte aucune ligne ou aucun test, ou le commit n'est pas hexadécimal | un rapport vide est refusé, jamais consigné comme zéro |
-| rapports : `413` | au-delà de `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` (16 Mo) ou `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` (32 Mo) | faites relever le plafond par l'exploitant — un rapport coupé en deux ferait deux rapports, le second pris pour le plus récent |
+| SBOM : `400` | pas du JSON CycloneDX 1.4 à 1.6 — `-DoutputFormat=json`, et le `bom.json` plutôt que le XML —, pas de `components`, ou plus de 50 000 | envoyez le JSON que le plugin a écrit, sans le retoucher |
+| rapports : `413` | au-delà de `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` (16 Mo), `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` (32 Mo) ou `VECTISPIRE_MAX_BODY_SBOM_IMPORT` (32 Mo) | faites relever le plafond par l'exploitant — un rapport coupé en deux ferait deux rapports, le second pris pour le plus récent |
 
 Chaque refus est un [document de problème](../reference/errors.md) : `application/problem+json`,
 avec un `detail` écrit pour la personne qui lit le journal. Aucun de ces refus ne porte de type

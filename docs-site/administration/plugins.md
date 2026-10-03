@@ -435,13 +435,15 @@ in one respect: **they open and resolve no issue**. A coverage figure is not a f
 
 ### 1. Issue the key and declare what the source delivers
 
-A source declares its **kinds**: `sarif`, `coverage`, `test_report`, one or several. One pipeline is
-one source, even when it sends SARIF and coverage. Each kind needs its own scope on the key:
+A source declares its **kinds**: `sarif`, `coverage`, `test_report`, `sbom`, one or several. One
+pipeline is one source, even when it sends SARIF and coverage. Each kind needs its own scope on the key:
 
 | Kind | The key holds | Tools |
 |---|---|---|
 | `sarif` | `sarif_import` | required: the tools it may deliver |
-| `coverage`, `test_report` | `report_import` | none — refused on a source that delivers no SARIF |
+| `coverage`, `test_report`, `sbom` | `report_import` | none — refused on a source that delivers no SARIF |
+
+`sbom` is the build's CycloneDX SBOM, described [below](#importing-a-builds-sbom).
 
 `report_import` is never granted by default, and it is a scope of its own so that a key issued to send
 a coverage figure never deposits findings. A declaration without `kinds` is `sarif` alone, which is
@@ -533,6 +535,97 @@ Each accepted import is in the audit log (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPO
 what the key claimed is audited as `REPORT_IMPORT_REFUSED` and sent to the SIEM as `VECTI-SEC-027`. A
 repository's latest fifty imports of each kind are read at `GET /api/v1/repositories/{id}/coverage-imports`
 and `…/test-report-imports`.
+
+## Importing a build's SBOM
+
+The scanner reads the source tree. For a Maven tree it reads the poms, so **a version managed by a
+parent or a BOM comes out as `UNKNOWN`, and a library pulled in transitively is not listed at all**.
+A checklist line asking whether `snakeyaml` is used, and at which version, is then answered "not in
+its SBOM" — a false "no". The build resolved the graph: send its SBOM, and Vectispire completes the
+scanner's inventory with it ([decision 0039](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0039-a-build-sbom-completes-the-scanners-inventory.md)).
+
+### 1. Declare the source with `sbom`
+
+The key holds `report_import` and the source is declared with the kind `sbom` — on its own or beside
+`coverage` and `test_report`: one pipeline, one source.
+
+```bash
+curl -X POST https://vectispire.example/api/v1/sarif-sources \
+  -H "Authorization: Bearer $GOVERNOR_SESSION" -H "Content-Type: application/json" \
+  -d '{"slug": "ledger-ci", "name": "Ledger CI", "api_key_id": "<key id>",
+       "project_id": 12, "kinds": ["coverage", "test_report", "sbom"]}'
+```
+
+### 2. Produce the SBOM in the build, and send it
+
+With Maven, `cyclonedx-maven-plugin`'s `makeAggregateBom` writes one document for every module of
+the build; with Gradle, the CycloneDX plugin's `cyclonedxBom` task. Either writes **CycloneDX JSON**,
+spec 1.4, 1.5 or 1.6 — the versions read.
+
+```bash
+mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+curl --fail-with-body -X POST \
+  "https://vectispire.example/api/v1/repositories/42/build-sbom-imports?commit=$CI_COMMIT_SHA&branch=$CI_COMMIT_REF_NAME" \
+  -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" \
+  -H "Content-Type: application/vnd.cyclonedx+json" \
+  --data-binary @target/bom.json
+```
+
+`application/json` is accepted too. The CLI does the same:
+
+```bash
+./vectispire-cli.sh build-sbom --repo-id 42 --file target/bom.json --commit "$CI_COMMIT_SHA" --branch "$CI_COMMIT_REF_NAME"
+```
+
+The answer (`201`) carries the spec version, the tool that wrote the document, the components it
+listed, the document's SHA-256 and `completedScanId` — the scan it completed, or `null` when the
+repository has no completed scan holding an SBOM yet. **Nothing the document refers to is fetched**:
+external references, a `bom-link`, a `$schema` are never followed.
+
+### What it changes, and what it does not
+
+**A scan's inventory is what its scanner listed, completed by the newest build SBOM of its
+repository** that states the scan's branch, or no branch:
+
+- **Union.** Everything the scanner listed stays — a front end beside the Maven tree, a vendored
+  file; everything only the build lists is added — the transitive libraries.
+- **One package, matched by its purl**, version and qualifiers aside. The Maven plugin's default
+  `?type=jar` is dropped on reading, so its `pkg:maven/org.example/ledger-model@1.4.0?type=jar` and the
+  scanner's `pkg:maven/org.example/ledger-model@1.4.0` are one package. A row without a purl matches
+  nothing.
+- **The build's stated version wins** — over `UNKNOWN`, and over a version the scanner read off a
+  manifest, since the build packaged what it states. The scanner's version is kept beside it.
+- **When.** As soon as the SBOM is accepted, the repository's newest completed scan is completed;
+  every later scan is completed by the newest SBOM when its inventory is written, so a nightly scan of
+  an unchanged tree keeps the build's versions. Older scans keep what they were given. A newer SBOM
+  that no longer lists a package gives the scanner's row back.
+- **Not a scan.** A scan whose SBOM step failed is not completed: the build's word completes a
+  scanner's inventory, it does not stand in for a scan that did not look. Vulnerability matching still
+  runs on the scanner's SBOM, inside the scan, and **an SBOM opens and resolves no issue**.
+
+Every reader reads the same completed rows: the **component search** shows each row's source —
+*build* beside a version the build stated, with what the scanner read in its tooltip; the project's
+**consolidated inventory**, its CycloneDX export and the **project export** say who listed each
+component (`sources`, export schema 1.1); the **licence inventory** counts the build's components with
+the licences it declares, and its tallies move when an SBOM arrives; a **checklist line**
+`component_versions` reads the newest analysed scan's components, completed — the transitive library
+present, the BOM-managed version stated.
+
+Refused with:
+
+| Status | Why |
+|---|---|
+| `403` | not an integration key, a key without `report_import`, a key no enabled source is declared for, or a source not declared for `sbom` |
+| `404` | a repository the key cannot see, or outside the source's scope — answered as if it did not exist |
+| `400` | not CycloneDX JSON (a Syft or SPDX document, XML), a `specVersion` other than 1.4 to 1.6, no `components` — a document that lists nothing is not one that found nothing — more than 50,000 components, a component without a name or wider than the inventory's columns, a commit that is not a hexadecimal name |
+| `413` | larger than `VECTISPIRE_MAX_BODY_SBOM_IMPORT` (32 MB) |
+
+Each accepted SBOM is in the audit log (`BUILD_SBOM_IMPORTED`), with its SHA-256 and the scan it
+completed; a refusal for what the key claimed is `REPORT_IMPORT_REFUSED`, sent to the SIEM as
+`VECTI-SEC-027`. A repository's latest fifty are read at
+`GET /api/v1/repositories/{id}/build-sbom-imports`, each with the newest scan it completed. The SBOMs
+leave by the **evidence window** (`evidence_retention_days`) and with their repository; a scan keeps
+the inventory it was given.
 
 ## Analysers that compile
 

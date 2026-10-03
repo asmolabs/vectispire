@@ -8,6 +8,22 @@ composants vous exécutez, dans quelles versions, à combien d'endroits.
 Il répond à la question qui arrive le matin où une nouvelle CVE est publiée — *est-ce qu'on
 l'utilise, et où ?* — sans rien réanalyser, parce que les SBOM sont déjà stockés.
 
+### Ce que le scanner ne voit pas, et que le build voit
+
+Le scanner lit l'arborescence des sources. Pour Maven il lit les poms, si bien qu'une version gérée
+par un parent ou une BOM est listée `UNKNOWN`, et qu'une bibliothèque tirée transitivement n'est pas
+listée du tout. Quand le pipeline du dépôt envoie le SBOM que son build a produit (JSON CycloneDX, de
+`cyclonedx-maven-plugin` ou du plugin CycloneDX de Gradle — voir
+[Importer le SBOM d'un build](../administration/plugins.md#importer-le-sbom-dun-build)), l'inventaire
+de chaque scan est celui du scanner **complété par lui** : la version déclarée par le build à la place
+d'`UNKNOWN`, les bibliothèques transitives ajoutées, ce que seul le scanner voit gardé.
+
+**Chaque ligne dit qui l'a listée.** Dans la recherche de composants, une version marquée **build** a
+été déclarée par le SBOM du build : survolez-la pour lire ce que le scanner avait lu à la place, ou si
+seul le build listait la bibliothèque. L'inventaire consolidé du projet et ses exports disent la même
+chose par composant (`sources`). Les scans plus anciens gardent leur inventaire ; les licences et les
+lignes de checklist lisent les lignes complétées.
+
 ## Licences
 
 La conformité des licences est évaluée contre une **liste de blocage configurable**, à partir
@@ -17,6 +33,10 @@ Configurez la liste sous [Réglages](../administration/settings.md). Ce qui doit
 une décision propre à votre organisation, pas un défaut que quelqu'un d'autre pourrait fournir :
 l'AGPL est fatale pour un produit propriétaire distribué et sans objet pour un service interne
 qui n'est jamais livré.
+
+Un composant ajouté par le SBOM du build porte la licence que le build déclare ; là où le scanner
+l'avait déjà listé sous `UNKNOWN`, l'entrée passe à la version du build, si bien qu'il est compté une
+fois.
 
 Une violation de licence est un constat de plein droit. Elle compte pour la barrière, et la
 politique de barrière peut être réglée pour faire échouer une construction dessus.

@@ -15,8 +15,9 @@ Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'i
 * `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft ; avec `--repo-id`, celui du dernier scan **terminé**. Pour du CycloneDX avec VEX, utilisez la route d'export `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (portée `export`).
 * `coverage` : Envoie le rapport de couverture JaCoCo, Cobertura ou lcov d'un dépôt (`--format` est obligatoire, jamais deviné).
 * `test-report` : Envoie le rapport JUnit d'un dépôt — un fichier XML, ou un zip de plusieurs.
+* `build-sbom` : Envoie le SBOM JSON CycloneDX du build d'un dépôt (le `makeAggregateBom` de `cyclonedx-maven-plugin`, le plugin CycloneDX de Gradle) ; il complète l'inventaire du scanner — les versions qu'une BOM gère, les bibliothèques tirées transitivement.
 
-`coverage` et `test-report` demandent une clé détenant `report_import` dont la source est déclarée pour ce type ; voir [Importer des rapports de couverture et de tests](../../docs-site/administration/plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests).
+`coverage`, `test-report` et `build-sbom` demandent une clé détenant `report_import` dont la source est déclarée pour ce type (`coverage`, `test_report`, `sbom`) ; voir [Importer des rapports de couverture et de tests](../../docs-site/administration/plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests) et [Importer le SBOM d'un build](../../docs-site/administration/plugins.fr.md#importer-le-sbom-dun-build).
 
 Chaque commande sort en `0` quand elle a abouti, en `1` seulement pour un verdict rouge, et en `2` quand il n'y a pas de réponse à croire : un refus — le `detail` du serveur est affiché, *This API key lacks the read scope.* — un plan de contrôle injoignable, un scan échoué ou hors délai. `scan` adopte le scan déjà en attente sur un `409` au lieu d'échouer. C'est vrai depuis la 0.10.0 : le script `v0.9.0` appelait `curl -f`, sortait avec le code `22` de curl sur chaque refus et n'affichait rien de la réponse. Les exemples commentés d'[Exemples CI](../../docs-site/integrations/ci-examples.fr.md) — GitLab CI avec le modèle livré, Jenkins, et SonarQube par une source déclarée — utilisent un script qui affiche le document de problème, et disent quelle clé chaque job demande.
 
@@ -104,6 +105,38 @@ vectispire-security-gate:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'
 ```
+
+**Envoyer le SBOM du build (Maven, `org.example`).** Le scanner lit les poms d'une arborescence Maven,
+si bien qu'une version gérée par la BOM d'un parent sort en `UNKNOWN` et qu'une bibliothèque tirée
+transitivement n'est pas listée ; le build a résolu l'une et l'autre. Ce job écrit le SBOM CycloneDX
+agrégé de tous les modules et l'envoie avec la clé des **rapports** — `report_import`, déclarée comme
+source livrant `sbom`, jamais la clé de la barrière :
+
+```yaml
+vectispire-build-sbom:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  variables:
+    VECTISPIRE_URL: "https://vectispire.example.com"
+    VECTISPIRE_REPO_ID: "1"
+    VECTISPIRE_CLI_VERSION: "<tag>"
+    VECTISPIRE_CLI_SHA256: "<sha256 des notes de version>"
+  script:
+    # org.example:ledger-service et ses modules, résolus comme le build les embarque
+    - mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+    - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+    - echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
+    - chmod +x vectispire-cli.sh
+    - ./vectispire-cli.sh build-sbom --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_REPORT_KEY"
+        --repo-id "$VECTISPIRE_REPO_ID" --file target/bom.json --commit "$CI_COMMIT_SHA" --branch "$CI_COMMIT_REF_NAME"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+```
+
+La réponse nomme le scan complété (`completedScanId`), ou `null` avant le premier scan terminé du
+dépôt, que le SBOM complète alors ; voir
+[Importer le SBOM d'un build](../../docs-site/administration/plugins.fr.md#importer-le-sbom-dun-build)
+pour la règle et les refus.
 
 ---
 

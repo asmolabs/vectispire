@@ -3,7 +3,8 @@
 Three worked pipelines, each with the key it needs and nothing more:
 
 1. [**GitLab CI**](#gitlab-ci) — scan a repository, wait for the result, fail the pipeline on the
-   gate's verdict with the shipped template, and send JaCoCo coverage and JUnit results;
+   gate's verdict with the shipped template, and send JaCoCo coverage, JUnit results and the build's
+   CycloneDX SBOM;
 2. [**Jenkins**](#jenkins) — the same in a declarative pipeline, the verdict as the stage result;
 3. [**SonarQube**](#sonarqube) — export SonarQube's issues as SARIF and import them through a
    declared source, so that a checklist rule scoped on `import:quality-server/SonarQube` measures
@@ -21,7 +22,7 @@ one thing and a key that leaks should give away that one thing:
 | Key | Scopes | Restricted to | Declared as a source | Used by |
 |---|---|---|---|---|
 | **CI gate** | `scan`, `read` | the repository the pipeline builds | no | the scan and the gate |
-| **Reports** | `report_import` | the repository | yes, delivering `coverage` and `test_report` | the coverage and JUnit upload |
+| **Reports** | `report_import` | the repository | yes, delivering `coverage`, `test_report` and `sbom` | the coverage, JUnit and build SBOM upload |
 | **SonarQube** | `sarif_import` | the repository — or none, when the source covers a project of several repositories | yes, delivering `sarif` from the tool `SonarQube` | the SARIF upload |
 
 **Why `read` on the gate key.** Triggering a scan and asking for a verdict take `scan`; waiting
@@ -156,7 +157,7 @@ A protected variable is not given to pipelines of unprotected branches: there th
 of reach of whoever can push a branch.
 
 The reports key is declared once by the platform governor, on **Administration → Declared sources**
-(`kinds` `coverage` and `test_report`, scope the repository or its project); see
+(`kinds` `coverage`, `test_report` and `sbom`, scope the repository or its project); see
 [Importing coverage and test reports](../administration/plugins.md#importing-coverage-and-test-reports).
 
 ### `.gitlab-ci.yml`
@@ -185,10 +186,21 @@ unit-tests:
       - target/site/jacoco/jacoco.xml
       - target/surefire-reports/
 
+# The SBOM the build resolved, for every module of org.example's ledger: the versions the parent's
+# BOMs manage, which the scanner reads as UNKNOWN, and the libraries pulled in transitively.
+build-sbom:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+  artifacts:
+    paths:
+      - target/bom.json
+
 vectispire-reports:
   stage: vectispire
   image: alpine:3.22
-  needs: [unit-tests]
+  needs: [unit-tests, build-sbom]
   before_script:
     - apk add --no-cache curl zip
   script:
@@ -205,6 +217,10 @@ vectispire-reports:
         --url-query "commit=$CI_COMMIT_SHA" --url-query "branch=$CI_COMMIT_REF_NAME" \
         -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" -H "Content-Type: application/zip" \
         --data-binary @target/surefire-reports.zip
+      curl --fail-with-body -sS -X POST "$api/build-sbom-imports" \
+        --url-query "commit=$CI_COMMIT_SHA" --url-query "branch=$CI_COMMIT_REF_NAME" \
+        -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" -H "Content-Type: application/vnd.cyclonedx+json" \
+        --data-binary @target/bom.json
 
 vectispire-scan:
   stage: vectispire
@@ -237,6 +253,13 @@ What each piece is for:
 - **The test report is zipped** because Surefire writes one file per test class; a single JUnit XML
   file is sent as `application/xml` instead. With Gradle, the files are
   `build/reports/jacoco/test/jacocoTestReport.xml` and `build/test-results/test/TEST-*.xml`.
+- **The build's SBOM** completes what the scanner lists of the repository: for `org.example`'s
+  ledger, `spring-core` at the version `spring-framework-bom` manages instead of `UNKNOWN`, and
+  `spring-jcl`, which only the build packages. A checklist line asking whether a library is used
+  then answers from what the build shipped; see
+  [Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom). The `branch` it
+  states limits it to the scans of that branch. With Gradle, apply `org.cyclonedx.bom` and send
+  `build/reports/bom.json`.
 - **The gate job** downloads the release's `vectispire-gate.sh`, checks its SHA-256 against the
   digest the template carries, and runs it only if they match: a script that is not the one
   released beside the template stops the job, as does a `VECTISPIRE_GATE_VERSION` naming another
@@ -269,10 +292,11 @@ screen: every call writes one, so ask once per pipeline, not in a loop.
 | `HTTP 404` | the repository id is wrong, **or outside the key's restriction** — the same answer, on purpose | check the id against the key's target |
 | `HTTP 400` *Unknown severity* | a typo in `VECTISPIRE_FAIL_ON_SEVERITY` | `critical`, `high`, `medium`, `low` or `none` |
 | `HTTP 429` | the key's request budget per minute is spent | wait `Retry-After`; a loop is polling too fast |
-| reports: `403` | the reports key holds no `report_import`, or no enabled source is declared for it, or not for this kind | have the governor declare it with `coverage` and `test_report` |
+| reports: `403` | the reports key holds no `report_import`, or no enabled source is declared for it, or not for this kind | have the governor declare it with `coverage`, `test_report` and `sbom` |
 | reports: `404` | the repository is outside the key's restriction or the source's scope | match the id, the key and the source |
 | reports: `400` | the format is not one of `jacoco`, `cobertura`, `lcov`, the body does not read as it, it counts no line or no test, or the commit is not hexadecimal | an empty report is refused, never recorded as zero |
-| reports: `413` | above `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` (16 MB) or `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` (32 MB) | have the operator raise the ceiling — a report split in two would be two reports, the second taken as the newest |
+| SBOM: `400` | not CycloneDX JSON 1.4 to 1.6 — `-DoutputFormat=json`, and the `bom.json` rather than the XML — no `components`, or more than 50,000 | send the JSON the plugin wrote, unedited |
+| reports: `413` | above `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` (16 MB), `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` (32 MB) or `VECTISPIRE_MAX_BODY_SBOM_IMPORT` (32 MB) | have the operator raise the ceiling — a report split in two would be two reports, the second taken as the newest |
 
 Every refusal is a [problem document](../reference/errors.md): `application/problem+json`, with
 `detail` written for the person reading the log. None of these refusals carries a

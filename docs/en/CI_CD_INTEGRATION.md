@@ -15,8 +15,9 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 * `sbom` : Download the raw Software Bill of Materials, in Syft's native JSON; with `--repo-id`, of the latest **completed** scan. For CycloneDX with VEX, use the export route `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (scope `export`).
 * `coverage` : Send a JaCoCo, Cobertura or lcov coverage report for a repository (`--format` is required, never guessed).
 * `test-report` : Send a JUnit report — one XML file, or a zip of them — for a repository.
+* `build-sbom` : Send the build's CycloneDX JSON SBOM for a repository (`cyclonedx-maven-plugin`'s `makeAggregateBom`, the Gradle CycloneDX plugin); it completes the scanner's inventory — the versions a BOM manages, the libraries pulled in transitively.
 
-`coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports).
+`coverage`, `test-report` and `build-sbom` take a key holding `report_import` whose source is declared for that kind (`coverage`, `test_report`, `sbom`); see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports) and [Importing a build's SBOM](../../docs-site/administration/plugins.md#importing-a-builds-sbom).
 
 Every command exits `0` when done, `1` only for a red verdict, and `2` when there is no answer to trust: a refusal — the server's `detail` is printed, *This API key lacks the read scope.* — an unreachable control plane, a scan that failed or timed out. `scan` adopts the scan already waiting on a `409` rather than failing. That is from 0.10.0: the `v0.9.0` script called `curl -f`, exited with curl's code `22` on every refusal and printed nothing of the answer. The worked examples in [CI examples](../../docs-site/integrations/ci-examples.md) — GitLab CI with the shipped template, Jenkins, and SonarQube through a declared source — use a script that prints the problem document instead, and say which key each job needs.
 
@@ -103,6 +104,38 @@ vectispire-security-gate:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'
 ```
+
+**Sending the build's SBOM (Maven, `org.example`).** The scanner reads a Maven tree's poms, so a
+version a parent's BOM manages comes out as `UNKNOWN` and a library pulled in transitively is not
+listed; the build resolved both. This job writes the aggregate CycloneDX SBOM of every module and sends
+it with the **reports** key — `report_import`, declared as a source delivering `sbom`, never the gate's
+key:
+
+```yaml
+vectispire-build-sbom:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  variables:
+    VECTISPIRE_URL: "https://vectispire.example.com"
+    VECTISPIRE_REPO_ID: "1"
+    VECTISPIRE_CLI_VERSION: "<tag>"
+    VECTISPIRE_CLI_SHA256: "<sha256 from the release notes>"
+  script:
+    # org.example:ledger-service and its modules, resolved as the build packages them
+    - mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
+    - curl -fsSL -o vectispire-cli.sh "https://github.com/asmolabs/vectispire/releases/download/$VECTISPIRE_CLI_VERSION/vectispire-cli.sh"
+    - echo "$VECTISPIRE_CLI_SHA256  vectispire-cli.sh" | sha256sum -c -
+    - chmod +x vectispire-cli.sh
+    - ./vectispire-cli.sh build-sbom --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_REPORT_KEY"
+        --repo-id "$VECTISPIRE_REPO_ID" --file target/bom.json --commit "$CI_COMMIT_SHA" --branch "$CI_COMMIT_REF_NAME"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+```
+
+The answer names the scan it completed (`completedScanId`), or `null` before the repository's first
+completed scan, which the SBOM then completes; see
+[Importing a build's SBOM](../../docs-site/administration/plugins.md#importing-a-builds-sbom) for the
+rule and the refusals.
 
 ---
 

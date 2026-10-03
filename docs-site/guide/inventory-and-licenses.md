@@ -8,6 +8,21 @@ components you run, in which versions, in how many places.
 It answers the question that arrives on the morning a new CVE is published — *do we use
 this, and where?* — without re-scanning anything, because the SBOMs are already stored.
 
+### What the scanner cannot see, and the build can
+
+The scanner reads the source tree. For Maven it reads the poms, so a version a parent or a BOM
+manages is listed as `UNKNOWN`, and a library pulled in transitively is not listed at all. When the
+repository's pipeline sends the SBOM its build produced (CycloneDX JSON, from `cyclonedx-maven-plugin`
+or the Gradle CycloneDX plugin — see [Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom)),
+each scan's inventory is the scanner's **completed by it**: the build's stated version in place of
+`UNKNOWN`, the transitive libraries added, what only the scanner sees kept.
+
+**Every row says who listed it.** In the component search, a version marked **build** was stated by
+the build's SBOM: hover it to read what the scanner had read instead, or whether only the build listed
+the library. The project's consolidated inventory and its exports say the same per component
+(`sources`). Older scans keep the inventory they had; the licences and the checklist lines read the
+completed rows.
+
 ## Licenses
 
 License compliance is evaluated against a **configurable blocklist**, using data already
@@ -17,6 +32,9 @@ Configure the blocklist under [Settings](../administration/settings.md). What be
 is a decision for your organisation, not a default anybody else can supply: AGPL is fatal
 for a proprietary distributed product and irrelevant for an internal service that is never
 shipped.
+
+A component the build's SBOM added carries the licence the build declares; where the scanner had
+already listed it under `UNKNOWN`, the entry moves to the build's version, so it is counted once.
 
 A license violation is a first-class finding. It counts towards the gate, and the gate
 policy can be set to fail a build on it.

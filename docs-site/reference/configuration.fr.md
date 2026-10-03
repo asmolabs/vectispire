@@ -84,6 +84,7 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — le résultat porte le SBOM |
 | `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | chaque `POST /api/v1/auth/…` — une connexion, un code à usage unique ou un échange de session pèse quelques centaines d'octets |
 | `VECTISPIRE_MAX_BODY_SARIF_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/sarif-imports` — le rapport SARIF d'un outil interne pour un dépôt ; voir [Plugins et imports SARIF](../administration/plugins.md) |
+| `VECTISPIRE_MAX_BODY_SBOM_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/build-sbom-imports` — le SBOM CycloneDX d'un build, quelques mégaoctets pour un gros build multi-modules ; relu jusqu'à 50 000 composants — voir [Importer le SBOM d'un build](../administration/plugins.md#importer-le-sbom-dun-build) |
 
 ## Clonage
 
