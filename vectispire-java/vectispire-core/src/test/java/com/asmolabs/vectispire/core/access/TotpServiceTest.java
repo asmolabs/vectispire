@@ -36,7 +36,13 @@ class TotpServiceTest extends VectispireContextTest {
     @Autowired
     private Clock clock;
 
-    private record Enrolled(UserEntity user, String secret, List<String> backupCodes) {}
+    /**
+     * {@code at} is the instant the enrolment code was generated for. A test that needs "the same
+     * window" reads it rather than the clock again: two readings straddle a 30-second step often
+     * enough to fail a run in CI, and the second then names the next window's code, which was
+     * never spent.
+     */
+    private record Enrolled(UserEntity user, String secret, List<String> backupCodes, Instant at) {}
 
     private Enrolled enrolled() {
         Instant now = clock.instant();
@@ -52,14 +58,14 @@ class TotpServiceTest extends VectispireContextTest {
 
         String secret = totp.setup(UserView.of(user)).secret();
         List<String> codes = totp.enable(UserView.of(user), secret, Totp.generateCode(secret, now)).backupCodes();
-        return new Enrolled(users.findById(user.getId()).orElseThrow(), secret, codes);
+        return new Enrolled(users.findById(user.getId()).orElseThrow(), secret, codes, now);
     }
 
     @Test
     @DisplayName("a code opens once: presented again inside its window, it is refused")
     void aCodeIsNotReplayed() {
         Enrolled account = enrolled();
-        String next = Totp.generateCode(account.secret(), clock.instant().plusSeconds(30));
+        String next = Totp.generateCode(account.secret(), account.at().plusSeconds(30));
 
         assertThat(totp.verify(account.user(), next)).isTrue();
         assertThat(totp.verify(users.findById(account.user().getId()).orElseThrow(), next)).isFalse();
@@ -70,7 +76,7 @@ class TotpServiceTest extends VectispireContextTest {
     void theEnrolmentCodeIsSpent() {
         Enrolled account = enrolled();
 
-        assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), clock.instant()))).isFalse();
+        assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), account.at()))).isFalse();
     }
 
     @Test
@@ -99,7 +105,7 @@ class TotpServiceTest extends VectispireContextTest {
         assertThatThrownBy(() -> totp.enable(UserView.of(account.user()), attacker, Totp.generateCode(attacker, clock.instant())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already enabled");
-        assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), clock.instant().plusSeconds(30))))
+        assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), account.at().plusSeconds(30))))
                 .isTrue();
     }
 }
