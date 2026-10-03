@@ -71,11 +71,21 @@ public class CoreConfiguration {
      * <p>{@code Instant.now()} scattered through services is the thing that makes a scheduling
      * rule untestable — and scheduling rules are exactly the ones whose errors take a day to
      * show up.
+     *
+     * <p><b>It ticks in microseconds, the precision both engines keep.</b> A Linux clock reads
+     * nanoseconds; an instant taken from it, stored, and also written into a response or a signed
+     * document then disagrees with itself once read back — a report's signed provenance said
+     * {@code …604597024Z} while its run said {@code …604597Z}, and an import answered a first-scan
+     * time its queued scan did not hold. macOS reads microseconds, so both passed locally and failed
+     * in CI. Ticking here closes the class instead of truncating at every site that writes one.
      */
     @Bean
     Clock clock() {
-        return Clock.systemUTC();
+        return Clock.tick(Clock.systemUTC(), MICROSECOND);
     }
+
+    /** The finest instant MySQL's {@code datetime(6)} and PostgreSQL's {@code timestamp} store. */
+    static final java.time.Duration MICROSECOND = java.time.Duration.ofNanos(1_000);
 
     /**
      * The sealing primitive, with the platform's secure random.
