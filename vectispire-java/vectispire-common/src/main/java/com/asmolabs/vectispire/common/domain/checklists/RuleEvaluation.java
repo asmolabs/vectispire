@@ -508,12 +508,15 @@ public final class RuleEvaluation {
                 collector.add(repository, Optional.empty(), state);
                 continue;
             }
-            if (!(scoped.get(repository) instanceof Scanned scanned && scanned.sbomStored())) {
-                collector.examined(repository, Optional.empty(), examined.look(),
-                        List.of("its newest analysed scan stored no SBOM"));
+            // Read as component_present reads it. This line used to fail on a purged payload — "stored no
+            // SBOM" — although the inventory outlives the payload and still listed every package: a
+            // failure, and an automatic "no", resting on nothing anybody looked at (decision 0007).
+            List<MeasurementFacts.Component> listed = facts.components().getOrDefault(repository, List.of());
+            if (inventoryAbsent(listed, scoped.get(repository))) {
+                collector.missing(repository, Optional.empty(), NoDataReason.INVENTORY_ABSENT,
+                        Optional.of(examined.look()), INVENTORY_ABSENT);
                 continue;
             }
-            List<MeasurementFacts.Component> listed = facts.components().getOrDefault(repository, List.of());
             List<String> unmet = new ArrayList<>();
             List<String> found = new ArrayList<>();
             List<String> unrecorded = new ArrayList<>();
@@ -585,13 +588,9 @@ public final class RuleEvaluation {
                 continue;
             }
             List<MeasurementFacts.Component> listed = facts.components().getOrDefault(repository, List.of());
-            // The inventory outlives the SBOM's payload, so a listed inventory is read whatever the
-            // retention did; an empty one beside a purged SBOM is a list nobody can vouch for, and
-            // "absent" read off it would answer "not used" for a library nobody looked for (decision 0007).
-            if (listed.isEmpty() && !(scoped.get(repository) instanceof Scanned scanned && scanned.sbomStored())) {
+            if (inventoryAbsent(listed, scoped.get(repository))) {
                 collector.missing(repository, Optional.empty(), NoDataReason.INVENTORY_ABSENT,
-                        Optional.of(examined.look()), "its newest analysed scan no longer holds its SBOM and its"
-                                + " inventory lists nothing — scan it again");
+                        Optional.of(examined.look()), INVENTORY_ABSENT);
                 continue;
             }
             List<String> unmet = new ArrayList<>();
@@ -612,6 +611,20 @@ public final class RuleEvaluation {
         int declared = rule.purlPrefixes().size();
         return collector.outcome(List.of(), List.of(), declared + (declared == 1 ? " declared package" : " declared packages")
                 + " present, whatever the version");
+    }
+
+    static final String INVENTORY_ABSENT = "its newest analysed scan no longer holds its SBOM and its inventory"
+            + " lists nothing — scan it again";
+
+    /**
+     * Whether a component rule has nothing to read on a repository. The inventory outlives the SBOM's
+     * payload, so a listed inventory is read whatever the retention did; an empty one beside a purged
+     * payload is a list nobody can vouch for, and "absent" read off it would answer "not used" — or
+     * "not at an allowed version" — for a package nobody looked for (decision 0007). Both component
+     * kinds ask this one question, so that they never disagree on one SBOM.
+     */
+    private static boolean inventoryAbsent(List<MeasurementFacts.Component> listed, ScopeFacts facts) {
+        return listed.isEmpty() && !(facts instanceof Scanned scanned && scanned.sbomStored());
     }
 
     /**

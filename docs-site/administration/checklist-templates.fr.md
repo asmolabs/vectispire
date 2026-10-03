@@ -188,7 +188,8 @@ lier à nouveau.
 Les deux types de composants lisent le même inventaire : les composants de l'analyse la plus récente de
 chaque dépôt dont l'étape des dépendances a produit dans `maxAgeDays`. Une ligne qui demande si une
 bibliothèque **est utilisée** et une ligne qui demande **quelles versions** sont autorisées répondent
-depuis le même SBOM.
+depuis le même SBOM, et de la même manière quand la rétention des charges l'a purgé : l'inventaire qu'il a
+laissé est lu, et un inventaire vide est `inventory_absent`, sans données — jamais un échec.
 
 **« La bibliothèque X est utilisée »**, c'est `component_present`. La ligne est satisfaite quand un
 composant correspond au préfixe, quelle que soit sa version — y compris une version que le SBOM

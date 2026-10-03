@@ -176,7 +176,9 @@ digest reads it — and its measurement says it names no package; derive a draft
 
 Both component kinds read the same inventory: the components of each repository's newest scan whose
 dependency step produced within `maxAgeDays`. A line asking whether a library **is used** and a line
-asking **which versions** are allowed answer from the same SBOM.
+asking **which versions** are allowed answer from the same SBOM, and the same way when the payload
+retention has purged it: the inventory it left is read, and an empty one is `inventory_absent`, no data —
+never a failure.
 
 **"Library X is used"** is `component_present`. It passes when a component matches the prefix, whatever
 its version — including a version the SBOM does not state, which is what Syft writes (`UNKNOWN`) for a

@@ -133,6 +133,12 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   `kind` ou `reason` doit traiter les nouveaux jetons ; un client qui les ignore lit toujours une règle et
   une absence de données. Chaque règle liée auparavant garde sa forme canonique et son empreinte de
   contenu ([Composants](../administration/checklist-templates.md#composants-presence-versions-et-plages)).
+- **Une ligne `component_versions` n'échoue plus sur une analyse dont la rétention a purgé le SBOM.** Elle
+  échouait avec « its newest analysed scan stored no SBOM » — et Vectispire répondait *non* — alors que
+  l'inventaire laissé par l'analyse listait encore chaque paquet. Elle lit désormais cet inventaire, comme
+  `component_present`, et un inventaire vide à côté d'une charge purgée est une absence de données,
+  `inventory_absent`, qui retire le *non* automatique. `dependency_analysis` exige toujours le SBOM
+  conservé : c'est ce qu'elle mesure.
 - **Un import de couverture répond `packagesState`**, et une mesure de checklist a trois raisons de
   plus. `POST` et `GET /api/v1/repositories/{id}/coverage-imports` portent `packagesState` — `kept`,
   `too_many`, `path_refused`, `inconsistent`, ou `null` pour un import accepté avant cette version — et la

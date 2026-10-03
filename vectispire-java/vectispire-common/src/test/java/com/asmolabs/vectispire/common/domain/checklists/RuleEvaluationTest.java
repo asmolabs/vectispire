@@ -460,6 +460,38 @@ class RuleEvaluationTest {
         }
 
         @Test
+        @DisplayName("components: a purged payload reads the inventory it left, and an empty one is no data, never a failure")
+        void versionsAfterThePayloadWasPurged() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform/platform-web\",\"versions\":[\"[1.17,2.0)\"]}]}");
+            Builder purged = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), false, 1, 0));
+
+            Measurement nothing = RuleEvaluation.evaluate(rule, purged.components(1L, List.of()).build(), NOW);
+            assertThat(nothing.outcome()).as("it failed with \"stored no SBOM\": an automatic no on nothing looked at")
+                    .isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(nothing.reason()).contains(NoDataReason.INVENTORY_ABSENT);
+            assertThat(nothing.summary()).contains("no longer holds its SBOM and its inventory lists nothing")
+                    .doesNotContain("stored no SBOM");
+
+            Component at = new Component("platform-web", "1.18.0", "pkg:maven/org.example.platform/platform-web@1.18.0");
+            assertThat(RuleEvaluation.evaluate(rule, purged.components(1L, List.of(at)).build(), NOW).outcome())
+                    .as("the inventory outlives the payload, and judges").isEqualTo(MeasurementOutcome.PASS);
+            Component outside = new Component("platform-web", "2.1.0", "pkg:maven/org.example.platform/platform-web@2.1.0");
+            assertThat(RuleEvaluation.evaluate(rule, purged.components(1L, List.of(outside)).build(), NOW).outcome())
+                    .isEqualTo(MeasurementOutcome.FAIL);
+            Component other = new Component("left-pad", "1.3.0", "pkg:npm/left-pad@1.3.0");
+            assertThat(RuleEvaluation.evaluate(rule, purged.components(1L, List.of(other)).build(), NOW).summary())
+                    .as("a listed inventory without the package is a fact: absent fails")
+                    .contains("platform-web is not in its SBOM");
+
+            // A payload kept and an empty inventory: ran, listed nothing — absent, as before.
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .components(1L, List.of()).build(), NOW).outcome()).isEqualTo(MeasurementOutcome.FAIL);
+        }
+
+        @Test
         @DisplayName("presence: a package present passes whatever its version, UNKNOWN included; absent fails")
         void presence() {
             ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_present\",\"maxAgeDays\":7,\"components\":["

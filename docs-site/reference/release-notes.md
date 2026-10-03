@@ -123,6 +123,11 @@ another branch, is another target and is accepted as before.
   entry may be a Maven range (`[1.17,2.0)`). A client that switches over `kind` or `reason` should handle
   the new tokens; one that does not still reads a rule and no data. Every rule bound before keeps its
   canonical form and its content digest ([Components](../administration/checklist-templates.md#components-presence-versions-and-ranges)).
+- **A `component_versions` line no longer fails on a scan whose SBOM the retention purged.** It failed with
+  "its newest analysed scan stored no SBOM" — and Vectispire answered *no* — although the inventory the
+  scan left still listed every package. It now reads that inventory, as `component_present` does, and an
+  empty one beside a purged payload is no data, `inventory_absent`, which withdraws the automatic *no*.
+  `dependency_analysis` still requires the SBOM kept: that is what it measures.
 - **A coverage import answers `packagesState`**, and a checklist measurement has three more reasons.
   `POST` and `GET /api/v1/repositories/{id}/coverage-imports` carry `packagesState` — `kept`, `too_many`,
   `path_refused`, `inconsistent`, or `null` for an import accepted before this version — and a rule's

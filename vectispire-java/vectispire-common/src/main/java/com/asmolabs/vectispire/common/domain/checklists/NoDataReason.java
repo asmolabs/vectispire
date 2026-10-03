@@ -56,9 +56,10 @@ public enum NoDataReason {
      */
     LANGUAGES_UNRECORDED,
     /**
-     * A presence rule, on a repository whose newest analysed scan no longer holds its SBOM — the payload
-     * retention purged it — and whose inventory lists no component: whether the packages are there,
-     * nothing recorded. Not "absent", which would answer "not used" for a library nobody looked for.
+     * A component rule — presence or versions — on a repository whose newest analysed scan no longer
+     * holds its SBOM (the payload retention purged it) and whose inventory lists no component: whether
+     * the packages are there, nothing recorded. Not "absent", which would answer "not used", or "not at
+     * an allowed version", for a package nobody looked for.
      */
     INVENTORY_ABSENT,
     /**
