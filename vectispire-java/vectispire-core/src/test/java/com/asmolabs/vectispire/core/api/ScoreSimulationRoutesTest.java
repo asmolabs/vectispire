@@ -221,6 +221,72 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
     }
 
     /**
+     * The weakest link is chosen among what the caller sees: a reader of the medium-heavy repository
+     * alone sees {@code critical-and-mediums} graded on that repository, 55 C — never the 54 D of the
+     * critical-heavy neighbour it was not given, nor its name.
+     */
+    @Test
+    @DisplayName("names as the weakest link only a target the caller sees")
+    void weakestNarrowedToTheAllowance() throws Exception {
+        Scopes seeded = seedScopes();
+
+        ScoreSimulationService.ScoreSimulation narrowed = simulations.simulate(
+                allowanceOf(new ScanTarget.Repository(seeded.mediumsRepository())), null, null, null, null, null, null, null);
+
+        assertThat(narrowed.scopes()).extracting(ScoreSimulationScope::name)
+                .containsExactly("critical-and-mediums", "group");
+        for (ScoreSimulationScope scope : narrowed.scopes()) {
+            assertThat(scope.weakestScore()).as(scope.name()).isEqualTo(55);
+            assertThat(scope.weakestGrade()).as(scope.name()).isEqualTo(SecurityGrade.C);
+            assertThat(scope.weakestTarget().targetId()).as(scope.name()).isEqualTo(seeded.mediumsRepository());
+            assertThat(scope.weakestTarget().targetName()).as(scope.name()).isEqualTo("scopes/mediums");
+        }
+    }
+
+    /**
+     * The aggregation question decision 0036 puts to the owner, on two projects built for it.
+     *
+     * <p>{@code twenty-mediums}: twenty scanned repositories of four mediums each. Each reads 96 A+ (2
+     * points); the sum charges the forty points at once, 48 D — the project grades lower for being
+     * larger. The weakest link keeps 96 A+. {@code ten-clean-one-exploited}: ten clean repositories
+     * and one holding an exploited critical. The weakest link reads 54 D, the exploited cap, as the sum
+     * does — the clean ten do not hide it, which a mean of the targets' scores (≈ 96, A+) would. The
+     * risk points are the sum's under both aggregations, each issue once.
+     */
+    @Test
+    @DisplayName("sets the weakest link beside the sum: size does not lower it, and clean targets do not hide an exploited one")
+    void weakestLinkBesideTheSum() throws Exception {
+        seedScopes();
+
+        JsonNode body = read(mvc.perform(authenticated(get(ROUTE), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn());
+        Map<String, JsonNode> byName = new HashMap<>();
+        body.path("scopes").forEach(row -> byName.put(row.path("name").asText(), row));
+
+        JsonNode twenty = byName.get("twenty-mediums");
+        // Current: mediums weigh nothing, 100 + 5 held at 100. Sum: 80 × 0.5 = 40 points, 48 D.
+        assertScope(twenty, 100, "A_PLUS", 48, "D", 40);
+        assertThat(twenty.path("targetCount").asInt()).isEqualTo(20);
+        assertThat(twenty.path("medium").asLong()).isEqualTo(80);
+        // Every target ties at 96: the first listed is named.
+        assertWeakest(twenty, 96, "A_PLUS", "size/mediums-01");
+
+        JsonNode exploited = byName.get("ten-clean-one-exploited");
+        // Current: 100 − 25 − 8 + 5 = 72 B. Sum: 25 points, 63 capped at 54, D.
+        assertScope(exploited, 72, "B", 54, "D", 25);
+        assertThat(exploited.path("targetCount").asInt()).isEqualTo(11);
+        assertWeakest(exploited, 54, "D", "size/exploited");
+
+        // Both projects: 65 points summed, 31 F; the weakest link is the exploited repository's 54 D.
+        JsonNode size = byName.get("size");
+        assertScope(size, 72, "B", 31, "F", 65);
+        assertWeakest(size, 54, "D", "size/exploited");
+
+        printScopes(body);
+    }
+
+    /**
      * Every project and solution under both formulas — and the double count the scope card makes
      * today, which the candidate does not.
      *
@@ -245,8 +311,10 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         List<String> order = new ArrayList<>();
         body.path("scopes").forEach(row -> order.add(row.path("kind").asText() + ":" + row.path("name").asText()));
         assertThat(order).containsExactly(
-                "project:critical-and-mediums", "project:empty", "project:half-scanned", "project:one-clean-repo",
-                "project:repo-and-image", "solution:group", "solution:half", "solution:shared");
+                "project:critical-and-mediums", "project:empty", "project:half-scanned", "project:never-scanned",
+                "project:one-clean-repo", "project:repo-and-image", "project:ten-clean-one-exploited",
+                "project:twenty-mediums", "solution:group", "solution:half", "solution:shared", "solution:size",
+                "solution:unseen");
 
         // name -> current score, current grade, candidate score, candidate grade, risk points
         assertScope(byName.get("one-clean-repo"), 100, "A_PLUS", 100, "A_PLUS", 0);
@@ -278,6 +346,42 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
             assertThat(byName.get(name).path("currentDoubleCounted").asBoolean()).as(name).isFalse();
         }
 
+        // The weakest link: the lowest observed target's own candidate, held at the observed share.
+        // name -> weakest score, weakest grade, the target it is read from
+        assertWeakest(byName.get("one-clean-repo"), 100, "A_PLUS", "scopes/clean");
+        // The critical-heavy repository alone is 54 D, the medium-heavy one 55 C: the project is 54 D,
+        // where the sum of both reads 30 F.
+        assertWeakest(byName.get("critical-and-mediums"), 54, "D", "scopes/criticals");
+        assertWeakest(byName.get("group"), 54, "D", "scopes/criticals");
+        // The coverage cap applies to the weakest link as to the sum: the one scanned target is clean,
+        // 100, and the scope is held at its observed share, 50.
+        assertWeakest(byName.get("half-scanned"), 50, "D", "scopes/half-clean");
+        assertWeakest(byName.get("half"), 50, "D", "scopes/half-clean");
+        // The repository's high and its three licences, 16 points, 75 B; the image beside it is clean.
+        assertWeakest(byName.get("repo-and-image"), 75, "B", "scopes/shared");
+        assertWeakest(byName.get("shared"), 75, "B", "scopes/shared");
+        // Nothing observed is no weakest link: an empty project, and one whose only target was never
+        // scanned — listed among the targets for its open high, NO_DATA there, so it competes for nothing.
+        for (String name : List.of("empty", "never-scanned", "unseen")) {
+            JsonNode none = byName.get(name);
+            assertThat(none.path("candidateGrade").asText()).as(name).isEqualTo("NO_DATA");
+            assertThat(none.path("weakestGrade").asText()).as(name).isEqualTo("NO_DATA");
+            assertThat(none.path("weakestScore").isNull()).as(name).isTrue();
+            assertThat(none.path("weakestTarget").isNull()).as(name).isTrue();
+        }
+        assertThat(rowOf(body, "scopes/never-scanned").path("candidateGrade").asText()).isEqualTo("NO_DATA");
+        // Every weakest target named is a row of the same response's targets, kind, id and name alike.
+        Set<String> listedTargets = new java.util.HashSet<>();
+        body.path("targets").forEach(row -> listedTargets.add(row.path("targetKind").asText() + ":"
+                + row.path("targetId").asLong() + ":" + row.path("targetName").asText()));
+        body.path("scopes").forEach(row -> {
+            JsonNode weakest = row.path("weakestTarget");
+            if (!weakest.isNull()) {
+                assertThat(listedTargets).as(row.path("name").asText()).contains(weakest.path("targetKind").asText()
+                        + ":" + weakest.path("targetId").asLong() + ":" + weakest.path("targetName").asText());
+            }
+        });
+
         // The production path itself, as the project's page reads it: six.
         JsonNode card = read(mvc.perform(authenticated(get("/api/v1/projects/" + seeded.sharedProject() + "/compliance"), asAdmin()))
                 .andExpect(status().isOk())
@@ -305,14 +409,18 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
     }
 
     /** What the scope tests name afterwards. */
-    private record Scopes(long sharedProject, long sharedRepository, long sharedImage, long criticalRepository) {}
+    private record Scopes(
+            long sharedProject, long sharedRepository, long sharedImage, long criticalRepository, long mediumsRepository) {}
 
     /**
      * Three solutions: {@code group} holding {@code one-clean-repo} and {@code critical-and-mediums} (a
      * repository of three criticals and a high beside one of sixty mediums and twenty lows); {@code
      * shared} holding {@code repo-and-image}, a repository and an image each scanned, plus a scan naming
      * both that carries one high and three disallowed licence findings; {@code half} holding an empty
-     * project and {@code half-scanned}, a clean scanned repository beside one never scanned.
+     * project and {@code half-scanned}, a clean scanned repository beside one never scanned; {@code size}
+     * holding {@code twenty-mediums}, twenty scanned repositories of four mediums each, and {@code
+     * ten-clean-one-exploited}, ten clean scanned repositories beside one holding an exploited critical;
+     * {@code unseen} holding {@code never-scanned}, a repository nobody scanned holding an open high.
      */
     private Scopes seedScopes() throws Exception {
         licences.updatePolicy(LicensePolicy.defaultPolicy());
@@ -322,7 +430,8 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         long mixedProject = project(group, "critical-and-mediums");
         long criticalRepository = seed("scopes/criticals", 0, 3, 1, 0, 0);
         file("repositories", mixedProject, criticalRepository);
-        file("repositories", mixedProject, seed("scopes/mediums", 0, 0, 0, 60, 20));
+        long mediumsRepository = seed("scopes/mediums", 0, 0, 0, 60, 20);
+        file("repositories", mixedProject, mediumsRepository);
 
         long shared = solution("shared");
         long sharedProject = project(shared, "repo-and-image");
@@ -361,7 +470,25 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         long halfProject = project(half, "half-scanned");
         file("repositories", halfProject, repository("scopes/half-clean", true));
         file("repositories", halfProject, repository("scopes/half-never", false));
-        return new Scopes(sharedProject, sharedRepository, sharedImage, criticalRepository);
+
+        long size = solution("size");
+        long twenty = project(size, "twenty-mediums");
+        for (int i = 1; i <= 20; i++) {
+            file("repositories", twenty, seed("size/mediums-%02d".formatted(i), 0, 0, 0, 4, 0));
+        }
+        long tenClean = project(size, "ten-clean-one-exploited");
+        for (int i = 1; i <= 10; i++) {
+            file("repositories", tenClean, repository("size/clean-%02d".formatted(i), true));
+        }
+        file("repositories", tenClean, seed("size/exploited", 1, 0, 0, 0, 0));
+
+        long unseen = project(solution("unseen"), "never-scanned");
+        long neverScanned = repository("scopes/never-scanned", false);
+        List<IssueEntity> imported = new ArrayList<>();
+        add(imported, neverScanned, 1, "high", false);
+        issues.saveAll(imported);
+        file("repositories", unseen, neverScanned);
+        return new Scopes(sharedProject, sharedRepository, sharedImage, criticalRepository, mediumsRepository);
     }
 
     private long solution(String name) throws Exception {
@@ -396,11 +523,19 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         assertThat(row.path("candidateRiskPoints").asDouble()).as(name + " risk points").isEqualTo(riskPoints);
     }
 
+    private static void assertWeakest(JsonNode row, int score, String grade, String targetName) {
+        assertThat(row).as("scope row").isNotNull();
+        String name = row.path("name").asText();
+        assertThat(row.path("weakestScore").asInt()).as(name + " weakest").isEqualTo(score);
+        assertThat(row.path("weakestGrade").asText()).as(name + " weakest grade").isEqualTo(grade);
+        assertThat(row.path("weakestTarget").path("targetName").asText()).as(name + " weakest target").isEqualTo(targetName);
+    }
+
     /** The scopes' comparison, in the test's output. */
     private static void printScopes(JsonNode body) {
         StringBuilder table = new StringBuilder("\n| scope | targets | exploited | critical | high | medium | low"
-                + " | licences (card) | current | candidate | risk points |\n");
-        body.path("scopes").forEach(row -> table.append("| %s %s | %d/%d | %d | %d | %d | %d | %d | %d (%d) | %s %s | %s %s | %s |%n".formatted(
+                + " | licences (card) | current | sum | weakest link | risk points | weakest target |\n");
+        body.path("scopes").forEach(row -> table.append("| %s %s | %d/%d | %d | %d | %d | %d | %d | %d (%d) | %s %s | %s %s | %s %s | %s | %s |%n".formatted(
                 row.path("kind").asText(), row.path("name").asText(),
                 row.path("observedTargets").asInt(), row.path("targetCount").asInt(),
                 row.path("exploited").asLong(), row.path("critical").asLong(), row.path("high").asLong(),
@@ -408,7 +543,9 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
                 row.path("licences").asLong(), row.path("currentLicences").asLong(),
                 row.path("currentScore").asText(), row.path("currentGrade").asText(),
                 row.path("candidateScore").asText(), row.path("candidateGrade").asText(),
-                row.path("candidateRiskPoints").asText())));
+                row.path("weakestScore").asText(), row.path("weakestGrade").asText(),
+                row.path("candidateRiskPoints").asText(),
+                row.path("weakestTarget").isNull() ? "—" : row.path("weakestTarget").path("targetName").asText())));
         System.out.println(table);
     }
 

@@ -261,6 +261,18 @@ repository of the scope: today's card counts that scan's components and licence 
 the repository and once more for the image. Each target's own card counts them once, on the
 repository; the candidate agrees with it, and the switch of formula fixes the scope card.
 
+**Two ways of grading a scope are compared** in each scope row, since adding the backlogs up makes a
+scope's grade depend on its size. `candidateScore` and `candidateGrade` are the **sum**: the formula
+over the scope's whole backlog. `weakestScore` and `weakestGrade` are the **weakest link**: the
+candidate score of the scope's lowest-scoring scanned target, exactly as that target's own row reads
+it, and `weakestTarget` names it (kind, id, name — always one of the targets the same answer lists).
+The weakest link is held at the share of the scope that was scanned, like the sum, and a scope none
+of which was scanned is `NO_DATA` under both. The risk points stay the sum's, each issue and each
+licence counted once. Twenty repositories of four mediums each read 96 (A+) one by one: summed, their
+project reads 48 (D), its weakest link 96 (A+). Ten clean repositories beside one holding an exploited
+critical read 54 (D) both ways — the clean ten hide nothing. Which of the two a scope's card will use
+is part of decision 0036, still proposed.
+
 ## Languages {#languages}
 
 Each repository shows, under its details, the languages its **newest completed scan** counted, as

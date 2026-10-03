@@ -78,7 +78,9 @@
   risk points; the defaults are the calibration validated on 2026-10-03, disallowed licences included;
   no grade changes ([how](../guide/repositories.md#score-simulation)). A scope row shows where a
   project's or a solution's card counts a licence twice today — a scan naming one of its images and
-  one of its repositories — which the formula's switch will fix.
+  one of its repositories — which the formula's switch will fix. Each scope row also sets the summed
+  candidate beside the weakest link — the score of its lowest-scoring scanned target, and which one —
+  so that how a scope is graded is decided on the same figures.
 - **A weekly record of the OWASP Top 10 coverage starts now.** Every six hours at most, the maintenance
   turn records, for every repository and image — scanned or not — and for each of the ten categories,
   the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings

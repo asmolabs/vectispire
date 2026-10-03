@@ -8261,6 +8261,17 @@
           "targetCount" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "weakestGrade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "weakestScore" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "weakestTarget" : {
+            "$ref" : "#/components/schemas/ScoreSimulationWeakestTarget"
           }
         },
         "required" : [ "critical", "currentDoubleCounted", "currentLicences", "exploited", "high", "id", "licences", "low", "medium", "observedTargets", "partial", "targetCount" ],
@@ -8328,6 +8339,22 @@
           }
         },
         "required" : [ "critical", "exploited", "high", "licences", "low", "medium", "targetId" ],
+        "type" : "object"
+      },
+      "ScoreSimulationWeakestTarget" : {
+        "properties" : {
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetKind" : {
+            "type" : "string"
+          },
+          "targetName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "targetId" ],
         "type" : "object"
       },
       "ScoreSimulationWeights" : {

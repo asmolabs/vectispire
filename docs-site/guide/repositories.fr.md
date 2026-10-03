@@ -271,6 +271,19 @@ composants et les constats de licence de ce scan une fois pour le dépôt et une
 l'image. La fiche propre de chaque cible les compte une fois, sur le dépôt ; la candidate s'accorde
 avec elle, et la bascule de formule corrige la fiche de portée.
 
+**Deux façons de noter une portée sont comparées** dans chaque ligne de portée, puisque additionner
+les backlogs fait dépendre la note d'une portée de sa taille. `candidateScore` et `candidateGrade` sont
+la **somme** : la formule sur tout le backlog de la portée. `weakestScore` et `weakestGrade` sont le
+**maillon le plus faible** : le score candidat de la cible analysée la moins bien notée de la portée,
+tel que la ligne de cette cible le donne, et `weakestTarget` la nomme (nature, id, nom — toujours une
+des cibles que la même réponse liste). Le maillon le plus faible est plafonné à la part analysée de la
+portée, comme la somme, et une portée dont rien n'a été analysé est `NO_DATA` dans les deux cas. Les
+points de risque restent ceux de la somme, chaque problème et chaque licence comptés une fois. Vingt
+dépôts de quatre moyennes chacun lisent 96 (A+) un par un : additionnés, leur projet lit 48 (D), son
+maillon le plus faible 96 (A+). Dix dépôts propres à côté d'un dépôt portant une critique exploitée
+lisent 54 (D) dans les deux cas — les dix propres ne cachent rien. Laquelle des deux la fiche d'une
+portée utilisera relève de la décision 0036, toujours proposée.
+
 ## Langages {#languages}
 
 Chaque dépôt montre, sous ses détails, les langages recensés par son **scan terminé le plus récent**,

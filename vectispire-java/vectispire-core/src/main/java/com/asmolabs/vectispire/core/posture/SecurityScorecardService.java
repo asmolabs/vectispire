@@ -442,6 +442,14 @@ public class SecurityScorecardService {
     }
 
     /**
+     * The same cap for the simulation's weakest-link variant, which picks its score from a target row
+     * and holds it at the scope's observed share exactly as the card and the summed candidate are held.
+     */
+    static int cappedToCoverage(int score, int totalTargets, int observedTargets) {
+        return cappedToCoverage(score, new Coverage(totalTargets, observedTargets));
+    }
+
+    /**
      * A score held at the observed share of its scope, in the compliance summary's rounding — one copy
      * for the card and for the candidate's scopes, so the simulation caps as the card does.
      */

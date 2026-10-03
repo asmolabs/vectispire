@@ -12,10 +12,12 @@ import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -38,6 +40,15 @@ import org.springframework.stereotype.Service;
  * counts a scope's licences once ({@link SecurityScorecardService#candidateScopes}); the card counts
  * twice those of a scan naming one of the scope's images and one of its repositories, and the row says
  * so, so that the switch fixes it knowingly.
+ *
+ * <p><b>Two aggregations of a scope are on the table</b> (decision 0036), and each row carries both.
+ * The <em>sum</em> ({@code candidate…}) scores the scope's summed backlog, so a scope of many
+ * reasonable targets reads lower than each of them — its grade depends on its size. The <em>weakest
+ * link</em> ({@code weakest…}) is the score of the scope's lowest-scoring observed target, exactly as
+ * that target's own row reads it, then held at the scope's observed share like the sum: a scope is no
+ * safer than its most exposed target, and ten clean targets do not hide the one with an exploited
+ * critical. The risk points stay the sum's under both — each issue and each licence once — since they
+ * state what is open in the scope, not how it is graded.
  */
 @Service
 public class ScoreSimulationService {
@@ -102,6 +113,11 @@ public class ScoreSimulationService {
      *     targets' inventories, and an image's includes the entries of scans naming a repository too,
      *     which that repository's inventory lists as well — or, its repository outside the scope, which
      *     the candidate leaves to the repository they belong to. The switch to the candidate fixes it
+     * @param weakestScore the weakest-link variant: the lowest candidate score among the scope's
+     *     observed visible targets, held at the observed share as {@code candidateScore} is; null
+     *     exactly when {@code weakestGrade} is {@code NO_DATA}, which is when nothing is observed
+     * @param weakestTarget the target that score is read from; null with no data. Among targets of one
+     *     score, the first in the {@code targets} order
      */
     public record ScoreSimulationScope(
             String kind,
@@ -123,7 +139,16 @@ public class ScoreSimulationService {
             long low,
             long licences,
             long currentLicences,
-            boolean currentDoubleCounted) {}
+            boolean currentDoubleCounted,
+            Integer weakestScore,
+            SecurityGrade weakestGrade,
+            ScoreSimulationWeakestTarget weakestTarget) {}
+
+    /**
+     * The target a scope's weakest-link score is read from — one of the scope's targets the caller
+     * sees, listed among the response's {@code targets} with the same kind, id and name.
+     */
+    public record ScoreSimulationWeakestTarget(String targetKind, long targetId, String targetName) {}
 
     /** How many of the listed targets read this grade under each formula. */
     public record ScoreSimulationGrade(SecurityGrade grade, long current, long candidate) {}
@@ -218,13 +243,60 @@ public class ScoreSimulationService {
                         weights.low(), weights.licence(), weights.k()),
                 rows,
                 grades,
-                scopes(allowance, weights));
+                scopes(allowance, weights, targetRows(listed, rows)));
     }
 
-    private List<ScoreSimulationScope> scopes(VisibilityService.Allowance allowance, CandidateScore.Weights weights) {
+    /** Each listed target's row, under its target — what the weakest link is chosen among. */
+    private static Map<ScanTarget, ScoreSimulationTarget> targetRows(List<ScanTarget> listed, List<ScoreSimulationTarget> rows) {
+        Map<ScanTarget, ScoreSimulationTarget> byTarget = new LinkedHashMap<>();
+        for (int i = 0; i < listed.size(); i++) {
+            byTarget.put(listed.get(i), rows.get(i));
+        }
+        return byTarget;
+    }
+
+    /**
+     * The scope's lowest-scoring observed target, its row as the {@code targets} list carries it.
+     *
+     * <p>Only an observed target competes — a row with no candidate score is {@code NO_DATA}, never a
+     * hundred — so a scope nothing of which is observed has no weakest link and reads {@code NO_DATA},
+     * as under the sum. Chosen among the rows of the caller's own listing, and only for the scope's
+     * targets that listing holds: the scope's targets are already the visible ones, and reading them
+     * through the rows as well means the name returned is one the same response already shows — never
+     * a target the scope's tree knows and the caller was not given.
+     *
+     * <p>Compared on the rounded, capped score, not the exact one: an exploited issue holds a target
+     * at 54 whatever its exponent says, and the weakest link is the score a reader sees. A tie keeps
+     * the first in the listing's order, so the answer does not move from one call to the next.
+     */
+    private static Optional<ScoreSimulationTarget> weakestOf(
+            VisibleScope scope, Map<ScanTarget, ScoreSimulationTarget> targetRows) {
+        ScoreSimulationTarget weakest = null;
+        for (Map.Entry<ScanTarget, ScoreSimulationTarget> entry : targetRows.entrySet()) {
+            ScoreSimulationTarget row = entry.getValue();
+            if (!scope.targets().contains(entry.getKey()) || row.candidateScore() == null) {
+                continue;
+            }
+            if (weakest == null || row.candidateScore() < weakest.candidateScore()) {
+                weakest = row;
+            }
+        }
+        return Optional.ofNullable(weakest);
+    }
+
+    private List<ScoreSimulationScope> scopes(
+            VisibilityService.Allowance allowance,
+            CandidateScore.Weights weights,
+            Map<ScanTarget, ScoreSimulationTarget> targetRows) {
         List<ScoreSimulationScope> rows = new ArrayList<>();
         for (SecurityScorecardService.ScopeCandidate after : scorecards.candidateScopes(solutions.visibleScopes(allowance), weights)) {
             VisibleScope scope = after.scope();
+            // The weakest observed target's score, held at the scope's observed share as the sum is:
+            // one scanned clean target beside nine nobody looked at is not an A+ under either.
+            Optional<ScoreSimulationTarget> weakest = weakestOf(scope, targetRows);
+            Integer weakestScore = weakest.map(row -> SecurityScorecardService.cappedToCoverage(
+                            row.candidateScore(), after.totalTargets(), after.observedTargets()))
+                    .orElse(null);
             // The scope card itself, as its compliance route serves it: the current figure is that
             // computation's, never a copy of its arithmetic.
             SecurityScorecard before = scorecards.getScopeScorecard(scope);
@@ -249,7 +321,11 @@ public class ScoreSimulationService {
                     open.low(),
                     open.licences(),
                     before.licenseViolationCount(),
-                    before.licenseViolationCount() != open.licences()));
+                    before.licenseViolationCount() != open.licences(),
+                    weakestScore,
+                    weakestScore == null ? SecurityGrade.NO_DATA : SecurityGrade.fromScore(weakestScore),
+                    weakest.map(row -> new ScoreSimulationWeakestTarget(row.targetKind(), row.targetId(), row.targetName()))
+                            .orElse(null)));
         }
         rows.sort(Comparator.comparing((ScoreSimulationScope row) -> "solution".equals(row.kind()))
                 .thenComparing(row -> row.name().toLowerCase(Locale.ROOT))

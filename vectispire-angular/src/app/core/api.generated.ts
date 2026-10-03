@@ -7066,6 +7066,11 @@ export interface components {
             partial: boolean;
             /** Format: int32 */
             targetCount: number;
+            /** @enum {string} */
+            weakestGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: int32 */
+            weakestScore?: number;
+            weakestTarget?: components["schemas"]["ScoreSimulationWeakestTarget"];
         };
         ScoreSimulationTarget: {
             /** Format: double */
@@ -7092,6 +7097,12 @@ export interface components {
             low: number;
             /** Format: int64 */
             medium: number;
+            /** Format: int64 */
+            targetId: number;
+            targetKind?: string;
+            targetName?: string;
+        };
+        ScoreSimulationWeakestTarget: {
             /** Format: int64 */
             targetId: number;
             targetKind?: string;

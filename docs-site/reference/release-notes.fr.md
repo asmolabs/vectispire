@@ -84,7 +84,9 @@
   validée le 2026-10-03, licences interdites comprises ; aucune note ne change
   ([comment](../guide/repositories.fr.md#score-simulation)). Une ligne de portée montre où la fiche
   d'un projet ou d'une solution compte aujourd'hui une licence deux fois — un scan qui nomme une de ses
-  images et un de ses dépôts — ce que la bascule de formule corrigera.
+  images et un de ses dépôts — ce que la bascule de formule corrigera. Chaque ligne de portée met aussi
+  la candidate sommée à côté du maillon le plus faible — le score de sa cible analysée la moins bien
+  notée, et laquelle — pour que la façon de noter une portée se décide sur les mêmes chiffres.
 - **Un relevé hebdomadaire de la couverture OWASP Top 10 commence maintenant.** Toutes les six heures au
   plus, le passage de maintenance enregistre, pour chaque dépôt et chaque image — analysés ou non — et pour
   chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien
