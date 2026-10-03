@@ -88,6 +88,41 @@ its scan is attributed to — and its issues once each however many of the scope
 the simulation flags each scope whose card disagrees (`currentDoubleCounted`). With the card's six
 the candidate would read 60 C rather than 75 B.
 
+**How a scope aggregates its targets** (amended 2026-10-03). Summing the backlogs penalises size: the
+two repositories above at 54 D and 55 C make a 30 F project, and a project of many reasonable targets
+reads worse than any of them. The simulation therefore sets a second aggregation beside the sum in
+every scope row — the **weakest link** (`weakestScore`, `weakestGrade`, `weakestTarget`): the scope's
+score is the candidate score of its lowest-scoring observed target, exactly as that target's own row
+reads it, and the row names that target (kind, id, name — one of the visible targets the same answer
+lists, chosen among the scope's visible targets only). The coverage cap applies to the scope as it
+does to the sum: the weakest observed target's score is held at the observed share. A scope with no
+observed target is `NO_DATA`, and a target never scanned never competes, even when an import left
+open issues on it — those still enter the sum's backlog and the risk points. The risk points stay the
+sum's under both aggregations: each issue and each licence once, what is open in the scope, not how
+it is graded. On the scopes of the table above:
+
+| Scope | Targets (observed) | Current | Sum | Weakest link | Risk points | Weakest target |
+|---|---|---|---|---|---|---|
+| project with one clean repository | 1 (1) | 100 A+ | 100 A+ | 100 A+ | 0 | the clean repository |
+| project with a repository and an image sharing a scan | 2 (2) | 71 B | 75 B | 75 B | 16 | the repository (1 high, 3 licences) |
+| project of a critical-heavy and a medium-heavy repository | 2 (2) | 77 B | 30 F | 54 D | 66.5 | the critical-heavy repository |
+| project with one of two repositories scanned, both clean | 2 (1) | 50 D | 50 D | 50 D (capped from 100) | 0 | the scanned repository |
+| project whose only repository was never scanned, 1 high open | 1 (0) | no data | no data | no data | — | — |
+| empty project | 0 | no data | no data | no data | — | — |
+| solution of the clean project and the critical/medium one | 3 (3) | 77 B | 30 F | 54 D | 66.5 | the critical-heavy repository |
+
+And on two projects seeded to show what the aggregation decides, each target a scanned repository:
+
+| Scope | Targets (observed) | Current | Sum | Weakest link | Risk points | Weakest target |
+|---|---|---|---|---|---|---|
+| 20 repositories, 4 mediums each (each 96 A+) | 20 (20) | 100 A+ | 48 D | 96 A+ | 40 | the first of them |
+| 10 clean repositories + 1 with an exploited critical | 11 (11) | 72 B | 54 D | 54 D | 25 | the exploited one |
+| solution of both | 31 (31) | 72 B | 31 F | 54 D | 65 | the exploited one |
+
+Under the sum the twenty-mediums project reads D for being twenty, where each of its targets reads
+A+ and a project of one of them would too; under the weakest link it reads A+. Neither hides the
+exploited critical behind the ten clean repositories: both read 54 D, the exploited cap.
+
 ## Decision
 
 **The scorecard's score becomes the candidate's, with the validated calibration**, everywhere the
@@ -127,8 +162,18 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
   coarse by design; the points stay behind a session, like every other figure of the backlog.
 - **Unchanged**: the bands, what counts (open issues, settled triage — `not_affected`, `fixed` —
   left out), the coverage cap on a project's, a solution's or the portfolio's score (the observed
-  share), `NO_DATA`, and the recommendations. A scope's score applies the formula to the scope's
-  summed backlog, as today's does.
+  share), `NO_DATA`, and the recommendations.
+- **A scope is graded by its weakest link — recommended by the product owner, pending acceptance**
+  (amended 2026-10-03). A project's or a solution's score is the lowest score among its observed
+  targets, each computed as its own card computes it, held at the scope's observed share; `NO_DATA`
+  when none is observed; the card names the target the grade comes from. A scope is no safer than
+  its most exposed target, and its grade must not depend on its size: twenty targets of four mediums
+  each are twenty A+ targets, not a D project. Its risk points stay the sum of the scope's open
+  backlog, each issue and licence once, so a large scope still shows how much is open. The other
+  option on the table is the **sum** — the formula over the scope's summed backlog, as today's
+  scope card computes — which reads more exposure into two backlogs together than into either, and
+  grades a scope lower the more targets it holds (the tables above). The portfolio's score is outside
+  this question — the simulation does not compare it — and stays the summed computation.
 
 ## Alternatives rejected
 
@@ -144,6 +189,10 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
 - **`k = 85`, medium 1.** It gives fifty mediums a C, but one critical then reads A (89) — a
   critical vulnerability on a card graded A is the very complaint the grade is meant to avoid.
   `k < 61.5` is needed for the critical's B; no single `k` serves both with a medium at 1.
+- **A scope graded by the mean of its targets' scores**, plain or weighted by any size measure. It
+  removes the size penalty, but a critical target hides behind clean ones: ten clean repositories
+  and one holding an exploited critical average 96, A+, for a project whose exploited critical the
+  sum and the weakest link both grade D. The grade would say the opposite of what the project holds.
 - **Keeping the +5 bonus.** It is a constant for every graded target, so it changes nothing but
   the ceiling every target shares, and it hides one high or one licence on an otherwise clean card.
 
@@ -182,7 +231,9 @@ Decided with the product owner on 2026-10-03 (amendment):
 
 1. **Before the switch**, the simulation route lists projects and solutions beside targets, so a
    scope's new grade is seen on the estate before it ships — done on 2026-10-03, the scope table
-   above; the owner accepts this decision on that table.
+   above; the owner accepts this decision on that table. Each scope row carries both aggregations,
+   the sum and the weakest link, since 2026-10-03 (amendment), so the choice between them is made on
+   the same figures.
 2. **One release switches it, 0.11.0**, everywhere at once: `computeScorecard` computes
    `CandidateScore`'s formula with `Weights.PROPOSED`, `SecurityScorecard` gains `riskPoints`, the
    ranking breaks ties on them, the badge keeps its letter alone. No flag and no period with two
@@ -195,11 +246,15 @@ Decided with the product owner on 2026-10-03 (amendment):
 4. **The release notes** carry it under **"Changes an integration can see"**: the formula, the
    tables above, the new `riskPoints` field (signed-in routes only), and the sentence a reader needs
    first — *grades drop because mediums, lows and every further issue now count, not because a
-   project got worse; nothing in your repository changed*. A scope reading lower than each of its
-   targets, and a scope's licence count falling, are said there too.
+   project got worse; nothing in your repository changed*. How a scope is graded — its weakest
+   target's grade, or, if the sum is chosen, a grade that can read lower than each of its targets —
+   and a scope's licence count falling are said there too.
 5. **The dashboard's trend chart marks the switch** with a dated vertical line ("scorecard formula
    changed", 0.11.0), so that a reader comparing a period across it sees why the grades moved. The
    series it plots today are the backlog's, which the switch does not move; the line is for the reader
-   who sets a grade beside them, and any series of the score added later carries it.
+   who sets a grade beside them. Decided with the owner on 2026-10-03: the line goes on that chart and
+   on **any series of the score added later**, from its first version. No chart of the score over time
+   exists today — the ranking and the cards show the score as it stands — so nothing else carries it
+   yet.
 6. `CandidateScore` stops being a candidate (renamed into the scorecard's domain) and the simulation
    route is retired in the release after, once nobody needs the comparison.
