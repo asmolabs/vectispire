@@ -721,7 +721,7 @@ lowered the figure silently.
 **The resolution.** A `coverage_threshold` rule takes an optional **`scope`**, `{ include: [...],
 exclude: [...] }`, decided in the template like every other parameter (§6), and measures covered over
 total across the packages it matches. To read it, an import keeps its counts per package beside its
-totals (`t_coverage_package`, V70).
+totals (`t_coverage_package`, V71).
 
 - **A package is a path.** A JaCoCo `<package>` as JaCoCo names it, a Cobertura `<package>` with its
   dots read as slashes, the directory of an lcov `SF:` file. Per *directory* rather than per file: the
@@ -738,7 +738,7 @@ totals (`t_coverage_package`, V70).
   rules. The packages live as long as their import, which lives as long as its repository — the test
   suites' rule.
 - **No data, never another figure.** Three reasons join the closed set: `packages_unrecorded` — the
-  newest import predates V70, re-import needed; `packages_not_kept`; `scope_matches_nothing` — neither
+  newest import predates V71, re-import needed; `packages_not_kept`; `scope_matches_nothing` — neither
   0 % nor 100 %. The report's totals are never put in the scope's place.
 - **Shown where it is signed.** The evidence of each repository names how many packages matched, and
   the summary — the `Evidence` sheet of §10 — states the scope beside the figure, a scoped pass

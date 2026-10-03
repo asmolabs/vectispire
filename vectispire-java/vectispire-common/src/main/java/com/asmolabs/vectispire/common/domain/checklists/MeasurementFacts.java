@@ -211,7 +211,7 @@ public record MeasurementFacts(
     /** Not asked: the rule has no scope. A scoped rule handed this is a defect, never a figure. */
     public record NotRead() implements Packages {}
 
-    /** The import predates the record of packages (V70): it kept none, and nobody knows what they were. */
+    /** The import predates the record of packages (V71): it kept none, and nobody knows what they were. */
     public record Unrecorded() implements Packages {}
 
     /** @param why the import's own reason, in the words its evidence prints */

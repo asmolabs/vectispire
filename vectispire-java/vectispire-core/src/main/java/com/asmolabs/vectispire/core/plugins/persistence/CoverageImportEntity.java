@@ -77,7 +77,7 @@ public class CoverageImportEntity {
 
     /**
      * {@code kept}, or why the report's packages were not — {@code CoveragePackages.State}; null for an
-     * import accepted before packages were kept (V70), which kept none.
+     * import accepted before packages were kept (V71), which kept none.
      */
     @Column(name = "packages_state", length = 20)
     private String packagesState;

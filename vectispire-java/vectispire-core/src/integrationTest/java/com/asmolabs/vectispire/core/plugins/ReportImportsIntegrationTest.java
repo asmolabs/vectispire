@@ -39,7 +39,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * each, so {@link ReportImportCatalog} batches them. PostgreSQL is the engine that refuses the
  * unbatched statement ("at most 65 535 parameters"); MySQL's client-side statements accept it, so a
  * green run on MySQL alone says nothing of the batching. The correlated {@code max(id)} and the
- * purge's subquery are what MySQL checks. A coverage import's packages (V70) are read back with the
+ * purge's subquery are what MySQL checks. A coverage import's packages (V71) are read back with the
  * top level's empty path and a path at the column's bound, which an engine could pad, trim or refuse.
  */
 @SpringBootTest(classes = VectispireApplication.class)

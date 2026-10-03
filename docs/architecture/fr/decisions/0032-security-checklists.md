@@ -785,7 +785,7 @@ baissait le chiffre en silence.
 **La résolution.** Une règle `coverage_threshold` accepte un **`scope`** facultatif, `{ include: [...],
 exclude: [...] }`, décidé dans le modèle comme tout autre paramètre (§6), et mesure le couvert sur le
 total des paquets qui lui correspondent. Pour le lire, un import conserve ses comptes par paquet à côté
-de ses totaux (`t_coverage_package`, V70).
+de ses totaux (`t_coverage_package`, V71).
 
 - **Un paquet est un chemin.** Un `<package>` JaCoCo tel que JaCoCo le nomme, un `<package>` Cobertura
   avec ses points lus comme des barres obliques, le répertoire d'un fichier `SF:` lcov. Par
@@ -803,7 +803,7 @@ de ses totaux (`t_coverage_package`, V70).
   des rapports que le §7 accepte, pour une raison qui ne concerne que les règles à périmètre. Les paquets
   vivent autant que leur import, qui vit autant que son dépôt — la règle des suites de tests.
 - **Pas de données, jamais un autre chiffre.** Trois raisons rejoignent l'ensemble fermé :
-  `packages_unrecorded` — l'import le plus récent précède V70, réimport nécessaire ;
+  `packages_unrecorded` — l'import le plus récent précède V71, réimport nécessaire ;
   `packages_not_kept` ; `scope_matches_nothing` — ni 0 % ni 100 %. Les totaux du rapport ne prennent
   jamais la place du périmètre.
 - **Montré là où l'on signe.** La preuve de chaque dépôt dit combien de paquets correspondent, et le

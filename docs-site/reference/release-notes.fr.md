@@ -108,7 +108,7 @@ défaut à la mise à jour.
   Un client qui distingue les valeurs de `reason` doit les traiter ; celui qui ne les connaît pas lit
   toujours une absence de données. Le formulaire d'une règle (`boundRule`, la route des règles) gagne un
   `scope` facultatif ; une règle qui n'en a pas garde sa forme canonique et son empreinte de contenu. Le
-  schéma V70 ajoute une colonne et une table, rien à faire.
+  schéma V71 ajoute une colonne et une table, rien à faire.
 - **Un refus de plugin a une troisième raison, `registry_authentication_required`**, et une mesure de
   checklist une raison assortie, `plugin_registry_authentication_required` : l'image du plugin déclare
   un signataire, et son registre n'a pas laissé lire la signature. Un client qui distingue les valeurs

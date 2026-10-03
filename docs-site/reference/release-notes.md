@@ -100,7 +100,7 @@ told apart from the ones nobody scheduled, so all of them move to the default at
   coverage line [scoped to packages](../administration/checklist-templates.md#coverage-over-a-scope-of-packages).
   A client that switches over `reason` should handle them; one that does not still reads no data. A
   rule's form (`boundRule`, the rules route) gains an optional `scope`; a rule without one keeps its
-  canonical form and its content digest. Schema V70 adds a column and a table, nothing to do.
+  canonical form and its content digest. Schema V71 adds a column and a table, nothing to do.
 - **A plugin refusal has a third reason, `registry_authentication_required`**, and a checklist
   measurement a matching reason, `plugin_registry_authentication_required`: the plugin's image declares
   a signer, and its registry would not let the signature be read. A client that switches over

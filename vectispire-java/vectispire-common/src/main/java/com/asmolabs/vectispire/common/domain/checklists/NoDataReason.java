@@ -63,7 +63,7 @@ public enum NoDataReason {
      */
     VERSION_UNRECORDED,
     /**
-     * A coverage rule scoped to packages, on an import accepted before imports kept their packages (V70):
+     * A coverage rule scoped to packages, on an import accepted before imports kept their packages (V71):
      * the report was never read package by package, and only importing it again can tell. Never the
      * report's totals in the scope's place, which would be a figure over packages the scope leaves out.
      */
