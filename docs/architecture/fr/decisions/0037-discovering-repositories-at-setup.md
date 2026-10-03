@@ -740,7 +740,7 @@ décision propre : elle ajoute une lecture à une connexion, pas un nouveau type
   implémenté dans `forges.internal`) et la demande. L'inverse aurait placé le module qui détient les jetons de
   forge sous celui qui juge les checklists ; `forges` reste utilisé par `platform` seul. Ses
   `allowedDependencies` gagnent `checklists`, avec cette raison.
-- **Conservé** dans `t_forge_review_reading` — **V83**, en commun, sans clé étrangère : une ligne par dépôt et
+- **Conservé** dans `t_forge_review_reading` — **V81**, en commun, sans clé étrangère : une ligne par dépôt et
   par branche (`wanted_branch` à `''` pour la branche par défaut, pour que la clé unique tienne sur MySQL), son
   état (`read`, `unreadable`, `unlinked`, `pending`), les preuves telles qu'écrites et leur SHA-256, que les
   preuves de la ligne nomment comme sa lecture (`source` `forge_review`). Aucun nom de personne : un changement

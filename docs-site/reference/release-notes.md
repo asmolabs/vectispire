@@ -238,7 +238,7 @@ another branch, is another target and is accepted as before.
   for a repository no connection knows, a token refused (on GitHub a fine-grained token also needs **Pull
   requests: read**; GitLab's `read_api` already covers it), more than 500 changes in the window, or nothing
   merged in it. The template editor offers the kind, proposing one peer, every change and thirty days.
-  Migration V83 (`t_forge_review_reading`).
+  Migration V81 (`t_forge_review_reading`).
 - **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
   (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
   ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).

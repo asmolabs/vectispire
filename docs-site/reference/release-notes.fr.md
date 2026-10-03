@@ -259,7 +259,7 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   connexion ne connaît, un jeton refusé (sur GitHub, un jeton *fine-grained* demande aussi **Pull requests:
   read** ; le `read_api` de GitLab le couvre déjà), plus de 500 changements dans la fenêtre, ou rien de
   fusionné. L'éditeur de modèles propose le type, avec un pair, tous les changements et trente jours.
-  Migration V83 (`t_forge_review_reading`).
+  Migration V81 (`t_forge_review_reading`).
 - **Découvertes de forge : les dépôts d'un GitHub aussi** — github.com, Enterprise Cloud avec résidence des
   données (`<sous-domaine>.ghe.com`) et Enterprise Server 3.12 ou ultérieur sous `/api/v3`
   ([ce qui est listé](../administration/forge-connections.fr.md#decouvrir-les-depots), décision 0037, lot D4).

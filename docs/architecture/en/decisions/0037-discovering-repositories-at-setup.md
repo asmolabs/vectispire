@@ -677,7 +677,7 @@ choices:
   (`ChangeReviews`, implemented in `forges.internal`) and the demand. The reverse would have put the module holding
   forge tokens under the one judging checklists; `forges` stays used by nobody but `platform`. Its
   `allowedDependencies` gains `checklists`, with that reason.
-- **Stored** in `t_forge_review_reading` — **V83**, in common, no foreign key: one row per repository and branch
+- **Stored** in `t_forge_review_reading` — **V81**, in common, no foreign key: one row per repository and branch
   (`wanted_branch` `''` for the default, so the unique key holds on MySQL), its state (`read`, `unreadable`,
   `unlinked`, `pending`), the evidence as written and its SHA-256, which the line's evidence names as its look
   (`source` `forge_review`). No person's name: a change is its reference, its merge instant and counts. Deleted
