@@ -89,6 +89,10 @@ bccf1c522d72a40deff261827bd2e850d21126e3:vectispire-angular/src/app/pages/ssh-ke
 # out — the test asserts its absence from every export.
 c4c624062c11a8ff5ce772ac2a3d24acf3585133:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/ProjectExportRoutesTest.java:generic-api-key:76
 
+# An invented token *id* (a UUID naming a stored HTTPS token, not the token) in the forge import
+# screen's spec (lot D7); the line also carries gitleaks:allow.
+da88839a87e9cc546231e1f86627ea0514dd9a76:vectispire-angular/src/app/pages/forge-discovery/forge-import.spec.ts:generic-api-key:12
+
 # `curl -u "$SONAR_TOKEN:"` in the CI examples: a variable reference, not a credential.
 a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.fr.md:curl-auth-user:451
 a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.fr.md:curl-auth-user:456
