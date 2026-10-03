@@ -56,9 +56,9 @@ besoin pour re-dériver vos conclusions plutôt que de les prendre sur parole.
 
 **Les preuves ont une fenêtre à elles**, *Evidence kept for (days)* (`evidence_retention_days`,
 400 jours par défaut ; zéro les garde pour toujours) : les verdicts de la barrière, les relevés
-mensuels de conformité, le relevé hebdomadaire OWASP et l'export qu'a reçu chaque
-[rapport](report-plugins.fr.md#demander-un-rapport) produit — l'exécution elle-même, et l'empreinte de
-l'export, restent. Contrairement à un artefact brut, rien de
+mensuels de conformité, le relevé hebdomadaire OWASP, et l'export qu'a reçu chaque
+[rapport](report-plugins.fr.md#demander-un-rapport) produit avec le document signé qu'il a produit —
+l'exécution elle-même, et les empreintes de l'export, du document et de son paquet, restent. Contrairement à un artefact brut, rien de
 cela ne se régénère : réglez-la sur la période qu'un auditeur vous demande de couvrir, plus le délai
 avant qu'il la lise, et non sur la fenêtre des artefacts. Le tour de maintenance horaire purge ce qui
 en est sorti. Une semaine du relevé OWASP est gardée tant qu'une partie d'elle est encore dans la

@@ -720,6 +720,62 @@ migration V75) et `common/scanning/scanners/ReportPluginRenderer`, qui exécute 
   `report-executor-unavailable` et un tour inactif. Le miroir des plugins d'analyse
   (`VECTISPIRE_PLUGIN_REGISTRY`) s'applique ; leur `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` non.
 
+## Construit en R4 (2026-10-03) : là où le code en dit plus que le §3
+
+Le lot R4 — la vérification de la sortie, sa signature, sa provenance et son téléchargement — a tranché ces points
+que le §3 laissait ouverts ou énonçait vaguement. Le code est dans `common/domain/reportplugins`
+(`ReportOutputCheck`, `GuardedZip`, `ReportProvenance`, `ReportPackage`) et `core.reportplugins`
+(`internal/ReportPackager`, `ReportExecution`, `ReportRunService.document`, migration V77).
+
+- **Une sortie qui échoue à sa vérification est `refused`, pas `failed`** — ce qui amende le tableau du §2, qui
+  rangeait « sortie refusée par le §3 » parmi les échecs. Le plugin s'est exécuté, mais un document déguisé en un
+  autre est la façon dont un plugin altéré se trahit, ce que `refused` et `VECTI-SEC-033` (§4 : « ou sa sortie
+  refusée ») existent pour dire. Le motif est `output_refused` ; les octets sont jetés sans signature, l'exécution
+  garde leur SHA-256 et leur taille et le signataire qui s'est porté garant de l'image, afin qu'un fichier trouvé
+  plus tard soit rapproché de l'exécution qui l'a refusé. L'export reçu n'est pas conservé, comme pour toute
+  exécution qui n'a pas produit ; `PROJECT_EXPORTED` est enregistré quand même, puisque l'export a bien atteint le
+  conteneur.
+- **Les garde-fous de zip sont ceux de `WorkbookReader`, en code propre** (`GuardedZip`) : le ratio (100) et la
+  marge (100 Kio) de l'import, avec des plafonds relevés de ceux d'un modèle à ceux d'un document entier — 2 000
+  entrées, 256 Mio par entrée, 512 Mio en tout, comptés à mesure que les octets sortent et jamais gardés sauf les
+  quelques parties XML lues ; un nom présent deux fois, quelle que soit sa casse, et une archive dans l'archive
+  refusés — un classeur incorporé dans un graphique est un document que personne n'a vérifié. Pas partagé avec
+  l'import : ses refus sont des phrases pour l'auteur d'un modèle. **Deux garde-fous à lui** : aucun nom d'entrée
+  absolu, `..`, lecteur ou barre oblique inverse ; et **le répertoire central doit nommer exactement les entrées
+  que nomment les en-têtes locaux, dans l'ordre**, rien après l'enregistrement de fin et pas de ZIP64 — la
+  vérification lit les en-têtes locaux, Office et tout outil de décompression lisent le répertoire, et un fichier
+  dont les deux moitiés divergent montrerait à chacun un paquet différent.
+- **Office Open XML, au-delà de `vbaProject.bin`** : la relation `officeDocument` du paquet doit désigner une
+  partie qu'il contient, exactement du type de contenu principal qu'exige le type déclaré — un `.xlsm` renommé est
+  refusé par le type de sa partie principale avant que son projet VBA soit regardé ; aucun type de contenu nommant
+  un projet VBA, une feuille macro (Excel 4), une partie à macros ou un contrôle ActiveX, déclaré ou utilisé ; et
+  **aucune relation externe sauf un lien hypertexte** — un modèle attaché récupéré sur un serveur est la façon dont
+  un document sans macro à lui en exécute une.
+- **Un texte ou un CSV qu'un navigateur lirait comme du HTML ou du XML est refusé** — les motifs du standard WHATWG
+  MIME Sniffing (`<!DOCTYPE HTML`, `<html`, `<script`, `<!--`, `<?xml`…) après une marque d'ordre des octets et des
+  blancs. Le §3 n'offre pas le HTML ; un `.csv` qui contient une page est ce type sous un autre nom.
+- **Le paquet est le téléchargement.** `GET /api/v1/projects/{id}/reports/{runId}/document` sert le zip — le
+  fichier, `<fichier>.sig`, `provenance.json` — en `application/zip`, jamais le fichier nu : la signature et la
+  provenance voyagent avec le document, et le type déclaré est celui de l'entrée. Servi en pièce jointe,
+  `nosniff`, `Content-Security-Policy: sandbox` ; à quiconque voit le projet entier (aucune clé d'intégration) ; 404
+  en mots pour une exécution qui n'a pas produit ou dont la fenêtre des preuves a purgé le document ; journalisé
+  `REPORT_DOWNLOADED`, une nouvelle opération, non signalée — c'est la sortie de l'export qui était l'événement.
+- **La provenance est un in-toto Statement v1**, type de prédicat `https://vectispire.dev/report-provenance/v1`,
+  dans l'enveloppe DSSE du paquet de preuves (`SigningKeyService.wrapAndSignDsse`, l'encodage de
+  pré-authentification) — vérifiée par `cosign verify-blob-attestation --key … --type <type de prédicat>`, qui
+  vérifie aussi l'empreinte du sujet contre le fichier. En plus de la liste du §3, elle nomme l'identifiant et la
+  taille de l'export et la référence de l'image, et porte la phrase de ce que la signature affirme et n'affirme pas
+  (`claim`), pour que la déclaration le dise là où le lecteur du fichier le trouve. Le demandeur est nommé par son
+  identifiant de compte et le nom affiché de l'export, jamais le nom d'utilisateur que garde une exécution, qui peut
+  être une adresse.
+- **L'exécution gagne trois colonnes** — le type de média déclaré de la sortie, l'identifiant de la clé de
+  signature et le SHA-256 du paquet — et `t_report_document` contient le paquet (V77, common). Purgé avec les
+  exports par la fenêtre des preuves (`ReportEvidenceRetentionTask`, qui remplace la tâche de R3 limitée aux
+  exports, chaque table à part), et avec le projet.
+- **La route d'état d'un document** (`GET /api/v1/report-documents/{sha256}`) et le service des documents d'un
+  manifeste retiré marqués comme retirés relèvent de R7, comme le dit le tableau des lots : d'ici là, les documents
+  d'un digest retiré sont servis sans marque.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

@@ -92,6 +92,17 @@ dans les sources. Une mineure ne fait qu'ajouter des champs optionnels : un plug
 ne connaît pas. Une majeure est un nouveau fichier, et les notes de version disent quand elle apparaît et
 quand la précédente cesse d'être produite.
 
+## Documents de rapport
+
+Un document qu'un [plugin de rapport](../administration/report-plugins.fr.md) a rendu à partir de l'export
+d'un projet arrive sous forme d'un zip de trois fichiers : le document lui-même, sa signature détachée
+`<fichier>.sig`, et `provenance.json` — une déclaration signée de quel export de quel projet a été donné à
+quelle image, vérifiée comme construite par quel signataire, à la demande de qui, et le SHA-256 du document.
+Les deux se vérifient avec `cosign` contre la clé publique de l'instance
+([les commandes](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier)). La signature
+atteste **la provenance, pas la vérité** : elle ne dit pas que le document rend fidèlement l'export, et
+l'export conservé avec l'exécution est ce qui permet de le vérifier.
+
 ## Personnalisation
 
 Les exports et les rapports portent le nom de votre instance là où `VECTISPIRE_BRAND_NAME` est

@@ -86,6 +86,16 @@ is [`v1.schema.json`](https://github.com/asmolabs/vectispire/blob/main/vectispir
 in the source. A minor only adds optional fields: a plugin must ignore what it does not know. A major is
 a new file, and the release notes say when one appears and when the previous one stops being produced.
 
+## Report documents
+
+A document a [report plugin](../administration/report-plugins.md) rendered from a project's export comes
+as a zip of three files: the document itself, its detached signature `<file>.sig`, and `provenance.json`
+— a signed statement of which export of which project was given to which image, verified as built by which
+signer, at whose request, and the document's SHA-256. Both verify with `cosign` against the instance's
+public key ([the commands](../administration/report-plugins.md#the-document-and-how-to-verify-it)). The
+signature means **provenance, not truth**: it does not say the document renders the export faithfully, and
+the export kept with the run is how that is checked.
+
 ## Branding
 
 Exports and reports carry your instance name where `VECTISPIRE_BRAND_NAME` is set —

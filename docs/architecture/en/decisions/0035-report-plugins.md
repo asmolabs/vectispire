@@ -659,6 +659,58 @@ Lot R3 — the executor — settled these points §2 left open. The code is in `
   the same switch. The scanner plugins' mirror (`VECTISPIRE_PLUGIN_REGISTRY`) applies; their
   `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` does not.
 
+## Built in R4 (2026-10-03): where the code says more than §3
+
+Lot R4 — the output's check, its signature, its provenance and its download — settled these points §3 left open
+or stated loosely. The code is in `common/domain/reportplugins` (`ReportOutputCheck`, `GuardedZip`,
+`ReportProvenance`, `ReportPackage`) and `core.reportplugins` (`internal/ReportPackager`, `ReportExecution`,
+`ReportRunService.document`, migration V77).
+
+- **An output that fails its check is `refused`, not `failed`** — amending §2's table, which listed "output
+  refused by §3" among the failures. The plugin ran, but a document disguised as another is how a tampered plugin
+  shows itself, which is what `refused` and `VECTI-SEC-033` (§4: "or its output refused") exist to say. The reason
+  is `output_refused`; the bytes are discarded unsigned, the run keeps their SHA-256 and size and the signer that
+  vouched for the image, so that a file found later is matched to the run that refused it. The export it was given
+  is not kept, as for every run that did not produce; `PROJECT_EXPORTED` is recorded all the same, since the export
+  did reach the container.
+- **The zip guards are `WorkbookReader`'s, as code of their own** (`GuardedZip`): the importer's ratio (100) and
+  grace (100 KiB), with ceilings raised from a template's to a whole document's — 2,000 entries, 256 MiB an entry,
+  512 MiB in all, counted as the bytes come out and never kept but for the few XML parts read; a name held twice,
+  whatever its case, and an archive inside the archive refused — an embedded workbook in a chart is a document
+  nobody checked. Not shared with the importer: its refusals are a template author's sentences. **Two guards of its
+  own**: no absolute, `..`, drive or backslash entry name; and **the central directory must name exactly the
+  entries the local headers do, in order**, with nothing after the end record and no ZIP64 — the check reads the
+  local headers, Office and every unzip tool read the directory, and a file whose halves disagree would show each
+  a different package.
+- **Office Open XML, beyond `vbaProject.bin`**: the package's `officeDocument` relationship must point at a part it
+  holds, of exactly the main content type the declared type requires — an `.xlsm` renamed is refused by its main
+  part's type before its VBA project is looked at; no content type naming a VBA project, a macro sheet (Excel 4), a
+  macro-enabled part or an ActiveX control, declared or used; and **no external relationship but a hyperlink** — an
+  attached template fetched from a server is how a document with no macro of its own runs one.
+- **A text or a CSV that a browser would read as HTML or XML is refused** — the WHATWG MIME Sniffing patterns
+  (`<!DOCTYPE HTML`, `<html`, `<script`, `<!--`, `<?xml`…) after a byte order mark and whitespace. §3 offers no
+  HTML; a `.csv` holding a page is that type under another name.
+- **The package is the download.** `GET /api/v1/projects/{id}/reports/{runId}/document` serves the zip — the file,
+  `<file>.sig`, `provenance.json` — as `application/zip`, never the bare file: the signature and the provenance
+  travel with the document, and the declared type is the entry's. Served as an attachment, `nosniff`,
+  `Content-Security-Policy: sandbox`; to whoever sees the whole project (no integration key); 404 in words for a
+  run that did not produce or whose document the evidence window purged; audited `REPORT_DOWNLOADED`, a new
+  operation, not signalled — the export leaving was the event.
+- **The provenance is an in-toto Statement v1**, predicate type `https://vectispire.dev/report-provenance/v1`, in
+  the evidence bundle's DSSE envelope (`SigningKeyService.wrapAndSignDsse`, the pre-authentication encoding) —
+  verified by `cosign verify-blob-attestation --key … --type <predicate type>`, which checks the subject's digest
+  against the file too. Beside §3's list it names the export's own id and size and the image reference, and
+  carries the sentence of what the signature claims and does not (`claim`), so that the statement says it where a
+  reader of the file finds it. The requester is named by account id and the export's display name, never the user
+  name a run row keeps, which may be an address.
+- **The run gains three columns** — the output's declared media type, the signing key's id and the package's
+  SHA-256 — and `t_report_document` holds the package (V77, common). Purged with the exports by the evidence window
+  (`ReportEvidenceRetentionTask`, which replaces R3's export-only task, each table on its own), and with the
+  project.
+- **The document status route** (`GET /api/v1/report-documents/{sha256}`) and serving a withdrawn manifest's
+  documents as withdrawn are R7's, as the lots table says: a withdrawn digest's documents are served unmarked until
+  then.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

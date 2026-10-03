@@ -274,9 +274,27 @@ another branch, is another target and is accepted as before.
   failed `executor_unavailable` once nothing has claimed it for seventeen minutes while no executor worked,
   rather than left pending for ever. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`
   (`VECTI-SEC-032`, the export reaching a plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` —
-  the last sent to the SIEM as the new `VECTI-SEC-033`. **The document is not served yet**: checking it
-  against its declared type, signing it and its download are the next lot, and until then its bytes are
-  not kept — the run records their size and SHA-256 ([how](../administration/report-plugins.md#requesting-a-report)).
+  the last sent to the SIEM as the new `VECTI-SEC-033` ([how](../administration/report-plugins.md#requesting-a-report)).
+
+- **Report documents, checked, signed and downloadable** — the fourth lot of decision 0035. At the end of a
+  run the file the plugin wrote is **checked on its bytes** against its manifest's media type: an Office
+  Open XML package through the checklist import's zip guards, its main part of the declared type, and no
+  VBA project, macro sheet, macro-enabled part, ActiveX control or external relationship but a hyperlink;
+  an OpenDocument package with its `mimetype` first and stored and no `Basic/` or `Scripts/`; a PDF from
+  `%PDF-` to `%%EOF`; a CSV or a text in valid UTF-8, with no NUL and nothing a browser would read as HTML.
+  A file that is not what it declared is **refused**, the new reason `output_refused`, discarded unsigned —
+  its SHA-256 kept on the run — and sent to the SIEM as `VECTI-SEC-033`. A file that passes is signed by the
+  platform's key and stored as a **package** with `provenance.json`, an in-toto statement in a DSSE envelope
+  naming the run, the project, the requester, the plugin, its manifest, image and verified signer, the
+  export's schema and SHA-256, the file's media type and SHA-256, the product version and the signing key.
+  `GET /api/v1/projects/{id}/reports/{runId}/document` downloads it — always an attachment, `nosniff`, under
+  `Content-Security-Policy: sandbox` — to anybody who sees the whole project, audited `REPORT_DOWNLOADED`;
+  `cosign verify-blob` and `cosign verify-blob-attestation` verify it against the instance's public key.
+  **The signature means provenance, not truth**: it says what the installation gave which image and what
+  came back, not that the document renders the export faithfully — the kept export is how that is checked.
+  Documents are purged with the exports by the evidence window, and with their project. The runs gain
+  `outputMediaType`, `signingKeyId` and `packageSha256`
+  ([how](../administration/report-plugins.md#the-document-and-how-to-verify-it)).
 
 - **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and

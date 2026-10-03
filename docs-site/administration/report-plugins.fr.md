@@ -8,13 +8,11 @@ la plateforme. La décision
 [0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md)
 explique pourquoi il fonctionne ainsi.
 
-!!! warning "Cette version exécute un rapport, elle ne vous remet pas encore le document"
-    Vous pouvez enregistrer un plugin de rapport, faire approuver son manifeste, l'activer pour un projet, le
-    retirer et **demander un rapport** : le plan de contrôle construit l'export du projet, vérifie le
-    signataire de l'image et exécute le plugin dans sa forme fermée, et l'exécution enregistre ce qui en est
-    sorti — la taille et le SHA-256 de la sortie compris. **Le document lui-même n'est pas encore servi** : sa
-    vérification contre son type déclaré, sa signature et son téléchargement viennent dans une version
-    ultérieure, et d'ici là ses octets ne sont pas conservés.
+!!! warning "Pas encore d'écran, et un retrait n'est pas encore indiqué sur un document"
+    Tout ce que décrit cette page se fait par l'API : les écrans viennent dans une version ultérieure. Les
+    documents d'un manifeste retiré sont encore servis, leur paquet ne dit pas encore qu'il a été retiré, et
+    aucune route ne répond encore si l'installation se porte toujours garante d'un document ; les deux
+    viennent dans une version ultérieure.
 
 ## Le manifeste
 
@@ -134,6 +132,9 @@ démarre rien, passe en échec `executor_unavailable`, et celle qui était en co
    `timeout_seconds` du manifeste ;
 6. lit le fichier que nomme le manifeste, comme fichier régulier, dans le plafond. **Code de sortie 0, ou
    l'exécution est en échec.**
+7. **vérifie le fichier sur ses octets** contre le `media_type` du manifeste — voir
+   [plus bas](#la-verification-de-la-sortie) — et, s'il passe, le signe et stocke son paquet. Un fichier qui
+   n'est pas ce qui a été déclaré est **refusé**, `output_refused`, et jeté sans signature.
 
 Une exécution est dans exactement un état :
 
@@ -141,23 +142,24 @@ Une exécution est dans exactement un état :
 |---|---|
 | `pending` | Demandée, en attente de l'exécuteur. |
 | `running` | Prise en charge. Son exécuteur renouvelle son bail tant qu'elle tourne, quelle que soit la durée du pull et de la vérification de la signature. Une exécution dont le bail expire — le plus long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et dix minutes, dix-sept minutes sans renouvellement — a été laissée par un exécuteur arrêté : elle passe en échec, `executor_lost`, sans nouvelle tentative. Redemandez-la. |
-| `produced` | Le plugin est sorti avec 0 et a écrit son fichier dans ses limites. L'export qu'il a reçu est conservé avec l'exécution. |
+| `produced` | Le plugin est sorti avec 0, a écrit son fichier dans ses limites, le fichier a passé la vérification de son type déclaré, et son paquet signé est stocké. L'export qu'il a reçu est conservé avec l'exécution. |
 | `failed` | `exit_code`, `timeout`, `output_full` (le répertoire s'est rempli ou un fichier a dépassé le plafond), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_unavailable` (rien ne l'a prise en charge pendant dix-sept minutes alors qu'aucun exécuteur ne travaillait), `executor_error` — avec le détail, les propres mots du plugin pour un code de sortie. |
-| `refused` | Pas démarrée : `signature_unverified`, `unsigned`, `registry_authentication_required`, ou `export_schema_unavailable` (le manifeste lit une version majeure d'export que cette installation ne produit plus). La correction porte sur la provenance de l'image ou sa version, pas sur son code. |
+| `refused` | Pas démarrée : `signature_unverified`, `unsigned`, `registry_authentication_required`, ou `export_schema_unavailable` (le manifeste lit une version majeure d'export que cette installation ne produit plus). Ou démarrée, et **`output_refused`** : le fichier écrit n'est pas ce que déclare son manifeste — le détail dit ce que la vérification a trouvé. Ses octets sont jetés ; l'exécution garde leur SHA-256 et leur taille, et le signataire qui s'est porté garant de l'image. Chacun est la façon dont un plugin altéré, ou dont personne ne se porte garant, se trahit. |
 
 **Une exécution d'un plugin par projet à la fois** : une seconde demande pendant qu'une autre est en attente
 ou en cours est refusée, 409 `report-run-in-progress` — c'est celle-là qu'il faut attendre. Les exécutions du
 projet, de la plus récente à la plus ancienne, sont à `GET /api/v1/projects/{id}/reports`, une seule à
 `GET /api/v1/projects/{id}/reports/{runId}`, pour quiconque voit le projet entier : l'état, son motif et son
 détail, le manifeste, l'image et le signataire avec lesquels elle s'est exécutée, le SHA-256 et la taille de
-l'export, le SHA-256 et la taille de la sortie, les instants de demande, de début, d'export et de fin.
+l'export, le SHA-256, la taille et le type de média de la sortie, le SHA-256 du paquet et la clé qui l'a
+signé, les instants de demande, de début, d'export et de fin.
 
 **Combien à la fois** : `VECTISPIRE_REPORT_CONCURRENCY`, deux par défaut, sur chaque instance du plan de
 contrôle ; il cherche les exécutions en attente toutes les `VECTISPIRE_REPORT_INTERVAL` (10 s). **Ce qui est
-conservé** : l'export qu'a reçu une exécution produite, jusqu'à ce que la [fenêtre des preuves](maintenance.fr.md)
-(`evidence_retention_days`) soit passée — ses octets partent alors et l'exécution garde son empreinte ; une
-exécution en échec ou refusée ne garde rien qu'elle-même et son motif. Supprimer un projet emporte ses
-exécutions et leurs exports.
+conservé** : l'export qu'a reçu une exécution produite, et le paquet de son document, jusqu'à ce que la
+[fenêtre des preuves](maintenance.fr.md) (`evidence_retention_days`) soit passée — leurs octets partent alors
+et l'exécution garde leurs empreintes ; une exécution en échec ou refusée ne garde rien qu'elle-même et son
+motif. Supprimer un projet emporte ses exécutions, leurs exports et leurs documents.
 
 **Sur MySQL, l'export d'un rapport est aussi borné par `max_allowed_packet`.** L'export est gardé dans une
 ligne, écrite en une instruction, et le pilote l'envoie encodé en hexadécimal, au double de sa taille : sur un
@@ -166,6 +168,73 @@ en échec `export_too_large` avant que le plugin ne s'exécute, le détail le di
 `--max-allowed-packet=160M` (la composition livrée ne le fait pas) et tout export jusqu'à la borne de 64 Mio est
 gardé. La borne est lue sur le serveur à chaque exécution ; PostgreSQL n'en a aucune en deçà de 64 Mio. Un
 téléchargement de l'export (`GET …/export`) ne garde rien et n'est pas concerné.
+
+## La vérification de la sortie
+
+Avant que quoi que ce soit soit signé, le fichier est confronté au type que déclare son manifeste — **sur ses
+octets**, pas sur son nom :
+
+| Type | Ce qui est vérifié |
+|---|---|
+| Office Open XML (`.xlsx`, `.docx`, `.pptx`) | Un zip lu avec les garde-fous qu'applique l'import des modèles de checklist — au plus 2 000 entrées, chacune se décompressant en au plus 256 Mio et toutes en 512 Mio, aucune plus de 100 fois sa taille compressée, aucun nom présent deux fois, aucune archive à l'intérieur — et deux de plus : aucun nom d'entrée absolu ou contenant `..`, et un répertoire central qui liste exactement les entrées que contient le fichier, dans l'ordre (c'est ce répertoire que lit le programme du destinataire). `[Content_Types].xml` présent, la partie principale du paquet présente et du type qu'exige le type déclaré. **Aucun projet VBA (`vbaProject.bin`), aucune feuille macro, aucune partie à macros, aucun contrôle ActiveX** — un classeur à macros renommé `.xlsx` est refusé. Aucune relation externe sauf un lien hypertexte : un modèle attaché récupéré sur un serveur est la façon dont un document sans macro à lui en exécute une. |
+| OpenDocument (`.ods`, `.odt`) | Les mêmes garde-fous de zip ; la première entrée `mimetype`, stockée sans compression, contenant exactement le type déclaré ; aucun répertoire `Basic/` ou `Scripts/`. |
+| PDF | Commence par `%PDF-1.` ou `%PDF-2.`, et `%%EOF` dans son dernier kilo-octet. |
+| CSV, texte brut | UTF-8 valide, aucun octet NUL, et **rien qu'un navigateur lirait comme du HTML ou du XML** — une page qui s'ouvre par `<!DOCTYPE html`, `<html`, `<script`, `<?xml`… est du HTML sous un autre nom. |
+
+Pour tout type : non vide, et dans le `max_output_bytes` du manifeste.
+
+**C'est une vérification de type, pas une analyse antivirale.** Un PDF peut porter du JavaScript dans un flux
+d'objets compressé qu'aucune recherche d'octets ne trouve. Ce qui borne ce risque, c'est le signataire
+qu'exige tout plugin de rapport, l'examen de qui peut signer, et la façon dont le fichier est servi : toujours
+en pièce jointe, `X-Content-Type-Options: nosniff`, sous `Content-Security-Policy: sandbox`.
+
+## Le document, et comment le vérifier
+
+`GET /api/v1/projects/{id}/reports/{runId}/document` télécharge le **paquet** d'une exécution produite, un zip
+nommé `report-<exécution>-<plugin>.zip`, pour quiconque voit le projet entier — ceux qui peuvent lire
+l'exécution. Journalisé `REPORT_DOWNLOADED`. Il contient trois fichiers :
+
+| Fichier | Ce que c'est |
+|---|---|
+| `<output>` | Le fichier du plugin, octet pour octet — `summary.xlsx` pour le manifeste ci-dessus. |
+| `<output>.sig` | Sa signature détachée par la clé de la plateforme, celle qui signe chaque export Vectispire. |
+| `provenance.json` | Une déclaration [in-toto](https://in-toto.io/) dont le sujet est le SHA-256 du fichier, dans une enveloppe DSSE signée par la même clé. |
+
+**La provenance indique** l'exécution (identifiant, et les instants de demande, de début, d'export et de fin),
+le projet (identifiant et nom), le demandeur (identifiant de compte et nom affiché — jamais une adresse
+e-mail), le plugin (identifiant, digest du manifeste, image et digest de l'image, et le signataire que cosign a
+vérifié : identité et émetteur, ou le SHA-256 de sa clé), l'export (schéma, version, identifiant, SHA-256 et
+taille), le fichier (nom, type de média, SHA-256 et taille), la version du produit et l'identifiant de la clé
+de signature. Chaque champ est une valeur que l'exécution a enregistrée : les mêmes figurent dans
+`GET /api/v1/projects/{id}/reports/{runId}`.
+
+**Vérifiez-le contre une clé obtenue séparément**, jamais une clé remise avec le document :
+
+```bash
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o report.zip \
+  "$VECTISPIRE_URL/api/v1/projects/12/reports/34/document"
+curl -fsS -o vectispire-signing-key.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
+unzip report.zip
+cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
+  --signature summary.xlsx.sig summary.xlsx
+cosign verify-blob-attestation --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
+  --type https://vectispire.dev/report-provenance/v1 --signature provenance.json summary.xlsx
+```
+
+La seconde commande vérifie la signature de l'enveloppe **et** que le sujet de la déclaration est l'empreinte
+de ce fichier. `--insecure-ignore-tlog=true` dit seulement que la signature n'a jamais été publiée dans le
+journal de transparence public de Sigstore — Vectispire signe avec sa propre clé et ne publie rien ; c'est la
+clé qui est vérifiée. Pour lire la déclaration : `jq -r .payload provenance.json | base64 -d | jq .`
+
+**Ce que signifie la signature : la provenance, pas la vérité.** Elle dit que *cette installation a donné cet
+export, de ce projet, à cet instant, à cette image, vérifiée comme construite par ce signataire, à la demande
+de ce compte, et que ce sont les octets que l'image a écrits*. Elle ne dit **pas** que le document rend
+fidèlement l'export : un moteur de rendu peut omettre une ligne ou en inventer une, et rien d'autre que relire
+chaque format pour en extraire des faits ne pourrait le déceler. La déclaration le dit elle-même (`claim`). Ce
+qui le rend vérifiable à la place : l'export est conservé avec l'exécution pendant la fenêtre des preuves et
+son SHA-256 figure dans la déclaration, l'image est épinglée par digest, et un moteur de rendu déterministe à
+qui l'on donne le même export écrit les mêmes octets — quiconque doute du document refait le rendu de l'export
+avec la même image et compare.
 
 ## Ce qui est enregistré
 
@@ -177,10 +246,12 @@ geste qui ne change rien — le même manifeste à nouveau, un plugin déjà act
 
 Une exécution de rapport enregistre `REPORT_REQUESTED` quand elle est demandée, `PROJECT_EXPORTED` quand
 l'export atteint le conteneur du plugin (envoyé au SIEM comme `VECTI-SEC-032`, le SHA-256 de l'export en
-tête), puis `REPORT_PRODUCED` (les empreintes de la sortie, du manifeste et de l'export), `REPORT_FAILED` ou
-`REPORT_REFUSED` — chacun au nom du demandeur. **Un refus est envoyé au SIEM comme `VECTI-SEC-033`** : une
-image sans signataire vérifié sollicitée pour s'exécuter, c'est ainsi qu'un plugin altéré se trahit. Un
-échec pour une raison ordinaire est journalisé, pas signalé.
+tête), puis `REPORT_PRODUCED` (les empreintes de la sortie, du paquet, du manifeste et de l'export, et la clé
+de signature), `REPORT_FAILED` ou `REPORT_REFUSED` — chacun au nom du demandeur. **Un refus est envoyé au SIEM
+comme `VECTI-SEC-033`**, une sortie refusée comprise (son SHA-256 dans l'entrée) : une image sans signataire
+vérifié sollicitée pour s'exécuter, ou un fichier qui n'est pas ce qu'il déclarait, c'est ainsi qu'un plugin
+altéré se trahit. Un échec pour une raison ordinaire est journalisé, pas signalé. Un téléchargement
+enregistre `REPORT_DOWNLOADED`, avec les SHA-256 de la sortie et du paquet, au nom de qui télécharge.
 
 ## Refus
 
@@ -188,7 +259,7 @@ image sans signataire vérifié sollicitée pour s'exécuter, c'est ainsi qu'un 
 |---|---|
 | 400 | Un manifeste refusé — le `detail` nomme la première chose qui ne va pas ; un retrait sans sa justification. |
 | 403 | Un rôle qui ne peut pas faire ce geste. |
-| 404 | Un plugin, ou un digest de celui-ci, qui n'existe pas ; un projet qui n'existe pas ou que vous ne voyez pas en entier (`Project not found.`) ; un rapport demandé à un plugin non activé pour le projet, dans les mêmes mots qu'il existe ou non. |
+| 404 | Un plugin, ou un digest de celui-ci, qui n'existe pas ; un projet qui n'existe pas ou que vous ne voyez pas en entier (`Project not found.`) ; un rapport demandé à un plugin non activé pour le projet, dans les mêmes mots qu'il existe ou non ; le document d'une exécution qui n'a pas produit, ou dont la fenêtre des preuves a purgé les octets — l'exécution garde ses empreintes. |
 | 409 `report-plugin-id-taken` | L'identifiant est déjà enregistré. |
 | 409 `report-plugin-four-eyes` | Les quatre yeux sont actifs et vous avez enregistré ce digest. |
 | 409 `report-plugin-not-pending` | Le digest n'attend pas d'approbation : approuvé, mis de côté ou retiré. |

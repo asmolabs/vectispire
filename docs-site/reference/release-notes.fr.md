@@ -295,10 +295,28 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   `executor_unavailable` quand rien ne l'a prise en charge pendant dix-sept minutes alors qu'aucun exécuteur
   ne travaillait, plutôt que de rester en attente pour toujours. Journalisé `REPORT_REQUESTED`, `PROJECT_EXPORTED` (`VECTI-SEC-032`, l'export
   atteignant un plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` — ce dernier envoyé au SIEM
-  comme le nouveau `VECTI-SEC-033`. **Le document n'est pas encore servi** : sa vérification contre son type
-  déclaré, sa signature et son téléchargement sont le lot suivant, et d'ici là ses octets ne sont pas
-  conservés — l'exécution enregistre leur taille et leur SHA-256
-  ([comment](../administration/report-plugins.fr.md#demander-un-rapport)).
+  comme le nouveau `VECTI-SEC-033` ([comment](../administration/report-plugins.fr.md#demander-un-rapport)).
+
+- **Les documents de rapport, vérifiés, signés et téléchargeables** — le quatrième lot de la décision 0035.
+  À la fin d'une exécution, le fichier écrit par le plugin est **vérifié sur ses octets** contre le type de
+  média de son manifeste : un paquet Office Open XML avec les garde-fous de zip de l'import de checklist, sa
+  partie principale du type déclaré, et aucun projet VBA, feuille macro, partie à macros, contrôle ActiveX ni
+  relation externe autre qu'un lien hypertexte ; un paquet OpenDocument avec son `mimetype` en premier et
+  stocké, sans `Basic/` ni `Scripts/` ; un PDF de `%PDF-` à `%%EOF` ; un CSV ou un texte en UTF-8 valide,
+  sans NUL ni rien qu'un navigateur lirait comme du HTML. Un fichier qui n'est pas ce qu'il déclarait est
+  **refusé**, le nouveau motif `output_refused`, jeté sans signature — son SHA-256 gardé sur l'exécution —
+  et envoyé au SIEM comme `VECTI-SEC-033`. Un fichier qui passe est signé par la clé de la plateforme et
+  stocké comme un **paquet** avec `provenance.json`, une déclaration in-toto dans une enveloppe DSSE qui
+  nomme l'exécution, le projet, le demandeur, le plugin, son manifeste, son image et son signataire vérifié,
+  le schéma et le SHA-256 de l'export, le type de média et le SHA-256 du fichier, la version du produit et
+  la clé de signature. `GET /api/v1/projects/{id}/reports/{runId}/document` le télécharge — toujours en
+  pièce jointe, `nosniff`, sous `Content-Security-Policy: sandbox` — pour quiconque voit le projet entier,
+  journalisé `REPORT_DOWNLOADED` ; `cosign verify-blob` et `cosign verify-blob-attestation` le vérifient
+  contre la clé publique de l'instance. **La signature atteste la provenance, pas la vérité** : elle dit ce
+  que l'installation a donné à quelle image et ce qui en est revenu, pas que le document rend fidèlement
+  l'export — l'export conservé est ce qui permet de le vérifier. Les documents sont purgés avec les exports
+  par la fenêtre des preuves, et avec leur projet. Les exécutions gagnent `outputMediaType`, `signingKeyId`
+  et `packageSha256` ([comment](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier)).
 
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et

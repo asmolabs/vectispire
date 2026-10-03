@@ -7,12 +7,11 @@ export, checks the file it writes, and signs it with the platform's key. Decisio
 [0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0035-report-plugins.md)
 records why it works the way it does.
 
-!!! warning "This version runs a report, it does not yet hand you the document"
-    You can register a report plugin, have its manifest approved, switch it on for a project, withdraw it,
-    and **request a report**: the control plane builds the project's export, verifies the image's signer and
-    runs the plugin in its closed shape, and the run records what came of it — the output's size and SHA-256
-    included. **The document itself is not served yet**: checking it against its declared type, signing it
-    and its download come in a later release, and until then its bytes are not kept.
+!!! warning "No screen yet, and a withdrawal is not yet stated on a document"
+    Everything on this page is done through the API: the screens come in a later release. A withdrawn
+    manifest's documents are still served, and their package does not yet say they were withdrawn, nor
+    does a route yet answer whether the installation still stands by a document; both come in a later
+    release.
 
 ## The manifest
 
@@ -128,6 +127,9 @@ failed `executor_lost` once its lease lapses — every instance looks for both e
    manifest's `max_output_bytes` nor more than 16 files; stopped at the manifest's `timeout_seconds`;
 6. reads the file the manifest names, as a regular file, within the ceiling. **Exit code 0, or the run
    failed.**
+7. **checks the file on its bytes** against the manifest's `media_type` — see
+   [below](#the-check-on-the-output) — and, if it passes, signs it and stores its package. A file that is not
+   what was declared is **refused**, `output_refused`, and discarded unsigned.
 
 A run is in exactly one state:
 
@@ -135,21 +137,23 @@ A run is in exactly one state:
 |---|---|
 | `pending` | Requested, waiting for the executor. |
 | `running` | Claimed. Its executor renews its lease while it runs, however long the pull and the signature check take. A run whose lease lapses — the longest timeout a manifest may declare, the verifier's two minutes and ten minutes, seventeen minutes without a renewal — was left by an executor that stopped: it is failed, `executor_lost`, and not retried. Ask again. |
-| `produced` | The plugin exited 0 and wrote its file within its bounds. The export it was given is kept with the run. |
+| `produced` | The plugin exited 0, wrote its file within its bounds, the file passed the check of its declared type, and its signed package is stored. The export it was given is kept with the run. |
 | `failed` | `exit_code`, `timeout`, `output_full` (the directory filled or a file outgrew the ceiling), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_unavailable` (nothing claimed it for seventeen minutes while no executor worked), `executor_error` — with the detail, the plugin's own words for an exit code. |
-| `refused` | Not started: `signature_unverified`, `unsigned`, `registry_authentication_required`, or `export_schema_unavailable` (the manifest reads an export major this installation no longer produces). The fix is the image's provenance or its version, not its code. |
+| `refused` | Not started: `signature_unverified`, `unsigned`, `registry_authentication_required`, or `export_schema_unavailable` (the manifest reads an export major this installation no longer produces). Or started, and **`output_refused`**: the file it wrote is not what its manifest declares — the detail says what the check found. Its bytes are discarded; the run keeps their SHA-256 and size, and the signer that vouched for the image. Each is how a tampered plugin, or one nobody vouched for, shows itself. |
 
 **One run of a plugin per project at a time**: a second request while one is pending or running is
 refused, 409 `report-run-in-progress` — it is the one to wait for. The project's runs, newest first, are at
 `GET /api/v1/projects/{id}/reports`, one at `GET /api/v1/projects/{id}/reports/{runId}`, for anybody who sees
 the whole project: the state, its reason and detail, the manifest, image and signer it ran with, the export's
-SHA-256 and size, the output's SHA-256 and size, the instants requested, started, exported and finished.
+SHA-256 and size, the output's SHA-256, size and media type, the package's SHA-256 and the key it was signed
+with, the instants requested, started, exported and finished.
 
 **How many at once**: `VECTISPIRE_REPORT_CONCURRENCY`, two by default, on each instance of the control
 plane; it looks for waiting runs every `VECTISPIRE_REPORT_INTERVAL` (10 s). **What is kept**: the export a
-produced run was given, until the [evidence window](maintenance.md) (`evidence_retention_days`) has passed —
-then its bytes go and the run keeps its digest; a failed or refused run keeps nothing but itself and its
-reason. Deleting a project takes its runs and their exports.
+produced run was given, and its document's package, until the [evidence window](maintenance.md)
+(`evidence_retention_days`) has passed — then their bytes go and the run keeps their digests; a failed or
+refused run keeps nothing but itself and its reason. Deleting a project takes its runs, their exports and
+their documents.
 
 **On MySQL, a report's export is bounded by `max_allowed_packet` too.** The export is kept in one row,
 written in one statement, and the driver sends it hex-encoded, at twice its size: on a server left at its
@@ -158,6 +162,71 @@ plugin runs, the detail saying so. Start MySQL with `--max-allowed-packet=160M` 
 does not) and every export up to the 64 MiB bound is kept. The bound is read from the server at each run;
 PostgreSQL has none below 64 MiB. A download of the export (`GET …/export`) keeps nothing and is not
 affected.
+
+## The check on the output
+
+Before anything is signed, the file is held to the type its manifest declares — **on its bytes**, not its
+name:
+
+| Type | What is checked |
+|---|---|
+| Office Open XML (`.xlsx`, `.docx`, `.pptx`) | A zip read through the guards the checklist template import applies — at most 2,000 entries, each inflating to at most 256 MiB and all to 512 MiB, none more than 100 times its compressed size, no name held twice, no archive inside — and two more: no absolute or `..` entry name, and a central directory that lists exactly the entries the file holds, in order (a recipient's program reads that directory). `[Content_Types].xml` present, the package's main part present and of the type the declared type requires. **No VBA project (`vbaProject.bin`), no macro sheet, no macro-enabled part, no ActiveX control** — a macro-enabled workbook renamed `.xlsx` is refused. No external relationship but a hyperlink: an attached template fetched from a server is how a document with no macro of its own runs one. |
+| OpenDocument (`.ods`, `.odt`) | The same zip guards; the first entry `mimetype`, stored uncompressed, holding exactly the declared type; no `Basic/` or `Scripts/` directory. |
+| PDF | Starts with `%PDF-1.` or `%PDF-2.`, and `%%EOF` within its last kilobyte. |
+| CSV, plain text | Valid UTF-8, no NUL byte, and **nothing a browser would read as HTML or XML** — a page opening with `<!DOCTYPE html`, `<html`, `<script`, `<?xml`… is HTML under another name. |
+
+Every type: not empty, and within the manifest's `max_output_bytes`.
+
+**It is a type check, not a malware scan.** A PDF can carry JavaScript in a compressed object stream no byte
+search finds. What bounds that is the signer every report plugin needs, the review of who may sign, and how
+the file is served: always as an attachment, `X-Content-Type-Options: nosniff`, under
+`Content-Security-Policy: sandbox`.
+
+## The document, and how to verify it
+
+`GET /api/v1/projects/{id}/reports/{runId}/document` downloads a produced run's **package**, a zip named
+`report-<run>-<plugin>.zip`, to anybody who sees the whole project — the people who may read the run.
+Audited `REPORT_DOWNLOADED`. It holds three files:
+
+| File | What it is |
+|---|---|
+| `<output>` | The plugin's file, byte for byte — `summary.xlsx` for the manifest above. |
+| `<output>.sig` | Its detached signature by the platform's key, the key every Vectispire export is signed with. |
+| `provenance.json` | An [in-toto](https://in-toto.io/) statement whose subject is the file's SHA-256, in a DSSE envelope signed by the same key. |
+
+**The provenance states** the run (id and the instants requested, started, exported and finished), the
+project (id and name), the requester (account id and display name — never an e-mail address), the plugin
+(id, manifest digest, image and image digest, and the signer cosign verified: identity and issuer, or the
+SHA-256 of its key), the export (schema, version, id, SHA-256 and size), the file (name, media type,
+SHA-256 and size), the product version and the id of the signing key. Every field is one the run recorded:
+the same values are on `GET /api/v1/projects/{id}/reports/{runId}`.
+
+**Verify it against a key you obtained separately**, never one handed to you with the document:
+
+```bash
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o report.zip \
+  "$VECTISPIRE_URL/api/v1/projects/12/reports/34/document"
+curl -fsS -o vectispire-signing-key.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
+unzip report.zip
+cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
+  --signature summary.xlsx.sig summary.xlsx
+cosign verify-blob-attestation --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
+  --type https://vectispire.dev/report-provenance/v1 --signature provenance.json summary.xlsx
+```
+
+The second command checks the envelope's signature **and** that the statement's subject is this file's
+digest. `--insecure-ignore-tlog=true` says only that the signature was never published to Sigstore's public
+transparency log — Vectispire signs with its own key and publishes nothing; the key is what is checked. To
+read the statement: `jq -r .payload provenance.json | base64 -d | jq .`
+
+**What the signature means: provenance, not truth.** It says that *this installation gave this export, of
+this project, at this instant, to this image, verified as built by this signer, at the request of this
+account, and that these are the bytes the image wrote*. It does **not** say the document renders the export
+faithfully: a renderer can leave a line out or invent one, and nothing short of reading every format back
+into facts could tell. The statement says so itself (`claim`). What makes it checkable instead: the export is
+kept with the run for the evidence window and its SHA-256 is in the statement, the image is pinned by digest,
+and a deterministic renderer given the same export writes the same bytes — anybody who doubts the document
+renders the export again with the same image and compares.
 
 ## What is recorded
 
@@ -169,10 +238,12 @@ changes nothing — the same manifest again, a plugin already switched on — re
 
 A report run records `REPORT_REQUESTED` when it is asked, `PROJECT_EXPORTED` when the export reaches the
 plugin's container (sent to the SIEM as `VECTI-SEC-032`, the export's SHA-256 first), then
-`REPORT_PRODUCED` (the output's, the manifest's and the export's digests), `REPORT_FAILED` or
-`REPORT_REFUSED` — each in the requester's name. **A refusal is sent to the SIEM as `VECTI-SEC-033`**: an
-image without a verified signer asked to run is how a tampered plugin shows itself. A failure for an
-ordinary reason is audited, not signalled.
+`REPORT_PRODUCED` (the output's, the package's, the manifest's and the export's digests, and the signing
+key), `REPORT_FAILED` or `REPORT_REFUSED` — each in the requester's name. **A refusal is sent to the SIEM as
+`VECTI-SEC-033`**, an output refused included (its SHA-256 in the entry): an image without a verified signer
+asked to run, or a file that is not what it declared, is how a tampered plugin shows itself. A failure for an
+ordinary reason is audited, not signalled. A download records `REPORT_DOWNLOADED`, with the output's and the
+package's SHA-256, in the downloader's name.
 
 ## Refusals
 
@@ -180,7 +251,7 @@ ordinary reason is audited, not signalled.
 |---|---|
 | 400 | A manifest refused — the `detail` names the first thing wrong; a withdrawal without its justification. |
 | 403 | A role that may not make the gesture. |
-| 404 | A plugin, or a digest of it, that does not exist; a project that does not exist or that you do not see whole (`Project not found.`); a report asked of a plugin not switched on for the project, in the same words whether it exists or not. |
+| 404 | A plugin, or a digest of it, that does not exist; a project that does not exist or that you do not see whole (`Project not found.`); a report asked of a plugin not switched on for the project, in the same words whether it exists or not; the document of a run that did not produce, or whose bytes the evidence window purged — the run keeps its digests. |
 | 409 `report-plugin-id-taken` | The id is registered already. |
 | 409 `report-plugin-four-eyes` | Four-eyes is on and you registered this digest. |
 | 409 `report-plugin-not-pending` | The digest is not awaiting approval: approved, superseded or withdrawn. |
