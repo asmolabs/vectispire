@@ -32,7 +32,7 @@ public final class RepositoryUrl {
      * local path, not as a remote on {@code host}.
      */
     private static final Pattern SCP_FORM =
-            Pattern.compile("^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):(?!//)[A-Za-z0-9._/-]+$");
+            Pattern.compile("^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):(?!//)([A-Za-z0-9._/-]+)$");
 
     private static final String LINK_LOCAL_REFUSED =
             "The URL points at a link-local address, where the instance metadata lives. Clone from the forge's own address.";
@@ -220,6 +220,89 @@ public final class RepositoryUrl {
                 return false;
             }
         }).orElse(false);
+    }
+
+    /**
+     * What makes two URLs the same repository: {@code host/path}, whichever transport and spelling
+     * names it — decision 0037, §4. Empty when no host can be read ({@link #host}), which no URL
+     * {@link #validate} accepts can be.
+     *
+     * <p><b>The rule, exactly.</b> The host as {@link #normalizeHost} writes it — lower case, no
+     * trailing dot — and nothing of the scheme, the user part (a login, or a credential an old row
+     * still carries) or the port. Then the path: the SCP form's {@code git@host:group/repo} read as
+     * {@code group/repo}, runs of {@code /} folded to one, leading and trailing {@code /} removed, one
+     * trailing {@code .git} removed (and the slashes before it), lower case. So {@code
+     * git@GitLab.example.org:Team/API.git}, {@code ssh://git@gitlab.example.org:2222/team/api} and
+     * {@code https://user:token@gitlab.example.org/team/api/} are one repository, {@code
+     * gitlab.example.org/team/api}.
+     *
+     * <p><b>The port is dropped, not only the default one.</b> SSH and HTTPS reach the same repository
+     * on two ports — 22 and 443, or a forge's own {@code 2222} beside 443 — so keeping it would let the
+     * SSH and HTTPS URLs of one repository be filed twice, which is the defect this rule exists to
+     * prevent.
+     *
+     * <p><b>Its limits, accepted.</b> Lower-casing the path takes two repositories that differ only by
+     * case on a case-sensitive server for one; GitHub, GitLab and Bitbucket all refuse that, and the
+     * opposite — {@code Acme/API} typed as {@code acme/api} filed twice — is the common case. Dropping
+     * the port takes two servers sharing a host name on two ports for one. Nothing is resolved: two
+     * names of one server ({@code git.example.org} and {@code gitlab.example.org}, an IP and its name)
+     * are two identities, and so is a forge that serves its transports under different paths
+     * (Bitbucket Data Center's {@code /scm/} prefix over HTTPS). The path is compared as written, never
+     * percent-decoded. A host in Unicode is refused by {@link #validate}, so an internationalised name
+     * is compared in the punycode it has to be written in.
+     *
+     * <p><b>A stored value.</b> {@code t_repository.url_identity} holds it, computed by this method; a
+     * change to the rule leaves every stored identity describing the old one, so it comes with a
+     * recomputation of the column.
+     */
+    public static Optional<String> identity(String url) {
+        if (url == null) {
+            return Optional.empty();
+        }
+        String trimmed = url.trim();
+        Matcher scp = SCP_FORM.matcher(trimmed);
+        String path;
+        if (scp.matches()) {
+            path = scp.group(2);
+        } else {
+            if (host(trimmed).isEmpty()) {
+                return Optional.empty();
+            }
+            try {
+                path = new URI(trimmed).getRawPath();
+            } catch (Exception unreadable) {
+                return Optional.empty();
+            }
+        }
+        String host = host(trimmed).orElseThrow().toLowerCase(Locale.ROOT);
+        while (host.endsWith(".")) {
+            host = host.substring(0, host.length() - 1);
+        }
+        if (host.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(host + "/" + identityPath(path == null ? "" : path));
+    }
+
+    private static String identityPath(String path) {
+        String folded = path.toLowerCase(Locale.ROOT).replaceAll("/{2,}", "/");
+        folded = stripSlashes(folded);
+        if (folded.endsWith(".git")) {
+            folded = stripSlashes(folded.substring(0, folded.length() - ".git".length()));
+        }
+        return folded;
+    }
+
+    private static String stripSlashes(String value) {
+        int start = 0;
+        int end = value.length();
+        while (start < end && value.charAt(start) == '/') {
+            start++;
+        }
+        while (end > start && value.charAt(end - 1) == '/') {
+            end--;
+        }
+        return value.substring(start, end);
     }
 
     /**
