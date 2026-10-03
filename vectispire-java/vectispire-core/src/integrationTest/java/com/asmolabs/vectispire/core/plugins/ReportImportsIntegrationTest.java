@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoveragePackageRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity;
@@ -37,7 +39,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * each, so {@link ReportImportCatalog} batches them. PostgreSQL is the engine that refuses the
  * unbatched statement ("at most 65 535 parameters"); MySQL's client-side statements accept it, so a
  * green run on MySQL alone says nothing of the batching. The correlated {@code max(id)} and the
- * purge's subquery are what MySQL checks.
+ * purge's subquery are what MySQL checks. A coverage import's packages (V70) are read back with the
+ * top level's empty path and a path at the column's bound, which an engine could pad, trim or refuse.
  */
 @SpringBootTest(classes = VectispireApplication.class)
 @DisplayName("coverage and test-report imports on the engine")
@@ -73,6 +76,9 @@ class ReportImportsIntegrationTest {
     private TestReportImportRepository testReports;
 
     @Autowired
+    private CoveragePackageRepository packages;
+
+    @Autowired
     private TestSuiteResultRepository suites;
 
     @Autowired
@@ -81,6 +87,7 @@ class ReportImportsIntegrationTest {
     @BeforeEach
     void empty() {
         suites.deleteAll();
+        packages.deleteAll();
         testReports.deleteAll();
         coverage.deleteAll();
     }
@@ -115,21 +122,49 @@ class ReportImportsIntegrationTest {
     }
 
     @Test
-    @DisplayName("a repository's purge takes its suites through its imports, then the imports, and nobody else's")
+    @DisplayName("an import's packages read back by path, the empty top level and a path at the column's bound intact")
+    void packagesByPath() {
+        long imported = coverage(3, 5, null);
+        String longest = "org/" + "p".repeat(996);
+        coveragePackage(imported, "org/example/service", 4);
+        coveragePackage(imported, "", 1);
+        coveragePackage(imported, longest, 0);
+
+        assertThat(catalog.coveragePackages(imported)).extracting(CoveragePackageView::path)
+                .containsExactly("", "org/example/service", longest);
+        assertThat(catalog.coveragePackages(imported).getFirst().linesCovered()).isEqualTo(1);
+        assertThat(catalog.coveragePackages(imported).getFirst().branchesTotal()).as("not 0 of 0").isNull();
+    }
+
+    @Test
+    @DisplayName("a repository's purge takes its suites and packages through its imports, then the imports, and nobody else's")
     void purge() {
         testReport(7, "a".repeat(500));
         long kept = testReport(8, "com.example.KeptTest");
-        coverage(7, 1, null);
+        coveragePackage(coverage(7, 1, null), "org/example/gone", 1);
+        long keptCoverage = coverage(8, 1, null);
+        coveragePackage(keptCoverage, "org/example/kept", 1);
 
         transactions.executeWithoutResult(status -> {
             suites.deleteByRepository(7);
             testReports.deleteByRepository(7);
+            packages.deleteByRepository(7);
             coverage.deleteByRepository(7);
         });
 
         assertThat(testReports.findAll()).extracting(TestReportImportEntity::getRepoId).containsExactly(8L);
         assertThat(suites.findAll()).extracting(TestSuiteResultEntity::getImportId).containsExactly(kept);
-        assertThat(coverage.count()).isZero();
+        assertThat(coverage.findAll()).extracting(CoverageImportEntity::getRepoId).containsExactly(8L);
+        assertThat(packages.findAll()).extracting(CoveragePackageEntity::getImportId).containsExactly(keptCoverage);
+    }
+
+    private void coveragePackage(long importId, String path, long covered) {
+        CoveragePackageEntity row = new CoveragePackageEntity();
+        row.setImportId(importId);
+        row.setPath(path);
+        row.setLinesCovered(covered);
+        row.setLinesTotal(covered + 1);
+        packages.save(row);
     }
 
     private long coverage(long repositoryId, long covered, Long branchesTotal) {
