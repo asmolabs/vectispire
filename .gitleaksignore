@@ -1,0 +1,92 @@
+# gitleaks reads this file from the source root: each line is a finding's fingerprint,
+# commit:file:rule:line. A fingerprint pins one hit to its commit, file, rule and line, so the same
+# string in a new commit is a new finding and still fails — unlike widening `.gitleaks.toml`, which
+# would blind the scan to a value wherever it appears next. Every line below was read and judged
+# not a secret before being added; a new one needs the same reading, said in its commit.
+
+# The 28 hits of the first full-history scan, every one in a directory the project shed when it was
+# rewritten, in commits that can no longer be edited (formerly .gitleaks-baseline.json).
+0ad8d28bf4e9754fbdee2b43c87eedfa9fcc1a15:zanshin-java/zanshin-common/src/test/java/com/asmolabs/zanshin/common/domain/crypto/LocalKmsProviderTest.java:generic-api-key:16
+0ad8d28bf4e9754fbdee2b43c87eedfa9fcc1a15:zanshin-java/zanshin-common/src/test/java/com/asmolabs/zanshin/common/domain/crypto/LocalKmsProviderTest.java:generic-api-key:17
+1876a31cae7ce25b151604000bcb870aab44cb19:zanshin/zanshin-common/src/test/java/com/asmolabs/zanshin/common/domain/crypto/SealedEnvelopeTest.java:private-key:26
+1876a31cae7ce25b151604000bcb870aab44cb19:zanshin/zanshin-core/src/test/java/com/asmolabs/zanshin/core/services/EncryptionServiceTest.java:private-key:26
+30da22824cc55af06fc97fcbc8aaf014146f32f8:docs/ROTATION_AND_PURGE.md:generic-api-key:44
+3425dfe9723e967ac8c72f44f658a58717d03739:zanshin/zanshin-core/src/test/resources/application-apitest.yaml:generic-api-key:39
+374d43bd76527a84cb030be11a2e7e4e5a56a1fe:docs/GETTING_STARTED.md:generic-api-key:167
+374d43bd76527a84cb030be11a2e7e4e5a56a1fe:tests/scanners/test_local_api_engine.py:generic-api-key:75
+3b40be90f8dc221c175a0fa7786c228d9c6b9cd1:docs/ROTATION_ET_PURGE.md:generic-api-key:46
+3b40be90f8dc221c175a0fa7786c228d9c6b9cd1:tests/test_encryption_service.py:generic-api-key:32
+419154315b2dd51c397da4c1ff00a6f8efa48088:docs/ROTATION_AND_PURGE.md:generic-api-key:44
+5274f79ba4d789362529528cbee5af1884b8210a:backend/README.md:generic-api-key:5
+5274f79ba4d789362529528cbee5af1884b8210a:backend/src/common/encryption.service.spec.ts:generic-api-key:9
+7dae3a494c7f7049c8a9e16992646a41d6797b58:zanshin/zanshin-core/src/test/java/com/asmolabs/zanshin/core/services/ScanDispatcherTest.java:generic-api-key:48
+8650dc3916d4de1199b0133462fcaba76371eec8:zanshin/services/encryption_service.py:generic-api-key:8
+8a40bdd30d431bc7525950b99555a7ed3325e8f7:zanshin-java/zanshin-common/src/main/java/com/asmolabs/zanshin/common/domain/crypto/CosignSigner.java:private-key:111
+8e9a8e500bae45ba932ac2065de262c83b13a78d:.env.example:generic-api-key:15
+90c22ffe4cd8101341526a37d4f7261a65ddcf60:backend/src/api/agents.integration-spec.ts:generic-api-key:22
+a1cc3495a875449fb2d00dc32b73779707fb8592:.env.example:generic-api-key:15
+b2820a5e12283095ba0436a63ce717e5b41e133e:docs/ROTATION_ET_PURGE.md:generic-api-key:28
+c7c58fcbad445d1645fe29adc219b138e1084e5f:docs/ROTATION_ET_PURGE.md:generic-api-key:46
+d5b52cb5307db3ae553f9642fd7ca18c322e8b48:zanshin-java/zanshin-core/src/test/java/com/asmolabs/zanshin/core/services/EncryptionKeyFileDatabaseTest.java:generic-api-key:36
+d5b52cb5307db3ae553f9642fd7ca18c322e8b48:zanshin-java/zanshin-core/src/test/java/com/asmolabs/zanshin/core/services/EncryptionKeyFileTest.java:generic-api-key:26
+d5b52cb5307db3ae553f9642fd7ca18c322e8b48:zanshin-java/zanshin-core/src/test/java/com/asmolabs/zanshin/core/services/EncryptionKeyFileTest.java:generic-api-key:27
+d849c8a5d05171ea45724c8a21202734bed2e754:zanshin/services/encryption_service.py:generic-api-key:17
+dcecc244ee4b2af51a81f76af01975c22d7bf971:docs/architecture/bflorat/en/05_development_view.md:generic-api-key:58
+dcecc244ee4b2af51a81f76af01975c22d7bf971:docs/architecture/bflorat/fr/05_vue_developpement.md:generic-api-key:58
+ef07f6485a60cbf9905b6968cb274c87404f8b02:zanshin/zanshin-core/src/test/java/com/asmolabs/zanshin/core/services/TicketServiceTest.java:generic-api-key:31
+
+# That baseline itself, which quoted each of those 28 matches: the same values, in its own commits.
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:10
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:115
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:136
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:157
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:178
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:199
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:220
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:240
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:241
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:262
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:304
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:31
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:346
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:367
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:387
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:388
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:409
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:430
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:451
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:472
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:493
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:51
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:514
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:52
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:535
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:555
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:556
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:576
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:577
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:93
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:generic-api-key:94
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:private-key:282
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:private-key:283
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:private-key:324
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:private-key:325
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:private-key:72
+f880abc8a265fa23b1e534584642ef1076540496:.gitleaks-baseline.json:private-key:73
+
+# Test fixtures written after the scan went blind (see the `secrets` job): truncated or invented
+# keys and tokens a test hands to a scrubber or a form — a key cut to its header, `ghp_0123456789…`,
+# `vsp_3f9a_the-whole-secret`, `s3cr3t-partage-log`.
+6f19b73d8aea586f19ad30eae3610c080d2c26ca:vectispire-java/vectispire-agent/src/test/java/com/asmolabs/vectispire/agent/AgentLoopTest.java:private-key:80
+75968cb8c597064b59f7a170a083a35ed90ff86d:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/TicketWebhookLogTest.java:generic-api-key:24
+877a58a92391db530b4077ef1f6cb0e5615a87df:vectispire-java/vectispire-common/src/test/java/com/asmolabs/vectispire/common/domain/scans/FailureReasonTest.java:generic-api-key:28
+877a58a92391db530b4077ef1f6cb0e5615a87df:vectispire-java/vectispire-common/src/test/java/com/asmolabs/vectispire/common/domain/scans/FailureReasonTest.java:private-key:19
+9ef397010573607e9f4f92542fbf6e14a24a379b:vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/api/SiemCollectorCaRoutesTest.java:private-key:135
+bccf1c522d72a40deff261827bd2e850d21126e3:vectispire-angular/src/app/pages/api-keys/api-keys.spec.ts:generic-api-key:166
+bccf1c522d72a40deff261827bd2e850d21126e3:vectispire-angular/src/app/pages/ssh-keys/ssh-keys.spec.ts:private-key:110
+
+# `curl -u "$SONAR_TOKEN:"` in the CI examples: a variable reference, not a credential.
+a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.fr.md:curl-auth-user:451
+a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.fr.md:curl-auth-user:456
+a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:curl-auth-user:439
+a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:curl-auth-user:444

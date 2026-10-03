@@ -97,13 +97,35 @@ jobs:
         with:
           # The whole history: the scan reads commits, not the working tree.
           fetch-depth: 0
-      # **Scanned against a baseline, and the distinction from a wider allowlist matters.** The
+      # **Scanned against pinned fingerprints, and the distinction from a wider allowlist matters.** The
       # first run over the full history surfaced 28 hits, every one in a directory the project
       # shed when it was rewritten, in commits that can no longer be edited. Widening
       # `.gitleaks.toml` would have blinded the scan to those *values* wherever they appear next;
-      # a baseline pins each hit to its commit, file, rule and line, so the same string in a new
-      # commit is a new finding and still fails.
-      - run: gitleaks detect --source=. --config .gitleaks.toml --baseline-path .gitleaks-baseline.json --verbose
+      # `.gitleaksignore` pins each hit to its commit, file, rule and line (gitleaks reads it from the
+      # source root), so the same string in a new commit is a new finding and still fails. It replaced
+      # a JSON baseline that copied every finding's author email into the tree.
+      #
+      # **The scan had read nothing since the port, and said so in green.** In this container the
+      # checkout belongs to another user, git refuses it ("detected dubious ownership"), and gitleaks
+      # logs `0 commits scanned` and `no leaks found` and exits 0. Every push from 2026-08-25 to
+      # 2026-10-03 passed a secrets check that examined no commit. Trusting the workspace is the fix;
+      # refusing a run that scanned nothing, or logged an error, is what keeps the next silent
+      # failure from looking like a pass (AGENTS.md: never skip silently).
+      - name: scan the whole history, and refuse a scan that read nothing
+        run: |
+          git config --global --add safe.directory "$PWD"
+          status=0
+          gitleaks detect --source=. --config .gitleaks.toml --verbose > gitleaks.log 2>&1 || status=$?
+          cat gitleaks.log
+          # The log is coloured even off a terminal: read it without the escape sequences.
+          sed "s/$(printf '\033')\[[0-9;]*m//g" gitleaks.log > gitleaks.txt
+          if grep -q ' ERR ' gitleaks.txt; then
+            echo "::error::gitleaks logged an error: the scan cannot be trusted"; exit 1
+          fi
+          if ! grep -Eq ' [1-9][0-9]* commits scanned' gitleaks.txt; then
+            echo "::error::gitleaks scanned no commit"; exit 1
+          fi
+          exit "$status"
 
   docs-consistency:
     runs-on: ubuntu-latest
