@@ -234,12 +234,21 @@ class BuildSbomCompletionIntegrationTest {
                     }
                 }
                 if (second.isDone()) {
-                    throw new AssertionError("the second completion ended without ever waiting on the first");
+                    throw new AssertionError("the second completion ended without ever waiting on the first: "
+                            + outcome(second));
                 }
                 Thread.sleep(20);
             }
         }
         throw new AssertionError("the second completion never waited on the first one's rows");
+    }
+
+    private static String outcome(Future<?> done) {
+        try {
+            return "completed " + done.get();
+        } catch (Exception failed) {
+            return "failed " + failed.getCause();
+        }
     }
 
     private static void await(CountDownLatch latch) {
