@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.targets.web;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
@@ -20,6 +21,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -54,6 +56,21 @@ public class RepositoriesController {
 
     public record LastScan(Long id, String status, Instant createdAt, String error) {}
 
+    /**
+     * The schedule in force, as the server decides it — so that no screen holds a copy of the rule.
+     *
+     * @param mode {@code manual}, {@code cron}, {@code interval} or {@code default}
+     * @param intervalMinutes how often the target runs under {@code interval} or {@code default}; null
+     *     for a cron expression, for manual only, and for {@code default} when the installation has no
+     *     default interval — a target that, in effect, is not rescanned
+     */
+    public record ScheduleInForce(String mode, Long intervalMinutes) {
+
+        static ScheduleInForce of(Schedules.InForce inForce) {
+            return new ScheduleInForce(inForce.mode().wireName(), inForce.interval().map(Duration::toMinutes).orElse(null));
+        }
+    }
+
     public record RepositorySummary(
             Long id,
             String url,
@@ -63,6 +80,10 @@ public class RepositoriesController {
             String displayName,
             Integer scanIntervalMinutes,
             String scanCron,
+            // "Never rescan this", set by an operator — distinct from having no schedule, which is the
+            // installation's default interval since 0.11.0.
+            boolean scanManualOnly,
+            ScheduleInForce schedule,
             String requiredAgentLabel,
             UUID sshKeyId,
             UUID httpsTokenId,
@@ -97,7 +118,10 @@ public class RepositoriesController {
             String sshKeyId,
             String tier,
             // Same convention as the key: absent leaves it, empty clears it.
-            @JsonProperty("https_token_id") String httpsTokenId) {}
+            @JsonProperty("https_token_id") String httpsTokenId,
+            // Absent leaves it; true clears the interval and the expression, and is refused beside
+            // either; false returns the target to its interval, its expression or the default.
+            Boolean scanManualOnly) {}
 
     public record QueuedScan(Long id, String status) {}
 
@@ -201,6 +225,8 @@ public class RepositoriesController {
                 displayName(repository),
                 repository.scanIntervalMinutes(),
                 repository.scanCron(),
+                repository.scanManualOnly(),
+                ScheduleInForce.of(listed.schedule()),
                 repository.requiredAgentLabel(),
                 repository.sshKeyId(),
                 repository.httpsTokenId(),
@@ -226,7 +252,8 @@ public class RepositoriesController {
                 body.requiredAgentLabel(),
                 body.sshKeyId(),
                 body.tier(),
-                body.httpsTokenId());
+                body.httpsTokenId(),
+                body.scanManualOnly());
     }
 
     /**

@@ -10,10 +10,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.scanning.internal.LeaderElection;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.targets.TargetSchedules;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -40,6 +43,7 @@ class SchedulerServiceTest {
     private ContainerRepository containers;
     private ScanRepository scans;
     private LeaderElection election;
+    private SettingsService settings;
     private SchedulerService scheduler;
 
     private final List<ScanEntity> queued = new ArrayList<>();
@@ -50,12 +54,15 @@ class SchedulerServiceTest {
         containers = mock(ContainerRepository.class);
         scans = mock(ScanRepository.class);
         election = mock(LeaderElection.class);
+        settings = mock(SettingsService.class);
+        when(settings.asInt(Setting.SCAN_DEFAULT_INTERVAL_DAYS)).thenReturn(7);
 
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         scheduler = new SchedulerService(
-                new TargetCatalog(repositories, containers), scans, election, new TransactionTemplate(manager),
+                new TargetCatalog(repositories, containers), new TargetSchedules(settings), scans, election,
+                new TransactionTemplate(manager),
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         queued.clear();
@@ -103,7 +110,7 @@ class SchedulerServiceTest {
     @DisplayName("a target already waiting is stamped but not queued twice")
     void doesNotStackScans() {
         when(repositories.findAll()).thenReturn(List.of(repository(60, NOW.minusSeconds(7200))));
-        when(scans.countByStatusAndRepoId(anyString(), anyLong())).thenReturn(1L);
+        when(scans.countByStatusInAndRepoId(any(), anyLong())).thenReturn(1L);
 
         assertThat(scheduler.runOnce(NOW)).isZero();
         verify(repositories).stampScheduled(1L, NOW);
@@ -204,6 +211,63 @@ class SchedulerServiceTest {
 
         // Falling back would start a drifting schedule the operator never asked for.
         assertThat(scheduler.runOnce(NOW)).isZero();
+    }
+
+    @Test
+    @DisplayName("the queue check counts a running scan as well as a waiting one")
+    void aRunningScanIsTheRound() {
+        when(repositories.findAll()).thenReturn(List.of(repository(60, NOW.minusSeconds(7200))));
+
+        scheduler.runOnce(NOW);
+
+        // Under a weekly default a slow scan can still be running when the round comes; queueing the
+        // same examination behind it learns nothing.
+        verify(scans).countByStatusInAndRepoId(List.of("pending", "scanning"), 1L);
+    }
+
+    @Test
+    @DisplayName("a target with no schedule of its own is queued on the default interval")
+    void theDefaultSchedulesAnUnscheduledTarget() {
+        RepositoryEntity unscheduled = repository(0, null);
+        unscheduled.setScanIntervalMinutes(null);
+        ContainerEntity image = container();
+        image.setScanIntervalMinutes(null);
+        image.setLastScheduledScanAt(null);
+        when(repositories.findAll()).thenReturn(List.of(unscheduled));
+        when(containers.findAll()).thenReturn(List.of(image));
+
+        assertThat(scheduler.runOnce(NOW)).isEqualTo(2);
+        verify(repositories).stampScheduled(1L, NOW);
+    }
+
+    @Test
+    @DisplayName("under the default, a target picked up at the upgrade waits for its own moment in the week")
+    void theDefaultWaitsForTheSlot() {
+        // Stamped at the upgrade an instant ago: whatever its moment, it has not come round yet.
+        when(repositories.findAll()).thenReturn(List.of(repository(0, NOW.minusSeconds(1))));
+
+        assertThat(scheduler.runOnce(NOW)).isZero();
+        verify(repositories, never()).stampScheduled(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("a default of zero leaves a target with no schedule alone, as before 0.11.0")
+    void noDefaultNoRound() {
+        when(settings.asInt(Setting.SCAN_DEFAULT_INTERVAL_DAYS)).thenReturn(0);
+        when(repositories.findAll()).thenReturn(List.of(repository(0, null)));
+
+        assertThat(scheduler.runOnce(NOW)).isZero();
+    }
+
+    @Test
+    @DisplayName("a target set to manual only is never queued, whatever it carries")
+    void manualOnlyIsNeverQueued() {
+        RepositoryEntity manual = repository(1, null);
+        manual.setScanManualOnly(true);
+        when(repositories.findAll()).thenReturn(List.of(manual));
+
+        assertThat(scheduler.runOnce(NOW)).isZero();
+        verify(repositories, never()).stampScheduled(anyLong(), any());
     }
 
     private static RepositoryEntity repository(int intervalMinutes, Instant lastScheduled) {

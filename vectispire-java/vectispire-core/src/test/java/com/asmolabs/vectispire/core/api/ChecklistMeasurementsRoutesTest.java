@@ -353,6 +353,18 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             JsonNode unscheduled = measurements(developer, project, 1).at("/lines/0/measurement");
             assertThat(unscheduled.at("/outcome").asText()).isEqualTo("fail");
             assertThat(repository(unscheduled, first).at("/detail").asText()).contains("not scheduled at least every 7 days");
+
+            // No schedule of its own is the installation's default since 0.11.0, a week: it matches.
+            RepositoryEntity defaulted = repositories.findById(first).orElseThrow();
+            defaulted.setScanIntervalMinutes(null);
+            repositories.save(defaulted);
+            assertThat(measurements(developer, project, 1).at("/lines/0/measurement/outcome").asText()).isEqualTo("pass");
+
+            // Manual only never runs, whatever the default.
+            RepositoryEntity manual = repositories.findById(first).orElseThrow();
+            manual.setScanManualOnly(true);
+            repositories.save(manual);
+            assertThat(measurements(developer, project, 1).at("/lines/0/measurement/outcome").asText()).isEqualTo("fail");
         }
 
         @Test

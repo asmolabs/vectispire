@@ -27,9 +27,9 @@ import com.asmolabs.vectispire.core.plugins.SarifImportView;
 import com.asmolabs.vectispire.core.scanning.PluginOutcome;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow;
-import com.asmolabs.vectispire.core.targets.CronExpressions;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.targets.TargetSchedules;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -74,15 +74,17 @@ class ChecklistMeasurer {
     private final ComponentCatalog components;
     private final TargetCatalog targets;
     private final PluginService plugins;
+    private final TargetSchedules schedules;
 
     ChecklistMeasurer(ScanCatalog scans, IssueCatalog issues, ReportImportCatalog imports, ComponentCatalog components,
-            TargetCatalog targets, PluginService plugins) {
+            TargetCatalog targets, PluginService plugins, TargetSchedules schedules) {
         this.scans = scans;
         this.issues = issues;
         this.imports = imports;
         this.components = components;
         this.targets = targets;
         this.plugins = plugins;
+        this.schedules = schedules;
     }
 
     /** Every bound line of {@code items}, measured over these repositories at {@code now}, in their order. */
@@ -267,17 +269,18 @@ class ChecklistMeasurer {
         return answer;
     }
 
-    /** Whether each repository's schedule runs it at least once per maximum age — the cron first, as the scheduler reads it. */
+    /**
+     * Whether each repository's schedule runs it at least once per maximum age — the schedule in force,
+     * as the scheduler reads it: manual only never, the cron first, then its interval or the default.
+     */
     private Map<Long, Boolean> scheduled(List<Long> repositories, Duration maxAge, Instant now) {
         Map<Long, Boolean> scheduled = new HashMap<>();
+        Duration defaultInterval = schedules.defaultInterval();
         for (int from = 0; from < repositories.size(); from += LOOKUP_BATCH) {
             for (RepositoryView repository : targets.repositories(
                     repositories.subList(from, Math.min(from + LOOKUP_BATCH, repositories.size())))) {
-                Duration interval = repository.scanIntervalMinutes() == null
-                        ? Duration.ZERO
-                        : Duration.ofMinutes(repository.scanIntervalMinutes());
-                scheduled.put(repository.id(), Schedules.runsAtLeastEvery(CronExpressions.parse(repository.scanCron()),
-                        interval, maxAge, now));
+                scheduled.put(repository.id(),
+                        Schedules.runsAtLeastEvery(TargetSchedules.of(repository), defaultInterval, maxAge, now));
             }
         }
         return scheduled;

@@ -23,6 +23,7 @@ describe('the container list', () => {
         reference: 'nginx@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
         tag: 'sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
         openIssues: 12,
+        scanManualOnly: false,
         lastScan: { id: 18, status: 'completed', createdAt: '2026-08-21T05:03:00Z', error: null }
     });
 
@@ -100,13 +101,28 @@ describe('the container list', () => {
         expect(text.includes('Never scanned') || text.includes('scans.never_scanned')).toBe(true);
     });
 
-    it('says an image with no schedule is scanned only when somebody asks', () => {
-        load();
+    it('says an image with no schedule of its own runs on the default, and how often', () => {
+        load({ ...CONTAINER, schedule: { mode: 'default', intervalMinutes: 10080 } });
+        expect(fixture.nativeElement.textContent).toContain('weekly (default)');
+    });
+
+    it('says an image set to manual only is scanned only when somebody asks', () => {
+        load({ ...CONTAINER, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
         expect(fixture.nativeElement.textContent).toContain('manual only');
     });
 
+    it('says a custom interval in hours rather than in minutes', () => {
+        load({ ...CONTAINER, scanIntervalMinutes: 360, schedule: { mode: 'interval', intervalMinutes: 360 } });
+        expect(fixture.nativeElement.textContent).toContain('every 6 h');
+    });
+
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
-        load({ ...CONTAINER, scanIntervalMinutes: 60, scanCron: '0 3 * * *' });
+        load({
+            ...CONTAINER,
+            scanIntervalMinutes: 60,
+            scanCron: '0 3 * * *',
+            schedule: { mode: 'cron', intervalMinutes: null }
+        });
         // Read through the English bundle, so the expression itself is asserted: it can only be
         // reached by the branch that prefers the expression over the interval.
         expect(fixture.nativeElement.textContent).toContain('cron 0 3 * * *');

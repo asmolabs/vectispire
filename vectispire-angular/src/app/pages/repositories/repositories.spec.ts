@@ -29,6 +29,7 @@ describe('the repository list', () => {
         scanIntervalMinutes: null,
         scanCron: null,
         openIssues: 38,
+        scanManualOnly: false,
         lastScan: {
             id: 34,
             status: 'completed',
@@ -174,15 +175,28 @@ describe('the repository list', () => {
         http.verify();
     });
 
-    it('says a target with no schedule is scanned only when somebody asks', () => {
-        load();
+    it('says a target with no schedule of its own runs on the default, as the server says', () => {
+        load({ ...REPOSITORY, schedule: { mode: 'default', intervalMinutes: 10080 } });
+        // Until 0.11.0 this said "manual only" — worked out here, from two empty fields, on the day the
+        // server started rescanning such a target weekly. The server's answer is what is shown now.
+        expect(fixture.nativeElement.textContent).toContain('schedule.label_default');
+        expect(fixture.nativeElement.textContent).not.toContain('schedule.label_manual');
+    });
+
+    it('says a target set to manual only is scanned only when somebody asks', () => {
+        load({ ...REPOSITORY, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
         // A blank schedule column reads as "nothing to say here"; the target is in fact never
         // rescanned, which is the one thing about it worth knowing.
         expect(fixture.nativeElement.textContent).toContain('schedule.label_manual');
     });
 
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
-        load({ ...REPOSITORY, scanIntervalMinutes: 60, scanCron: '0 2 * * *' });
+        load({
+            ...REPOSITORY,
+            scanIntervalMinutes: 60,
+            scanCron: '0 2 * * *',
+            schedule: { mode: 'cron', intervalMinutes: null }
+        });
 
         const text = fixture.nativeElement.textContent as string;
         // The key, since the label is translated now and this harness leaves keys
@@ -190,7 +204,7 @@ describe('the repository list', () => {
         // by the branch that prefers the expression over the interval.
         expect(text).toContain('schedule.label_cron');
         // Showing "every 60 min" would be a third opinion on a precedence the server already owns.
-        expect(text).not.toContain('schedule.label_every');
+        expect(text).not.toContain('schedule.every_');
     });
 
     /**
@@ -228,6 +242,19 @@ describe('the repository list', () => {
         // the operator would believe the schedule was off and the scans would carry on.
         expect(body.scanIntervalMinutes).toBe(0);
         expect(body.scanCron).toBe('');
+        expect(body.scanManualOnly).toBe(false);
+    });
+
+    it('sends manual only as the dialog shows it, prefilled from the row', () => {
+        load({ ...REPOSITORY, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
+
+        fixture.componentInstance.openForm(fixture.componentInstance.repositories()[0]);
+        expect(fixture.componentInstance.form.scanManualOnly).toBe(true);
+        fixture.componentInstance.submit();
+
+        // Sent on the update path: absent would leave it alone, which is right only by luck.
+        const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+        expect(body.scanManualOnly).toBe(true);
     });
 
     it("surfaces the server's refusal of a cron expression instead of a generic failure", () => {

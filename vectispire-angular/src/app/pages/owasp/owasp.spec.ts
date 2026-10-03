@@ -62,7 +62,8 @@ describe('the OWASP report screen', () => {
                     displayName: 'Arm Libs Spring',
                     url: 'ssh://git@example.com/art/arm.git',
                     branch: 'master',
-                    openIssues: 0
+                    openIssues: 0,
+                    scanManualOnly: false
                 }
             ])
         );

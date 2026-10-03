@@ -102,11 +102,11 @@
     "unroutable_notice_one": "{{count}} analyse requiert le label « {{label}} », qu'aucun agent actif ne possède et que le worker intégré ne sert pas. Elle attendra qu'un agent compatible soit déclaré.",
     "unroutable_notice_other": "{{count}} analyses requièrent le label « {{label}} », qu'aucun agent actif ne possède et que le worker intégré ne sert pas. Elles attendront qu'un agent compatible soit déclaré.",
     "credentialed_backlog": {
-        "notice_one": "{{count}} analyse d'un dépôt portant une clé de déploiement ou un jeton HTTPS attend un exécuteur à qui le confier (étiquette : {{labels}}), et aucun ne peut la prendre.",
-        "notice_other": "{{count}} analyses de dépôts portant une clé de déploiement ou un jeton HTTPS attendent un exécuteur à qui le confier (étiquette : {{labels}}), et aucun ne peut les prendre.",
-        "kept": "{{agents}} les prendrait mais n'a pas de clé de scellement vérifiée par sa clé de signature épinglée : épinglez une clé de signature sur sa ligne (l'icône cadenas), placez la moitié privée dans VECTISPIRE_AGENT_SIGNING_KEY dans sa configuration, puis lancez un agent de cette version et redémarrez-le.",
-        "nobody": "Aucun exécuteur actif ne porte cette étiquette : déclarez un agent local, ou un agent délégué avec une clé de signature épinglée, qui la porte — ou activez le worker intégré avec cette étiquette.",
-        "no_label": "aucune"
+      "notice_one": "{{count}} analyse d'un dépôt portant une clé de déploiement ou un jeton HTTPS attend un exécuteur à qui le confier (étiquette : {{labels}}), et aucun ne peut la prendre.",
+      "notice_other": "{{count}} analyses de dépôts portant une clé de déploiement ou un jeton HTTPS attendent un exécuteur à qui le confier (étiquette : {{labels}}), et aucun ne peut les prendre.",
+      "kept": "{{agents}} les prendrait mais n'a pas de clé de scellement vérifiée par sa clé de signature épinglée : épinglez une clé de signature sur sa ligne (l'icône cadenas), placez la moitié privée dans VECTISPIRE_AGENT_SIGNING_KEY dans sa configuration, puis lancez un agent de cette version et redémarrez-le.",
+      "nobody": "Aucun exécuteur actif ne porte cette étiquette : déclarez un agent local, ou un agent délégué avec une clé de signature épinglée, qui la porte — ou activez le worker intégré avec cette étiquette.",
+      "no_label": "aucune"
     },
     "wait_time": "Temps d'attente",
     "error_load": "Impossible de charger la liste des agents.",
@@ -2064,16 +2064,24 @@
   "schedule": {
     "cron_hint": "Cinq champs — minute, heure, jour du mois, mois, jour de la semaine. 0 2 * * * correspond à chaque jour à 02h00, 0 */6 * * * toutes les 6 heures. Les erreurs sont signalées immédiatement.",
     "cron_label": "Expression cron",
-    "cron_wins": "Les deux champs sont renseignés : l'expression cron prévaut. L'intervalle reste mémorisé en cas d'effacement du cron.",
     "cron_wins_warning": "Les deux sont renseignés : la planification cron l'emporte, l'intervalle est ignoré.",
-    "interval_hint": "Calculé à partir de la fin du dernier scan programmé : préférez une expression cron si l'heure exacte est importante.",
+    "interval_hint": "Compté à partir du dernier passage programmé, il dérive : préférez une expression cron si l'heure compte. Zéro ou vide : le défaut de l'installation.",
     "interval_label": "Intervalle entre deux scans (minutes)",
     "label_cron": "cron {{cron}}",
-    "label_every": "toutes les {{minutes}} min",
     "label_manual": "manuel uniquement",
-    "manual_only": "Les deux champs sont vides : cette cible est analysée uniquement à la demande. Aucun planning automatique par défaut.",
-    "manual_only_warning": "Ni intervalle ni cron : cette cible ne sera scannée que sur demande.",
-    "rescan_interval": "Réanalyser toutes les"
+    "manual_only_warning": "Manuel uniquement : cette cible est analysée quand quelqu'un le demande, jamais par la planification, quel que soit le défaut.",
+    "weekly": "chaque semaine",
+    "daily": "chaque jour",
+    "every_weeks": "toutes les {{n}} semaines",
+    "every_days": "tous les {{n}} jours",
+    "every_hours": "toutes les {{n}} h",
+    "every_minutes": "toutes les {{n}} min",
+    "label_default": "{{every}} (par défaut)",
+    "label_no_default": "pas de réanalyse (aucun défaut)",
+    "manual_only_label": "Manuel uniquement — jamais de réanalyse automatique",
+    "default_hint": "Ni intervalle ni expression cron : cette cible est réanalysée selon le défaut de l'installation, {{every}}, à un moment qui lui est propre dans l'intervalle.",
+    "default_none_hint": "Ni intervalle ni expression cron, et cette installation n'a pas d'intervalle par défaut : la cible n'est analysée qu'à la demande.",
+    "default_unknown_hint": "Ni intervalle ni expression cron : cette cible est réanalysée selon l'intervalle par défaut de l'installation (Réglages › Scanners)."
   },
   "scope": {
     "title": "Périmètre certifié",
@@ -2259,6 +2267,10 @@
       "ticket_url": {
         "label": "URL du serveur de tickets",
         "help": "Point d'accès de votre instance Jira, GitLab ou API GitHub."
+      },
+      "scan_default_interval_days": {
+        "label": "Intervalle de réanalyse par défaut (jours)",
+        "help": "La fréquence de réanalyse d'un dépôt ou d'une image qui n'a ni intervalle ni expression cron — c'est-à-dire toute cible ajoutée sans toucher à la planification. L'intervalle ou l'expression d'une cible l'emporte toujours, et une cible « manuel uniquement » n'est jamais réanalysée. Chaque cible a son propre moment dans l'intervalle : un parc est étalé sur la semaine au lieu d'être analysé d'un coup. Zéro : pas de défaut, une cible sans planification n'est alors plus réanalysée, comme avant la 0.11.0."
       }
     },
     "last_sync": "Dernière lecture du catalogue KEV",
@@ -2274,7 +2286,8 @@
       "local_ai": "Revue IA",
       "ticketing": "Intégration Ticketing (Jira / GitHub / GitLab)",
       "notifications": "Notifications & Alertes",
-      "retention": "Rétention & Purge des données"
+      "retention": "Rétention & Purge des données",
+      "scheduling": "Planification des analyses"
     },
     "settings_saved": "Paramètres enregistrés.",
     "siem_auth": "En-tête d'autorisation (Header)",

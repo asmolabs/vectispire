@@ -102,11 +102,11 @@
     "unroutable_notice_one": "{{count}} scan requires the label \"{{label}}\", which no enabled agent carries and the built-in worker does not serve. It will wait until somebody declares it.",
     "unroutable_notice_other": "{{count}} scans require the label \"{{label}}\", which no enabled agent carries and the built-in worker does not serve. They will wait until somebody declares it.",
     "credentialed_backlog": {
-        "notice_one": "{{count}} scan of a repository with a deployment key or an HTTPS token is waiting for an executor that may be handed it (label: {{labels}}), and none can take it.",
-        "notice_other": "{{count}} scans of repositories with a deployment key or an HTTPS token are waiting for an executor that may be handed it (label: {{labels}}), and none can take them.",
-        "kept": "{{agents}} would take them but holds no sealing key verified with its pinned signing key: pin a signing key on its row (the lock icon), set the private half as VECTISPIRE_AGENT_SIGNING_KEY in its configuration, then run an agent of this version and restart it.",
-        "nobody": "No enabled executor carries that label: declare a local agent, or a delegated one with a pinned signing key, that does — or switch the built-in worker on with that label.",
-        "no_label": "none"
+      "notice_one": "{{count}} scan of a repository with a deployment key or an HTTPS token is waiting for an executor that may be handed it (label: {{labels}}), and none can take it.",
+      "notice_other": "{{count}} scans of repositories with a deployment key or an HTTPS token are waiting for an executor that may be handed it (label: {{labels}}), and none can take them.",
+      "kept": "{{agents}} would take them but holds no sealing key verified with its pinned signing key: pin a signing key on its row (the lock icon), set the private half as VECTISPIRE_AGENT_SIGNING_KEY in its configuration, then run an agent of this version and restart it.",
+      "nobody": "No enabled executor carries that label: declare a local agent, or a delegated one with a pinned signing key, that does — or switch the built-in worker on with that label.",
+      "no_label": "none"
     },
     "wait_time": "Wait Time",
     "error_load": "Could not load the agent list.",
@@ -2064,16 +2064,24 @@
   "schedule": {
     "cron_hint": "Five fields — minute, hour, day of month, month, day of week. 0 2 * * * is every day at 02:00, 0 */6 * * * every six hours. The server refuses an expression it cannot read, so a mistake here is reported rather than saved.",
     "cron_label": "Cron expression",
-    "cron_wins": "Both are set, so the cron expression is what runs. The interval stays on the target and takes over again if the expression is cleared.",
     "cron_wins_warning": "Both are set: the cron schedule wins and the interval is ignored.",
-    "interval_hint": "Counted from the end of the last scheduled round, so it drifts: use a cron expression when the hour matters.",
+    "interval_hint": "Counted from the last scheduled round, so it drifts: use a cron expression when the hour matters. Zero or empty: the installation's default.",
     "interval_label": "Interval between scans (minutes)",
     "label_cron": "cron {{cron}}",
-    "label_every": "every {{minutes}} min",
     "label_manual": "manual only",
-    "manual_only": "Both are empty: this target is scanned only when somebody asks. There is no default schedule.",
-    "manual_only_warning": "Neither interval nor cron: this target will only be scanned on request.",
-    "rescan_interval": "Rescan every"
+    "manual_only_warning": "Manual only: this target is scanned when somebody asks, and never by the schedule, whatever the default.",
+    "weekly": "weekly",
+    "daily": "daily",
+    "every_weeks": "every {{n}} weeks",
+    "every_days": "every {{n}} days",
+    "every_hours": "every {{n}} h",
+    "every_minutes": "every {{n}} min",
+    "label_default": "{{every}} (default)",
+    "label_no_default": "not rescanned (no default)",
+    "manual_only_label": "Manual only — never rescan automatically",
+    "default_hint": "Neither an interval nor a cron expression: this target is rescanned on the installation's default, {{every}}, at a moment of its own in the interval.",
+    "default_none_hint": "Neither an interval nor a cron expression, and this installation has no default interval: the target is scanned only when somebody asks.",
+    "default_unknown_hint": "Neither an interval nor a cron expression: this target is rescanned on the installation's default interval (Settings › Scanners)."
   },
   "scope": {
     "title": "Certified scope",
@@ -2156,7 +2164,8 @@
       "local_ai": "AI Review",
       "ticketing": "Ticketing (Jira, GitHub Issues, GitLab)",
       "notifications": "Notifications",
-      "retention": "Retention & Purge"
+      "retention": "Retention & Purge",
+      "scheduling": "Scheduling"
     },
     "settings_saved": "Settings saved.",
     "siem_auth": "Authorization Header",

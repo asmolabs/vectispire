@@ -4982,6 +4982,7 @@ export interface components {
             scanCron?: string;
             /** Format: int32 */
             scanIntervalMinutes?: number;
+            scanManualOnly?: boolean;
             tag?: string;
             tier?: string;
         };
@@ -5009,6 +5010,8 @@ export interface components {
             scanCron?: string;
             /** Format: int32 */
             scanIntervalMinutes?: number;
+            scanManualOnly: boolean;
+            schedule?: components["schemas"]["ScheduleInForce"];
             tag?: string;
             tier?: string;
         };
@@ -6624,6 +6627,7 @@ export interface components {
             scanCron?: string;
             /** Format: int32 */
             scanIntervalMinutes?: number;
+            scanManualOnly?: boolean;
             sshKeyId?: string;
             subPath?: string;
             tier?: string;
@@ -6672,6 +6676,8 @@ export interface components {
             scanCron?: string;
             /** Format: int32 */
             scanIntervalMinutes?: number;
+            scanManualOnly: boolean;
+            schedule?: components["schemas"]["ScheduleInForce"];
             /** Format: uuid */
             sshKeyId?: string;
             subPath?: string;
@@ -6951,6 +6957,11 @@ export interface components {
             targetId?: number;
             targetKind?: string;
             targetName?: string;
+        };
+        ScheduleInForce: {
+            /** Format: int64 */
+            intervalMinutes?: number;
+            mode?: string;
         };
         ScimGroupDto: {
             displayName?: string;

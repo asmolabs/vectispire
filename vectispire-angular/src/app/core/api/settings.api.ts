@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { OllamaCheck, SettingDefinition } from '../api.models';
 
 /**
@@ -19,6 +19,21 @@ export class SettingsApi {
 
     settings(): Observable<{ settings: SettingDefinition[] }> {
         return this.http.get<{ settings: SettingDefinition[] }>('/api/v1/settings');
+    }
+
+    /**
+     * The installation's default rescan interval in minutes — zero when there is none, `null` when the
+     * catalogue does not carry it — for the schedule dialogs to say how often "nothing set" runs.
+     */
+    defaultScanIntervalMinutes(): Observable<number | null> {
+        return this.settings().pipe(
+            map((catalog) => {
+                const days = Number(
+                    catalog?.settings?.find((setting) => setting.key === 'scan_default_interval_days')?.value
+                );
+                return Number.isFinite(days) && days >= 0 ? days * 24 * 60 : null;
+            })
+        );
     }
 
     updateSettings(values: Record<string, string>): Observable<{ updated: number }> {

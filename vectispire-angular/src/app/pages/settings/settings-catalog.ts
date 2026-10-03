@@ -173,7 +173,9 @@ export class SettingsCatalog {
             firstKey.startsWith('scanner_') ||
             firstKey.startsWith('sast_') ||
             firstKey.startsWith('source_code') ||
+            firstKey.startsWith('scan_default_') ||
             lowerName.includes('scanner') ||
+            lowerName.includes('scheduling') ||
             lowerName.includes('source code')
         ) {
             return 'scanners';
@@ -223,6 +225,7 @@ export class SettingsCatalog {
         if (firstKey.startsWith('sla_')) return this.i18n.t('settings.sections.remediation_slas');
         if (firstKey.startsWith('scanner_')) return this.i18n.t('settings.sections.scanner_engine');
         if (firstKey.startsWith('eol_')) return this.i18n.t('settings.sections.end_of_life');
+        if (firstKey.startsWith('scan_default_')) return this.i18n.t('settings.sections.scheduling');
         if (firstKey.startsWith('sast_') || firstKey.startsWith('source_code'))
             return this.i18n.t('settings.sections.source_code');
         if (firstKey.startsWith('enrichment_')) return this.i18n.t('settings.sections.enrichment');

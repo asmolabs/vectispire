@@ -96,6 +96,43 @@ class SchedulerDatabaseTest extends VectispireContextTest {
         });
     }
 
+    @Test
+    @DisplayName("a target with no schedule is queued on the default; one set to manual only is not")
+    void theDefaultAndManualOnly() {
+        RepositoryEntity unscheduled = new RepositoryEntity();
+        unscheduled.setUrl("https://example.invalid/unscheduled.git");
+        unscheduled.setBranch("main");
+        long defaulted = repositories.save(unscheduled).getId();
+
+        RepositoryEntity manual = new RepositoryEntity();
+        manual.setUrl("https://example.invalid/manual.git");
+        manual.setBranch("main");
+        manual.setScanManualOnly(true);
+        long manualOnly = repositories.save(manual).getId();
+
+        assertThat(scheduler.runOnce(Instant.now())).isEqualTo(1);
+        assertThat(pendingFor(defaulted)).hasSize(1);
+        assertThat(pendingFor(manualOnly)).isEmpty();
+        assertThat(repositories.findById(manualOnly).orElseThrow().getLastScheduledScanAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("a target whose scan is running is stamped and not queued behind it")
+    void aRunningScanIsNotDoubled() {
+        long id = due();
+        ScanEntity running = new ScanEntity();
+        running.setRepoId(id);
+        running.setBranch("main");
+        running.setStatus(ScanStatus.SCANNING.wireName());
+        running.setCreatedAt(Instant.now().minus(1, ChronoUnit.HOURS));
+        scans.save(running);
+
+        assertThat(scheduler.runOnce(Instant.now())).isZero();
+        assertThat(pendingFor(id)).isEmpty();
+        assertThat(repositories.findById(id).orElseThrow().getLastScheduledScanAt())
+                .isAfter(Instant.now().minus(1, ChronoUnit.MINUTES));
+    }
+
     private long due() {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl("https://example.invalid/due-" + System.nanoTime() + ".git");

@@ -2649,6 +2649,9 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "scanManualOnly" : {
+            "type" : "boolean"
+          },
           "tag" : {
             "type" : "string"
           },
@@ -2716,6 +2719,12 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "scanManualOnly" : {
+            "type" : "boolean"
+          },
+          "schedule" : {
+            "$ref" : "#/components/schemas/ScheduleInForce"
+          },
           "tag" : {
             "type" : "string"
           },
@@ -2723,7 +2732,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "openIssues" ],
+        "required" : [ "openIssues", "scanManualOnly" ],
         "type" : "object"
       },
       "ControlAssessment" : {
@@ -7030,6 +7039,9 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "scanManualOnly" : {
+            "type" : "boolean"
+          },
           "sshKeyId" : {
             "type" : "string"
           },
@@ -7152,6 +7164,12 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "scanManualOnly" : {
+            "type" : "boolean"
+          },
+          "schedule" : {
+            "$ref" : "#/components/schemas/ScheduleInForce"
+          },
           "sshKeyId" : {
             "format" : "uuid",
             "type" : "string"
@@ -7166,7 +7184,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "openIssues" ],
+        "required" : [ "openIssues", "scanManualOnly" ],
         "type" : "object"
       },
       "Result" : {
@@ -7934,6 +7952,18 @@
           }
         },
         "required" : [ "attempts", "findingsCount", "newIssuesCount", "resolvedIssuesCount" ],
+        "type" : "object"
+      },
+      "ScheduleInForce" : {
+        "properties" : {
+          "intervalMinutes" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "mode" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ScimGroupDto" : {

@@ -45,6 +45,17 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     long countByStatusAndContainerId(String status, Long containerId);
 
     /**
+     * How many scans of this target are waiting or running.
+     *
+     * <p>The scheduler's question, wider than the button's: a target whose scan is under way when its
+     * round comes needs no second one queued behind it — the one running is the round. The button
+     * still queues behind a running scan, because whoever presses it may have just pushed the fix.
+     */
+    long countByStatusInAndRepoId(Collection<String> statuses, Long repoId);
+
+    long countByStatusInAndContainerId(Collection<String> statuses, Long containerId);
+
+    /**
      * The scans this claimant may take, due by {@code asOf}, in claim order.
      *
      * <p>Paired with {@link #take}: the candidates are read, then each is taken by a

@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.targets.ContainerAdministrationService;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.web.RepositoriesController.LastScan;
 import com.asmolabs.vectispire.core.targets.web.RepositoriesController.QueuedScan;
+import com.asmolabs.vectispire.core.targets.web.RepositoriesController.ScheduleInForce;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -56,6 +57,8 @@ public class ContainersController {
             String displayName,
             Integer scanIntervalMinutes,
             String scanCron,
+            boolean scanManualOnly,
+            ScheduleInForce schedule,
             String requiredAgentLabel,
             Instant lastScheduledScanAt,
             LastScan lastScan,
@@ -75,7 +78,8 @@ public class ContainersController {
             Integer scanIntervalMinutes,
             String scanCron,
             @JsonProperty("required_agent_label") String requiredAgentLabel,
-            String tier) {}
+            String tier,
+            Boolean scanManualOnly) {}
 
     @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
@@ -112,10 +116,11 @@ public class ContainersController {
      *
      * <p><b>The interval is the one field that cannot be cleared by emptiness</b>, because it is
      * an {@code Integer} and not a string: {@code null} is already spoken for as "leave alone", so
-     * a caller switching a rescan off has to send {@code 0} — which is what {@code
-     * Schedules.intervalDue} reads as manual-only anyway. {@code scanCron} has no such problem,
-     * the empty string being distinguishable from absent, and does clear the expression. That
-     * asymmetry is the frontend's to honour: it sends zero, not nothing.
+     * a caller clearing the interval has to send {@code 0}, which returns the target to the
+     * installation's default interval — not to manual only, which is {@code scanManualOnly} since
+     * 0.11.0. {@code scanCron} has no such problem, the empty string being distinguishable from
+     * absent, and does clear the expression. That asymmetry is the frontend's to honour: it sends
+     * zero, not nothing.
      *
      * <p><b>Changing the reference keeps the issues.</b> The fingerprint does not include the
      * image, so the backlog attached to this row survives and now describes a different image —
@@ -174,6 +179,8 @@ public class ContainersController {
                 reference.displayName(),
                 container.scanIntervalMinutes(),
                 container.scanCron(),
+                container.scanManualOnly(),
+                ScheduleInForce.of(listed.schedule()),
                 container.requiredAgentLabel(),
                 container.lastScheduledScanAt(),
                 listed.latestScan()
@@ -193,7 +200,8 @@ public class ContainersController {
                 body.scanIntervalMinutes(),
                 body.scanCron(),
                 body.requiredAgentLabel(),
-                body.tier());
+                body.tier(),
+                body.scanManualOnly());
     }
 
     private static ImageReference referenceOf(ContainerView container) {

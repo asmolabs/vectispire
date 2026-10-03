@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import java.util.Arrays;
@@ -62,6 +63,16 @@ public enum Setting {
                     + "never fail a build and never trigger a notification. Switching this off leaves existing "
                     + "findings open rather than resolving them.",
             "false"),
+
+    SCAN_DEFAULT_INTERVAL_DAYS("scan_default_interval_days", SettingType.INTEGER, Section.SCHEDULING,
+            "Default rescan interval (days)",
+            "How often a repository or an image is rescanned when it has neither an interval nor a cron "
+                    + "expression of its own — which is every target added without touching the schedule. A "
+                    + "target's own interval or expression always wins, and a target set to \"manual only\" is "
+                    + "never rescanned. Each target has its own moment in the interval, so an estate is spread "
+                    + "over the week rather than scanned all at once. Zero means no default: a target with no "
+                    + "schedule of its own is then not rescanned, as before 0.11.0.",
+            String.valueOf(Schedules.DEFAULT_INTERVAL.toDays())),
 
     RETENTION_KEEP_PER_TARGET("retention_keep_per_target", SettingType.INTEGER, Section.RETENTION,
             "Raw payloads kept per target",
@@ -431,6 +442,7 @@ public enum Setting {
         ENRICHMENT("Enrichment"),
         END_OF_LIFE("End of life"),
         SOURCE_CODE("Source code analysis"),
+        SCHEDULING("Scheduling"),
         REMEDIATION("Remediation deadlines"),
         RETENTION("Retention"),
         NOTIFICATIONS("Notifications"),
@@ -595,7 +607,7 @@ public enum Setting {
                     SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
                     WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
                     AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER -> true;
-            case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, RETENTION_KEEP_PER_TARGET,
+            case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, SCAN_DEFAULT_INTERVAL_DAYS, RETENTION_KEEP_PER_TARGET,
                     RETENTION_MAX_AGE_DAYS, EVIDENCE_RETENTION_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
                     SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,
                     NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_PROJECT,

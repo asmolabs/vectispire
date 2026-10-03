@@ -45,6 +45,10 @@ public class RepositoryEntity {
     @Column(name = "scan_cron", length = 255)
     private String scanCron;
 
+    /** "Never rescan this", whatever the default says — distinct from having no schedule (V70). */
+    @Column(name = "scan_manual_only", nullable = false)
+    private boolean scanManualOnly;
+
     @Column(name = "required_agent_label", length = 255)
     private String requiredAgentLabel;
 
@@ -147,6 +151,14 @@ public class RepositoryEntity {
 
     public String getScanCron() {
         return scanCron;
+    }
+
+    public boolean isScanManualOnly() {
+        return scanManualOnly;
+    }
+
+    public void setScanManualOnly(boolean scanManualOnly) {
+        this.scanManualOnly = scanManualOnly;
     }
 
     public void setScanCron(String scanCron) {

@@ -1,3 +1,12 @@
+<div class="flex items-center gap-3">
+    <p-toggleswitch
+        [inputId]="idPrefix() + '-manual'"
+        [ngModel]="manualOnly()"
+        (ngModelChange)="setManualOnly($event)"
+    />
+    <label [for]="idPrefix() + '-manual'" class="font-medium">{{ 'schedule.manual_only_label' | translate }}</label>
+</div>
+
 <div class="flex flex-col gap-2">
     <label [for]="idPrefix() + '-interval'" class="font-medium">
         {{ 'schedule.interval_label' | translate }}
@@ -6,6 +15,7 @@
     <p-inputnumber
         [inputId]="idPrefix() + '-interval'"
         [min]="0"
+        [disabled]="manualOnly()"
         [ngModel]="interval()"
         (ngModelChange)="interval.set($event)"
         suffix=" min"
@@ -24,6 +34,7 @@
     <input
         pInputText
         [id]="idPrefix() + '-cron'"
+        [disabled]="manualOnly()"
         [ngModel]="cron()"
         (ngModelChange)="cron.set($event)"
         placeholder="0 2 * * *"
@@ -38,8 +49,19 @@
         {{ 'schedule.cron_wins_warning' | translate }}
     </p-message>
 }
+@if (onDefault()) {
+    <p-message severity="info" [closable]="false" data-testid="schedule-default">
+        @if (defaultMinutes() === null) {
+            {{ 'schedule.default_unknown_hint' | translate }}
+        } @else if (defaultMinutes() === 0) {
+            {{ 'schedule.default_none_hint' | translate }}
+        } @else {
+            {{ 'schedule.default_hint' | translate: { every: defaultCadence() } }}
+        }
+    </p-message>
+}
 @if (manualOnly()) {
-    <p-message severity="warn" [closable]="false">
+    <p-message severity="warn" [closable]="false" data-testid="schedule-manual">
         {{ 'schedule.manual_only_warning' | translate }}
     </p-message>
 }

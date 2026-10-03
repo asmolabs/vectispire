@@ -190,7 +190,13 @@
                 {{ 'containers.agent_hint' | translate }}
             </small>
         </div>
-        <app-schedule-fields idPrefix="container" [(interval)]="form.scanIntervalMinutes" [(cron)]="form.scanCron" />
+        <app-schedule-fields
+            idPrefix="container"
+            [(interval)]="form.scanIntervalMinutes"
+            [(cron)]="form.scanCron"
+            [(manualOnly)]="form.scanManualOnly"
+            [defaultMinutes]="defaultScanMinutes()"
+        />
         @if (formError(); as message) {
             <!-- The server's wording is what names the rejected cron field by field; a generic
                  "invalid" would send somebody back to guessing. -->

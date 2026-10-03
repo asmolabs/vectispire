@@ -62,14 +62,15 @@ class ContainerUpdateTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("clears the cron on an empty string, and the interval on zero")
+    @DisplayName("clears the cron on an empty string, and the interval on zero — back to the default")
     void clearingTheSchedule() throws Exception {
         long id = seed("0 0 3 * * *");
 
         // The asymmetry the route's javadoc spells out: the empty string is distinguishable from
         // absent and clears the expression, but `null` on the interval already means "leave
-        // alone", so switching a rescan off is spelled zero. An operator whose form sent nothing
-        // would see an empty field and keep being scanned every hour.
+        // alone", so clearing the interval is spelled zero. An operator whose form sent nothing
+        // would see an empty field and keep being scanned every hour. Cleared, the image runs on the
+        // installation's default (0.11.0); switching rescans off is `scanManualOnly`.
         Map<String, Object> body = new HashMap<>();
         body.put("scanCron", "");
         body.put("scanIntervalMinutes", 0);
@@ -78,7 +79,9 @@ class ContainerUpdateTest extends ApiTestBase {
                         .content(write(body)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scanCron").doesNotExist())
-                .andExpect(jsonPath("$.scanIntervalMinutes").value(0));
+                .andExpect(jsonPath("$.scanIntervalMinutes").doesNotExist())
+                .andExpect(jsonPath("$.scanManualOnly").value(false))
+                .andExpect(jsonPath("$.schedule.mode").value("default"));
     }
 
     @Test

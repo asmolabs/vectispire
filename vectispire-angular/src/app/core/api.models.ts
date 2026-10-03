@@ -559,6 +559,8 @@ export type MonitoredRepository = Refine<
         subPath: string | null;
         scanIntervalMinutes: number | null;
         scanCron: string | null;
+        /** The schedule in force as the server decides it, the installation's default included. */
+        schedule?: ScheduleInForce | null;
         /** The label an agent must carry to scan this target. Sent by the server all along. */
         requiredAgentLabel: string | null;
         sshKeyId: string | null;
@@ -585,6 +587,8 @@ export interface NewRepository {
     subPath?: string;
     scanIntervalMinutes?: number | null;
     scanCron?: string;
+    /** Absent leaves it alone; true clears the interval and the expression, and is refused beside either. */
+    scanManualOnly?: boolean;
     required_agent_label?: string;
     tier?: AssetTier;
     /** Absent leaves the key alone on update; the empty string detaches it. */
@@ -592,6 +596,16 @@ export interface NewRepository {
     /** Same rule as `sshKeyId`, and the server's own spelling — snake case, unlike its neighbour. */
     https_token_id?: string;
 }
+
+/**
+ * The schedule in force on a repository or an image: `manual`, `cron`, `interval` or `default`, and
+ * the interval it runs at under the last two — null for a cron expression, for manual only, and for
+ * the default when the installation has none.
+ */
+export type ScheduleInForce = Refine<
+    Schema<'ScheduleInForce'>,
+    { mode: 'manual' | 'cron' | 'interval' | 'default'; intervalMinutes: number | null }
+>;
 
 /** The state of a last scan, shared by repositories and containers. */
 export type LastScan = Refine<
@@ -611,6 +625,7 @@ export type MonitoredContainer = Refine<
         registry: string | null;
         scanIntervalMinutes: number | null;
         scanCron: string | null;
+        schedule?: ScheduleInForce | null;
         requiredAgentLabel: string | null;
         lastScan: LastScan | null;
         tier?: AssetTier;
@@ -626,6 +641,7 @@ export interface NewContainer {
     tag: string;
     scanIntervalMinutes?: number | null;
     scanCron?: string;
+    scanManualOnly?: boolean;
     required_agent_label?: string;
     tier?: AssetTier;
 }

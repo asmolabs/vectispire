@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
@@ -21,6 +22,7 @@ import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +51,7 @@ public class RepositoryAdministrationService {
     private final SshKeyRepository sshKeys;
     private final GitHostAllowlist allowedHosts;
     private final TargetNaming naming;
+    private final TargetSchedules schedules;
 
     /**
      * The width of {@code url}, {@code branch}, {@code name} and {@code required_agent_label}, and of
@@ -65,7 +68,8 @@ public class RepositoryAdministrationService {
             GitTokenRepository gitTokens,
             SshKeyRepository sshKeys,
             GitHostAllowlist allowedHosts,
-            TargetNaming naming) {
+            TargetNaming naming,
+            TargetSchedules schedules) {
         this.repositories = repositories;
         this.scans = scans;
         this.backlog = backlog;
@@ -75,6 +79,7 @@ public class RepositoryAdministrationService {
         this.sshKeys = sshKeys;
         this.allowedHosts = allowedHosts;
         this.naming = naming;
+        this.schedules = schedules;
     }
 
     /**
@@ -85,13 +90,16 @@ public class RepositoryAdministrationService {
      * @param detectedLanguages the languages its newest completed scan found in the tree; empty when
      *     unknown — no completed scan, or one that recorded no whole census — which is not the empty
      *     set (see {@link TargetScans#detectedLanguages})
+     * @param schedule the schedule in force — the installation's default included, which the row
+     *     alone cannot say
      */
     public record Listed(
             RepositoryView repository,
             Optional<LatestScan> latestScan,
             long openIssues,
             String projectName,
-            Optional<Set<Language>> detectedLanguages) {}
+            Optional<Set<Language>> detectedLanguages,
+            Schedules.InForce schedule) {}
 
     /**
      * What an operator asked for, field by field.
@@ -109,7 +117,24 @@ public class RepositoryAdministrationService {
             String requiredAgentLabel,
             String sshKeyId,
             String tier,
-            String httpsTokenId) {
+            String httpsTokenId,
+            Boolean scanManualOnly) {
+
+        /** The shape callers had before "manual only" was a choice: no change to it. */
+        public Changes(
+                String url,
+                String branch,
+                String name,
+                String subPath,
+                Integer scanIntervalMinutes,
+                String scanCron,
+                String requiredAgentLabel,
+                String sshKeyId,
+                String tier,
+                String httpsTokenId) {
+            this(url, branch, name, subPath, scanIntervalMinutes, scanCron, requiredAgentLabel, sshKeyId, tier,
+                    httpsTokenId, null);
+        }
 
         /** The shape callers had before HTTPS tokens: no token change. */
         public Changes(
@@ -122,7 +147,7 @@ public class RepositoryAdministrationService {
                 String requiredAgentLabel,
                 String sshKeyId,
                 String tier) {
-            this(url, branch, name, subPath, scanIntervalMinutes, scanCron, requiredAgentLabel, sshKeyId, tier, null);
+            this(url, branch, name, subPath, scanIntervalMinutes, scanCron, requiredAgentLabel, sshKeyId, tier, null, null);
         }
     }
 
@@ -145,13 +170,18 @@ public class RepositoryAdministrationService {
         // Asked for the visible rows only: which languages a hidden repository is written in is as
         // much its own as its findings.
         Map<Long, Set<Language>> languages = scans.detectedLanguages(visible.stream().map(RepositoryEntity::getId).toList());
+        Duration defaultInterval = schedules.defaultInterval();
         return visible.stream()
-                .map(repository -> new Listed(
-                        RepositoryView.of(repository),
-                        Optional.ofNullable(latest.get(repository.getId())),
-                        open.getOrDefault(repository.getId(), 0L),
-                        repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId()),
-                        Optional.ofNullable(languages.get(repository.getId()))))
+                .map(repository -> {
+                    RepositoryView view = RepositoryView.of(repository);
+                    return new Listed(
+                            view,
+                            Optional.ofNullable(latest.get(repository.getId())),
+                            open.getOrDefault(repository.getId(), 0L),
+                            repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId()),
+                            Optional.ofNullable(languages.get(repository.getId())),
+                            TargetSchedules.inForce(view, defaultInterval));
+                })
                 .toList();
     }
 
@@ -185,10 +215,10 @@ public class RepositoryAdministrationService {
         // Checked like the URL, and for the same reason: it is resolved against a clone on the
         // scanning host — see RepositorySubPath.
         repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
-        repository.setScanIntervalMinutes(changes.scanIntervalMinutes());
         // Validated at the entry point: discovering that an expression was rejected by watching
         // scans *not* happen is the expensive way.
-        repository.setScanCron(validatedCron(changes.scanCron()));
+        schedule(repository, ScheduleChoice.NONE.apply(
+                changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
         repository.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
         repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
         repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
@@ -241,12 +271,9 @@ public class RepositoryAdministrationService {
         if (changes.subPath() != null) {
             repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
         }
-        if (changes.scanIntervalMinutes() != null) {
-            repository.setScanIntervalMinutes(changes.scanIntervalMinutes());
-        }
-        if (changes.scanCron() != null) {
-            repository.setScanCron(validatedCron(changes.scanCron()));
-        }
+        schedule(repository, new ScheduleChoice(
+                        repository.isScanManualOnly(), repository.getScanIntervalMinutes(), repository.getScanCron())
+                .apply(changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
         if (changes.requiredAgentLabel() != null) {
             repository.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
         }
@@ -296,6 +323,12 @@ public class RepositoryAdministrationService {
         TargetGrants.Revoked revoked = targetDeletion.deleteRepository(id);
         TargetDeletionAudit.record(audit, actor, id, "repository " + id,
                 "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()), revoked);
+    }
+
+    private static void schedule(RepositoryEntity repository, ScheduleChoice choice) {
+        repository.setScanManualOnly(choice.manualOnly());
+        repository.setScanIntervalMinutes(choice.intervalMinutes());
+        repository.setScanCron(choice.cron());
     }
 
     /**

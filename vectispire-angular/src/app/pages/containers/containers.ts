@@ -14,7 +14,8 @@ import { TargetsApi } from '../../core/api/targets.api';
 import type { MonitoredContainer } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
-import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
+import { SettingsApi } from '../../core/api/settings.api';
+import { ScheduleFields, scheduleLabel, type ScheduleInForce } from '../../shared/schedule-fields';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -41,6 +42,7 @@ import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 export class Containers {
     private readonly scansApi = inject(ScansApi);
     private readonly targetsApi = inject(TargetsApi);
+    private readonly settingsApi = inject(SettingsApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -56,6 +58,8 @@ export class Containers {
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<MonitoredContainer | null>(null);
     readonly isAdmin = this.session.isAdmin;
+    /** The installation's default interval, in minutes, for the dialog to name; null until known. */
+    readonly defaultScanMinutes = signal<number | null>(null);
 
     form = {
         registry: '',
@@ -64,6 +68,7 @@ export class Containers {
         requiredAgentLabel: '',
         scanIntervalMinutes: null as number | null,
         scanCron: '',
+        scanManualOnly: false,
         tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
     };
 
@@ -71,7 +76,7 @@ export class Containers {
      *  nobody rescans looks monitored until somebody reads the date of its last scan. */
     /** Bound rather than referenced: the label is translated, so it needs the service — and it
      *  reads `translations()` so the row redraws when the reader changes language. */
-    readonly scheduleLabel = (target: { scanIntervalMinutes: number | null; scanCron: string | null }) => {
+    readonly scheduleLabel = (target: { scanCron: string | null; schedule?: ScheduleInForce | null }) => {
         this.i18n.translations();
         return scheduleLabel(target, this.i18n);
     };
@@ -102,6 +107,13 @@ export class Containers {
     constructor() {
         pollWhile(this.scanInFlight, () => this.reload());
         this.reload();
+        // Only the dialog reads it, and only an administrator opens the dialog. A failure leaves the
+        // dialog naming the setting instead of a number.
+        if (this.isAdmin()) {
+            this.settingsApi
+                .defaultScanIntervalMinutes()
+                .subscribe({ next: (minutes) => this.defaultScanMinutes.set(minutes) });
+        }
     }
 
     /**
@@ -153,6 +165,7 @@ export class Containers {
                   requiredAgentLabel: container.requiredAgentLabel ?? '',
                   scanIntervalMinutes: container.scanIntervalMinutes,
                   scanCron: container.scanCron ?? '',
+                  scanManualOnly: container.scanManualOnly ?? false,
                   tier: container.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
             : {
@@ -162,6 +175,7 @@ export class Containers {
                   requiredAgentLabel: '',
                   scanIntervalMinutes: null,
                   scanCron: '',
+                  scanManualOnly: false,
                   tier: 'TIER_2_BUSINESS_OPERATIONAL'
               };
         this.formError.set(null);
@@ -183,14 +197,16 @@ export class Containers {
             tier: this.form.tier as AssetTier,
             // **Zero, not `undefined`, when the field was cleared on the update path.** The server
             // reads absent as "leave alone", so `undefined` would keep the old interval while the
-            // form showed nothing — the operator would think they had switched the rescan off and
-            // the registry would carry on being pulled. Zero is what `Schedules` reads as "manual
-            // only". `scanCron` needs no such trick: the empty string is distinguishable from
-            // absent, so it clears the expression on its own.
+            // form showed nothing — the image would carry on being pulled at the old pace. Zero
+            // returns it to the installation's default; switching rescans off is `scanManualOnly`.
+            // `scanCron` needs no such trick: the empty string is distinguishable from absent, so it
+            // clears the expression on its own.
             scanIntervalMinutes: this.form.scanIntervalMinutes ?? (editing ? 0 : undefined),
             // Always sent, empty included: the empty string is the only value the update path
             // distinguishes from "leave alone", so it is the only way to remove an expression.
-            scanCron: this.form.scanCron.trim()
+            scanCron: this.form.scanCron.trim(),
+            // Always sent: the dialog shows the switch, so what it shows is what is saved.
+            scanManualOnly: this.form.scanManualOnly
         };
 
         this.saving.set(true);

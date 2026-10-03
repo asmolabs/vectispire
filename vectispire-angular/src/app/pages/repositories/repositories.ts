@@ -26,7 +26,8 @@ import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScorecardView } from '../../shared/scorecard';
 import { DetectedLanguages } from '../../shared/detected-languages';
-import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
+import { SettingsApi } from '../../core/api/settings.api';
+import { ScheduleFields, scheduleLabel, type ScheduleInForce } from '../../shared/schedule-fields';
 import { ReportImports } from '../../shared/report-imports';
 import { SarifImports } from '../../shared/sarif-imports';
 
@@ -130,6 +131,7 @@ const CLI_SIGNER = `https://github.com/asmolabs/vectispire/.github/workflows/rel
 export class Repositories {
     private readonly i18n = inject(I18nService);
     private readonly targetsApi = inject(TargetsApi);
+    private readonly settingsApi = inject(SettingsApi);
     private readonly scansApi = inject(ScansApi);
     private readonly scorecardsApi = inject(ScorecardsApi);
     private readonly session = inject(SessionStore);
@@ -165,6 +167,8 @@ export class Repositories {
     readonly scanningAll = signal(false);
     readonly notice = signal<string | null>(null);
     readonly isAdmin = this.session.isAdmin;
+    /** The installation's default interval, in minutes, for the dialog to name; null until known. */
+    readonly defaultScanMinutes = signal<number | null>(null);
 
     form = {
         url: '',
@@ -174,6 +178,7 @@ export class Repositories {
         requiredAgentLabel: '',
         scanIntervalMinutes: null as number | null,
         scanCron: '',
+        scanManualOnly: false,
         // The empty string is "no key", and it is a value the server acts on rather than one it
         // ignores — see the comment on the payload in `submit`.
         sshKeyId: '',
@@ -269,7 +274,7 @@ export class Repositories {
      *  target nobody rescans looks monitored until somebody reads the date of its last scan. */
     /** Bound rather than referenced: the label is translated, so it needs the service — and it
      *  reads `translations()` so the row redraws when the reader changes language. */
-    readonly scheduleLabel = (target: { scanIntervalMinutes: number | null; scanCron: string | null }) => {
+    readonly scheduleLabel = (target: { scanCron: string | null; schedule?: ScheduleInForce | null }) => {
         this.i18n.translations();
         return scheduleLabel(target, this.i18n);
     };
@@ -292,6 +297,13 @@ export class Repositories {
         // still edit everything else, and "no key" stays selectable.
         this.targetsApi.sshKeys().subscribe({ next: (keys) => this.sshKeys.set(keys) });
         this.targetsApi.gitTokens().subscribe({ next: (tokens) => this.gitTokens.set(tokens) });
+        // Only the dialog reads it, and only an administrator opens the dialog. A failure leaves the
+        // dialog naming the setting instead of a number.
+        if (this.isAdmin()) {
+            this.settingsApi
+                .defaultScanIntervalMinutes()
+                .subscribe({ next: (minutes) => this.defaultScanMinutes.set(minutes) });
+        }
     }
 
     reload(): void {
@@ -368,6 +380,7 @@ export class Repositories {
                   requiredAgentLabel: repository.requiredAgentLabel ?? '',
                   scanIntervalMinutes: repository.scanIntervalMinutes,
                   scanCron: repository.scanCron ?? '',
+                  scanManualOnly: repository.scanManualOnly ?? false,
                   sshKeyId: repository.sshKeyId ?? '',
                   credentialKind: repository.httpsTokenId ? 'https' : repository.sshKeyId ? 'ssh' : 'none',
                   httpsTokenId: repository.httpsTokenId ?? '',
@@ -381,6 +394,7 @@ export class Repositories {
                   requiredAgentLabel: '',
                   scanIntervalMinutes: null,
                   scanCron: '',
+                  scanManualOnly: false,
                   sshKeyId: '',
                   credentialKind: 'none',
                   httpsTokenId: '',
@@ -415,12 +429,14 @@ export class Repositories {
             tier: this.form.tier as AssetTier,
             // **Zero, not `undefined`, when the field was cleared on the update path.** The server
             // reads absent as "leave alone", so `undefined` would keep the old interval while the
-            // form showed nothing — the operator would think they had switched the schedule off
-            // and the scans would carry on. Zero is what `Schedules` reads as "manual only".
+            // form showed nothing — the scans would carry on at the old pace. Zero returns the
+            // target to the installation's default; switching rescans off is `scanManualOnly`.
             scanIntervalMinutes: this.form.scanIntervalMinutes ?? (editing ? 0 : undefined),
             // Always sent, empty included: the empty string is the only value the update path
             // distinguishes from "leave alone", so it is the only way to remove an expression.
             scanCron: this.form.scanCron.trim(),
+            // Always sent: the dialog shows the switch, so what it shows is what is saved.
+            scanManualOnly: this.form.scanManualOnly,
             // Same rule, same reason. Sending `undefined` when the operator picked "no key" would
             // leave the old key attached while this form showed none — and the next clone would
             // use a credential the screen says is gone.

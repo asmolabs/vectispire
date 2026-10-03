@@ -1,19 +1,19 @@
 package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
-import com.asmolabs.vectispire.common.domain.scheduling.Schedules.Schedulable;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.scanning.internal.LeaderElection;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.ContainerView;
-import com.asmolabs.vectispire.core.targets.CronExpressions;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.targets.TargetSchedules;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -46,7 +46,11 @@ public class SchedulerService {
 
     private static final Logger log = LoggerFactory.getLogger(SchedulerService.class);
 
+    /** What "already under way" means to a round: a scan waiting, or one running. */
+    private static final List<String> IN_FLIGHT = List.of(ScanStatus.PENDING.wireName(), ScanStatus.SCANNING.wireName());
+
     private final TargetCatalog targets;
+    private final TargetSchedules schedules;
     private final ScanRepository scans;
     private final LeaderElection election;
     private final TransactionTemplate transactions;
@@ -54,11 +58,13 @@ public class SchedulerService {
 
     public SchedulerService(
             TargetCatalog targets,
+            TargetSchedules schedules,
             ScanRepository scans,
             LeaderElection election,
             TransactionTemplate transactions,
             Clock clock) {
         this.targets = targets;
+        this.schedules = schedules;
         this.scans = scans;
         this.election = election;
         this.transactions = transactions;
@@ -81,17 +87,17 @@ public class SchedulerService {
         }
 
         int queued = 0;
+        // Read once per tick: a default changed mid-tick must not judge half the estate by each value.
+        Duration defaultInterval = schedules.defaultInterval();
 
         for (RepositoryView repository : targets.repositories()) {
-            if (Schedules.isDue(schedulable(repository.scanCron(), repository.scanIntervalMinutes(),
-                    repository.lastScheduledScanAt()), at)) {
+            if (Schedules.isDue(TargetSchedules.of(repository), defaultInterval, at)) {
                 queued += queueRepository(repository, at);
             }
         }
 
         for (ContainerView container : targets.containers()) {
-            if (Schedules.isDue(schedulable(container.scanCron(), container.scanIntervalMinutes(),
-                    container.lastScheduledScanAt()), at)) {
+            if (Schedules.isDue(TargetSchedules.of(container), defaultInterval, at)) {
                 queued += queueContainer(container, at);
             }
         }
@@ -106,7 +112,7 @@ public class SchedulerService {
         return queue(
                 "repository " + repository.id(),
                 () -> targets.stampScheduled(new ScanTarget.Repository(repository.id()), at),
-                () -> scans.countByStatusAndRepoId(ScanStatus.PENDING.wireName(), repository.id()),
+                () -> scans.countByStatusInAndRepoId(IN_FLIGHT, repository.id()),
                 () -> {
                     ScanEntity scan = newScan(at);
                     scan.setRepoId(repository.id());
@@ -121,7 +127,7 @@ public class SchedulerService {
         return queue(
                 "container " + container.id(),
                 () -> targets.stampScheduled(new ScanTarget.Container(container.id()), at),
-                () -> scans.countByStatusAndContainerId(ScanStatus.PENDING.wireName(), container.id()),
+                () -> scans.countByStatusInAndContainerId(IN_FLIGHT, container.id()),
                 () -> {
                     ScanEntity scan = newScan(at);
                     scan.setContainerId(container.id());
@@ -135,11 +141,12 @@ public class SchedulerService {
     }
 
     /**
-     * Queues a target unless it is already waiting.
+     * Queues a target unless a scan of it is already waiting or running.
      *
-     * <p>The duplicate is dropped here as it is at the screen's button: a target whose previous
-     * scan has not started yet does not need a second, and stacking them grows the queue without
-     * learning anything.
+     * <p>A target whose previous scan has not started yet does not need a second, and stacking them
+     * grows the queue without learning anything. Nor does one whose scan is running: under a weekly
+     * default a slow scan of a large repository can still be running when the round comes, and the
+     * round would only queue the same examination behind it.
      */
     private int queue(String label, Runnable stamp, LongSupplier alreadyQueued, Supplier<ScanEntity> build) {
         try {
@@ -183,12 +190,5 @@ public class SchedulerService {
         scan.setStatus(ScanStatus.PENDING.wireName());
         scan.setCreatedAt(at);
         return scan;
-    }
-
-    private static Schedulable schedulable(String cron, Integer intervalMinutes, Instant lastScheduledAt) {
-        return new Schedulable(
-                CronExpressions.parse(cron),
-                intervalMinutes == null ? Duration.ZERO : Duration.ofMinutes(intervalMinutes),
-                lastScheduledAt);
     }
 }

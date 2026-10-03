@@ -77,14 +77,17 @@ describe('the licence inventory screen', () => {
                         displayName: 'Ours',
                         url: 'ssh://git@example.invalid/ours.git',
                         branch: 'main',
-                        openIssues: 0
+                        openIssues: 0,
+                        scanManualOnly: false
                     }
                 ])
             )
         );
         http.match((call) => call.url === '/api/v1/containers').forEach((call) =>
             call.flush(
-                asSchemaList('ContainerSummary', [{ id: 3, reference: 'registry.invalid/app:1.0', openIssues: 0 }])
+                asSchemaList('ContainerSummary', [
+                    { id: 3, reference: 'registry.invalid/app:1.0', openIssues: 0, scanManualOnly: false }
+                ])
             )
         );
         http.match((call) => call.url === '/api/v1/licenses/summary').forEach((call) => call.flush(SUMMARY));

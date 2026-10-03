@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -20,6 +21,7 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +45,7 @@ public class ContainerAdministrationService {
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
     private final TargetNaming naming;
+    private final TargetSchedules schedules;
 
     public ContainerAdministrationService(
             ContainerRepository containers,
@@ -50,13 +53,15 @@ public class ContainerAdministrationService {
             TargetBacklog backlog,
             TargetDeletionService targetDeletion,
             AuditLogService audit,
-            TargetNaming naming) {
+            TargetNaming naming,
+            TargetSchedules schedules) {
         this.containers = containers;
         this.scans = scans;
         this.backlog = backlog;
         this.targetDeletion = targetDeletion;
         this.audit = audit;
         this.naming = naming;
+        this.schedules = schedules;
     }
 
     /**
@@ -64,8 +69,14 @@ public class ContainerAdministrationService {
      * is filed in.
      *
      * @param projectName {@code Solution / Project}, or null for an image in no project
+     * @param schedule the schedule in force, the installation's default included
      */
-    public record Listed(ContainerView container, Optional<LatestScan> latestScan, long openIssues, String projectName) {}
+    public record Listed(
+            ContainerView container,
+            Optional<LatestScan> latestScan,
+            long openIssues,
+            String projectName,
+            Schedules.InForce schedule) {}
 
     /** What an operator asked for; {@code null} is "leave alone" on update, as for repositories. */
     public record Changes(
@@ -75,7 +86,21 @@ public class ContainerAdministrationService {
             Integer scanIntervalMinutes,
             String scanCron,
             String requiredAgentLabel,
-            String tier) {}
+            String tier,
+            Boolean scanManualOnly) {
+
+        /** The shape callers had before "manual only" was a choice: no change to it. */
+        public Changes(
+                String registry,
+                String imageName,
+                String tag,
+                Integer scanIntervalMinutes,
+                String scanCron,
+                String requiredAgentLabel,
+                String tier) {
+            this(registry, imageName, tag, scanIntervalMinutes, scanCron, requiredAgentLabel, tier, null);
+        }
+    }
 
     public record Triggered(ContainerView container, TargetScans.Queued scan) {}
 
@@ -92,12 +117,17 @@ public class ContainerAdministrationService {
                 .map(ContainerEntity::getProjectId)
                 .filter(java.util.Objects::nonNull)
                 .collect(java.util.stream.Collectors.toSet()));
+        Duration defaultInterval = schedules.defaultInterval();
         return visible.stream()
-                .map(container -> new Listed(
-                        ContainerView.of(container),
-                        Optional.ofNullable(latest.get(container.getId())),
-                        open.getOrDefault(container.getId(), 0L),
-                        container.getProjectId() == null ? null : projectNames.get(container.getProjectId())))
+                .map(container -> {
+                    ContainerView view = ContainerView.of(container);
+                    return new Listed(
+                            view,
+                            Optional.ofNullable(latest.get(container.getId())),
+                            open.getOrDefault(container.getId(), 0L),
+                            container.getProjectId() == null ? null : projectNames.get(container.getProjectId()),
+                            TargetSchedules.inForce(view, defaultInterval));
+                })
                 .toList();
     }
 
@@ -124,8 +154,8 @@ public class ContainerAdministrationService {
         container.setRegistry(reference.registry());
         container.setImageName(reference.imageName());
         container.setTag(reference.tag());
-        container.setScanIntervalMinutes(changes.scanIntervalMinutes());
-        container.setScanCron(validatedCron(changes.scanCron()));
+        schedule(container, ScheduleChoice.NONE.apply(
+                changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
         container.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
         container.setTier(AssetTier.fromInput(changes.tier()).name());
 
@@ -166,12 +196,9 @@ public class ContainerAdministrationService {
         container.setImageName(reference.imageName());
         container.setTag(reference.tag());
 
-        if (changes.scanIntervalMinutes() != null) {
-            container.setScanIntervalMinutes(changes.scanIntervalMinutes());
-        }
-        if (changes.scanCron() != null) {
-            container.setScanCron(validatedCron(changes.scanCron()));
-        }
+        schedule(container, new ScheduleChoice(
+                        container.isScanManualOnly(), container.getScanIntervalMinutes(), container.getScanCron())
+                .apply(changes.scanManualOnly(), changes.scanIntervalMinutes(), changes.scanCron()));
         if (changes.requiredAgentLabel() != null) {
             // Normalized on update as on create: "Production" here and "production" on the agent
             // would never meet, and the scan would wait for an agent that is present.
@@ -230,12 +257,13 @@ public class ContainerAdministrationService {
     }
 
     /**
-     * The repository route's validation, called rather than copied: the two dialogs put the
-     * server's message straight on screen, and an operator who learned the expected format on one
-     * screen should not have to learn it again on the other. Two copies of the sentence had to be
-     * kept identical by hand before this.
+     * The repository's rule, through {@link ScheduleChoice}: the two dialogs put the server's message
+     * straight on screen, and an operator who learned the expected format on one screen should not
+     * have to learn it again on the other.
      */
-    private static String validatedCron(String expression) {
-        return RepositoryAdministrationService.validatedCron(expression);
+    private static void schedule(ContainerEntity container, ScheduleChoice choice) {
+        container.setScanManualOnly(choice.manualOnly());
+        container.setScanIntervalMinutes(choice.intervalMinutes());
+        container.setScanCron(choice.cron());
     }
 }
