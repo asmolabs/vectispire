@@ -702,6 +702,14 @@ migration V75) et `common/scanning/scanners/ReportPluginRenderer`, qui exécute 
   les vérifie, les signe et les stocke dans la même étape, si bien qu'aucun document non vérifié ne séjourne
   dans la base et qu'aucune route n'en sert. Une exécution en échec ou refusée ne garde rien qu'elle-même.
   Supprimer un projet emporte ses exécutions et leurs exports.
+- **L'export gardé est borné par ce que la base stocke en une instruction** (`ReportExportCeiling`). MySQL
+  refuse une instruction au-delà de `max_allowed_packet`, 64 Mio par défaut — la borne du §1 — et Connector/J
+  envoie un `byte[]` encodé en hexadécimal : un export de 64 Mio donnait une instruction de 134 217 917 octets,
+  et une exécution qui l'aurait produit aurait perdu son document à l'écriture. L'export d'une exécution est
+  donc construit sous la moitié du paquet du serveur, moins 64 Kio, lue sur le serveur à chaque exécution —
+  environ 32 Mio sur un serveur par défaut, refusé `export_too_large` avant que le plugin ne s'exécute, le
+  détail nommant le réglage ; `--max-allowed-packet=160M` rétablit 64 Mio. Le `bytea` de PostgreSQL garde la
+  borne standard. Le téléchargement du §1 ne stocke rien et la garde aussi.
 - **Audit et SIEM** : `REPORT_REQUESTED` ; `PROJECT_EXPORTED` quand l'export atteint le conteneur du plugin —
   jamais pour un refus, qui n'atteint rien — signalé `VECTI-SEC-032` ; puis `REPORT_PRODUCED` (les empreintes de
   la sortie, du manifeste et de l'export, en tête), `REPORT_FAILED` ou `REPORT_REFUSED`, chacun au nom du

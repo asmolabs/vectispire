@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.plugins.ImageDigest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
+import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportBounds;
 import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportSchema;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifest;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportPluginManifestStatus;
@@ -89,6 +90,7 @@ public class ReportExecution {
     private final AuthService accounts;
     private final VisibilityService visibility;
     private final ReportExecutor executor;
+    private final ReportExportCeiling ceiling;
     private final ProductVersion productVersion;
     private final AuditLogService audit;
     private final ObjectMapper json;
@@ -105,6 +107,7 @@ public class ReportExecution {
             AuthService accounts,
             VisibilityService visibility,
             ObjectProvider<ReportExecutor> executor,
+            ReportExportCeiling ceiling,
             ProductVersion productVersion,
             AuditLogService audit,
             ObjectMapper json,
@@ -119,6 +122,7 @@ public class ReportExecution {
         this.accounts = accounts;
         this.visibility = visibility;
         this.executor = executor.getIfAvailable();
+        this.ceiling = ceiling;
         this.productVersion = productVersion;
         this.audit = audit;
         this.json = json;
@@ -190,10 +194,12 @@ public class ReportExecution {
                 return;
             }
             ProjectExportService.RunExport export;
+            // Lowered to what the database keeps in one row: refused now rather than produced and then unrecordable.
+            ProjectExportBounds bounds = ceiling.bounds();
             try {
                 export = exportService.forRun(run.getProjectId(), account.get(),
                         // A session's: no credential narrows it, the route accepting none.
-                        visibility.allowance(account.get(), Visibility.everything()), run.getRequesterLocale());
+                        visibility.allowance(account.get(), Visibility.everything()), run.getRequesterLocale(), bounds);
             } catch (NotFoundException | AccessDeniedException notAllowed) {
                 finish(run, owner, requester, learnt, requesterNotAllowed("Its requester no longer sees the whole "
                         + "project, or no longer holds a role that may request a report; the export is built for the "
@@ -201,7 +207,7 @@ public class ReportExecution {
                 return;
             } catch (ProjectExportTooLargeException tooLarge) {
                 finish(run, owner, requester, learnt, new ReportPluginRenderer.Outcome.Failed(
-                        ReportRunReason.EXPORT_TOO_LARGE, tooLarge.getMessage(), false));
+                        ReportRunReason.EXPORT_TOO_LARGE, tooLarge.getMessage() + ReportExportCeiling.why(bounds), false));
                 return;
             }
             learnt = learnt.withExport(clock.instant(), export);

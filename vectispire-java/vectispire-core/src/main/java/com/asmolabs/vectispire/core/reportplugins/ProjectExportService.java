@@ -230,12 +230,14 @@ public class ProjectExportService {
      * @param allowance the requester's visibility, read again at the claim; a report is asked through a session,
      *     never an integration key, so no credential narrows it
      * @param locale the requester's locale, as the request named it
+     * @param bounds the standard bounds, or lower ones where the run could not keep an export that large
      * @throws NotFoundException "Project not found." for a project gone, or no longer seen whole
      * @throws AccessDeniedException for a role that may no longer take an export
      * @throws ProjectExportTooLargeException over a bound
      */
-    public RunExport forRun(long projectId, UserView requester, VisibilityService.Allowance allowance, String locale) {
-        Built built = reading.execute(status -> build(projectId, requester, allowance, locale, ProjectExportBounds.STANDARD));
+    public RunExport forRun(long projectId, UserView requester, VisibilityService.Allowance allowance, String locale,
+            ProjectExportBounds bounds) {
+        Built built = reading.execute(status -> build(projectId, requester, allowance, locale, bounds));
         return new RunExport(built.projectName(), built.json(), Digests.sha256Hex(built.json()), built.issueCount(),
                 built.componentCount());
     }

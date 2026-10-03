@@ -7,8 +7,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The exports produced runs were given. Read by id only; nothing lists them. */
-public interface ReportExportRepository extends JpaRepository<ReportExportEntity, Long> {
+/**
+ * The exports produced runs were given. Read by id only; nothing lists them. How large one may be is the
+ * database's to say ({@link ReportExportCapacity}).
+ */
+public interface ReportExportRepository extends JpaRepository<ReportExportEntity, Long>, ReportExportCapacity {
 
     /** The exports kept past the evidence window — the bytes go, the run and its digest stay. */
     @Transactional

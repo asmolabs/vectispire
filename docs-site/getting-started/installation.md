@@ -132,7 +132,9 @@ VECTISPIRE_DB_PASSWORD=…
 ```
 
 For MySQL, point the same variable at it — `jdbc:mysql://localhost:3306/vectispire` — and
-change nothing else.
+change nothing else. One server setting matters if you use [report plugins](../administration/report-plugins.md)
+on large projects: at the default `max_allowed_packet` (64 MiB) a report's export is kept up to about
+32 MiB, and `--max-allowed-packet=160M` restores the whole 64 MiB bound.
 
 The schema belongs to **Flyway migrations**, applied at startup. There is no separate
 migration command to run, and `ddl-auto` is `validate` deliberately: a schema synthesised

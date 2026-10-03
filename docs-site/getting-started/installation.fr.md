@@ -135,7 +135,9 @@ VECTISPIRE_DB_PASSWORD=…
 ```
 
 Pour MySQL, pointez la même variable dessus — `jdbc:mysql://localhost:3306/vectispire` — et ne
-changez rien d'autre.
+changez rien d'autre. Un réglage du serveur compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
+sur de grands projets : au `max_allowed_packet` par défaut (64 Mio), l'export d'un rapport est gardé jusqu'à
+environ 32 Mio, et `--max-allowed-packet=160M` rétablit toute la borne de 64 Mio.
 
 Le schéma appartient aux **migrations Flyway**, appliquées au démarrage. Il n'y a pas de
 commande de migration séparée à lancer, et `ddl-auto` est à `validate` délibérément : un schéma

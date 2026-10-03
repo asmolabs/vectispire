@@ -159,6 +159,14 @@ conservé** : l'export qu'a reçu une exécution produite, jusqu'à ce que la [f
 exécution en échec ou refusée ne garde rien qu'elle-même et son motif. Supprimer un projet emporte ses
 exécutions et leurs exports.
 
+**Sur MySQL, l'export d'un rapport est aussi borné par `max_allowed_packet`.** L'export est gardé dans une
+ligne, écrite en une instruction, et le pilote l'envoie encodé en hexadécimal, au double de sa taille : sur un
+serveur laissé à son paquet par défaut de 64 Mio, une exécution dont l'export dépasserait environ 32 Mio passe
+en échec `export_too_large` avant que le plugin ne s'exécute, le détail le disant. Démarrez MySQL avec
+`--max-allowed-packet=160M` (la composition livrée ne le fait pas) et tout export jusqu'à la borne de 64 Mio est
+gardé. La borne est lue sur le serveur à chaque exécution ; PostgreSQL n'en a aucune en deçà de 64 Mio. Un
+téléchargement de l'export (`GET …/export`) ne garde rien et n'est pas concerné.
+
 ## Ce qui est enregistré
 
 Chaque geste est écrit au [journal d'audit](audit-log.fr.md) — `REPORT_PLUGIN_REGISTERED`,

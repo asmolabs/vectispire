@@ -3,13 +3,16 @@ package com.asmolabs.vectispire.core.reportplugins;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportBounds;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.reportplugins.internal.ReportExportCeiling;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportRunEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportRunRepository;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +33,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * The report runs' queue on a real engine (decision 0035 §2, lot R3, V75): the conditional take two executors
  * race on, the active key that keeps one run of a plugin per project — a unique index that must admit any number
  * of ended runs, whose key is null —, the owner's finish, the lapsed lease, and an export's bytes kept, purged by
- * age and by project through a subquery.
+ * age and by project through a subquery, and stored whole at the run's bound — which MySQL's packet lowers.
  *
  * <p>Each is a statement an engine could answer differently: a unique index counting nulls as equal would refuse
  * the second report a project ever had, and a {@code delete … where run_id in (select …)} is what MySQL checks.
@@ -66,6 +69,9 @@ class ReportRunQueueIntegrationTest {
 
     @Autowired
     private ReportExportRepository exports;
+
+    @Autowired
+    private ReportExportCeiling ceiling;
 
     @BeforeEach
     void empty() {
@@ -176,6 +182,43 @@ class ReportRunQueueIntegrationTest {
         assertThat(runs.deleteByProject(1)).isEqualTo(2);
         assertThat(exports.existsById(other)).isTrue();
         assertThat(runs.existsById(other)).isTrue();
+    }
+
+    @Test
+    @DisplayName("an export at the run's bound is kept whole; on MySQL's default packet that bound is below 64 MiB")
+    void exportAtTheBound() {
+        long standard = ProjectExportBounds.STANDARD.maxJsonBytes();
+        long bound = ceiling.bounds().maxJsonBytes();
+        if (ENGINE == Engine.MYSQL) {
+            // Half the default 64 MiB packet, less the margin: what Connector/J's hex encoding leaves.
+            assertThat(bound).isLessThan(standard).isGreaterThan(30L * 1024 * 1024);
+        } else {
+            assertThat(bound).isEqualTo(standard);
+        }
+
+        long kept = run(1, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+        byte[] content = jsonShaped(bound);
+        export(kept, content, AT);
+        assertThat(exports.findById(kept).orElseThrow().getContent()).isEqualTo(content);
+
+        if (ENGINE == Engine.MYSQL) {
+            // Why the bound is lower there: the standard size is a statement the default server refuses — a run that
+            // produced it would have dropped its document at the write.
+            long refused = run(2, ReportRunState.PRODUCED.wireName(), null, AT).getId();
+            byte[] whole = jsonShaped(standard);
+            assertThatThrownBy(() -> export(refused, whole, AT)).hasStackTraceContaining("max_allowed_packet");
+            assertThat(exports.existsById(refused)).isFalse();
+        }
+    }
+
+    /** {@code size} bytes of JSON-like text, quotes and backslashes included — what a driver may escape. */
+    private static byte[] jsonShaped(long size) {
+        byte[] pattern = "{\"title\":\"a \\\"quoted\\\" line\\n\"},".getBytes(StandardCharsets.UTF_8);
+        byte[] content = new byte[Math.toIntExact(size)];
+        for (int i = 0; i < content.length; i++) {
+            content[i] = pattern[i % pattern.length];
+        }
+        return content;
     }
 
     private void export(long runId, byte[] content, Instant at) {

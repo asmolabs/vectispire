@@ -151,6 +151,14 @@ produced run was given, until the [evidence window](maintenance.md) (`evidence_r
 then its bytes go and the run keeps its digest; a failed or refused run keeps nothing but itself and its
 reason. Deleting a project takes its runs and their exports.
 
+**On MySQL, a report's export is bounded by `max_allowed_packet` too.** The export is kept in one row,
+written in one statement, and the driver sends it hex-encoded, at twice its size: on a server left at its
+default packet of 64 MiB, a run whose export would pass about 32 MiB fails `export_too_large` before the
+plugin runs, the detail saying so. Start MySQL with `--max-allowed-packet=160M` (the shipped composition
+does not) and every export up to the 64 MiB bound is kept. The bound is read from the server at each run;
+PostgreSQL has none below 64 MiB. A download of the export (`GET …/export`) keeps nothing and is not
+affected.
+
 ## What is recorded
 
 Every gesture is written to the [audit log](audit-log.md) — `REPORT_PLUGIN_REGISTERED`,

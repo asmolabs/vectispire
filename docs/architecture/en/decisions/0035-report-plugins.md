@@ -642,6 +642,13 @@ Lot R3 — the executor — settled these points §2 left open. The code is in `
   are not kept**: R3 records their size and SHA-256, and R4 checks, signs and stores them in the same step, so
   no unchecked document ever sits in the database and no route serves one. A failed or refused run keeps
   nothing but itself. Deleting a project takes its runs and their exports.
+- **The kept export is bounded by what the database stores in one statement** (`ReportExportCeiling`). MySQL
+  refuses a statement past `max_allowed_packet`, 64 MiB by default — §1's bound — and Connector/J sends a
+  `byte[]` hex-encoded: a 64 MiB export made a 134,217,917-byte statement, and a run that produced it would
+  have dropped its document at the write. So a run's export is built under half the server's packet, less
+  64 KiB, read from the server at each run — about 32 MiB on a default server, refused `export_too_large`
+  before the plugin runs, the detail naming the setting; `--max-allowed-packet=160M` restores 64 MiB.
+  PostgreSQL's `bytea` keeps the standard bound. The download of §1 stores nothing and keeps it too.
 - **Audit and SIEM**: `REPORT_REQUESTED`; `PROJECT_EXPORTED` when the export reaches the plugin's container —
   never for a refusal, which reaches nothing — signalled `VECTI-SEC-032`; then `REPORT_PRODUCED` (the output's,
   the manifest's and the export's digests, first), `REPORT_FAILED` or `REPORT_REFUSED`, each in the requester's
