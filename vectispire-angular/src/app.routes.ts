@@ -80,6 +80,15 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/plugins/plugins').then((m) => m.Plugins)
             },
             {
+                // Governance reading, like the server's GET (decision 0035 §4): the registry says which
+                // code may produce documents under the installation's key. The writes are offered to the
+                // platform governor and the approval to the security leads.
+                path: 'report-plugins',
+                title: 'titles.report_plugins',
+                canActivate: [requires('governance-read')],
+                loadComponent: () => import('./app/pages/report-plugins/report-plugins').then((m) => m.ReportPlugins)
+            },
+            {
                 path: 'containers',
                 title: 'titles.containers',
                 loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers)

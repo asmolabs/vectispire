@@ -112,6 +112,25 @@ describe('the project page', () => {
         expect(has('[data-testid="scope-partial"]')).toBe(false);
     });
 
+    it('asks no report of a project seen in part, and says reports need the whole project', async () => {
+        await open();
+
+        expect(text('[data-testid="reports-partial"]')).toContain('only for an account that sees the whole project');
+        expect(has('app-project-reports')).toBe(false);
+        // Every report route answers 404 to a partial reader: not asked at all.
+        http.expectNone(`${BASE}/reports`);
+        http.expectNone(`${BASE}/report-plugins`);
+    });
+
+    it('opens the reports section for a project seen whole', async () => {
+        await open({ detail: { ...PROJECT_DETAIL, partial: false } });
+
+        expect(has('[data-testid="reports-partial"]')).toBe(false);
+        expect(has('app-project-reports')).toBe(true);
+        http.expectOne({ method: 'GET', url: `${BASE}/report-plugins` }).flush([]);
+        http.expectOne({ method: 'GET', url: `${BASE}/reports` }).flush([]);
+    });
+
     it('links the checklist only when the server says it would open', async () => {
         await open();
         expect(has('[data-testid="project-checklist"]')).toBe(false);

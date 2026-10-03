@@ -23,6 +23,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { DetectedLanguages } from '../../shared/detected-languages';
 import { ScopeComplianceView } from '../../shared/scope-compliance';
+import { ProjectReports } from './project-reports';
 
 /**
  * What a target's last scan says of its inventory, in words. Literal keys (decision 0019): a state
@@ -62,7 +63,8 @@ function isNotFound(failure: unknown): boolean {
         TagModule,
         TranslatePipe,
         DetectedLanguages,
-        ScopeComplianceView
+        ScopeComplianceView,
+        ProjectReports
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './project.html'

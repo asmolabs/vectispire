@@ -101,6 +101,24 @@
         }
     </section>
 
+    <!--
+        Reports and the export are built only for a reader who sees the whole project, images included
+        (decision 0035 §1): every route behind them answers 404 to a partial reader, so the section is not
+        asked for, and the page says why rather than showing an empty list.
+    -->
+    <section class="mb-6" aria-labelledby="project-reports-heading" data-testid="project-reports">
+        <h2 id="project-reports-heading" class="text-xl font-semibold mt-0 mb-3">
+            {{ 'reports.title' | translate }}
+        </h2>
+        @if (project.partial) {
+            <p-message severity="info" [closable]="false" styleClass="w-full" data-testid="reports-partial">
+                {{ 'reports.partial' | translate }}
+            </p-message>
+        } @else {
+            <app-project-reports [projectId]="project.id" />
+        }
+    </section>
+
     <section aria-labelledby="project-components-heading" data-testid="project-components">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h2 id="project-components-heading" class="text-xl font-semibold m-0">

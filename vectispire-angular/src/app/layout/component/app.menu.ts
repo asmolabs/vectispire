@@ -231,6 +231,13 @@ export class AppMenu {
 
             if (this.session.canReadGovernance()) {
                 adminItems.push(
+                    // Beside the analysis plugins, under governance reading as its route: which images may
+                    // produce documents signed with the installation's key (decision 0035 §4).
+                    {
+                        label: this.i18n.t('menu.report_plugins'),
+                        icon: 'pi pi-fw pi-file-export',
+                        routerLink: ['/report-plugins']
+                    },
                     // The checklist a project attests to is the organisation's own words: a governance
                     // setting like the gate policy and the rule sets. The auditor reads it; the
                     // security leads write it.

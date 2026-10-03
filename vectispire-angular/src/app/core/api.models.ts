@@ -3088,3 +3088,134 @@ export type ChecklistShownMeasurement = Refine<
     Schema<'ShownMeasurement'>,
     { itemId: number; measurementDigest: string }
 >;
+
+/**
+ * The closed list of what a report plugin may write (decision 0035 §3) — HTML, the legacy binary
+ * Office formats and macro-enabled packages are not on it.
+ */
+export type ReportMediaType = NonNullable<Schema<'ReportPluginManifest'>['media_type']>;
+
+/**
+ * A report plugin's manifest (decision 0035 §2), **as the governor pasted it and the server stored
+ * it.** The digest covers every field, so nothing here is cosmetic. `signature` is required with no
+ * waiver: the platform signs what the image writes and does not lend its key to an image nobody
+ * vouched for.
+ */
+export type ReportPluginManifest = Refine<
+    Schema<'ReportPluginManifest'>,
+    {
+        id: string;
+        name: string;
+        image: string;
+        export_schema: number;
+        arguments: string[];
+        output: string;
+        media_type: ReportMediaType;
+        signature: PluginSignature;
+    }
+>;
+
+/**
+ * Where a manifest digest stands: `pending_approval`, `approved`, `superseded` — replaced before
+ * anybody approved it, never ran — and `withdrawn`, final.
+ */
+export type ReportManifestStatus = NonNullable<Schema<'ReportPluginManifestView'>['status']>;
+
+/** One manifest of a report plugin, by digest: who registered, approved and withdrew it. */
+export type ReportPluginManifestView = Refine<
+    Schema<'ReportPluginManifestView'>,
+    {
+        digest: string;
+        status: ReportManifestStatus;
+        manifest: ReportPluginManifest;
+        registeredAt: string | null;
+        registeredBy: string | null;
+        approvedAt: string | null;
+        approvedBy: string | null;
+        /** Whether four-eyes applied to its approval; null until approved. */
+        approvalFourEyes: boolean | null;
+        withdrawnAt: string | null;
+        withdrawnBy: string | null;
+        withdrawalJustification: string | null;
+    }
+>;
+
+/**
+ * A registered report plugin. `approvedDigest` is the one a run uses, `pendingDigest` the one awaiting
+ * a second person; either may be null. `manifests` is every digest it ever had, newest first.
+ */
+export type ReportPlugin = Refine<
+    Schema<'ReportPluginView'>,
+    {
+        id: string;
+        name: string;
+        approvedDigest: string | null;
+        pendingDigest: string | null;
+        createdAt: string | null;
+        createdBy: string | null;
+        updatedAt: string | null;
+        updatedBy: string | null;
+        manifests: ReportPluginManifestView[];
+    }
+>;
+
+/** A report plugin switched on for one project. `pluginName` is null only when the plugin row could not be read. */
+export type ReportPluginActivation = Refine<
+    Schema<'ReportPluginActivationView'>,
+    {
+        id: number;
+        pluginId: string;
+        pluginName: string | null;
+        projectId: number;
+        activatedAt: string | null;
+        activatedBy: string | null;
+    }
+>;
+
+/** `pending`, `running`, `produced`, `failed`, `refused` — `ReportRunState`. */
+export type ReportRunState = NonNullable<Schema<'ReportRunView'>['state']>;
+
+/**
+ * Why a run did not produce — `ReportRunReason`, closed. A refusal (`unsigned`, `signature_unverified`,
+ * `registry_authentication_required`, `export_schema_unavailable`, `output_refused`) is how a tampered
+ * plugin shows itself; a failure is work going wrong.
+ */
+export type ReportRunReason = NonNullable<Schema<'ReportRunView'>['reason']>;
+
+/**
+ * One report run of a project. Everything after `requestedAt` is null until the step that records it:
+ * the manifest and signer at the claim, the export once built, the output and the package once
+ * produced. `reason` and `detail` only for a run that did not produce.
+ */
+export type ReportRun = Refine<
+    Schema<'ReportRunView'>,
+    {
+        id: number;
+        projectId: number;
+        projectName: string | null;
+        pluginId: string;
+        state: ReportRunState;
+        reason: ReportRunReason | null;
+        detail: string | null;
+        requestedAt: string | null;
+        requestedBy: string | null;
+        startedAt: string | null;
+        exportedAt: string | null;
+        finishedAt: string | null;
+        manifestDigest: string | null;
+        imageDigest: string | null;
+        signerIdentity: string | null;
+        signerIssuer: string | null;
+        signerKeySha256: string | null;
+        exportSchemaVersion: string | null;
+        exportSha256: string | null;
+        exportSize: number | null;
+        exitCode: number | null;
+        outputSize: number | null;
+        outputSha256: string | null;
+        outputMediaType: string | null;
+        signingKeyId: string | null;
+        packageSha256: string | null;
+        productVersion: string | null;
+    }
+>;

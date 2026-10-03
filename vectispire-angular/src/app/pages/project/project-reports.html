@@ -1,0 +1,246 @@
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-3 w-full" data-testid="reports-error">{{
+        message
+    }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="false" styleClass="mb-3 w-full" data-testid="reports-notice">{{
+        message
+    }}</p-message>
+}
+
+<p-card styleClass="mb-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+            <h3 class="text-base font-semibold mt-0 mb-1">{{ 'reports.export_title' | translate }}</h3>
+            <p class="text-sm text-muted-color m-0">{{ 'reports.export_explain' | translate }}</p>
+        </div>
+        <p-button
+            id="download-project-export"
+            icon="pi pi-download"
+            [outlined]="true"
+            [label]="'reports.export_btn' | translate"
+            [loading]="exporting()"
+            [disabled]="!mayRequest()"
+            (onClick)="downloadExport()"
+        />
+    </div>
+    @if (!mayRequest()) {
+        <p class="text-sm mt-2 mb-0" data-testid="export-not-allowed">{{ 'reports.not_allowed' | translate }}</p>
+    }
+</p-card>
+
+<p-card styleClass="mb-4" data-testid="report-activations">
+    <h3 class="text-base font-semibold mt-0 mb-2">{{ 'reports.plugins_title' | translate }}</h3>
+    @if (activations(); as list) {
+        @if (list.length === 0) {
+            <p class="text-sm text-muted-color m-0" data-testid="no-activations">
+                {{ 'reports.no_activations' | translate }}
+            </p>
+        }
+        <ul class="list-none p-0 m-0 flex flex-col gap-2">
+            @for (activation of list; track activation.pluginId) {
+                <li
+                    class="flex flex-wrap items-center justify-between gap-2"
+                    [attr.data-testid]="'activation-' + activation.pluginId"
+                >
+                    <span class="min-w-0">
+                        <span class="font-medium">{{ activation.pluginName ?? activation.pluginId }}</span>
+                        <span class="text-muted-color text-sm font-mono"> ({{ activation.pluginId }})</span>
+                        <span class="block text-xs text-muted-color">
+                            {{ 'reports.activated_by' | translate: { who: activation.activatedBy ?? '—' } }}
+                            {{ activation.activatedAt | date: 'dd/MM/yyyy' }}
+                        </span>
+                    </span>
+                    <span class="flex flex-wrap items-center gap-2">
+                        <p-button
+                            icon="pi pi-play"
+                            size="small"
+                            [label]="'reports.request_btn' | translate"
+                            [ariaLabel]="
+                                'reports.aria_request'
+                                    | translate: { name: activation.pluginName ?? activation.pluginId }
+                            "
+                            [disabled]="!mayRequest() || busyPlugins().has(activation.pluginId)"
+                            [loading]="busy() === 'request:' + activation.pluginId"
+                            [attr.data-testid]="'request-' + activation.pluginId"
+                            (onClick)="request(activation)"
+                        />
+                        @if (managesActivations()) {
+                            <p-button
+                                icon="pi pi-times"
+                                size="small"
+                                severity="secondary"
+                                [outlined]="true"
+                                [label]="'reports.deactivate_btn' | translate"
+                                [ariaLabel]="
+                                    'reports.aria_deactivate'
+                                        | translate: { name: activation.pluginName ?? activation.pluginId }
+                                "
+                                [loading]="busy() === 'deactivate:' + activation.pluginId"
+                                [attr.data-testid]="'deactivate-' + activation.pluginId"
+                                (onClick)="deactivate(activation)"
+                            />
+                        }
+                    </span>
+                </li>
+            }
+        </ul>
+        @if (!mayRequest()) {
+            <p class="text-sm mt-2 mb-0" data-testid="request-not-allowed">{{ 'reports.not_allowed' | translate }}</p>
+        } @else if (busyPlugins().size > 0) {
+            <p class="text-sm text-muted-color mt-2 mb-0" data-testid="request-in-progress">
+                {{ 'reports.one_at_a_time' | translate }}
+            </p>
+        }
+        @if (managesActivations()) {
+            <div class="flex flex-wrap items-center gap-2 mt-3">
+                <label for="report-plugin-to-activate" class="text-sm font-medium">{{
+                    'reports.activate_label' | translate
+                }}</label>
+                <p-select
+                    inputId="report-plugin-to-activate"
+                    [options]="activatable()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [ngModel]="toActivate()"
+                    (ngModelChange)="toActivate.set($event)"
+                    [placeholder]="'reports.activate_placeholder' | translate"
+                    [emptyMessage]="'reports.activate_none' | translate"
+                    styleClass="w-72"
+                />
+                <p-button
+                    icon="pi pi-check"
+                    size="small"
+                    data-testid="activate"
+                    [label]="'reports.activate_btn' | translate"
+                    [disabled]="!toActivate()"
+                    [loading]="busy() === 'activate:' + toActivate()"
+                    (onClick)="activate()"
+                />
+            </div>
+        }
+    } @else {
+        <p class="text-muted-color text-sm m-0">{{ 'common.loading' | translate }}</p>
+    }
+</p-card>
+
+<p-card styleClass="mb-4">
+    <h3 class="text-base font-semibold mt-0 mb-2">{{ 'reports.runs_title' | translate }}</h3>
+    @if (runs(); as list) {
+        <p-table [value]="list" size="small" dataKey="id" data-testid="report-runs">
+            <ng-template #header>
+                <tr>
+                    <th>{{ 'reports.col_plugin' | translate }}</th>
+                    <th>{{ 'reports.col_state' | translate }}</th>
+                    <th>{{ 'reports.col_requested' | translate }}</th>
+                    <th>{{ 'reports.col_document' | translate }}</th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-run>
+                <tr [attr.data-testid]="'run-' + run.id">
+                    <td>
+                        <div class="font-medium">{{ pluginName(run.pluginId) }}</div>
+                        <details class="text-xs mt-1">
+                            <summary class="cursor-pointer text-muted-color">
+                                {{ 'reports.provenance_btn' | translate }}
+                            </summary>
+                            <dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 m-0 mt-1" data-testid="run-provenance">
+                                <dt class="text-muted-color">{{ 'reports.field_manifest' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">{{ run.manifestDigest ?? '—' }}</dd>
+                                <dt class="text-muted-color">{{ 'reports.field_image' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">{{ run.imageDigest ?? '—' }}</dd>
+                                <dt class="text-muted-color">{{ 'reports.field_signer' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">
+                                    {{ run.signerIdentity ?? run.signerKeySha256 ?? '—' }}
+                                </dd>
+                                <dt class="text-muted-color">{{ 'reports.field_export' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">
+                                    {{ run.exportSha256 ?? '—' }}
+                                    @if (run.exportSchemaVersion) {
+                                        ({{ run.exportSchemaVersion }})
+                                    }
+                                </dd>
+                                <dt class="text-muted-color">{{ 'reports.field_output' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">{{ run.outputSha256 ?? '—' }}</dd>
+                                <dt class="text-muted-color">{{ 'reports.field_package' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">{{ run.packageSha256 ?? '—' }}</dd>
+                                <dt class="text-muted-color">{{ 'reports.field_key' | translate }}</dt>
+                                <dd class="m-0 font-mono break-all">{{ run.signingKeyId ?? '—' }}</dd>
+                            </dl>
+                        </details>
+                    </td>
+                    <td>
+                        <p-tag [severity]="stateSeverity(run)" [value]="stateLabel(run)" data-testid="run-state" />
+                        @if (reasonLabel(run); as reason) {
+                            <div class="text-sm mt-1" data-testid="run-reason">{{ reason }}</div>
+                        }
+                        @if (run.detail) {
+                            <div
+                                class="text-xs text-muted-color mt-1 whitespace-pre-wrap break-words"
+                                data-testid="run-detail"
+                            >
+                                {{ run.detail }}
+                            </div>
+                        }
+                    </td>
+                    <td class="text-sm">
+                        {{ run.requestedBy ?? '—' }}
+                        <div class="text-xs text-muted-color">{{ run.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</div>
+                    </td>
+                    <td class="text-sm">
+                        @if (run.state === 'produced') {
+                            <!--
+                                R7 (decision 0035 §4, withdrawal): a run whose manifest was withdrawn is to be
+                                marked here — "withdrawn", with the justification — once the run view says so.
+                                Until then its document is served, and shown, unmarked.
+                            -->
+                            <p-button
+                                icon="pi pi-download"
+                                size="small"
+                                [outlined]="true"
+                                [label]="'reports.download_btn' | translate"
+                                [ariaLabel]="
+                                    'reports.aria_download' | translate: { name: pluginName(run.pluginId), id: run.id }
+                                "
+                                [loading]="busy() === 'download:' + run.id"
+                                [attr.data-testid]="'download-' + run.id"
+                                (onClick)="download(run)"
+                            />
+                            <div class="text-xs text-muted-color mt-1">
+                                {{ extension(run.outputMediaType) }} · {{ size(run.outputSize) }}
+                            </div>
+                        } @else {
+                            <span class="text-muted-color">—</span>
+                        }
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="4" class="text-muted-color" data-testid="no-runs">
+                        {{ 'reports.no_runs' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
+    } @else {
+        <p class="text-muted-color text-sm m-0">{{ 'common.loading' | translate }}</p>
+    }
+</p-card>
+
+<p-card styleClass="mb-4" data-testid="package-explained">
+    <h3 class="text-base font-semibold mt-0 mb-2">{{ 'reports.package_title' | translate }}</h3>
+    <ul class="text-sm m-0 pl-5 flex flex-col gap-1">
+        <li>{{ 'reports.package_file' | translate }}</li>
+        <li>{{ 'reports.package_sig' | translate }}</li>
+        <li>{{ 'reports.package_provenance' | translate }}</li>
+    </ul>
+    <p class="text-sm mt-2 mb-0">{{ 'reports.package_claim' | translate }}</p>
+    <p class="text-sm mt-2 mb-0">
+        <a [href]="verifyDoc()" target="_blank" rel="noopener noreferrer" data-testid="verify-doc">
+            {{ 'reports.verify_link' | translate }}
+            <i class="pi pi-external-link text-xs" aria-hidden="true"></i>
+        </a>
+    </p>
+</p-card>
