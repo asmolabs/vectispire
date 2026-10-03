@@ -36,7 +36,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
  */
 export const PLUGIN_REFUSAL_KEYS = {
     unsigned: 'scans.plugin_refusal.unsigned',
-    signature_unverified: 'scans.plugin_refusal.signature_unverified'
+    signature_unverified: 'scans.plugin_refusal.signature_unverified',
+    registry_authentication_required: 'scans.plugin_refusal.registry_authentication_required'
 } as const satisfies Record<PluginRefusal, string>;
 
 /**
