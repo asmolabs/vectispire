@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface IssueRepository
         extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity>, IssueAggregateQueries {
+
+    /**
+     * The rows a specification selects, as a projection — only the columns {@code shape} names are
+     * read. Spring Data's fluent query, kept here so that a service hands over a specification and a
+     * record and never holds the query API itself ({@code ArchitectureTest.servicesHoldNoQueryApi}).
+     */
+    default <R> List<R> findAllAs(Specification<IssueEntity> specification, Class<R> shape) {
+        return findBy(specification, query -> query.as(shape).all());
+    }
 
     /**
      * The issues that currently carry an exception, newest decision first.

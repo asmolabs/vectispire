@@ -93,9 +93,9 @@ public class SlaService {
         // nothing else off them, so loading entities cost one managed object per overdue issue in
         // the estate — the same shape as the reads `ReadCostSweepTest` watches, and the one
         // that kept the compliance summary linear after the other four were projected.
-        for (com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows.Attribution row : issues.findBy(
+        for (com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows.Attribution row : issues.findAllAs(
                 IssueSpecifications.of(overdue(thresholds, allowed)),
-                query -> query.as(com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows.Attribution.class).all())) {
+                com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows.Attribution.class)) {
             Long repoId = row.repoId();
             Long containerId = row.containerId();
             if (repoId == null && containerId == null) {

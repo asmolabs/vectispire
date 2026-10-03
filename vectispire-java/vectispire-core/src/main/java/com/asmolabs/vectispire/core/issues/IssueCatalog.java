@@ -92,7 +92,7 @@ public class IssueCatalog {
      * read, which is what each projection exists for.
      */
     public <R> List<R> rows(IssueFilters filters, Class<R> shape) {
-        return issues.findBy(IssueSpecifications.of(filters), query -> query.as(shape).all());
+        return issues.findAllAs(IssueSpecifications.of(filters), shape);
     }
 
     /**
@@ -222,29 +222,29 @@ public class IssueCatalog {
     }
 
     public long countByStateAndTypeWithin(String state, String type, Collection<Long> repoIds) {
-        return issues.count(within(state, type, repoIds));
+        return issues.count(IssueSpecifications.of(within(state, type, repoIds)));
     }
 
     public long countDistinctRulesWithin(String state, String type, Collection<Long> repoIds) {
-        return issues.countDistinct(within(state, type, repoIds), IssueAggregateQueries.Axis.RULE);
+        return issues.countDistinct(IssueSpecifications.of(within(state, type, repoIds)), IssueAggregateQueries.Axis.RULE);
     }
 
     public long countDistinctFilesWithin(String state, String type, Collection<Long> repoIds) {
-        return issues.countDistinct(within(state, type, repoIds), IssueAggregateQueries.Axis.FILE);
+        return issues.countDistinct(IssueSpecifications.of(within(state, type, repoIds)), IssueAggregateQueries.Axis.FILE);
     }
 
     public List<KeyCount> countOpenByRuleWithin(String state, String type, Collection<Long> repoIds, int limit) {
-        return keyed(issues.countGrouped(within(state, type, repoIds), IssueAggregateQueries.Axis.RULE, limit));
+        return keyed(issues.countGrouped(IssueSpecifications.of(within(state, type, repoIds)), IssueAggregateQueries.Axis.RULE, limit));
     }
 
     public List<KeyCount> countOpenByFileWithin(String state, String type, Collection<Long> repoIds, int limit) {
-        return keyed(issues.countGrouped(within(state, type, repoIds), IssueAggregateQueries.Axis.FILE, limit));
+        return keyed(issues.countGrouped(IssueSpecifications.of(within(state, type, repoIds)), IssueAggregateQueries.Axis.FILE, limit));
     }
 
     public List<RepositoryCount> countOpenByTargetRepositoryWithin(
             String state, String type, Collection<Long> repoIds, int limit) {
         return byRepository(issues.countGrouped(
-                within(state, type, repoIds), IssueAggregateQueries.Axis.REPOSITORY, limit));
+                IssueSpecifications.of(within(state, type, repoIds)), IssueAggregateQueries.Axis.REPOSITORY, limit));
     }
 
     /**
@@ -253,12 +253,11 @@ public class IssueCatalog {
      * written into the statement rather than bound, never failing past the driver's parameter ceiling.
      * An empty collection matches nothing.
      */
-    private static org.springframework.data.jpa.domain.Specification<IssueEntity> within(
-            String state, String type, Collection<Long> repoIds) {
-        return IssueSpecifications.of(new IssueFilters(
+    private static IssueFilters within(String state, String type, Collection<Long> repoIds) {
+        return new IssueFilters(
                         state, null, type, null, null, null, false, false, null,
                         com.asmolabs.vectispire.common.domain.access.Visibility.everything())
-                .within(repoIds.stream().map(ScanTarget.Repository::new).toList()));
+                .within(repoIds.stream().map(ScanTarget.Repository::new).toList());
     }
 
     /** Issues of one repository, severity and state in one scope — the rows a checklist's figures add up. */
