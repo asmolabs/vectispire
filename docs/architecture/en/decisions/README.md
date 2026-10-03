@@ -39,7 +39,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0033](0033-internal-reactions-leave-through-the-outbox.md) | A reaction between modules that must survive a commit leaves through the outbox, not Modulith's registry | accepted |
 | [0034](0034-mysql-replaces-the-sqlite-fixture.md) | MySQL replaces SQLite as the fixture the unit and HTTP suites run on | accepted, done |
 | [0035](0035-report-plugins.md) | A report plugin is a signed container image that turns a project export into one document, which the platform validates, signs and keeps with its provenance | accepted |
-| [0036](0036-the-posture-score-formula.md) | The posture score falls by a share per issue, licences weigh like a high, an exploited issue caps at D, and the risk points are shown | proposed |
+| [0036](0036-the-posture-score-formula.md) | The posture score falls by a share per issue, licences weigh like a high, an exploited issue caps at D, a scope is graded by its weakest target, the portfolio by its distribution, and the risk points are shown | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

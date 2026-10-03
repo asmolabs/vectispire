@@ -1,6 +1,13 @@
 # 0036 — La formule du score de posture
 
-**Date :** 2026-10-03 · **Statut :** proposée · **Décideur :** Laurent Boucher
+**Date :** 2026-10-03 · **Statut :** acceptée · **Décideur :** Laurent Boucher
+
+*Acceptée le 2026-10-03 par le responsable produit, sur les tableaux de la simulation ci-dessous, les
+deux questions que la proposition laissait ouvertes étant tranchées : **un projet et une solution sont
+notés par leur maillon le plus faible**, la somme étant rejetée pour son effet de taille, et **le
+portefeuille n'a pas de note unique** — il montre la répartition des notes de ses cibles, sa cible la
+plus faible et le total de ses points de risque. Rien de la bascule n'était publié à l'acceptation ;
+elle part dans la 0.11.0 (Déploiement).*
 
 ## Contexte
 
@@ -170,21 +177,27 @@ score            = max(1, arrondi(100 × exp(−points de risque / 55)))   plafo
   arrive, et où regarder en premier. La lettre est grossière à dessein ; les points restent derrière
   une session, comme tout autre chiffre du backlog.
 - **Inchangé** : les seuils, ce qui compte (problèmes ouverts, triage réglé — `not_affected`,
-  `fixed` — exclu), le plafond de couverture sur le score d'un projet, d'une solution ou du portefeuille
-  (la part observée), `NO_DATA`, et les recommandations.
-- **Une portée est notée par son maillon le plus faible — recommandé par le responsable produit, en
-  attente d'acceptation** (amendement du 2026-10-03). Le score d'un projet ou d'une solution est le
-  plus bas score de ses cibles observées, chacun calculé comme le calcule la fiche de la cible,
-  plafonné à la part observée de la portée ; `NO_DATA` quand aucune n'est observée ; la fiche nomme la
-  cible dont vient la note. Une portée n'est pas plus sûre que sa cible la plus exposée, et sa note ne
-  doit pas dépendre de sa taille : vingt cibles de quatre moyennes chacune sont vingt cibles A+, pas un
-  projet D. Ses points de risque restent la somme du backlog ouvert de la portée, chaque problème et
-  chaque licence une fois, pour qu'une grande portée montre toujours ce qui est ouvert. L'autre option
-  sur la table est la **somme** — la formule sur le backlog cumulé de la portée, comme le calcule la
-  fiche de portée actuelle — qui lit dans deux backlogs ensemble une exposition plus grande que dans
-  chacun, et note une portée d'autant plus bas qu'elle tient de cibles (les tableaux ci-dessus). Le
-  score du portefeuille est hors de cette question — la simulation ne le compare pas — et reste le
-  calcul cumulé.
+  `fixed` — exclu), le plafond de couverture sur le score d'un projet ou d'une solution (la part
+  observée), `NO_DATA`, et les recommandations.
+- **Une portée est notée par son maillon le plus faible** (acceptée le 2026-10-03). Le score d'un
+  projet ou d'une solution est le plus bas score de ses cibles observées, chacun calculé comme le
+  calcule la fiche de la cible, plafonné à la part observée de la portée ; `NO_DATA` quand aucune n'est
+  observée ; la fiche nomme la cible dont vient la note. Une portée n'est pas plus sûre que sa cible la
+  plus exposée, et sa note ne doit pas dépendre de sa taille : vingt cibles de quatre moyennes chacune
+  sont vingt cibles A+, pas un projet D. Ses points de risque sont la somme du backlog ouvert de la
+  portée, chaque problème et chaque licence une fois, pour qu'une grande portée montre toujours ce qui
+  est ouvert. La somme est rejetée (Alternatives rejetées).
+- **Le portefeuille n'a pas de note unique** (acceptée le 2026-10-03). Le tableau de bord et
+  `GET /api/v1/scorecards/global` donnent, sur les cibles que le lecteur voit, **combien de cibles
+  tiennent chaque note** (`NO_DATA` compris, ce qui dit la couverture en clair), **la cible la plus
+  faible, nommée**, et **le total des points de risque** — chaque problème et chaque licence une fois.
+  Une note unique sur un parc n'aide personne à décider : calculée sur le backlog cumulé, elle est
+  écrasée par la taille du parc — quelques centaines de cibles raisonnables se lisent F quoi qu'elles
+  fassent, le projet des vingt dépôts à moyennes ci-dessus à l'échelle d'un parc — et calculée par le
+  maillon le plus faible, elle est la note de la pire cible sous un autre nom, ce que la ligne de la
+  cible la plus faible dit déjà, la cible en plus. La répartition est ce sur quoi le lecteur d'un parc
+  agit : combien de cibles sont en F, si ce nombre baisse, et laquelle d'abord. Le plafond de
+  couverture du portefeuille part avec sa note ; le nombre de `NO_DATA` le remplace.
 
 ## Alternatives rejetées
 
@@ -205,6 +218,19 @@ score            = max(1, arrondi(100 × exp(−points de risque / 55)))   plafo
   des cibles propres : dix dépôts propres et un dépôt portant une critique exploitée font en moyenne 96,
   A+, pour un projet que la somme et le maillon le plus faible notent tous deux D pour sa critique
   exploitée. La note dirait le contraire de ce que tient le projet.
+- **Une portée notée par la formule sur son backlog cumulé** (le calcul de la fiche de portée
+  jusqu'à la 0.11.0). Elle note une portée par sa taille autant que par son exposition : vingt dépôts
+  de quatre moyennes chacun, tous à 96 A+, font un projet à 48 D ; un dépôt à 54 D et un à 55 C font
+  un projet à 30 F ; et la solution qui tient le projet des vingt et celui des dix plus un se lit 31 F
+  là où sa cible la plus faible se lit 54 D. Couper un projet en deux relèverait la note des deux
+  moitiés sans rien corriger, et une équipe qui ajoute un dépôt propre à un projet la baisserait. Le
+  seul mérite de la somme — une grande portée montre ce qui est ouvert — est gardé par les points de
+  risque, qui restent cumulés.
+- **Une note unique pour le portefeuille**, cumulée ou par le maillon le plus faible. Cumulée, l'effet
+  de taille ci-dessus grandit avec le parc — quarante cibles de deux hautes chacune cumulent déjà 320
+  points de risque, un score de 1, F ; par le maillon le plus faible, elle répète la note de la pire
+  cible et cache combien d'autres la partagent. Aucune ne dit au lecteur quoi faire ensuite ; la
+  répartition, si.
 - **Garder le bonus de +5.** C'est une constante pour chaque cible notée : il ne change que le plafond
   commun à toutes, et cache une haute ou une licence sur une fiche autrement propre.
 
@@ -217,10 +243,11 @@ seulement à l'écran :
 | Consommateur | Ce qu'il lit | Ce qu'il voit |
 |---|---|---|
 | Pastille publique, `GET /api/v1/scorecards/badges/{token}.svg`, intégrée aux README d'autres personnes | la lettre et la couleur de la note | une autre lettre et une autre couleur au rendu suivant, sans que personne ait touché au dépôt — et toujours aucun chiffre : les points de risque n'y figurent pas |
-| `GET /api/v1/scorecards/repositories/{repoId}`, `…/containers/{containerId}`, `…/global` | `score`, `grade` | de nouvelles valeurs ; un nouveau champ `riskPoints` |
-| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | le `scorecard` intégré | comme ci-dessus, sur le backlog et la couverture de la portée ; `licenseViolationCount` baisse là où un scan nommait une image et un dépôt de la portée |
+| `GET /api/v1/scorecards/repositories/{repoId}`, `…/containers/{containerId}` | `score`, `grade` | de nouvelles valeurs ; un nouveau champ `riskPoints` |
+| `GET /api/v1/scorecards/global` | `score`, `grade` et le reste d'une fiche de cible | **une autre forme** : plus de `score` ni de `grade` — un portefeuille n'en a pas — mais le nombre de cibles par note, la cible la plus faible et le total des points de risque. Une intégration qui y lit `score` ou `grade` ne lit rien, ce qui est la réponse honnête, plutôt qu'un chiffre qui veut dire autre chose |
+| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | le `scorecard` intégré | le score de la cible observée la plus faible, plafonné à la couverture, et cette cible nommée ; `riskPoints` sur le backlog de la portée ; `licenseViolationCount` baisse là où un scan nommait une image et un dépôt de la portée |
 | `GET /api/v1/dashboard/posture-analytics` | `securityScore`, `maturityGrade` du classement de maturité, et son ordre | de nouvelles valeurs, un nouvel ordre entre ex æquo départagés par les points de risque |
-| L'interface : le composant scorecard, le classement du tableau de bord, les pages projet et solution | les champs ci-dessus | les nouveaux chiffres et les points de risque |
+| L'interface : le composant scorecard, le classement et le portefeuille du tableau de bord, les pages projet et solution | les champs ci-dessus | les nouveaux chiffres et les points de risque ; la répartition du portefeuille là où était sa note |
 
 **Rien d'autre ne lit la note.** La barrière décide sur les sévérités, KEV et sa politique, jamais sur
 la note ni le score ; aucun événement SIEM, notification, ticket, export (SARIF, VEX, CSAF,
@@ -251,7 +278,8 @@ Décidé avec le responsable produit le 2026-10-03 (amendement) :
    2026-10-03 (amendement), pour que le choix entre elles se fasse sur les mêmes chiffres.
 2. **Une seule version bascule, la 0.11.0**, partout à la fois : `computeScorecard` calcule la formule
    de `CandidateScore` avec `Weights.PROPOSED`, `SecurityScorecard` gagne `riskPoints`, le classement
-   départage par eux, la pastille garde sa seule lettre. Pas de drapeau ni de période avec deux
+   départage par eux, la pastille garde sa seule lettre, une portée est notée par son maillon le plus
+   faible et le portefeuille par sa répartition. Pas de drapeau ni de période avec deux
    formules actives : deux notes pour une cible sur deux écrans est le défaut que l'unification du
    classement a fermé.
 3. **Le double compte des portées est corrigé par la même bascule** : le terme de licence d'une portée
@@ -262,9 +290,9 @@ Décidé avec le responsable produit le 2026-10-03 (amendement) :
    formule, les tableaux ci-dessus, le nouveau champ `riskPoints` (routes authentifiées seulement), et
    la phrase qu'un lecteur doit lire d'abord — *les notes baissent parce que les moyennes, les basses
    et chaque problème de plus comptent désormais, pas parce qu'un projet s'est dégradé ; rien n'a
-   changé dans votre dépôt*. La façon dont une portée est notée — la note de sa cible la plus faible,
-   ou, si la somme est retenue, une note qui peut se lire plus bas que chacune de ses cibles — et le
-   nombre de licences d'une portée qui baisse y sont dits aussi.
+   changé dans votre dépôt*. La façon dont une portée est notée — la note de sa cible la plus
+   faible —, la nouvelle forme du portefeuille sur `/scorecards/global` et le nombre de licences d'une
+   portée qui baisse y sont dits aussi.
 5. **Le graphique de tendance du tableau de bord marque la bascule** d'une ligne verticale datée
    (« formule du scorecard modifiée », 0.11.0), pour qu'un lecteur qui compare une période de part et
    d'autre voie pourquoi les notes ont bougé. Les séries qu'il trace aujourd'hui sont celles du

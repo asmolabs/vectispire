@@ -1,6 +1,12 @@
 # 0036 — The posture score formula
 
-**Date:** 2026-10-03 · **Status:** proposed · **Decider:** Laurent Boucher
+**Date:** 2026-10-03 · **Status:** accepted · **Decider:** Laurent Boucher
+
+*Accepted on 2026-10-03 by the product owner, on the simulation's tables below, with the two
+questions the proposal left open settled: **a project and a solution are graded by their weakest
+link**, the sum being rejected for its size effect, and **the portfolio has no single grade** — it
+shows the distribution of its targets' grades, its weakest target and its total risk points. Nothing
+of the switch was released when it was accepted; it ships in 0.11.0 (Rollout).*
 
 ## Context
 
@@ -161,19 +167,25 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
   when a backlog grows after a release and when a fix lands, and where to look first. The letter is
   coarse by design; the points stay behind a session, like every other figure of the backlog.
 - **Unchanged**: the bands, what counts (open issues, settled triage — `not_affected`, `fixed` —
-  left out), the coverage cap on a project's, a solution's or the portfolio's score (the observed
-  share), `NO_DATA`, and the recommendations.
-- **A scope is graded by its weakest link — recommended by the product owner, pending acceptance**
-  (amended 2026-10-03). A project's or a solution's score is the lowest score among its observed
-  targets, each computed as its own card computes it, held at the scope's observed share; `NO_DATA`
-  when none is observed; the card names the target the grade comes from. A scope is no safer than
-  its most exposed target, and its grade must not depend on its size: twenty targets of four mediums
-  each are twenty A+ targets, not a D project. Its risk points stay the sum of the scope's open
-  backlog, each issue and licence once, so a large scope still shows how much is open. The other
-  option on the table is the **sum** — the formula over the scope's summed backlog, as today's
-  scope card computes — which reads more exposure into two backlogs together than into either, and
-  grades a scope lower the more targets it holds (the tables above). The portfolio's score is outside
-  this question — the simulation does not compare it — and stays the summed computation.
+  left out), the coverage cap on a project's or a solution's score (the observed share), `NO_DATA`,
+  and the recommendations.
+- **A scope is graded by its weakest link** (accepted 2026-10-03). A project's or a solution's score
+  is the lowest score among its observed targets, each computed as its own card computes it, held at
+  the scope's observed share; `NO_DATA` when none is observed; the card names the target the grade
+  comes from. A scope is no safer than its most exposed target, and its grade must not depend on its
+  size: twenty targets of four mediums each are twenty A+ targets, not a D project. Its risk points
+  are the sum of the scope's open backlog, each issue and licence once, so a large scope still shows
+  how much is open. The sum is rejected (Alternatives rejected).
+- **The portfolio has no single grade** (accepted 2026-10-03). The dashboard and
+  `GET /api/v1/scorecards/global` state, over the targets the reader sees, **how many targets hold
+  each grade** (`NO_DATA` among them, which is the coverage said outright), **the weakest target by
+  name**, and **the total risk points** — each issue and licence once. A single grade over an estate
+  helps nobody decide: computed over the summed backlog it is crushed by the estate's size — a few
+  hundred reasonable targets read F however they move, the twenty-mediums project above at estate
+  scale — and computed by the weakest link it is the worst target's grade under another name, which
+  the weakest target's line already says with the target attached. The distribution is what a reader
+  of an estate acts on: how many targets are in F, whether that number falls, and which one first.
+  The portfolio's coverage cap goes with its grade; the `NO_DATA` count replaces it.
 
 ## Alternatives rejected
 
@@ -193,6 +205,17 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
   removes the size penalty, but a critical target hides behind clean ones: ten clean repositories
   and one holding an exploited critical average 96, A+, for a project whose exploited critical the
   sum and the weakest link both grade D. The grade would say the opposite of what the project holds.
+- **A scope graded by the formula over its summed backlog** (the scope card's computation until
+  0.11.0). It grades a scope by its size as much as by its exposure: twenty repositories of four
+  mediums each, every one 96 A+, make a 48 D project; a 54 D repository and a 55 C one make a 30 F
+  project; and the solution holding the twenty and the ten-plus-one projects reads 31 F where its
+  weakest target reads 54 D. Splitting a project in two would raise both halves' grades with nothing
+  fixed, and a team adding a clean repository to a project would lower it. The sum's one merit — a
+  large scope shows how much is open — is kept by the risk points, which stay summed.
+- **A single grade for the portfolio**, summed or weakest-link. Summed, the size effect above grows
+  with the estate — forty targets with two highs each already sum to 320 risk points, a score of 1, F; weakest-link, it repeats the worst
+  target's grade and hides how many others share it. Neither tells a reader what to do next; the
+  distribution does.
 - **Keeping the +5 bonus.** It is a constant for every graded target, so it changes nothing but
   the ceiling every target shares, and it hides one high or one licence on an otherwise clean card.
 
@@ -204,10 +227,11 @@ score       = max(1, round(100 × exp(−risk points / 55)))        capped at 54
 | Consumer | What it reads | What it sees |
 |---|---|---|
 | Public badge, `GET /api/v1/scorecards/badges/{token}.svg`, embedded in other people's READMEs | the grade's letter and colour | a different letter and colour on the next render, with nobody having changed the repository — and still no figure: the risk points are not on it |
-| `GET /api/v1/scorecards/repositories/{repoId}`, `…/containers/{containerId}`, `…/global` | `score`, `grade` | new values; a new `riskPoints` field |
-| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | the embedded `scorecard` | as above, over the scope's backlog and coverage; `licenseViolationCount` drops where a scan named one of the scope's images and one of its repositories |
+| `GET /api/v1/scorecards/repositories/{repoId}`, `…/containers/{containerId}` | `score`, `grade` | new values; a new `riskPoints` field |
+| `GET /api/v1/scorecards/global` | `score`, `grade` and the rest of a target's card | **a different shape**: no `score` and no `grade` any more — a portfolio has none — but the count of targets per grade, the weakest target and the total risk points. An integration reading `score` or `grade` there reads nothing, which is the honest answer, rather than a figure that means something else |
+| `GET /api/v1/projects/{id}/compliance`, `GET /api/v1/solutions/{id}/compliance` | the embedded `scorecard` | the weakest observed target's score, held at the coverage, and that target named; `riskPoints` over the scope's backlog; `licenseViolationCount` drops where a scan named one of the scope's images and one of its repositories |
 | `GET /api/v1/dashboard/posture-analytics` | the maturity ranking's `securityScore`, `maturityGrade`, and its order | new values, a new order among ties broken by risk points |
-| The interface: the scorecard component, the dashboard's ranking, the project and solution pages | the fields above | the new figures and the risk points |
+| The interface: the scorecard component, the dashboard's ranking and portfolio, the project and solution pages | the fields above | the new figures and the risk points; the portfolio's distribution where its grade was |
 
 **Nothing else reads the grade.** The gate decides on severities, KEV and its policy, never on the
 grade or the score; no SIEM event, notification, ticket, export (SARIF, VEX, CSAF, CycloneDX) or the
@@ -236,7 +260,8 @@ Decided with the product owner on 2026-10-03 (amendment):
    the same figures.
 2. **One release switches it, 0.11.0**, everywhere at once: `computeScorecard` computes
    `CandidateScore`'s formula with `Weights.PROPOSED`, `SecurityScorecard` gains `riskPoints`, the
-   ranking breaks ties on them, the badge keeps its letter alone. No flag and no period with two
+   ranking breaks ties on them, the badge keeps its letter alone, a scope is graded by its weakest
+   link and the portfolio by its distribution. No flag and no period with two
    formulas live: two grades for one target on two screens is the defect the ranking's unification
    closed.
 3. **The scope double count is fixed by the same switch**: a scope's licence term becomes the sum of
@@ -247,8 +272,8 @@ Decided with the product owner on 2026-10-03 (amendment):
    tables above, the new `riskPoints` field (signed-in routes only), and the sentence a reader needs
    first — *grades drop because mediums, lows and every further issue now count, not because a
    project got worse; nothing in your repository changed*. How a scope is graded — its weakest
-   target's grade, or, if the sum is chosen, a grade that can read lower than each of its targets —
-   and a scope's licence count falling are said there too.
+   target's grade —, the portfolio's new shape on `/scorecards/global`, and a scope's licence count
+   falling are said there too.
 5. **The dashboard's trend chart marks the switch** with a dated vertical line ("scorecard formula
    changed", 0.11.0), so that a reader comparing a period across it sees why the grades moved. The
    series it plots today are the backlog's, which the switch does not move; the line is for the reader
