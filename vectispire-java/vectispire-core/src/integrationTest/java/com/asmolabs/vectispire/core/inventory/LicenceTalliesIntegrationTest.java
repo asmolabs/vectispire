@@ -10,7 +10,6 @@ import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
-import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
@@ -38,7 +37,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 /**
  * The licence tallies' reads on a real engine: the scans' census — a {@code sum} over a {@code case}
  * testing a large-object column for null, grouped by target and status — the scans holding an SBOM,
- * and the recount's lookup of the scans of the targets that moved.
+ * the recount's lookup of the scans of the targets that moved and of those attached to none, and the
+ * columns the inventory selects instead of the rows.
  *
  * <p>The recount is handed seventy thousand repositories and seventy thousand images, one bind
  * parameter each, which the catalogue asks a thousand at a time. That limit is <b>PostgreSQL's
@@ -107,7 +107,12 @@ class LicenceTalliesIntegrationTest {
         long imageScan = scan(null, image.id(), ScanStatus.COMPLETED,
                 "{\"artifacts\":[{\"name\":\"i\",\"version\":\"1\",\"licenses\":[{\"value\":\"MIT\"}]}]}");
 
-        ScanCatalog.ScanCensus census = catalog.censusByTarget().get(repository);
+        // Attached to neither target: a census of its own, and read on its own.
+        long untargeted = scan(null, null, ScanStatus.COMPLETED,
+                "{\"artifacts\":[{\"name\":\"g\",\"version\":\"1\",\"licenses\":[{\"value\":\"GPL-2.0-only\"}]}]}");
+
+        ScanCatalog.Census all = catalog.census();
+        ScanCatalog.ScanCensus census = all.byTarget().get(repository);
         assertThat(census.scans()).isEqualTo(3);
         assertThat(census.newestId()).isEqualTo(Math.max(completed, Math.max(failed, pending)));
         assertThat(census.withSbom()).isEqualTo(2);
@@ -115,7 +120,13 @@ class LicenceTalliesIntegrationTest {
                 Map.entry(ScanStatus.COMPLETED.wireName(), 1L),
                 Map.entry(ScanStatus.FAILED.wireName(), 1L),
                 Map.entry(ScanStatus.PENDING.wireName(), 1L));
-        assertThat(catalog.censusByTarget().get(image).withSbom()).isEqualTo(1);
+        assertThat(all.byTarget().get(image).withSbom()).isEqualTo(1);
+        assertThat(all.untargeted().scans()).isGreaterThanOrEqualTo(1);
+        assertThat(all.untargeted().newestId()).isGreaterThanOrEqualTo(untargeted);
+        assertThat(catalog.sbomsOfUntargeted()).extracting(ScanCatalog.ScanSbom::id).contains(untargeted)
+                .doesNotContain(completed, imageScan);
+        assertThat(catalog.sboms()).extracting(ScanCatalog.ScanSbom::id)
+                .contains(completed, failed, pending, imageScan, untargeted);
 
         assertThat(catalog.withSbom()).extracting(ScanCatalog.ScanOfTarget::id)
                 .contains(completed, failed, imageScan)
@@ -128,8 +139,12 @@ class LicenceTalliesIntegrationTest {
                         Stream.<ScanTarget>of(image))
                 .flatMap(targets -> targets)
                 .toList();
-        assertThat(catalog.ofTargets(asked)).extracting(ScanView::id)
+        assertThat(catalog.sbomsOfTargets(asked)).extracting(ScanCatalog.ScanSbom::id)
                 .containsExactlyInAnyOrder(completed, failed, pending, imageScan);
+        // The component names the inventory reads, as a projection, in scan and row order.
+        assertThat(components.namesOfScans(List.of(completed)))
+                .extracting(row -> row.name() + "@" + row.version())
+                .containsExactly("a@1", "b@1");
 
         Visibility both = Visibility.only(List.of(repository, image));
         Map<ScanTarget, Long> expected = licences.getInventory(both, null, null).stream()
@@ -142,6 +157,12 @@ class LicenceTalliesIntegrationTest {
         // a (GPL, from the SBOM) and c (AGPL, a finding); b is an unknown licence the default allows.
         assertThat(expected).containsExactly(Map.entry(repository, 2L));
         assertThat(licences.violationsByTarget(both)).containsOnly(Map.entry(repository, 2L), Map.entry(image, 0L));
+        assertThat(licences.violationsWithin(both)).isEqualTo(2);
+        // The estate's inventory reads every scan, the one attached to no target among them.
+        long refused = licences.getInventory(Visibility.everything(), null, null).stream()
+                .filter(entry -> !entry.compliant()).count();
+        assertThat(licences.violationsWithin(Visibility.everything())).isEqualTo(refused);
+        assertThat(licences.getSummary(Visibility.everything(), null, null).nonCompliantCount()).isEqualTo(refused);
     }
 
     private long repository() {
