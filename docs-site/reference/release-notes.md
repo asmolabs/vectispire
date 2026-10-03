@@ -209,6 +209,21 @@
   ranking's scores are unchanged, with one precision: when two scans of a target declare the same
   component under different licences, the newer scan's licence is now the one kept, on the ranking and
   on the licence inventory alike, where it used to depend on the order the scans were read in.
+- **The portfolio scorecard and the licence screen no longer read the estate's history for what those
+  tallies already count.** The portfolio scorecard's licence term, the licence summary of the whole
+  estate and the evidence bundle's licence summary are counts by licence, now taken from the same
+  per-target tallies as the ranking; the scans attached to no target are tallied together and count, as
+  before, for a reader who sees the whole estate only. A reader granted some targets has their licence
+  inventory read from their targets' scans alone, where every scan, component and licence finding of
+  the installation used to be read and then narrowed. On the same estate, each of these calls cost 340
+  to 840 ms, for either reader; warm, the portfolio scorecard now costs 40 to 55 ms, a summary about 20
+  and a restricted reader's inventory about 25. An administrator's licence inventory and licence
+  conflicts over the whole estate still read every scan's SBOM and every component row, since they list
+  one row per component of every scan, but only the columns they need: 220 to 350 ms instead of 380 to
+  620. The answers are unchanged — the same entries, counts and score for an administrator and for a
+  restricted reader — with one precision: when a component the SBOM does not declare has rows in two
+  scans of a target with different package URLs, the older row's is now the one shown, where it
+  depended on the order the database returned the rows in.
 
 ## 0.10.0 — 2026-10-01
 

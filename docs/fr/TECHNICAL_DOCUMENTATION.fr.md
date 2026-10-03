@@ -550,6 +550,7 @@ Deux règles que le harnais s'impose à lui-même :
   - Identifie les risques de copyleft viral (GPL-3.0, AGPL-3.0) qui imposent juridiquement de divulguer du code source propriétaire lors de la distribution.
   - Classe les exigences de liaison dynamique pour le copyleft faible (LGPL, MPL, EPL) et les avis d'attribution permissifs (MIT, Apache-2.0, BSD).
   - Conseils de remédiation juridique actionnables par cible (recommandations de remplacement ou isolation architecturale du composant).
+  - Ce que coûtent les lectures de tout le parc : les résumés (`GET /api/v1/licenses/summary` sans cible, celui du dossier de preuves) et le terme de licences de la fiche du portefeuille (`LicenseGovernanceService.violationsWithin`) sont comptés sur les décomptes de licences par cible que tient le classement de maturité (`violationsByTarget`, section 13), les analyses rattachées à aucune cible décomptées ensemble pour un lecteur qui voit tout le parc ; le `GET /api/v1/licenses/inventory` d'un lecteur restreint est lu sur les seules analyses de ses cibles ; l'inventaire et les conflits sans cible d'un administrateur relisent toujours le SBOM et les lignes de composants de chaque analyse, sous forme des seules colonnes utiles (`ScanCatalog.ScanSbom`, `ComponentName`) plutôt que d'entités.
 - **Endpoints REST** :
   - `GET /api/v1/licenses/conflicts?proprietary=true` : liste détaillée des incompatibilités juridiques détectées et justifications de risque.
   - `GET /api/v1/licenses/matrix` : règles de référence officielles de compatibilité croisée des licences.

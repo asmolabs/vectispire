@@ -235,6 +235,23 @@
   précision près : quand deux analyses d'une cible déclarent le même composant sous des licences
   différentes, c'est désormais la licence de la plus récente qui est retenue, dans le classement comme
   dans l'inventaire des licences, là où elle dépendait de l'ordre de lecture des analyses.
+- **La fiche de score du portefeuille et l'écran des licences ne relisent plus l'historique du parc pour
+  ce que ces décomptes comptent déjà.** Le terme de licences de la fiche du portefeuille, le résumé des
+  licences de tout le parc et celui du dossier de preuves sont des comptes par licence, désormais tirés
+  des mêmes décomptes par cible que le classement ; les analyses rattachées à aucune cible sont
+  décomptées ensemble et ne comptent, comme avant, que pour un lecteur qui voit tout le parc. Un lecteur
+  à qui des cibles sont attribuées voit son inventaire des licences lu sur les analyses de ses seules
+  cibles, là où chaque analyse, chaque composant et chaque constat de licence de l'installation étaient
+  lus puis filtrés. Sur le même parc, chacun de ces appels coûtait de 340 à 840 ms, pour l'un comme pour
+  l'autre lecteur ; une fois les décomptes faits, la fiche du portefeuille coûte désormais 40 à 55 ms, un
+  résumé environ 20 et l'inventaire d'un lecteur restreint environ 25. L'inventaire des licences et les
+  conflits de licences de tout le parc, pour un administrateur, relisent toujours le SBOM de chaque
+  analyse et chaque ligne de composant, puisqu'ils listent une ligne par composant de chaque analyse,
+  mais seulement les colonnes utiles : 220 à 350 ms au lieu de 380 à 620. Les réponses ne changent pas
+  — mêmes entrées, mêmes comptes, même score pour un administrateur et pour un lecteur restreint — à une
+  précision près : quand un composant que le SBOM ne déclare pas a des lignes dans deux analyses d'une
+  cible avec des URL de paquet différentes, c'est désormais celle de la plus ancienne qui est affichée,
+  là où elle dépendait de l'ordre dans lequel la base rendait les lignes.
 
 ## 0.10.0 — 1er octobre 2026
 

@@ -539,6 +539,7 @@ Two rules the harness enforces on itself:
   - Identifies viral copyleft risks (GPL-3.0, AGPL-3.0) that legally mandate disclosing proprietary source code upon distribution.
   - Classifies dynamic linking requirements for weak copyleft (LGPL, MPL, EPL) and permissive attribution notices (MIT, Apache-2.0, BSD).
   - Actionable legal remediation guidance per target (replacement recommendations or component architectural isolation).
+  - What the estate-wide reads cost: the summaries (`GET /api/v1/licenses/summary` with no target, the evidence bundle's) and the portfolio scorecard's licence term (`LicenseGovernanceService.violationsWithin`) are counted off the per-target licence tallies the maturity ranking keeps (`violationsByTarget`, section 13), the scans attached to no target tallied together for a reader who sees the whole estate; a restricted reader's `GET /api/v1/licenses/inventory` is read from their targets' scans alone; an administrator's inventory and conflicts with no target still read every scan's SBOM and component rows, as the columns the inventory needs (`ScanCatalog.ScanSbom`, `ComponentName`) rather than as entities.
 - **REST Endpoints**:
   - `GET /api/v1/licenses/conflicts?proprietary=true`: Detailed list of detected legal incompatibilities and risk justifications.
   - `GET /api/v1/licenses/matrix`: Official cross-license compatibility reference rules.
