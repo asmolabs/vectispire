@@ -106,8 +106,24 @@ way keep working; to move one, remove the credential from its URL and attach a t
 
 ## Recurrence
 
-Set either a **scan interval** or a **cron expression**. The expression wins when both are
-present.
+A repository is rescanned in one of four ways, and the list says which, next to the last scan:
+
+- **the default** — neither an interval nor an expression: the installation's
+  [default rescan interval](../administration/settings.md#default-rescan-interval), a week unless an
+  administrator changes it. The list shows "weekly (default)";
+- **a custom interval**, in minutes — "every 6 h";
+- **a cron expression**, five fields — "cron 0 2 * * *". The expression wins when both are present;
+- **manual only** — a switch in the dialog: never rescanned by the schedule, whatever the default.
+  Switching it on empties the interval and the expression.
+
+Since 0.11.0 an empty schedule is the default and no longer "never": a repository added without
+touching the schedule is rescanned weekly. Under the default each repository has **its own moment in
+the week**, derived from its identifier, so an estate is spread over the interval rather than scanned
+all at once, and keeps that moment from one week to the next. An interval of your own is counted from
+the last round, as before.
+
+A round is skipped when a scan of the repository is already waiting or running: the one under way
+is the round.
 
 Prefer cron. An interval drifts a few minutes on every run, so a scan configured for 03:00
 migrates into the working day over a few weeks — and a scan that competes with the working

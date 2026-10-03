@@ -37,6 +37,22 @@ secrets, the OpenAI key — up to 8,192. Longer is refused with a message at the
 are far shorter: before this limit, any credential over about 160 characters could not be saved at
 all.
 
+## Default rescan interval
+
+On the **Scanners** tab, under *Scheduling*: how often a repository or an image is rescanned when it
+has neither an interval nor a cron expression of its own — which is every target added without
+touching its schedule. **Seven days** unless changed (0.11.0). A target's own interval or expression
+always wins, and a target set to *manual only* is never rescanned.
+
+Each target has its own moment in the interval, derived from its identifier, so an estate of a
+thousand targets is spread over the week — a handful an hour — rather than queued in one minute, and
+each keeps its moment from one round to the next. A round is skipped when a scan of the target is
+already waiting or running.
+
+**Zero means no default**: a target without a schedule of its own is then not rescanned, which is
+how every version before 0.11.0 behaved. Changing the value moves the moments; switching it on after
+a period at zero makes every target that was never scheduled due at once, so expect one busy hour.
+
 ## Enrichment
 
 EPSS scores and CISA KEV status, both read from copies the control plane synchronises — CISA's

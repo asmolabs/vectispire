@@ -57,6 +57,40 @@ worse. Nothing in your repositories changed.** The scorecard's formula is replac
   (SARIF, VEX, CSAF, CycloneDX) are unchanged. A check of yours that reads the badge's letter or the
   API's `score` — "no worse than B" — will see it drop.
 
+#### Every target without a schedule is now scanned weekly (0.11.0)
+
+**A repository or an image with neither a scan interval nor a cron expression used to be scanned only
+when somebody asked — and that is what every target added through the forms got. It is now rescanned
+on the installation's default interval, seven days unless an administrator changes it.** To keep a
+target as it was, set it to **manual only**. Targets somebody deliberately left unscheduled cannot be
+told apart from the ones nobody scheduled, so all of them move to the default at the upgrade.
+
+- **A new setting, `scan_default_interval_days`** (*Settings › Scanners › Scheduling*, default `7`,
+  `0` for no default — the old behaviour, for every target at once)
+  ([how](../administration/settings.md#default-rescan-interval)).
+- **The rounds are spread over the week.** Each target under the default has its own moment in the
+  interval, derived from its kind and identifier, and keeps it from week to week: a thousand targets
+  come a handful an hour, never all at once. Migration V70 records the upgrade as their last scheduled
+  round, so the first round falls in the week after the upgrade rather than in its first minute —
+  `lastScheduledScanAt` of those targets reads as the upgrade until then. A target's own interval or cron
+  expression behaves exactly as before.
+- **New fields on `GET /api/v1/repositories` and `GET /api/v1/containers`**, and on what their create and
+  update return: `scanManualOnly` (boolean) and `schedule`, the schedule in force as the server decides it
+  — `mode` (`manual`, `cron`, `interval` or `default`) and `intervalMinutes` (the interval it runs at under
+  `interval` and `default`; `null` for a cron expression, for manual only and for `default` when the
+  installation has none). Read `schedule` rather than working the precedence out from the other fields.
+- **`scanManualOnly` on `POST`/`PATCH /api/v1/repositories` and `/api/v1/containers`.** `true` clears the
+  interval and the expression; sent beside a positive interval or an expression it is refused (400); an
+  update naming an interval or an expression without it leaves manual only. **An interval of `0` now
+  means "not set" — the default — and no longer "manual only"**, and is stored as `null`
+  (`scanIntervalMinutes` reads back `null`, not `0`). A negative interval is refused (400). A script that
+  switched rescans off by sending `0` must send `scanManualOnly: true`.
+- **A scheduled round is skipped while a scan of the target is running**, as it was while one was
+  waiting. The *Scan* button is unchanged.
+- **A dependency-analysis checklist rule asking for a matching schedule counts the default**: a
+  repository with no schedule of its own, under a weekly default, now matches a seven-day maximum age;
+  one set to manual only never does.
+
 #### Other changes
 
 - **A plugin refusal has a third reason, `registry_authentication_required`**, and a checklist

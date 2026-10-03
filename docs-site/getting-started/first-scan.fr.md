@@ -55,8 +55,10 @@ d'un dépôt ne sont jamais envoyées nulle part.
 ## 4. Le planifier
 
 Un scan ponctuel vous renseigne sur aujourd'hui. De nouvelles vulnérabilités apparaissent dans
-du code qui n'a pas changé : posez donc une récurrence sur le dépôt, soit un **intervalle de
-scan**, soit une **expression cron**.
+du code qui n'a pas changé : un dépôt est donc réanalysé **chaque semaine par défaut** —
+l'[intervalle par défaut](../administration/settings.md#default-rescan-interval) de l'installation, à
+un moment qui lui est propre dans la semaine. Pour choisir autrement, posez un **intervalle de scan**
+ou une **expression cron**, ou activez **manuel uniquement** pour ne jamais le réanalyser.
 
 Préférez l'expression cron. Un intervalle dérive de quelques minutes à chaque exécution, si
 bien qu'un scan configuré pour les heures creuses finit par tourner en pleine journée. Quand

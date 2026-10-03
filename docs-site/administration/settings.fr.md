@@ -40,6 +40,23 @@ secrets de webhook, la clé OpenAI — jusqu'à 8 192. Au-delà, le formulaire r
 Les vrais jetons sont bien plus courts : avant cette limite, un identifiant de plus de 160 caractères
 environ ne pouvait pas être enregistré du tout.
 
+## Intervalle de réanalyse par défaut {#default-rescan-interval}
+
+Sur l'onglet **Scanners**, sous *Planification des analyses* : la fréquence de réanalyse d'un dépôt ou
+d'une image qui n'a ni intervalle ni expression cron — c'est-à-dire toute cible ajoutée sans toucher
+à sa planification. **Sept jours** sauf changement (0.11.0). L'intervalle ou l'expression d'une cible
+l'emporte toujours, et une cible en *manuel uniquement* n'est jamais réanalysée.
+
+Chaque cible a son propre moment dans l'intervalle, dérivé de son identifiant : un parc de mille
+cibles est étalé sur la semaine — quelques-unes par heure — au lieu d'être mis en file en une minute,
+et chacune garde son moment d'un passage à l'autre. Un passage est sauté quand un scan de la cible
+attend déjà ou est en cours.
+
+**Zéro : pas de défaut** — une cible sans planification propre n'est alors plus réanalysée, comme
+dans toutes les versions avant la 0.11.0. Changer la valeur déplace les moments ; l'activer après une
+période à zéro rend dues d'un coup toutes les cibles jamais planifiées : attendez-vous à une heure
+chargée.
+
 ## Enrichissement
 
 Scores EPSS et statut CISA KEV, tous deux lus dans des copies que le plan de contrôle synchronise —

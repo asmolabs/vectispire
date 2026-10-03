@@ -61,6 +61,43 @@ tableau de bord et la pastille publique —
   exports (SARIF, VEX, CSAF, CycloneDX) sont inchangés. Un contrôle de votre côté qui lit la lettre de la
   pastille ou le `score` de l'API — « pas pire que B » — la verra baisser.
 
+#### Toute cible sans planification est désormais analysée chaque semaine (0.11.0)
+
+**Un dépôt ou une image sans intervalle de scan ni expression cron n'était analysé que si quelqu'un le
+demandait — et c'est ce que recevait toute cible ajoutée par les formulaires. Il est désormais réanalysé
+selon l'intervalle par défaut de l'installation, sept jours sauf si un administrateur le change.** Pour
+garder une cible telle qu'elle était, passez-la en **manuel uniquement**. Les cibles laissées sans
+planification exprès ne se distinguent pas de celles que personne n'a planifiées : toutes passent au
+défaut à la mise à jour.
+
+- **Un nouveau réglage, `scan_default_interval_days`** (*Réglages › Scanners › Planification des
+  analyses*, défaut `7`, `0` pour aucun défaut — l'ancien comportement, pour toutes les cibles à la fois)
+  ([comment](../administration/settings.md#default-rescan-interval)).
+- **Les passages sont étalés sur la semaine.** Chaque cible sous le défaut a son propre moment dans
+  l'intervalle, dérivé de son type et de son identifiant, et le garde d'une semaine à l'autre : mille
+  cibles arrivent à quelques-unes par heure, jamais toutes ensemble. La migration V70 inscrit la mise à
+  jour comme leur dernier passage programmé, si bien que le premier passage tombe dans la semaine qui suit
+  la mise à jour et non dans sa première minute — `lastScheduledScanAt` de ces cibles vaut l'instant de la
+  mise à jour jusque-là. L'intervalle ou l'expression cron propre à une cible se comporte exactement comme
+  avant.
+- **De nouveaux champs sur `GET /api/v1/repositories` et `GET /api/v1/containers`**, et dans ce que
+  renvoient leur création et leur mise à jour : `scanManualOnly` (booléen) et `schedule`, la planification
+  en vigueur telle que le serveur la décide — `mode` (`manual`, `cron`, `interval` ou `default`) et
+  `intervalMinutes` (l'intervalle effectif sous `interval` et `default` ; `null` pour une expression cron,
+  pour manuel uniquement et pour `default` quand l'installation n'en a pas). Lisez `schedule` plutôt que de
+  recalculer la priorité à partir des autres champs.
+- **`scanManualOnly` sur `POST`/`PATCH /api/v1/repositories` et `/api/v1/containers`.** `true` vide
+  l'intervalle et l'expression ; envoyé avec un intervalle positif ou une expression, il est refusé (400) ;
+  une mise à jour qui nomme un intervalle ou une expression sans lui quitte le manuel. **Un intervalle de
+  `0` signifie désormais « non défini » — le défaut — et non plus « manuel uniquement »**, et il est stocké
+  `null` (`scanIntervalMinutes` se relit `null`, pas `0`). Un intervalle négatif est refusé (400). Un script
+  qui coupait les réanalyses en envoyant `0` doit envoyer `scanManualOnly: true`.
+- **Un passage programmé est sauté tant qu'un scan de la cible est en cours**, comme il l'était tant
+  qu'un scan attendait. Le bouton *Scanner* ne change pas.
+- **Une règle de checklist d'analyse des dépendances qui exige une planification correspondante compte
+  le défaut** : un dépôt sans planification propre, sous un défaut hebdomadaire, satisfait désormais un
+  âge maximal de sept jours ; un dépôt en manuel uniquement jamais.
+
 #### Autres changements
 
 - **Un refus de plugin a une troisième raison, `registry_authentication_required`**, et une mesure de

@@ -50,8 +50,10 @@ and every six hours — so which CVE a repository carries is never sent anywhere
 ## 4. Schedule it
 
 A one-off scan tells you about today. New vulnerabilities appear in code that has not
-changed, so set a recurrence on the repository: either a **scan interval** or a **cron
-expression**.
+changed, so a repository is rescanned **weekly by default** — the installation's
+[default interval](../administration/settings.md#default-rescan-interval), at a moment of its own in
+the week. To choose otherwise, set a **scan interval** or a **cron expression**, or switch
+**manual only** on to never rescan it.
 
 Prefer the cron expression. An interval drifts a few minutes every run, so a scan
 configured for the quiet hours eventually runs in the middle of the day. Where both are

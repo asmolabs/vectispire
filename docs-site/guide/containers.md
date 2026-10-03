@@ -46,8 +46,9 @@ signature from its registry.
 
 ## Scanning and recurrence
 
-Identical to repositories: run on demand, or set an interval or a cron expression, with
-the expression winning when both are set. See [Repositories](repositories.md#recurrence).
+Identical to repositories: the installation's default (weekly unless changed), an interval, a cron
+expression — which wins when both are set — or manual only. See
+[Repositories](repositories.md#recurrence).
 
 ## SBOM drift between releases
 

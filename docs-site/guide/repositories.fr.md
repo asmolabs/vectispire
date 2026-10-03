@@ -111,8 +111,25 @@ jeton.
 
 ## Récurrence {#recurrence}
 
-Posez soit un **intervalle de scan**, soit une **expression cron**. L'expression l'emporte
-quand les deux sont présents.
+Un dépôt est réanalysé de l'une de quatre façons, et la liste dit laquelle, à côté du dernier scan :
+
+- **le défaut** — ni intervalle ni expression : l'[intervalle de réanalyse par
+  défaut](../administration/settings.md#default-rescan-interval) de l'installation, une semaine sauf si
+  un administrateur le change. La liste affiche « chaque semaine (par défaut) » ;
+- **un intervalle propre**, en minutes — « toutes les 6 h » ;
+- **une expression cron**, cinq champs — « cron 0 2 * * * ». L'expression l'emporte quand les deux
+  sont présents ;
+- **manuel uniquement** — un interrupteur dans la boîte de dialogue : jamais réanalysé par la
+  planification, quel que soit le défaut. L'activer vide l'intervalle et l'expression.
+
+Depuis la 0.11.0, une planification vide est le défaut et non plus « jamais » : un dépôt ajouté sans
+toucher à la planification est réanalysé chaque semaine. Sous le défaut, chaque dépôt a **son propre
+moment dans la semaine**, dérivé de son identifiant : un parc est étalé sur l'intervalle au lieu d'être
+analysé d'un coup, et chaque dépôt garde ce moment d'une semaine à l'autre. Un intervalle propre est
+compté depuis le dernier passage, comme avant.
+
+Un passage est sauté quand un scan du dépôt attend déjà ou est en cours : celui qui tourne tient lieu
+de passage.
 
 Préférez cron. Un intervalle dérive de quelques minutes à chaque exécution, si bien qu'un scan
 configuré pour 03:00 migre dans la journée de travail en quelques semaines — et un scan qui

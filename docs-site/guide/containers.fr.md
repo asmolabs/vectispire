@@ -48,8 +48,8 @@ dans son registre.
 
 ## Scan et récurrence
 
-Identiques aux dépôts : à la demande, ou avec un intervalle ou une expression cron,
-l'expression l'emportant quand les deux sont posés. Voir
+Identiques aux dépôts : le défaut de l'installation (chaque semaine sauf changement), un intervalle,
+une expression cron — qui l'emporte quand les deux sont posés — ou manuel uniquement. Voir
 [Dépôts](repositories.md#recurrence).
 
 ## Dérive du SBOM entre deux versions

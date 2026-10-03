@@ -135,6 +135,7 @@ erDiagram
         uuid ssh_key_id FK
         int scan_interval_minutes
         string scan_cron
+        bool scan_manual_only
         string required_agent_label
         datetime last_scheduled_scan_at
     }
@@ -144,6 +145,7 @@ erDiagram
         string platform
         int scan_interval_minutes
         string scan_cron
+        bool scan_manual_only
         string required_agent_label
         datetime last_scheduled_scan_at
     }
