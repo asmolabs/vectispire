@@ -194,6 +194,22 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Nouveautés
 
+- **Connexions de forge, découverte et import à l'écran** ([À l'écran](../administration/forge-connections.fr.md#a-lecran),
+  décision 0037, lot D7). **Administration → Connexions de forge**, administrateurs seulement : chaque
+  connexion avec le type et les portées de son jeton, s'il peut écrire (*Non communiqué* pour un jeton GitHub
+  à granularité fine — inconnu, pas lecture seule), son expiration annoncée quatorze jours à l'avance, la
+  déclaration de réseau, l'AC épinglée, la dernière découverte et les cibles importées ; l'ajout avec une AC
+  collée en PEM dont la forme est lue et commentée en mots avant l'envoi, le refus de la sonde affiché tel
+  que le serveur le formule ; le remplacement du jeton en place ; le renommage ou le changement de la
+  déclaration de réseau ou de l'AC ; la suppression, cibles conservées. La page de chaque connexion procède
+  en trois étapes : **découvrir** (l'exécution suivie avec un espacement croissant jusqu'à sa fin, ses
+  compteurs, la raison en mots d'une exécution partielle ou échouée, les chiffres de la comparaison ouvrant
+  chacun sa liste), **choisir** (la table filtrée par le serveur, ce que chaque filtre n'a pas pu juger
+  compté, proposition / tous / aucun / inverser / par identifiant, espaces personnels décochés au départ, un
+  identifiant écarté par le serveur nommé) et **classer et importer** (le classement par espace de noms ou
+  par dépôt, l'identifiant de clonage par hôte, premières analyses désactivées par défaut et espacées de
+  10 s à 10 min, un aperçu disant qui verra chaque cible, un import qui envoie exactement ce qui a été
+  prévisualisé — mille au plus à la fois — et un résultat qui lie chaque cible). Aucune route ne change.
 - **Imports de forge : les dépôts d'une découverte sélectionnés, prévisualisés et importés comme des cibles
   ordinaires** ([Sélectionner et importer](../administration/forge-connections.fr.md#selectionner-et-importer),
   décision 0037, lots D5 et D6 — l'écran est le lot D7). `GET …/discoveries/{discoveryId}/selection` est le
@@ -229,15 +245,15 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   une page suivante sur une autre origine n'est jamais suivie — l'exécution échoue, journalisée
   `FORGE_CONNECTION_REFUSED` et signalée `VECTI-SEC-036`. Chaque découverte mise en file est journalisée
   `FORGE_DISCOVERY_REQUESTED` (une demande répondue 409 n'écrit rien), sans signal SIEM. Administrateurs
-  seulement, pas encore d'écran.
+  seulement ; à l'écran avec le lot D7 (ci-dessus).
 - **Plus aucune requête n'est réessayée dans le dos de son appelant.** Le client HTTP par lequel passe
   chaque appel sortant renvoyait un GET après un 429 ou un 503, en dormant ce que disait `Retry-After`, et
   après une connexion coupée ; un webhook, un ticket, une revue de modèle ou un téléchargement de catalogue
   qui échoue une fois échoue désormais une fois, et un appelant qui réessaie le dit.
 - **Connexions de forge : un jeton en lecture seule vers un GitHub ou un GitLab, sondé avant d'être
   gardé** ([Connexions de forge](../administration/forge-connections.fr.md), décision 0037, lot D1 — la
-  découverte et l'import des dépôts suivent). `/api/v1/forge-connections`, administrateurs seulement, pas
-  encore d'écran. Le jeton est présenté une fois à la forge par la garde sortante et refusé quand il est
+  découverte et l'import des dépôts suivent). `/api/v1/forge-connections`, administrateurs seulement, à
+  l'écran avec le lot D7 (ci-dessus). Le jeton est présenté une fois à la forge par la garde sortante et refusé quand il est
   rejeté, plus large que la lecture (GitLab : `read_api` ; GitHub : un jeton *fine-grained*, ou un
   classique sur Enterprise Server, signalé `canWrite`), ou que le serveur est antérieur à GitLab 16 ou
   GHES 3.12. Un serveur autogéré sur le réseau interne est atteint quand l'administrateur le dit, derrière

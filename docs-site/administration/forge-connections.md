@@ -2,12 +2,69 @@
 
 A read-only connection to a GitHub or a GitLab, from which Vectispire will discover your repositories and
 let you choose the ones to import ([decision 0037](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0037-discovering-repositories-at-setup.md)).
-This release ships the connections and the **discovery** of a GitLab's repositories: a connection lists
-what its token can see and keeps it as a snapshot, compared run to run. Choosing repositories and importing
-them as targets come in the next lots, and so does the discovery of a GitHub's.
+This release ships the connections, the **discovery** of a GitLab's repositories — a connection lists what
+its token can see and keeps it as a snapshot, compared run to run — and the **selection and import** of
+those repositories as ordinary targets. The discovery of a GitHub's comes in a later lot.
 
-Administrators only, through `/api/v1/forge-connections` ([API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
-There is no screen yet.
+Administrators only: on screen under **Administration → Forge connections** ([below](#on-screen)), and
+through `/api/v1/forge-connections` ([API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
+
+## On screen
+
+**Administration → Forge connections** lists each connection as a card: the forge and its address, the
+kind of token and the scopes the forge reported, **whether it can write** — *Read-only*, *Can write* (a
+GitHub Enterprise Server classic token), or *Not reported* for a GitHub fine-grained token, which is
+*unknown*, not read-only — the token's expiry (announced **fourteen days ahead**, then *Expired*), the
+network statement, the pinned CA and its end of validity, the encryption state, the last discovery and the
+number of targets imported through it.
+
+- **Add a connection**: the forge, a name, the web address (blank for gitlab.com or github.com), the owner
+  for GitHub, the token. For a self-managed server, tick *This server is on the internal network* and paste
+  your CA in PEM: the form reads the paste before sending it and says in words what is wrong — a private
+  key, not a certificate, a certificate cut short, more than eight — and the server then checks that it is
+  a CA and still valid. For a cloud address neither option is offered. *Check and save* presents the token
+  to the forge; **a refusal is shown as the server words it** — the token rejected or expired, a scope
+  outside the read-only ones, a server older than GitLab 16 or GitHub Enterprise Server 3.12, an unknown
+  owner, an address the outbound guard blocks — with the rest of the form kept and the token cleared.
+- **Replace the token** (the circular arrow): checked like a new one; refused, the stored token is unchanged.
+- **Edit** (the pencil): the name, the network statement, and the CA — keep it, pin another, or unpin it.
+  The address cannot change.
+- **Delete** (the bin): the confirmation says how many imported targets lose their provenance, and that
+  **the targets stay**.
+
+**Discover and import** opens the connection's page, in three steps.
+
+1. **Discover.** *Discover* queues a run; the page follows it by itself — every two seconds, then twice as
+   long each time nothing moved, up to thirty, and not at all once it ends or you leave the page — with its
+   counters: namespaces, repositories, requests, seconds waited on rate limits, repositories not kept. If a
+   run is already going, the page names it and offers to follow it. A **partial** run says why (thirty
+   minutes, twenty thousand repositories, a rate limit — with the time it lifts) and that nothing was marked
+   gone; a **failed** one says why in words, with the server's detail below. Once it ended, the comparison's
+   figures — *new*, *changed*, *gone* (a completed run only), *all listed* — each open the list they count.
+   The previous runs are listed below.
+2. **Choose.** The table of the latest discovery that ended completed or partial, filtered and paged by the
+   server: archived, forks, personal namespaces, targets already present (each hidden, shown, or the only
+   ones), visibility, inactivity in days, language, namespace and a path pattern. Under the filters, what
+   each filter **could not judge** is counted — GitLab names a fork's source only when the token can read it
+   — with the rule: a filter that hides keeps what it cannot judge, one that requires leaves it out. The
+   selection starts from the proposal, which leaves **personal namespaces unticked**; *Proposed*, *All
+   matching*, *None* and *Invert* apply to everything the filters match, on every page; a row ticks one
+   repository; forge ids can be pasted. A repository already a target, already imported or empty is shown
+   greyed with why, and **an id the server could not tick is named**.
+3. **Place and import.** Where each namespace is filed — the proposal, editable per namespace or, ticking
+   *Edit per repository*, per repository: another solution, another project, or *No project*; existing names
+   are suggested. The clone credential per host — the proposal, none, an HTTPS token bound to that host or an
+   SSH key. *Scan each new target once now* (off by default) and the seconds between two first scans (10 to
+   600). Then **Preview**: targets created, repositories skipped and why, repositories refused with the
+   form's reason (the import is refused whole while one is), solutions and projects reused or created,
+   the credential and **who will see each target** — administrators, plus the accounts and teams granted a
+   reused project; a new project's targets are visible to administrators only. Any change after the preview
+   asks for a new one before *Import* is offered: **what is imported is what was previewed**. An import takes
+   at most a thousand; the rest stay ticked for the next one.
+
+The **result** lists the targets created — each linked to its issues and, when queued, its first scan — and
+those skipped, and points at the audit log, where the import is summarised once as *Repositories imported
+from a forge* (`FORGE_IMPORT_APPLIED`).
 
 ## What a connection is
 

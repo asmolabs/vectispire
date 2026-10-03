@@ -180,6 +180,20 @@ another branch, is another target and is accepted as before.
 
 ### New
 
+- **Forge connections, discovery and import on screen** ([On screen](../administration/forge-connections.md#on-screen),
+  decision 0037, lot D7). **Administration → Forge connections**, administrators only: each connection with
+  its token's kind and scopes, whether it can write (*Not reported* for a GitHub fine-grained token —
+  unknown, not read-only), its expiry announced fourteen days ahead, the network statement, the pinned CA,
+  the last discovery and the targets imported; adding one with a CA pasted in PEM and read for its shape in
+  words before it is sent, the probe's refusal shown as the server words it; replacing the token in place;
+  renaming or changing the network statement or the CA; deleting, the targets kept. Each connection's page
+  takes three steps: **discover** (the run followed with a back-off until it ends, its counters, a partial
+  or failed run's reason in words, the comparison's figures each opening its list), **choose** (the
+  server's filtered table, what each filter could not judge counted, proposed / all / none / invert / by id,
+  personal namespaces unticked at first, an id the server drops named), and **place and import** (the
+  filing per namespace or repository, the clone credential per host, first scans off by default and spaced
+  10 s to 10 min, a preview saying who will see each target, an import that sends exactly what was
+  previewed — at most a thousand at a time — and a result linking each target). No route changes.
 - **Forge imports: a discovery's repositories selected, previewed and imported as ordinary targets**
   ([Selecting and importing](../administration/forge-connections.md#selecting-and-importing), decision 0037,
   lots D5 and D6 — the screen is lot D7). `GET …/discoveries/{discoveryId}/selection` is the table, filtered
@@ -212,15 +226,15 @@ another branch, is another target and is accepted as before.
   request goes through the outbound guard and the connection's pinned CA; a next page on another origin is
   never followed — the run fails, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`.
   Each discovery queued is audited `FORGE_DISCOVERY_REQUESTED` (a request answered 409 records nothing),
-  not signalled. Administrators only, no screen yet.
+  not signalled. Administrators only; on screen with lot D7 (above).
 - **No request is retried behind its caller's back any more.** The HTTP client every outbound call goes
   through sent a GET again after a 429 or a 503, sleeping whatever `Retry-After` said, and after a dropped
   connection; a webhook, a ticket, a model review or a catalogue download that failed once now fails once,
   and a caller that retries says so.
 - **Forge connections: a read-only token to a GitHub or a GitLab, probed before it is kept**
   ([Forge connections](../administration/forge-connections.md), decision 0037, lot D1 — the discovery
-  and the import of repositories come next). `/api/v1/forge-connections`, administrators only, no screen
-  yet. The token is presented to the forge once through the outbound guard and refused when it is
+  and the import of repositories come next). `/api/v1/forge-connections`, administrators only, on
+  screen with lot D7 (above). The token is presented to the forge once through the outbound guard and refused when it is
   rejected, broader than read-only (GitLab: `read_api`; GitHub: a fine-grained token, or a classic one on
   Enterprise Server, flagged `canWrite`), or the server is older than GitLab 16 or GHES 3.12. A
   self-managed server on the internal network is reached when the administrator says so, behind its own

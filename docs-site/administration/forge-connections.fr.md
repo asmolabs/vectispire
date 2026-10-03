@@ -2,12 +2,75 @@
 
 Une connexion en lecture seule à un GitHub ou un GitLab, depuis laquelle Vectispire découvrira vos dépôts
 et vous laissera choisir ceux à importer ([décision 0037](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0037-discovering-repositories-at-setup.md)).
-Cette version livre les connexions et la **découverte** des dépôts d'un GitLab : une connexion liste ce
-que son jeton peut voir et le garde comme un instantané, comparé d'une exécution à l'autre. Le choix des
-dépôts et leur import comme cibles viennent dans les lots suivants, de même que la découverte d'un GitHub.
+Cette version livre les connexions, la **découverte** des dépôts d'un GitLab — une connexion liste ce que
+son jeton peut voir et le garde comme un instantané, comparé d'une exécution à l'autre — puis la
+**sélection et l'import** de ces dépôts comme cibles ordinaires. La découverte d'un GitHub vient dans un lot
+ultérieur.
 
-Administrateurs seulement, par `/api/v1/forge-connections` ([référence de l'API](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
-Il n'y a pas encore d'écran.
+Administrateurs seulement : à l'écran sous **Administration → Connexions de forge** ([ci-dessous](#a-lecran)),
+et par `/api/v1/forge-connections` ([référence de l'API](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
+
+## À l'écran
+
+**Administration → Connexions de forge** présente chaque connexion sur une carte : la forge et son adresse,
+le type de jeton et les portées que la forge a communiquées, **s'il peut écrire** — *Lecture seule*, *Peut
+écrire* (un jeton classique de GitHub Enterprise Server), ou *Non communiqué* pour un jeton GitHub à
+granularité fine, ce qui veut dire *inconnu*, pas lecture seule —, l'expiration du jeton (annoncée
+**quatorze jours à l'avance**, puis *Expiré*), la déclaration de réseau, l'AC épinglée et sa fin de
+validité, l'état de chiffrement, la dernière découverte et le nombre de cibles importées par elle.
+
+- **Ajouter une connexion** : la forge, un nom, l'adresse web (vide pour gitlab.com ou github.com), le
+  propriétaire pour GitHub, le jeton. Pour un serveur auto-hébergé, cochez *Ce serveur est sur le réseau
+  interne* et collez votre AC en PEM : le formulaire lit le collage avant de l'envoyer et dit en mots ce qui
+  ne va pas — une clé privée, pas un certificat, un certificat tronqué, plus de huit — puis le serveur
+  vérifie qu'il s'agit d'une AC encore valide. Pour une adresse cloud, aucune des deux options n'est
+  proposée. *Vérifier et enregistrer* présente le jeton à la forge ; **un refus s'affiche tel que le
+  serveur le formule** — jeton rejeté ou expiré, portée hors des portées de lecture, serveur antérieur à
+  GitLab 16 ou GitHub Enterprise Server 3.12, propriétaire inconnu, adresse bloquée par la garde sortante —,
+  le reste du formulaire conservé et le jeton effacé.
+- **Remplacer le jeton** (la flèche circulaire) : vérifié comme un nouveau ; refusé, le jeton conservé ne
+  change pas.
+- **Modifier** (le crayon) : le nom, la déclaration de réseau et l'AC — la garder, en épingler une autre ou
+  la désépingler. L'adresse ne change pas.
+- **Supprimer** (la corbeille) : la confirmation dit combien de cibles importées perdent leur provenance,
+  et que **les cibles restent**.
+
+**Découvrir et importer** ouvre la page de la connexion, en trois étapes.
+
+1. **Découvrir.** *Découvrir* met une exécution en file ; la page la suit d'elle-même — toutes les deux
+   secondes, puis deux fois plus longtemps chaque fois que rien n'a bougé, jusqu'à trente, et plus du tout
+   une fois terminée ou la page quittée — avec ses compteurs : espaces de noms, dépôts, requêtes, secondes
+   d'attente des limites de débit, dépôts non conservés. Si une exécution est déjà en cours, la page la nomme
+   et propose de la suivre. Une exécution **partielle** dit pourquoi (trente minutes, vingt mille dépôts,
+   une limite de débit — avec l'heure où elle est levée) et que rien n'a été marqué disparu ; une exécution
+   **échouée** dit pourquoi en mots, avec le détail du serveur en dessous. Une fois terminée, les chiffres
+   de la comparaison — *nouveaux*, *modifiés*, *disparus* (exécution terminée seulement), *tous les dépôts
+   listés* — ouvrent chacun la liste qu'ils comptent. Les exécutions précédentes sont listées en dessous.
+2. **Choisir.** La table de la dernière découverte terminée complète ou partielle, filtrée et paginée par
+   le serveur : archivés, forks, espaces personnels, dépôts déjà cibles (chacun masqué, affiché, ou seul
+   affiché), visibilité, inactivité en jours, langage, espace de noms et motif de chemin. Sous les filtres,
+   ce que chaque filtre **n'a pas pu juger** est compté — GitLab ne nomme la source d'un fork que si le jeton
+   peut la lire — avec la règle : un filtre qui masque garde ce qu'il ne peut pas juger, un filtre qui exige
+   l'écarte. La sélection part de la proposition, qui laisse **les espaces personnels décochés** ;
+   *Proposition*, *Tous ceux retenus*, *Aucun* et *Inverser* s'appliquent à tout ce que les filtres
+   retiennent, sur toutes les pages ; une ligne coche un dépôt ; on peut coller des identifiants de forge. Un
+   dépôt déjà cible, déjà importé ou vide est grisé avec la raison, et **un identifiant que le serveur n'a
+   pas pu cocher est nommé**.
+3. **Classer et importer.** Où chaque espace de noms est classé — la proposition, modifiable par espace de
+   noms ou, en cochant *Modifier dépôt par dépôt*, par dépôt : une autre solution, un autre projet, ou
+   *Aucun projet* ; les noms existants sont suggérés. L'identifiant de clonage par hôte — la proposition,
+   aucun, un jeton HTTPS lié à cet hôte ou une clé SSH. *Analyser chaque nouvelle cible une fois maintenant*
+   (désactivé par défaut) et les secondes entre deux premières analyses (10 à 600). Puis **Aperçu** : cibles
+   créées, dépôts ignorés et pourquoi, dépôts refusés avec la raison du formulaire (l'import est refusé en
+   entier tant qu'il y en a un), solutions et projets réutilisés ou créés, l'identifiant et **qui verra
+   chaque cible** — les administrateurs, plus les comptes et équipes ayant accès à un projet réutilisé ; les
+   cibles d'un nouveau projet ne sont visibles que des administrateurs. Toute modification après l'aperçu en
+   demande un nouveau avant que *Importer* ne soit proposé : **ce qui est importé est ce qui a été
+   prévisualisé**. Un import en prend au plus mille ; les autres restent cochés pour le suivant.
+
+Le **résultat** liste les cibles créées — chacune liée à ses problèmes et, si elle est en file, à sa
+première analyse — et celles ignorées, et renvoie au journal d'audit, où l'import est résumé une fois sous
+*Dépôts importés depuis une forge* (`FORGE_IMPORT_APPLIED`).
 
 ## Ce qu'est une connexion
 
