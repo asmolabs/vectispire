@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BadgeState, SecurityScorecard } from '../api.models';
+import { BadgeState, PortfolioScorecard, SecurityScorecard } from '../api.models';
 
 /**
  * A repository's security scorecard and the public badge that may publish its grade.
@@ -18,6 +18,14 @@ export class ScorecardsApi {
 
     getRepositoryScorecard(repoId: number): Observable<SecurityScorecard> {
         return this.http.get<SecurityScorecard>(`/api/v1/scorecards/repositories/${repoId}`);
+    }
+
+    /**
+     * The reader's estate: how many targets read each grade, the weakest, the risk points. No single
+     * grade — a grade over an estate is crushed by its size or is the worst target's under another name.
+     */
+    getPortfolioScorecard(): Observable<PortfolioScorecard> {
+        return this.http.get<PortfolioScorecard>('/api/v1/scorecards/global');
     }
 
     /**

@@ -858,7 +858,20 @@
     "kind_container": "Conteneur",
     "rule_kev": "KEV",
     "rule_severity": "Gravité",
-    "more_violations": "+ {{count}} de plus"
+    "more_violations": "+ {{count}} de plus",
+    "col_risk_points": "Points de risque",
+    "score_formula_changed": "Formule du score modifiée",
+    "score_formula_changed_note": "La formule du scorecard a changé le {{date}} (0.11.0) : la plupart des notes se lisent plus bas à partir de ce jour, sans que rien ait changé dans les dépôts. Les courbes sont celles du backlog, que la formule ne déplace pas.",
+    "portfolio": {
+      "title": "Les notes de votre parc",
+      "help": "Pas de note unique pour un parc : combien de cibles lisent chaque note, la plus faible, et ce qui est ouvert.",
+      "distribution": "Cibles par note",
+      "grade_count_one": "{{grade}} : {{count}} cible",
+      "grade_count_other": "{{grade}} : {{count}} cibles",
+      "weakest": "Cible la plus faible",
+      "no_weakest": "Aucune cible encore scannée.",
+      "open_risk": "Ouvert, en points de risque"
+    }
   },
   "delays": {
     "title": "Délais de correction",
@@ -1895,7 +1908,11 @@
     "imports_btn": "Imports",
     "aria_imports": "Imports de {{name}}",
     "header_imports": "Imports — {{name}}",
-    "sarif_imports_title": "Imports SARIF"
+    "sarif_imports_title": "Imports SARIF",
+    "risk_points_one": "{{points}} point de risque",
+    "risk_points_other": "{{points}} points de risque",
+    "risk_points_help": "ce qui est ouvert, pondéré — chaque problème et chaque licence interdite une fois.",
+    "weakest_target": "Notée par sa cible la plus faible, {{name}} :"
   },
   "roles": {
     "user": "Utilisateur",

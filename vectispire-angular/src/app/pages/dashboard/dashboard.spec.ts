@@ -8,6 +8,7 @@ import { Dashboard } from './dashboard';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
 import type { SecurityGrade } from '../../core/api.models';
+import { DATED_MARKER, type MarkerChart } from '../../shared/dated-marker';
 
 /**
  * The backlog trend, and the one figure that must not be rounded to zero.
@@ -168,6 +169,43 @@ describe('the backlog trend', () => {
         call.flush(asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 }));
     });
 
+    /**
+     * The day the scorecard formula changed here (decision 0036). The curves are the backlog's, which
+     * the formula does not move; the line is for whoever sets a grade beside them, and the page says
+     * the same in words, since a canvas says nothing to a screen reader.
+     */
+    it('marks the day the score formula changed, on the chart and in words, when it falls in the window', () => {
+        flushTrends({
+            points: [
+                { day: '2026-10-19', open: 5, opened: 2, resolved: 1 },
+                { day: '2026-10-20', open: 6, opened: 1, resolved: 0 },
+                { day: '2026-10-21', open: 6, opened: 0, resolved: 0 }
+            ],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1,
+            score_formula_changed_on: '2026-10-20'
+        });
+
+        const page = fixture.componentInstance;
+        expect(page.backlogOptions().plugins.datedMarker).toMatchObject({ index: 1, label: 'Score formula changed' });
+        // The lower chart repeats the line, not the label.
+        expect(page.flowOptions().plugins.datedMarker).toMatchObject({ index: 1, label: undefined });
+        const note = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="score-formula-change"]');
+        expect(note?.textContent).toContain('The scorecard formula changed on 2026-10-20 (0.11.0)');
+    });
+
+    it('draws no line and says nothing when the change is outside the window, or never happened here', () => {
+        flushTrends({
+            points: [{ day: '2026-10-21', open: 6, opened: 0, resolved: 0 }],
+            mean_days_to_resolve: 3,
+            resolved_in_window: 1,
+            score_formula_changed_on: '2026-10-20'
+        });
+
+        expect(fixture.componentInstance.backlogOptions().plugins.datedMarker.index).toBe(-1);
+        expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="score-formula-change"]')).toBeNull();
+    });
+
     it('says the trend failed instead of drawing an empty history', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(null, {
             status: 500,
@@ -292,12 +330,19 @@ describe('the maturity ranking', () => {
     let fixture: ComponentFixture<Dashboard>;
     let http: HttpTestingController;
 
-    const row = (targetId: number, targetName: string, maturityGrade: SecurityGrade, securityScore: number | null) => ({
+    const row = (
+        targetId: number,
+        targetName: string,
+        maturityGrade: SecurityGrade,
+        securityScore: number | null,
+        riskPoints: number | null = null
+    ) => ({
         targetId,
         targetKind: 'repository',
         targetName,
         maturityGrade,
         securityScore,
+        riskPoints,
         targetMttrDays: null,
         openCritical: 2,
         openHigh: 0,
@@ -315,8 +360,8 @@ describe('the maturity ranking', () => {
         totalResolvedInWindow: 0,
         windowDays: 90,
         targetScoreboard: [
-            row(3, 'clean-repo', 'A_PLUS', 100),
-            row(1, 'graded-repo', 'B', 72),
+            row(3, 'clean-repo', 'A_PLUS', 100, 0),
+            row(1, 'graded-repo', 'B', 72, 18.125),
             row(2, 'unscanned-repo', 'NO_DATA', null)
         ]
     });
@@ -386,6 +431,17 @@ describe('the maturity ranking', () => {
         expect(tr.querySelector('[data-testid="maturity-no-data"]')).toBeNull();
     });
 
+    // What breaks a tie in the order, and what still moves deep in F (decision 0036).
+    it('shows the risk points of each graded target, and a dash where there is no grade', () => {
+        expect(rowOf('graded-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe(
+            '18.125'
+        );
+        expect(rowOf('clean-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe('0');
+        expect(rowOf('unscanned-repo').querySelector('[data-testid="maturity-risk-points"]')?.textContent.trim()).toBe(
+            '—'
+        );
+    });
+
     it('paints no grade as neutral, not as failing', () => {
         expect(fixture.componentInstance.gradeSeverity('NO_DATA')).toBe('secondary');
         expect(fixture.componentInstance.gradeSeverity('F')).toBe('danger');
@@ -406,5 +462,163 @@ describe('the maturity ranking', () => {
         const tr = rowOf('clean-repo');
         expect(tr.querySelector('.p-tag')?.textContent.trim()).toBe('Grade A+');
         expect(tr.textContent).not.toContain('A_PLUS');
+    });
+});
+
+/**
+ * The dated line itself, drawn on a chart whose canvas is a recording: happy-dom has no canvas, and
+ * what matters is where the line stands and that nothing is drawn without a day.
+ */
+describe('the dated marker', () => {
+    function chartRecording() {
+        const calls: string[] = [];
+        const ctx = new Proxy(
+            {},
+            {
+                get:
+                    (_target, name: string) =>
+                    (...args: unknown[]) =>
+                        calls.push(`${name}(${args.join(',')})`),
+                set: () => true
+            }
+        ) as MarkerChart['ctx'];
+        const chart: MarkerChart = {
+            ctx,
+            chartArea: { top: 10, bottom: 110 },
+            scales: { x: { getPixelForValue: (value: number) => 100 + value * 20 } }
+        };
+        return { chart, calls };
+    }
+
+    it('stands on the point of its day, from the top of the plot to its bottom, with its label', () => {
+        const { chart, calls } = chartRecording();
+        DATED_MARKER.afterDatasetsDraw(chart, {}, { index: 2, label: 'Score formula changed' });
+
+        expect(calls).toContain('moveTo(140,10)');
+        expect(calls).toContain('lineTo(140,110)');
+        expect(calls).toContain('fillText(Score formula changed,144,21)');
+    });
+
+    it('draws nothing without a day in the window', () => {
+        const { chart, calls } = chartRecording();
+        DATED_MARKER.afterDatasetsDraw(chart, {}, { index: -1, label: 'Score formula changed' });
+        DATED_MARKER.afterDatasetsDraw(chart, {}, undefined);
+
+        expect(calls).toEqual([]);
+    });
+});
+
+/**
+ * The portfolio, with no grade of its own (decision 0036): the distribution of the reader's targets
+ * over the grades, the weakest by name, and what is open in risk points — read from the DOM, each
+ * count with its grade in its accessible name, as a screen reader hears it.
+ */
+describe('the portfolio', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const PORTFOLIO = asSchema('PortfolioScorecard', {
+        totalTargets: 6,
+        observedTargets: 5,
+        grades: [
+            { grade: 'A_PLUS' as const, targets: 3 },
+            { grade: 'A' as const, targets: 0 },
+            { grade: 'B' as const, targets: 1 },
+            { grade: 'C' as const, targets: 0 },
+            { grade: 'D' as const, targets: 1 },
+            { grade: 'F' as const, targets: 0 },
+            { grade: 'NO_DATA' as const, targets: 1 }
+        ],
+        weakestTarget: {
+            targetKind: 'repository',
+            targetId: 4,
+            targetName: 'payments-api',
+            score: 54,
+            grade: 'D' as const,
+            riskPoints: 29.5
+        },
+        riskPoints: 40.5,
+        openCriticalCount: 2,
+        openHighCount: 1,
+        openKevCount: 1,
+        overdueCount: 0,
+        licenseViolationCount: 0
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        // The panel sits inside the overview's block, as the ranking does.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 6,
+                    kevCount: 1,
+                    neverScannedCount: 1,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+    }, 20_000);
+
+    function load(portfolio: object): HTMLElement {
+        http.expectOne((call) => call.url === '/api/v1/scorecards/global').flush(portfolio);
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    it('counts the targets of each grade, no data included, each count named with its grade', () => {
+        const page = load(PORTFOLIO);
+
+        const rows = Array.from(page.querySelectorAll('[data-testid="portfolio-distribution"] li'));
+        expect(rows.map((row) => row.getAttribute('aria-label'))).toEqual([
+            'Grade A+: 3 targets',
+            'Grade A: 0 targets',
+            'Grade B: 1 target',
+            'Grade C: 0 targets',
+            'Grade D: 1 target',
+            'Grade F: 0 targets',
+            'No data: 1 target'
+        ]);
+        expect(page.querySelector('[data-testid="portfolio-distribution"]')?.getAttribute('aria-label')).toBe(
+            'Targets by grade'
+        );
+    });
+
+    it('names the weakest target and what is open, and states no single grade for the estate', () => {
+        const page = load(PORTFOLIO);
+
+        const weakest = page.querySelector('[data-testid="portfolio-weakest"]')?.textContent ?? '';
+        expect(weakest).toContain('payments-api');
+        expect(weakest).toContain('Grade D');
+        expect(weakest).toContain('54/100');
+        expect(page.querySelector('[data-testid="portfolio-risk-points"]')?.textContent).toContain('40.5 risk points');
+    });
+
+    it('says no target is scanned yet rather than naming one', () => {
+        const page = load({ ...PORTFOLIO, observedTargets: 0, weakestTarget: null });
+
+        expect(page.querySelector('[data-testid="portfolio-weakest"]')?.textContent).toContain(
+            'No target scanned yet.'
+        );
+    });
+
+    it('leaves the panel out for a reader who sees no target', () => {
+        const page = load({ ...PORTFOLIO, totalTargets: 0, observedTargets: 0, weakestTarget: null });
+
+        expect(page.querySelector('[data-testid="portfolio-distribution"]')).toBeNull();
     });
 });

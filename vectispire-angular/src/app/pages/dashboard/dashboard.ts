@@ -9,10 +9,19 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { DashboardApi } from '../../core/api/dashboard.api';
 import { RemediationApi } from '../../core/api/remediation.api';
-import type { DashboardOverview, Trends, PostureTrendAnalytics, SecurityDebtReport } from '../../core/api.models';
+import { ScorecardsApi } from '../../core/api/scorecards.api';
+import type {
+    DashboardOverview,
+    PortfolioScorecard,
+    Trends,
+    PostureTrendAnalytics,
+    SecurityDebtReport
+} from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
-import { GradeLabelPipe } from '../../shared/grade-label';
+import { GradeLabelPipe, gradeLabel } from '../../shared/grade-label';
+import { RiskPointsPipe } from '../../shared/risk-points';
 import { gradeSeverity } from '../../shared/scorecard';
+import { DATED_MARKER } from '../../shared/dated-marker';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
  *  data: otherwise two successive loads could present them differently. The label key is spelt
@@ -59,7 +68,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         TagModule,
         LastScanTag,
         TranslatePipe,
-        GradeLabelPipe
+        GradeLabelPipe,
+        RiskPointsPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './dashboard.html'
@@ -68,6 +78,7 @@ export class Dashboard {
     private readonly i18n = inject(I18nService);
     private readonly dashboardApi = inject(DashboardApi);
     private readonly remediationApi = inject(RemediationApi);
+    private readonly scorecardsApi = inject(ScorecardsApi);
     readonly severities = computed(() => {
         this.i18n.translations();
         return SEVERITY_TILES.map((tile) => ({ ...tile, label: this.i18n.t(tile.labelKey) }));
@@ -95,6 +106,45 @@ export class Dashboard {
     readonly trendError = signal<string | null>(null);
     readonly window = signal(90);
 
+    /**
+     * The estate's grades, with no grade of its own (decision 0036): a single grade over an estate is
+     * crushed by its size when the backlogs are added up, or is the worst target's grade under another
+     * name. How many targets read each grade, the weakest, and what is open are what a reader acts on.
+     * Its own request: a failure leaves the panel out rather than the page.
+     */
+    readonly portfolio = signal<PortfolioScorecard | null>(null);
+
+    /** The scale's order is the server's; each row's accessible name says grade and count together. */
+    readonly portfolioGrades = computed(() => {
+        this.i18n.translations();
+        const t = this.i18n.t.bind(this.i18n);
+        return (this.portfolio()?.grades ?? []).map((row) => ({
+            ...row,
+            label: gradeLabel(row.grade, t),
+            accessibleName: t('dashboard.portfolio.grade_count', {
+                count: row.targets,
+                grade: gradeLabel(row.grade, t)
+            })
+        }));
+    });
+
+    /** Drawn on both charts; the label only on the upper one, whose top has room for it. */
+    readonly chartPlugins = [DATED_MARKER];
+
+    /**
+     * The day this installation's grades changed formula, when it falls in the window — the point
+     * the dated line stands on. The series are the backlog's, which the formula does not move; the
+     * line is for the reader who sets a grade beside them. Outside the window, nothing: a line at
+     * the edge would read as a change on the window's first day.
+     */
+    readonly formulaChange = computed(() => {
+        const series = this.trends();
+        const day = series?.score_formula_changed_on;
+        if (!series || !day) return null;
+        const index = series.points.findIndex((point) => point.day === day);
+        return index < 0 ? null : { index, day };
+    });
+
     constructor() {
         this.dashboardApi.dashboard().subscribe({
             next: (overview) => {
@@ -108,6 +158,10 @@ export class Dashboard {
         });
         this.remediationApi.getSecurityDebt().subscribe({
             next: (debt) => this.securityDebt.set(debt),
+            error: () => {}
+        });
+        this.scorecardsApi.getPortfolioScorecard().subscribe({
+            next: (portfolio) => this.portfolio.set(portfolio),
             error: () => {}
         });
         this.loadTrends(this.window());
@@ -133,6 +187,11 @@ export class Dashboard {
 
     /** The card's colours: one target, one grade, painted alike on every screen. */
     readonly gradeSeverity = gradeSeverity;
+
+    /** A ranking row's risk points, in the reader's decimal mark: the column's header names the unit. */
+    figure(points: number): string {
+        return new Intl.NumberFormat(this.i18n.currentLang(), { maximumFractionDigits: 3 }).format(points);
+    }
 
     /**
      * The mean time to resolve, in words.
@@ -229,20 +288,26 @@ export class Dashboard {
      * information and steal the height used to read the curves. That is what makes the two panels a
      * single reading rather than two neighbouring charts.
      */
-    readonly backlogOptions = computed(() => this.options(this.i18n.t('dashboard.chart.open_backlog'), false));
+    readonly backlogOptions = computed(() =>
+        this.options(this.i18n.t('dashboard.chart.open_backlog'), false, this.i18n.t('dashboard.score_formula_changed'))
+    );
 
     readonly flowOptions = computed(() => this.options(this.i18n.t('dashboard.chart.per_day'), true));
 
-    private options(title: string, showDates: boolean) {
+    private options(title: string, showDates: boolean, markerLabel?: string) {
         const text = themeColour('--p-text-muted-color', '#71717a');
         const grid = themeColour('--p-content-border-color', '#e4e4e7');
+        const change = this.formulaChange();
         return {
             maintainAspectRatio: false,
             // A year of daily points on eight hundred pixels: interpolation is what keeps the
             // shape readable where one pixel holds several days.
             spanGaps: true,
             interaction: { mode: 'index' as const, intersect: false },
-            plugins: { legend: { labels: { color: text } } },
+            plugins: {
+                legend: { labels: { color: text } },
+                datedMarker: { index: change?.index ?? -1, label: change ? markerLabel : undefined, colour: text }
+            },
             scales: {
                 x: {
                     ticks: { color: text, maxTicksLimit: 12, display: showDates },

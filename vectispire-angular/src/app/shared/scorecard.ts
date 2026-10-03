@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { GradeLabelPipe } from './grade-label';
+import { riskPointsLabel } from './risk-points';
+import { I18nService } from '../core/i18n/i18n.service';
 import type { SecurityScorecard } from '../core/api.models';
 
 export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | 'secondary' {
@@ -30,6 +32,12 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
  * scope nobody had scanned, and this page read the compliance summary's `observedTargets` to hide it.
  * The flag is the card's own now, so the repository dialog and a project's page draw the same dash
  * from the same answer, as the compliance verdicts do; the counts stay, being true of what was read.
+ *
+ * **The risk points sit under the score** (decision 0036): the weighted open backlog it is computed
+ * from. Deep in F the score is held at one, and the points are what still moves when a team fixes
+ * something. They go with the score — absent with no data. **A project's or a solution's card names
+ * its weakest target**, the one its grade is read from: a scope is graded by its most exposed target,
+ * and a grade with no target named sends the reader looking through every one of them.
  */
 @Component({
     selector: 'app-scorecard',
@@ -68,6 +76,20 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
                     }
                 </div>
             </div>
+
+            @if (riskPoints(); as points) {
+                <p class="m-0 text-sm text-muted-color" data-testid="scorecard-risk-points">
+                    <span class="font-semibold text-color">{{ points }}</span>
+                    — {{ 'repositories.risk_points_help' | translate }}
+                </p>
+            }
+            @if (!noData() && card().weakestTarget; as weakest) {
+                <p class="m-0 text-sm" data-testid="scorecard-weakest">
+                    {{ 'repositories.weakest_target' | translate: { name: weakest.targetName } }}
+                    <p-tag [severity]="severityOf(weakest.grade)" [value]="weakest.grade | gradeLabel" />
+                    <span class="font-mono">{{ weakest.score }}/100</span>
+                </p>
+            }
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                 <div class="p-2 border rounded bg-surface-0 dark:bg-surface-900">
@@ -114,6 +136,15 @@ export function gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | '
 export class ScorecardView {
     readonly card = input.required<SecurityScorecard>();
     readonly noData = computed(() => this.card().grade === 'NO_DATA' || this.card().score === null);
+
+    private readonly i18n = inject(I18nService);
+
+    /** In words, or null with no grade: the points go with the score. Zero is "0 risk points", shown. */
+    readonly riskPoints = computed(() => {
+        this.i18n.translations();
+        const points = this.card().riskPoints;
+        return this.noData() || points === null ? null : riskPointsLabel(points, this.i18n);
+    });
 
     readonly severityOf = gradeSeverity;
 }

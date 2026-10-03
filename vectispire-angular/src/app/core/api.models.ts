@@ -225,6 +225,19 @@ export type LicenseSummary = Refine<
 /** `NO_DATA` is no grade: nothing in the card's scope holds a completed scan, and its score is null. */
 export type SecurityGrade = 'A_PLUS' | 'A' | 'B' | 'C' | 'D' | 'F' | 'NO_DATA';
 
+/**
+ * The target a project's or a solution's grade is read from — its weakest scanned one (decision
+ * 0036), graded as its own card grades it — or the portfolio's weakest.
+ */
+export type ScorecardWeakestTarget = Refine<
+    Schema<'WeakestTarget'>,
+    { targetKind: string; targetName: string; grade: SecurityGrade }
+>;
+
+/**
+ * `riskPoints` is the weighted open backlog the score is computed from — a sum, never a percentage —
+ * and is `null` exactly when the score is. `weakestTarget` is a scope's alone.
+ */
 export type SecurityScorecard = Refine<
     Schema<'SecurityScorecard'>,
     {
@@ -232,9 +245,24 @@ export type SecurityScorecard = Refine<
         targetName: string;
         grade: SecurityGrade;
         score: number | null;
+        riskPoints: number | null;
         recommendations: string[];
         targetId: number | null;
+        weakestTarget: ScorecardWeakestTarget | null;
     }
+>;
+
+/** How many of the reader's targets read one grade. */
+export type PortfolioGradeCount = Refine<Schema<'GradeCount'>, { grade: SecurityGrade }>;
+
+/**
+ * The estate the reader sees, with no grade of its own since 0.11.0: the distribution of its
+ * targets' grades (every grade, `NO_DATA` included, in the scale's order), the weakest target —
+ * `null` when none is scanned — and the risk points of everything open.
+ */
+export type PortfolioScorecard = Refine<
+    Schema<'PortfolioScorecard'>,
+    { grades: PortfolioGradeCount[]; weakestTarget: ScorecardWeakestTarget | null }
 >;
 
 export type BadgeState = Refine<Schema<'BadgeState'>, { token: string | null; url: string | null }>;
@@ -950,6 +978,11 @@ export type Trends = Refine<
          * denominator is a number people quote and should not.
          */
         mean_days_to_resolve: number | null;
+        /**
+         * The day, an ISO date in UTC, this installation's grades changed formula (decision 0036) —
+         * `null` where there was no grade to change. The chart marks it when it falls in the window.
+         */
+        score_formula_changed_on: string | null;
     }
 >;
 
@@ -1734,6 +1767,8 @@ export type TargetMaturityScore = Refine<
         targetName: string;
         maturityGrade: SecurityGrade;
         securityScore: number | null;
+        /** The card's risk points; `null` exactly when the score is. Ties in score rank by them. */
+        riskPoints: number | null;
         targetMttrDays: number | null;
     }
 >;

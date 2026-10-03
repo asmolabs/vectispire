@@ -858,7 +858,20 @@
     "kind_container": "Container",
     "rule_kev": "KEV",
     "rule_severity": "Severity",
-    "more_violations": "+ {{count}} more"
+    "more_violations": "+ {{count}} more",
+    "col_risk_points": "Risk points",
+    "score_formula_changed": "Score formula changed",
+    "score_formula_changed_note": "The scorecard formula changed on {{date}} (0.11.0): most grades read lower from that day, with nothing in the repositories changed. The curves are the backlog’s, which the formula does not move.",
+    "portfolio": {
+      "title": "Grades across your estate",
+      "help": "No single grade for an estate: how many targets read each grade, the weakest, and what is open.",
+      "distribution": "Targets by grade",
+      "grade_count_one": "{{grade}}: {{count}} target",
+      "grade_count_other": "{{grade}}: {{count}} targets",
+      "weakest": "Weakest target",
+      "no_weakest": "No target scanned yet.",
+      "open_risk": "Open, in risk points"
+    }
   },
   "delays": {
     "title": "Time to fix",
@@ -1895,7 +1908,11 @@
     "imports_btn": "Imports",
     "aria_imports": "Imports of {{name}}",
     "header_imports": "Imports — {{name}}",
-    "sarif_imports_title": "SARIF imports"
+    "sarif_imports_title": "SARIF imports",
+    "risk_points_one": "{{points}} risk point",
+    "risk_points_other": "{{points}} risk points",
+    "risk_points_help": "what is open, weighted — each issue and each disallowed licence once.",
+    "weakest_target": "Graded by its weakest target, {{name}}:"
   },
   "roles": {
     "user": "User",

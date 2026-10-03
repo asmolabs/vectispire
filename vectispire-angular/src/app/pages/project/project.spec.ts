@@ -127,8 +127,13 @@ describe('the project page', () => {
     it('draws the scope compliance: the score and grade, the target count, the verdicts in words', async () => {
         await open();
 
-        expect(text('[data-testid="scorecard-score"]')).toBe('64/100');
-        expect(text('[data-testid="scorecard-grade"]')).toBe('Grade C');
+        expect(text('[data-testid="scorecard-score"]')).toBe('54/100');
+        expect(text('[data-testid="scorecard-grade"]')).toBe('Grade D');
+        // The scope's risk points, and the target its grade is read from (decision 0036).
+        expect(text('[data-testid="scorecard-risk-points"]')).toContain('40.5 risk points');
+        expect(text('[data-testid="scorecard-weakest"]')).toContain('Graded by its weakest target, api-gateway');
+        expect(text('[data-testid="scorecard-weakest"]')).toContain('Grade D');
+        expect(text('[data-testid="scorecard-weakest"]')).toContain('54/100');
         expect(text('[data-testid="scope-target-count"]')).toBe('Computed over 2 targets.');
         expect(text('[data-testid="framework-NIS_2"]')).toContain('72%');
         expect(text('[data-testid="framework-NIS_2"]')).toContain('Partial');
@@ -149,6 +154,9 @@ describe('the project page', () => {
         expect(nis2).not.toContain('0%');
         expect(text('[data-testid="scorecard-score"]')).toBe('—');
         expect(text('[data-testid="scorecard-grade"]')).toBe('No data');
+        // No figure of a grade that does not exist, and no target to read it from.
+        expect(has('[data-testid="scorecard-risk-points"]')).toBe(false);
+        expect(has('[data-testid="scorecard-weakest"]')).toBe(false);
     });
 
     it('lists the merged components with their carriers, and filters them by name', async () => {

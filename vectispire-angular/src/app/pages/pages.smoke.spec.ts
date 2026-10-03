@@ -88,7 +88,27 @@ describe('every screen', () => {
             });
         }
         if (url.includes('/dashboard/trends')) {
-            return asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
+            return asSchema('Trends', {
+                points: [],
+                mean_days_to_resolve: null,
+                resolved_in_window: 0,
+                score_formula_changed_on: null
+            });
+        }
+        // The portfolio of an empty estate: every grade at zero, no weakest target, nothing open.
+        if (url.endsWith('/scorecards/global')) {
+            return asSchema('PortfolioScorecard', {
+                totalTargets: 0,
+                observedTargets: 0,
+                grades: ['A_PLUS', 'A', 'B', 'C', 'D', 'F', 'NO_DATA'].map((grade) => ({ grade, targets: 0 })),
+                weakestTarget: null,
+                riskPoints: 0,
+                openCriticalCount: 0,
+                openHighCount: 0,
+                openKevCount: 0,
+                overdueCount: 0,
+                licenseViolationCount: 0
+            });
         }
         if (url.endsWith('/dashboard')) {
             return asSchema('DashboardOverview', {

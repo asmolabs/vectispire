@@ -103,12 +103,26 @@ export const NO_DATA_SUMMARY = asSchema('ComplianceSummary', {
     targets: []
 });
 
+/**
+ * A project graded by its weakest target (decision 0036): the repository holding the exploited
+ * critical, held at D's 54, and the project's risk points over both targets' open backlog — the
+ * exploited critical 25, the other critical 10, the high 4, three mediums 1.5.
+ */
 export const SCORECARD = asSchema('SecurityScorecard', {
     targetId: PROJECT_ID,
     targetKind: 'project',
     targetName: 'Gateway',
-    score: 64,
-    grade: 'C' as const,
+    score: 54,
+    grade: 'D' as const,
+    riskPoints: 40.5,
+    weakestTarget: {
+        targetKind: 'repository',
+        targetId: 9,
+        targetName: 'api-gateway',
+        score: 54,
+        grade: 'D' as const,
+        riskPoints: 35
+    },
     totalTargets: 2,
     observedTargets: 2,
     openKevCount: 1,
@@ -125,6 +139,8 @@ export const SCORECARD_NO_DATA = asSchema('SecurityScorecard', {
     ...SCORECARD,
     score: null,
     grade: 'NO_DATA' as const,
+    riskPoints: null,
+    weakestTarget: null,
     observedTargets: 0,
     hasAttestation: false
 });
@@ -153,6 +169,8 @@ export const SOLUTION_COMPLIANCE_NO_DATA = asSchema('ScopeCompliance', {
         targetName: 'Mobile',
         score: null,
         grade: 'NO_DATA' as const,
+        riskPoints: null,
+        weakestTarget: null,
         totalTargets: 1,
         observedTargets: 0
     }

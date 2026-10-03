@@ -87,8 +87,26 @@
                             the data. Stacked, they share the date axis — carried by the lower one —
                             and no longer suggest anything false.
                         -->
-                        <p-chart type="line" [data]="backlogChart()" [options]="backlogOptions()" height="12rem" />
-                        <p-chart type="line" [data]="flowChart()" [options]="flowOptions()" height="7rem" />
+                        <p-chart
+                            type="line"
+                            [data]="backlogChart()"
+                            [options]="backlogOptions()"
+                            [plugins]="chartPlugins"
+                            height="12rem"
+                        />
+                        <p-chart
+                            type="line"
+                            [data]="flowChart()"
+                            [options]="flowOptions()"
+                            [plugins]="chartPlugins"
+                            height="7rem"
+                        />
+                        <!-- The dated line, in words: a canvas says nothing to a screen reader. -->
+                        @if (formulaChange(); as change) {
+                            <p class="m-0 mt-2 text-xs text-muted-color" data-testid="score-formula-change">
+                                {{ 'dashboard.score_formula_changed_note' | translate: { date: change.day } }}
+                            </p>
+                        }
                     }
                 } @else {
                     <p class="text-muted-color m-0">{{ 'dashboard.loading_trend' | translate }}</p>
@@ -314,6 +332,67 @@
         </div>
     }
 
+    <!--
+        The portfolio, with no grade of its own (decision 0036): how many targets read each grade, the
+        weakest of them, and what is open. A list rather than a chart, so that each count is read with
+        its grade by a screen reader as on screen.
+    -->
+    @if (portfolio(); as estate) {
+        @if (estate.totalTargets > 0) {
+            <p-card styleClass="mb-4">
+                <ng-template #title>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span>{{ 'dashboard.portfolio.title' | translate }}</span>
+                        <span class="text-xs text-muted-color font-normal">{{
+                            'dashboard.portfolio.help' | translate
+                        }}</span>
+                    </div>
+                </ng-template>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <ul
+                        class="lg:col-span-2 list-none m-0 p-0 flex flex-wrap gap-3"
+                        data-testid="portfolio-distribution"
+                        [attr.aria-label]="'dashboard.portfolio.distribution' | translate"
+                    >
+                        @for (row of portfolioGrades(); track row.grade) {
+                            <li
+                                class="flex flex-col items-center gap-1 p-2 min-w-16 border rounded"
+                                [attr.aria-label]="row.accessibleName"
+                                [attr.data-grade]="row.grade"
+                            >
+                                <p-tag [value]="row.label" [severity]="gradeSeverity(row.grade)" aria-hidden="true" />
+                                <span class="text-xl font-bold" aria-hidden="true">{{ row.targets }}</span>
+                            </li>
+                        }
+                    </ul>
+                    <div class="flex flex-col gap-3">
+                        <div data-testid="portfolio-weakest">
+                            <div class="text-muted-color text-sm">{{ 'dashboard.portfolio.weakest' | translate }}</div>
+                            @if (estate.weakestTarget; as weakest) {
+                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                    <span class="font-bold">{{ weakest.targetName }}</span>
+                                    <p-tag
+                                        [value]="weakest.grade | gradeLabel"
+                                        [severity]="gradeSeverity(weakest.grade)"
+                                    />
+                                    <span class="font-mono text-sm">{{ weakest.score }}/100</span>
+                                </div>
+                            } @else {
+                                <div class="mt-1">{{ 'dashboard.portfolio.no_weakest' | translate }}</div>
+                            }
+                        </div>
+                        <div data-testid="portfolio-risk-points">
+                            <div class="text-muted-color text-sm">
+                                {{ 'dashboard.portfolio.open_risk' | translate }}
+                            </div>
+                            <div class="text-xl font-bold mt-1">{{ estate.riskPoints | riskPoints }}</div>
+                        </div>
+                    </div>
+                </div>
+            </p-card>
+        }
+    }
+
     <!-- Target Security Maturity Scoreboard -->
     @if (postureAnalytics()?.targetScoreboard?.length) {
         <p-card styleClass="mb-4">
@@ -340,6 +419,7 @@
                         <th>{{ 'dashboard.target' | translate }}</th>
                         <th>{{ 'dashboard.col_grade' | translate }}</th>
                         <th>{{ 'dashboard.security_score' | translate }}</th>
+                        <th class="text-right">{{ 'dashboard.col_risk_points' | translate }}</th>
                         <th class="text-center">{{ 'dashboard.critical_open' | translate }}</th>
                         <th class="text-center">{{ 'dashboard.high_open' | translate }}</th>
                         <th class="text-center">{{ 'dashboard.resolved' | translate }}</th>
@@ -383,6 +463,10 @@
                                     </div>
                                 </div>
                             }
+                        </td>
+                        <!-- What breaks a tie in the order, and what still moves deep in F. -->
+                        <td class="text-right font-mono text-xs" data-testid="maturity-risk-points">
+                            {{ target.riskPoints !== null ? figure(target.riskPoints) : '—' }}
                         </td>
                         <td class="text-center">
                             @if (target.openCritical > 0) {
