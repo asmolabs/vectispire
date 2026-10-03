@@ -1579,7 +1579,7 @@
     "sarif_sources": "Sources déclarées",
     "checklist_templates": "Modèles de checklists",
     "report_plugins": "Plugins de rapport",
-    "forge_connections": "Connexions aux forges"
+    "forge_connections": "Connexions de forge"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -2735,7 +2735,7 @@
     "solution_compliance": "Conformité de la solution",
     "project_checklist": "Checklist de sécurité",
     "report_plugins": "Plugins de rapport",
-    "forge_connections": "Connexions aux forges",
+    "forge_connections": "Connexions de forge",
     "forge_discovery": "Découverte et import"
   },
   "topbar": {
@@ -3814,7 +3814,7 @@
       "read_other": "{{count}} certificats lus. Le serveur vérifie qu'il s'agit d'AC encore valides."
     },
     "connections": {
-      "title": "Connexions aux forges",
+      "title": "Connexions de forge",
       "subtitle": "Un jeton en lecture seule par GitLab ou GitHub, d'où les dépôts sont découverts puis importés comme cibles.",
       "add": "Ajouter une connexion",
       "none": "Aucune connexion. Ajoutez-en une pour découvrir les dépôts d'un GitLab ou d'un GitHub.",
@@ -3883,7 +3883,7 @@
       "delete_confirm_other": "Supprimer {{name}} ? Ses découvertes et la provenance de ses {{count}} cibles importées disparaissent avec elle. Les cibles elles-mêmes sont conservées : un dépôt importé est une cible comme une autre."
     },
     "discovery": {
-      "back": "← Connexions aux forges",
+      "back": "← Connexions de forge",
       "not_found": "Aucune connexion ne porte cet identifiant.",
       "error_load": "La connexion n'a pas pu être chargée.",
       "error_request": "La découverte n'a pas pu être demandée.",

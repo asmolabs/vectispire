@@ -211,7 +211,8 @@ describe('the import step', () => {
         again.dispatchEvent(new Event('change'));
         await settle();
         await click('preview');
-        expect(previewRequest().request.body).toMatchObject({ credentials: [{ host: HOST }] });
+        // A host named with no credential is "none", said explicitly: anything beside the host would be a choice.
+        expect((previewRequest().request.body as { credentials: unknown[] }).credentials).toEqual([{ host: HOST }]);
     });
 
     it('queues first scans only when asked, spaced within ten seconds and ten minutes', async () => {
