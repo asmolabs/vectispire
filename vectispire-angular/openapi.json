@@ -3842,6 +3842,81 @@
         },
         "type" : "object"
       },
+      "ForgeCandidate" : {
+        "properties" : {
+          "importedAs" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "notSelectable" : {
+            "enum" : [ "already_imported", "already_present", "no_default_branch", "no_clone_url", "duplicate_in_selection" ],
+            "type" : "string"
+          },
+          "offered" : {
+            "type" : "boolean"
+          },
+          "presentAs" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "proposedProject" : {
+            "type" : "string"
+          },
+          "proposedSolution" : {
+            "type" : "string"
+          },
+          "repository" : {
+            "$ref" : "#/components/schemas/ForgeRepositoryView"
+          },
+          "selectable" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "offered", "selectable" ],
+        "type" : "object"
+      },
+      "ForgeCandidatePage" : {
+        "properties" : {
+          "discoveryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeCandidate"
+            },
+            "type" : "array"
+          },
+          "limit" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "listed" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "offset" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "unjudged" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          }
+        },
+        "required" : [ "discoveryId", "limit", "listed", "offset", "total" ],
+        "type" : "object"
+      },
       "ForgeConnectionChange" : {
         "properties" : {
           "caPem" : {
@@ -3920,6 +3995,10 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "importedTargets" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "internalNetwork" : {
             "type" : "boolean"
           },
@@ -3957,7 +4036,36 @@
             "type" : "string"
           }
         },
-        "required" : [ "internalNetwork" ],
+        "required" : [ "importedTargets", "internalNetwork" ],
+        "type" : "object"
+      },
+      "ForgeCredentialChoice" : {
+        "properties" : {
+          "host" : {
+            "type" : "string"
+          },
+          "httpsTokenId" : {
+            "type" : "string"
+          },
+          "sshKeyId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeCredentialView" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ForgeDiscoveryView" : {
@@ -4038,6 +4146,316 @@
           }
         },
         "required" : [ "attempts", "id", "namespacesSeen", "rateLimitWaitSeconds", "repositoriesSeen", "repositoriesSkipped", "requestsMade" ],
+        "type" : "object"
+      },
+      "ForgeFirstScans" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "firstAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "spacingSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "count", "spacingSeconds" ],
+        "type" : "object"
+      },
+      "ForgeHostCredential" : {
+        "properties" : {
+          "credential" : {
+            "$ref" : "#/components/schemas/ForgeCredentialView"
+          },
+          "host" : {
+            "type" : "string"
+          },
+          "proposed" : {
+            "type" : "boolean"
+          },
+          "repositories" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "proposed", "repositories" ],
+        "type" : "object"
+      },
+      "ForgeImportPreview" : {
+        "properties" : {
+          "connectionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "credentials" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeHostCredential"
+            },
+            "type" : "array"
+          },
+          "defaultIntervalDays" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "discoveryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "firstScans" : {
+            "$ref" : "#/components/schemas/ForgeFirstScans"
+          },
+          "projects" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeProjectPlan"
+            },
+            "type" : "array"
+          },
+          "refused" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeRefusedImport"
+            },
+            "type" : "array"
+          },
+          "skipped" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeSkippedImport"
+            },
+            "type" : "array"
+          },
+          "solutions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeSolutionPlan"
+            },
+            "type" : "array"
+          },
+          "targets" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgePlannedTarget"
+            },
+            "type" : "array"
+          },
+          "visibilityMode" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "defaultIntervalDays", "discoveryId" ],
+        "type" : "object"
+      },
+      "ForgeImportRequest" : {
+        "properties" : {
+          "credentials" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeCredentialChoice"
+            },
+            "type" : "array"
+          },
+          "discoveryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "firstScan" : {
+            "type" : "boolean"
+          },
+          "forgeIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "mapping" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeMappingRule"
+            },
+            "type" : "array"
+          },
+          "requiredAgentLabel" : {
+            "type" : "string"
+          },
+          "spacingSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeImportResult" : {
+        "properties" : {
+          "connectionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "created" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeImportedTarget"
+            },
+            "type" : "array"
+          },
+          "discoveryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "firstScans" : {
+            "$ref" : "#/components/schemas/ForgeFirstScans"
+          },
+          "projectsCreated" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "skipped" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeSkippedImport"
+            },
+            "type" : "array"
+          },
+          "solutionsCreated" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "discoveryId" ],
+        "type" : "object"
+      },
+      "ForgeImportedTarget" : {
+        "properties" : {
+          "firstScanId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "firstScanNotBefore" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "forgeId" : {
+            "type" : "string"
+          },
+          "fullPath" : {
+            "type" : "string"
+          },
+          "project" : {
+            "type" : "string"
+          },
+          "repositoryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "solution" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "repositoryId" ],
+        "type" : "object"
+      },
+      "ForgeMappingRule" : {
+        "properties" : {
+          "forgeId" : {
+            "type" : "string"
+          },
+          "namespacePath" : {
+            "type" : "string"
+          },
+          "noProject" : {
+            "type" : "boolean"
+          },
+          "project" : {
+            "type" : "string"
+          },
+          "solution" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgePlannedTarget" : {
+        "properties" : {
+          "branch" : {
+            "type" : "string"
+          },
+          "credential" : {
+            "$ref" : "#/components/schemas/ForgeCredentialView"
+          },
+          "firstScanNotBefore" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "forgeId" : {
+            "type" : "string"
+          },
+          "fullPath" : {
+            "type" : "string"
+          },
+          "project" : {
+            "type" : "string"
+          },
+          "solution" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          },
+          "visibleTo" : {
+            "type" : "string"
+          },
+          "warning" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeProjectPlan" : {
+        "properties" : {
+          "accounts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "existingId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "solution" : {
+            "type" : "string"
+          },
+          "targets" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "teams" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "accounts", "targets", "teams" ],
+        "type" : "object"
+      },
+      "ForgeRefusedImport" : {
+        "properties" : {
+          "forgeId" : {
+            "type" : "string"
+          },
+          "fullPath" : {
+            "type" : "string"
+          },
+          "refusal" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ForgeRepositoryView" : {
@@ -4130,6 +4548,122 @@
           }
         },
         "required" : [ "firstSeenBy", "id", "lastSeenBy", "personal" ],
+        "type" : "object"
+      },
+      "ForgeSelection" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "discoveryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "dropped" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "selected" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "count", "discoveryId" ],
+        "type" : "object"
+      },
+      "ForgeSelectionChange" : {
+        "properties" : {
+          "filters" : {
+            "$ref" : "#/components/schemas/ForgeSelectionFilters"
+          },
+          "forgeIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "selected" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeSelectionFilters" : {
+        "properties" : {
+          "archived" : {
+            "type" : "string"
+          },
+          "forks" : {
+            "type" : "string"
+          },
+          "inactiveDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "language" : {
+            "type" : "string"
+          },
+          "namespace" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "personal" : {
+            "type" : "string"
+          },
+          "present" : {
+            "type" : "string"
+          },
+          "visibility" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeSkippedImport" : {
+        "properties" : {
+          "forgeId" : {
+            "type" : "string"
+          },
+          "fullPath" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "enum" : [ "already_imported", "already_present", "no_default_branch", "no_clone_url", "duplicate_in_selection" ],
+            "type" : "string"
+          },
+          "repositoryIds" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ForgeSolutionPlan" : {
+        "properties" : {
+          "existingId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "ForgeTokenReplacement" : {
@@ -13851,6 +14385,243 @@
           }
         },
         "summary" : "List discovered repositories",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection" : {
+      "get" : {
+        "description" : "The repositories a discovery listed, as the selection table shows them, by full path: each with presentAs (the targets whose URL has the identity of its HTTPS or SSH clone URL, whatever their branch and sub-path), importedAs (the target an earlier import from this connection made of it), selectable and notSelectable (already_imported, already_present, no_default_branch, no_clone_url), offered (proposed ticked: selectable, not archived, not a fork, not in a personal namespace) and the proposed solution and project. Filters: archived and forks hide (default), show or only; inactiveDays hides a last activity older than that; language, visibility; namespace (and below); path, a pattern (* any run, ? one) or a search; personal and present show (default), hide or only. A filter that meets a value the forge did not give keeps it when it hides and leaves it out when it requires; unjudged counts them per filter. limit 1 to 500 (100), offset a multiple of it. The discovery is the connection's latest that completed or ended partial: 409 forge-discovery-not-selectable (state) for a pending, running or failed one, 409 forge-discovery-superseded (latestDiscoveryId) for an older one.",
+        "operationId" : "listForgeImportCandidates",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "discoveryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "archived",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "forks",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "inactiveDays",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "visibility",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "namespace",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "path",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "personal",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "present",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeCandidatePage"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List forge import candidates",
+        "tags" : [ "Forge connections" ]
+      },
+      "post" : {
+        "description" : "Applies one operation to the selection — a set of forge ids the screen holds — over what the filters match: proposed (the selectable repositories they match, personal namespaces left out), all, none, invert, or add and remove with forgeIds. Answers the selection in the table's order; a forge id that is not selectable (already a target, empty, not listed) is dropped and named in dropped. At most 20,000 forge ids. Nothing is written.",
+        "operationId" : "changeForgeImportSelection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "discoveryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgeSelectionChange"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeSelection"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Change forge import selection",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{connectionId}/imports" : {
+      "post" : {
+        "description" : "Creates the selected repositories as targets, in one transaction — everything or nothing — through the repository and solution forms' own gestures: the same refusals (400 naming the first repositories refused; the preview lists them all), the same audit entries, one per target, solution and project created, with where each target came from. Planned again inside the transaction: whatever became a target since the preview is skipped, so replaying an import creates nothing. Branch: the default branch at discovery; no schedule of its own, so the installation's default applies at each target's own slot; no grant. First scans when asked, one every spacingSeconds (not_before). The body is the preview's. One FORGE_IMPORT_APPLIED entry summarises the import, signalled VECTI-SEC-035 once when it created something.",
+        "operationId" : "importForgeRepositories",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgeImportRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeImportResult"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Import forge repositories",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{connectionId}/imports/preview" : {
+      "post" : {
+        "description" : "What importing the selected repositories would do, nothing written: the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.",
+        "operationId" : "previewForgeImport",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgeImportRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeImportPreview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Preview forge import",
         "tags" : [ "Forge connections" ]
       }
     },

@@ -1572,6 +1572,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List forge import candidates
+         * @description The repositories a discovery listed, as the selection table shows them, by full path: each with presentAs (the targets whose URL has the identity of its HTTPS or SSH clone URL, whatever their branch and sub-path), importedAs (the target an earlier import from this connection made of it), selectable and notSelectable (already_imported, already_present, no_default_branch, no_clone_url), offered (proposed ticked: selectable, not archived, not a fork, not in a personal namespace) and the proposed solution and project. Filters: archived and forks hide (default), show or only; inactiveDays hides a last activity older than that; language, visibility; namespace (and below); path, a pattern (* any run, ? one) or a search; personal and present show (default), hide or only. A filter that meets a value the forge did not give keeps it when it hides and leaves it out when it requires; unjudged counts them per filter. limit 1 to 500 (100), offset a multiple of it. The discovery is the connection's latest that completed or ended partial: 409 forge-discovery-not-selectable (state) for a pending, running or failed one, 409 forge-discovery-superseded (latestDiscoveryId) for an older one.
+         */
+        get: operations["listForgeImportCandidates"];
+        put?: never;
+        /**
+         * Change forge import selection
+         * @description Applies one operation to the selection — a set of forge ids the screen holds — over what the filters match: proposed (the selectable repositories they match, personal namespaces left out), all, none, invert, or add and remove with forgeIds. Answers the selection in the table's order; a forge id that is not selectable (already a target, empty, not listed) is dropped and named in dropped. At most 20,000 forge ids. Nothing is written.
+         */
+        post: operations["changeForgeImportSelection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forge-connections/{connectionId}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import forge repositories
+         * @description Creates the selected repositories as targets, in one transaction — everything or nothing — through the repository and solution forms' own gestures: the same refusals (400 naming the first repositories refused; the preview lists them all), the same audit entries, one per target, solution and project created, with where each target came from. Planned again inside the transaction: whatever became a target since the preview is skipped, so replaying an import creates nothing. Branch: the default branch at discovery; no schedule of its own, so the installation's default applies at each target's own slot; no grant. First scans when asked, one every spacingSeconds (not_before). The body is the preview's. One FORGE_IMPORT_APPLIED entry summarises the import, signalled VECTI-SEC-035 once when it created something.
+         */
+        post: operations["importForgeRepositories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forge-connections/{connectionId}/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview forge import
+         * @description What importing the selected repositories would do, nothing written: the targets to create with their URL, default branch, credential, solution and project, who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the import would refuse and the form's reason; the solutions and projects reused (existingId, with the accounts and teams a reused project is granted to) or created (no grant); the credential per host, proposed when the request names none — the one HTTPS token bound to the host, or none; the default schedule in days; the visibility mode; the first scans. Body: discoveryId, forgeIds (at most 1,000), mapping (rules per namespacePath or forgeId: solution, project or noProject), credentials (host, sshKeyId or httpsTokenId), firstScan (false), spacingSeconds (10 to 600, 60), requiredAgentLabel.
+         */
+        post: operations["previewForgeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/forge-connections/{id}": {
         parameters: {
             query?: never;
@@ -5797,6 +5861,34 @@ export interface components {
             label?: string;
             product_ids?: string[];
         };
+        ForgeCandidate: {
+            /** Format: int64 */
+            importedAs?: number;
+            /** @enum {string} */
+            notSelectable?: "already_imported" | "already_present" | "no_default_branch" | "no_clone_url" | "duplicate_in_selection";
+            offered: boolean;
+            presentAs?: number[];
+            proposedProject?: string;
+            proposedSolution?: string;
+            repository?: components["schemas"]["ForgeRepositoryView"];
+            selectable: boolean;
+        };
+        ForgeCandidatePage: {
+            /** Format: int64 */
+            discoveryId: number;
+            items?: components["schemas"]["ForgeCandidate"][];
+            /** Format: int32 */
+            limit: number;
+            /** Format: int64 */
+            listed: number;
+            /** Format: int32 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
+            unjudged?: {
+                [key: string]: number;
+            };
+        };
         ForgeConnectionChange: {
             caPem?: string;
             internalNetwork?: boolean;
@@ -5826,6 +5918,8 @@ export interface components {
             forgeVersion?: string;
             /** Format: uuid */
             id?: string;
+            /** Format: int64 */
+            importedTargets: number;
             internalNetwork: boolean;
             kind?: string;
             lastDiscovery?: components["schemas"]["ForgeDiscoveryView"];
@@ -5839,6 +5933,17 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
             updatedBy?: string;
+        };
+        ForgeCredentialChoice: {
+            host?: string;
+            httpsTokenId?: string;
+            sshKeyId?: string;
+        };
+        ForgeCredentialView: {
+            /** Format: uuid */
+            id?: string;
+            kind?: string;
+            name?: string;
         };
         ForgeDiscoveryView: {
             /** Format: int32 */
@@ -5878,6 +5983,111 @@ export interface components {
             /** @enum {string} */
             state?: "pending" | "running" | "completed" | "partial" | "failed";
         };
+        ForgeFirstScans: {
+            /** Format: int32 */
+            count: number;
+            /** Format: date-time */
+            firstAt?: string;
+            /** Format: date-time */
+            lastAt?: string;
+            /** Format: int32 */
+            spacingSeconds: number;
+        };
+        ForgeHostCredential: {
+            credential?: components["schemas"]["ForgeCredentialView"];
+            host?: string;
+            proposed: boolean;
+            /** Format: int32 */
+            repositories: number;
+        };
+        ForgeImportPreview: {
+            /** Format: uuid */
+            connectionId?: string;
+            credentials?: components["schemas"]["ForgeHostCredential"][];
+            /** Format: int64 */
+            defaultIntervalDays: number;
+            /** Format: int64 */
+            discoveryId: number;
+            firstScans?: components["schemas"]["ForgeFirstScans"];
+            projects?: components["schemas"]["ForgeProjectPlan"][];
+            refused?: components["schemas"]["ForgeRefusedImport"][];
+            skipped?: components["schemas"]["ForgeSkippedImport"][];
+            solutions?: components["schemas"]["ForgeSolutionPlan"][];
+            targets?: components["schemas"]["ForgePlannedTarget"][];
+            visibilityMode?: string;
+        };
+        ForgeImportRequest: {
+            credentials?: components["schemas"]["ForgeCredentialChoice"][];
+            /** Format: int64 */
+            discoveryId?: number;
+            firstScan?: boolean;
+            forgeIds?: string[];
+            mapping?: components["schemas"]["ForgeMappingRule"][];
+            requiredAgentLabel?: string;
+            /** Format: int32 */
+            spacingSeconds?: number;
+        };
+        ForgeImportResult: {
+            /** Format: uuid */
+            connectionId?: string;
+            created?: components["schemas"]["ForgeImportedTarget"][];
+            /** Format: int64 */
+            discoveryId: number;
+            firstScans?: components["schemas"]["ForgeFirstScans"];
+            projectsCreated?: string[];
+            skipped?: components["schemas"]["ForgeSkippedImport"][];
+            solutionsCreated?: string[];
+        };
+        ForgeImportedTarget: {
+            /** Format: int64 */
+            firstScanId?: number;
+            /** Format: date-time */
+            firstScanNotBefore?: string;
+            forgeId?: string;
+            fullPath?: string;
+            project?: string;
+            /** Format: int64 */
+            repositoryId: number;
+            solution?: string;
+            url?: string;
+        };
+        ForgeMappingRule: {
+            forgeId?: string;
+            namespacePath?: string;
+            noProject?: boolean;
+            project?: string;
+            solution?: string;
+        };
+        ForgePlannedTarget: {
+            branch?: string;
+            credential?: components["schemas"]["ForgeCredentialView"];
+            /** Format: date-time */
+            firstScanNotBefore?: string;
+            forgeId?: string;
+            fullPath?: string;
+            project?: string;
+            solution?: string;
+            url?: string;
+            visibleTo?: string;
+            warning?: string;
+        };
+        ForgeProjectPlan: {
+            /** Format: int64 */
+            accounts: number;
+            /** Format: int64 */
+            existingId?: number;
+            name?: string;
+            solution?: string;
+            /** Format: int32 */
+            targets: number;
+            /** Format: int64 */
+            teams: number;
+        };
+        ForgeRefusedImport: {
+            forgeId?: string;
+            fullPath?: string;
+            refusal?: string;
+        };
         ForgeRepositoryView: {
             archived?: boolean;
             changeSummary?: string;
@@ -5915,6 +6125,44 @@ export interface components {
             sshUrl?: string;
             visibility?: string;
             webUrl?: string;
+        };
+        ForgeSelection: {
+            /** Format: int32 */
+            count: number;
+            /** Format: int64 */
+            discoveryId: number;
+            dropped?: string[];
+            selected?: string[];
+        };
+        ForgeSelectionChange: {
+            filters?: components["schemas"]["ForgeSelectionFilters"];
+            forgeIds?: string[];
+            operation?: string;
+            selected?: string[];
+        };
+        ForgeSelectionFilters: {
+            archived?: string;
+            forks?: string;
+            /** Format: int32 */
+            inactiveDays?: number;
+            language?: string;
+            namespace?: string;
+            path?: string;
+            personal?: string;
+            present?: string;
+            visibility?: string;
+        };
+        ForgeSkippedImport: {
+            forgeId?: string;
+            fullPath?: string;
+            /** @enum {string} */
+            reason?: "already_imported" | "already_present" | "no_default_branch" | "no_clone_url" | "duplicate_in_selection";
+            repositoryIds?: number[];
+        };
+        ForgeSolutionPlan: {
+            /** Format: int64 */
+            existingId?: number;
+            name?: string;
         };
         ForgeTokenReplacement: {
             token?: string;
@@ -10713,6 +10961,120 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RepositoryPage"];
+                };
+            };
+        };
+    };
+    listForgeImportCandidates: {
+        parameters: {
+            query?: {
+                archived?: string;
+                forks?: string;
+                inactiveDays?: number;
+                language?: string;
+                visibility?: string;
+                namespace?: string;
+                path?: string;
+                personal?: string;
+                present?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                connectionId: string;
+                discoveryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeCandidatePage"];
+                };
+            };
+        };
+    };
+    changeForgeImportSelection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+                discoveryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ForgeSelectionChange"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeSelection"];
+                };
+            };
+        };
+    };
+    importForgeRepositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ForgeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeImportResult"];
+                };
+            };
+        };
+    };
+    previewForgeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ForgeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeImportPreview"];
                 };
             };
         };
