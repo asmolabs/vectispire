@@ -446,6 +446,7 @@
       "forge_connection_changed": "Connexion de forge créée, modifiée ou supprimée",
       "forge_connection_refused": "Connexion de forge refusée",
       "forge_discovery_requested": "Découverte de forge demandée",
+      "forge_import_applied": "Dépôts importés depuis une forge",
       "report_requested": "Rapport demandé",
       "report_produced": "Rapport produit",
       "report_failed": "Exécution de rapport en échec",
