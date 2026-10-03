@@ -89,6 +89,20 @@ describe('the SSH keys screen', () => {
         expect(row.textContent).toContain('3');
     });
 
+    it('badges each encryption state in words, and an unknown one as unreadable', () => {
+        list([
+            { ...KEY, id: 'a', name: 'old', encryptionState: 'previous_key' },
+            { ...KEY, id: 'b', name: 'odd', encryptionState: 'sealed_by_hsm' }
+        ]);
+
+        // No bundle is loaded, so a tag shows its key: what matters is *which* — a literal one, and
+        // for a state the client does not know, the unreadable one rather than a built path.
+        const tags = [...fixture.nativeElement.querySelectorAll('tbody p-tag')].map((tag: Element) =>
+            tag.textContent.trim()
+        );
+        expect(tags).toEqual(['ssh_keys.encryption_status.rotate', 'ssh_keys.encryption_status.unreadable']);
+    });
+
     it('says when there is no key', () => {
         list([]);
 

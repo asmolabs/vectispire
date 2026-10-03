@@ -15,6 +15,22 @@ import { GateApi } from '../../core/api/gate.api';
 import { TargetsApi } from '../../core/api/targets.api';
 import type { GatePolicy, GatePolicies as GatePoliciesResponse } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { keyFor } from '../../core/i18n/literal-keys';
+
+/**
+ * A threshold in words, through literal keys (decision 0019). The document types `fail_on_severity`
+ * as a plain string, so the union is written here; `none` is the form's spelling of "off", which the
+ * server stores as no threshold at all.
+ */
+type Threshold = 'none' | 'critical' | 'high' | 'medium' | 'low';
+
+export const THRESHOLD_KEYS = {
+    none: 'gate_policies.severity_rules.none',
+    critical: 'gate_policies.severity_rules.critical',
+    high: 'gate_policies.severity_rules.high',
+    medium: 'gate_policies.severity_rules.medium',
+    low: 'gate_policies.severity_rules.low'
+} as const satisfies Record<Threshold, string>;
 
 /** What a save is about: the global policy, or one target's override. */
 interface Scope {
@@ -223,7 +239,10 @@ export class GatePolicies {
     /** A threshold in words — and "off" said as off, never as a severity. */
     describeThreshold(value: string | null): string {
         this.i18n.translations();
-        return this.i18n.t(`gate_policies.severity_rules.${value ?? 'none'}`);
+        // A threshold this client does not know is shown as sent: a key path would hide it, and
+        // "off" would be a lie about a gate that does block.
+        const key = keyFor(THRESHOLD_KEYS, value ?? 'none');
+        return key ? this.i18n.t(key) : (value as string);
     }
 
     formatDate(value: string | null): string {

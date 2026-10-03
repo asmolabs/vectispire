@@ -4,6 +4,20 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { keyFor } from '@/app/core/i18n/literal-keys';
+import type { Need } from '@/app/core/role.guard';
+import { roleLabel } from '@/app/shared/role-labels';
+
+/**
+ * What the refused page needs, through literal keys (decision 0019). The page built
+ * `forbidden.need_${need}` from the query string, so a need the guard learnt and the bundle did not
+ * — or a hand-typed URL — put a key path in the page's only heading.
+ */
+export const NEED_KEYS = {
+    administrator: 'forbidden.need_administrator',
+    'security-lead': 'forbidden.need_security_lead',
+    'governance-read': 'forbidden.need_governance_read'
+} as const satisfies Record<Need, string>;
 
 /**
  * The page a refused route lands on.
@@ -29,15 +43,14 @@ export class Forbidden {
     /** The role, in the words the accounts screen uses — never the enum constant. */
     readonly role = computed(() => {
         this.i18n.translations();
-        const key = this.session.role().toLowerCase();
-        const label = this.i18n.t(`roles.${key}`);
-        return label === `roles.${key}` ? this.session.role() : label;
+        return roleLabel(this.i18n, this.session.role());
     });
 
+    /** A need nobody spelt — a hand-typed URL — still says the door is closed, in the widest words. */
     readonly reason = computed(() => {
         this.i18n.translations();
         const need = this.route.snapshot.queryParamMap.get('need') ?? '';
-        return this.i18n.t(`forbidden.need_${need.replace('-', '_')}`);
+        return this.i18n.t(keyFor(NEED_KEYS, need) ?? 'titles.forbidden');
     });
 
     /** An auditor is sent to the thing it came for, everybody else to the backlog. */

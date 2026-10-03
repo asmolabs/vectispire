@@ -20,7 +20,8 @@
  * when a key resolves to itself, so 52 keys exist in French with no English counterpart. Requiring
  * parity would fail on a correct tree, and that is how an exemption list begins.
  *
- * Only literal calls are checkable: a key built from a variable is not a key this script can read.
+ * Only literal keys are checkable: a key built from a value is not a key this script can read — so
+ * building one is refused outright (below), and a key held in a map is read where the map spells it.
  *
  * Run by `npm test` before the unit suite, like `check-assets.mjs`: it is a file check, it needs
  * no browser.
@@ -71,8 +72,10 @@ const bundle = (lang) =>
 // way was neither counted nor checked, and a misspelt key would have gone through without a word,
 // rendered as it stands on screen. The `.html` file was being read all the same, which gave the
 // appearance of coverage.
-const CALL = /\bt\(\s*['"]([a-z0-9_.]+)['"]/g;
-const PIPE = /['"]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"]\s*\|\s*translate\b/g;
+// A segment after the namespace may be in capitals: it is then the server's own constant
+// (`owasp_grid.state.NOT_COVERED`), and reading lower case alone left forty-four keys uncounted.
+const CALL = /\bt\(\s*['"]([a-z0-9_]+(?:\.[A-Za-z0-9_]+)*)['"]/g;
+const PIPE = /['"]([a-z0-9_]+(?:\.[A-Za-z0-9_]+)+)['"]\s*\|\s*translate\b/g;
 
 const referenced = new Set();
 for (const file of walk(join(root, 'src/app'))) {
@@ -83,6 +86,95 @@ for (const file of walk(join(root, 'src/app'))) {
             referenced.add(key);
         }
     }
+}
+
+// **A key built at run time is refused, and a key spelt in a map is read.**
+//
+// The two patterns above read a key only where it is written as the argument. Twenty-three sites
+// in eleven files built theirs instead — `` t(`ssh_keys.encryption_status.${state}`) ``, `'soa.divergence.' +
+// line.divergence | translate` — and this script counted none of them: a divergence added on the
+// server, or a bundle entry lost in a merge, reached the reader as `soa.divergence.UNDERSTATED`
+// with every check green. Decision 0019 had said "a screen renders literal keys" for a month; a
+// rule that lives only in a document is followed by whoever happens to have read it.
+//
+// So the shape is refused: a template literal whose static text reads as a key of a bundle
+// namespace with a hole in it, and a key prefix (`'ns.part.'`, `'ns.part_'`) joined with `+`. The
+// cure is the one `shared/finding-types.ts` shows — a `Record<Union, 'ns.key'>` over the server's
+// union, and the value shown as sent when it is one the client does not know.
+//
+// **And the map's keys are counted.** A key held in such a map is a quoted literal in a `.ts` file,
+// not the argument of a call: read here as any literal shaped like a key whose first segment is a
+// namespace of the bundles. Every one of them was in both bundles the day this was written — that
+// is what lets the read be this wide without an exemption.
+//
+// **What it cannot see.** A prefix held in a variable (`const p = 'soa.'; t(p + x)`), a suffix
+// joined on the right (`x + '.label'`, where `'.json'` would read the same), and `.concat`. Each
+// is a deliberate detour round the rule rather than the habit it catches.
+//
+// **One exception, and why it is one.** The settings catalogue looks a translation up by the
+// server's setting key and *falls back on the server's English label* when there is none — the
+// English bundle has no `settings.keys` at all, by design (see the header of this file). The key is
+// optional there, never shown: a miss shows the server's sentence, not a path. A `Record` over the
+// setting keys would make every one of them required in English, which is the parity this script
+// deliberately does not demand. Any other entry here is a decision for the review.
+const BUILT_KEY_EXCEPTIONS = new Set([
+    'src/app/pages/settings/settings-catalog.ts  `settings.keys.${…}.label`',
+    'src/app/pages/settings/settings-catalog.ts  `settings.keys.${…}.help`'
+]);
+const namespaces = new Set(
+    ['en', 'fr'].flatMap((lang) => Object.keys(JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'))))
+);
+const KEY_SHAPE = /^[a-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/;
+const inNamespace = (text) => namespaces.has(text.split('.')[0]);
+/** A template literal's text, holes as `\u0000`, that reads as a key once its holes are filled. */
+const builtKey = (text) =>
+    text.includes('\u0000') && /\./.test(text) && /^[a-z0-9_\u0000]+(?:\.[A-Za-z0-9_\u0000]+)+$/.test(text) && inNamespace(text);
+/** A literal ending in `.` or `_` that names a namespace: the left half of a concatenated key. */
+const keyPrefix = (text) => /^[a-z0-9_]+(?:\.[A-Za-z0-9_]+)*\.[A-Za-z0-9_]*$/.test(text) && /[._]$/.test(text) && inNamespace(text);
+
+const builtKeys = [];
+for (const file of walk(join(root, 'src/app'))) {
+    if (!file.endsWith('.ts') || file.endsWith('.spec.ts') || file.endsWith('api.generated.ts')) continue;
+    if (file.includes('/testing/')) continue;
+    const relative = file.slice(root.length + 1);
+    const source = readFileSync(file, 'utf8');
+    const lineAt = (at) => source.slice(0, at).split('\n').length;
+    for (const { text, multiline, at, end, template } of stringLiterals(source)) {
+        if (multiline) continue;
+        if (!template && KEY_SHAPE.test(text) && inNamespace(text)) referenced.add(text);
+        if (template && builtKey(text)) {
+            const spelt = `${relative}  \`${text.replace(/\u0000/g, '${…}')}\``;
+            if (!BUILT_KEY_EXCEPTIONS.has(spelt)) builtKeys.push(`${relative}:${lineAt(at)}  ${spelt.split('  ')[1]}`);
+        } else if (!template && keyPrefix(text) && /^\s*\+/.test(source.slice(end))) {
+            builtKeys.push(`${relative}:${lineAt(at)}  '${text}' + …`);
+        }
+    }
+}
+// **The templates are read by pattern, not by the scanner.** A binding is a double-quoted attribute
+// holding single-quoted literals — `[value]="'soa.divergence.' + line.divergence | translate"` — and
+// a scanner pairing quotes reads the whole attribute as one string and the key inside it as nothing:
+// the first draft of this rule missed exactly that line. The patterns admit only key characters
+// between the quotes, so an apostrophe in a text node cannot pair with a key's opening quote and
+// hide it.
+for (const { file, source: raw } of templates()) {
+    const relative = file.slice(root.length + 1);
+    const source = raw.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '));
+    const lineAt = (at) => source.slice(0, at).split('\n').length;
+    for (const match of source.matchAll(/'([A-Za-z0-9_.]+)'\s*\+/g)) {
+        if (keyPrefix(match[1])) builtKeys.push(`${relative}:${lineAt(match.index)}  '${match[1]}' + …`);
+    }
+    for (const match of source.matchAll(/`([^`\n]*)`/g)) {
+        const text = match[1].replace(/\$\{[^}]*\}/g, '\u0000');
+        if (builtKey(text)) builtKeys.push(`${relative}:${lineAt(match.index)}  \`${match[1]}\``);
+    }
+}
+if (builtKeys.length > 0) {
+    console.error(`${builtKeys.length} translation key(s) built at run time, which this check cannot read:`);
+    for (const offender of builtKeys) console.error(`  ${offender}`);
+    console.error(
+        `Spell each key: a Record<Union, 'ns.key'> over the server's union, as shared/finding-types.ts does, ` +
+            `and show an unknown value as sent (decision 0019).`);
+    process.exit(1);
 }
 
 // **The route titles, which live outside `src/app`.** `app.routes.ts` names each page's tab title
@@ -110,7 +202,12 @@ if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 2659;
+//
+// It rose from 2659 to 2973 at once on 3 October with no bundle entry added. 270 keys held in maps
+// — older ones such as `CONFLICT_KEYS`, and those the built keys became — were referenced and
+// counted by nobody until the maps were read; 44 more end in a server constant written in capitals
+// (`soa.measured.NO_DATA`), which the two patterns above read only in lower case.
+const EXPECTED_KEYS = 2973;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -464,14 +561,14 @@ function stringLiterals(source) {
         if (c === "'" || c === '"') {
             let j = i + 1;
             while (j < source.length && source[j] !== c && source[j] !== '\n') j += source[j] === '\\' ? 2 : 1;
-            found.push({ text: source.slice(i + 1, j), multiline: false, at: i });
+            found.push({ text: source.slice(i + 1, j), multiline: false, at: i, end: j + 1 });
             i = j + 1;
             continue;
         }
         if (c === '`') {
             const at = i;
             const { text, multiline } = readTemplate();
-            found.push({ text, multiline, at });
+            found.push({ text, multiline, at, end: i, template: true });
             continue;
         }
         i += 1;

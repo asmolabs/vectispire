@@ -9,6 +9,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { OwaspApi } from '@/app/core/api/owasp.api';
 import { messageOf } from '@/app/core/api-error';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { keyFor } from '@/app/core/i18n/literal-keys';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SessionStore } from '@/app/core/session.store';
 import type {
@@ -19,6 +20,30 @@ import type {
     OwaspCoverageLine,
     OwaspState
 } from '@/app/core/api.models';
+
+/**
+ * A state and a declaration in words, through literal keys (decision 0019): the cells used to build
+ * `'owasp_grid.state.' + state`, a key the i18n check could not see. A value the client does not
+ * know is shown as sent.
+ */
+export const OWASP_STATE_KEYS = {
+    FINDINGS: 'owasp_grid.state.FINDINGS',
+    NOT_MEASURED: 'owasp_grid.state.NOT_MEASURED',
+    NOT_COVERED: 'owasp_grid.state.NOT_COVERED',
+    NO_FINDING: 'owasp_grid.state.NO_FINDING'
+} as const satisfies Record<OwaspState, string>;
+
+export const DECLARED_KEYS = {
+    APPLICABLE: 'owasp_grid.declared.APPLICABLE',
+    EXCLUDED: 'owasp_grid.declared.EXCLUDED'
+} as const satisfies Record<Applicability, string>;
+
+export const GRID_IMPLEMENTATION_KEYS = {
+    IMPLEMENTED: 'owasp_grid.implementation.IMPLEMENTED',
+    PARTIALLY_IMPLEMENTED: 'owasp_grid.implementation.PARTIALLY_IMPLEMENTED',
+    PLANNED: 'owasp_grid.implementation.PLANNED',
+    NOT_IMPLEMENTED: 'owasp_grid.implementation.NOT_IMPLEMENTED'
+} as const satisfies Record<Implementation, string>;
 
 /**
  * The ten categories, answered by rule rather than by a model.
@@ -182,6 +207,23 @@ export class OwaspGridComponent {
     }
 
     /** The grey of "not covered" is not the green of "nothing found", and that is the whole point. */
+    stateLabel(state: string): string {
+        return this.labelOf(OWASP_STATE_KEYS, state);
+    }
+
+    applicabilityLabel(applicability: string): string {
+        return this.labelOf(DECLARED_KEYS, applicability);
+    }
+
+    implementationLabel(implementation: string): string {
+        return this.labelOf(GRID_IMPLEMENTATION_KEYS, implementation);
+    }
+
+    private labelOf<V extends string>(keys: Readonly<Record<V, string>>, value: string): string {
+        const key = keyFor(keys, value);
+        return key ? this.i18n.t(key) : value;
+    }
+
     colourOf(state: OwaspState): string {
         switch (state) {
             case 'FINDINGS':

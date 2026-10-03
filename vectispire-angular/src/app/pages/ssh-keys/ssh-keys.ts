@@ -24,6 +24,7 @@ import type { EncryptionState, SshKeySummary } from '../../core/api.models';
  */
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { encryptionBadge, SSH_KEY_HINT_KEYS, type EncryptionBadge } from '../../shared/encryption-state';
 
 @Component({
     selector: 'app-ssh-keys',
@@ -78,19 +79,8 @@ export class SshKeys {
         });
     }
 
-    badge(state: EncryptionState) {
-        const severities: Record<EncryptionState, 'success' | 'warn' | 'danger'> = {
-            current: 'success',
-            previous_key: 'warn',
-            unreadable: 'danger'
-        };
-        const key = state in severities ? state : 'unreadable';
-        const suffix = key === 'previous_key' ? 'previous_key' : key;
-        return {
-            label: this.i18n.t(`ssh_keys.encryption_status.${suffix === 'previous_key' ? 'rotate' : suffix}`),
-            severity: severities[key],
-            hint: this.i18n.t(`ssh_keys.encryption_status.${suffix}_hint`)
-        };
+    badge(state: EncryptionState): EncryptionBadge {
+        return encryptionBadge(this.i18n, state, SSH_KEY_HINT_KEYS);
     }
 
     /** A public key runs to a 400-character line: shortened, like image digests, or it

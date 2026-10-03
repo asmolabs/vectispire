@@ -195,6 +195,14 @@ describe('the issue detail', () => {
         expect(text).toContain('Demonstration application.');
     });
 
+    it('shows a status it has no word for as the server sent it, never as a key path', async () => {
+        await load({ ...ISSUE, triageStatus: 'deferred' });
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('deferred');
+        expect(text).not.toContain('issues.triage_status.');
+    });
+
     it('says a scan reopened the issue, and since when it had been resolved — never that it expired', async () => {
         await load({
             ...ISSUE,

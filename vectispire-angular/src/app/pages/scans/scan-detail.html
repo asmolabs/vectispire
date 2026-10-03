@@ -191,16 +191,7 @@
                                 />
                             }
                             @case ('refused') {
-                                <p-tag
-                                    severity="danger"
-                                    icon="pi pi-ban"
-                                    [value]="
-                                        (outcome.refusal
-                                            ? 'scans.plugin_refusal.' + outcome.refusal
-                                            : 'scans.plugin_state.refused'
-                                        ) | translate
-                                    "
-                                />
+                                <p-tag severity="danger" icon="pi pi-ban" [value]="refusalLabel(outcome.refusal)" />
                             }
                             @default {
                                 <p-tag

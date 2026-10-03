@@ -10,7 +10,7 @@ import type { ComplianceEvaluation, ComplianceStatus, ComplianceSummary } from '
  * A verdict in words. Literal keys, so that the i18n check sees every one of them (decision 0019):
  * the tags used to show the wire value, and `NO_DATA` reached the reader as a constant.
  */
-const STATUS_KEYS = {
+export const STATUS_KEYS = {
     COMPLIANT: 'soa.measured.COMPLIANT',
     PARTIAL: 'soa.measured.PARTIAL',
     NON_COMPLIANT: 'soa.measured.NON_COMPLIANT',

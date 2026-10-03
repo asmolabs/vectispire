@@ -3,7 +3,10 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { OwaspGridComponent } from './owasp-grid';
+import { DECLARED_KEYS, GRID_IMPLEMENTATION_KEYS, OWASP_STATE_KEYS, OwaspGridComponent } from './owasp-grid';
+import { missingFromBundles } from '@/app/core/testing/bundles';
+import { useEnglish } from '@/app/core/testing/english';
+import english from '../../../public/i18n/en.json';
 import type { OwaspGrid } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
@@ -62,6 +65,37 @@ describe('la grille OWASP', () => {
         // write.
         const cells = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
         expect([...cells].map((cell: HTMLElement) => cell.textContent.trim())).toEqual(['—', '3', '—', '—']);
+    });
+
+    /**
+     * The state column through literal keys (decision 0019): it built `'owasp_grid.state.' + state`,
+     * so a state a newer server sends would have shown as a key path in the column that matters.
+     */
+    it('names each state in words, and a state it does not know as sent', () => {
+        useEnglish();
+        fixture.componentInstance.grid.set({
+            ...GRID,
+            lines: [...GRID.lines, line('A10', 'PARTLY_MEASURED')]
+        } as OwaspGrid);
+        fixture.detectChanges();
+
+        const cells = [...fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(2)')].map((cell: Element) =>
+            cell.textContent.trim()
+        );
+        expect(cells).toEqual([
+            english.owasp_grid.state.NOT_COVERED,
+            english.owasp_grid.state.FINDINGS,
+            english.owasp_grid.state.NO_FINDING,
+            english.owasp_grid.state.NOT_MEASURED,
+            'PARTLY_MEASURED'
+        ]);
+        expect(
+            missingFromBundles([
+                ...Object.values(OWASP_STATE_KEYS),
+                ...Object.values(DECLARED_KEYS),
+                ...Object.values(GRID_IMPLEMENTATION_KEYS)
+            ])
+        ).toEqual([]);
     });
 
     it("garde l'ordre du serveur, qui est celui du standard", () => {

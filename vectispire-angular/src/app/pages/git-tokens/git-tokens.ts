@@ -14,6 +14,7 @@ import { TargetsApi } from '../../core/api/targets.api';
 import type { EncryptionState, GitTokenSummary } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { encryptionBadge, GIT_TOKEN_HINT_KEYS, type EncryptionBadge } from '../../shared/encryption-state';
 
 /**
  * The HTTPS clone tokens, beside the SSH keys and built the same way.
@@ -79,20 +80,8 @@ export class GitTokens {
         });
     }
 
-    badge(state: EncryptionState) {
-        const severities: Record<EncryptionState, 'success' | 'warn' | 'danger'> = {
-            current: 'success',
-            previous_key: 'warn',
-            unreadable: 'danger'
-        };
-        // Anything unknown reads as unreadable: a healthy badge on a value nobody recognises would
-        // be the one wrong answer that hides a failing clone.
-        const key: EncryptionState = state in severities ? state : 'unreadable';
-        return {
-            label: this.i18n.t(`ssh_keys.encryption_status.${key === 'previous_key' ? 'rotate' : key}`),
-            severity: severities[key],
-            hint: this.i18n.t(`git_tokens.encryption_status.${key}_hint`)
-        };
+    badge(state: EncryptionState): EncryptionBadge {
+        return encryptionBadge(this.i18n, state, GIT_TOKEN_HINT_KEYS);
     }
 
     openForm(): void {

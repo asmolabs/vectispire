@@ -12,6 +12,7 @@ import { messageOf } from '../../core/api-error';
 import { IssuesApi } from '../../core/api/issues.api';
 import { SessionStore } from '../../core/session.store';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { triageStatusLabel } from '../../shared/triage-status';
 import type { IssueDetail } from '../../core/api.models';
 import { findingTypeLabel } from '../../shared/finding-types';
 
@@ -23,18 +24,6 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     negligible: 'secondary',
     unknown: 'secondary'
 };
-
-/** Triage statuses the bundle names, under `issues.triage_status.*`. Open set: an unknown value
- *  is shown raw rather than hidden. */
-const TRIAGE_STATUSES = new Set([
-    'under_review',
-    'pending_approval',
-    'not_affected',
-    'affected',
-    'fixed',
-    'accepted',
-    'false_positive'
-]);
 
 /**
  * One issue, with what a row in the backlog cannot carry.
@@ -107,7 +96,7 @@ export class IssueDetailPage {
     }
 
     triageLabel(status: string | null): string {
-        return status ? (TRIAGE_STATUSES.has(status) ? this.i18n.t(`issues.triage_status.${status}`) : status) : '—';
+        return status ? triageStatusLabel(this.i18n, status) : '—';
     }
 
     typeLabel(type: string): string {

@@ -105,29 +105,26 @@
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap">
                                 @if (line.declaration; as declaration) {
-                                    <div>{{ 'soa.applicability.' + declaration.applicability | translate }}</div>
+                                    <div>{{ applicabilityLabel(declaration.applicability) }}</div>
                                     @if (declaration.implementation) {
                                         <div class="text-muted-color text-xs">
-                                            {{ 'soa.implementation.' + declaration.implementation | translate }}
+                                            {{ implementationLabel(declaration.implementation) }}
                                         </div>
                                     }
                                     <div class="text-muted-color text-xs">
-                                        {{ 'soa.evidence.' + declaration.evidenceSource | translate }}
+                                        {{ evidenceLabel(declaration.evidenceSource) }}
                                     </div>
                                 } @else {
                                     <span class="text-red-700 font-medium">{{ 'soa.not_declared' | translate }}</span>
                                 }
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap">
-                                {{ line.measured ? ('soa.measured.' + line.measured | translate) : '—' }}
+                                {{ measuredLabel(line.measured) }}
                             </td>
                             <td class="py-3 pr-4">
-                                <p-tag
-                                    [severity]="severityOf(line)"
-                                    [value]="'soa.divergence.' + line.divergence | translate"
-                                />
+                                <p-tag [severity]="severityOf(line)" [value]="divergenceLabel(line.divergence)" />
                                 <div class="text-muted-color text-xs mt-1" style="max-width: 40ch">
-                                    {{ 'soa.divergence_help.' + line.divergence | translate }}
+                                    {{ divergenceHelp(line.divergence) }}
                                 </div>
                                 @if (line.reviewOverdue) {
                                     <div class="text-orange-700 text-xs font-medium mt-1">

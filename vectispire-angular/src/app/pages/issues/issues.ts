@@ -23,6 +23,7 @@ import { SolutionsApi } from '@/app/core/api/solutions.api';
 import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest, AiVulnerabilityAdvice, AiDeterministic, SolutionTree } from '@/app/core/api.models';
 import * as wording from '@/app/shared/ai-advice';
+import { SEVERITIES, SEVERITY_KEYS } from '@/app/shared/checklist-rules';
 import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
 import { ANY_CATEGORY, isoDay, mondayOf, owaspCategory } from '@/app/shared/owasp-weekly';
 
@@ -344,10 +345,7 @@ export class Issues {
     });
     readonly severities = computed(() => {
         this.i18n.translations();
-        return ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'].map((value) => ({
-            label: this.i18n.t(`severities.${value}`),
-            value
-        }));
+        return SEVERITIES.map((value) => ({ label: this.i18n.t(SEVERITY_KEYS[value]), value }));
     });
     /** Written once, in `shared/finding-types`, so the filter and the row's label cannot disagree. */
     readonly types = computed(() => {

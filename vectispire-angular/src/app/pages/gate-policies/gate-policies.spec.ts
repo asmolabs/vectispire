@@ -2,7 +2,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { GatePolicies } from './gate-policies';
+import { GatePolicies, THRESHOLD_KEYS } from './gate-policies';
+import { missingFromBundles } from '@/app/core/testing/bundles';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -111,6 +112,15 @@ describe('the gate policy screen', () => {
             'gate_policies.severity_rules.none'
         );
         expect(fixture.componentInstance.describeThreshold('high')).toBe('gate_policies.severity_rules.high');
+    });
+
+    it('shows a threshold it has no word for as sent, never as a key path', () => {
+        load([OVERRIDE]);
+
+        // Literal keys (decision 0019): the card built `severity_rules.${value}`; a threshold a
+        // newer server stores would have read as a key, and "off" would have been a lie.
+        expect(fixture.componentInstance.describeThreshold('negligible')).toBe('negligible');
+        expect(missingFromBundles(Object.values(THRESHOLD_KEYS))).toEqual([]);
     });
 
     it('sends "none" for a rule switched off, and every field on every save', () => {

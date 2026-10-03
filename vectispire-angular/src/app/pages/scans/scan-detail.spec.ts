@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ScanDetailPage } from './scan-detail';
+import { PLUGIN_REFUSAL_KEYS, ScanDetailPage } from './scan-detail';
+import { missingFromBundles } from '@/app/core/testing/bundles';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
 
@@ -317,6 +318,32 @@ describe('the scan detail', () => {
         expect(waived.querySelector('[data-testid="plugin-waived"]')?.textContent).toContain('scans.plugin_waived');
         expect(waived.querySelector('.p-tag-danger')).toBeNull();
         expect(produced.querySelector('[data-testid="plugin-waived"]')).toBeNull();
+    });
+
+    /**
+     * The reason through literal keys (decision 0019): the tag built `'scans.plugin_refusal.' +
+     * refusal`, so a reason a newer server sends would have shown as a key path on a failure row.
+     */
+    it('names a refusal it has no word for as a refusal, never as a key path', async () => {
+        const [unsigned] = SIGNATURE_OUTCOMES;
+        await load({
+            ...DETAIL,
+            plugins: [
+                { ...unsigned, pluginId: 'revoked', refusal: 'key_revoked' as never },
+                { ...unsigned, pluginId: 'unexplained', refusal: null }
+            ]
+        });
+
+        const rows = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="plugin-outcome"]')
+        );
+        expect(rows.length).toBe(2);
+        for (const row of rows) {
+            expect(row.textContent).toContain('scans.plugin_state.refused');
+            expect(row.textContent).not.toContain('scans.plugin_refusal.');
+            expect(row.querySelector('.p-tag-danger')).not.toBeNull();
+        }
+        expect(missingFromBundles(Object.values(PLUGIN_REFUSAL_KEYS))).toEqual([]);
     });
 
     it("links each plugin to the registry and shows the manifest's digest", async () => {

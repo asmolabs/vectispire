@@ -15,19 +15,20 @@ import { GradeLabelPipe } from '../../shared/grade-label';
 import { gradeSeverity } from '../../shared/scorecard';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
- *  data: otherwise two successive loads could present them differently. */
+ *  data: otherwise two successive loads could present them differently. The label key is spelt
+ *  out rather than built from `key`, so the i18n check reads it (decision 0019). */
 const SEVERITY_TILES = [
-    { key: 'critical', severity: 'danger' as const },
-    { key: 'high', severity: 'warn' as const },
-    { key: 'medium', severity: 'secondary' as const },
-    { key: 'low', severity: 'secondary' as const }
+    { key: 'critical', labelKey: 'severities.critical', severity: 'danger' as const },
+    { key: 'high', labelKey: 'severities.high', severity: 'warn' as const },
+    { key: 'medium', labelKey: 'severities.medium', severity: 'secondary' as const },
+    { key: 'low', labelKey: 'severities.low', severity: 'secondary' as const }
 ];
 
 /** The windows offered. Days, because that is the unit the route clamps and the axis shows. */
 const WINDOW_DAYS = [
-    { key: 'window_30d', value: 30 },
-    { key: 'window_90d', value: 90 },
-    { key: 'window_1y', value: 365 }
+    { key: 'dashboard.window_30d', value: 30 },
+    { key: 'dashboard.window_90d', value: 90 },
+    { key: 'dashboard.window_1y', value: 365 }
 ];
 
 /**
@@ -69,11 +70,11 @@ export class Dashboard {
     private readonly remediationApi = inject(RemediationApi);
     readonly severities = computed(() => {
         this.i18n.translations();
-        return SEVERITY_TILES.map((tile) => ({ ...tile, label: this.i18n.t(`severities.${tile.key}`) }));
+        return SEVERITY_TILES.map((tile) => ({ ...tile, label: this.i18n.t(tile.labelKey) }));
     });
     readonly windows = computed(() => {
         this.i18n.translations();
-        return WINDOW_DAYS.map((w) => ({ value: w.value, label: this.i18n.t(`dashboard.${w.key}`) }));
+        return WINDOW_DAYS.map((w) => ({ value: w.value, label: this.i18n.t(w.key) }));
     });
 
     readonly data = signal<DashboardOverview | null>(null);

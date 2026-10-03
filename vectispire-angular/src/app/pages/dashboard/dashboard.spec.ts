@@ -72,6 +72,14 @@ describe('the backlog trend', () => {
         flushTrends({ points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
     });
 
+    it('names the severity tiles and the windows in words, through keys the i18n check reads', () => {
+        flushTrends({ points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
+        const component = fixture.componentInstance;
+
+        expect(component.severities().map((tile) => tile.label)).toEqual(['Critical', 'High', 'Medium', 'Low']);
+        expect(component.windows().map((choice) => choice.label)).toEqual(['30 days', '90 days', '1 year']);
+    });
+
     it('says there is no measurement rather than showing zero days', () => {
         flushTrends({
             points: [

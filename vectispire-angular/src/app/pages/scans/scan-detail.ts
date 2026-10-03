@@ -11,7 +11,8 @@ import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { LatestRequest } from '../../core/latest-request';
 import { saveDocument } from '../../core/download';
-import type { ScanDetail, ScanSummary } from '../../core/api.models';
+import type { PluginRefusal, ScanDetail, ScanSummary } from '../../core/api.models';
+import { keyFor } from '../../core/i18n/literal-keys';
 import { LastScanTag } from '../../shared/last-scan';
 import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
 import { findingTypeLabel, findingTypeOptions, isToolProvenance } from '../../shared/finding-types';
@@ -27,6 +28,16 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 };
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
+/**
+ * Why a plugin's report was refused, through literal keys (decision 0019): the tag used to build
+ * `'scans.plugin_refusal.' + refusal`, which the i18n check could not see. A reason this client does
+ * not know — or none — still reads as a refusal, never as a key path.
+ */
+export const PLUGIN_REFUSAL_KEYS = {
+    unsigned: 'scans.plugin_refusal.unsigned',
+    signature_unverified: 'scans.plugin_refusal.signature_unverified'
+} as const satisfies Record<PluginRefusal, string>;
 
 /**
  * Which built-in steps looked at the tree (decision 0032). `unrecorded` is a scan from before the
@@ -77,6 +88,10 @@ export class ScanDetailPage {
             const id = Number(this.id());
             if (Number.isFinite(id)) untracked(() => this.load(id));
         });
+    }
+
+    refusalLabel(refusal: string | null): string {
+        return this.i18n.t(keyFor(PLUGIN_REFUSAL_KEYS, refusal) ?? 'scans.plugin_state.refused');
     }
 
     typeLabel(type: string): string {

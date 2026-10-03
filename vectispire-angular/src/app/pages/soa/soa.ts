@@ -9,6 +9,8 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '@/app/core/api-error';
 import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { keyFor } from '@/app/core/i18n/literal-keys';
+import { STATUS_KEYS } from '@/app/shared/compliance-summary';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type {
@@ -20,6 +22,54 @@ import type {
     SoaLine,
     SoaStatement
 } from '@/app/core/api.models';
+
+/**
+ * Each column's words, through literal keys (decision 0019). The cells used to build
+ * `'soa.divergence.' + divergence` — invisible to the i18n check, so a divergence added on the
+ * server would have reached an assessor as a key path. A value the client does not know is shown
+ * as sent. The measured column reuses the verdicts of the compliance summary: one word per verdict.
+ */
+export const APPLICABILITY_KEYS = {
+    APPLICABLE: 'soa.applicability.APPLICABLE',
+    EXCLUDED: 'soa.applicability.EXCLUDED'
+} as const satisfies Record<Applicability, string>;
+
+export const IMPLEMENTATION_KEYS = {
+    IMPLEMENTED: 'soa.implementation.IMPLEMENTED',
+    PARTIALLY_IMPLEMENTED: 'soa.implementation.PARTIALLY_IMPLEMENTED',
+    PLANNED: 'soa.implementation.PLANNED',
+    NOT_IMPLEMENTED: 'soa.implementation.NOT_IMPLEMENTED'
+} as const satisfies Record<Implementation, string>;
+
+export const EVIDENCE_KEYS = {
+    VECTISPIRE: 'soa.evidence.VECTISPIRE',
+    EXTERNAL: 'soa.evidence.EXTERNAL',
+    BOTH: 'soa.evidence.BOTH'
+} as const satisfies Record<EvidenceSource, string>;
+
+export const DIVERGENCE_KEYS = {
+    CONTRADICTED: 'soa.divergence.CONTRADICTED',
+    EXCLUDED_WITHOUT_JUSTIFICATION: 'soa.divergence.EXCLUDED_WITHOUT_JUSTIFICATION',
+    UNDECLARED: 'soa.divergence.UNDECLARED',
+    OVERSTATED: 'soa.divergence.OVERSTATED',
+    UNEVIDENCED: 'soa.divergence.UNEVIDENCED',
+    UNDERSTATED: 'soa.divergence.UNDERSTATED',
+    NOT_MEASURED_HERE: 'soa.divergence.NOT_MEASURED_HERE',
+    NOT_APPLICABLE: 'soa.divergence.NOT_APPLICABLE',
+    CONSISTENT: 'soa.divergence.CONSISTENT'
+} as const satisfies Record<Divergence, string>;
+
+export const DIVERGENCE_HELP_KEYS = {
+    CONTRADICTED: 'soa.divergence_help.CONTRADICTED',
+    EXCLUDED_WITHOUT_JUSTIFICATION: 'soa.divergence_help.EXCLUDED_WITHOUT_JUSTIFICATION',
+    UNDECLARED: 'soa.divergence_help.UNDECLARED',
+    OVERSTATED: 'soa.divergence_help.OVERSTATED',
+    UNEVIDENCED: 'soa.divergence_help.UNEVIDENCED',
+    UNDERSTATED: 'soa.divergence_help.UNDERSTATED',
+    NOT_MEASURED_HERE: 'soa.divergence_help.NOT_MEASURED_HERE',
+    NOT_APPLICABLE: 'soa.divergence_help.NOT_APPLICABLE',
+    CONSISTENT: 'soa.divergence_help.CONSISTENT'
+} as const satisfies Record<Divergence, string>;
 
 /**
  * The statement of applicability: what is claimed, set against what is measured.
@@ -148,6 +198,37 @@ export class Soa {
             next: (data) => this.statements.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('soa.load_failed')))
         });
+    }
+
+    applicabilityLabel(value: string): string {
+        return this.labelOf(APPLICABILITY_KEYS, value);
+    }
+
+    implementationLabel(value: string): string {
+        return this.labelOf(IMPLEMENTATION_KEYS, value);
+    }
+
+    evidenceLabel(value: string): string {
+        return this.labelOf(EVIDENCE_KEYS, value);
+    }
+
+    measuredLabel(value: string | null): string {
+        return value ? this.labelOf(STATUS_KEYS, value) : '—';
+    }
+
+    divergenceLabel(value: string): string {
+        return this.labelOf(DIVERGENCE_KEYS, value);
+    }
+
+    /** No sentence for a divergence the client does not know: its name, above, already says it. */
+    divergenceHelp(value: string): string {
+        const key = keyFor(DIVERGENCE_HELP_KEYS, value);
+        return key ? this.i18n.t(key) : '';
+    }
+
+    private labelOf<V extends string>(keys: Readonly<Record<V, string>>, value: string): string {
+        const key = keyFor(keys, value);
+        return key ? this.i18n.t(key) : value;
     }
 
     isFinding(line: SoaLine): boolean {

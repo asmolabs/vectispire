@@ -9,6 +9,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { ScansApi } from '../../core/api/scans.api';
 import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { triageStatusLabel } from '../../shared/triage-status';
 import { saveDocument, saveJson } from '../../core/download';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
 
@@ -44,18 +45,6 @@ const SEVERITY_RANK: Record<string, number> = {
 
 /** A finding carrying its rank, so the column can sort on a number the reader never sees. */
 type RankedIssue = HistoryIssue & { severityRank: number };
-
-/** Triage statuses the bundle names, under `issues.triage_status.*`. Open set: an unknown value
- *  is shown raw rather than hidden. */
-const TRIAGE_STATUSES = new Set([
-    'under_review',
-    'pending_approval',
-    'not_affected',
-    'affected',
-    'fixed',
-    'accepted',
-    'false_positive'
-]);
 
 /**
  * The trail that shows a finding was taken into account.
@@ -152,7 +141,7 @@ export class History {
         if (!status) {
             return '—';
         }
-        return TRIAGE_STATUSES.has(status) ? this.i18n.t(`issues.triage_status.${status}`) : status;
+        return triageStatusLabel(this.i18n, status);
     }
 
     component(issue: { packageName: string | null; packageVersion: string | null; filePath: string | null }): string {

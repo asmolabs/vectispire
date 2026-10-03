@@ -5,6 +5,11 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Soa } from './soa';
 import { asSchema } from '@/app/core/testing/contract';
+import { missingFromBundles } from '@/app/core/testing/bundles';
+import { useEnglish } from '@/app/core/testing/english';
+import type { SoaStatement } from '@/app/core/api.models';
+import english from '../../../../public/i18n/en.json';
+import { APPLICABILITY_KEYS, DIVERGENCE_HELP_KEYS, DIVERGENCE_KEYS, EVIDENCE_KEYS, IMPLEMENTATION_KEYS } from './soa';
 
 /**
  * The statement of applicability, and the order it opens in.
@@ -107,6 +112,32 @@ describe('the statement of applicability', () => {
         http.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue').flush(OVERDUE);
         fixture.detectChanges();
     }, 20_000);
+
+    /**
+     * Each column through literal keys (decision 0019): the cells built `'soa.divergence.' + …`,
+     * which the i18n check could not read, so a missing entry reached an assessor as a key path.
+     */
+    it('spells every declaration and divergence with a key both bundles hold', () => {
+        const maps = [APPLICABILITY_KEYS, IMPLEMENTATION_KEYS, EVIDENCE_KEYS, DIVERGENCE_KEYS, DIVERGENCE_HELP_KEYS];
+        expect(missingFromBundles(maps.flatMap((map) => Object.values(map)))).toEqual([]);
+    });
+
+    it('shows each cell in words, and a value it does not know as sent rather than as a key', () => {
+        useEnglish();
+        const [first, ...others] = STATEMENT.lines;
+        const unknown = { ...first, divergence: 'REWORDED_ON_THE_SERVER', measured: 'NO_DATA' };
+        fixture.componentInstance.statements.set([{ ...STATEMENT, lines: [unknown, ...others] } as SoaStatement]);
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent;
+        expect(text).toContain(english.soa.divergence.CONTRADICTED);
+        expect(text).toContain(english.soa.divergence_help.CONTRADICTED);
+        expect(text).toContain(english.soa.applicability.APPLICABLE);
+        expect(text).toContain(english.soa.evidence.VECTISPIRE);
+        expect(text).toContain(english.soa.measured.NO_DATA);
+        expect(text).toContain('REWORDED_ON_THE_SERVER');
+        expect(text).not.toMatch(/soa\.(divergence|divergence_help|applicability|implementation|evidence|measured)\./);
+    });
 
     it('opens on the divergences, most severe to least', () => {
         expect(fixture.componentInstance.lines().map((l) => l.control.id)).toEqual([

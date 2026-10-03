@@ -46,7 +46,7 @@
                                 <span class="ml-2">{{ line.title }}</span>
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap font-medium" [class]="colourOf(line.state)">
-                                {{ 'owasp_grid.state.' + line.state | translate }}
+                                {{ stateLabel(line.state) }}
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
                                 {{ line.state === 'FINDINGS' ? line.findings : '—' }}
@@ -77,10 +77,10 @@
                                 @if (line.declaration; as declared) {
                                     <div class="mt-1 text-sm">
                                         <span class="font-medium">{{
-                                            'owasp_grid.declared.' + declared.applicability | translate
+                                            applicabilityLabel(declared.applicability)
                                         }}</span>
                                         @if (declared.implementation) {
-                                            · {{ 'owasp_grid.implementation.' + declared.implementation | translate }}
+                                            · {{ implementationLabel(declared.implementation) }}
                                         }
                                         @if (declared.owner) {
                                             · {{ declared.owner }}
