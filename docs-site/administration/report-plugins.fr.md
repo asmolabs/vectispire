@@ -8,11 +8,13 @@ la plateforme. La décision
 [0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0035-report-plugins.md)
 explique pourquoi il fonctionne ainsi.
 
-!!! warning "Cette version a le registre, pas l'exécuteur"
-    Vous pouvez enregistrer un plugin de rapport, faire approuver son manifeste, l'activer pour un projet
-    et le retirer. **Rien ne rend encore de rapport** : l'exécution d'un plugin, la vérification de sa
-    sortie et la signature du document viennent dans une version ultérieure. Enregistrer dès maintenant
-    règle à l'avance qui se porte garant de quelle image.
+!!! warning "Cette version exécute un rapport, elle ne vous remet pas encore le document"
+    Vous pouvez enregistrer un plugin de rapport, faire approuver son manifeste, l'activer pour un projet, le
+    retirer et **demander un rapport** : le plan de contrôle construit l'export du projet, vérifie le
+    signataire de l'image et exécute le plugin dans sa forme fermée, et l'exécution enregistre ce qui en est
+    sorti — la taille et le SHA-256 de la sortie compris. **Le document lui-même n'est pas encore servi** : sa
+    vérification contre son type déclaré, sa signature et son téléchargement viennent dans une version
+    ultérieure, et d'ici là ses octets ne sont pas conservés.
 
 ## Le manifeste
 
@@ -94,6 +96,66 @@ manifeste approuvé du plugin, celui-ci n'en a plus jusqu'à l'approbation d'une
 manifeste. Les documents qu'il a produits restent stockés et seront servis marqués comme retirés, avec la
 justification. Il n'y a pas de suppression : un identifiant nomme chaque document que le plugin a produit.
 
+## Demander un rapport
+
+`POST /api/v1/projects/{id}/reports` avec `{"pluginId": "quarterly-summary"}` demande un rapport du projet
+par un plugin activé pour lui. La réponse est **202** avec l'exécution, `pending` ; l'exécuteur du plan de
+contrôle la prend en quelques secondes. **Les comptes en écriture et les auditeurs** peuvent la demander,
+s'ils voient le projet entier, images comprises — tout autre reçoit le 404 d'un projet qui n'existe pas ; le
+gouverneur de la plateforme, qui n'agit sur rien de ce que contient un projet, reçoit un 403. Les clés
+d'intégration ne peuvent pas demander de rapport : l'export est construit pour une personne.
+
+**Où il s'exécute : sur le plan de contrôle, jamais sur un agent.** Le plugin s'exécute sur le point d'accès
+Docker qu'utilise le worker intégré (`VECTISPIRE_DOCKER_HOST` ou `DOCKER_HOST` — le proxy de socket dans la
+composition livrée). Une installation dont le worker intégré est coupé (`VECTISPIRE_EMBEDDED_WORKER=false`,
+toutes les analyses sur des agents) **ne peut pas exécuter de plugins de rapport dans cette version** : une
+demande est refusée, 409 `report-executor-unavailable`, plutôt que mise en file pour personne. L'exécution
+sur un agent est un lot ultérieur.
+
+**Ce que fait la prise en charge**, dans l'ordre :
+
+1. revérifie ce que la demande a vérifié — le plugin toujours activé pour le projet, activé, avec un
+   manifeste approuvé — et exécute **le manifeste approuvé à cet instant**, jamais un manifeste en attente
+   d'approbation ;
+2. relit le demandeur : un compte désactivé, ou qui ne voit plus le projet entier ou n'a plus un rôle qui
+   peut demander, n'obtient aucun export ;
+3. construit l'[export](../guide/exports.fr.md#export-de-projet) du projet pour le demandeur, à cet instant —
+   celui que décrit le document ;
+4. vérifie le signataire de l'image avec le cosign épinglé **avant que l'image soit tirée**, avec la
+   configuration Docker du plan de contrôle pour un registre privé ; tout ce qui n'est pas un signataire
+   vérifié est un refus, et rien n'est démarré ;
+5. exécute l'image **sans aucun réseau**, pas en root, toutes les capacités retirées, un système de fichiers
+   racine en lecture seule, les plafonds de mémoire, de processus et de CPU des analyseurs ; l'export seul,
+   en lecture seule, à `/report/input/export.json` ; un seul répertoire inscriptible, `/report/output`, qui
+   ne peut contenir ni plus que le `max_output_bytes` du manifeste ni plus de 16 fichiers ; arrêtée au
+   `timeout_seconds` du manifeste ;
+6. lit le fichier que nomme le manifeste, comme fichier régulier, dans le plafond. **Code de sortie 0, ou
+   l'exécution est en échec.**
+
+Une exécution est dans exactement un état :
+
+| État | Sens |
+|---|---|
+| `pending` | Demandée, en attente de l'exécuteur. |
+| `running` | Prise en charge. Une exécution encore en cours au-delà de son bail — le plus long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et dix minutes — a été laissée par un exécuteur arrêté : elle passe en échec, `executor_lost`, sans nouvelle tentative. Redemandez-la. |
+| `produced` | Le plugin est sorti avec 0 et a écrit son fichier dans ses limites. L'export qu'il a reçu est conservé avec l'exécution. |
+| `failed` | `exit_code`, `timeout`, `output_full` (le répertoire s'est rempli ou un fichier a dépassé le plafond), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` — avec le détail, les propres mots du plugin pour un code de sortie. |
+| `refused` | Pas démarrée : `signature_unverified`, `unsigned`, `registry_authentication_required`, ou `export_schema_unavailable` (le manifeste lit une version majeure d'export que cette installation ne produit plus). La correction porte sur la provenance de l'image ou sa version, pas sur son code. |
+
+**Une exécution d'un plugin par projet à la fois** : une seconde demande pendant qu'une autre est en attente
+ou en cours est refusée, 409 `report-run-in-progress` — c'est celle-là qu'il faut attendre. Les exécutions du
+projet, de la plus récente à la plus ancienne, sont à `GET /api/v1/projects/{id}/reports`, une seule à
+`GET /api/v1/projects/{id}/reports/{runId}`, pour quiconque voit le projet entier : l'état, son motif et son
+détail, le manifeste, l'image et le signataire avec lesquels elle s'est exécutée, le SHA-256 et la taille de
+l'export, le SHA-256 et la taille de la sortie, les instants de demande, de début, d'export et de fin.
+
+**Combien à la fois** : `VECTISPIRE_REPORT_CONCURRENCY`, deux par défaut, sur chaque instance du plan de
+contrôle ; il cherche les exécutions en attente toutes les `VECTISPIRE_REPORT_INTERVAL` (10 s). **Ce qui est
+conservé** : l'export qu'a reçu une exécution produite, jusqu'à ce que la [fenêtre des preuves](maintenance.fr.md)
+(`evidence_retention_days`) soit passée — ses octets partent alors et l'exécution garde son empreinte ; une
+exécution en échec ou refusée ne garde rien qu'elle-même et son motif. Supprimer un projet emporte ses
+exécutions et leurs exports.
+
 ## Ce qui est enregistré
 
 Chaque geste est écrit au [journal d'audit](audit-log.fr.md) — `REPORT_PLUGIN_REGISTERED`,
@@ -102,16 +164,26 @@ Chaque geste est écrit au [journal d'audit](audit-log.fr.md) — `REPORT_PLUGIN
 manifeste — et envoyé au [SIEM](../integrations/siem.fr.md#catalogue-des-evenements) comme `VECTI-SEC-031`. Un
 geste qui ne change rien — le même manifeste à nouveau, un plugin déjà activé — n'enregistre rien.
 
+Une exécution de rapport enregistre `REPORT_REQUESTED` quand elle est demandée, `PROJECT_EXPORTED` quand
+l'export atteint le conteneur du plugin (envoyé au SIEM comme `VECTI-SEC-032`, le SHA-256 de l'export en
+tête), puis `REPORT_PRODUCED` (les empreintes de la sortie, du manifeste et de l'export), `REPORT_FAILED` ou
+`REPORT_REFUSED` — chacun au nom du demandeur. **Un refus est envoyé au SIEM comme `VECTI-SEC-033`** : une
+image sans signataire vérifié sollicitée pour s'exécuter, c'est ainsi qu'un plugin altéré se trahit. Un
+échec pour une raison ordinaire est journalisé, pas signalé.
+
 ## Refus
 
 | Réponse | Quand |
 |---|---|
 | 400 | Un manifeste refusé — le `detail` nomme la première chose qui ne va pas ; un retrait sans sa justification. |
 | 403 | Un rôle qui ne peut pas faire ce geste. |
-| 404 | Un plugin, ou un digest de celui-ci, qui n'existe pas ; un projet qui n'existe pas ou que vous ne voyez pas en entier (`Project not found.`). |
+| 404 | Un plugin, ou un digest de celui-ci, qui n'existe pas ; un projet qui n'existe pas ou que vous ne voyez pas en entier (`Project not found.`) ; un rapport demandé à un plugin non activé pour le projet, dans les mêmes mots qu'il existe ou non. |
 | 409 `report-plugin-id-taken` | L'identifiant est déjà enregistré. |
 | 409 `report-plugin-four-eyes` | Les quatre yeux sont actifs et vous avez enregistré ce digest. |
 | 409 `report-plugin-not-pending` | Le digest n'attend pas d'approbation : approuvé, mis de côté ou retiré. |
-| 409 `report-plugin-not-approved` | Activer un plugin sans manifeste approuvé. |
+| 409 `report-plugin-not-approved` | Activer un plugin, ou lui demander un rapport, sans manifeste approuvé. |
+| 409 `report-plugin-disabled` | Demander un rapport à un plugin que le gouverneur a désactivé. |
+| 409 `report-executor-unavailable` | Demander un rapport là où le worker intégré est coupé : cette version n'exécute les plugins de rapport que sur le plan de contrôle. |
+| 409 `report-run-in-progress` | Un rapport de ce plugin pour ce projet est déjà en attente ou en cours. |
 | 409 `report-plugin-withdrawn` | Enregistrer à nouveau, ou retirer à nouveau, un digest déjà retiré. |
 | 409 `report-plugin-changed` | Un autre geste a modifié le plugin pendant que le vôtre était décidé : relisez-le. |

@@ -640,14 +640,75 @@ le digest ne changent pas.
   `-withdrawn`, `-changed`). Les sept opérations d'audit signalent chacune `VECTI-SEC-031`, comme
   `REPORT_PLUGIN_CHANGED`.
 
+## Construit en R3 (2026-10-03) : là où le code en dit plus que le §2
+
+Le lot R3 — l'exécuteur — a tranché ces points que le §2 laissait ouverts. Le code est dans
+`core.reportplugins` (`ReportRunService`, `internal/ReportQueue`, `ReportExecution`, `ReportWorker`,
+migration V75) et `common/scanning/scanners/ReportPluginRenderer`, qui exécute un plugin à travers le
+`ContainerRunner` et l'`ImageSignatureVerifier` de la 0017, partagés comme code ; `ReportRunState` et
+`ReportRunReason` sont les mots fermés d'une exécution.
+
+- **L'entrée est un montage bind**, d'un répertoire ne contenant qu'`export.json`, en lecture seule à
+  `/report/input` — le bind par lequel passent déjà tous les analyseurs à travers le proxy de socket, si bien
+  que le filtre du proxy n'a besoin de rien de nouveau. Le répertoire est dans l'espace de travail propre à
+  l'exécution, la clé du signataire et l'identifiant de registre à côté et jamais dedans, et l'export n'y est
+  écrit qu'une fois le signataire vérifié. `{input}` vaut `/report/input/export.json`, `{output}`
+  `/report/output/<output>`.
+- **Seize inodes est un paramètre de la sortie bornée** (`BoundedOutput.inodes`, 4096 restant celui des
+  plugins d'analyse), et la sortie est lue jusqu'au plus petit de `max_output_bytes` et du plafond de sortie
+  des analyseurs. Un dépassement de délai est un type (`ScannerFailureException.TimedOut`) : `timeout` se lit
+  dans une classe, jamais dans une phrase.
+- **Une exécution d'un plugin par projet à la fois.** Une exécution porte `active_key` =
+  `<plugin>@<projet>` tant qu'elle est en attente ou en cours, null une fois terminée, sous une contrainte
+  d'unicité que les deux moteurs n'appliquent qu'aux valeurs non nulles ; une seconde demande reçoit 409
+  `report-run-in-progress`. Un insert en échec n'est pas la preuve d'une course perdue : la ligne validée est
+  interrogée avant de dire à la demande d'attendre. Le pool du §2 — deux exécutions à la fois — est par instance
+  (`VECTISPIRE_REPORT_CONCURRENCY`), qui cherche les exécutions en attente toutes les dix secondes.
+- **La prise est celle de la file des analyses** : les exécutions en attente lues de la plus ancienne à la plus
+  récente, chacune prise par une mise à jour conditionnelle ; aucun verrou de ligne. **Le bail** est le plus
+  long délai qu'un manifeste peut déclarer, les deux minutes du vérificateur et les dix minutes du §2 —
+  dix-sept minutes pour toute exécution, le manifeste n'étant lu qu'après la prise. Une exécution au-delà est
+  mise en échec `executor_lost` par le tour suivant de n'importe quelle instance, au démarrage ou non, et **sans
+  nouvelle tentative** : un rapport décrit l'instant pour lequel il a été demandé. Chaque écriture après la
+  prise nomme celui qui l'a prise : un exécuteur dont le bail a expiré n'enregistre rien — ni ne stocke son
+  export.
+- **La prise re-tranche ce que la demande avait tranché** : un plugin désactivé pour le projet, désactivé ou
+  laissé sans manifeste approuvé met l'exécution en échec `plugin_unavailable` ; un demandeur désactivé,
+  rétrogradé, ou qui ne voit plus le projet entier la met en échec `requester_not_allowed` — l'export est
+  construit pour lui seul, sa visibilité relue sans qu'aucun identifiant ne la restreigne, un rapport ne se
+  demandant que par une session. **Le manifeste qu'utilise une exécution est celui approuvé pour le plugin à la
+  prise**, enregistré alors : une approbation tombée entre la demande et la prise est ce qui s'exécute, jamais
+  un digest non approuvé. Un manifeste dont la version majeure d'export n'est plus produite est refusé
+  `export_schema_unavailable`.
+- **Les motifs d'échec sont fermés** : `exit_code`, `timeout`, `output_full` (un répertoire plein, `SIGXFSZ`,
+  ou un fichier au-delà du plafond), `output_missing`, `output_not_regular`, `export_too_large`,
+  `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` ; les refus `unsigned`,
+  `signature_unverified`, `registry_authentication_required`, `export_schema_unavailable`. Un vérificateur qui
+  n'a pas pu démarrer n'a rien dit de l'image : c'est `executor_error`, pas un refus — la règle de la 0017.
+- **Ce que R3 garde, et ce qu'il ne garde pas.** Une exécution produite garde l'export qu'elle a reçu
+  (`t_report_export`, purgé par la fenêtre des preuves par `ReportExportRetentionTask` ; l'exécution garde son
+  empreinte). **Les octets de la sortie ne sont pas gardés** : R3 enregistre leur taille et leur SHA-256, et R4
+  les vérifie, les signe et les stocke dans la même étape, si bien qu'aucun document non vérifié ne séjourne
+  dans la base et qu'aucune route n'en sert. Une exécution en échec ou refusée ne garde rien qu'elle-même.
+  Supprimer un projet emporte ses exécutions et leurs exports.
+- **Audit et SIEM** : `REPORT_REQUESTED` ; `PROJECT_EXPORTED` quand l'export atteint le conteneur du plugin —
+  jamais pour un refus, qui n'atteint rien — signalé `VECTI-SEC-032` ; puis `REPORT_PRODUCED` (les empreintes de
+  la sortie, du manifeste et de l'export, en tête), `REPORT_FAILED` ou `REPORT_REFUSED`, chacun au nom du
+  demandeur. **`VECTI-SEC-033` est émis dès R3** pour chaque refus, `export_schema_unavailable` compris ; R4
+  ajoute la sortie refusée pour ne pas être ce qu'elle déclarait.
+- **L'exécuteur existe là où existe le worker intégré** (`vectispire.worker.enabled`) : une seule condition
+  pour « ce plan de contrôle a un point d'accès conteneur », d'où découlent le 409
+  `report-executor-unavailable` et un tour inactif. Le miroir des plugins d'analyse
+  (`VECTISPIRE_PLUGIN_REGISTRY`) s'applique ; leur `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` non.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |
 |---|---|---|
 | R1 | Schéma d'export 1.0, ses records et son écrivain dans `common`, le constructeur dans `reportplugins`, la garde du projet entier, le test de schéma, `GET …/export` signé, `PROJECT_EXPORTED`, `VECTI-SEC-032` | M |
 | R2 | Le registre : règles du manifeste, tables, routes du gouverneur, approbation à quatre yeux, activation, audit, `VECTI-SEC-031` ; `integrationTestAll` pour la migration | M |
-| R3 | L'exécuteur : file et prise des exécutions, export à la prise, montage de l'entrée, sortie bornée à 16 inodes, signataire obligatoire sans dérogation, les quatre états, reprise au redémarrage | L |
-| R4 | Contrôles de sortie par type de média, stockage, paquet signé et provenance DSSE, en-têtes de téléchargement, `VECTI-SEC-033`, la tâche de purge | M |
+| R3 | L'exécuteur : file et prise des exécutions, export à la prise, montage de l'entrée, sortie bornée à 16 inodes, signataire obligatoire sans dérogation, les quatre états, reprise au redémarrage ; l'export conservé et sa tâche de purge ; `VECTI-SEC-033` pour un plugin refusé | L |
+| R4 | Contrôles de sortie par type de média, stockage, paquet signé et provenance DSSE, en-têtes de téléchargement, `VECTI-SEC-033` pour une sortie refusée, la purge des documents | M |
 | R5 | `vectispire-report-demo` : le module, Jib, les tests de contrat en processus et en conteneur, construction, signature, vérification et notes de version dans `release.yml` | M |
 | R6 | L'interface : écrans du registre et de l'approbation, un onglet **Rapports** par projet, états des exécutions, téléchargements, retrait | M |
 | R7 | Le retrait et la route d'état d'un document | S |

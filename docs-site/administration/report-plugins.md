@@ -7,10 +7,12 @@ export, checks the file it writes, and signs it with the platform's key. Decisio
 [0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0035-report-plugins.md)
 records why it works the way it does.
 
-!!! warning "This version has the registry, not the runner"
-    You can register a report plugin, have its manifest approved, switch it on for a project and
-    withdraw it. **Nothing renders a report yet**: running a plugin, checking its output and signing the
-    document come in a later release. Registering now settles who vouches for which image ahead of time.
+!!! warning "This version runs a report, it does not yet hand you the document"
+    You can register a report plugin, have its manifest approved, switch it on for a project, withdraw it,
+    and **request a report**: the control plane builds the project's export, verifies the image's signer and
+    runs the plugin in its closed shape, and the run records what came of it — the output's size and SHA-256
+    included. **The document itself is not served yet**: checking it against its declared type, signing it
+    and its download come in a later release, and until then its bytes are not kept.
 
 ## The manifest
 
@@ -91,6 +93,61 @@ none until a fixed image — a new manifest — is approved. The documents it pr
 served marked withdrawn, with the justification. There is no delete: an id names every document the plugin
 produced.
 
+## Requesting a report
+
+`POST /api/v1/projects/{id}/reports` with `{"pluginId": "quarterly-summary"}` asks for a report of the
+project by a plugin switched on for it. It answers **202** with the run, `pending`; the control plane's
+executor claims it within seconds. **Write accounts and auditors** may ask, if they see the whole project,
+images included — anybody else gets the 404 of a project that does not exist; the platform governor, who
+acts on nothing a project holds, gets a 403. Integration keys cannot ask for a report: the export is built
+for a person.
+
+**Where it runs: on the control plane, never on an agent.** The plugin runs on the Docker endpoint the
+built-in worker uses (`VECTISPIRE_DOCKER_HOST` or `DOCKER_HOST` — the socket proxy in the shipped
+composition). An installation whose built-in worker is switched off (`VECTISPIRE_EMBEDDED_WORKER=false`,
+every scan on agents) **cannot run report plugins in this version**: a request is refused, 409
+`report-executor-unavailable`, rather than queued for nobody. Running on an agent is a later lot.
+
+**What the claim does**, in order:
+
+1. checks again what the request checked — the plugin still switched on for the project, enabled, with an
+   approved manifest — and runs **the manifest approved at that moment**, never one awaiting approval;
+2. reads the requester again: an account deactivated, or one that no longer sees the whole project or no
+   longer holds a role that may ask, gets no export built;
+3. builds the project's [export](../guide/exports.md#project-export) for the requester, at that instant —
+   the one the document describes;
+4. verifies the image's signer with the pinned cosign **before the image is pulled**, with the control
+   plane's Docker configuration for a private registry; anything but a verified signer is a refusal, and
+   nothing is started;
+5. runs the image **without any network**, not as root, every capability dropped, a read-only root file
+   system, the scanners' memory, process and CPU ceilings; the export alone, read-only, at
+   `/report/input/export.json`; one writable directory, `/report/output`, which cannot hold more than the
+   manifest's `max_output_bytes` nor more than 16 files; stopped at the manifest's `timeout_seconds`;
+6. reads the file the manifest names, as a regular file, within the ceiling. **Exit code 0, or the run
+   failed.**
+
+A run is in exactly one state:
+
+| State | Meaning |
+|---|---|
+| `pending` | Requested, waiting for the executor. |
+| `running` | Claimed. A run still running past its lease — the longest timeout a manifest may declare, the verifier's two minutes and ten minutes — was left by an executor that stopped: it is failed, `executor_lost`, and not retried. Ask again. |
+| `produced` | The plugin exited 0 and wrote its file within its bounds. The export it was given is kept with the run. |
+| `failed` | `exit_code`, `timeout`, `output_full` (the directory filled or a file outgrew the ceiling), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`, `plugin_unavailable`, `executor_lost`, `executor_error` — with the detail, the plugin's own words for an exit code. |
+| `refused` | Not started: `signature_unverified`, `unsigned`, `registry_authentication_required`, or `export_schema_unavailable` (the manifest reads an export major this installation no longer produces). The fix is the image's provenance or its version, not its code. |
+
+**One run of a plugin per project at a time**: a second request while one is pending or running is
+refused, 409 `report-run-in-progress` — it is the one to wait for. The project's runs, newest first, are at
+`GET /api/v1/projects/{id}/reports`, one at `GET /api/v1/projects/{id}/reports/{runId}`, for anybody who sees
+the whole project: the state, its reason and detail, the manifest, image and signer it ran with, the export's
+SHA-256 and size, the output's SHA-256 and size, the instants requested, started, exported and finished.
+
+**How many at once**: `VECTISPIRE_REPORT_CONCURRENCY`, two by default, on each instance of the control
+plane; it looks for waiting runs every `VECTISPIRE_REPORT_INTERVAL` (10 s). **What is kept**: the export a
+produced run was given, until the [evidence window](maintenance.md) (`evidence_retention_days`) has passed —
+then its bytes go and the run keeps its digest; a failed or refused run keeps nothing but itself and its
+reason. Deleting a project takes its runs and their exports.
+
 ## What is recorded
 
 Every gesture is written to the [audit log](audit-log.md) — `REPORT_PLUGIN_REGISTERED`,
@@ -99,16 +156,26 @@ Every gesture is written to the [audit log](audit-log.md) — `REPORT_PLUGIN_REG
 digest — and sent to the [SIEM](../integrations/siem.md#event-catalogue) as `VECTI-SEC-031`. A gesture that
 changes nothing — the same manifest again, a plugin already switched on — records nothing.
 
+A report run records `REPORT_REQUESTED` when it is asked, `PROJECT_EXPORTED` when the export reaches the
+plugin's container (sent to the SIEM as `VECTI-SEC-032`, the export's SHA-256 first), then
+`REPORT_PRODUCED` (the output's, the manifest's and the export's digests), `REPORT_FAILED` or
+`REPORT_REFUSED` — each in the requester's name. **A refusal is sent to the SIEM as `VECTI-SEC-033`**: an
+image without a verified signer asked to run is how a tampered plugin shows itself. A failure for an
+ordinary reason is audited, not signalled.
+
 ## Refusals
 
 | Answer | When |
 |---|---|
 | 400 | A manifest refused — the `detail` names the first thing wrong; a withdrawal without its justification. |
 | 403 | A role that may not make the gesture. |
-| 404 | A plugin, or a digest of it, that does not exist; a project that does not exist or that you do not see whole (`Project not found.`). |
+| 404 | A plugin, or a digest of it, that does not exist; a project that does not exist or that you do not see whole (`Project not found.`); a report asked of a plugin not switched on for the project, in the same words whether it exists or not. |
 | 409 `report-plugin-id-taken` | The id is registered already. |
 | 409 `report-plugin-four-eyes` | Four-eyes is on and you registered this digest. |
 | 409 `report-plugin-not-pending` | The digest is not awaiting approval: approved, superseded or withdrawn. |
-| 409 `report-plugin-not-approved` | Switching on a plugin with no approved manifest. |
+| 409 `report-plugin-not-approved` | Switching on, or asking a report of, a plugin with no approved manifest. |
+| 409 `report-plugin-disabled` | Asking a report of a plugin the governor disabled. |
+| 409 `report-executor-unavailable` | Asking a report where the built-in worker is switched off: this version runs report plugins on the control plane only. |
+| 409 `report-run-in-progress` | A report of this plugin for this project is already pending or running. |
 | 409 `report-plugin-withdrawn` | Registering again, or withdrawing again, a digest already withdrawn. |
 | 409 `report-plugin-changed` | Another gesture changed the plugin while yours was being decided: read it again. |

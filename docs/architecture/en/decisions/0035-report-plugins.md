@@ -590,14 +590,67 @@ messages and digest are unchanged.
 - **Every 409 names its cause** (`report-plugin-id-taken`, `-four-eyes`, `-not-pending`, `-not-approved`,
   `-withdrawn`, `-changed`). The seven audit operations each signal `VECTI-SEC-031`, as `REPORT_PLUGIN_CHANGED`.
 
+## Built in R3 (2026-10-03): where the code says more than §2
+
+Lot R3 — the executor — settled these points §2 left open. The code is in `core.reportplugins`
+(`ReportRunService`, `internal/ReportQueue`, `ReportExecution`, `ReportWorker`, migration V75) and
+`common/scanning/scanners/ReportPluginRenderer`, which runs a plugin through 0017's `ContainerRunner` and
+`ImageSignatureVerifier` as code; `ReportRunState` and `ReportRunReason` are the run's closed words.
+
+- **The input is a bind mount**, of a directory holding `export.json` alone, read-only at `/report/input` —
+  the bind every scanner already goes through the socket proxy with, so the proxy's filter needs nothing new.
+  The directory sits in the run's own workspace, the signer's key and registry login beside it and never in
+  it, and the export is written there only once the signer is verified. `{input}` is
+  `/report/input/export.json`, `{output}` `/report/output/<output>`.
+- **Sixteen inodes is a parameter of the bounded output** (`BoundedOutput.inodes`, 4096 still the scanner
+  plugins'), and the output is read up to the smaller of `max_output_bytes` and the scanner output ceiling.
+  A timeout is a type (`ScannerFailureException.TimedOut`), so `timeout` is read from a class, never a sentence.
+- **One run of a plugin per project at a time.** A run carries `active_key` = `<plugin>@<project>` while
+  pending or running, null once ended, under a unique constraint both engines apply to non-null values only; a
+  second request is 409 `report-run-in-progress`. A failed insert is not proof of a lost race: the committed row
+  is asked before the request is told to wait. The pool of §2 — two runs at a time — is per instance
+  (`VECTISPIRE_REPORT_CONCURRENCY`), looking for waiting runs every ten seconds.
+- **The claim is the scan queue's**: the waiting runs read oldest first, each taken by a conditional update; no
+  row lock. **The lease** is the longest timeout a manifest may declare, the verifier's two minutes and the ten
+  minutes of §2 — seventeen minutes for every run, the manifest being read only after the take. A run past it is
+  failed `executor_lost` by any instance's next turn, at a start-up or otherwise, and **not retried**: a report
+  describes the instant it was asked for. Every write after the take names the claimant, so an executor whose
+  lease lapsed records nothing — nor stores its export.
+- **The claim settles again what the request settled**: a plugin switched off for the project, disabled or
+  left without an approved manifest fails the run `plugin_unavailable`; a requester deactivated, demoted, or no
+  longer seeing the whole project fails it `requester_not_allowed` — the export is built for them alone, their
+  visibility read again with no credential narrowing it, a report being asked through a session only. **The
+  manifest a run uses is the plugin's approved one at the claim**, recorded then: an approval landing between
+  the request and the claim is what runs, never an unapproved digest. A manifest whose export major is no longer
+  produced is refused `export_schema_unavailable`.
+- **Failure reasons are closed**: `exit_code`, `timeout`, `output_full` (a full directory, `SIGXFSZ`, or a file
+  over the ceiling), `output_missing`, `output_not_regular`, `export_too_large`, `requester_not_allowed`,
+  `plugin_unavailable`, `executor_lost`, `executor_error`; refusals `unsigned`, `signature_unverified`,
+  `registry_authentication_required`, `export_schema_unavailable`. A verifier that could not start said nothing
+  of the image, so it is `executor_error`, not a refusal — 0017's rule.
+- **What R3 keeps, and what it does not.** A produced run keeps the export it was given (`t_report_export`,
+  purged by the evidence window by `ReportExportRetentionTask`; the run keeps its digest). **The output's bytes
+  are not kept**: R3 records their size and SHA-256, and R4 checks, signs and stores them in the same step, so
+  no unchecked document ever sits in the database and no route serves one. A failed or refused run keeps
+  nothing but itself. Deleting a project takes its runs and their exports.
+- **Audit and SIEM**: `REPORT_REQUESTED`; `PROJECT_EXPORTED` when the export reaches the plugin's container —
+  never for a refusal, which reaches nothing — signalled `VECTI-SEC-032`; then `REPORT_PRODUCED` (the output's,
+  the manifest's and the export's digests, first), `REPORT_FAILED` or `REPORT_REFUSED`, each in the requester's
+  name. **`VECTI-SEC-033` is emitted from R3** for every refusal, `export_schema_unavailable` included; R4 adds
+  the output refused for not being what it declared.
+- **The executor exists where the built-in worker does** (`vectispire.worker.enabled`): one condition for "this
+  control plane has a container endpoint", so the 409 `report-executor-unavailable` and an idle turn follow from
+  the same switch. The scanner plugins' mirror (`VECTISPIRE_PLUGIN_REGISTRY`) applies; their
+  `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` does not.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |
 |---|---|---|
 | R1 | Export schema 1.0, its records and writer in `common`, the builder in `reportplugins`, the whole-project guard, the schema test, `GET …/export` signed, `PROJECT_EXPORTED`, `VECTI-SEC-032` | M |
 | R2 | The registry: manifest rules, tables, governor routes, four-eyes approval, activation, audit, `VECTI-SEC-031`; `integrationTestAll` for the migration | M |
-| R3 | The executor: run queue and claim, export at claim, input mount, bounded output with 16 inodes, signer required with no waiver, the four states, restart recovery | L |
-| R4 | Output checks per media type, storage, the signed package and the DSSE provenance, download headers, `VECTI-SEC-033`, the purge task | M |
+| R3 | The executor: run queue and claim, export at claim, input mount, bounded output with 16 inodes, signer required with no waiver, the four states, restart recovery; the export kept and its purge task; `VECTI-SEC-033` for a refused plugin | L |
+| R4 | Output checks per media type, storage, the signed package and the DSSE provenance, download headers, `VECTI-SEC-033` for a refused output, the documents' purge | M |
 | R5 | `vectispire-report-demo`: the module, Jib, the in-process and container contract tests, `release.yml` build, sign, verify and release notes | M |
 | R6 | The interface: registry and approval screens, a project's **Reports** tab, run states, downloads, withdrawal | M |
 | R7 | Withdrawal and the document status route | S |

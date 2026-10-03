@@ -230,10 +230,28 @@ another branch, is another target and is accepted as before.
   switches an approved plugin on for a project they see whole
   (`PUT /api/v1/projects/{id}/report-plugins/{pluginId}`); the governor withdraws a digest with a
   justification, and it never runs nor registers again. No delete. Every gesture is audited
-  (`REPORT_PLUGIN_*`) and sent to the SIEM as the new `VECTI-SEC-031`. **Nothing renders a report yet** —
-  the runner is the next lot. A private plugin image will be pulled and verified with the control plane's
-  Docker configuration: the manifest holds no credential, and Vectispire stores none
+  (`REPORT_PLUGIN_*`) and sent to the SIEM as the new `VECTI-SEC-031`. A private plugin image is pulled
+  and verified with the control plane's Docker configuration: the manifest holds no credential, and Vectispire stores none
   ([how](../administration/report-plugins.md)).
+
+- **Report runs** — the third lot of decision 0035. A write account or an auditor who sees a whole project
+  asks a report of a plugin switched on for it (`POST /api/v1/projects/{id}/reports`, 202): the run is
+  queued in the database and claimed by the **control plane's** executor — the Docker endpoint the built-in
+  worker uses, never an agent — two at a time by default (`VECTISPIRE_REPORT_CONCURRENCY`). At the claim it
+  runs the manifest approved at that moment, builds the project's export for the requester as they see it
+  then, verifies the image's signer with cosign **before the pull** (no waiver, the control plane's Docker
+  configuration for a private registry), and runs the image **without any network**, the export alone and
+  read-only, one output directory bounded by the manifest's `max_output_bytes` and 16 files, the manifest's
+  timeout, exit 0 or failed. A run is `pending`, `running`, `produced`, `failed` or `refused`, with its
+  reason (`GET /api/v1/projects/{id}/reports`); one of a plugin per project at a time (409
+  `report-run-in-progress`); a run whose executor died is failed `executor_lost` after its lease. A
+  produced run keeps the export it was given, purged by the evidence window; nothing else is kept of a run
+  that did not produce. **An installation whose built-in worker is switched off cannot run report plugins**
+  in this version: 409 `report-executor-unavailable`. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`
+  (`VECTI-SEC-032`, the export reaching a plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` —
+  the last sent to the SIEM as the new `VECTI-SEC-033`. **The document is not served yet**: checking it
+  against its declared type, signing it and its download are the next lot, and until then its bytes are
+  not kept — the run records their size and SHA-256 ([how](../administration/report-plugins.md#requesting-a-report)).
 
 - **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and

@@ -246,10 +246,31 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   continue de servir. Un responsable sécurité active un plugin approuvé pour un projet qu'il voit en entier
   (`PUT /api/v1/projects/{id}/report-plugins/{pluginId}`) ; le gouverneur retire un digest avec une
   justification, et celui-ci ne tourne ni ne s'enregistre plus jamais. Pas de suppression. Chaque geste est
-  audité (`REPORT_PLUGIN_*`) et envoyé au SIEM comme le nouveau `VECTI-SEC-031`. **Rien ne rend encore de
-  rapport** — l'exécuteur est le lot suivant. L'image d'un plugin privé sera tirée et vérifiée avec la
-  configuration Docker du plan de contrôle : le manifeste ne porte aucun identifiant, et Vectispire n'en
+  audité (`REPORT_PLUGIN_*`) et envoyé au SIEM comme le nouveau `VECTI-SEC-031`. L'image d'un plugin privé
+  est tirée et vérifiée avec la configuration Docker du plan de contrôle : le manifeste ne porte aucun identifiant, et Vectispire n'en
   stocke aucun ([comment](../administration/report-plugins.fr.md)).
+
+- **Les exécutions de rapport** — le troisième lot de la décision 0035. Un compte en écriture ou un auditeur
+  qui voit un projet entier demande un rapport à un plugin activé pour lui
+  (`POST /api/v1/projects/{id}/reports`, 202) : l'exécution est mise en file dans la base et prise en charge
+  par l'exécuteur **du plan de contrôle** — le point d'accès Docker qu'utilise le worker intégré, jamais un
+  agent — deux à la fois par défaut (`VECTISPIRE_REPORT_CONCURRENCY`). À la prise en charge, il exécute le
+  manifeste approuvé à ce moment, construit l'export du projet pour le demandeur tel qu'il le voit alors,
+  vérifie le signataire de l'image avec cosign **avant le pull** (sans dérogation, la configuration Docker du
+  plan de contrôle pour un registre privé), et exécute l'image **sans aucun réseau**, l'export seul et en
+  lecture seule, un répertoire de sortie borné par le `max_output_bytes` du manifeste et 16 fichiers, le délai
+  du manifeste, code de sortie 0 ou échec. Une exécution est `pending`, `running`, `produced`, `failed` ou
+  `refused`, avec son motif (`GET /api/v1/projects/{id}/reports`) ; une seule d'un plugin par projet à la
+  fois (409 `report-run-in-progress`) ; une exécution dont l'exécuteur est mort passe en échec
+  `executor_lost` après son bail. Une exécution produite garde l'export qu'elle a reçu, purgé par la fenêtre
+  des preuves ; rien d'autre n'est gardé d'une exécution qui n'a pas produit. **Une installation dont le
+  worker intégré est coupé ne peut pas exécuter de plugins de rapport** dans cette version : 409
+  `report-executor-unavailable`. Journalisé `REPORT_REQUESTED`, `PROJECT_EXPORTED` (`VECTI-SEC-032`, l'export
+  atteignant un plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` — ce dernier envoyé au SIEM
+  comme le nouveau `VECTI-SEC-033`. **Le document n'est pas encore servi** : sa vérification contre son type
+  déclaré, sa signature et son téléchargement sont le lot suivant, et d'ici là ses octets ne sont pas
+  conservés — l'exécution enregistre leur taille et leur SHA-256
+  ([comment](../administration/report-plugins.fr.md#demander-un-rapport)).
 
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et
