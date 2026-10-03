@@ -20,6 +20,13 @@ immediately; a worker loop claims and runs it. Claiming is transactional — `SE
 SKIP LOCKED` where the engine has it, a conditional update where it does not — and carries a
 **lease**: `claimed_by`, `claimed_at`, `lease_expires_at`, `attempts`.
 
+> **Amendment (2026-10-03).** The claim no longer takes a row lock on any engine: `SELECT … FOR
+> UPDATE SKIP LOCKED` was replaced by **the conditional take** — the candidates read oldest first,
+> each taken by an update naming the status it expects, so of two claimants exactly one matches
+> (`ScanQueue.takeBatch`). One path on every engine; why the lock went is under *No row lock*
+> below. The report runs of [0035](0035-report-plugins.md) claim the same way. The paragraph above
+> is left as accepted.
+
 ## Consequences
 
 **The queue survives everything the process does not.** A crash mid-scan leaves a row whose lease

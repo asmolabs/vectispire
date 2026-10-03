@@ -38,7 +38,7 @@ Every domain is a vertical module — the foundation any domain may use, `settin
 `crypto`, `audit`, `outbox`, `reporting`, `maintenance`, declared shared on `VectispireApplication`;
 `access`, `targets`, `scanning`, `issues`, `agents`, `ai`, `compliance`, `exports`, `gate`,
 `inventory`, `notifications`, `plugins`, `posture`, `rules`, `siem`, `threatintel`, `tickets`, `checklists`,
-`reportplugins`; and `platform` on
+`reportplugins`, `forges`; and `platform` on
 top, the shell (the settings screen, the foundation's routes, the error handler, the OpenAPI
 configuration) that may use any module and that none may use. Each has four places and no fifth:
 
@@ -100,8 +100,8 @@ publisher, and an owner below it that must act in the same transaction is called
 before the first phase (`TargetGrants.revokeAll`).
 
 **Spring Modulith verifies the module boundaries, and does nothing at runtime** (decision 0030).
-`ModularityTest` calls `verify()` over twenty-eight modules (twenty-seven domains, seven shared, and
-`config`) and writes the canvases and diagrams to `build/modulith-docs/`. A message is a reach you
+`ModularityTest` calls `verify()` over twenty-nine modules (twenty-eight domains, seven of them shared,
+and `config`) and writes the canvases and diagrams to `build/modulith-docs/`. A message is a reach you
 just added: answer it with the owner's API or a port, never by moving a class to wherever the message
 stops. A new module is a package under `core`, a `package-info` with its list, a line in
 `ArchitectureTest.MODULES` (which `ModularityTest` reads) and, if it is foundation, in `sharedModules`;

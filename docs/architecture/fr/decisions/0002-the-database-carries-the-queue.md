@@ -21,6 +21,14 @@ transactionnelle — `SELECT … FOR UPDATE SKIP LOCKED` là où le moteur le pr
 conditionnelle sinon — et porte un **bail** : `claimed_by`, `claimed_at`, `lease_expires_at`,
 `attempts`.
 
+> **Amendement (2026-10-03).** La réclamation ne prend plus de verrou de ligne, sur aucun moteur :
+> `SELECT … FOR UPDATE SKIP LOCKED` a été remplacé par **la prise conditionnelle** — les candidates
+> lues de la plus ancienne à la plus récente, chacune prise par une mise à jour qui nomme le statut
+> qu'elle attend, si bien que de deux réclamants un seul l'emporte (`ScanQueue.takeBatch`). Un seul
+> chemin sur tous les moteurs ; la raison du retrait du verrou est sous *Aucun verrou de ligne*
+> ci-dessous. Les exécutions de rapport de la [0035](0035-report-plugins.md) se réclament de la même
+> façon. Le paragraphe ci-dessus est laissé tel qu'accepté.
+
 ## Conséquences
 
 **La file survit à tout ce à quoi le processus ne survit pas.** Un plantage en cours d'analyse
