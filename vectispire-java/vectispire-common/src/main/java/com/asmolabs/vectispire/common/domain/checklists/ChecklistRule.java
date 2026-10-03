@@ -196,9 +196,10 @@ public sealed interface ChecklistRule {
 
     /**
      * Every declared package present, on every repository, in the SBOM of its newest scan whose
-     * dependency step produced within the age, and at one of the versions allowed — every occurrence
-     * whose version the SBOM states. An occurrence stating none is named, not judged; a package none of
-     * whose occurrences states one is {@link NoDataReason#VERSION_UNRECORDED}, never a failure.
+     * dependency step produced within the age, and at one of the versions allowed — written exactly, or
+     * within a Maven range on a Maven package ({@link AllowedComponent}) — every occurrence whose version
+     * the SBOM states. An occurrence stating none is named, not judged; a package none of whose
+     * occurrences states one is {@link NoDataReason#VERSION_UNRECORDED}, never a failure.
      */
     record ComponentVersions(int maxAgeDays, List<AllowedComponent> components) implements ChecklistRule {
 

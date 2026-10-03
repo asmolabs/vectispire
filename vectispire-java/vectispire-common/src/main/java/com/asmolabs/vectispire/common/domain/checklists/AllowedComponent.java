@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.checklists;
 
+import com.asmolabs.vectispire.common.domain.dependencies.MavenVersionRange;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.util.List;
@@ -10,9 +11,14 @@ import java.util.TreeSet;
  * One package an organisation requires, named by a package-URL prefix, and the versions of it it
  * allows (decision 0032 §6, question 11).
  *
- * <p><b>An explicit list, no ordering.</b> "At least 3.2" needs each ecosystem's version order, and an
- * order done wrong passes a line — a later step. A version is allowed when it is written here, as the
- * SBOM states it.
+ * <p><b>Exact versions, and Maven ranges for Maven packages.</b> An entry that does not open with a
+ * bracket or a parenthesis is a version, allowed when the SBOM states exactly it. One that does is a
+ * Maven range — {@code [1.17,2.0)}, {@code [1.17.7]}, {@code (,2.0)}, a comma union — read in Maven's
+ * order ({@link MavenVersionRange}), and only on a {@code pkg:maven/} prefix: "at least 3.2" needs the
+ * ecosystem's own order, an order done wrong passes a line, and Maven's is the only one implemented
+ * and checked against its reference. A range on another type is refused when bound; read from a stored
+ * rule, an entry written before ranges existed — or on another type — stays the literal it was, so a
+ * stored rule's meaning, like its bytes, does not move under it.
  *
  * <p><b>Nothing of any organisation here.</b> The product ships no package and no version: the rule
  * exists for the organisation that binds it with its own prefixes (question 11), and appears in no
@@ -21,7 +27,7 @@ import java.util.TreeSet;
  * @param purlPrefix a package URL without its version — {@code pkg:maven/com.example/ledger-core} —
  *     matching a component whose package URL is exactly it, or continues it with {@code @}, {@code /},
  *     {@code ?} or {@code #}: {@code pkg:npm/left} must not match {@code pkg:npm/left-pad}
- * @param versions sorted, distinct
+ * @param versions sorted, distinct: exact versions and, on a Maven package, ranges
  */
 public record AllowedComponent(String purlPrefix, List<String> versions) {
 
@@ -73,6 +79,17 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
      */
     static AllowedComponent declared(String purlPrefix, List<String> versions) {
         AllowedComponent component = new AllowedComponent(purlPrefix, versions);
+        for (String version : component.versions()) {
+            if (!MavenVersionRange.looksLikeRange(version)) {
+                continue;
+            }
+            if (!component.maven()) {
+                throw new InvalidInputException("A version range is read in Maven's order, and applies to a pkg:maven/"
+                        + " package only; " + BoundedText.clip(component.purlPrefix(), 60) + " is not one — list the"
+                        + " versions it allows.");
+            }
+            MavenVersionRange.parse(version);
+        }
         if (component.endsOnSeparator()) {
             String prefix = component.purlPrefix();
             String trimmed = prefix.substring(0, prefix.length() - 1);
@@ -91,6 +108,25 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
     boolean endsOnSeparator() {
         char last = purlPrefix.charAt(purlPrefix.length() - 1);
         return last == '/' || last == '?' || last == '#';
+    }
+
+    /**
+     * Whether the SBOM's stated version is allowed: written here exactly, or — on a Maven package — in
+     * one of the ranges written here.
+     */
+    boolean allows(String version) {
+        if (versions.contains(version)) {
+            return true;
+        }
+        if (!maven()) {
+            return false;
+        }
+        return versions.stream().map(MavenVersionRange::read).flatMap(java.util.Optional::stream)
+                .anyMatch(range -> range.contains(version));
+    }
+
+    private boolean maven() {
+        return purlPrefix.startsWith("pkg:maven/");
     }
 
     /** Whether a component's package URL is this package's. */

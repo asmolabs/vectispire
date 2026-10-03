@@ -121,6 +121,65 @@ class ChecklistRuleTest {
     }
 
     @Test
+    @DisplayName("keeps a rule bound before ranges and presence byte for byte, and its digest")
+    void aRuleBoundBeforeKeepsItsDigest() {
+        // Pinned: the text a line bound with exact versions stores, and the digest its content digest reads.
+        // A change of the writing marks every such line changed in the next version (decision 0032 §4).
+        String stored = "{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example/ledger-core\","
+                + "\"versions\":[\"3.1.0\",\"3.2.1\"]}],\"kind\":\"component_versions\",\"maxAgeDays\":30}";
+        ChecklistRule read = ChecklistRule.fromCanonical(stored);
+        assertThat(read.canonical()).isEqualTo(stored);
+        assertThat(read.digest()).isEqualTo("6be6a79d0b5e485bb2c34d6d5bca78ac5864c149b87a0fe8eda08ba2249e85be");
+        assertThat(ChecklistRule.parse("""
+                {"kind":"component_versions","maxAgeDays":30,"components":[
+                  {"purlPrefix":"pkg:maven/com.example/ledger-core","versions":["3.2.1","3.1.0"]}]}""").digest())
+                .isEqualTo(read.digest());
+    }
+
+    @Test
+    @DisplayName("binds Maven ranges beside exact versions, as written, and refuses a range that does not read in words")
+    void ranges() {
+        ChecklistRule rule = ChecklistRule.parse("""
+                {"kind":"component_versions","maxAgeDays":7,"components":[
+                  {"purlPrefix":"pkg:maven/org.example.platform","versions":["[1.17,2.0)","1.16.4","(,1.0],[1.2,1.3)"]}]}""");
+        assertThat(rule.canonical()).isEqualTo("{\"components\":[{\"purlPrefix\":\"pkg:maven/org.example.platform\","
+                + "\"versions\":[\"(,1.0],[1.2,1.3)\",\"1.16.4\",\"[1.17,2.0)\"]}],\"kind\":\"component_versions\","
+                + "\"maxAgeDays\":7}");
+        assertThat(ChecklistRule.fromCanonical(rule.canonical()).canonical()).isEqualTo(rule.canonical());
+        AllowedComponent family = ((ChecklistRule.ComponentVersions) rule).components().getFirst();
+        assertThat(family.allows("1.18.3")).isTrue();
+        assertThat(family.allows("1.16.4")).isTrue();
+        assertThat(family.allows("1.16.5")).isFalse();
+        assertThat(family.allows("1.2.9")).isTrue();
+        assertThat(family.allows("1.1")).isFalse();
+
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_versions","maxAgeDays":7,"components":[
+                  {"purlPrefix":"pkg:maven/org.example.platform","versions":["[2.0,1.17)"]}]}"""))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("The version range \"[2.0,1.17)\" does not read: its lower bound 2.0 is above its upper"
+                        + " bound 1.17.");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_versions","maxAgeDays":7,"components":[
+                  {"purlPrefix":"pkg:maven/org.example.platform","versions":["[1.17,2.0"]}]}"""))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("closes with ] or )");
+        assertThatThrownBy(() -> ChecklistRule.parse("""
+                {"kind":"component_versions","maxAgeDays":7,"components":[
+                  {"purlPrefix":"pkg:npm/left-pad","versions":["[1.0,2.0)"]}]}"""))
+                .as("npm orders its versions its own way; only Maven's order is implemented")
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessageContaining("applies to a pkg:maven/ package only; pkg:npm/left-pad is not one");
+
+        // Stored before ranges existed, on another type: read back as the literal it was, never refused.
+        String literal = "{\"components\":[{\"purlPrefix\":\"pkg:npm/left-pad\",\"versions\":[\"[1.0,2.0)\"]}],"
+                + "\"kind\":\"component_versions\",\"maxAgeDays\":7}";
+        AllowedComponent stored = ((ChecklistRule.ComponentVersions) ChecklistRule.fromCanonical(literal))
+                .components().getFirst();
+        assertThat(stored.allows("1.5.0")).isFalse();
+        assertThat(stored.allows("[1.0,2.0)")).isTrue();
+    }
+
+    @Test
     @DisplayName("refuses a prefix ending on its separator when bound, naming the prefix that works, and reads a stored one unchanged")
     void aPrefixEndingOnItsSeparator() {
         String stated = """

@@ -531,9 +531,11 @@ public final class RuleEvaluation {
                 Set<String> versions = occurrences.stream().map(MeasurementFacts.Component::statedVersion)
                         .flatMap(Optional::stream).collect(Collectors.toCollection(java.util.TreeSet::new));
                 long unstated = occurrences.stream().filter(component -> component.statedVersion().isEmpty()).count();
+                boolean several = packages(occurrences).size() > 1;
                 if (versions.isEmpty()) {
                     unrecorded.add(allowed.purlPrefix() + " is in its SBOM with no version stated ("
-                            + occurrences(unstated) + ")");
+                            + occurrences(unstated) + ") — " + MANAGED_ELSEWHERE
+                            + (several ? "; " + listing(allowed.purlPrefix(), occurrences) : ""));
                     continue;
                 }
                 // Some occurrences state a version and others do not: the stated ones judge, and the
@@ -543,9 +545,12 @@ public final class RuleEvaluation {
                 // for every multi-module Maven tree whose child poms leave the version to the parent,
                 // Syft reading the same dependency once resolved and once not — and the reviewer who
                 // takes the line sees the unstated occurrences in its evidence.
-                found.add(allowed.purlPrefix() + " at " + String.join(", ", versions)
+                // A namespace prefix names a family: each package with its own versions, or the reviewer
+                // reads a union of versions nobody can map back to a module.
+                found.add(several ? listing(allowed.purlPrefix(), occurrences) : allowed.purlPrefix() + " at "
+                        + String.join(", ", versions)
                         + (unstated > 0 ? ", and " + occurrences(unstated) + " with no version stated" : ""));
-                Set<String> refused = versions.stream().filter(version -> !allowed.versions().contains(version))
+                Set<String> refused = versions.stream().filter(version -> !allowed.allows(version))
                         .collect(Collectors.toCollection(java.util.TreeSet::new));
                 if (!refused.isEmpty()) {
                     unmet.add(allowed.purlPrefix() + " at " + String.join(", ", refused) + ", not an allowed version");
@@ -564,6 +569,55 @@ public final class RuleEvaluation {
         }
         return collector.outcome(List.of(), List.of(), rule.components().size()
                 + (rule.components().size() == 1 ? " declared package" : " declared packages") + " at allowed versions");
+    }
+
+    /**
+     * What the evidence says of a version the SBOM does not state. Syft cannot see a version a parent
+     * POM or a BOM manages; an SBOM the build itself produced resolves it, and the line is then judged.
+     */
+    static final String MANAGED_ELSEWHERE = "version managed outside the SBOM (a parent POM or a BOM, for one) —"
+            + " import an SBOM produced by the build, which states it";
+
+    /** How many packages a prefix's listing names before it counts the rest: the evidence is read, not mined. */
+    static final int LISTED_PACKAGES = 20;
+
+    /**
+     * The packages a prefix matched, each with the versions its occurrences state — "the versions in use"
+     * of a family, for the reviewer — in package order, at most {@link #LISTED_PACKAGES} of them.
+     */
+    static String listing(String prefix, List<MeasurementFacts.Component> occurrences) {
+        Map<String, List<MeasurementFacts.Component>> byPackage = packages(occurrences);
+        List<String> named = new ArrayList<>();
+        for (Map.Entry<String, List<MeasurementFacts.Component>> entry : byPackage.entrySet()) {
+            if (named.size() == LISTED_PACKAGES) {
+                break;
+            }
+            Set<String> stated = entry.getValue().stream().map(MeasurementFacts.Component::statedVersion)
+                    .flatMap(Optional::stream).collect(Collectors.toCollection(java.util.TreeSet::new));
+            boolean unstated = entry.getValue().stream().anyMatch(component -> component.statedVersion().isEmpty());
+            named.add(entry.getKey() + (stated.isEmpty() ? " with no version stated"
+                    : " at " + String.join(", ", stated) + (unstated ? " and with none stated" : "")));
+        }
+        int rest = byPackage.size() - named.size();
+        return prefix + " matches " + byPackage.size() + " packages: " + String.join(", ", named)
+                + (rest > 0 ? ", and " + rest + " more" : "");
+    }
+
+    /** The occurrences by package — the package URL without its version, qualifiers or subpath. */
+    private static Map<String, List<MeasurementFacts.Component>> packages(List<MeasurementFacts.Component> occurrences) {
+        Map<String, List<MeasurementFacts.Component>> byPackage = new java.util.TreeMap<>();
+        for (MeasurementFacts.Component component : occurrences) {
+            String purl = component.purl();
+            int end = purl.length();
+            for (char separator : new char[] {'@', '?', '#'}) {
+                int at = purl.indexOf(separator);
+                if (at >= 0 && at < end) {
+                    end = at;
+                }
+            }
+            byPackage.computeIfAbsent(purl.substring(0, end), name -> new ArrayList<>()).add(component);
+        }
+        return byPackage;
     }
 
     // ------------------------------------------------------------------ thresholds

@@ -386,6 +386,80 @@ class RuleEvaluationTest {
         }
 
         @Test
+        @DisplayName("components: a Maven range allows by Maven's order, exact versions beside it, qualifiers included")
+        void rangesAllowByMavensOrder() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform/platform-application\","
+                    + "\"versions\":[\"[1.17,2.0)\",\"0.9.1\"]}]}");
+            Builder facts = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
+            java.util.function.Function<String, Measurement> at = version -> RuleEvaluation.evaluate(rule,
+                    facts.components(1L, List.of(new Component("platform-application", version,
+                            "pkg:maven/org.example.platform/platform-application@" + version))).build(), NOW);
+            assertThat(at.apply("1.17.7").outcome()).isEqualTo(MeasurementOutcome.PASS);
+            assertThat(at.apply("1.17").outcome()).as("the lower bound is included").isEqualTo(MeasurementOutcome.PASS);
+            assertThat(at.apply("1.20.0.RELEASE").outcome()).isEqualTo(MeasurementOutcome.PASS);
+            assertThat(at.apply("0.9.1").outcome()).as("an exact version beside the range").isEqualTo(MeasurementOutcome.PASS);
+            assertThat(at.apply("1.9").outcome()).as("below 1.17 by Maven's order, above it by a string's")
+                    .isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(at.apply("2.0").outcome()).as("the upper bound is excluded").isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(at.apply("1.17-SNAPSHOT").outcome()).as("a snapshot comes before its release")
+                    .isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(at.apply("2.0").summary()).contains("platform-application at 2.0, not an allowed version");
+        }
+
+        @Test
+        @DisplayName("components: a version the SBOM does not state names the BOM and the import that resolves it")
+        void anUnstatedVersionSaysWhereItIs() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform\",\"versions\":[\"[1.17,2.0)\"]}]}");
+            Measurement measured = RuleEvaluation.evaluate(rule, facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .components(1L, List.of(
+                            new Component("platform-application", "UNKNOWN",
+                                    "pkg:maven/org.example.platform/platform-application"),
+                            new Component("platform-web", "UNKNOWN", "pkg:maven/org.example.platform/platform-web")))
+                    .build(), NOW);
+            assertThat(measured.reason()).contains(NoDataReason.VERSION_UNRECORDED);
+            assertThat(measured.evidenceJson())
+                    .contains("version managed outside the SBOM (a parent POM or a BOM, for one)")
+                    .contains("import an SBOM produced by the build")
+                    .contains("pkg:maven/org.example.platform matches 2 packages: "
+                            + "pkg:maven/org.example.platform/platform-application with no version stated, "
+                            + "pkg:maven/org.example.platform/platform-web with no version stated");
+        }
+
+        @Test
+        @DisplayName("components: a namespace prefix lists each package with its own versions, the rest counted")
+        void aNamespaceListsItsPackages() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["
+                    + "{\"purlPrefix\":\"pkg:maven/org.example.platform\",\"versions\":[\"[1.17,2.0)\"]}]}");
+            Builder facts = facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
+            Measurement listed = RuleEvaluation.evaluate(rule, facts.components(1L, List.of(
+                    new Component("platform-web", "1.18.0", "pkg:maven/org.example.platform/platform-web@1.18.0?type=jar"),
+                    new Component("platform-application", "1.17.7",
+                            "pkg:maven/org.example.platform/platform-application@1.17.7"),
+                    new Component("platform-web", "1.17.9", "pkg:maven/org.example.platform/platform-web@1.17.9"),
+                    new Component("platform-web", "UNKNOWN", "pkg:maven/org.example.platform/platform-web?type=test-jar")))
+                    .build(), NOW);
+            assertThat(listed.outcome()).isEqualTo(MeasurementOutcome.PASS);
+            assertThat(listed.evidenceJson()).contains("pkg:maven/org.example.platform matches 2 packages: "
+                    + "pkg:maven/org.example.platform/platform-application at 1.17.7, "
+                    + "pkg:maven/org.example.platform/platform-web at 1.17.9, 1.18.0 and with none stated");
+
+            List<Component> many = new java.util.ArrayList<>();
+            for (int index = 0; index < RuleEvaluation.LISTED_PACKAGES + 3; index++) {
+                String name = String.format("module-%02d", index);
+                many.add(new Component(name, "1.17.0", "pkg:maven/org.example.platform/" + name + "@1.17.0"));
+            }
+            Measurement capped = RuleEvaluation.evaluate(rule, facts.components(1L, many).build(), NOW);
+            assertThat(capped.evidenceJson()).contains("matches 23 packages: ")
+                    .contains("pkg:maven/org.example.platform/module-19 at 1.17.0, and 3 more")
+                    .doesNotContain("module-20");
+        }
+
+        @Test
         @DisplayName("components: a stored prefix ending on its separator says why it matched nothing")
         void aStoredPrefixEndingOnItsSeparator() {
             ChecklistRule rule = ChecklistRule.fromCanonical("{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example/\","
