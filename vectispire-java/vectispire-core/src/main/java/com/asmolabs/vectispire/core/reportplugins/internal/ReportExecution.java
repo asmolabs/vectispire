@@ -40,6 +40,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -232,7 +233,10 @@ public class ReportExecution {
                         ReportRunReason.EXPORT_TOO_LARGE, tooLarge.getMessage() + ReportExportCeiling.why(bounds), false));
                 return;
             }
-            learnt = learnt.withExport(clock.instant(), export);
+            // At the precision the columns keep: the signed provenance states these instants, and a
+            // reader comparing it with the run as stored must find the same ones. A Linux clock gives
+            // nanoseconds, the engines keep microseconds, and the two differed in CI.
+            learnt = learnt.withExport(recorded(clock.instant()), export);
 
             // The file's ceiling lowered the same way: its signed package is a row of its own, and a file the
             // database could not keep would be rendered, checked and signed for nothing.
@@ -313,7 +317,7 @@ public class ReportExecution {
      */
     private void finish(ReportRunEntity run, String owner, RequestActor requester, Learnt learnt,
             ReportPluginRenderer.Outcome outcome) {
-        Instant now = clock.instant();
+        Instant now = recorded(clock.instant());
         ReportRunState state;
         ReportRunReason reason;
         String detail;
@@ -421,6 +425,11 @@ public class ReportExecution {
                             + detail));
             default -> throw new IllegalStateException("A run ends produced, failed or refused, not " + state + ".");
         }
+    }
+
+    /** An instant as the run's columns keep it, so what is signed equals what is stored. */
+    private static Instant recorded(Instant instant) {
+        return instant.truncatedTo(ChronoUnit.MICROS);
     }
 
     /** What the package states of the run, every field one the run records (decision 0035 §3). */
