@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleScope;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -296,6 +297,57 @@ public class SolutionQueryService {
                 .orElse(List.of());
         return RowVisibility.requireVisibleSolution(solutionId, solution.map(SolutionEntity::getName), projectIds,
                 solution.map(found -> targetsOfSolution(found.getId())).orElse(List.of()), allowance);
+    }
+
+    /**
+     * Every project, then every solution, as far as the caller sees each — the scopes the tree would
+     * list, each exactly as {@link #visibleProject} and {@link #visibleSolution} would answer it, for a
+     * reader that walks all of them (the score simulation) rather than asking about one.
+     *
+     * <p><b>The guard's rule, not a copy of it.</b> Each scope goes through {@code RowVisibility}, and
+     * one it refuses is left out: a second test of "may this caller see this project" written here
+     * could come to list a project the tree hides. Four reads for the whole estate rather than three
+     * per scope.
+     */
+    @Transactional(readOnly = true)
+    public List<VisibleScope> visibleScopes(VisibilityService.Allowance allowance) {
+        Map<Long, List<ScanTarget>> filedByProject = new HashMap<>();
+        repositories.findAll().stream()
+                .filter(repository -> repository.getProjectId() != null)
+                .forEach(repository -> filedByProject.computeIfAbsent(repository.getProjectId(), id -> new ArrayList<>())
+                        .add(new ScanTarget.Repository(repository.getId())));
+        containers.findAll().stream()
+                .filter(container -> container.getProjectId() != null)
+                .forEach(container -> filedByProject.computeIfAbsent(container.getProjectId(), id -> new ArrayList<>())
+                        .add(new ScanTarget.Container(container.getId())));
+
+        List<ProjectEntity> allProjects = projects.findAll().stream()
+                .sorted(Comparator.comparing(ProjectEntity::getId))
+                .toList();
+        List<VisibleScope> scopes = new ArrayList<>();
+        Map<Long, List<Long>> projectsBySolution = new HashMap<>();
+        for (ProjectEntity project : allProjects) {
+            projectsBySolution.computeIfAbsent(project.getSolutionId(), id -> new ArrayList<>()).add(project.getId());
+            try {
+                scopes.add(RowVisibility.requireVisibleProject(project.getId(), Optional.of(project.getName()),
+                        filedByProject.getOrDefault(project.getId(), List.of()), allowance));
+            } catch (NotFoundException hidden) {
+                // Not this caller's: the tree does not list it either.
+            }
+        }
+        for (SolutionEntity solution : solutions.findAll().stream().sorted(Comparator.comparing(SolutionEntity::getId)).toList()) {
+            List<Long> projectIds = projectsBySolution.getOrDefault(solution.getId(), List.of());
+            List<ScanTarget> filed = projectIds.stream()
+                    .flatMap(projectId -> filedByProject.getOrDefault(projectId, List.of()).stream())
+                    .toList();
+            try {
+                scopes.add(RowVisibility.requireVisibleSolution(
+                        solution.getId(), Optional.of(solution.getName()), projectIds, filed, allowance));
+            } catch (NotFoundException hidden) {
+                // As above.
+            }
+        }
+        return scopes;
     }
 
     /**

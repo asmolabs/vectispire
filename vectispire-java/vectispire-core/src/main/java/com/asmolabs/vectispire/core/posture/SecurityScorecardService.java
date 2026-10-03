@@ -135,8 +135,13 @@ public class SecurityScorecardService {
      *
      * <p><b>The licences are read target by target</b>, each through the per-target inventory the
      * target's own scorecard reads, rather than through the portfolio's, which parses every SBOM of
-     * the estate to keep a project's. The two agree: every inventory entry is keyed by its target, so
-     * the union of the targets' lists is the portfolio's list narrowed to them.
+     * the estate to keep a project's.
+     *
+     * <p><b>Known to count some licences twice</b>, kept until the formula's switch fixes it (decision
+     * 0036): the lists are summed, not united, and an image's inventory holds the components and licence
+     * findings of a scan naming it and a repository — keyed to the repository, whose list holds them as
+     * well. A scope filing both targets charges those entries twice. {@link #candidateScopes} counts them
+     * once, and {@code ScoreSimulationRoutesTest} pins both figures.
      *
      * @return {@code targetKind} {@code project} or {@code solution}, {@code targetId} the scope's
      */
@@ -243,21 +248,7 @@ public class SecurityScorecardService {
             if (target == null || !Terms.isOpen(row.state())) {
                 continue;
             }
-            long[] sum = sums.computeIfAbsent(target, key -> new long[6]);
-            String severity = row.severity() == null ? null : row.severity().toUpperCase(Locale.ROOT);
-            int slot;
-            if (row.kev()) {
-                slot = 0;
-            } else if ("CRITICAL".equals(severity)) {
-                slot = 1;
-            } else if ("HIGH".equals(severity)) {
-                slot = 2;
-            } else if (severity == null || "MEDIUM".equals(severity)) {
-                slot = 3;
-            } else {
-                slot = 4;
-            }
-            sum[slot] += row.count();
+            sums.computeIfAbsent(target, key -> new long[6])[candidateSlot(row)] += row.count();
         }
         licenseService.violationsByTarget(allowed).forEach((target, refused) -> {
             if (refused > 0) {
@@ -268,6 +259,101 @@ public class SecurityScorecardService {
         sums.forEach((target, sum) ->
                 counts.put(target, new CandidateScore.Counts(sum[0], sum[1], sum[2], sum[3], sum[4], sum[5])));
         return counts;
+    }
+
+    /**
+     * The candidate's class of a grading row: 0 exploited, whatever its severity; 1 critical; 2 high;
+     * 3 medium or no severity, as the ranking counts it; 4 anything else. Slot 5 is the licences'.
+     */
+    private static int candidateSlot(IssueAggregates.TargetGradingCount row) {
+        String severity = row.severity() == null ? null : row.severity().toUpperCase(Locale.ROOT);
+        if (row.kev()) {
+            return 0;
+        } else if ("CRITICAL".equals(severity)) {
+            return 1;
+        } else if ("HIGH".equals(severity)) {
+            return 2;
+        } else if (severity == null || "MEDIUM".equals(severity)) {
+            return 3;
+        }
+        return 4;
+    }
+
+    /**
+     * A project or a solution under the candidate, for the simulation only.
+     *
+     * @param counts the scope's open, unsettled backlog and its disallowed licences, each issue and each
+     *     licence entry counted once
+     * @param totalTargets the scope's visible targets, as its scorecard counts them
+     * @param observedTargets those holding a completed scan, as its scorecard counts them
+     * @param score null exactly when {@code grade} is {@code NO_DATA}; capped at the observed share as
+     *     the scope's card is
+     * @param exact the unrounded, uncapped score; null with no data
+     * @param riskPoints the weighted backlog, uncapped; null with no data
+     */
+    public record ScopeCandidate(
+            VisibleScope scope,
+            CandidateScore.Counts counts,
+            int totalTargets,
+            int observedTargets,
+            Integer score,
+            SecurityGrade grade,
+            Double exact,
+            Double riskPoints) {}
+
+    /**
+     * <b>Experimental, for the score simulation only</b>: each scope graded by the candidate, the
+     * scope's card's coverage cap and {@code NO_DATA} kept as they are ({@link #getScopeScorecard}).
+     *
+     * <p><b>Counted once per scope, which the scope's card does not do.</b> The card sums its targets'
+     * inventories, and the inventory of an image includes the components and licence findings of every
+     * scan naming that image <em>and</em> a repository — keyed to the repository, which lists them as
+     * well. A project filing both counts those entries twice, five points apiece. Here the licence term
+     * is the sum of the targets' tallies ({@code LicenseGovernanceService.violationsByTarget}, which
+     * {@link #gradeEach} and so each target's ranking charge): every entry belongs to exactly one target,
+     * the one its scan is attributed to. The issues are the scope's grouped count, one row per issue
+     * however many of the scope's targets it names — as the card already reads them.
+     *
+     * <p>The production path is left as it is until the formula is switched (decision 0036), which
+     * fixes it there; the simulation shows both figures beside each other.
+     */
+    public List<ScopeCandidate> candidateScopes(List<VisibleScope> scopes, CandidateScore.Weights weights) {
+        Set<ScanTarget> every = new LinkedHashSet<>();
+        scopes.forEach(scope -> every.addAll(scope.targets()));
+        // One read of the tallies and of the completed scans for every scope, both narrowed to the
+        // scopes' visible targets — what each scope's own read would have been, summed.
+        Map<ScanTarget, Long> violations = licenseService.violationsByTarget(Visibility.only(List.copyOf(every)));
+        Set<ScanTarget> completed = new HashSet<>();
+        scansRepo.targetsWithStatus("completed").forEach(row -> {
+            if (row.target() != null && every.contains(row.target())) {
+                completed.add(row.target());
+            }
+        });
+
+        List<ScopeCandidate> graded = new ArrayList<>();
+        for (VisibleScope scope : scopes) {
+            long[] sum = new long[6];
+            for (IssueAggregates.TargetGradingCount row : issuesRepo.countForGradingByTarget(openWithin(scope.visibility()))) {
+                if (Terms.isOpen(row.state())) {
+                    sum[candidateSlot(row)] += row.count();
+                }
+            }
+            for (ScanTarget target : scope.targets()) {
+                sum[5] += violations.getOrDefault(target, 0L);
+            }
+            CandidateScore.Counts counts = new CandidateScore.Counts(sum[0], sum[1], sum[2], sum[3], sum[4], sum[5]);
+            Coverage coverage = new Coverage(
+                    scope.targets().size(), (int) scope.targets().stream().filter(completed::contains).count());
+            if (coverage.observed() == 0) {
+                graded.add(new ScopeCandidate(scope, counts, coverage.total(), 0, null, SecurityGrade.NO_DATA, null, null));
+                continue;
+            }
+            CandidateScore.Result result = CandidateScore.of(counts, weights);
+            int score = cappedToCoverage(result.score(), coverage);
+            graded.add(new ScopeCandidate(scope, counts, coverage.total(), coverage.observed(), score,
+                    SecurityGrade.fromScore(score), CandidateScore.exact(counts, weights), result.riskPoints()));
+        }
+        return graded;
     }
 
     /** How many entries of an inventory the policy refuses: five points each on the score. */
@@ -355,6 +441,17 @@ public class SecurityScorecardService {
         }
     }
 
+    /**
+     * A score held at the observed share of its scope, in the compliance summary's rounding — one copy
+     * for the card and for the candidate's scopes, so the simulation caps as the card does.
+     */
+    private static int cappedToCoverage(int score, Coverage coverage) {
+        int never = coverage.total() - coverage.observed();
+        return never > 0
+                ? Math.min(score, Math.round(((float) coverage.observed() / coverage.total()) * 100))
+                : score;
+    }
+
     private SecurityScorecard computeScorecard(
             Long targetId,
             String targetKind,
@@ -429,10 +526,7 @@ public class SecurityScorecardService {
             recommendations.add("Maintain current posture with continuous automated scanning.");
         }
 
-        int clamped = (int) Math.max(0, Math.min(100, score));
-        if (never > 0) {
-            clamped = Math.min(clamped, Math.round(((float) coverage.observed() / coverage.total()) * 100));
-        }
+        int clamped = cappedToCoverage((int) Math.max(0, Math.min(100, score)), coverage);
         // **Nothing observed is no grade at all** (decision 0007), not the hundred the formula gives
         // an empty backlog: a scope whose only target was never scanned read 100/100, A+, on its card
         // and on the badge. The counts stay, being true of what was read.

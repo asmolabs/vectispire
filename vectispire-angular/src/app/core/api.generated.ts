@@ -3327,7 +3327,7 @@ export interface paths {
         };
         /**
          * Simulate a candidate scorecard formula (experimental)
-         * @description Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.
+         * @description Lists every visible target's, project's and solution's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the targets' grade distribution under each. A scope's candidate counts each issue and licence entry once, where its current card counts twice the licences of a scan naming one of its images and one of its repositories. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.
          */
         get: operations["simulateScores"];
         put?: never;
@@ -7017,6 +7017,7 @@ export interface components {
         };
         ScoreSimulation: {
             grades?: components["schemas"]["ScoreSimulationGrade"][];
+            scopes?: components["schemas"]["ScoreSimulationScope"][];
             targets?: components["schemas"]["ScoreSimulationTarget"][];
             weights?: components["schemas"]["ScoreSimulationWeights"];
         };
@@ -7027,6 +7028,44 @@ export interface components {
             current: number;
             /** @enum {string} */
             grade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+        };
+        ScoreSimulationScope: {
+            /** Format: double */
+            candidateExact?: number;
+            /** @enum {string} */
+            candidateGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: double */
+            candidateRiskPoints?: number;
+            /** Format: int32 */
+            candidateScore?: number;
+            /** Format: int64 */
+            critical: number;
+            currentDoubleCounted: boolean;
+            /** @enum {string} */
+            currentGrade?: "A_PLUS" | "A" | "B" | "C" | "D" | "F" | "NO_DATA";
+            /** Format: int64 */
+            currentLicences: number;
+            /** Format: int32 */
+            currentScore?: number;
+            /** Format: int64 */
+            exploited: number;
+            /** Format: int64 */
+            high: number;
+            /** Format: int64 */
+            id: number;
+            kind?: string;
+            /** Format: int64 */
+            licences: number;
+            /** Format: int64 */
+            low: number;
+            /** Format: int64 */
+            medium: number;
+            name?: string;
+            /** Format: int32 */
+            observedTargets: number;
+            partial: boolean;
+            /** Format: int32 */
+            targetCount: number;
         };
         ScoreSimulationTarget: {
             /** Format: double */

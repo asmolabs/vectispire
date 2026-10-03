@@ -250,6 +250,17 @@ parameter to try other values; one left out takes the validated value. The answe
 current and candidate score and grade, its risk points and its counts, and how many targets read each
 grade under each formula.
 
+**Projects and solutions are listed too** (`scopes`), each one the [solutions tree](../administration/solutions-and-projects.md) shows
+the administrator: the score its project or solution scorecard gives today beside the candidate over
+the scope's whole backlog, with the same cap when part of the scope was never scanned and the same
+`NO_DATA` when none of it was. A scope adds up its targets' backlogs, so it can read lower than each
+of them. Each scope row also carries two licence counts: `licences`, the candidate's, each disallowed
+entry counted once; and `currentLicences`, what the project's or solution's card counts today.
+They differ — `currentDoubleCounted` is then `true` — where a scan named both an image and a
+repository of the scope: today's card counts that scan's components and licence findings once for
+the repository and once more for the image. Each target's own card counts them once, on the
+repository; the candidate agrees with it, and the switch of formula fixes the scope card.
+
 ## Languages {#languages}
 
 Each repository shows, under its details, the languages its **newest completed scan** counted, as

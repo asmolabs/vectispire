@@ -91,19 +91,22 @@ public class ScorecardController {
     }
 
     /**
-     * <b>Experimental.</b> Every visible target's score under the production formula beside a
-     * candidate's, and how many targets read each grade under each — so that a change of formula is
-     * decided on the estate's own figures. Grades nothing that is shown elsewhere, writes nothing.
+     * <b>Experimental.</b> Every visible target's, project's and solution's score under the production
+     * formula beside a candidate's, and how many targets read each grade under each — so that a change
+     * of formula is decided on the estate's own figures. The scopes are those the tree lists for the
+     * caller, with their projects granted as such. Grades nothing that is shown elsewhere, writes nothing.
      *
      * <p><b>Administrators only</b>, because what it serves is a deliberation about the product, not a
      * figure anyone acts on — and still narrowed to the caller's allowance like every figure of the
      * estate, so that the day the marker admits a narrower role the route does not leak.
      */
     @Operation(summary = "Simulate a candidate scorecard formula (experimental)",
-            description = "Lists every visible target's current score and grade beside the candidate's, "
+            description = "Lists every visible target's, project's and solution's current score and grade beside the candidate's, "
                     + "100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an "
                     + "exploited issue capping the grade at D, with the weighted total (the risk points), "
-                    + "and the grade distribution under each. Parameters left out take the proposed values. "
+                    + "and the targets' grade distribution under each. A scope's candidate counts each issue and licence "
+                    + "entry once, where its current card counts twice the licences of a scan naming one of its "
+                    + "images and one of its repositories. Parameters left out take the proposed values. "
                     + "Experimental: nothing is stored and no card, badge or ranking changes.")
     @ApiResponse(responseCode = "200", description = "Both formulas over the caller's estate")
     @ApiResponse(responseCode = "400", description = "A weight that is negative or not finite, or a k that is not positive")
@@ -118,7 +121,9 @@ public class ScorecardController {
             @Parameter(description = "Weight of a low issue") @RequestParam(value = "low", required = false) Double low,
             @Parameter(description = "Weight of a disallowed licence entry") @RequestParam(value = "licence", required = false) Double licence,
             @Parameter(description = "The weighted backlog that brings the score to 100/e (about 37)") @RequestParam(value = "k", required = false) Double k) {
-        return simulations.simulate(allowed(principal), exploited, critical, high, medium, low, licence, k);
+        return simulations.simulate(
+                visibility.allowance(principal.user().orElse(null), principal.credentialRestriction()),
+                exploited, critical, high, medium, low, licence, k);
     }
 
     /** @param url what to paste into a README, absent when no badge is published */

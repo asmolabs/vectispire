@@ -3,30 +3,38 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.posture.ScoreSimulationService;
+import com.asmolabs.vectispire.core.posture.ScoreSimulationService.ScoreSimulationScope;
 import com.asmolabs.vectispire.core.posture.ScoreSimulationService.ScoreSimulationTarget;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MvcResult;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -55,6 +63,12 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
 
     @Autowired
     private LicenseGovernanceService licences;
+
+    @Autowired
+    private ContainerRepository containers;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     @DisplayName("lists every target under both formulas, with the grade distribution under each")
@@ -175,11 +189,227 @@ class ScoreSimulationRoutesTest extends ApiTestBase {
         long only = ids.get("estate/fifty-mediums");
 
         ScoreSimulationService.ScoreSimulation narrowed = simulations.simulate(
-                Visibility.only(List.of(new ScanTarget.Repository(only))), null, null, null, null, null, null, null);
+                allowanceOf(new ScanTarget.Repository(only)), null, null, null, null, null, null, null);
 
         assertThat(narrowed.targets()).extracting(ScoreSimulationTarget::targetId).containsExactly(only);
         assertThat(narrowed.grades().stream().mapToLong(ScoreSimulationService.ScoreSimulationGrade::current).sum())
                 .isEqualTo(1);
+    }
+
+    /**
+     * The scopes are the tree's for the caller: a reader of one repository of a project sees that
+     * project, partial and scored over that repository, and its solution likewise — nothing of the
+     * projects holding nothing they were given.
+     */
+    @Test
+    @DisplayName("lists only the projects and solutions the caller's allowance shows, scored over what it sees")
+    void scopesNarrowedToTheAllowance() throws Exception {
+        Scopes seeded = seedScopes();
+
+        ScoreSimulationService.ScoreSimulation narrowed = simulations.simulate(
+                allowanceOf(new ScanTarget.Repository(seeded.criticalRepository())), null, null, null, null, null, null, null);
+
+        assertThat(narrowed.scopes()).extracting(ScoreSimulationScope::name)
+                .containsExactly("critical-and-mediums", "group");
+        for (ScoreSimulationScope scope : narrowed.scopes()) {
+            assertThat(scope.partial()).as(scope.name()).isTrue();
+            assertThat(scope.targetCount()).as(scope.name()).isEqualTo(1);
+            // The critical-heavy repository alone: 3 criticals and a high, none of its neighbour's mediums.
+            assertThat(scope.medium()).as(scope.name()).isZero();
+            assertThat(scope.candidateRiskPoints()).as(scope.name()).isEqualTo(34);
+        }
+    }
+
+    /**
+     * Every project and solution under both formulas — and the double count the scope card makes
+     * today, which the candidate does not.
+     *
+     * <p><b>The double count.</b> A scope card sums its targets' inventories, and an image's inventory
+     * holds the components and licence findings of every scan naming it <em>and</em> a repository,
+     * keyed to the repository, whose inventory holds them as well. {@code repo-and-image} files both
+     * targets of such a scan, carrying three disallowed licences: the card — its project's compliance
+     * route, the production path — counts six, the candidate three, which is what each target's own
+     * card adds up to (three on the repository, none on the image). The issue that scan raised names
+     * both targets and is counted once by both formulas.
+     */
+    @Test
+    @DisplayName("lists every project and solution under both formulas, each licence counted once by the candidate")
+    void scopesUnderBothFormulas() throws Exception {
+        Scopes seeded = seedScopes();
+
+        JsonNode body = read(mvc.perform(authenticated(get(ROUTE), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn());
+        Map<String, JsonNode> byName = new HashMap<>();
+        body.path("scopes").forEach(row -> byName.put(row.path("name").asText(), row));
+        List<String> order = new ArrayList<>();
+        body.path("scopes").forEach(row -> order.add(row.path("kind").asText() + ":" + row.path("name").asText()));
+        assertThat(order).containsExactly(
+                "project:critical-and-mediums", "project:empty", "project:half-scanned", "project:one-clean-repo",
+                "project:repo-and-image", "solution:group", "solution:half", "solution:shared");
+
+        // name -> current score, current grade, candidate score, candidate grade, risk points
+        assertScope(byName.get("one-clean-repo"), 100, "A_PLUS", 100, "A_PLUS", 0);
+        assertScope(byName.get("critical-and-mediums"), 77, "B", 30, "F", 66.5);
+        assertScope(byName.get("group"), 77, "B", 30, "F", 66.5);
+        // The coverage cap, the card's own: one target of two observed holds both formulas at 50.
+        assertScope(byName.get("half-scanned"), 50, "D", 50, "D", 0);
+        assertScope(byName.get("half"), 50, "D", 50, "D", 0);
+        assertThat(byName.get("half-scanned").path("observedTargets").asInt()).isEqualTo(1);
+        assertThat(byName.get("half-scanned").path("targetCount").asInt()).isEqualTo(2);
+        JsonNode empty = byName.get("empty");
+        assertThat(empty.path("currentGrade").asText()).isEqualTo("NO_DATA");
+        assertThat(empty.path("candidateGrade").asText()).isEqualTo("NO_DATA");
+        assertThat(empty.path("candidateScore").isNull()).isTrue();
+        assertThat(empty.path("candidateRiskPoints").isNull()).isTrue();
+
+        // The double count: six licences on the card, three under the candidate — the high once in both.
+        // Current: 100 − 4 (high) − 6 × 5 + 5 = 71, B. Candidate: 4 + 3 × 4 = 16 points, 75, B; with the
+        // card's six it would read 28 points, 60, C.
+        for (String name : List.of("repo-and-image", "shared")) {
+            JsonNode shared = byName.get(name);
+            assertScope(shared, 71, "B", 75, "B", 16);
+            assertThat(shared.path("currentLicences").asLong()).as(name).isEqualTo(6);
+            assertThat(shared.path("licences").asLong()).as(name).isEqualTo(3);
+            assertThat(shared.path("currentDoubleCounted").asBoolean()).as(name).isTrue();
+            assertThat(shared.path("high").asLong()).as(name).isEqualTo(1);
+        }
+        for (String name : List.of("one-clean-repo", "critical-and-mediums", "group", "half-scanned", "half", "empty")) {
+            assertThat(byName.get(name).path("currentDoubleCounted").asBoolean()).as(name).isFalse();
+        }
+
+        // The production path itself, as the project's page reads it: six.
+        JsonNode card = read(mvc.perform(authenticated(get("/api/v1/projects/" + seeded.sharedProject() + "/compliance"), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn());
+        assertThat(card.at("/scorecard/licenseViolationCount").asLong()).isEqualTo(6);
+        assertThat(card.at("/scorecard/score").asInt()).isEqualTo(71);
+        // And each target's own card: three on the repository, none on the image — the candidate's sum.
+        Map<Long, JsonNode> targets = new HashMap<>();
+        body.path("targets").forEach(row -> targets.put(row.path("targetId").asLong() * 2
+                + ("container".equals(row.path("targetKind").asText()) ? 1 : 0), row));
+        assertThat(targets.get(seeded.sharedRepository() * 2).path("licences").asLong()).isEqualTo(3);
+        JsonNode image = targets.get(seeded.sharedImage() * 2 + 1);
+        assertThat(image == null ? 0 : image.path("licences").asLong()).isZero();
+        assertThat(read(mvc.perform(authenticated(get("/api/v1/scorecards/repositories/" + seeded.sharedRepository()), asAdmin()))
+                .andExpect(status().isOk()).andReturn()).path("licenseViolationCount").asLong()).isEqualTo(3);
+        assertThat(read(mvc.perform(authenticated(get("/api/v1/scorecards/containers/" + seeded.sharedImage()), asAdmin()))
+                .andExpect(status().isOk()).andReturn()).path("licenseViolationCount").asLong()).isZero();
+
+        printScopes(body);
+    }
+
+    /** An allowance of these targets alone, granting no project as such. */
+    private static VisibilityService.Allowance allowanceOf(ScanTarget... targets) {
+        return new VisibilityService.Allowance(Visibility.only(List.of(targets)), Set.of());
+    }
+
+    /** What the scope tests name afterwards. */
+    private record Scopes(long sharedProject, long sharedRepository, long sharedImage, long criticalRepository) {}
+
+    /**
+     * Three solutions: {@code group} holding {@code one-clean-repo} and {@code critical-and-mediums} (a
+     * repository of three criticals and a high beside one of sixty mediums and twenty lows); {@code
+     * shared} holding {@code repo-and-image}, a repository and an image each scanned, plus a scan naming
+     * both that carries one high and three disallowed licence findings; {@code half} holding an empty
+     * project and {@code half-scanned}, a clean scanned repository beside one never scanned.
+     */
+    private Scopes seedScopes() throws Exception {
+        licences.updatePolicy(LicensePolicy.defaultPolicy());
+        long group = solution("group");
+        long cleanProject = project(group, "one-clean-repo");
+        file("repositories", cleanProject, repository("scopes/clean", true));
+        long mixedProject = project(group, "critical-and-mediums");
+        long criticalRepository = seed("scopes/criticals", 0, 3, 1, 0, 0);
+        file("repositories", mixedProject, criticalRepository);
+        file("repositories", mixedProject, seed("scopes/mediums", 0, 0, 0, 60, 20));
+
+        long shared = solution("shared");
+        long sharedProject = project(shared, "repo-and-image");
+        long sharedRepository = repository("scopes/shared", true);
+        ContainerEntity container = new ContainerEntity();
+        container.setImageName("registry.example.test/scopes/shared");
+        container.setTag("1.0");
+        long sharedImage = containers.save(container).getId();
+        ScanEntity ofImage = new ScanEntity();
+        ofImage.setContainerId(sharedImage);
+        ofImage.setBranch("main");
+        ofImage.setStatus("completed");
+        ofImage.setCreatedAt(Instant.now());
+        scans.save(ofImage);
+        ScanEntity both = new ScanEntity();
+        both.setRepoId(sharedRepository);
+        both.setContainerId(sharedImage);
+        both.setBranch("main");
+        both.setStatus("completed");
+        both.setCreatedAt(Instant.now());
+        long bothId = scans.save(both).getId();
+        for (int i = 0; i < 3; i++) {
+            jdbc.update("insert into t_finding (scan_id, type, source, package_name, package_version, identifier, is_kev, created_at, reachability)"
+                    + " values (?, 'license', 'trivy', ?, '1.0', 'GPL-3.0-only', false, ?, 'UNKNOWN')",
+                    bothId, "gpl-" + i, Timestamp.from(Instant.now()));
+        }
+        List<IssueEntity> raised = new ArrayList<>();
+        add(raised, sharedRepository, 1, "high", false);
+        raised.forEach(issue -> issue.setContainerId(sharedImage));
+        issues.saveAll(raised);
+        file("repositories", sharedProject, sharedRepository);
+        file("containers", sharedProject, sharedImage);
+
+        long half = solution("half");
+        project(half, "empty");
+        long halfProject = project(half, "half-scanned");
+        file("repositories", halfProject, repository("scopes/half-clean", true));
+        file("repositories", halfProject, repository("scopes/half-never", false));
+        return new Scopes(sharedProject, sharedRepository, sharedImage, criticalRepository);
+    }
+
+    private long solution(String name) throws Exception {
+        return json.readTree(mvc.perform(authenticated(post("/api/v1/solutions"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", name))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString()).path("id").asLong();
+    }
+
+    private long project(long solution, String name) throws Exception {
+        return json.readTree(mvc.perform(authenticated(post("/api/v1/solutions/" + solution + "/projects"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", name))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString()).path("id").asLong();
+    }
+
+    private void file(String kind, long project, long target) throws Exception {
+        mvc.perform(authenticated(put("/api/v1/projects/" + project + "/" + kind + "/" + target), asAdmin()))
+                .andExpect(status().isNoContent());
+    }
+
+    private static void assertScope(
+            JsonNode row, int current, String currentGrade, int candidate, String candidateGrade, double riskPoints) {
+        assertThat(row).as("scope row").isNotNull();
+        String name = row.path("name").asText();
+        assertThat(row.path("currentScore").asInt()).as(name + " current").isEqualTo(current);
+        assertThat(row.path("currentGrade").asText()).as(name + " current grade").isEqualTo(currentGrade);
+        assertThat(row.path("candidateScore").asInt()).as(name + " candidate").isEqualTo(candidate);
+        assertThat(row.path("candidateGrade").asText()).as(name + " candidate grade").isEqualTo(candidateGrade);
+        assertThat(row.path("candidateRiskPoints").asDouble()).as(name + " risk points").isEqualTo(riskPoints);
+    }
+
+    /** The scopes' comparison, in the test's output. */
+    private static void printScopes(JsonNode body) {
+        StringBuilder table = new StringBuilder("\n| scope | targets | exploited | critical | high | medium | low"
+                + " | licences (card) | current | candidate | risk points |\n");
+        body.path("scopes").forEach(row -> table.append("| %s %s | %d/%d | %d | %d | %d | %d | %d | %d (%d) | %s %s | %s %s | %s |%n".formatted(
+                row.path("kind").asText(), row.path("name").asText(),
+                row.path("observedTargets").asInt(), row.path("targetCount").asInt(),
+                row.path("exploited").asLong(), row.path("critical").asLong(), row.path("high").asLong(),
+                row.path("medium").asLong(), row.path("low").asLong(),
+                row.path("licences").asLong(), row.path("currentLicences").asLong(),
+                row.path("currentScore").asText(), row.path("currentGrade").asText(),
+                row.path("candidateScore").asText(), row.path("candidateGrade").asText(),
+                row.path("candidateRiskPoints").asText())));
+        System.out.println(table);
     }
 
     private static void assertRow(

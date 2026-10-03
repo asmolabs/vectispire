@@ -1,15 +1,20 @@
 package com.asmolabs.vectispire.core.posture;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.scorecard.CandidateScore;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
+import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 
@@ -26,16 +31,26 @@ import org.springframework.stereotype.Service;
  * observed. The candidate weighs the disallowed licences the card counts, as a term of the backlog,
  * and drops the production bonus for a completed scan: the counts beside each row are what it weighs,
  * and the risk points their weighted sum.
+ *
+ * <p><b>Every project and solution the caller sees is listed too</b>, as the tree would list it: the
+ * current score its scope card gives ({@link SecurityScorecardService#getScopeScorecard}) beside the
+ * candidate over the scope's backlog, with the card's coverage cap and {@code NO_DATA}. The candidate
+ * counts a scope's licences once ({@link SecurityScorecardService#candidateScopes}); the card counts
+ * twice those of a scan naming one of the scope's images and one of its repositories, and the row says
+ * so, so that the switch fixes it knowingly.
  */
 @Service
 public class ScoreSimulationService {
 
     private final SecurityScorecardService scorecards;
     private final TargetNaming naming;
+    private final SolutionQueryService solutions;
 
-    public ScoreSimulationService(SecurityScorecardService scorecards, TargetNaming naming) {
+    public ScoreSimulationService(
+            SecurityScorecardService scorecards, TargetNaming naming, SolutionQueryService solutions) {
         this.scorecards = scorecards;
         this.naming = naming;
+        this.solutions = solutions;
     }
 
     /** The parameters the simulation ran with — the request's, the proposed ones where it set none. */
@@ -72,21 +87,66 @@ public class ScoreSimulationService {
             long low,
             long licences) {}
 
+    /**
+     * One project or solution under both formulas, over the targets of it the caller sees.
+     *
+     * @param kind {@code project} or {@code solution}
+     * @param partial the scope holds targets the caller does not see; both scores cover the visible ones
+     * @param observedTargets the visible targets holding a completed scan; below {@code targetCount} both
+     *     scores are capped at the observed share
+     * @param currentScore the scope card's, null exactly when {@code currentGrade} is {@code NO_DATA}
+     * @param candidateRiskPoints uncapped; null with no data
+     * @param licences the scope's disallowed licence entries, each counted once — the candidate's term
+     * @param currentLicences the same entries as the scope card counts them today
+     * @param currentDoubleCounted the card's licence count differs from the candidate's: it sums its
+     *     targets' inventories, and an image's includes the entries of scans naming a repository too,
+     *     which that repository's inventory lists as well — or, its repository outside the scope, which
+     *     the candidate leaves to the repository they belong to. The switch to the candidate fixes it
+     */
+    public record ScoreSimulationScope(
+            String kind,
+            long id,
+            String name,
+            boolean partial,
+            int targetCount,
+            int observedTargets,
+            Integer currentScore,
+            SecurityGrade currentGrade,
+            Integer candidateScore,
+            SecurityGrade candidateGrade,
+            Double candidateExact,
+            Double candidateRiskPoints,
+            long exploited,
+            long critical,
+            long high,
+            long medium,
+            long low,
+            long licences,
+            long currentLicences,
+            boolean currentDoubleCounted) {}
+
     /** How many of the listed targets read this grade under each formula. */
     public record ScoreSimulationGrade(SecurityGrade grade, long current, long candidate) {}
 
-    /** @param grades every grade, {@code NO_DATA} included, in the scale's order — a zero row stays */
+    /**
+     * @param grades the targets' — every grade, {@code NO_DATA} included, in the scale's order; a zero
+     *     row stays
+     * @param scopes projects, then solutions, each by name
+     */
     public record ScoreSimulation(
-            ScoreSimulationWeights weights, List<ScoreSimulationTarget> targets, List<ScoreSimulationGrade> grades) {}
+            ScoreSimulationWeights weights,
+            List<ScoreSimulationTarget> targets,
+            List<ScoreSimulationGrade> grades,
+            List<ScoreSimulationScope> scopes) {}
 
     /**
-     * Both scores for every target the caller may see.
+     * Both scores for every target, project and solution the caller may see.
      *
      * <p>Each parameter left out takes its value in {@link CandidateScore.Weights#PROPOSED}; one that
      * is negative, not finite, or a {@code k} that is not positive is refused in words.
      */
     public ScoreSimulation simulate(
-            Visibility allowed,
+            VisibilityService.Allowance allowance,
             Double exploited,
             Double critical,
             Double high,
@@ -104,6 +164,7 @@ public class ScoreSimulationService {
                 Objects.requireNonNullElse(licence, proposed.licence()),
                 Objects.requireNonNullElse(k, proposed.k()));
 
+        Visibility allowed = allowance.visibility();
         Map<ScanTarget, SecurityScorecardService.TargetGrade> current = scorecards.gradeEach(allowed);
         Map<ScanTarget, CandidateScore.Counts> counts = scorecards.candidateCounts(allowed);
 
@@ -156,7 +217,44 @@ public class ScoreSimulationService {
                 new ScoreSimulationWeights(weights.exploited(), weights.critical(), weights.high(), weights.medium(),
                         weights.low(), weights.licence(), weights.k()),
                 rows,
-                grades);
+                grades,
+                scopes(allowance, weights));
+    }
+
+    private List<ScoreSimulationScope> scopes(VisibilityService.Allowance allowance, CandidateScore.Weights weights) {
+        List<ScoreSimulationScope> rows = new ArrayList<>();
+        for (SecurityScorecardService.ScopeCandidate after : scorecards.candidateScopes(solutions.visibleScopes(allowance), weights)) {
+            VisibleScope scope = after.scope();
+            // The scope card itself, as its compliance route serves it: the current figure is that
+            // computation's, never a copy of its arithmetic.
+            SecurityScorecard before = scorecards.getScopeScorecard(scope);
+            CandidateScore.Counts open = after.counts();
+            rows.add(new ScoreSimulationScope(
+                    scope.kind().wireName(),
+                    scope.id(),
+                    scope.name(),
+                    scope.partial(),
+                    after.totalTargets(),
+                    after.observedTargets(),
+                    before.score(),
+                    before.grade(),
+                    after.score(),
+                    after.grade(),
+                    after.exact(),
+                    after.riskPoints(),
+                    open.exploited(),
+                    open.critical(),
+                    open.high(),
+                    open.medium(),
+                    open.low(),
+                    open.licences(),
+                    before.licenseViolationCount(),
+                    before.licenseViolationCount() != open.licences()));
+        }
+        rows.sort(Comparator.comparing((ScoreSimulationScope row) -> "solution".equals(row.kind()))
+                .thenComparing(row -> row.name().toLowerCase(Locale.ROOT))
+                .thenComparingLong(ScoreSimulationScope::id));
+        return rows;
     }
 
     private static long idOf(ScanTarget target) {

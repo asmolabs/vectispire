@@ -78,10 +78,13 @@
   ([comment](../guide/exports.fr.md#export-de-projet)).
 
 - **Expérimental : une formule candidate du scorecard, à côté de l'actuelle.**
-  `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible visible des deux
-  façons pour que le changement de formule se décide sur les chiffres du parc, avec les points de
-  risque de chaque cible ; les valeurs par défaut sont la calibration validée le 2026-10-03, licences
-  interdites comprises ; aucune note ne change ([comment](../guide/repositories.fr.md#score-simulation)).
+  `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et
+  chaque solution visibles des deux façons pour que le changement de formule se décide sur les chiffres
+  du parc, avec les points de risque de chaque ligne ; les valeurs par défaut sont la calibration
+  validée le 2026-10-03, licences interdites comprises ; aucune note ne change
+  ([comment](../guide/repositories.fr.md#score-simulation)). Une ligne de portée montre où la fiche
+  d'un projet ou d'une solution compte aujourd'hui une licence deux fois — un scan qui nomme une de ses
+  images et un de ses dépôts — ce que la bascule de formule corrigera.
 - **Un relevé hebdomadaire de la couverture OWASP Top 10 commence maintenant.** Toutes les six heures au
   plus, le passage de maintenance enregistre, pour chaque dépôt et chaque image — analysés ou non — et pour
   chacune des dix catégories, l'état qu'affiche la grille OWASP (constats, non mesuré, non couvert, rien

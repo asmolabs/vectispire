@@ -8148,6 +8148,12 @@
             },
             "type" : "array"
           },
+          "scopes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ScoreSimulationScope"
+            },
+            "type" : "array"
+          },
           "targets" : {
             "items" : {
               "$ref" : "#/components/schemas/ScoreSimulationTarget"
@@ -8176,6 +8182,88 @@
           }
         },
         "required" : [ "candidate", "current" ],
+        "type" : "object"
+      },
+      "ScoreSimulationScope" : {
+        "properties" : {
+          "candidateExact" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "candidateGrade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "candidateRiskPoints" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "candidateScore" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "critical" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "currentDoubleCounted" : {
+            "type" : "boolean"
+          },
+          "currentGrade" : {
+            "enum" : [ "A_PLUS", "A", "B", "C", "D", "F", "NO_DATA" ],
+            "type" : "string"
+          },
+          "currentLicences" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "currentScore" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "exploited" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "high" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "licences" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "low" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "medium" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "observedTargets" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "targetCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "critical", "currentDoubleCounted", "currentLicences", "exploited", "high", "id", "licences", "low", "medium", "observedTargets", "partial", "targetCount" ],
         "type" : "object"
       },
       "ScoreSimulationTarget" : {
@@ -16977,7 +17065,7 @@
     },
     "/api/v1/scorecards/simulation" : {
       "get" : {
-        "description" : "Lists every visible target's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the grade distribution under each. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.",
+        "description" : "Lists every visible target's, project's and solution's current score and grade beside the candidate's, 100 × exp(−Σ weight × count / k) over the open issues and the disallowed licences, an exploited issue capping the grade at D, with the weighted total (the risk points), and the targets' grade distribution under each. A scope's candidate counts each issue and licence entry once, where its current card counts twice the licences of a scan naming one of its images and one of its repositories. Parameters left out take the proposed values. Experimental: nothing is stored and no card, badge or ranking changes.",
         "operationId" : "simulateScores",
         "parameters" : [ {
           "description" : "Weight of an actively exploited (CISA KEV) issue, any severity",

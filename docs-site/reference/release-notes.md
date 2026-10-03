@@ -73,10 +73,12 @@
   ([how](../guide/exports.md#project-export)).
 
 - **Experimental: a candidate scorecard formula, side by side with the current one.**
-  `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target both ways so
-  that a change of formula is decided on the estate's figures, with each target's risk points; the
-  defaults are the calibration validated on 2026-10-03, disallowed licences included; no grade
-  changes ([how](../guide/repositories.md#score-simulation)).
+  `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
+  solution both ways so that a change of formula is decided on the estate's figures, with each row's
+  risk points; the defaults are the calibration validated on 2026-10-03, disallowed licences included;
+  no grade changes ([how](../guide/repositories.md#score-simulation)). A scope row shows where a
+  project's or a solution's card counts a licence twice today — a scan naming one of its images and
+  one of its repositories — which the formula's switch will fix.
 - **A weekly record of the OWASP Top 10 coverage starts now.** Every six hours at most, the maintenance
   turn records, for every repository and image — scanned or not — and for each of the ten categories,
   the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings

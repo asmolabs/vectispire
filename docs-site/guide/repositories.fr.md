@@ -258,6 +258,19 @@ paramètre de requête pour essayer d'autres valeurs ; un paramètre absent pren
 réponse liste pour chaque cible le score et la note actuels et candidats, ses points de risque et ses
 compteurs, et combien de cibles lisent chaque note sous chaque formule.
 
+**Les projets et les solutions sont listés aussi** (`scopes`), chacun de ceux que
+l'[arbre des solutions](../administration/solutions-and-projects.fr.md) montre à l'administrateur : le score que donne aujourd'hui le
+scorecard du projet ou de la solution à côté de la candidate sur le backlog entier de la portée, avec
+le même plafond quand une partie de la portée n'a jamais été scannée et le même `NO_DATA` quand aucune
+ne l'a été. Une portée cumule les backlogs de ses cibles, et peut donc se lire plus bas que chacune
+d'elles. Chaque ligne de portée porte aussi deux nombres de licences : `licences`, celui de la
+candidate, chaque entrée interdite comptée une fois ; et `currentLicences`, ce que compte aujourd'hui
+la fiche du projet ou de la solution. Ils diffèrent — `currentDoubleCounted` vaut alors `true` — là
+où un scan a nommé à la fois une image et un dépôt de la portée : la fiche actuelle compte les
+composants et les constats de licence de ce scan une fois pour le dépôt et une fois de plus pour
+l'image. La fiche propre de chaque cible les compte une fois, sur le dépôt ; la candidate s'accorde
+avec elle, et la bascule de formule corrige la fiche de portée.
+
 ## Langages {#languages}
 
 Chaque dépôt montre, sous ses détails, les langages recensés par son **scan terminé le plus récent**,
