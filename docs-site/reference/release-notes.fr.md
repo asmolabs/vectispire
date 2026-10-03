@@ -384,6 +384,18 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   double validation) est dit dans la langue du lecteur. Marquer les documents d'un manifeste retiré vient
   avec le lot suivant ([comment](../guide/exports.fr.md#rapports)).
 
+- **Les documents de rapport retirés, et demander si un document tient toujours** — le septième lot de la
+  décision 0035. Retirer un digest de manifeste retire désormais **chaque document qu'il a produit**, qui reste
+  stocké et téléchargeable : ses exécutions portent `withdrawnAt`, `withdrawnBy` et `withdrawalJustification`,
+  le téléchargement répond `Vectispire-Document-Status: withdrawn` (`upheld` pour tout autre document), et une
+  exécution en cours au moment du retrait ne signe rien (échec `plugin_unavailable`).
+  `GET /api/v1/report-documents/{sha256}`, pour tout compte connecté, prend le SHA-256 d'un paquet ou du
+  fichier qu'il contient et répond son `standing` — `upheld`, `withdrawn` ou `unknown` — avec les exécutions qui
+  l'ont produit, leurs digests de plugin, de manifeste et d'image, leur clé de signature et leur retrait. Le
+  document d'un projet que l'appelant ne voit pas en entier répond `unknown`, exactement comme un document jamais
+  produit. `REPORT_PLUGIN_WITHDRAWN` compte les documents retirés ; V79 ajoute trois index aux exécutions
+  ([comment](../administration/report-plugins.fr.md#linstallation-se-porte-t-elle-toujours-garante-dun-document)).
+
 - **Expérimental : d'autres poids du scorecard, à côté de ceux de production.**
   `GET /api/v1/scorecards/simulation`, réservé aux administrateurs, note chaque cible, chaque projet et
   chaque solution visibles avec la formule de la fiche et avec les poids demandés, avec les points de

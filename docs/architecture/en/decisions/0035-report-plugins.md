@@ -795,6 +795,49 @@ Lot R6 — the interface — needed no route of its own. The code is in `vectisp
 - **The withdrawal mark is R7's**: the run view does not say a run's manifest was withdrawn yet, and the
   runs table leaves a marked place for it.
 
+## Built in R7 (2026-10-03): where the code says more than §4
+
+Lot R7 — withdrawal and the document status route — settled these points §4 left open. The code is in
+`core.reportplugins` (`ReportWithdrawals`, `ReportDocumentStatusService`, `web/ReportDocumentsController`,
+`ReportRunService`, `ReportExecution`, migration V79).
+
+- **A document's withdrawal is its manifest's, read, never copied.** Nothing is written on the documents or the
+  runs when a digest is withdrawn: every answer — the run's view, the download, the status route — reads the
+  withdrawal off `t_report_plugin_manifest` through the digest the run recorded at its claim. A flag stamped on
+  the documents by the withdrawal would miss the document a run still in hand produced after the stamp, served
+  then as standing by an installation that had withdrawn its code; read, the withdrawal reaches every document of
+  the digest whenever it was produced, and only those. V79 is therefore three indexes on the run — its package's
+  and its file's SHA-256 for the status route, its manifest digest for counting a withdrawal's documents.
+- **A run in hand when its digest is withdrawn signs nothing**: before signing, the executor reads the manifest
+  again, and a withdrawn one fails the run `plugin_unavailable`, the file discarded — the claim's rule, applied at
+  the last moment it can be. A withdrawal landing after that read is still reflected on the document by the rule
+  above; this keeps the key off code already withdrawn.
+- **The withdrawn document is still served, and says so.** Refusing it would leave its holders unable to fetch
+  the original and compare; the package is kept as it was handed out — the bytes, their signature and the
+  provenance cannot change, and a document whose bytes changed would no longer be the one in the world. The
+  response carries `Vectispire-Document-Status: withdrawn` (`upheld` otherwise, always sent so that a client can
+  tell a version that does not say from a document that stands); the header carries no reason — a justification
+  is any language, a header ASCII — which the run's `withdrawnAt`, `withdrawnBy` and `withdrawalJustification`
+  carry. The download's audit entry says it was served as withdrawn, and `REPORT_PLUGIN_WITHDRAWN` counts the
+  documents, before the justification so that the stored description keeps both. No new audit operation and no
+  new SIEM identifier: `VECTI-SEC-031` already signals the withdrawal.
+- **The status route is `GET /api/v1/report-documents/{sha256}`, for a signed-in account, always 200** for a
+  well-formed digest: `standing` is `upheld`, `withdrawn` or `unknown`, with the productions that match. The
+  digest is the **package's or the file's** — the file is the provenance's subject and what a recipient holds once
+  the zip is opened. A package names its run; a file may match several runs, since a deterministic renderer writes
+  the same bytes twice, and is `upheld` while any of them stands. It is read off the run, not the stored package:
+  a document purged by the evidence window still has copies in the world, and is answered with `documentKept:
+  false`. A refused output's digest is no document — nothing signed it — and answers `unknown`.
+- **Who is answered: the documents of projects the caller sees whole, and `unknown` for everything else, in the
+  same body.** §4 says "a signed-in holder" and names no guard; the one taken is the runs' and the download's,
+  since a production names its project and run. A distinct answer for "exists, but not yours" would tell anybody
+  holding a copy which project produced it; so the document of a hidden project, of one seen only in part or of a
+  deleted one, and a digest never produced, answer alike, and a holder without the grant asks somebody who has it. No integration
+  key — §4's "signed-in" — and no audit entry: the answer shows nothing the project's runs do not.
+- **The digest is normalised to lower case** before it is compared: MySQL compares a `varchar` without regard to
+  case and PostgreSQL with it, so an upper-case digest would otherwise be known on one engine and unknown on the
+  other. A `sha256:` prefix is accepted; anything but 64 hexadecimal characters is a 400 about the request.
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

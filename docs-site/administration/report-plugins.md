@@ -14,11 +14,6 @@ that registered a digest sees why it cannot approve it. A project's page carries
 it, the runs, the downloads and the project export: see [Reports](../guide/exports.md#reports) in the user
 guide. Every route below is also there for automation.
 
-!!! warning "A withdrawal is not yet stated on a document"
-    A withdrawn manifest's documents are still served, and neither their package nor the project page yet
-    says they were withdrawn, nor does a route yet answer whether the installation still stands by a
-    document; both come in a later release.
-
 ## The manifest
 
 ```json
@@ -94,9 +89,24 @@ listed to anybody who sees the whole project, images included — the people who
 A signature cannot be unmade. When an image turns out to be wrong — a renderer that drops lines, a signer
 compromised — the governor **withdraws** its digest, with a justification of 20 to 500 characters. The
 digest never runs again and cannot be registered again; if it was the plugin's approved one, the plugin has
-none until a fixed image — a new manifest — is approved. The documents it produced stay stored and will be
-served marked withdrawn, with the justification. There is no delete: an id names every document the plugin
-produced.
+none until a fixed image — a new manifest — is approved. There is no delete: an id names every document the
+plugin produced.
+
+**Every document the digest produced is withdrawn with it, and kept.** Nothing is deleted nor rewritten: the
+package stays exactly as it was handed out — evidence of what left — and its signature still verifies, since a
+detached signature cannot be unmade. What changes is what the installation says of it:
+
+- each run that used the digest carries `withdrawnAt`, `withdrawnBy` and `withdrawalJustification` on
+  `GET /api/v1/projects/{id}/reports` and `…/reports/{runId}`;
+- its download is still served, with the header `Vectispire-Document-Status: withdrawn` (`upheld` for every
+  other document);
+- the [status route](#does-the-installation-still-stand-by-a-document) answers `withdrawn` to anybody who asks
+  about it.
+
+The withdrawal is read from the manifest at every answer, not copied onto the documents, so it reaches every
+document of the digest, whenever it was produced. **A run in hand when the digest is withdrawn signs nothing**:
+the file it writes is discarded and the run fails `plugin_unavailable`, as a run claimed after the withdrawal
+does. The audit entry `REPORT_PLUGIN_WITHDRAWN` counts the documents withdrawn.
 
 ## Requesting a report
 
@@ -237,6 +247,57 @@ kept with the run for the evidence window and its SHA-256 is in the statement, t
 and a deterministic renderer given the same export writes the same bytes — anybody who doubts the document
 renders the export again with the same image and compares.
 
+### Does the installation still stand by a document?
+
+A signature that verifies says the installation produced the document; it cannot say the installation has not
+since withdrawn the code that produced it. Ask, with the SHA-256 of the package you were given **or of the file
+inside it**:
+
+```bash
+sha256sum summary.xlsx
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" \
+  "$VECTISPIRE_URL/api/v1/report-documents/<sha256>"
+```
+
+```json
+{
+  "sha256": "9c1e…(64 hex)",
+  "standing": "withdrawn",
+  "productions": [{
+    "matched": "output",
+    "runId": 34, "projectId": 12, "projectName": "Checkout",
+    "pluginId": "quarterly-summary",
+    "manifestDigest": "5be0…", "imageDigest": "sha256:4f2d…",
+    "outputMediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "outputSha256": "9c1e…", "packageSha256": "0d7a…",
+    "producedAt": "2026-10-01T09:12:44.120Z",
+    "signingKeyId": "e3b4…",
+    "documentKept": true,
+    "withdrawnAt": "2026-10-03T14:02:10.551Z", "withdrawnBy": "governor",
+    "withdrawalJustification": "The renderer dropped accepted issues from the sheet."
+  }]
+}
+```
+
+| `standing` | Meaning |
+|---|---|
+| `upheld` | Produced and signed here, by a manifest that was not withdrawn. |
+| `withdrawn` | Produced and signed here, and the manifest that produced it has since been withdrawn — when, by whom and why are on the production. |
+| `unknown` | Nothing you may see has that digest. |
+
+**Who is answered.** Any signed-in account — no integration key —, about the documents of the projects it sees
+whole, images included: the people who may read the runs. **A document of a project you do not see whole, of a
+deleted project, and a digest never produced here all answer `unknown`, in the same words**: a different answer
+for "exists, but not yours" would tell anybody holding a copy which project it came from. A holder without that
+grant asks somebody who has it.
+
+`productions` lists the runs that produced it, newest first: one for a package, which names its run; possibly
+more for a file, since a deterministic renderer may write the same bytes twice — `upheld` as long as one of them
+stands. A document whose bytes the [evidence window](maintenance.md) purged is still answered, with
+`documentKept: false`: copies of it are still in the world. A run whose output was refused signed nothing, and
+is not a document here. The digest is 64 hexadecimal characters, either case, a `sha256:` prefix accepted;
+anything else is a 400. The question is not audited: it shows nothing the runs do not.
+
 ## The demonstration plugin
 
 Vectispire publishes one report plugin of its own, **`vectispire-report-demo`**: a reference to read, a
@@ -334,13 +395,15 @@ key), `REPORT_FAILED` or `REPORT_REFUSED` — each in the requester's name. **A 
 `VECTI-SEC-033`**, an output refused included (its SHA-256 in the entry): an image without a verified signer
 asked to run, or a file that is not what it declared, is how a tampered plugin shows itself. A failure for an
 ordinary reason is audited, not signalled. A download records `REPORT_DOWNLOADED`, with the output's and the
-package's SHA-256, in the downloader's name.
+package's SHA-256, in the downloader's name — and, for a withdrawn document, that it was served as withdrawn. A
+withdrawal's `REPORT_PLUGIN_WITHDRAWN` names the number of documents withdrawn with the digest, then the
+justification.
 
 ## Refusals
 
 | Answer | When |
 |---|---|
-| 400 | A manifest refused — the `detail` names the first thing wrong; a withdrawal without its justification. |
+| 400 | A manifest refused — the `detail` names the first thing wrong; a withdrawal without its justification; a document status asked with anything but a SHA-256. |
 | 403 | A role that may not make the gesture. |
 | 404 | A plugin, or a digest of it, that does not exist; a project that does not exist or that you do not see whole (`Project not found.`); a report asked of a plugin not switched on for the project, in the same words whether it exists or not; the document of a run that did not produce, or whose bytes the evidence window purged — the run keeps its digests. |
 | 409 `report-plugin-id-taken` | The id is registered already. |

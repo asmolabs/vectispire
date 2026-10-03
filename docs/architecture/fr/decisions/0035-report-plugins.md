@@ -869,6 +869,55 @@ Le lot R6 — l'interface — n'a demandé aucune route. Le code est dans `vecti
 - **La marque du retrait revient à R7** : la vue d'une exécution ne dit pas encore que son manifeste a été
   retiré, et le tableau des exécutions lui laisse une place marquée.
 
+## Construit en R7 (2026-10-03) : là où le code en dit plus que le §4
+
+Le lot R7 — le retrait et la route de statut des documents — a tranché ces points que le §4 laissait ouverts. Le
+code est dans `core.reportplugins` (`ReportWithdrawals`, `ReportDocumentStatusService`,
+`web/ReportDocumentsController`, `ReportRunService`, `ReportExecution`, migration V79).
+
+- **Le retrait d'un document est celui de son manifeste, lu, jamais recopié.** Rien n'est écrit sur les documents
+  ni sur les exécutions quand un digest est retiré : chaque réponse — la vue de l'exécution, le téléchargement, la
+  route de statut — lit le retrait dans `t_report_plugin_manifest` par le digest que l'exécution a enregistré à sa
+  prise en charge. Un drapeau posé sur les documents par le retrait manquerait le document qu'une exécution
+  encore en cours a produit après lui, servi alors comme tenu par une installation qui avait retiré son code ; lu,
+  le retrait atteint chaque document du digest quel que soit le moment où il a été produit, et seulement ceux-là.
+  V79 se réduit donc à trois index sur l'exécution — le SHA-256 de son paquet et de son fichier pour la route de
+  statut, son digest de manifeste pour compter les documents d'un retrait.
+- **Une exécution en cours quand son digest est retiré ne signe rien** : avant de signer, l'exécuteur relit le
+  manifeste, et un manifeste retiré fait échouer l'exécution `plugin_unavailable`, le fichier écarté — la règle de
+  la prise en charge, appliquée au dernier moment possible. Un retrait arrivé après cette lecture se reflète
+  quand même sur le document par la règle précédente ; ceci tient la clé à l'écart d'un code déjà retiré.
+- **Le document retiré est toujours servi, et le dit.** Le refuser empêcherait ses détenteurs de récupérer
+  l'original pour comparer ; le paquet est conservé tel qu'il a été remis — les octets, leur signature et la
+  provenance ne peuvent pas changer, et un document dont les octets changeraient ne serait plus celui qui
+  circule. La réponse porte `Vectispire-Document-Status: withdrawn` (`upheld` sinon, toujours envoyé pour qu'un
+  client distingue une version qui ne le dit pas d'un document qui tient) ; l'en-tête ne porte pas la raison — une
+  justification est dans n'importe quelle langue, un en-tête en ASCII —, que portent `withdrawnAt`, `withdrawnBy`
+  et `withdrawalJustification` sur l'exécution. L'entrée d'audit du téléchargement indique qu'il a été servi comme
+  retiré, et `REPORT_PLUGIN_WITHDRAWN` compte les documents, avant la justification pour que la description
+  stockée garde les deux. Pas de nouvelle opération d'audit ni de nouvel identifiant SIEM : `VECTI-SEC-031`
+  signale déjà le retrait.
+- **La route de statut est `GET /api/v1/report-documents/{sha256}`, pour un compte connecté, toujours 200** pour
+  une empreinte bien formée : `standing` vaut `upheld`, `withdrawn` ou `unknown`, avec les productions qui
+  correspondent. L'empreinte est **celle du paquet ou du fichier** — le fichier est le sujet de la provenance et
+  ce que détient un destinataire une fois le zip ouvert. Un paquet nomme son exécution ; un fichier peut
+  correspondre à plusieurs, puisqu'un moteur de rendu déterministe écrit deux fois les mêmes octets, et reste
+  `upheld` tant que l'une d'elles tient. Elle est lue sur l'exécution, pas sur le paquet stocké : un document purgé
+  par la fenêtre des preuves a encore des copies en circulation, et reçoit une réponse avec `documentKept: false`.
+  L'empreinte d'une sortie refusée n'est pas un document — rien ne l'a signée — et répond `unknown`.
+- **Qui reçoit une réponse : les documents des projets que l'appelant voit en entier, et `unknown` pour tout le
+  reste, dans le même corps.** Le §4 dit « un détenteur connecté » sans nommer de garde ; celle retenue est celle
+  des exécutions et du téléchargement, puisqu'une production nomme son projet et son exécution. Une réponse
+  distincte pour « existe, mais pas pour vous » dirait à quiconque détient une copie quel projet l'a produite ;
+  le document d'un projet caché, d'un projet vu en partie ou supprimé, et une empreinte jamais produite répondent
+  donc de même, et un détenteur sans ce droit demande à quelqu'un qui l'a. Aucune clé d'intégration — le
+  « connecté » du §4 — et aucune entrée d'audit : la réponse ne montre rien que les exécutions du projet ne
+  montrent déjà.
+- **L'empreinte est ramenée en minuscules** avant comparaison : MySQL compare un `varchar` sans tenir compte de la
+  casse et PostgreSQL en en tenant compte, si bien qu'une empreinte en majuscules serait sinon connue sur un
+  moteur et inconnue sur l'autre. Un préfixe `sha256:` est accepté ; tout autre chose que 64 caractères
+  hexadécimaux est un 400 qui parle de la requête.
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

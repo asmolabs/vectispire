@@ -356,6 +356,18 @@ another branch, is another target and is accepted as before.
   already under way, four-eyes) is said in the reader's language. Marking a withdrawn manifest's documents
   comes with the next lot ([how](../guide/exports.md#reports)).
 
+- **Withdrawn report documents, and asking whether a document still stands** — the seventh lot of decision
+  0035. Withdrawing a manifest digest now withdraws **every document it produced**, which stay stored and
+  downloadable: their runs carry `withdrawnAt`, `withdrawnBy` and `withdrawalJustification`, the download
+  answers `Vectispire-Document-Status: withdrawn` (`upheld` for every other document), and a run in hand when
+  the digest is withdrawn signs nothing (failed `plugin_unavailable`). `GET /api/v1/report-documents/{sha256}`,
+  for any signed-in account, takes the SHA-256 of a package or of the file inside it and answers its
+  `standing` — `upheld`, `withdrawn` or `unknown` — with the runs that produced it, their plugin, manifest and
+  image digests, signing key and withdrawal. A document of a project the caller does not see whole answers
+  `unknown`, exactly as one never produced. `REPORT_PLUGIN_WITHDRAWN` counts the documents withdrawn; V79 adds
+  three indexes to the runs
+  ([how](../administration/report-plugins.md#does-the-installation-still-stand-by-a-document)).
+
 - **Experimental: other scorecard weights, side by side with the production ones.**
   `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
   solution under the card's formula and under the weights asked for, with each row's risk points; with

@@ -16,11 +16,6 @@ projet porte les plugins activés pour lui, les exécutions, les téléchargemen
 [Rapports](../guide/exports.fr.md#rapports) dans le guide utilisateur. Chaque route ci-dessous reste là pour
 l'automatisation.
 
-!!! warning "Un retrait n'est pas encore indiqué sur un document"
-    Les documents d'un manifeste retiré sont encore servis, ni leur paquet ni la page du projet ne disent
-    encore qu'il a été retiré, et aucune route ne répond encore si l'installation se porte toujours garante
-    d'un document ; les deux viennent dans une version ultérieure.
-
 ## Le manifeste
 
 ```json
@@ -98,8 +93,24 @@ Une signature ne se défait pas. Quand une image se révèle fautive — un rend
 signataire compromis —, le gouverneur **retire** son digest, avec une justification de 20 à 500
 caractères. Le digest ne tourne plus jamais et ne peut pas être enregistré à nouveau ; s'il était le
 manifeste approuvé du plugin, celui-ci n'en a plus jusqu'à l'approbation d'une image corrigée — un nouveau
-manifeste. Les documents qu'il a produits restent stockés et seront servis marqués comme retirés, avec la
-justification. Il n'y a pas de suppression : un identifiant nomme chaque document que le plugin a produit.
+manifeste. Il n'y a pas de suppression : un identifiant nomme chaque document que le plugin a produit.
+
+**Chaque document produit par le digest est retiré avec lui, et conservé.** Rien n'est supprimé ni réécrit :
+le paquet reste exactement tel qu'il a été remis — la preuve de ce qui est sorti — et sa signature se vérifie
+toujours, puisqu'une signature détachée ne se défait pas. Ce qui change, c'est ce que l'installation en dit :
+
+- chaque exécution qui a utilisé le digest porte `withdrawnAt`, `withdrawnBy` et `withdrawalJustification` dans
+  `GET /api/v1/projects/{id}/reports` et `…/reports/{runId}` ;
+- son téléchargement est toujours servi, avec l'en-tête `Vectispire-Document-Status: withdrawn` (`upheld` pour
+  tout autre document) ;
+- la [route de statut](#linstallation-se-porte-t-elle-toujours-garante-dun-document) répond `withdrawn` à
+  quiconque la consulte à son sujet.
+
+Le retrait est lu sur le manifeste à chaque réponse, pas recopié sur les documents : il atteint donc chaque
+document du digest, quel que soit le moment où il a été produit. **Une exécution en cours au moment du retrait
+ne signe rien** : le fichier qu'elle écrit est écarté et l'exécution échoue `plugin_unavailable`, comme une
+exécution prise en charge après le retrait. L'entrée d'audit `REPORT_PLUGIN_WITHDRAWN` compte les documents
+retirés.
 
 ## Demander un rapport
 
@@ -247,6 +258,59 @@ son SHA-256 figure dans la déclaration, l'image est épinglée par digest, et u
 qui l'on donne le même export écrit les mêmes octets — quiconque doute du document refait le rendu de l'export
 avec la même image et compare.
 
+### L'installation se porte-t-elle toujours garante d'un document ?
+
+Une signature qui se vérifie dit que l'installation a produit le document ; elle ne peut pas dire que
+l'installation n'a pas, depuis, retiré le code qui l'a produit. Demandez-le, avec le SHA-256 du paquet reçu
+**ou du fichier qu'il contient** :
+
+```bash
+sha256sum summary.xlsx
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" \
+  "$VECTISPIRE_URL/api/v1/report-documents/<sha256>"
+```
+
+```json
+{
+  "sha256": "9c1e…(64 hex)",
+  "standing": "withdrawn",
+  "productions": [{
+    "matched": "output",
+    "runId": 34, "projectId": 12, "projectName": "Checkout",
+    "pluginId": "quarterly-summary",
+    "manifestDigest": "5be0…", "imageDigest": "sha256:4f2d…",
+    "outputMediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "outputSha256": "9c1e…", "packageSha256": "0d7a…",
+    "producedAt": "2026-10-01T09:12:44.120Z",
+    "signingKeyId": "e3b4…",
+    "documentKept": true,
+    "withdrawnAt": "2026-10-03T14:02:10.551Z", "withdrawnBy": "governor",
+    "withdrawalJustification": "The renderer dropped accepted issues from the sheet."
+  }]
+}
+```
+
+| `standing` | Signification |
+|---|---|
+| `upheld` | Produit et signé ici, par un manifeste qui n'a pas été retiré. |
+| `withdrawn` | Produit et signé ici, et le manifeste qui l'a produit a été retiré depuis — quand, par qui et pourquoi figurent sur la production. |
+| `unknown` | Rien de ce que vous pouvez voir n'a cette empreinte. |
+
+**Qui reçoit une réponse.** Tout compte connecté — pas de clé d'intégration —, au sujet des documents des
+projets qu'il voit en entier, images comprises : ceux qui peuvent lire les exécutions. **Un document d'un projet
+que vous ne voyez pas en entier, d'un projet supprimé, et une empreinte jamais produite ici répondent tous
+`unknown`, dans les mêmes mots** : une réponse distincte pour « existe, mais pas pour vous » dirait à
+quiconque en détient une copie de quel projet il vient. Un détenteur sans ce droit demande à quelqu'un qui l'a.
+
+`productions` liste les exécutions qui l'ont produit, de la plus récente à la plus ancienne : une pour un
+paquet, qui nomme son exécution ; parfois davantage pour un fichier, puisqu'un moteur de rendu déterministe peut
+écrire deux fois les mêmes octets — `upheld` tant que l'une d'elles tient. Un document dont la
+[fenêtre des preuves](maintenance.fr.md) a purgé les octets reçoit toujours une réponse, avec
+`documentKept: false` : des copies en circulent encore. Une exécution dont la sortie a été refusée n'a rien
+signé, et n'est pas un document ici. L'empreinte compte 64 caractères hexadécimaux, en minuscules ou majuscules,
+préfixe `sha256:` accepté ; tout le reste est un 400. La question n'est pas journalisée : elle ne montre rien
+que les exécutions ne montrent déjà.
+
 ## Le plugin de démonstration
 
 Vectispire publie un plugin de rapport à lui, **`vectispire-report-demo`** : une référence à lire, un point
@@ -347,13 +411,15 @@ de signature), `REPORT_FAILED` ou `REPORT_REFUSED` — chacun au nom du demandeu
 comme `VECTI-SEC-033`**, une sortie refusée comprise (son SHA-256 dans l'entrée) : une image sans signataire
 vérifié sollicitée pour s'exécuter, ou un fichier qui n'est pas ce qu'il déclarait, c'est ainsi qu'un plugin
 altéré se trahit. Un échec pour une raison ordinaire est journalisé, pas signalé. Un téléchargement
-enregistre `REPORT_DOWNLOADED`, avec les SHA-256 de la sortie et du paquet, au nom de qui télécharge.
+enregistre `REPORT_DOWNLOADED`, avec les SHA-256 de la sortie et du paquet, au nom de qui télécharge — et, pour
+un document retiré, qu'il a été servi comme retiré. Le `REPORT_PLUGIN_WITHDRAWN` d'un retrait indique le nombre
+de documents retirés avec le digest, puis la justification.
 
 ## Refus
 
 | Réponse | Quand |
 |---|---|
-| 400 | Un manifeste refusé — le `detail` nomme la première chose qui ne va pas ; un retrait sans sa justification. |
+| 400 | Un manifeste refusé — le `detail` nomme la première chose qui ne va pas ; un retrait sans sa justification ; un statut de document demandé avec autre chose qu'un SHA-256. |
 | 403 | Un rôle qui ne peut pas faire ce geste. |
 | 404 | Un plugin, ou un digest de celui-ci, qui n'existe pas ; un projet qui n'existe pas ou que vous ne voyez pas en entier (`Project not found.`) ; un rapport demandé à un plugin non activé pour le projet, dans les mêmes mots qu'il existe ou non ; le document d'une exécution qui n'a pas produit, ou dont la fenêtre des preuves a purgé les octets — l'exécution garde ses empreintes. |
 | 409 `report-plugin-id-taken` | L'identifiant est déjà enregistré. |
