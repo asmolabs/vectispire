@@ -5,14 +5,26 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HexFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.exception.ConflictException;
+import com.github.dockerjava.api.exception.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.TestcontainersConfiguration;
 
 /**
  * The MySQL server the context and HTTP suites run on, and the one database this JVM uses on it
@@ -30,6 +42,9 @@ import org.testcontainers.utility.DockerImageName;
  * container per test JVM through Testcontainers, the image the campaign pins for MySQL ({@code
  * Engine.MYSQL}, under {@code src/integrationTest}, which this source set cannot see — so the two
  * are kept equal by hand, and a difference is a suite and a campaign disagreeing about the engine).
+ * On a machine that allows Testcontainers' reuse, that container is kept across runs and shared by
+ * every worktree — {@code vectispire-test-mysql}, see {@code ReusedContainer} — and nothing waits
+ * on its start but the first run.
  *
  * <p><b>No daemon and no URL is a failure, not a skip.</b> A suite that skips itself reports green
  * having checked nothing (AGENTS.md); the message says how to give it a server.
@@ -39,6 +54,13 @@ import org.testcontainers.utility.DockerImageName;
  * seconds each on MySQL when measured, a minute added to a suite of two. So the contexts share it,
  * and what a fresh file gave each of them — no row left by somebody else when it starts — {@link
  * #emptyBeforeAContextStarts} gives instead.
+ *
+ * <p><b>Dropped when the JVM ends, and swept when it did not.</b> A server somebody keeps — the
+ * reused container, the one {@code VECTISPIRE_TEST_DB_URL} names — would otherwise gather a database
+ * per run. The shutdown hook drops this JVM's and any scratch a test left open; a JVM killed before
+ * its hook ran leaves its own, which the next JVM to start drops once it is a day old ({@link
+ * TestDatabaseNames}). Every name is new to its JVM, and Flyway migrates each database alone, so two
+ * JVMs starting at once on one server share nothing but the server.
  */
 public final class TestDatabase {
 
@@ -116,20 +138,27 @@ public final class TestDatabase {
         @Override
         public void close() {
             Database opened = database();
-            drop(opened.server(), url.substring(url.lastIndexOf('/') + 1));
+            String name = url.substring(url.lastIndexOf('/') + 1);
+            drop(opened.server(), name);
+            UNCLOSED_SCRATCHES.remove(name);
         }
     }
+
+    /** Dropped by the shutdown hook if a test ends without closing them — a reused server keeps them otherwise. */
+    private static final Set<String> UNCLOSED_SCRATCHES = ConcurrentHashMap.newKeySet();
 
     /** A fresh, empty database for one test — see {@link Scratch}. */
     public static Scratch scratch() {
         Database opened = database();
-        String name = "vectispire_scratch_" + HexFormat.of().toHexDigits(ThreadLocalRandom.current().nextLong());
+        String name = TestDatabaseNames.name(
+                TestDatabaseNames.SCRATCH, Instant.now(), ThreadLocalRandom.current().nextLong());
         try (Connection connection = opened.server().connect("");
              Statement statement = connection.createStatement()) {
             statement.execute("create database " + name);
         } catch (SQLException failed) {
             throw new IllegalStateException("Could not create a scratch database on " + opened.server().url(), failed);
         }
+        UNCLOSED_SCRATCHES.add(name);
         return new Scratch(opened.server().url() + "/" + name, opened.server().user(), opened.server().password());
     }
 
@@ -211,10 +240,15 @@ public final class TestDatabase {
     private static Server server() {
         Optional<String> configured = Optional.ofNullable(System.getenv(URL_VARIABLE)).filter(url -> !url.isBlank());
         if (configured.isPresent()) {
-            return new Server(
+            Server named = new Server(
                     configured.get().replaceAll("/+$", ""),
                     Optional.ofNullable(System.getenv(USER_VARIABLE)).orElse("root"),
                     Optional.ofNullable(System.getenv(PASSWORD_VARIABLE)).orElse(""));
+            // Swept like a reused container: a developer's own server outlives the JVMs a kill left
+            // behind, and only names that carry this class's prefix and instant are touched — CI's
+            // service is new for every job and simply has none.
+            sweepOrphans(named);
+            return named;
         }
         if (!DockerClientFactory.instance().isDockerAvailable()) {
             throw new IllegalStateException("The context and HTTP suites run on MySQL (decision 0034), and there is "
@@ -222,19 +256,162 @@ public final class TestDatabase {
                     + " (with " + USER_VARIABLE + " and " + PASSWORD_VARIABLE + "). Start Docker, or point "
                     + URL_VARIABLE + " at a MySQL server, e.g. jdbc:mysql://localhost:3306.");
         }
-        // Left running until the JVM exits, when Testcontainers' reaper removes it: one container for
-        // the whole run, whatever the number of contexts. `withReuse` keeps it across runs too, on a
-        // machine whose ~/.testcontainers.properties allows it — hence a database per JVM, not one name.
-        MySQLContainer container = new MySQLContainer(DockerImageName.parse(IMAGE)).withReuse(true);
-        container.start();
-        return new Server(
+        boolean reused = TestcontainersConfiguration.getInstance().environmentSupportsReuse();
+        MySQLContainer container = reused ? ReusedContainer.start() : started(new MySQLContainer(DockerImageName.parse(IMAGE)));
+        Server started = new Server(
                 "jdbc:mysql://" + container.getHost() + ":" + container.getMappedPort(MySQLContainer.MYSQL_PORT),
                 "root",
                 container.getPassword());
+        if (reused) {
+            sweepOrphans(started);
+        }
+        return started;
+    }
+
+    private static MySQLContainer started(MySQLContainer container) {
+        container.start();
+        return container;
+    }
+
+    /**
+     * The container a machine keeps across runs and worktrees, when it allows reuse ({@code
+     * testcontainers.reuse.enable=true} in {@code ~/.testcontainers.properties}, or {@code
+     * TESTCONTAINERS_REUSE_ENABLE=true}). Without that, one container per JVM that Testcontainers'
+     * reaper removes when the JVM exits — what every run did before, and what nobody has to opt out of.
+     *
+     * <p><b>Reuse is Testcontainers' match on a hash of the create command</b> — image, environment,
+     * labels, Testcontainers' version; not the name, which travels outside the command's body — of a
+     * <em>running</em> container. So the label is a constant, or every run would make a container
+     * nobody matches again. The name buys more than identification: it is the lock Testcontainers
+     * lacks ("TODO locking" in {@code findContainerForReuse}). Two JVMs starting at once both find
+     * nothing and both create; without a name each gets a container of its own, and the second
+     * lingers for ever. With it, the daemon refuses the second create, and that JVM retries until the
+     * first one's container runs, then matches it.
+     *
+     * <p><b>A refused create is read from what holds the name</b>, never assumed to be the winner:
+     * stopped (Docker restarted — reuse never starts a stopped container) and labelled ours, it is
+     * removed; another image or another Testcontainers version — another branch's configuration, maybe
+     * in use by a run in another worktree — is left alone and this run uses a reusable container
+     * without the name, saying how to clean up. Nothing running is ever removed.
+     */
+    private static final class ReusedContainer {
+
+        static final String NAME = "vectispire-test-mysql";
+        static final String LABEL = "com.asmolabs.vectispire.test";
+
+        /** A create still in progress next door runs within seconds; past this the holder is no peer. */
+        private static final Duration PEER_STARTS_WITHIN = Duration.ofMinutes(2);
+
+        private static final Logger log = LoggerFactory.getLogger(TestDatabase.class);
+
+        static MySQLContainer start() {
+            Instant deadline = Instant.now().plus(PEER_STARTS_WITHIN);
+            String holderImage = "?";
+            boolean sawItRunning = false;
+            while (Instant.now().isBefore(deadline)) {
+                try {
+                    return started(reusable().withCreateContainerCmdModifier(create -> create.withName(NAME)));
+                } catch (RuntimeException failed) {
+                    if (!nameTaken(failed)) {
+                        throw failed;
+                    }
+                }
+                Optional<InspectContainerResponse> holder = holder();
+                if (holder.isEmpty()) {
+                    continue; // Removed between the refusal and the look.
+                }
+                InspectContainerResponse found = holder.get();
+                Map<String, String> labels = Optional.ofNullable(found.getConfig().getLabels()).orElse(Map.of());
+                holderImage = found.getConfig().getImage();
+                boolean ours = "mysql".equals(labels.get(LABEL));
+                boolean running = Boolean.TRUE.equals(found.getState().getRunning());
+                if (ours && !running && !"created".equals(found.getState().getStatus())) {
+                    remove(found.getId());
+                    continue;
+                }
+                boolean sameConfiguration = IMAGE.equals(holderImage) && Objects.equals(
+                        DockerClientFactory.TESTCONTAINERS_VERSION,
+                        labels.get(DockerClientFactory.TESTCONTAINERS_VERSION_LABEL));
+                // Running, it would have matched this round's search, which reads running containers by
+                // hash: refused twice by a running holder means another hash — this class's own create
+                // command changed since it was made — and waiting longer will not change that.
+                if (!ours || !sameConfiguration || (running && sawItRunning)) {
+                    break;
+                }
+                sawItRunning |= running;
+                pause(); // A peer's container, created and not yet matched: the next round finds it.
+            }
+            log.warn("The container named {} ({}) is not this configuration's ({}, Testcontainers {}), so this run "
+                    + "reuses one without the name. Remove the old one once no run uses it: docker rm -f {}",
+                    NAME, holderImage, IMAGE, DockerClientFactory.TESTCONTAINERS_VERSION, NAME);
+            return started(reusable());
+        }
+
+        private static MySQLContainer reusable() {
+            return new MySQLContainer(DockerImageName.parse(IMAGE)).withReuse(true).withLabel(LABEL, "mysql");
+        }
+
+        /** The daemon's 409, wherever Testcontainers wrapped it. */
+        private static boolean nameTaken(Throwable failed) {
+            for (Throwable cause = failed; cause != null; cause = cause.getCause()) {
+                if (cause instanceof ConflictException) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static Optional<InspectContainerResponse> holder() {
+            try {
+                return Optional.of(DockerClientFactory.instance().client().inspectContainerCmd(NAME).exec());
+            } catch (NotFoundException gone) {
+                return Optional.empty();
+            }
+        }
+
+        private static void remove(String id) {
+            try {
+                // Not forced: had a peer just started it, the daemon refuses, and the next round reuses it.
+                DockerClientFactory.instance().client().removeContainerCmd(id).exec();
+            } catch (NotFoundException | ConflictException raced) {
+                // Gone or started meanwhile; the next round reads it again.
+            }
+        }
+
+        private static void pause() {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while waiting for " + NAME, interrupted);
+            }
+        }
+    }
+
+    /**
+     * Drops the databases a killed JVM left on a server somebody keeps: this class's names only, and
+     * only once {@link TestDatabaseNames#ORPHANED_AFTER} old, so a run in progress elsewhere — another
+     * worktree on the same container — keeps its own. Two JVMs sweeping at once drop with {@code if
+     * exists}; a sweep that fails costs disk, not the run.
+     */
+    private static void sweepOrphans(Server server) {
+        List<String> names = new ArrayList<>();
+        try (Connection connection = server.connect("");
+             Statement statement = connection.createStatement();
+             ResultSet found = statement.executeQuery(
+                     "select schema_name from information_schema.schemata where schema_name like 'vectispire\\_%'")) {
+            while (found.next()) {
+                names.add(found.getString(1));
+            }
+        } catch (SQLException failed) {
+            return;
+        }
+        TestDatabaseNames.orphans(names, Instant.now()).forEach(orphan -> drop(server, orphan));
     }
 
     private static String createDatabase(Server server) {
-        String name = "vectispire_test_" + HexFormat.of().toHexDigits(ThreadLocalRandom.current().nextLong());
+        String name = TestDatabaseNames.name(
+                TestDatabaseNames.SHARED, Instant.now(), ThreadLocalRandom.current().nextLong());
         try (Connection connection = server.connect("");
              Statement statement = connection.createStatement()) {
             // Every cached context keeps its own pool, ten connections when busy: sixteen of them
@@ -251,7 +428,10 @@ public final class TestDatabase {
         } catch (SQLException failed) {
             throw new IllegalStateException("Could not create the test database on " + server.url(), failed);
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> drop(server, name), "drop-" + name));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            drop(server, name);
+            List.copyOf(UNCLOSED_SCRATCHES).forEach(scratch -> drop(server, scratch));
+        }, "drop-" + name));
         return name;
     }
 
