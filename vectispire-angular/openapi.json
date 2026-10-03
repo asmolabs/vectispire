@@ -3926,6 +3926,9 @@
           "kind" : {
             "type" : "string"
           },
+          "lastDiscovery" : {
+            "$ref" : "#/components/schemas/ForgeDiscoveryView"
+          },
           "name" : {
             "type" : "string"
           },
@@ -3955,6 +3958,178 @@
           }
         },
         "required" : [ "internalNetwork" ],
+        "type" : "object"
+      },
+      "ForgeDiscoveryView" : {
+        "properties" : {
+          "attempts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "changedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "connectionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "finishedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "goneCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "namespacesSeen" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "newCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "rateLimitResetAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "rateLimitWaitSeconds" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "enum" : [ "time_bound", "repository_bound", "rate_limited", "token_rejected", "destination_blocked", "cross_origin_page", "forge_unavailable", "forge_refused", "connection_unusable", "unsupported", "executor_lost", "internal_error" ],
+            "type" : "string"
+          },
+          "repositoriesSeen" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "repositoriesSkipped" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "requestedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "requestedBy" : {
+            "type" : "string"
+          },
+          "requestsMade" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "startedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "enum" : [ "pending", "running", "completed", "partial", "failed" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "attempts", "id", "namespacesSeen", "rateLimitWaitSeconds", "repositoriesSeen", "repositoriesSkipped", "requestsMade" ],
+        "type" : "object"
+      },
+      "ForgeRepositoryView" : {
+        "properties" : {
+          "archived" : {
+            "type" : "boolean"
+          },
+          "changeSummary" : {
+            "type" : "string"
+          },
+          "changedBy" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "connectionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "defaultBranch" : {
+            "type" : "string"
+          },
+          "firstSeenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "firstSeenBy" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "forgeId" : {
+            "type" : "string"
+          },
+          "fork" : {
+            "type" : "boolean"
+          },
+          "fullPath" : {
+            "type" : "string"
+          },
+          "goneAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "goneBy" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "httpUrl" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "language" : {
+            "type" : "string"
+          },
+          "lastActivityAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastSeenAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastSeenBy" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "namespacePath" : {
+            "type" : "string"
+          },
+          "personal" : {
+            "type" : "boolean"
+          },
+          "sizeBytes" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sshUrl" : {
+            "type" : "string"
+          },
+          "visibility" : {
+            "type" : "string"
+          },
+          "webUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "firstSeenBy", "id", "lastSeenBy", "personal" ],
         "type" : "object"
       },
       "ForgeTokenReplacement" : {
@@ -7517,6 +7692,30 @@
           }
         },
         "required" : [ "repositoryId" ],
+        "type" : "object"
+      },
+      "RepositoryPage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForgeRepositoryView"
+            },
+            "type" : "array"
+          },
+          "limit" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "offset" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "limit", "offset", "total" ],
         "type" : "object"
       },
       "RepositoryRef" : {
@@ -13487,6 +13686,162 @@
           }
         },
         "summary" : "Create forge connection",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{connectionId}/discoveries" : {
+      "get" : {
+        "description" : "The connection's last fifty discoveries, newest first.",
+        "operationId" : "listForgeDiscoveries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ForgeDiscoveryView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List forge discoveries",
+        "tags" : [ "Forge connections" ]
+      },
+      "post" : {
+        "description" : "Queues a discovery of the connection and answers at once, 202 with the run — pending — to poll. A control-plane instance claims it under a lease and lists the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a member of, min_access_level 10, membership=true), through the outbound guard and the connection's pinned CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. 404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending or running; 409 forge-discovery-unsupported for a GitHub connection, whose listing arrives with lot D4.",
+        "operationId" : "requestForgeDiscovery",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeDiscoveryView"
+                }
+              }
+            },
+            "description" : "Accepted"
+          }
+        },
+        "summary" : "Discover forge repositories",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}" : {
+      "get" : {
+        "description" : "What a screen polls: state (pending, running, completed, partial, failed), reason for a partial or failed one (time_bound, repository_bound, rate_limited; token_rejected, destination_blocked, cross_origin_page, forge_unavailable, forge_refused, connection_unusable, unsupported, executor_lost, internal_error), the counters — namespaces and repositories seen, requests made, seconds waited on rate limits, when a limit that ended it lifts — and once it ended newCount, changedCount and goneCount; goneCount is null unless it completed.",
+        "operationId" : "getForgeDiscovery",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "discoveryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForgeDiscoveryView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read forge discovery",
+        "tags" : [ "Forge connections" ]
+      }
+    },
+    "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/repositories" : {
+      "get" : {
+        "description" : "The repositories a discovery listed (change=all, the default), first listed (new), found renamed or moved, re-branched, archived, unarchived or back (changed, with changeSummary), or no longer listed (gone — a completed discovery only, 400 otherwise), by full path, limit 1 to 500 (100) from an offset that is a multiple of it. A value the forge did not give is null — unknown, never zero.",
+        "operationId" : "listDiscoveredRepositories",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "connectionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "discoveryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "change",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "offset",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RepositoryPage"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List discovered repositories",
         "tags" : [ "Forge connections" ]
       }
     },

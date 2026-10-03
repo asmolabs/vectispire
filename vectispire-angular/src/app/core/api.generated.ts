@@ -1508,6 +1508,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forge-connections/{connectionId}/discoveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List forge discoveries
+         * @description The connection's last fifty discoveries, newest first.
+         */
+        get: operations["listForgeDiscoveries"];
+        put?: never;
+        /**
+         * Discover forge repositories
+         * @description Queues a discovery of the connection and answers at once, 202 with the run — pending — to poll. A control-plane instance claims it under a lease and lists the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a member of, min_access_level 10, membership=true), through the outbound guard and the connection's pinned CA, the next page followed on the connection's own origin only. Bounds: thirty minutes, twenty thousand repositories, a rate-limit wait of up to a minute inside the run — past any of them the run ends partial. 404 when no connection has that id; 409 forge-discovery-in-progress with discoveryId while one is pending or running; 409 forge-discovery-unsupported for a GitHub connection, whose listing arrives with lot D4.
+         */
+        post: operations["requestForgeDiscovery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read forge discovery
+         * @description What a screen polls: state (pending, running, completed, partial, failed), reason for a partial or failed one (time_bound, repository_bound, rate_limited; token_rejected, destination_blocked, cross_origin_page, forge_unavailable, forge_refused, connection_unusable, unsupported, executor_lost, internal_error), the counters — namespaces and repositories seen, requests made, seconds waited on rate limits, when a limit that ended it lifts — and once it ended newCount, changedCount and goneCount; goneCount is null unless it completed.
+         */
+        get: operations["getForgeDiscovery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forge-connections/{connectionId}/discoveries/{discoveryId}/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List discovered repositories
+         * @description The repositories a discovery listed (change=all, the default), first listed (new), found renamed or moved, re-branched, archived, unarchived or back (changed, with changeSummary), or no longer listed (gone — a completed discovery only, 400 otherwise), by full path, limit 1 to 500 (100) from an offset that is a multiple of it. A value the forge did not give is null — unknown, never zero.
+         */
+        get: operations["listDiscoveredRepositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/forge-connections/{id}": {
         parameters: {
             query?: never;
@@ -5744,6 +5808,7 @@ export interface components {
             id?: string;
             internalNetwork: boolean;
             kind?: string;
+            lastDiscovery?: components["schemas"]["ForgeDiscoveryView"];
             name?: string;
             owner?: string;
             /** Format: date-time */
@@ -5754,6 +5819,82 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
             updatedBy?: string;
+        };
+        ForgeDiscoveryView: {
+            /** Format: int32 */
+            attempts: number;
+            /** Format: int32 */
+            changedCount?: number;
+            /** Format: uuid */
+            connectionId?: string;
+            detail?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** Format: int32 */
+            goneCount?: number;
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            namespacesSeen: number;
+            /** Format: int32 */
+            newCount?: number;
+            /** Format: date-time */
+            rateLimitResetAt?: string;
+            /** Format: int64 */
+            rateLimitWaitSeconds: number;
+            /** @enum {string} */
+            reason?: "time_bound" | "repository_bound" | "rate_limited" | "token_rejected" | "destination_blocked" | "cross_origin_page" | "forge_unavailable" | "forge_refused" | "connection_unusable" | "unsupported" | "executor_lost" | "internal_error";
+            /** Format: int32 */
+            repositoriesSeen: number;
+            /** Format: int32 */
+            repositoriesSkipped: number;
+            /** Format: date-time */
+            requestedAt?: string;
+            requestedBy?: string;
+            /** Format: int32 */
+            requestsMade: number;
+            /** Format: date-time */
+            startedAt?: string;
+            /** @enum {string} */
+            state?: "pending" | "running" | "completed" | "partial" | "failed";
+        };
+        ForgeRepositoryView: {
+            archived?: boolean;
+            changeSummary?: string;
+            /** Format: int64 */
+            changedBy?: number;
+            /** Format: uuid */
+            connectionId?: string;
+            defaultBranch?: string;
+            /** Format: date-time */
+            firstSeenAt?: string;
+            /** Format: int64 */
+            firstSeenBy: number;
+            forgeId?: string;
+            fork?: boolean;
+            fullPath?: string;
+            /** Format: date-time */
+            goneAt?: string;
+            /** Format: int64 */
+            goneBy?: number;
+            httpUrl?: string;
+            /** Format: int64 */
+            id: number;
+            language?: string;
+            /** Format: date-time */
+            lastActivityAt?: string;
+            /** Format: date-time */
+            lastSeenAt?: string;
+            /** Format: int64 */
+            lastSeenBy: number;
+            name?: string;
+            namespacePath?: string;
+            personal: boolean;
+            /** Format: int64 */
+            sizeBytes?: number;
+            sshUrl?: string;
+            visibility?: string;
+            webUrl?: string;
         };
         ForgeTokenReplacement: {
             token?: string;
@@ -7095,6 +7236,15 @@ export interface components {
             sourceId?: number;
             /** @enum {string} */
             status?: "examined" | "not_applicable" | "no_repository" | "never_examined" | "step_absent" | "plugin_unsigned" | "plugin_signature_unverified" | "plugin_registry_authentication_required" | "language_not_analysed" | "examination_unrecorded" | "languages_unrecorded" | "version_unrecorded" | "packages_unrecorded" | "packages_not_kept" | "scope_matches_nothing" | "stale" | "not_applicable_anywhere" | "suite_not_found" | "no_test_ran";
+        };
+        RepositoryPage: {
+            items?: components["schemas"]["ForgeRepositoryView"][];
+            /** Format: int32 */
+            limit: number;
+            /** Format: int32 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
         };
         RepositoryRef: {
             /** Format: int64 */
@@ -10446,6 +10596,100 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ForgeConnectionView"];
+                };
+            };
+        };
+    };
+    listForgeDiscoveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeDiscoveryView"][];
+                };
+            };
+        };
+    };
+    requestForgeDiscovery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeDiscoveryView"];
+                };
+            };
+        };
+    };
+    getForgeDiscovery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connectionId: string;
+                discoveryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ForgeDiscoveryView"];
+                };
+            };
+        };
+    };
+    listDiscoveredRepositories: {
+        parameters: {
+            query?: {
+                change?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                connectionId: string;
+                discoveryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RepositoryPage"];
                 };
             };
         };

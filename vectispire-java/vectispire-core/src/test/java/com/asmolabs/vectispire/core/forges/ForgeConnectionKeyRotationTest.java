@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
 import com.asmolabs.vectispire.core.forges.internal.ForgeProbes;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * An {@code ENCRYPTION_KEY} rotation reaches the forge connections (decision 0037 §2, {@code KEY_ROTATION.md}):
@@ -53,8 +56,9 @@ class ForgeConnectionKeyRotationTest {
         when(connections.findAllByOrderByNameAsc()).thenReturn(List.of(row));
         when(connections.saveAndFlush(any())).thenAnswer(saved -> saved.getArgument(0));
         ForgeProbes probes = mock(ForgeProbes.class);
-        ForgeConnectionService service = new ForgeConnectionService(
-                connections, probes, during, mock(AuditLogService.class), Clock.systemUTC());
+        ForgeConnectionService service = new ForgeConnectionService(connections,
+                mock(ForgeDiscoveryRepository.class), mock(ForgeRepositoryRepository.class), probes, during,
+                mock(AuditLogService.class), Clock.systemUTC(), mock(PlatformTransactionManager.class));
 
         assertThat(service.list()).singleElement()
                 .satisfies(view -> assertThat(view.encryptionState()).isEqualTo("previous_key"));

@@ -127,7 +127,7 @@ public final class OutboundPager {
         this.settings = settings;
         this.clock = clock;
         this.sleeper = sleeper;
-        this.origin = Origin.of(settings.origin()).orElseThrow(() -> new IllegalArgumentException(
+        this.origin = Origin.of(settings.origin()).orElseThrow(() -> new IllegalStateException(
                 "A pager is opened for an absolute URL: " + settings.origin()));
     }
 

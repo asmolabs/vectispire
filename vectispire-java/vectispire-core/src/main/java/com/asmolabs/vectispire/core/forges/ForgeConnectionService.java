@@ -18,8 +18,11 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.forges.internal.ForgeClient;
 import com.asmolabs.vectispire.core.forges.internal.ForgeProbes;
+import com.asmolabs.vectispire.core.forges.internal.ForgeTargets;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -30,6 +33,8 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Forge connections (decision 0037 §2): a read-only credential to a GitHub or a GitLab, probed against the
@@ -63,7 +68,7 @@ public class ForgeConnectionService {
     private static final Pattern GITHUB_OWNER = Pattern.compile("^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,98})$");
 
     /** How the pinned CA's refusals name the field. */
-    static final PinnedCa.Subject CA = new PinnedCa.Subject("The forge's CA", "the forge");
+    static final PinnedCa.Subject CA = ForgeTargets.CA;
 
     /**
      * What a connection's creation asks for.
@@ -87,22 +92,31 @@ public class ForgeConnectionService {
     public record Change(String name, Boolean internalNetwork, String caPem) {}
 
     private final ForgeConnectionRepository connections;
+    private final ForgeDiscoveryRepository discoveries;
+    private final ForgeRepositoryRepository snapshot;
     private final ForgeProbes probes;
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
+    private final TransactionTemplate transactions;
 
     public ForgeConnectionService(
             ForgeConnectionRepository connections,
+            ForgeDiscoveryRepository discoveries,
+            ForgeRepositoryRepository snapshot,
             ForgeProbes probes,
             EncryptionService encryption,
             AuditLogService audit,
-            Clock clock) {
+            Clock clock,
+            PlatformTransactionManager transactions) {
         this.connections = connections;
+        this.discoveries = discoveries;
+        this.snapshot = snapshot;
         this.probes = probes;
         this.encryption = encryption;
         this.audit = audit;
         this.clock = clock;
+        this.transactions = new TransactionTemplate(transactions);
     }
 
     public List<ForgeConnectionView> list() {
@@ -247,12 +261,21 @@ public class ForgeConnectionService {
     }
 
     /**
-     * Deletes a connection. No target goes with it — an imported repository is a target like any other
-     * (decision 0037 §5); the discovery's snapshot and the provenance links will, from lots D3 and D6.
+     * Deletes a connection with its discoveries and its snapshot, in one transaction. No target goes with it — an
+     * imported repository is a target like any other (decision 0037 §5); the provenance links will, from lot D6.
+     *
+     * <p><b>The discoveries first.</b> A running discovery writes each page in a transaction that first renews its
+     * lease, holding its row: deleting the runs waits for that page to commit, so that the snapshot's deletion, which
+     * follows, sees the page's rows rather than leaving them behind a connection that no longer exists. The run then
+     * finds its lease gone and stops.
      */
     public void delete(UUID id, RequestActor actor) {
         ForgeConnectionEntity entity = require(id);
-        connections.delete(entity);
+        transactions.executeWithoutResult(status -> {
+            discoveries.deleteByConnection(id);
+            snapshot.deleteByConnection(id);
+            connections.deleteById(id);
+        });
         record(actor, id, "Forge connection deleted: " + describe(entity), true);
     }
 
@@ -333,7 +356,10 @@ public class ForgeConnectionService {
                 entity.getCreatedAt(),
                 entity.getCreatedBy(),
                 entity.getUpdatedAt(),
-                entity.getUpdatedBy());
+                entity.getUpdatedBy(),
+                discoveries.findFirstByConnectionIdOrderByRequestedAtDescIdDesc(entity.getId())
+                        .map(ForgeDiscoveryService::view)
+                        .orElse(null));
     }
 
     private ForgeConnectionEntity require(UUID id) {
@@ -341,15 +367,11 @@ public class ForgeConnectionService {
     }
 
     private ForgeClient.Target targetOf(ForgeConnectionEntity entity, boolean internal, Optional<PinnedCa> ca) {
-        // Derived again from the stored web address rather than stored apart from it: the derivation is the rule.
-        ForgeAddress address = ForgeAddress.of(ForgeKind.parse(entity.getKind()), entity.getBaseUrl());
-        return new ForgeClient.Target(address, entity.getOwner(), policyOf(internal), ca);
+        return ForgeTargets.of(entity, internal, ca);
     }
 
     private Optional<PinnedCa> storedCa(ForgeConnectionEntity entity) {
-        // Checked current at every use, as the SIEM checks its collector's: the JDK does not read a trust
-        // anchor's dates, and a lapsed CA must not vouch for the server.
-        return Optional.ofNullable(entity.getCaPem()).map(pem -> PinnedCa.parse(pem, clock.instant(), CA));
+        return ForgeTargets.storedCa(entity, clock.instant());
     }
 
     private Optional<PinnedCa> caOf(String pem) {
@@ -361,7 +383,7 @@ public class ForgeConnectionService {
     }
 
     private static OutboundPolicy policyOf(boolean internal) {
-        return internal ? OutboundPolicy.INTERNAL_ALLOWED : OutboundPolicy.PUBLIC_ONLY;
+        return ForgeTargets.policyOf(internal);
     }
 
     private static void refuseForCloud(ForgeEdition edition, boolean internal, Optional<PinnedCa> ca) {

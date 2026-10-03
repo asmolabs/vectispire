@@ -79,6 +79,8 @@ public enum Engine {
         // The report executor's turn as well: with the worker off it has no executor and claims nothing, and a
         // test of its queue drives the claim itself.
         registry.add("vectispire.reports.initial-delay", () -> "24h");
+        // And the discoveries': a test of their queue drives the claim itself.
+        registry.add("vectispire.forges.discovery.initial-delay", () -> "24h");
 
         registry.add("spring.datasource.url", container::getJdbcUrl);
         registry.add("spring.datasource.username", container::getUsername);

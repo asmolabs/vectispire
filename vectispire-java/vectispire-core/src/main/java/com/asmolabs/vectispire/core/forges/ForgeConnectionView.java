@@ -28,6 +28,7 @@ import java.util.UUID;
  * @param probedAt when the token was last presented and accepted
  * @param encryptionState {@code current}, {@code previous_key} (rotate: save the connection or replace its
  *     token) or {@code unreadable} (replace the token)
+ * @param lastDiscovery the connection's latest discovery, whatever its state; null before the first
  */
 public record ForgeConnectionView(
         UUID id,
@@ -49,4 +50,5 @@ public record ForgeConnectionView(
         Instant createdAt,
         String createdBy,
         Instant updatedAt,
-        String updatedBy) {}
+        String updatedBy,
+        ForgeDiscoveryView lastDiscovery) {}

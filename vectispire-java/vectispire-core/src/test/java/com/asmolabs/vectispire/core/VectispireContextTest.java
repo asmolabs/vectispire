@@ -84,6 +84,10 @@ public abstract class VectispireContextTest {
             "t_report_plugin_activation",
             "t_report_plugin_manifest",
             "t_report_plugin",
+            // The forge discoveries and their snapshot (V76, common, no foreign key). Left out, a discovery pending
+            // from one test would hold its connection's active key against the next test's request.
+            "t_forge_discovery",
+            "t_forge_repository",
             // The forge connections (V74, common, no foreign key). Left out, a connection one test created would
             // hold its name against the next test's.
             "t_forge_connection",

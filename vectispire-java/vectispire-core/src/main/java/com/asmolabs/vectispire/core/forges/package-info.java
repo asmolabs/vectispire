@@ -1,8 +1,9 @@
 /**
  * Forges (decision 0037): read-only connections to GitHub and GitLab from which repositories are discovered
- * and imported as ordinary targets. So far its first lot, D1: the connections — the token probed against
- * the forge through the outbound guard, its scopes judged against an allow-list, stored encrypted with its
- * row as context, never returned.
+ * and imported as ordinary targets. So far lots D1 to D3: the connections — the token probed against the
+ * forge through the outbound guard, its scopes judged against an allow-list, stored encrypted with its row as
+ * context, never returned — and the discoveries: queued, claimed by a control-plane instance under a lease,
+ * listed page by page through the outbound pager, and kept as a snapshot compared run to run.
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code ModularityTest},
  * decision 0030): a dependency on a module, or on a named interface ({@code module::name}), missing from

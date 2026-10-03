@@ -276,6 +276,17 @@ vectispire:
     concurrency: ${VECTISPIRE_REPORT_CONCURRENCY:2}
     interval: ${VECTISPIRE_REPORT_INTERVAL:10s}
 
+  forges:
+    discovery:
+      # **Forge discoveries (decision 0037 §3)** — listed by the control plane, on every instance, whatever the
+      # built-in worker's switch: never by an agent, which would need the connection's token. How many run at once
+      # and how often an instance looks for waiting ones. The bounds of a run — thirty minutes, twenty thousand
+      # repositories, a rate-limit wait of up to a minute spent inside it — are the decision's (answer 8), and
+      # read from `vectispire.forges.discovery.max-duration`, `max-repositories` and `max-rate-limit-wait` only so
+      # that a test reaches each in seconds; a larger estate is discovered per group.
+      concurrency: ${VECTISPIRE_DISCOVERY_CONCURRENCY:2}
+      interval: ${VECTISPIRE_DISCOVERY_INTERVAL:5s}
+
   jobs:
     relay-interval: ${VECTISPIRE_RELAY_INTERVAL:60s}
     scheduler-interval: ${VECTISPIRE_SCHEDULER_INTERVAL:60s}
