@@ -226,7 +226,11 @@ another branch, is another target and is accepted as before.
   - **Where agents run.** Outside the cluster on a Docker host (recommended, nothing deployed by the
     chart), or, opt-in, in the cluster as pods with a privileged `docker:dind` sidecar on nodes of their
     own. The rootless variant renders only when acknowledged, because it does not scan.
-  - **Checked in CI** for each of these shapes.
+  - **In one namespace you were given.** Nothing the chart renders is cluster-wide. Agents can stay in
+    the release's namespace (`agents.namespace: ""`, `agents.createNamespace: false`); their privileged
+    pod is then admitted only if that namespace's Pod Security level allows it.
+  - **Checked in CI** for each of these shapes, and that the single-namespace ones render nothing
+    outside their namespace.
 - **A checklist line can measure change reviews — *every merge request is approved by a peer before
   merge*** ([the rule](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch),
   [what the forge is asked](../administration/forge-connections.md#change-reviews-what-the-checklists-ask-the-forge),

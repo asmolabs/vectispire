@@ -247,7 +247,12 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   - **Où tournent les agents.** Hors du cluster sur un hôte Docker (recommandé, la chart n'y déploie
     rien), ou, sur option, dans le cluster en pods avec un sidecar `docker:dind` privilégié sur des
     nœuds à eux. La variante rootless ne se rend que sur acquittement, parce qu'elle ne scanne pas.
-  - **Vérifiée en CI** pour chacune de ces formes.
+  - **Dans un namespace qui vous est attribué.** Rien de ce que produit la chart n'est à l'échelle du
+    cluster. Les agents peuvent rester dans le namespace de la release (`agents.namespace: ""`,
+    `agents.createNamespace: false`) ; leur pod privilégié n'est alors admis que si le niveau Pod
+    Security de ce namespace le permet.
+  - **Vérifiée en CI** pour chacune de ces formes, et que celles d'un seul namespace ne produisent rien
+    hors de leur namespace.
 - **Une ligne de checklist peut mesurer la revue des changements — *toute merge request est approuvée par
   un pair avant la fusion*** ([la règle](../administration/checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche),
   [ce que l'on demande à la forge](../administration/forge-connections.fr.md#revues-des-changements-ce-que-les-checklists-demandent-a-la-forge),

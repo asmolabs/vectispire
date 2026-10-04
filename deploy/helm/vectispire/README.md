@@ -17,6 +17,11 @@ What it does not deploy:
 - **The Secrets**: create them yourself, as shown below.
 - **Agents on a Docker host outside the cluster**, which is where they are recommended to run.
 
+**In one namespace.** Nothing the chart renders is cluster-wide: with agents off, every object lands in
+the release's namespace, and an account that can only write there can install it. With agents in the
+cluster, set `agents.namespace: ""` and `agents.createNamespace: false` to keep them in that namespace
+too — see [Scan agents](#scan-agents).
+
 **Report plugins answer 409 `report-executor-unavailable`** on this installation. The control plane has
 no container endpoint, and report plugins need one (decision 0038, option D).
 
@@ -96,7 +101,10 @@ Docker daemon of its own:
 - `agents.dind.variant: privileged` — `docker:dind` in a **privileged container, which is root on its
   node**. Give these pods:
   - a namespace of their own: created with Pod Security Admission's `privileged` level when
-    `agents.createNamespace` is set;
+    `agents.createNamespace` is set. In a single namespace you were given (`agents.namespace: ""`,
+    `agents.createNamespace: false`), the chart creates nothing, and the pod is admitted only if that
+    namespace's level is `privileged` — which also lets any other pod there run privileged. Check with
+    `kubectl get namespace <ns> --show-labels`; a `restricted` or `baseline` level refuses it;
   - nodes of their own: `agents.nodeSelector` and `agents.tolerations`, matching a tainted node pool;
   - the NetworkPolicy, with the cluster's pod and service ranges in `agents.networkPolicy.excludeCidrs`.
 
@@ -121,4 +129,6 @@ helm lint deploy/helm/vectispire -f deploy/helm/vectispire/ci/no-agents-values.y
 helm template vs deploy/helm/vectispire -f deploy/helm/vectispire/ci/dind-privileged-values.yaml
 ```
 
-CI renders the three value sets under `ci/`: no agents, privileged DinD, and rootless DinD.
+CI renders the four value sets under `ci/`: no agents, privileged DinD, rootless DinD, and a single
+namespace with the agents beside the control plane. It checks that the first and the last render nothing
+outside the release's namespace.

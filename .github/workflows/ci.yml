@@ -247,7 +247,7 @@ jobs:
         working-directory: deploy/helm/vectispire
         run: |
           for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml ci/dind-rootless-values.yaml \
-              values.example.yaml; do
+              ci/single-namespace-values.yaml values.example.yaml; do
             echo "::group::$values"
             helm lint . --strict -f "$values"
             helm template vs . -n vectispire -f "$values" > rendered.yaml
@@ -256,6 +256,27 @@ jobs:
             kubeconform -strict -summary -kubernetes-version 1.27.0 rendered.yaml
             echo "::endgroup::"
           done
+      # **One namespace and nothing outside it.** An installation in a namespace somebody else owns
+      # holds no right to create a Namespace or anything cluster-wide, so a rendering that names one
+      # fails at `helm install`, after the review. Without agents and with agents beside the control
+      # plane, every object stays in the release's namespace.
+      - name: the single-namespace shapes stay in their namespace
+        working-directory: deploy/helm/vectispire
+        run: |
+          outside() {
+            grep -nE '^kind: (Namespace|Cluster[A-Za-z]*|PersistentVolume|StorageClass|PriorityClass)$' "$1" ||
+              grep -nE '^  namespace: ' "$1" | grep -v ':  namespace: vectispire$'
+          }
+          for values in ci/no-agents-values.yaml ci/single-namespace-values.yaml; do
+            helm template vs . -n vectispire -f "$values" > rendered.yaml
+            grep -q '^kind: Deployment' rendered.yaml || { echo "::error::$values rendered no Deployment"; exit 1; }
+            if outside rendered.yaml; then
+              echo "::error::$values renders something outside the release's namespace"; exit 1
+            fi
+          done
+          # The check sees what it is for: the default in-cluster shape creates `vectispire-agents`.
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml > rendered.yaml
+          outside rendered.yaml > /dev/null || { echo "::error::the check missed the agents' own Namespace"; exit 1; }
       - name: the chart refuses what it says it refuses
         working-directory: deploy/helm/vectispire
         run: |

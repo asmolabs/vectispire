@@ -254,6 +254,11 @@ cp deploy/helm/vectispire/values.example.yaml my-values.yaml   # edit it
 helm install vectispire deploy/helm/vectispire -n vectispire -f my-values.yaml
 ```
 
+**In a namespace you were given.** When you can write only to one namespace, skip `kubectl create
+namespace` and install into it with `-n <your namespace>`: the chart creates nothing cluster-wide, and
+with agents off everything it renders lands there. Agents in the cluster need two more values, see
+below.
+
 **Back up the encryption key** outside the cluster. It decrypts every deployment key and token
 Vectispire holds; a cluster rebuilt without it holds secrets nobody can read.
 
@@ -378,7 +383,11 @@ The work directory is a second `emptyDir`, mounted at the same path in both cont
 own container reaches that daemon, and through it the node. Give these pods:
 
 - **their own namespace**: the chart creates `vectispire-agents` with Pod Security Admission's
-  `privileged` level;
+  `privileged` level. In a single namespace you were given, set `agents.namespace: ""` and
+  `agents.createNamespace: false`: the agents go beside the control plane, and the pod is admitted only
+  if that namespace's owner has set its level to `privileged` — for every pod in it.
+  `kubectl get namespace <your namespace> --show-labels` tells you; `restricted` or `baseline` means a
+  Docker host;
 - **their own nodes**: `agents.nodeSelector`, and `agents.tolerations` matching a taint only they
   tolerate;
 - **the NetworkPolicy**: on by default. It denies all ingress. List the cluster's pod and service

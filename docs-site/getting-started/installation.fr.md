@@ -262,6 +262,11 @@ cp deploy/helm/vectispire/values.example.yaml mes-valeurs.yaml   # à adapter
 helm install vectispire deploy/helm/vectispire -n vectispire -f mes-valeurs.yaml
 ```
 
+**Dans un namespace qui vous est attribué.** Quand vous ne pouvez écrire que dans un namespace, sautez
+`kubectl create namespace` et installez-y avec `-n <votre namespace>` : la chart ne crée rien à
+l'échelle du cluster et, sans agents, tout ce qu'elle produit y atterrit. Des agents dans le cluster
+demandent deux valeurs de plus, voir plus bas.
+
 **Sauvegardez la clé de chiffrement** hors du cluster. Elle déchiffre chaque clé de déploiement et
 chaque jeton que Vectispire détient ; un cluster reconstruit sans elle détient des secrets que
 personne ne peut lire.
@@ -389,7 +394,11 @@ Le répertoire de travail est un second `emptyDir`, monté au même chemin dans 
 de son propre conteneur atteint ce démon, et par lui le nœud. Donnez à ces pods :
 
 - **leur propre namespace** : la chart crée `vectispire-agents` au niveau `privileged` de Pod
-  Security Admission ;
+  Security Admission. Dans un seul namespace qui vous est attribué, posez `agents.namespace: ""` et
+  `agents.createNamespace: false` : les agents vont à côté du control plane, et le pod n'est admis que
+  si le propriétaire de ce namespace l'a mis au niveau `privileged` — pour tous les pods qu'il contient.
+  `kubectl get namespace <votre namespace> --show-labels` vous le dit ; `restricted` ou `baseline`
+  signifie un hôte Docker ;
 - **leurs propres nœuds** : `agents.nodeSelector`, et `agents.tolerations` accordé à une taint qu'eux
   seuls tolèrent ;
 - **la NetworkPolicy** : active par défaut. Elle refuse toute entrée. Listez les plages de pods et de

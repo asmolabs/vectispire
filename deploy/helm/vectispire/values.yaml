@@ -177,6 +177,8 @@ networkPolicy:
 agents:
   enabled: false
   # A namespace of its own, labelled for privileged pods (Pod Security Admission) when created here.
+  # Installing into one namespace you were given: `namespace: ""` (the release's) and
+  # `createNamespace: false` — that namespace's owner then decides whether a privileged pod is admitted.
   namespace: vectispire-agents
   createNamespace: true
 
