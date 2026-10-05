@@ -332,7 +332,8 @@ class ReportRunsRoutesTest extends ApiTestBase {
         @Test
         @DisplayName("produced: the requester's export at the claim, kept with the run, every digest recorded and audited")
         void produced() throws Exception {
-            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            JsonNode accepted = body(request(asAdmin()).andExpect(status().isAccepted()));
+            long runId = accepted.at("/id").asLong();
             assertThat(worker.drain()).isOne();
 
             byte[] export = handed.get();
@@ -356,6 +357,10 @@ class ReportRunsRoutesTest extends ApiTestBase {
             assertThat(ended.at("/outputSize").asLong()).isEqualTo(DOCUMENT.length);
             assertThat(ended.at("/exitCode").asInt()).isZero();
             assertThat(ended.at("/productVersion").asText()).isNotBlank();
+            // What the 202 said is what the row keeps: a nanosecond clock (Linux) against a column of microseconds
+            // that MySQL rounds would make them a microsecond apart, and the provenance reads the row.
+            assertThat(Instant.parse(accepted.at("/requestedAt").asText()))
+                    .isEqualTo(Instant.parse(ended.at("/requestedAt").asText()));
             assertThat(Instant.parse(ended.at("/startedAt").asText()))
                     .isBeforeOrEqualTo(Instant.parse(ended.at("/exportedAt").asText()));
             assertThat(Instant.parse(ended.at("/exportedAt").asText()))
@@ -608,6 +613,9 @@ class ReportRunsRoutesTest extends ApiTestBase {
             assertThat(predicate.at("/export/sha256").asText()).isEqualTo(ended.at("/exportSha256").asText())
                     .isEqualTo(Digests.sha256Hex(handed.get()));
             assertThat(predicate.at("/export/id").asText()).isEqualTo(json.readTree(handed.get()).at("/export/id").asText());
+            assertThat(Instant.parse(predicate.at("/run/exportedAt").asText()))
+                    .as("one export, one instant: the provenance's and the export's own generated_at")
+                    .isEqualTo(Instant.parse(json.readTree(handed.get()).at("/export/generated_at").asText()));
             assertThat(predicate.at("/output/mediaType").asText())
                     .isEqualTo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             assertThat(predicate.at("/output/size").asLong()).isEqualTo(DOCUMENT.length);

@@ -235,10 +235,10 @@ public class ReportExecution {
                         ReportRunReason.EXPORT_TOO_LARGE, tooLarge.getMessage() + ReportExportCeiling.why(bounds), false));
                 return;
             }
-            // At the precision the columns keep: the signed provenance states these instants, and a
-            // reader comparing it with the run as stored must find the same ones. A Linux clock gives
-            // nanoseconds, the engines keep microseconds, and the two differed in CI.
-            learnt = learnt.withExport(recorded(clock.instant()), export);
+            // The export's own `generated_at`, not a second reading of the clock: the signed provenance states it
+            // beside the export it describes, and two instants for one export is a statement that contradicts
+            // its subject. Already at the precision the columns keep (decision 0035 §3).
+            learnt = learnt.withExport(recorded(export.generatedAt()), export);
 
             // The file's ceiling lowered the same way: its signed package is a row of its own, and a file the
             // database could not keep would be rendered, checked and signed for nothing.

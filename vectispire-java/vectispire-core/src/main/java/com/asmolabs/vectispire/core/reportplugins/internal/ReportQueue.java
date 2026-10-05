@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.reportplugins.persistence.ReportRunRepositor
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -76,7 +77,9 @@ public class ReportQueue {
 
     /** Takes the oldest waiting run for {@code owner}: its id, or empty when none was left to take. */
     public Optional<Long> claim(String owner) {
-        Instant now = clock.instant();
+        // `startedAt` is signed in the provenance, read back from the row: kept at the column's precision so
+        // the engine has nothing to round.
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
         for (Long id : runs.waiting(ReportRunState.PENDING.wireName(), PageRequest.of(0, CANDIDATES))) {
             if (runs.take(id, ReportRunState.PENDING.wireName(), ReportRunState.RUNNING.wireName(), owner, now,
                     now.plus(lease)) == 1) {

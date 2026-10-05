@@ -49,6 +49,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -239,7 +240,7 @@ public class ProjectExportService {
             ProjectExportBounds bounds) {
         Built built = reading.execute(status -> build(projectId, requester, allowance, locale, bounds));
         return new RunExport(built.projectName(), built.json(), Digests.sha256Hex(built.json()), built.issueCount(),
-                built.componentCount(), built.about().id(), built.about().requester());
+                built.componentCount(), built.about().id(), built.about().generatedAt(), built.about().requester());
     }
 
     /**
@@ -250,7 +251,7 @@ public class ProjectExportService {
      *     the package's provenance repeats
      */
     public record RunExport(String projectName, byte[] json, String sha256, int issueCount, int componentCount,
-            String exportId, ProjectExport.Person requester) {}
+            String exportId, Instant generatedAt, ProjectExport.Person requester) {}
 
     /** The requester's locale as a run keeps it: {@link #locale}, or nothing past a BCP 47 tag's usual length. */
     static String runLocale(String acceptLanguage) {
@@ -366,7 +367,10 @@ public class ProjectExportService {
         ProjectExport.Person person = names.byId(requester.id())
                 .map(named -> new ProjectExport.Person(named.accountId(), named.displayName()))
                 .orElse(new ProjectExport.Person(requester.id(), null));
-        return new ProjectExport.About(UUID.randomUUID().toString(), clock.instant(), productVersion.get(), person,
+        // At the precision a run's columns keep: a report's signed provenance states this instant as the export's,
+        // beside the export whose `generated_at` it is, and the two must be one instant.
+        return new ProjectExport.About(UUID.randomUUID().toString(), clock.instant().truncatedTo(ChronoUnit.MICROS),
+                productVersion.get(), person,
                 locale, new ProjectExport.Installation(branding.name(), exportProperties.publicUrl().orElse(null)));
     }
 

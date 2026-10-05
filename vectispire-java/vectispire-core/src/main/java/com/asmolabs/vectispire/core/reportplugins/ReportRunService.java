@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.reportplugins.persistence.ReportRunRepositor
 import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -132,7 +133,9 @@ public class ReportRunService {
                     + "agents — so it cannot run report plugins in this version.");
         }
         String key = activeKey(pluginId, projectId);
-        Instant now = clock.instant();
+        // At the precision the column keeps: the 202 states it, the provenance reads it back from the row, and
+        // MySQL rounds a nanosecond instant where PostgreSQL truncates — the two would differ by a microsecond.
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
 
         ReportRunEntity saved;
         try {
