@@ -17,13 +17,13 @@
         "generate:api": "openapi-typescript openapi.json -o src/app/core/api.generated.ts"
     },
     "dependencies": {
-        "@angular/cdk": "^22",
-        "@angular/common": "^22",
+        "@angular/cdk": "^22.2.1",
+        "@angular/common": "^22.2.1",
         "@angular/compiler": "^22",
         "@angular/core": "^22",
-        "@angular/forms": "^22",
+        "@angular/forms": "^22.2.1",
         "@angular/platform-browser": "^22",
-        "@angular/router": "^22",
+        "@angular/router": "^22.2.1",
         "@openng/icons": "1.0.0",
         "@openng/optimus-ui": "^2.0.2",
         "@openng/optimus-ui-tailwindcss": "^2.0.2",
@@ -34,9 +34,9 @@
         "tslib": "^2.8.1"
     },
     "devDependencies": {
-        "@angular/build": "^22",
-        "@angular/cli": "^22",
-        "@angular/compiler-cli": "^22",
+        "@angular/build": "^22.2.1",
+        "@angular/cli": "^22.2.1",
+        "@angular/compiler-cli": "^22.2.1",
         "@eslint/js": "^10.0.1",
         "@playwright/test": "^1.63.0",
         "angular-eslint": "^22.5.0",
