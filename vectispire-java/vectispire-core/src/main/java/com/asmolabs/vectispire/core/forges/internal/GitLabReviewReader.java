@@ -193,15 +193,40 @@ class GitLabReviewReader implements ReviewReader {
         return false;
     }
 
-    private static boolean wildcard(String pattern, String branch) {
-        StringBuilder regex = new StringBuilder();
-        for (String part : pattern.split("\\*", -1)) {
-            if (!regex.isEmpty()) {
-                regex.append(".*");
+    /**
+     * GitLab's protected-branch wildcard: {@code *} any run of characters, every other character itself, case
+     * included.
+     *
+     * <p><b>Matched by hand, not by a regular expression.</b> Both strings are the forge's — any maintainer of a read
+     * project writes the pattern and names the branch — and this was a regex: {@code .*a.*a…} against a long near
+     * match backtracks combinatorially, nine stars on sixty characters took 39 s, and it ran inside the hourly
+     * maintenance turn, whose guard it would have held for as long as the process lived. This walk backtracks to the
+     * last star only, at most the pattern's length times the branch's, as {@code SelectionFilter} and
+     * {@code SuitePattern} do.
+     */
+    static boolean wildcard(String pattern, String branch) {
+        int b = 0;
+        int p = 0;
+        int star = -1;
+        int resume = 0;
+        while (b < branch.length()) {
+            if (p < pattern.length() && pattern.charAt(p) != '*' && pattern.charAt(p) == branch.charAt(b)) {
+                p++;
+                b++;
+            } else if (p < pattern.length() && pattern.charAt(p) == '*') {
+                star = p++;
+                resume = b;
+            } else if (star >= 0) {
+                p = star + 1;
+                b = ++resume;
+            } else {
+                return false;
             }
-            regex.append(java.util.regex.Pattern.quote(part));
         }
-        return branch.matches(regex.toString());
+        while (p < pattern.length() && pattern.charAt(p) == '*') {
+            p++;
+        }
+        return p == pattern.length();
     }
 
     /** "No one" in every push level, and no user, group or deploy key let through by name. */

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.forges.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.asmolabs.vectispire.common.domain.checklists.ChangeReviewEvidence;
 import com.asmolabs.vectispire.common.domain.checklists.ChangeReviewEvidence.MergedChange;
@@ -234,6 +235,34 @@ class ReviewReadersTest {
             });
             assertThat(forge.urls()).as("no second page and no third approvals once the bound is reached")
                     .doesNotContain(PROJECT + "/merge_requests/1/approvals").noneMatch(url -> url.contains("page=2"));
+        }
+
+        @Test
+        @DisplayName("a protected-branch wildcard: a star is any run, everything else itself, case included")
+        void wildcardMeaning() {
+            assertThat(GitLabReviewReader.wildcard("release/*", "release/2026")).isTrue();
+            assertThat(GitLabReviewReader.wildcard("release/*", "release/")).isTrue();
+            assertThat(GitLabReviewReader.wildcard("*-stable", "16-4-stable")).isTrue();
+            assertThat(GitLabReviewReader.wildcard("*", "main")).isTrue();
+            assertThat(GitLabReviewReader.wildcard("main", "main")).isTrue();
+            assertThat(GitLabReviewReader.wildcard("main", "mainline")).as("no star: the whole name").isFalse();
+            assertThat(GitLabReviewReader.wildcard("Release/*", "release/2026")).as("case counts").isFalse();
+            assertThat(GitLabReviewReader.wildcard("release.*", "releaseX1")).as("a dot is a dot").isFalse();
+            assertThat(GitLabReviewReader.wildcard("r*e*e", "release")).isTrue();
+        }
+
+        @Test
+        @DisplayName("a wildcard the forge's maintainers wrote to backtrack is matched in linear time")
+        void wildcardDoesNotBacktrack() {
+            // Nine stars on sixty characters took 39 s as a regular expression; thirty would not have finished.
+            String hostile = "*a".repeat(30) + "*b";
+            String branch = "a".repeat(250);
+
+            // Preemptive, so a regression fails here rather than hanging the suite as it would the maintenance turn.
+            boolean matched = assertTimeoutPreemptively(Duration.ofSeconds(2),
+                    () -> GitLabReviewReader.wildcard(hostile, branch));
+
+            assertThat(matched).isFalse();
         }
     }
 
