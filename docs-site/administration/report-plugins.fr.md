@@ -64,7 +64,7 @@ Vectispire ne stocke aucun identifiant de registre.
 |---|---|---|
 | Enregistrer un plugin | le gouverneur de la plateforme | `POST /api/v1/report-plugins` |
 | Lui donner un autre manifeste | le gouverneur de la plateforme | `PUT /api/v1/report-plugins/{id}` |
-| Approuver un digest de manifeste | le gouverneur de la plateforme, un administrateur ou un CISO — **pas le compte qui l'a enregistré** tant que les [quatre yeux](four-eyes.fr.md) sont actifs | `POST /api/v1/report-plugins/{id}/manifests/{digest}/approval` |
+| Approuver un digest de manifeste | le gouverneur de la plateforme, un administrateur ou un CISO — **jamais le compte qui l'a enregistré** : seul un digest enregistré sous les [quatre yeux](four-eyes.fr.md) attend une approbation | `POST /api/v1/report-plugins/{id}/manifests/{digest}/approval` |
 | L'activer ou le désactiver | le gouverneur de la plateforme | `PUT /api/v1/report-plugins/{id}/enabled` |
 | L'activer ou le désactiver pour un projet | le gouverneur de la plateforme, un administrateur ou un CISO | `PUT` / `DELETE /api/v1/projects/{id}/report-plugins/{pluginId}` |
 | Retirer un digest de manifeste | le gouverneur de la plateforme, avec une justification | `POST /api/v1/report-plugins/{id}/manifests/{digest}/withdrawal` |
@@ -74,11 +74,13 @@ autre personne qui écrit la gouvernance approuve **ce digest**. Entre-temps, le
 précédent du plugin continue de servir ; un plugin qui n'en a aucun ne peut pas être activé pour un projet.
 Enregistrer un autre manifeste avant l'approbation de celui en attente met ce dernier de côté
 (`superseded`) : il ne peut plus être approuvé. Ramener un plugin à un manifeste approuvé auparavant, et
-jamais retiré, prend effet aussitôt — deux personnes ont déjà répondu de ces octets-là.
+jamais retiré, est aussi une nouvelle décision : il attend l'approbation de quelqu'un d'autre comme tout
+autre, puisqu'il a été remplacé, peut-être pour une raison.
 
 **Quatre yeux inactifs**, un enregistrement ou une mise à jour prend effet aussitôt, enregistré comme
-approuvé avec `approvalFourEyes: false`. Un manifeste resté en attente d'avant la bascule peut alors être
-approuvé par quiconque écrit la gouvernance, celui qui l'a enregistré compris.
+approuvé avec `approvalFourEyes: false`, tout comme le retour à un manifeste approuvé auparavant. **Un
+manifeste resté en attente d'avant la bascule demande toujours quelqu'un d'autre que celui qui l'a
+enregistré** : il a été enregistré sous les quatre yeux, et il est approuvé sous eux.
 
 Chaque manifeste qu'un plugin a eu est gardé, par digest, avec son statut — `pending_approval`, `approved`,
 `superseded` ou `withdrawn` —, qui l'a enregistré, qui l'a approuvé et si les quatre yeux s'appliquaient :

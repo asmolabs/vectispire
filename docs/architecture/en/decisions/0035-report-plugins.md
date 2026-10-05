@@ -301,7 +301,7 @@ relocation by `VECTISPIRE_PLUGIN_REGISTRY`, the cosign verifier and the bounded 
 | Act | Who | Marker, and what the service checks |
 |---|---|---|
 | Register a plugin, update its manifest, enable or disable it | platform governor | `@RequiresPlatformGovernor`, as 0017 §6 |
-| **Approve** a registered or updated manifest | with `FOUR_EYES_APPROVAL_REQUIRED` on, **another person** holding `canWriteGovernance` (governor, administrator, CISO); with it off, the registration takes effect at once | `@RequiresSecurityLead` + the comparison in the service |
+| **Approve** a registered or updated manifest | with `FOUR_EYES_APPROVAL_REQUIRED` on **when it was registered**, **another person** holding `canWriteGovernance` (governor, administrator, CISO), whatever the setting says at approval; with it off, the registration takes effect at once (amended 2026-10-05) | `@RequiresSecurityLead` + the comparison in the service |
 | Activate or deactivate it for a project | security lead, whole project visible | `@RequiresSecurityLead` + the guard |
 | Request a report, download the export | write accounts (`canCauseEffects`) **and auditors** (`AUDITOR`), whole project visible — the platform governor is neither | `@RequiresAccount` + the role check and the guard, both in the service (export: `@AcceptsApiKey(EXPORT)` too); each request audited |
 | Read a project's runs and download a produced document | whole project visible | `@RequiresAccount` + the guard |
@@ -567,11 +567,11 @@ messages and digest are unchanged.
   and replaced by a later registration before anybody approved it: it never ran and can no longer be
   approved — and `withdrawn`, final. A plugin holds at most one approved digest, the one a run uses, and
   one pending.
-- **A digest approved before, and never withdrawn, serves again at once** when the governor sets the
-  plugin back to it: two people have vouched for exactly those bytes. A withdrawn digest is refused (409
-  `report-plugin-withdrawn`).
-- **Four-eyes is read when the approval is given**, as for a checklist template's publication: a manifest
-  left pending from before the rule was switched off may then be approved by its registrant. The
+- ~~**A digest approved before, and never withdrawn, serves again at once** when the governor sets the
+  plugin back to it~~ — *amended 2026-10-05, below*: under four-eyes it waits for a second person again.
+  A withdrawn digest is refused (409 `report-plugin-withdrawn`).
+- ~~**Four-eyes is read when the approval is given**~~ — *amended 2026-10-05, below*: a pending manifest is
+  approved by somebody other than its registrant, whatever the setting says by then. The
   comparison is by account id; the route carries `@RequiresSecurityLead` and the service checks
   `canWriteGovernance` again. Switching four-eyes on already needs two accounts that write governance
   (the checklist templates' rule), which is what an approval needs too: no guard of its own.
@@ -843,6 +843,34 @@ Lot R7 — withdrawal and the document status route — settled these points §4
   and says what the document is worth, reading the runs again when the row predates the withdrawal. The
   status route has no screen: it is for a holder's script, and R6's interface reaches a document through its
   run.
+
+## Amended on 2026-10-05: four-eyes binds the manifest it was registered under
+
+A security review of the 0.11.0 surface found that one platform governor could put any image into service
+alone. The governor is the only account that may switch `FOUR_EYES_APPROVAL_REQUIRED` off, and two rules of
+R2 read that setting at the wrong moment:
+
+- **It was read at the approval.** A governor could register under four-eyes, switch it off, approve their
+  own pending manifest and switch it back on — every project with the plugin switched on then rendering its
+  whole export with an image nobody else had looked at, the documents signed with the installation's key.
+  `Role.governsPlatform()` states the opposite: *the account that can lift the rule cannot act under it*.
+- **A digest approved before served again at once**, four-eyes or not. It had been replaced, perhaps for a
+  reason nobody wrote down by withdrawing it; setting it back is a fresh decision about what every
+  activated project's export is handed to.
+
+Decided:
+
+- **A pending manifest is approved by somebody other than its registrant, whatever the setting says at the
+  approval.** Only a registration made under four-eyes is pending, so the requirement is the one it was
+  registered under, with no column to hold it. Its approval is recorded `approvalFourEyes: true`.
+- **Under four-eyes, a digest approved before is set back as a pending one**: the update records "approved
+  before, set back: pending a second person's approval", and its registrant cannot approve it. With
+  four-eyes off it still serves at once, said in the audit entry.
+
+What it does not change, deliberately: **with four-eyes off a registration still takes effect at once.**
+An installation of 0032 with a single approver has to be able to register a plugin, and the switch is
+signalled (`SECURITY_SETTING_CHANGED`) as every registry gesture is (`VECTI-SEC-031`). Lifting the rule is
+visible; acting under a rule one lifted alone is what this closes.
 
 ## Implementation, in lots
 

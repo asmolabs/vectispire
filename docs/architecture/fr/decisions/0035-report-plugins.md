@@ -324,7 +324,7 @@ bornée, tous dans `vectispire-common`.
 | Acte | Qui | Marqueur, et ce que le service vérifie |
 |---|---|---|
 | Enregistrer un plugin, mettre à jour son manifeste, l'activer ou le désactiver | gouverneur de la plateforme | `@RequiresPlatformGovernor`, comme la 0017 §6 |
-| **Approuver** un manifeste enregistré ou mis à jour | avec `FOUR_EYES_APPROVAL_REQUIRED` activé, **une autre personne** détenant `canWriteGovernance` (gouverneur, administrateur, RSSI) ; désactivé, l'enregistrement prend effet aussitôt | `@RequiresSecurityLead` + la comparaison dans le service |
+| **Approuver** un manifeste enregistré ou mis à jour | avec `FOUR_EYES_APPROVAL_REQUIRED` activé **à son enregistrement**, **une autre personne** détenant `canWriteGovernance` (gouverneur, administrateur, RSSI), quoi que dise le réglage à l'approbation ; désactivé, l'enregistrement prend effet aussitôt (amendé le 2026-10-05) | `@RequiresSecurityLead` + la comparaison dans le service |
 | L'activer ou le désactiver pour un projet | responsable sécurité, tout le projet visible | `@RequiresSecurityLead` + la garde |
 | Demander un rapport, télécharger l'export | les comptes en écriture (`canCauseEffects`) **et les auditeurs** (`AUDITOR`), tout le projet visible — le gouverneur de la plateforme n'est ni l'un ni l'autre | `@RequiresAccount` + le contrôle du rôle et la garde, tous deux dans le service (export : `@AcceptsApiKey(EXPORT)` aussi) ; chaque demande auditée |
 | Lire les exécutions d'un projet et télécharger un document produit | tout le projet visible | `@RequiresAccount` + la garde |
@@ -614,12 +614,12 @@ le digest ne changent pas.
   en attente, et remplacé par un enregistrement ultérieur avant que quiconque l'approuve : il n'a jamais
   tourné et ne peut plus être approuvé — et `withdrawn`, définitif. Un plugin tient au plus un digest
   approuvé, celui qu'utilise une exécution, et un en attente.
-- **Un digest approuvé auparavant, et jamais retiré, sert à nouveau aussitôt** quand le gouverneur y ramène
-  le plugin : deux personnes ont répondu de ces octets-là. Un digest retiré est refusé (409
-  `report-plugin-withdrawn`).
-- **Les quatre yeux sont lus au moment de l'approbation**, comme pour la publication d'un modèle de
-  checklist : un manifeste resté en attente d'avant l'extinction de la règle peut alors être approuvé par
-  celui qui l'a enregistré. La comparaison se fait par identifiant de compte ; la route porte
+- ~~**Un digest approuvé auparavant, et jamais retiré, sert à nouveau aussitôt** quand le gouverneur y ramène
+  le plugin~~ — *amendé le 2026-10-05, plus bas* : sous les quatre yeux, il attend de nouveau une deuxième
+  personne. Un digest retiré est refusé (409 `report-plugin-withdrawn`).
+- ~~**Les quatre yeux sont lus au moment de l'approbation**~~ — *amendé le 2026-10-05, plus bas* : un
+  manifeste en attente est approuvé par quelqu'un d'autre que celui qui l'a enregistré, quoi que dise le
+  réglage d'ici là. La comparaison se fait par identifiant de compte ; la route porte
   `@RequiresSecurityLead` et le service vérifie à nouveau `canWriteGovernance`. Allumer les quatre yeux
   demande déjà deux comptes qui écrivent la gouvernance (la règle des modèles de checklist), ce qu'il faut
   aussi à une approbation : pas de garde propre.
@@ -923,6 +923,36 @@ code est dans `core.reportplugins` (`ReportWithdrawals`, `ReportDocumentStatusSe
   cet instant, pas celle de la ligne — et dit ce que vaut le document, en relisant les exécutions quand la ligne
   précède le retrait. La route de statut n'a pas d'écran : elle sert au script d'un détenteur, et l'interface
   de R6 atteint un document par son exécution.
+
+## Amendé le 2026-10-05 : les quatre yeux lient le manifeste enregistré sous eux
+
+Une revue de sécurité de la surface de 0.11.0 a montré qu'un gouverneur de la plateforme pouvait mettre
+seul n'importe quelle image en service. Le gouverneur est le seul compte qui peut éteindre
+`FOUR_EYES_APPROVAL_REQUIRED`, et deux règles de R2 lisaient ce réglage au mauvais moment :
+
+- **Il était lu à l'approbation.** Un gouverneur pouvait enregistrer sous les quatre yeux, les éteindre,
+  approuver son propre manifeste en attente et les rallumer — chaque projet où le plugin est activé rendant
+  alors tout son export avec une image que personne d'autre n'avait regardée, les documents signés de la
+  clé de l'installation. `Role.governsPlatform()` dit l'inverse : *le compte qui peut lever la règle ne peut
+  pas agir sous elle*.
+- **Un digest approuvé auparavant servait de nouveau aussitôt**, quatre yeux ou non. Il avait été remplacé,
+  peut-être pour une raison que personne n'a écrite en le retirant ; y revenir est une nouvelle décision sur
+  ce à quoi l'export de chaque projet activé est remis.
+
+Décidé :
+
+- **Un manifeste en attente est approuvé par quelqu'un d'autre que celui qui l'a enregistré, quoi que dise
+  le réglage à l'approbation.** Seul un enregistrement fait sous les quatre yeux est en attente :
+  l'exigence est donc celle sous laquelle il a été enregistré, sans colonne pour la porter. Son approbation
+  est enregistrée `approvalFourEyes: true`.
+- **Sous les quatre yeux, un digest approuvé auparavant revient en attente** : la mise à jour enregistre
+  « approved before, set back: pending a second person's approval », et celui qui l'y ramène ne peut pas
+  l'approuver. Quatre yeux inactifs, il sert toujours aussitôt, ce que dit l'entrée d'audit.
+
+Ce qui ne change pas, délibérément : **quatre yeux inactifs, un enregistrement prend toujours effet
+aussitôt.** Une installation de 0032 avec un seul approbateur doit pouvoir enregistrer un plugin, et la
+bascule est signalée (`SECURITY_SETTING_CHANGED`) comme chaque geste sur le registre (`VECTI-SEC-031`).
+Lever la règle se voit ; agir seul sous une règle qu'on a levée seul, c'est ce que ceci ferme.
 
 ## Mise en œuvre, en lots
 

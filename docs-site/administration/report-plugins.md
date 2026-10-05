@@ -62,7 +62,7 @@ registry credential.
 |---|---|---|
 | Register a plugin | the platform governor | `POST /api/v1/report-plugins` |
 | Give it another manifest | the platform governor | `PUT /api/v1/report-plugins/{id}` |
-| Approve a manifest digest | the platform governor, an administrator or a CISO — **not the account that registered it** while [four-eyes](four-eyes.md) is on | `POST /api/v1/report-plugins/{id}/manifests/{digest}/approval` |
+| Approve a manifest digest | the platform governor, an administrator or a CISO — **never the account that registered it**: only a digest registered under [four-eyes](four-eyes.md) waits for approval | `POST /api/v1/report-plugins/{id}/manifests/{digest}/approval` |
 | Enable or disable it | the platform governor | `PUT /api/v1/report-plugins/{id}/enabled` |
 | Switch it on or off for a project | the platform governor, an administrator or a CISO | `PUT` / `DELETE /api/v1/projects/{id}/report-plugins/{pluginId}` |
 | Withdraw a manifest digest | the platform governor, with a justification | `POST /api/v1/report-plugins/{id}/manifests/{digest}/withdrawal` |
@@ -71,12 +71,13 @@ registry credential.
 writes governance approves **that digest**. Meanwhile the plugin's previously approved manifest keeps
 serving; a plugin with none cannot be switched on for a project. Registering another manifest before the
 pending one is approved sets the pending one aside (`superseded`): it can no longer be approved. Setting a
-plugin back to a manifest approved earlier, and never withdrawn, takes effect at once — two people have
-vouched for exactly those bytes.
+plugin back to a manifest approved earlier, and never withdrawn, is a new decision too: it waits for
+somebody else's approval like any other, since it was replaced, perhaps for a reason.
 
 **With four-eyes off**, a registration or an update takes effect at once, recorded as approved with
-`approvalFourEyes: false`. A manifest left pending from before the switch may then be approved by any
-governance writer, its registrant included.
+`approvalFourEyes: false`, and so does setting a plugin back to a manifest approved earlier. **A manifest
+left pending from before the switch still needs somebody other than its registrant**: it was registered
+under four-eyes, and is approved under it.
 
 Every manifest a plugin ever had is kept, by digest, with its status — `pending_approval`, `approved`,
 `superseded` or `withdrawn` —, who registered it, who approved it and whether four-eyes applied: the

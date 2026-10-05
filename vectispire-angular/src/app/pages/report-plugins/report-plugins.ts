@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -10,7 +10,6 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ReportPluginsApi } from '../../core/api/report-plugins.api';
-import { SettingsApi } from '../../core/api/settings.api';
 import type { ReportPlugin, ReportPluginManifestView } from '../../core/api.models';
 import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -40,10 +39,10 @@ export const EXPORT_MAJOR = 1;
  *
  * **Read by governance readers; each gesture offered to the role the server takes it from.** The
  * platform governor registers, gives a new manifest, enables and withdraws; a security lead approves.
- * **Four-eyes on the image**: with it on, the account that registered a digest may not approve it —
- * the plugin will produce documents under the installation's key, and one person deciding alone which
- * code may do that is the concentration four-eyes splits. The page says so beside the button rather
- * than letting the click meet a 409.
+ * **Four-eyes on the image**: the account that registered a digest never approves it — the plugin will
+ * produce documents under the installation's key, and one person deciding alone which code may do that
+ * is the concentration four-eyes splits. The page says so beside the button rather than letting the
+ * click meet a 409.
  *
  * **There is no delete**: an id names every document the plugin produced. A wrong image is withdrawn,
  * with a justification, and a fixed one is a new manifest.
@@ -67,7 +66,6 @@ export const EXPORT_MAJOR = 1;
 })
 export class ReportPlugins {
     private readonly api = inject(ReportPluginsApi);
-    private readonly settingsApi = inject(SettingsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
 
@@ -84,23 +82,6 @@ export class ReportPlugins {
     readonly busy = signal<string | null>(null);
     readonly openId = signal<string | null>(null);
     readonly opened = computed(() => this.plugins().find((plugin) => plugin.id === this.openId()) ?? null);
-
-    /**
-     * `triage_four_eyes_required` — the setting that also governs a report plugin's approval. Read once,
-     * and only when the person on screen registered a digest still waiting. `null` until known, or when
-     * it could not be read: treated as on, the server's default.
-     */
-    readonly fourEyes = signal<boolean | null>(null);
-    private fourEyesAsked = false;
-    private readonly ownPending = computed(() => {
-        const me = this.session.user()?.username;
-        return (
-            this.approves() &&
-            this.plugins().some((plugin) =>
-                plugin.manifests.some((one) => one.status === 'pending_approval' && one.registeredBy === me)
-            )
-        );
-    });
 
     // --- The manifest dialog: a registration, or a new manifest for `manifestFor`.
     readonly manifestVisible = signal(false);
@@ -120,9 +101,6 @@ export class ReportPlugins {
 
     constructor() {
         this.reload();
-        effect(() => {
-            if (this.ownPending()) untracked(() => this.readFourEyes());
-        });
     }
 
     reload(): void {
@@ -136,18 +114,6 @@ export class ReportPlugins {
                 this.error.set(messageOf(failure, this.i18n.t('report_plugins.error_load')));
                 this.loading.set(false);
             }
-        });
-    }
-
-    private readFourEyes(): void {
-        if (this.fourEyesAsked) return;
-        this.fourEyesAsked = true;
-        this.settingsApi.settings().subscribe({
-            next: (result) => {
-                const value = (result?.settings ?? []).find((one) => one.key === 'triage_four_eyes_required')?.value;
-                this.fourEyes.set(value === 'true' ? true : value === 'false' ? false : null);
-            },
-            error: () => this.fourEyes.set(null)
         });
     }
 
@@ -176,9 +142,15 @@ export class ReportPlugins {
         return JSON.stringify(manifest.manifest, null, 2);
     }
 
-    /** Whether four-eyes keeps the person on screen from approving this digest: they registered it. */
+    /**
+     * Whether the person on screen may not approve this digest: they registered it. The four-eyes setting
+     * is deliberately not read — only a registration made under four-eyes waits, so the rule it was
+     * registered under is the one it is approved under, even if the setting was turned off since
+     * (decision 0035, amended 2026-10-05). Reading today's setting here once offered a button the server
+     * now refuses.
+     */
     approvalBlocked(manifest: ReportPluginManifestView): boolean {
-        return manifest.registeredBy === this.session.user()?.username && this.fourEyes() !== false;
+        return manifest.registeredBy === this.session.user()?.username;
     }
 
     /** A refusal in the reader's words when the server named its cause, its own sentence otherwise. */

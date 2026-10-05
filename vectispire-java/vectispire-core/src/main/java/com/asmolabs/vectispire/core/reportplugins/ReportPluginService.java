@@ -177,8 +177,8 @@ public class ReportPluginService {
 
     /**
      * Gives a plugin a new manifest under the same id. With four-eyes on it waits for approval and the
-     * approved one keeps serving; with it off it serves at once. A digest approved earlier serves at once;
-     * a withdrawn one is refused. The pending or approved manifest again changes nothing and records nothing.
+     * approved one keeps serving; with it off it serves at once. A digest approved earlier is no exception:
+     * set back under four-eyes it waits for a second person too. A withdrawn one is refused. The pending or approved manifest again changes nothing and records nothing.
      *
      * @throws ReportPluginConflict {@code report-plugin-withdrawn} for a withdrawn digest
      */
@@ -210,14 +210,18 @@ public class ReportPluginService {
             }
             String setAside = setAsidePending(plugin);
             String outcome;
-            if (knownStatus == ReportPluginManifestStatus.APPROVED) {
+            if (knownStatus == ReportPluginManifestStatus.APPROVED && !fourEyes) {
                 plugin.setApprovedDigest(digest);
                 plugin.setName(manifest.name());
-                outcome = "serving at once — approved before";
+                outcome = "serving at once — approved before (four-eyes off)";
             } else if (fourEyes) {
+                // A digest approved before is set back under the same rule as a new one. It served once, but
+                // it was replaced — perhaps for a reason nobody wrote down by withdrawing it — and putting it
+                // back is a fresh decision about what every activated project's export is handed to.
                 store(manifest, digest, registrant, true, now);
                 plugin.setPendingDigest(digest);
-                outcome = "pending a second person's approval (four-eyes); " + (plugin.getApprovedDigest() == null
+                outcome = (knownStatus == ReportPluginManifestStatus.APPROVED ? "approved before, set back: " : "")
+                        + "pending a second person's approval (four-eyes); " + (plugin.getApprovedDigest() == null
                         ? "no approved manifest serves meanwhile"
                         : "manifest " + plugin.getApprovedDigest() + " serves meanwhile");
             } else {
@@ -243,8 +247,15 @@ public class ReportPluginService {
     /**
      * Approves the plugin's pending digest: from now on, what its runs use.
      *
-     * @param approver the signed-in account — one holding {@code canWriteGovernance}, and with four-eyes on
-     *     not the account that registered the digest
+     * <p><b>A pending digest is approved by somebody else, whatever four-eyes says now.</b> Only a registration
+     * made under four-eyes is pending, so the rule it was registered under is the one it is approved under. It
+     * was read here, at the approval: a governor — who alone may switch four-eyes off — could register under
+     * the rule, lift it, approve their own manifest and put the rule back, every project with the plugin
+     * switched on then rendering its whole export with an image nobody else had looked at (decision 0035,
+     * amended 2026-10-05).
+     *
+     * @param approver the signed-in account — one holding {@code canWriteGovernance}, and not the account that
+     *     registered the digest
      * @throws NotFoundException a plugin or a digest of it that does not exist
      * @throws AccessDeniedException a role that does not write governance
      * @throws ReportPluginConflict {@code report-plugin-not-pending}, {@code report-plugin-four-eyes}
@@ -253,7 +264,6 @@ public class ReportPluginService {
         if (!Role.of(approver.role()).map(Role::canWriteGovernance).orElse(false)) {
             throw new AccessDeniedException("Approving a report plugin is for the roles that write governance.");
         }
-        boolean fourEyes = settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED);
         Instant now = clock.instant();
 
         record Approved(ReportPluginEntity plugin, ReportPluginManifestEntity row) {}
@@ -266,7 +276,7 @@ public class ReportPluginService {
                 throw new ReportPluginConflict(ReportPluginConflict.Cause.NOT_PENDING, "Manifest " + digest + " of \""
                         + id + "\" is not awaiting approval: it is " + row.getStatus() + ".");
             }
-            if (fourEyes && approver.id() != null && approver.id().equals(row.getRegisteredById())) {
+            if (approver.id() != null && approver.id().equals(row.getRegisteredById())) {
                 throw new ReportPluginConflict(ReportPluginConflict.Cause.FOUR_EYES, "Four-eyes approval: manifest "
                         + digest + " of \"" + id + "\" was registered by " + row.getRegisteredBy()
                         + ", so it has to be approved by somebody else.");
@@ -275,7 +285,7 @@ public class ReportPluginService {
             row.setApprovedAt(now);
             row.setApprovedBy(approver.username());
             row.setApprovedById(approver.id());
-            row.setApprovalFourEyes(fourEyes);
+            row.setApprovalFourEyes(true);
             manifests.save(row);
             plugin.setApprovedDigest(row.getDigest());
             plugin.setPendingDigest(null);
@@ -286,8 +296,7 @@ public class ReportPluginService {
         }));
 
         audit.record(actor.entry(AuditOperation.REPORT_PLUGIN_APPROVED, id,
-                "Report plugin \"" + id + "\" manifest " + digest + " approved, four-eyes "
-                        + (fourEyes ? "required" : "not required") + " (registered by "
+                "Report plugin \"" + id + "\" manifest " + digest + " approved by a second person (registered by "
                         + approved.row().getRegisteredBy() + "): its runs use it from now on."));
         return view(approved.plugin());
     }

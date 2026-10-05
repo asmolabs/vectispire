@@ -20,8 +20,8 @@ import { ReportPlugins } from './report-plugins';
  * The report plugin registry, through the DOM.
  *
  * **Who sees which gesture is the whole point.** The governor registers, enables and withdraws; a security
- * lead approves — and, with four-eyes on, never the digest they registered themselves, which the page says
- * beside a disabled button instead of letting the click meet a 409. An auditor reads it all and changes
+ * lead approves — and never the digest they registered themselves, whatever four-eyes says now, which the
+ * page says beside a disabled button instead of letting the click meet a 409. An auditor reads it all and changes
  * nothing. Every case signs in as one of them and reads what the page offers.
  */
 describe('the report plugin registry', () => {
@@ -47,14 +47,6 @@ describe('the report plugin registry', () => {
         http.expectOne({ method: 'GET', url: '/api/v1/report-plugins' }).flush(
             asSchemaList('ReportPluginView', plugins)
         );
-        fixture.detectChanges();
-    }
-
-    /** Answers the settings read the page makes when the person on screen registered a waiting digest. */
-    function fourEyes(on: boolean): void {
-        http.expectOne({ method: 'GET', url: '/api/v1/settings' }).flush({
-            settings: [{ key: 'triage_four_eyes_required', value: String(on) }]
-        });
         fixture.detectChanges();
     }
 
@@ -99,8 +91,6 @@ describe('the report plugin registry', () => {
         );
         expect(dom().querySelector('[data-testid="approve"]')).toBeNull();
         expect(dom().querySelector('[data-testid="withdraw"]')).toBeNull();
-        // Governance reading only: the auditor registered nothing, so the settings are not asked.
-        http.expectNone('/api/v1/settings');
     });
 
     it('lets a CISO approve a digest somebody else registered, with a POST on that digest', async () => {
@@ -135,25 +125,18 @@ describe('the report plugin registry', () => {
         expect(text(dom(), '[data-testid="pending-digest"]')).toBe('—');
     });
 
-    it('keeps the registrant from approving their own digest under four-eyes, and says why', async () => {
+    it('keeps the registrant from approving their own digest whatever four-eyes says now, and says why', async () => {
         await start('SUPERUSER', 'governor');
-        fourEyes(true);
         open();
 
+        // Only a registration made under four-eyes waits, and it is approved under the rule it was registered
+        // under: turning four-eyes off since frees nothing, so the page does not read the setting at all
+        // (`http.verify()` after each case fails on a settings request nobody answered).
         const approve = button(manifest(PENDING_DIGEST), '[data-testid="approve"]')!;
         expect(approve.disabled).toBe(true);
         expect(text(manifest(PENDING_DIGEST), '[data-testid="approve-four-eyes"]')).toContain(
             'You registered this digest'
         );
-    });
-
-    it('lets the registrant approve once four-eyes is off', async () => {
-        await start('SUPERUSER', 'governor');
-        fourEyes(false);
-        open();
-
-        expect(button(manifest(PENDING_DIGEST), '[data-testid="approve"]')!.disabled).toBe(false);
-        expect(manifest(PENDING_DIGEST).querySelector('[data-testid="approve-four-eyes"]')).toBeNull();
     });
 
     it('words a four-eyes refusal from the server in the reader’s language, not the server’s sentence', async () => {
@@ -174,7 +157,6 @@ describe('the report plugin registry', () => {
 
     it('says every problem of a pasted manifest in words, and sends it only once it reads correctly', async () => {
         await start('SUPERUSER', 'governor');
-        fourEyes(true);
 
         button(dom(), '#register-report-plugin')!.click();
         fixture.detectChanges();
@@ -215,7 +197,6 @@ describe('the report plugin registry', () => {
 
     it('gives an existing plugin a new manifest with a PUT, and holds it to the same id', async () => {
         await start('SUPERUSER', 'governor');
-        fourEyes(true);
 
         button(dom(), '[aria-label="Give quarterly-summary a new manifest"]')!.click();
         fixture.detectChanges();
@@ -243,7 +224,6 @@ describe('the report plugin registry', () => {
 
     it('withdraws a digest only with a justification of 20 to 500 characters, sent trimmed', async () => {
         await start('SUPERUSER', 'governor');
-        fourEyes(true);
         open();
 
         button(manifest(APPROVED_DIGEST), '[data-testid="withdraw"]')!.click();
@@ -289,7 +269,6 @@ describe('the report plugin registry', () => {
 
     it('lets the governor disable a plugin with a PUT on /enabled', async () => {
         await start('SUPERUSER', 'governor');
-        fourEyes(true);
 
         button(dom(), '[data-testid="enable-quarterly-summary"]')!.click();
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/report-plugins/quarterly-summary/enabled' });

@@ -407,7 +407,9 @@ another branch, is another target and is accepted as before.
   waiver** — at `POST /api/v1/report-plugins`. **With four-eyes on, each manifest digest waits for a second
   person**: an administrator, a CISO or another governor approves it
   (`POST /api/v1/report-plugins/{id}/manifests/{digest}/approval`), never the account that registered it
-  (409 `report-plugin-four-eyes`), while the previously approved manifest keeps serving. A security lead
+  (409 `report-plugin-four-eyes`) — even once four-eyes is switched off, since it was registered under it —
+  while the previously approved manifest keeps serving. Setting a plugin back to a digest approved earlier
+  waits for a second person too. A security lead
   switches an approved plugin on for a project they see whole
   (`PUT /api/v1/projects/{id}/report-plugins/{pluginId}`); the governor withdraws a digest with a
   justification, and it never runs nor registers again. No delete. Every gesture is audited

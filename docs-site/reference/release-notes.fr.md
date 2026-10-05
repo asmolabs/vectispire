@@ -442,8 +442,9 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   délai, et un signataire, **obligatoire sans dérogation** — par `POST /api/v1/report-plugins`. **Quatre
   yeux actifs, chaque digest de manifeste attend une seconde personne** : un administrateur, un CISO ou un
   autre gouverneur l'approuve (`POST /api/v1/report-plugins/{id}/manifests/{digest}/approval`), jamais le
-  compte qui l'a enregistré (409 `report-plugin-four-eyes`), pendant que le manifeste approuvé précédent
-  continue de servir. Un responsable sécurité active un plugin approuvé pour un projet qu'il voit en entier
+  compte qui l'a enregistré (409 `report-plugin-four-eyes`) — même une fois les quatre yeux éteints,
+  puisqu'il a été enregistré sous eux —, pendant que le manifeste approuvé précédent continue de servir.
+  Ramener un plugin à un digest approuvé auparavant attend aussi une seconde personne. Un responsable sécurité active un plugin approuvé pour un projet qu'il voit en entier
   (`PUT /api/v1/projects/{id}/report-plugins/{pluginId}`) ; le gouverneur retire un digest avec une
   justification, et celui-ci ne tourne ni ne s'enregistre plus jamais. Pas de suppression. Chaque geste est
   audité (`REPORT_PLUGIN_*`) et envoyé au SIEM comme le nouveau `VECTI-SEC-031`. L'image d'un plugin privé

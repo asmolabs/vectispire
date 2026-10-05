@@ -238,7 +238,7 @@ class ReportPluginsRoutesTest extends ApiTestBase {
             assertThat(approved.at("/manifests/0/status").asText()).isEqualTo("approved");
             assertThat(approved.at("/manifests/0/approvalFourEyes").asBoolean()).isTrue();
             assertThat(entries(AuditOperation.REPORT_PLUGIN_APPROVED)).singleElement()
-                    .satisfies(entry -> assertThat(entry.getDescription()).contains(digest, "four-eyes required"));
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains(digest, "approved by a second person"));
 
             assertConflict(approve(asAdmin(), digest), "report-plugin-not-pending");
             activate(asCiso(), project).andExpect(status().isOk());
@@ -286,10 +286,16 @@ class ReportPluginsRoutesTest extends ApiTestBase {
             assertThat(statusOf(approved, first)).isEqualTo("approved");
             assertThat(entries(AuditOperation.REPORT_PLUGIN_UPDATED)).hasSize(2);
 
-            // Back to a digest two people approved: at once, no second approval.
+            // Back to a digest approved before: a fresh decision, so a second person again. It was replaced,
+            // perhaps for a reason nobody wrote down by withdrawing it.
             JsonNode back = body(update(governor, manifest(IMAGE_A)).andExpect(status().isOk()));
-            assertThat(back.at("/approvedDigest").asText()).isEqualTo(first);
-            assertThat(back.at("/pendingDigest").isNull()).isTrue();
+            assertThat(back.at("/approvedDigest").asText()).isEqualTo(third);
+            assertThat(back.at("/pendingDigest").asText()).isEqualTo(first);
+            assertThat(entries(AuditOperation.REPORT_PLUGIN_UPDATED))
+                    .anySatisfy(entry -> assertThat(entry.getDescription()).contains("approved before, set back: pending"));
+            assertConflict(approve(governor, first), "report-plugin-four-eyes");
+            JsonNode reinstated = body(approve(asAdmin(), first).andExpect(status().isOk()));
+            assertThat(reinstated.at("/approvedDigest").asText()).isEqualTo(first);
         }
     }
 
@@ -319,13 +325,29 @@ class ReportPluginsRoutesTest extends ApiTestBase {
         }
 
         @Test
-        @DisplayName("a manifest pending from before the switch is approved by its registrant once four-eyes is off")
+        @DisplayName("a manifest pending from before the switch still needs somebody else: the rule it was registered under")
         void pendingFromBefore() throws Exception {
+            // The governor alone may switch four-eyes off; read at the approval, the rule let them register
+            // under it, lift it and approve their own manifest.
             settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
             String digest = newest(body(register(governor, manifest(IMAGE_A))));
             settings.set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
-            JsonNode approved = body(approve(governor, digest).andExpect(status().isOk()));
-            assertThat(approved.at("/manifests/0/approvalFourEyes").asBoolean()).isFalse();
+
+            assertConflict(approve(governor, digest), "report-plugin-four-eyes");
+            JsonNode approved = body(approve(asCiso(), digest).andExpect(status().isOk()));
+            assertThat(approved.at("/manifests/0/approvalFourEyes").asBoolean()).isTrue();
+        }
+
+        @Test
+        @DisplayName("a digest approved before is set back at once, and says the rule was off")
+        void backAtOnce() throws Exception {
+            String first = newest(body(register(governor, manifest(IMAGE_A))));
+            update(governor, manifest(IMAGE_B)).andExpect(status().isOk());
+            JsonNode back = body(update(governor, manifest(IMAGE_A)).andExpect(status().isOk()));
+            assertThat(back.at("/approvedDigest").asText()).isEqualTo(first);
+            assertThat(back.at("/pendingDigest").isNull()).isTrue();
+            assertThat(entries(AuditOperation.REPORT_PLUGIN_UPDATED))
+                    .anySatisfy(entry -> assertThat(entry.getDescription()).contains("approved before (four-eyes off)"));
         }
     }
 
