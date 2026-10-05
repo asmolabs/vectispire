@@ -400,7 +400,7 @@ another branch, is another target and is accepted as before.
   produced run keeps the export it was given, purged by the evidence window; nothing else is kept of a run
   that did not produce. **On MySQL that export is bounded by `max_allowed_packet`**: about 32 MiB at the
   server's default 64 MiB packet, refused `export_too_large` before the plugin runs; start MySQL with
-  `--max-allowed-packet=160M` for the whole 64 MiB. **An installation whose built-in worker is switched off cannot run report plugins**
+  `--max-allowed-packet=160M` for the whole 64 MiB, as the shipped composition now does. **An installation whose built-in worker is switched off cannot run report plugins**
   in this version: 409 `report-executor-unavailable`; a run queued before the worker was switched off is
   failed `executor_unavailable` once nothing has claimed it for seventeen minutes while no executor worked,
   rather than left pending for ever. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`

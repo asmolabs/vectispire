@@ -41,6 +41,11 @@ services:
   db:
     image: mysql:8
     container_name: vectispire-db
+    # A report's export is kept in one row and the driver sends it hex-encoded, at twice its size: at
+    # the server's default 64 MiB packet an export past about 32 MiB is refused `export_too_large`, and
+    # a document's file is lowered to about 31 MiB. 160M restores the 64 MiB bound and the manifest's
+    # ceiling (decision 0038 §4 asks the same of a Kubernetes server).
+    command: --max-allowed-packet=160M
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-vectispire}
       MYSQL_USER: ${MYSQL_USER:-vectispire}

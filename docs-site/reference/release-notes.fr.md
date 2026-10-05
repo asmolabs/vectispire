@@ -434,7 +434,7 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   des preuves ; rien d'autre n'est gardé d'une exécution qui n'a pas produit. **Sur MySQL, cet export est
   borné par `max_allowed_packet`** : environ 32 Mio au paquet par défaut de 64 Mio, refusé
   `export_too_large` avant que le plugin ne s'exécute ; démarrez MySQL avec `--max-allowed-packet=160M` pour
-  les 64 Mio entiers. **Une installation dont le
+  les 64 Mio entiers, comme le fait désormais la composition livrée. **Une installation dont le
   worker intégré est coupé ne peut pas exécuter de plugins de rapport** dans cette version : 409
   `report-executor-unavailable` ; une exécution mise en file avant la coupure du worker passe en échec
   `executor_unavailable` quand rien ne l'a prise en charge pendant dix-sept minutes alors qu'aucun exécuteur
