@@ -46,9 +46,13 @@ WORKDIR /src
 COPY vectispire-java/gradle/ gradle/
 COPY vectispire-java/gradlew vectispire-java/settings.gradle.kts vectispire-java/build.gradle.kts ./
 COPY vectispire-java/buildSrc/ buildSrc/
-# The empty module directories exist only so that this warm-up can run: `settings.gradle.kts`
-# declares three projects and Gradle refuses to configure one whose directory is missing.
-RUN mkdir -p vectispire-common vectispire-core vectispire-agent && ./gradlew --no-daemon help
+# The empty module directories exist only so that this warm-up can run: Gradle refuses to configure
+# a project whose directory is missing. The list is read from `settings.gradle.kts` rather than
+# written here, because it was written here — three names — and the fourth module,
+# `vectispire-report-demo`, broke this image while every push pipeline stayed green: only the
+# nightly builds this file. A read that finds nothing fails the build rather than warming up nothing.
+RUN modules="$(grep -o '"vectispire-[a-z-]*"' settings.gradle.kts | tr -d '"')" \
+    && test -n "$modules" && mkdir -p $modules && ./gradlew --no-daemon help
 
 COPY vectispire-java/ ./
 COPY --from=ui /src/vectispire-angular/dist/vectispire /ui

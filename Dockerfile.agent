@@ -14,7 +14,10 @@ WORKDIR /src
 COPY vectispire-java/gradle/ gradle/
 COPY vectispire-java/gradlew vectispire-java/settings.gradle.kts vectispire-java/build.gradle.kts ./
 COPY vectispire-java/buildSrc/ buildSrc/
-RUN mkdir -p vectispire-common vectispire-core vectispire-agent && ./gradlew --no-daemon help
+# Gradle refuses to configure a project whose directory is missing; the list comes from the
+# settings, as in `Dockerfile`, so that a new module cannot break this image either.
+RUN modules="$(grep -o '"vectispire-[a-z-]*"' settings.gradle.kts | tr -d '"')" \
+    && test -n "$modules" && mkdir -p $modules && ./gradlew --no-daemon help
 
 COPY vectispire-java/ ./
 RUN ./gradlew --no-daemon :vectispire-agent:bootJar -x test
