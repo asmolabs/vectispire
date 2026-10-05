@@ -210,6 +210,73 @@ jobs:
             --directory . \
             --skip-path node_modules
 
+  # **The Dockerfiles are built on push when what they read moved**, not only by the nightly.
+  #
+  # `images` builds with Jib, which reads none of these files: on 2026-10-04 both `Dockerfile` and
+  # `Dockerfile.agent` broke on the fourth module — their warm-up created three module directories
+  # by name — and every push pipeline stayed green; the nightly was the first to build them, after
+  # the merge into `main`. What can break one of these builds and not Jib's is what only they read:
+  # the files themselves and `.dockerignore`, the build definition the warm-up configures on empty
+  # module directories, the npm manifests `npm ci` installs on Alpine (musl binaries a lockfile can
+  # lack), the interface's output path the jar stage copies, and the script the CLI image carries.
+  # `Dockerfile.cli` was built by nothing at all, while the CI/CD guide tells people to build it.
+  #
+  # The composition's scan check through the agent stays in the nightly: thirty minutes per push is
+  # the cost that teaches people to route around CI, and an image that builds and carries its jar
+  # is what the defect above would have needed.
+  dockerfile-changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      touched: ${{ steps.detect.outputs.touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          # Through the environment rather than interpolated into the script, like `migration-changes`.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # **Undetermined means "run"**, as for the other two detections below.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "plage non résoluble — les images sont construites par défaut"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # This file is in the list so that a change to the job is a run of the job: the commit
+          # that added it touched nothing else, and would otherwise have shipped it unexercised.
+          DOCKER_PATHS='^\.github/workflows/ci\.yml$|^Dockerfile|^\.dockerignore$|^vectispire-java/(settings|build)\.gradle\.kts$|^vectispire-java/[^/]+/build\.gradle\.kts$|^vectispire-java/buildSrc/|^vectispire-java/gradle/wrapper/|^package(-lock)?\.json$|^vectispire-angular/(package|angular)\.json$|^scripts/vectispire-cli\.sh$'
+          changed=$(git diff --name-only "$BASE" HEAD | grep -E "$DOCKER_PATHS" || true)
+          if [ -n "$changed" ]; then
+            echo "ce que lisent les Dockerfiles a changé — les images sont construites :"
+            echo "$changed"
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rien de ce que lisent les Dockerfiles n'a changé — les images ne sont pas construites"
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  dockerfiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [dockerfile-changes]
+    # Skipped rather than run empty, like `engines` and `e2e`.
+    if: needs.dockerfile-changes.outputs.touched == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The same commands and the same checks as `nightly.yml`'s `dockerfiles`, so a red here is the
+      # red the nightly would have shown a day later.
+      - run: docker build --progress=plain -f Dockerfile -t vectispire:verify .
+      - run: docker build --progress=plain -f Dockerfile.agent -t vectispire-agent:verify .
+      - run: docker build --progress=plain -f Dockerfile.cli -t vectispire-cli:verify .
+      - run: docker run --rm --entrypoint sh vectispire:verify -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+      - run: docker run --rm --entrypoint sh vectispire-agent:verify -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
+      - run: docker run --rm --entrypoint sh vectispire:verify -c 'ls -ld /var/lib/vectispire/audit'
+      # The CLI's own help, through its entrypoint: the script is there, executable, and its
+      # interpreter and `jq` are in the image.
+      - run: docker run --rm vectispire-cli:verify --help
 
   # **The chart renders in each of its shapes, and refuses what it says it refuses** (decision 0038):
   # the control plane alone, agents with a privileged docker:dind sidecar, and the rootless variant

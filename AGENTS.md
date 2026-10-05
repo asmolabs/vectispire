@@ -67,11 +67,14 @@ what `ScannerImages` pins, so the same scanner version audits Vectispire as audi
 `main` is not a push trigger: a commit reaching it without going through `develop` has no checks
 to show, and that is the flow the rule is meant to enforce.
 
-**Two suites run on push only when their own ground moved.** `engines` runs `integrationTestAll`
+**Three suites run on push only when their own ground moved.** `engines` runs `integrationTestAll`
 when anything engine-sensitive changed — a migration, the query layer and the entity mappings (each
 module's `core/<module>/persistence/`), the datasource setup (`core/config/`), the campaign itself,
-or a dependency version — and `e2e` runs the Playwright suite when `vectispire-angular/` or the
-lockfile changed; a diff range that cannot be resolved counts as changed. Both also run
+or a dependency version — `e2e` runs the Playwright suite when `vectispire-angular/` or the
+lockfile changed, and `dockerfiles` builds the three Dockerfiles when what only they read changed —
+the files, `.dockerignore`, the Gradle build definition, the npm manifests, the CLI script — since
+`images` builds with Jib and a broken Dockerfile was otherwise first seen by the nightly; a diff
+range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
 alongside `dockerfiles` and `restore` — on `cron: '30 2 * * *'`. On GitLab the nightly depended
 on a schedule created in the project settings, invisible to anyone reading the repository, and it

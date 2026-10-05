@@ -59,6 +59,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker build -f Dockerfile -t vectispire:nightly .
       - run: docker build -f Dockerfile.agent -t vectispire-agent:nightly .
+      # Built by nothing until 2026-10-05, while the CI/CD guide tells people to build it.
+      - run: docker build -f Dockerfile.cli -t vectispire-cli:nightly .
+      - run: docker run --rm vectispire-cli:nightly --help
       - run: docker run --rm --entrypoint sh vectispire:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
       - run: docker run --rm --entrypoint sh vectispire-agent:nightly -c 'ls -l /app/app.jar /app/LICENSE /app/NOTICE'
       # The audit mirror's directory must exist and belong to the user the image runs as, which is
