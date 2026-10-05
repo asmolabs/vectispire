@@ -18,7 +18,7 @@ class OutboundGuardWiringTest {
     @Test
     @DisplayName("refuses the configured database as a destination, whatever the policy")
     void reservesTheDatabase() {
-        var guard = new OutboundGuardConfiguration().outboundUrlGuard("jdbc:mysql://127.0.0.1:3306/vectispire");
+        var guard = new OutboundGuardConfiguration().outboundUrlGuard("jdbc:mysql://127.0.0.1:3306/vectispire", "", "");
 
         assertThatThrownBy(() -> guard.validate("http://127.0.0.1:3306/", OutboundPolicy.INTERNAL_ALLOWED, "Webhook"))
                 .isInstanceOf(UnsafeUrlException.class)
@@ -38,6 +38,21 @@ class OutboundGuardWiringTest {
                     .isInstanceOf(UnsafeUrlException.class)
                     .hasMessageContaining("the database");
         }
+    }
+
+    @Test
+    @DisplayName("in a Kubernetes pod, refuses the cluster's API service, by its address and its port")
+    void reservesTheKubernetesApi() {
+        // What every pod is given; a forge connection on the internal network may otherwise reach it.
+        var guard = new OutboundGuardConfiguration().outboundUrlGuard("", "127.0.0.9", "443");
+
+        assertThatThrownBy(() -> guard.validate("https://127.0.0.9/", OutboundPolicy.INTERNAL_ALLOWED, "Forge connection"))
+                .isInstanceOf(UnsafeUrlException.class)
+                .hasMessageContaining("the Kubernetes API");
+        guard.validate("https://127.0.0.9:8443/", OutboundPolicy.INTERNAL_ALLOWED, "Forge connection");
+        assertThatThrownBy(() -> new OutboundGuardConfiguration().outboundUrlGuard("", "127.0.0.9", "https"))
+                .as("a port that is not one stops the application rather than reserving nothing")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

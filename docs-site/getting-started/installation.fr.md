@@ -24,7 +24,9 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
     cela, chaque scan échoue au premier conteneur.
 
     Le démon désigné par `DOCKER_HOST` et chaque hôte de l'URL JDBC sont **réservés** : aucun
-    webhook, serveur d'IA ou collecteur SIEM ne peut les viser, quelle que soit la politique. Le
+    webhook, serveur d'IA, collecteur SIEM ou connexion forge ne peut les viser, quelle que soit la
+    politique. Dans un pod Kubernetes, le service d'API du cluster l'est aussi
+    (`KUBERNETES_SERVICE_HOST` et `KUBERNETES_SERVICE_PORT`, donnés à chaque pod). Le
     plan de contrôle **refuse donc de démarrer** s'il ne sait pas lire ces hôtes — un
     `DOCKER_HOST` qui n'est ni `unix://`, ni `npipe://`, ni `tcp://`, `http://` ou `https://`, ou
     une URL JDBC dont les hôtes ne figurent pas dans la chaîne (`jdbc:mysql+srv://`). Les URL à

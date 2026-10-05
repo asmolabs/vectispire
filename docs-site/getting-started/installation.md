@@ -24,7 +24,9 @@ install needs neither the agent nor any agent configuration.
     every scan fails at the first container.
 
     The daemon named by `DOCKER_HOST` and every host of the JDBC URL are **reserved**: no
-    webhook, AI server or SIEM collector may be pointed at them, whatever the policy. So the
+    webhook, AI server, SIEM collector or forge connection may be pointed at them, whatever the
+    policy. In a Kubernetes pod, so is the cluster's API service (`KUBERNETES_SERVICE_HOST` and
+    `KUBERNETES_SERVICE_PORT`, which every pod is given). So the
     control plane **refuses to start** when it cannot read those hosts — a `DOCKER_HOST` that is
     not `unix://`, `npipe://`, `tcp://`, `http://` or `https://`, or a JDBC URL whose hosts are
     not in the string (`jdbc:mysql+srv://`). Multi-host and replication URLs, MySQL's

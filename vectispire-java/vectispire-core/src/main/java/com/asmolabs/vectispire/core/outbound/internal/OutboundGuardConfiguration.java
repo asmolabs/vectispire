@@ -27,11 +27,16 @@ public class OutboundGuardConfiguration {
      * file database yields nothing, having no address to send to.
      */
     @Bean
-    public OutboundUrlGuard outboundUrlGuard(@Value("${spring.datasource.url:}") String datasourceUrl) {
+    public OutboundUrlGuard outboundUrlGuard(@Value("${spring.datasource.url:}") String datasourceUrl,
+            @Value("${KUBERNETES_SERVICE_HOST:}") String kubernetesHost,
+            @Value("${KUBERNETES_SERVICE_PORT:}") String kubernetesPort) {
         // Null when no daemon is found — a control plane with the worker off and no socket, which is
         // how the CI smoke test starts it, and how it failed to start: the image stopped on a
         // NullPointerException here, which no unit test saw because every test machine has Docker.
-        return guard(Objects.requireNonNullElse(ContainerRunner.resolveDockerHost(), ""), datasourceUrl);
+        List<OutboundUrlGuard.ReservedEndpoint> reserved = new ArrayList<>(
+                reservations(Objects.requireNonNullElse(ContainerRunner.resolveDockerHost(), ""), datasourceUrl));
+        reserved.addAll(ReservedEndpoints.ofKubernetesService(kubernetesHost, kubernetesPort));
+        return new OutboundUrlGuard(reserved);
     }
 
     /**
@@ -42,10 +47,14 @@ public class OutboundGuardConfiguration {
      * the database of every deployment whose address {@code java.net.URI} happened not to parse.
      */
     public static OutboundUrlGuard guard(String dockerHost, String datasourceUrl) {
+        return new OutboundUrlGuard(reservations(dockerHost, datasourceUrl));
+    }
+
+    private static List<OutboundUrlGuard.ReservedEndpoint> reservations(String dockerHost, String datasourceUrl) {
         List<OutboundUrlGuard.ReservedEndpoint> reserved = new ArrayList<>();
         reserved.addAll(ReservedEndpoints.ofDockerHost(dockerHost));
         reserved.addAll(ReservedEndpoints.ofDatasource(datasourceUrl));
-        return new OutboundUrlGuard(reserved);
+        return reserved;
     }
 
     /**

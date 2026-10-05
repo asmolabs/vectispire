@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The endpoints of Vectispire's own infrastructure, read from the Docker host and the datasource URL.
+ * The endpoints of Vectispire's own infrastructure, read from the Docker host, the datasource URL and, in a
+ * Kubernetes pod, the cluster's API service.
  *
  * <p><b>Fail closed: a host that cannot be read stops the application.</b> The reservation was read
  * through {@code java.net.URI}, and an address {@code URI} could not parse yielded no reservation, in
@@ -26,6 +27,30 @@ public final class ReservedEndpoints {
 
     private static final String DOCKER = "the Docker daemon";
     private static final String DATABASE = "the database";
+    private static final String KUBERNETES = "the Kubernetes API";
+
+    /**
+     * The cluster's API service, from the {@code KUBERNETES_SERVICE_HOST} and {@code KUBERNETES_SERVICE_PORT}
+     * every pod is given (even with {@code enableServiceLinks: false}): nothing outside a cluster.
+     *
+     * <p>A forge connection on the internal network may reach any in-cluster HTTPS endpoint, and an
+     * administrator pinning the cluster's CA — which is not secret — could point one at the API server and
+     * have the control plane send it requests carrying a token. The pod mounts no service-account token, so
+     * nothing is granted today; the reservation keeps it that way if one is ever mounted. Matched by
+     * address, so {@code kubernetes.default.svc} is refused with it.
+     *
+     * @throws IllegalArgumentException when the variables are set and cannot be read
+     */
+    public static List<ReservedEndpoint> ofKubernetesService(String host, String port) {
+        if (host == null || host.isBlank()) {
+            return List.of();
+        }
+        String source = "KUBERNETES_SERVICE_HOST " + host.trim();
+        HostPort endpoint = hostPort(host.trim().contains(":") && !host.trim().startsWith("[")
+                ? "[" + host.trim() + "]" : host.trim(), 443, source);
+        int servicePort = port == null || port.isBlank() ? endpoint.port() : port(source, port);
+        return List.of(new ReservedEndpoint(endpoint.host(), servicePort, KUBERNETES));
+    }
 
     /**
      * What a {@code DOCKER_HOST} names over the network: nothing for a Unix socket or a named pipe.
