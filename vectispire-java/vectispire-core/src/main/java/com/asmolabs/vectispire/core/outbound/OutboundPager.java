@@ -85,6 +85,18 @@ public final class OutboundPager {
             Objects.requireNonNull(timeout, "timeout");
             beforeEachRequest = beforeEachRequest == null ? () -> {} : beforeEachRequest;
         }
+
+        /**
+         * The credential's header names, never their values. A record's own {@code toString} prints every
+         * component, and this one carries a forge token: nothing logs a Settings today, and a log line, an
+         * exception message or a debugger's watch is all it would take for one to start.
+         */
+        @Override
+        public String toString() {
+            return "Settings[origin=" + origin + ", policy=" + policy + ", label=" + label + ", credential="
+                    + credential.keySet() + " (values withheld), trust=" + trust.isPresent() + ", deadline="
+                    + deadline + ", maxWait=" + maxWait + ", timeout=" + timeout + "]";
+        }
     }
 
     /** Sleeps; a test's records the wait and moves its clock instead. */

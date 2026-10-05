@@ -304,4 +304,16 @@ class OutboundPagerTest {
             return now;
         }
     }
+
+    @Test
+    @DisplayName("a pager's settings print the credential's header names, never its token")
+    void settingsWithholdTheCredential() {
+        // An invented value: the point is that it does not appear.
+        var settings = new OutboundPager.Settings("https://gitlab.example.org/api/v4", OutboundPolicy.PUBLIC_ONLY,
+                "forge", Map.of("PRIVATE-TOKEN", "invented-token-value"), Optional.empty(), Instant.EPOCH,
+                Duration.ofSeconds(1), Duration.ofSeconds(1), null);
+
+        assertThat(settings.toString()).contains("PRIVATE-TOKEN", "gitlab.example.org")
+                .doesNotContain("invented-token-value");
+    }
 }
