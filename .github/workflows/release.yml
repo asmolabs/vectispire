@@ -60,11 +60,17 @@ jobs:
       # key in `gradle/verification-keyring.keys`, or a recorded sha256 where nothing is signed.
       - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
+      # **No cache, for Gradle or npm.** A tag can restore a cache the default branch wrote, and
+      # `main`'s nightly runs code no push job runs — the e2e devDependencies, the engine campaign's
+      # plugins and images. Whatever one of those left in `~/.gradle` (an extracted distribution, a
+      # compiled build script, a transform: none of them under dependency verification) or in the
+      # npm cache would run here and shape what `publish` signs with the genuine identity. The
+      # two-job split keeps this job from writing outward; this keeps it from reading inward. A
+      # release can afford a cold build.
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '25'
-          cache: gradle
 
       - name: the suites, on the tagged tree
         # `strict` stated rather than inherited, for the reason `ci.yml`'s `jvm` job gives: what
@@ -79,11 +85,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
-          cache: npm
       # **`--ignore-scripts`, still.** This job holds no token worth stealing any more, but a
       # lifecycle script of any transitive package would run here and shape what gets signed; the
       # interface builds without them — the Dockerfile has always installed this way.
-      - run: npm ci --prefer-offline --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npm run build
 
       - name: name the artifacts after the tag
