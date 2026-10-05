@@ -2,6 +2,27 @@
 
 ## Prochaine version (après 0.10.0)
 
+### Avant de mettre à niveau
+
+Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la nouvelle image démarre.
+
+- **Sauvegardez la base.** Les migrations V65 à V82 s'exécutent au démarrage et n'ont pas de retour
+  arrière : revenir à 0.10.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
+  ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
+- **Prévenez les équipes que leurs notes vont baisser.** La formule du score compte les moyennes, les
+  basses et chaque issue supplémentaire ; rien n'a changé dans leurs dépôts. Un contrôle qui lit la lettre
+  du badge ou le `score` de l'API la verra baisser (*Formule du score*, plus bas).
+- **Attendez-vous à ce que toute cible non planifiée soit réanalysée chaque semaine.** Toutes passent à
+  l'intervalle par défaut de l'installation à la mise à niveau, réparties sur la semaine. Dimensionnez les
+  workers ou les agents en conséquence, passez en **manuel uniquement** les cibles qui doivent le rester,
+  ou mettez `scan_default_interval_days` à `0` pour garder l'ancien comportement partout (*Toute cible sans
+  planification est désormais analysée chaque semaine*, plus bas).
+- **Sur MySQL, démarrez le serveur avec `--max-allowed-packet=160M`.** Au paquet par défaut de 64 Mio,
+  l'export d'un rapport est gardé jusqu'à environ 32 Mio et son document environ 31 Mio ; la composition
+  livrée le fait désormais ([plugins de rapport](../administration/report-plugins.fr.md)).
+- **Une intégration qui crée des dépôts sans condition doit lire un 409 comme « déjà là ».** Une cible
+  dépôt n'est enregistrée qu'une fois (*Une cible dépôt n'est enregistrée qu'une fois*, plus bas).
+
 ### Changements visibles d'une intégration
 
 #### Formule du score (0.11.0)

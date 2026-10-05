@@ -2,6 +2,26 @@
 
 ## Next release (after 0.10.0)
 
+### Before you upgrade
+
+Each point is written out in full below; this is what to do before the new image starts.
+
+- **Back up the database.** Migrations V65 to V82 run at startup and have no way back: going back to
+  0.10.0 means restoring that backup and the previous image digest
+  ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
+- **Tell the teams their grades will drop.** The score formula counts mediums, lows and every further
+  issue; nothing in their repositories changed. A check reading the badge's letter or the API's `score`
+  will see it drop (*Score formula*, below).
+- **Expect every unscheduled target to be rescanned weekly.** All of them move to the installation's
+  default interval at the upgrade, spread across the week. Size the workers or agents for it, set the
+  targets meant to stay manual to **manual only**, or set `scan_default_interval_days` to `0` to keep the
+  old behaviour everywhere (*Every target without a schedule is now scanned weekly*, below).
+- **On MySQL, start the server with `--max-allowed-packet=160M`.** At the default 64 MiB a report's export
+  is kept up to about 32 MiB and its document about 31 MiB; the shipped composition now sets it
+  ([report plugins](../administration/report-plugins.md)).
+- **An integration creating repositories unconditionally must read 409 as "already there".** A repository
+  target is filed once (*A repository target is filed once*, below).
+
 ### Changes an integration can see
 
 #### Score formula (0.11.0)
