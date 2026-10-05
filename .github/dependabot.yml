@@ -55,8 +55,18 @@ updates:
     # the one docker-java was compiled with (3.7.1 declares 2.10.1): any other risks the
     # "unknown enum constant" warning `-Werror` fails on. #24 proposed 2.12.2 in the weekly group.
     # It moves by hand, with docker-java.
+    #
+    # **Jackson 3 stays on the minor Spring Boot manages.** `jackson3` in `libs.versions.toml` is
+    # pinned above the BOM only for security patches (3.1.7 fixes every advisory to date); #28 proposed
+    # 3.2.3, a minor no Spring Boot 4.1 release has been tested with, and json-schema-validator 3.0.7,
+    # which asks for it. Patches of 3.1 still come through. Lift both lines when the Spring Boot BOM
+    # manages Jackson 3.2.
     ignore:
       - dependency-name: org.immutables:value-annotations
+      - dependency-name: "tools.jackson*"
+        update-types: [version-update:semver-minor, version-update:semver-major]
+      - dependency-name: com.networknt:json-schema-validator
+        versions: [">=3.0.7"]
 
   - package-ecosystem: npm
     directory: /
