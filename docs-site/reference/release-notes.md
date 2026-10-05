@@ -254,6 +254,11 @@ another branch, is another target and is accepted as before.
   - **In one namespace you were given.** Nothing the chart renders is cluster-wide. Agents can stay in
     the release's namespace (`agents.namespace: ""`, `agents.createNamespace: false`); their privileged
     pod is then admitted only if that namespace's Pod Security level allows it.
+  - **What it refuses to render.** `trustedProxies` without `networkPolicy.enabled`, since any pod could
+    otherwise call the pod directly and name any client address; agents without a pinned signing key, or
+    with nothing in `agents.networkPolicy.excludeCidrs`. Each has an explicit acknowledgement where a
+    deployment needs it. It also keeps the control plane off an agent's node with a required
+    anti-affinity, and excludes `169.254.0.0/16` from the agents' egress whatever the list says.
   - **Checked in CI** for each of these shapes, and that the single-namespace ones render nothing
     outside their namespace.
 - **A checklist line can measure change reviews — *every merge request is approved by a peer before

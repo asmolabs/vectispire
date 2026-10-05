@@ -293,6 +293,13 @@ Set `trustedProxies` to the ingress controller's address range. Left empty, ever
 rate limit names the controller instead of the caller. TLS ending at the Ingress would also read as
 plain HTTP to the application.
 
+**And enable `networkPolicy`, which the chart then requires.** A peer in that range is believed about
+the client's address. The controller's pods have no fixed address, so the range is usually the pod
+range, and without a policy keeping port 3180 to the controller any pod could call it directly and name
+any address: a fresh rate-limit bucket on every request, an audit entry naming somebody else. The
+policy only holds on a CNI that enforces NetworkPolicy. `trustedProxiesWithoutNetworkPolicy` renders the
+chart anyway, for a range holding the controller alone.
+
 **Two replicas** are possible but not the default. They need:
 
 - cookie affinity (`ingress.stickySessions`): single sign-on keeps its state in the session of the
@@ -389,10 +396,17 @@ own container reaches that daemon, and through it the node. Give these pods:
   `kubectl get namespace <your namespace> --show-labels` tells you; `restricted` or `baseline` means a
   Docker host;
 - **their own nodes**: `agents.nodeSelector`, and `agents.tolerations` matching a taint only they
-  tolerate;
-- **the NetworkPolicy**: on by default. It denies all ingress. List the cluster's pod and service
-  ranges in `agents.networkPolicy.excludeCidrs`, so that egress reaches the outside world and the
-  Ingress, nothing else.
+  tolerate. Whatever you set, the chart keeps the control plane off an agent's node with a required
+  anti-affinity: the control plane holds `ENCRYPTION_KEY`. On a single node it stays Pending rather
+  than share one;
+- **the NetworkPolicy**: on by default. It denies all ingress. List in
+  `agents.networkPolicy.excludeCidrs` what an escaped scanner must not reach: the cluster's pod,
+  service **and node** ranges (the kubelets, and the API server's real address), and the database's
+  subnet when it is outside them, as a managed MySQL usually is. Egress then reaches the outside world
+  and the Ingress. The chart refuses an empty list (`agents.networkPolicy.acknowledgeClusterReachable`
+  overrides), and excludes `169.254.0.0/16` — the cloud metadata endpoint — whatever it says;
+- **a pinned signing key** (`agents.signingKey.secretName`), which the chart requires: without one the
+  control plane accepts the agent's results unattested.
 
 Where the cluster forbids privileged pods, use a Docker host.
 

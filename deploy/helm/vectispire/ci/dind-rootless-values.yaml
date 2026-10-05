@@ -8,6 +8,8 @@ secrets:
   encryptionKey:
     secretName: vectispire-keys
 trustedProxies: 10.0.0.0/8
+networkPolicy:
+  enabled: true
 ingress:
   className: nginx
   tls:
@@ -17,6 +19,14 @@ agents:
   controlPlaneUrl: https://vectispire.example.org
   token:
     secretName: vectispire-agent
+  signingKey:
+    secretName: vectispire-agent
+  nodeSelector:
+    vectispire.dev/agents: "true"
+  networkPolicy:
+    excludeCidrs:
+      - 10.244.0.0/16
+      - 10.96.0.0/12
   dind:
     variant: rootless
     rootless:

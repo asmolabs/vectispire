@@ -7,6 +7,8 @@ secrets:
   encryptionKey:
     secretName: vectispire-keys
 trustedProxies: 10.0.0.0/8
+networkPolicy:
+  enabled: true
 ingress:
   className: nginx
   tls:

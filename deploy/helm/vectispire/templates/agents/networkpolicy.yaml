@@ -23,14 +23,12 @@ spec:
           protocol: TCP
     # The scanners' traffic leaves through this pod too — the daemon's bridge is behind the pod's
     # address — so this is what an escaped scanner can reach. The cluster's own ranges belong in
-    # excludeCidrs.
+    # excludeCidrs; link-local is excluded whatever they say, the cloud metadata endpoint with it.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
-            {{- with .Values.agents.networkPolicy.excludeCidrs }}
             except:
-              {{- toYaml . | nindent 14 }}
-            {{- end }}
+              {{- toYaml (concat (.Values.agents.networkPolicy.excludeCidrs | default list) (list "169.254.0.0/16") | uniq) | nindent 14 }}
     {{- with .Values.agents.networkPolicy.allowTo }}
     - to:
         {{- toYaml . | nindent 8 }}

@@ -58,6 +58,9 @@ in a pod's log.
 {{- if and .Values.ingress.enabled (not .Values.trustedProxies) -}}
 {{- fail "trustedProxies is required with an Ingress: the ingress controller's addresses or CIDR. Empty, every audit entry and rate limit names the controller, and X-Forwarded-Proto is ignored." -}}
 {{- end -}}
+{{- if and .Values.trustedProxies (not .Values.networkPolicy.enabled) (not .Values.trustedProxiesWithoutNetworkPolicy) -}}
+{{- fail "trustedProxies needs networkPolicy.enabled: without it any pod in the cluster reaches port 3180 directly, and a peer in that range is believed about the client's address. Set trustedProxiesWithoutNetworkPolicy only where the range holds the ingress controller and nothing else." -}}
+{{- end -}}
 {{- if and .Values.ingress.enabled (not .Values.ingress.tls.secretName) (not .Values.ingress.allowPlainHttp) -}}
 {{- fail "ingress.tls.secretName is required: the interface signs people in. Set ingress.allowPlainHttp only for TLS ending before the Ingress." -}}
 {{- end -}}
@@ -71,11 +74,39 @@ in a pod's log.
 {{- if not .Values.agents.token.secretName -}}
 {{- fail "agents.token.secretName is required: the agent's API key, scope agent." -}}
 {{- end -}}
+{{- if not .Values.agents.signingKey.secretName -}}
+{{- fail "agents.signingKey.secretName is required: without a pinned signing key the control plane accepts the agent's results unattested." -}}
+{{- end -}}
+{{- if and .Values.agents.networkPolicy.enabled (not .Values.agents.networkPolicy.excludeCidrs) (not .Values.agents.networkPolicy.acknowledgeClusterReachable) -}}
+{{- fail "agents.networkPolicy.excludeCidrs is required: a scanner's traffic leaves through the agent's pod, and with nothing excluded it reaches the whole cluster. List the pod, service and node ranges and the database's subnet, or set agents.networkPolicy.acknowledgeClusterReachable." -}}
+{{- end -}}
 {{- if not (has .Values.agents.dind.variant (list "privileged" "rootless")) -}}
 {{- fail (printf "agents.dind.variant is privileged or rootless, not %q." .Values.agents.dind.variant) -}}
 {{- end -}}
 {{- if and (eq .Values.agents.dind.variant "rootless") (not .Values.agents.dind.rootless.acknowledgeUnreadableWorkspaces) -}}
 {{- fail "agents.dind.variant rootless does not scan with this release's agent: under docker:dind-rootless the workspace the agent owns as uid 1000 reads as root's to a scanner run as uid 1000, and every scanner is absent (decision 0038). Set agents.dind.rootless.acknowledgeUnreadableWorkspaces to render it anyway." -}}
 {{- end -}}
+{{- end -}}
+{{- end -}}
+
+
+{{/*
+The control plane's affinity: the operator's, plus — with agents in the cluster — a required anti-affinity
+to the agents' pods. Their docker:dind is privileged, root on its node, and this pod holds ENCRYPTION_KEY,
+which decrypts every deployment key and forge token (decisions 0003, 0038). Kept apart in both directions:
+the scheduler honours a running pod's required anti-affinity for pods arriving after it.
+*/}}
+{{- define "vectispire.controlPlaneAffinity" -}}
+{{- $affinity := deepCopy (.Values.affinity | default dict) -}}
+{{- if .Values.agents.enabled -}}
+{{- $anti := get $affinity "podAntiAffinity" | default dict -}}
+{{- $required := get $anti "requiredDuringSchedulingIgnoredDuringExecution" | default list -}}
+{{- $agents := dict "app.kubernetes.io/name" .Chart.Name "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/component" "agent" -}}
+{{- $term := dict "labelSelector" (dict "matchLabels" $agents) "namespaces" (list (include "vectispire.agentNamespace" .)) "topologyKey" "kubernetes.io/hostname" -}}
+{{- $_ := set $anti "requiredDuringSchedulingIgnoredDuringExecution" (append $required $term) -}}
+{{- $_ := set $affinity "podAntiAffinity" $anti -}}
+{{- end -}}
+{{- if $affinity -}}
+{{- toYaml $affinity -}}
 {{- end -}}
 {{- end -}}

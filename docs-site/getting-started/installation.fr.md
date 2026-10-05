@@ -304,6 +304,14 @@ Réglez `trustedProxies` sur la plage d'adresses du contrôleur d'Ingress. Laiss
 d'audit et chaque limite de débit nomme le contrôleur au lieu de l'appelant. Le TLS terminé à
 l'Ingress se lirait aussi comme du HTTP en clair côté application.
 
+**Et activez `networkPolicy`, que la chart exige alors.** Un pair de cette plage est cru sur l'adresse
+du client. Les pods du contrôleur n'ont pas d'adresse fixe, la plage est donc souvent celle des pods :
+sans politique qui réserve le port 3180 au contrôleur, n'importe quel pod pourrait l'appeler en direct
+et annoncer n'importe quelle adresse — un nouveau compteur de débit à chaque requête, une entrée d'audit
+au nom de quelqu'un d'autre. La politique ne tient qu'avec un CNI qui applique les NetworkPolicy.
+`trustedProxiesWithoutNetworkPolicy` rend la chart malgré tout, pour une plage qui ne contient que le
+contrôleur.
+
 **Deux réplicas** sont possibles, mais pas par défaut. Ils demandent :
 
 - l'affinité par cookie (`ingress.stickySessions`) : l'authentification unique garde son état dans la
@@ -400,10 +408,18 @@ de son propre conteneur atteint ce démon, et par lui le nœud. Donnez à ces po
   `kubectl get namespace <votre namespace> --show-labels` vous le dit ; `restricted` ou `baseline`
   signifie un hôte Docker ;
 - **leurs propres nœuds** : `agents.nodeSelector`, et `agents.tolerations` accordé à une taint qu'eux
-  seuls tolèrent ;
-- **la NetworkPolicy** : active par défaut. Elle refuse toute entrée. Listez les plages de pods et de
-  services du cluster dans `agents.networkPolicy.excludeCidrs`, pour que la sortie n'atteigne que le
-  monde extérieur et l'Ingress.
+  seuls tolèrent. Quoi que vous posiez, la chart tient le control plane à l'écart du nœud d'un agent par
+  une anti-affinité obligatoire : le control plane détient `ENCRYPTION_KEY`. Sur un seul nœud, il reste
+  Pending plutôt que de le partager ;
+- **la NetworkPolicy** : active par défaut. Elle refuse toute entrée. Listez dans
+  `agents.networkPolicy.excludeCidrs` ce qu'un scanner échappé ne doit pas atteindre : les plages de
+  pods, de services **et de nœuds** du cluster (les kubelets, et l'adresse réelle du serveur d'API), et
+  le sous-réseau de la base s'il est en dehors, comme l'est d'ordinaire un MySQL managé. La sortie
+  n'atteint alors que le monde extérieur et l'Ingress. La chart refuse une liste vide
+  (`agents.networkPolicy.acknowledgeClusterReachable` passe outre), et exclut `169.254.0.0/16` — le
+  point de métadonnées du cloud — quoi qu'elle contienne ;
+- **une clé de signature épinglée** (`agents.signingKey.secretName`), que la chart exige : sans elle le
+  control plane accepte les résultats de l'agent sans attestation.
 
 Là où le cluster interdit les pods privilégiés, utilisez un hôte Docker.
 

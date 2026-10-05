@@ -357,6 +357,23 @@ jobs:
           refused -f ci/dind-rootless-values.yaml --set agents.dind.rootless.acknowledgeUnreadableWorkspaces=false
           refused -f ci/no-agents-values.yaml --set trustedProxies=
           refused -f ci/no-agents-values.yaml --set image.digest=
+          # The isolation decision 0038 describes, held at render time rather than left to advice: a
+          # trusted proxy range only behind a policy, an agent only with a pinned key and with the
+          # cluster's ranges excluded from what its scanners reach.
+          refused -f ci/no-agents-values.yaml --set networkPolicy.enabled=false
+          refused -f ci/dind-privileged-values.yaml --set agents.signingKey.secretName=
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.excludeCidrs=null
+      - name: the chart renders the isolation it does not leave to the operator
+        working-directory: deploy/helm/vectispire
+        run: |
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml \
+            --set agents.networkPolicy.excludeCidrs=null \
+            --set agents.networkPolicy.acknowledgeClusterReachable=true > rendered.yaml
+          grep -q -- '- 169.254.0.0/16' rendered.yaml ||
+            { echo "::error::link-local is not excluded from the agents' egress"; exit 1; }
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml > rendered.yaml
+          grep -q 'podAntiAffinity' rendered.yaml ||
+            { echo "::error::the control plane may share a node with a privileged agent"; exit 1; }
 
   jvm:
     runs-on: ubuntu-latest

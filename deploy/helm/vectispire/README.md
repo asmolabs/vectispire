@@ -55,9 +55,15 @@ The chart refuses to render without these. Each refusal names its reason.
 - `database.url` and `database.password.secretName`
 - `secrets.encryptionKey.secretName`
 - `trustedProxies` — the ingress controller's addresses or CIDR. Empty, every audit entry names the
-  controller and TLS ending at the Ingress reads as plain HTTP.
+  controller and TLS ending at the Ingress reads as plain HTTP. **With `networkPolicy.enabled`**: a peer
+  in that range is believed about the client's address, so without a policy any pod calling port 3180
+  directly could name any address — a fresh rate-limit bucket on every request, an audit entry naming
+  somebody else. `trustedProxiesWithoutNetworkPolicy` renders it anyway, for a range holding the
+  controller alone. The policy is enforced only by a CNI that enforces NetworkPolicy.
 - `ingress.tls.secretName`, unless `ingress.allowPlainHttp` is set
-- with agents: `agents.controlPlaneUrl` and `agents.token.secretName`
+- with agents: `agents.controlPlaneUrl`, `agents.token.secretName`, `agents.signingKey.secretName`
+  (without a pinned key the agent's results are accepted unattested) and
+  `agents.networkPolicy.excludeCidrs` (below)
 
 See `values.example.yaml` for a complete installation.
 
@@ -105,8 +111,14 @@ Docker daemon of its own:
     `agents.createNamespace: false`), the chart creates nothing, and the pod is admitted only if that
     namespace's level is `privileged` — which also lets any other pod there run privileged. Check with
     `kubectl get namespace <ns> --show-labels`; a `restricted` or `baseline` level refuses it;
-  - nodes of their own: `agents.nodeSelector` and `agents.tolerations`, matching a tainted node pool;
-  - the NetworkPolicy, with the cluster's pod and service ranges in `agents.networkPolicy.excludeCidrs`.
+  - nodes of their own: `agents.nodeSelector` and `agents.tolerations`, matching a tainted node pool.
+    Whatever you set, the chart gives the control plane a required anti-affinity to the agents' pods:
+    it holds `ENCRYPTION_KEY`, and never shares a node with a daemon that is root on it. On a single
+    node the control plane stays Pending rather than share it;
+  - the NetworkPolicy, with what an escaped scanner must not reach in `agents.networkPolicy.excludeCidrs`
+    — the cluster's pod, service **and node** ranges, and the database's subnet when it is outside them.
+    Empty, the chart refuses to render (`agents.networkPolicy.acknowledgeClusterReachable` overrides).
+    `169.254.0.0/16`, the cloud metadata endpoint's range, is excluded whatever the list says.
 
   Where privileged pods are forbidden, use a Docker host outside the cluster.
 - `agents.dind.variant: rootless` — `docker:dind-rootless`. **It does not scan with this release's

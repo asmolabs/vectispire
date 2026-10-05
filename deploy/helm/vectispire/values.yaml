@@ -80,7 +80,14 @@ oidc:
 # **The ingress controller's addresses or CIDR — required with an Ingress.** Left empty, the rate limiter
 # and every audit entry name the controller, and `X-Forwarded-Proto` is ignored, so TLS ending at the
 # Ingress reads as plain HTTP to the pod.
+#
+# **Requires `networkPolicy.enabled`.** A peer in this range is believed about the client's address, and the
+# controller's pods have no fixed address, so the range is usually the pod range: without a policy keeping
+# port 3180 to the controller, any pod in the cluster calls the pod directly, names any client address it
+# likes — a fresh rate-limit bucket on every request, an audit entry naming somebody else — and is believed.
+# Set `trustedProxiesWithoutNetworkPolicy` only where the range holds the controller and nothing else.
 trustedProxies: ""
+trustedProxiesWithoutNetworkPolicy: false
 
 # Plain variables, for the settings this chart does not name (docs-site/reference/configuration.md).
 # Never a secret here: an environment is readable by whoever can read the pod.
@@ -146,6 +153,9 @@ probes:
 
 nodeSelector: {}
 tolerations: []
+# With agents in the cluster, the chart adds a required anti-affinity to the agents' pods to whatever is
+# here: their daemon is privileged — root on its node — and this pod holds the encryption key. On a
+# single node the control plane then stays Pending rather than share it.
 affinity: {}
 podAnnotations: {}
 
@@ -190,7 +200,9 @@ agents:
 
   # **Required.** The control plane as the agent reaches it — through the Ingress, over HTTPS.
   controlPlaneUrl: ""
-  # The agent's API key (scope `agent`) and, optionally, the private half of its pinned signing key.
+  # The agent's API key (scope `agent`) and the private half of its pinned signing key — both required.
+  # Without a pinned key the control plane accepts the agent's results unattested, and whoever holds the
+  # token Secret can submit an empty scan that resolves a target's backlog.
   # One agent identity is one pod: more scans at once is the agent's concurrency, set on its row.
   token:
     secretName: ""
@@ -268,10 +280,16 @@ agents:
   networkPolicy:
     # Nothing reaches an agent: deny every ingress. Egress to DNS, and to everything outside the
     # excluded ranges — the forges, the registries, the matcher's database, the control plane through
-    # its Ingress. Put the cluster's pod and service ranges in `excludeCidrs`, so that a scanner that
-    # escapes reaches nothing inside the cluster.
+    # its Ingress. A scanner's traffic leaves through this pod, so the excluded ranges are what an
+    # escaped scanner cannot reach: the cluster's pod and service ranges, **the nodes' range** (the
+    # kubelets, and the API server's real address once kube-proxy has translated it), and **the
+    # database's subnet** when it sits outside them, as a managed MySQL usually does.
+    # 169.254.0.0/16 — link-local, the cloud metadata endpoint — is always excluded.
     enabled: true
+    # **Required with agents.** Empty, the chart refuses to render: egress to 0.0.0.0/0 with nothing
+    # excluded is the whole cluster. `acknowledgeClusterReachable` renders it anyway.
     excludeCidrs: []
+    acknowledgeClusterReachable: false
     #  - 10.244.0.0/16
     #  - 10.96.0.0/12
     # The ingress controller's address, when the control plane's Ingress resolves inside an excluded range.
