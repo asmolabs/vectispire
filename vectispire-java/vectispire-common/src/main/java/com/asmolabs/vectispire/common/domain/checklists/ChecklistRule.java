@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -25,6 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -52,6 +54,7 @@ public sealed interface ChecklistRule {
     int MAX_SCOPES = 20;
     int MAX_COMPONENTS = 50;
     int MAX_PATTERN = 500;
+    int MAX_SUITE_PATTERNS = 10;
     int MAX_TESTS = 10_000_000;
     int MAX_APPROVALS = 10;
     int MAX_BRANCH = 255;
@@ -171,25 +174,46 @@ public sealed interface ChecklistRule {
     }
 
     /**
-     * The newest test report of each repository within the age: at least one suite matches the
-     * pattern, those that match ran at least the minimum of tests, skipped ones not counted, and none
-     * failed nor errored.
+     * The newest test report of each repository within the age, judged pattern by pattern: at least one
+     * suite matches each, the suites a pattern matches ran at least the minimum of tests, skipped ones
+     * not counted, and none failed nor errored.
      *
-     * @param suitePattern a glob over the suite's whole name — {@code *} any run, {@code ?} one character
+     * <p><b>Several patterns are all required</b> — unit tests <em>and</em> functional ones on one line,
+     * {@code *Test} and {@code *IT} — never one of them. A line meaning "either" binds the one pattern
+     * that covers both. Each pattern is judged on its own suites, so a large unit suite cannot stand in
+     * for an absent functional one.
+     *
+     * @param suitePatterns globs over the suite's whole name — {@code *} any run, {@code ?} one character —
+     *     sorted, without duplicates, 1 to {@value #MAX_SUITE_PATTERNS}
      */
-    record TestSuitePassed(int maxAgeDays, String suitePattern, int minimumTests) implements ChecklistRule {
+    record TestSuitePassed(int maxAgeDays, List<String> suitePatterns, int minimumTests) implements ChecklistRule {
 
         public TestSuitePassed {
             requireAge(maxAgeDays);
-            String pattern = suitePattern == null ? "" : suitePattern.strip();
-            if (pattern.isEmpty() || pattern.length() > MAX_PATTERN || pattern.chars().anyMatch(Character::isISOControl)) {
-                throw new InvalidInputException("suitePattern names the suites, 1 to " + MAX_PATTERN
-                        + " characters — com.example.arch.*, * for any run and ? for one character.");
+            if (suitePatterns == null || suitePatterns.isEmpty() || suitePatterns.size() > MAX_SUITE_PATTERNS) {
+                throw new InvalidInputException("A test rule names 1 to " + MAX_SUITE_PATTERNS
+                        + " suite patterns — *Test for unit tests, *IT for functional ones; each must be met.");
+            }
+            TreeSet<String> patterns = new TreeSet<>();
+            for (String suitePattern : suitePatterns) {
+                String pattern = suitePattern == null ? "" : suitePattern.strip();
+                if (pattern.isEmpty() || pattern.length() > MAX_PATTERN || pattern.chars().anyMatch(Character::isISOControl)) {
+                    throw new InvalidInputException("A suite pattern names the suites, 1 to " + MAX_PATTERN
+                            + " characters — com.example.arch.*, * for any run and ? for one character.");
+                }
+                patterns.add(pattern);
             }
             if (minimumTests < 1 || minimumTests > MAX_TESTS) {
                 throw new InvalidInputException("minimumTests is at least 1: a suite that ran nothing proves nothing.");
             }
-            suitePattern = pattern;
+            // Sorted and deduplicated: the same patterns are the same rule, whatever order a person typed.
+            suitePatterns = List.copyOf(patterns);
+        }
+
+        /** One pattern, as every rule was before several existed. */
+        public TestSuitePassed(int maxAgeDays, String suitePattern, int minimumTests) {
+            this(maxAgeDays, suitePattern == null ? Collections.singletonList(null) : List.of(suitePattern),
+                    minimumTests);
         }
 
         @Override
@@ -372,7 +396,13 @@ public sealed interface ChecklistRule {
                 });
             }
             case TestSuitePassed rule -> {
-                node.put("suitePattern", rule.suitePattern());
+                // One pattern keeps the key it always had: a rule bound before several existed keeps its
+                // bytes, and its digest. Several are written as a list, under a key of their own.
+                if (rule.suitePatterns().size() == 1) {
+                    node.put("suitePattern", rule.suitePatterns().getFirst());
+                } else {
+                    rule.suitePatterns().forEach(node.putArray("suitePatterns")::add);
+                }
                 node.put("minimumTests", rule.minimumTests());
             }
             case ChangeReview rule -> {
@@ -430,7 +460,7 @@ public sealed interface ChecklistRule {
             case DEPENDENCY_ANALYSIS -> Set.of("requireSchedule", "thresholds");
             case FINDINGS_THRESHOLD -> Set.of("scopes", "thresholds");
             case COVERAGE_THRESHOLD -> Set.of("metric", "minimumRatio", "aggregation", "scope");
-            case TEST_SUITE_PASSED -> Set.of("suitePattern", "minimumTests");
+            case TEST_SUITE_PASSED -> Set.of("suitePattern", "suitePatterns", "minimumTests");
             case COMPONENT_VERSIONS, COMPONENT_PRESENT -> Set.of("components");
             case CHANGE_REVIEW -> Set.of("minimumApprovals", "windowDays", "minimumRatio", "branch");
         };
@@ -458,7 +488,7 @@ public sealed interface ChecklistRule {
                     named(Aggregation.values(), Aggregation::wireName, text(node, "aggregation").orElse(null),
                             "aggregation"),
                     coverageScope(node.get("scope")));
-            case TEST_SUITE_PASSED -> new TestSuitePassed(maxAge, text(node, "suitePattern").orElse(null),
+            case TEST_SUITE_PASSED -> new TestSuitePassed(maxAge, suitePatterns(node),
                     integer(node, "minimumTests").orElseThrow(() -> new InvalidInputException("State the least number "
                             + "of tests the matching suites must run, minimumTests.")));
             case COMPONENT_VERSIONS -> new ComponentVersions(maxAge, components(node.get("components"), stated));
@@ -566,6 +596,32 @@ public sealed interface ChecklistRule {
         }
         return Optional.of(new CoverageScope(patternList(node.get("include"), "include"),
                 patternList(node.get("exclude"), "exclude")));
+    }
+
+    /** {@code suitePattern} for one, {@code suitePatterns} for several — one of the two, never both. */
+    private static List<String> suitePatterns(JsonNode node) {
+        JsonNode one = node.get("suitePattern");
+        JsonNode several = node.get("suitePatterns");
+        boolean hasOne = one != null && !one.isNull();
+        boolean hasSeveral = several != null && !several.isNull();
+        if (hasOne && hasSeveral) {
+            throw new InvalidInputException("A test rule names its suites once: suitePattern for one pattern, or "
+                    + "suitePatterns for several — not both.");
+        }
+        if (!hasSeveral) {
+            return Collections.singletonList(text(node, "suitePattern").orElse(null));
+        }
+        if (!several.isArray()) {
+            throw new InvalidInputException("suitePatterns is a list of patterns — [\"*Test\", \"*IT\"].");
+        }
+        List<String> patterns = new ArrayList<>();
+        for (JsonNode pattern : several) {
+            if (!pattern.isTextual()) {
+                throw new InvalidInputException("A suite pattern is a string — *Test, com.example.arch.*.");
+            }
+            patterns.add(pattern.asText());
+        }
+        return patterns;
     }
 
     private static List<String> patternList(JsonNode node, String what) {

@@ -217,6 +217,38 @@ describe('the checklist rules, as the form reads them', () => {
         expect(problem({ ...suite, minimumTests: 10_000_001 })).toBe('minimum_tests');
     });
 
+    it('takes several suite patterns separated by commas, 10 at most, and sends one under the key it always had', () => {
+        const suite: RuleDraft = { ...emptyDraft('test_suite_passed'), suitePattern: '*Test, *IT', minimumTests: 1 };
+        expect(problem(suite)).toBeNull();
+        expect(ruleOf(suite)).toEqual({
+            kind: 'test_suite_passed',
+            maxAgeDays: 7,
+            suitePatterns: ['*Test', '*IT'],
+            minimumTests: 1
+        });
+        // One pattern, even typed with a stray comma, is the rule every line bound before several existed.
+        expect(ruleOf({ ...suite, suitePattern: '*Test, ' })).toEqual({
+            kind: 'test_suite_passed',
+            maxAgeDays: 7,
+            suitePattern: '*Test',
+            minimumTests: 1
+        });
+        expect(problem({ ...suite, suitePattern: ' , ' })).toBe('pattern');
+        expect(problem({ ...suite, suitePattern: `*Test, ${'a'.repeat(501)}` })).toBe('pattern');
+        const ten = Array.from({ length: 10 }, (_, i) => `S${i}*`);
+        expect(problem({ ...suite, suitePattern: ten.join(', ') })).toBeNull();
+        expect(problem({ ...suite, suitePattern: [...ten, 'S10*'].join(', ') })).toBe('suite_patterns_count');
+        // A rule read back reopens with its patterns in the one field, and is sent unchanged.
+        const bound = {
+            kind: 'test_suite_passed' as const,
+            maxAgeDays: 7,
+            suitePatterns: ['*IT', '*Test'],
+            minimumTests: 1
+        };
+        expect(draftOf(bound).suitePattern).toBe('*IT, *Test');
+        expect(ruleOf(draftOf(bound))).toEqual(bound);
+    });
+
     it('asks a component rule 1 to 50 packages, each a versionless package URL with 1 to 100 versions', () => {
         const one = (purlPrefix: string, versions = '1.0.0') => ({ purlPrefix, versions });
         const components = (list: { purlPrefix: string; versions: string }[]): RuleDraft => ({
@@ -436,6 +468,17 @@ describe('the checklist rules, as the form reads them', () => {
         expect(describeRule(i18n, COVERAGE_RULE)).toEqual([
             'Coverage of lines at least 80 %, on every repository',
             'Evidence at most 14 days old'
+        ]);
+        expect(
+            describeRule(i18n, {
+                kind: 'test_suite_passed',
+                maxAgeDays: 7,
+                suitePatterns: ['*IT', '*Test'],
+                minimumTests: 1
+            })
+        ).toEqual([
+            'Suites matching each of *IT, *Test ran at least 1 tests, pattern by pattern, none failed nor errored',
+            'Evidence at most 7 days old'
         ]);
         expect(
             describeRule(i18n, {

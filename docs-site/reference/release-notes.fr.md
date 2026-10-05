@@ -146,6 +146,12 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   `no_change_merged`, le `status` d'un dépôt de même, et sa `source` `forge_review`. Seulement sur une ligne
   liée au nouveau type ; un client qui traite ces vocabulaires de façon exhaustive a besoin des nouveaux
   membres.
+- **Une règle de tests peut nommer plusieurs motifs de suites, `suitePatterns`, chacun devant être satisfait** —
+  tests unitaires **et** fonctionnels sur une même ligne ([les types de règles](../administration/checklist-templates.fr.md)).
+  `ChecklistRuleForm` gagne `suitePatterns` (2 à 10 motifs), indiqué à la place de `suitePattern`, jamais à
+  côté ; chaque motif est jugé sur ses propres suites, avec le même `minimumTests`. Une règle à un seul motif
+  s'écrit `suitePattern` exactement comme avant — sa forme canonique et son empreinte inchangées, si bien
+  qu'aucune ligne liée n'est marquée modifiée.
 - **L'export de projet passe au schéma 1.1** : chaque `inventory.components[]` gagne `sources` — `build`,
   `scanner` ou les deux, qui a listé le composant sur ses cibles. Un champ facultatif, selon la règle du
   schéma ; un plugin écrit pour 1.0 lit 1.1 comme il lisait 1.0. Les occurrences de

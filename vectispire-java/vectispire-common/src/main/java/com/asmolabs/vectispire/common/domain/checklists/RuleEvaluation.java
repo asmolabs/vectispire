@@ -461,7 +461,10 @@ public final class RuleEvaluation {
 
     private static Measurement tests(TestSuitePassed rule, MeasurementFacts facts, List<Long> repositories, Instant since) {
         Collector collector = new Collector();
-        SuitePattern pattern = SuitePattern.of(rule.suitePattern());
+        List<String> names = rule.suitePatterns();
+        List<SuitePattern> patterns = names.stream().map(SuitePattern::of).toList();
+        boolean several = names.size() > 1;
+        repositories:
         for (long repository : repositories) {
             TestReport report = facts.tests().get(repository);
             if (report == null) {
@@ -472,31 +475,41 @@ public final class RuleEvaluation {
                 collector.add(repository, Optional.empty(), new Missing(NoDataReason.STALE, Optional.of(report.look())));
                 continue;
             }
-            List<Suite> matched = report.suites().stream().filter(suite -> pattern.matches(suite.name())).toList();
-            if (matched.isEmpty()) {
-                collector.missing(repository, Optional.empty(), NoDataReason.SUITE_NOT_FOUND, Optional.of(report.look()),
-                        "no suite matches " + rule.suitePattern());
-                continue;
-            }
-            long ran = matched.stream().mapToLong(suite -> (long) suite.tests() - suite.skipped()).sum();
-            if (ran <= 0) {
-                collector.missing(repository, Optional.empty(), NoDataReason.NO_TEST_RAN, Optional.of(report.look()),
-                        matched.size() + (matched.size() == 1 ? " suite matches" : " suites match") + " and ran no test");
-                continue;
-            }
-            long failures = matched.stream().mapToLong(Suite::failures).sum();
-            long errors = matched.stream().mapToLong(Suite::errors).sum();
+            // Each pattern on its own suites: a large unit suite must not stand in for an absent functional
+            // one, which summing every matched suite would let it do.
             List<String> unmet = new ArrayList<>();
-            if (failures > 0 || errors > 0) {
-                unmet.add(failures + " failed and " + errors + " errored");
+            List<String> ranPer = new ArrayList<>();
+            for (int i = 0; i < patterns.size(); i++) {
+                SuitePattern pattern = patterns.get(i);
+                String named = names.get(i);
+                List<Suite> matched = report.suites().stream().filter(suite -> pattern.matches(suite.name())).toList();
+                if (matched.isEmpty()) {
+                    collector.missing(repository, Optional.empty(), NoDataReason.SUITE_NOT_FOUND, Optional.of(report.look()),
+                            "no suite matches " + named);
+                    continue repositories;
+                }
+                long ran = matched.stream().mapToLong(suite -> (long) suite.tests() - suite.skipped()).sum();
+                if (ran <= 0) {
+                    collector.missing(repository, Optional.empty(), NoDataReason.NO_TEST_RAN, Optional.of(report.look()),
+                            (several ? named + ": " : "")
+                                    + matched.size() + (matched.size() == 1 ? " suite matches" : " suites match")
+                                    + " and ran no test");
+                    continue repositories;
+                }
+                long failures = matched.stream().mapToLong(Suite::failures).sum();
+                long errors = matched.stream().mapToLong(Suite::errors).sum();
+                String prefix = several ? named + ": " : "";
+                if (failures > 0 || errors > 0) {
+                    unmet.add(prefix + failures + " failed and " + errors + " errored");
+                }
+                if (ran < rule.minimumTests()) {
+                    unmet.add(prefix + ran + " ran, fewer than " + rule.minimumTests());
+                }
+                ranPer.add(prefix + matched.size() + (matched.size() == 1 ? " suite" : " suites") + ", " + ran + " tests ran");
             }
-            if (ran < rule.minimumTests()) {
-                unmet.add(ran + " ran, fewer than " + rule.minimumTests());
-            }
-            collector.examined(repository, Optional.empty(), report.look(), unmet,
-                    matched.size() + (matched.size() == 1 ? " suite" : " suites") + ", " + ran + " tests ran");
+            collector.examined(repository, Optional.empty(), report.look(), unmet, String.join("; ", ranPer));
         }
-        return collector.outcome(List.of(), List.of(), "suites matching " + rule.suitePattern() + " passed");
+        return collector.outcome(List.of(), List.of(), "suites matching " + String.join(" and ", names) + " passed");
     }
 
     private static Measurement components(ComponentVersions rule, MeasurementFacts facts, List<Long> repositories,

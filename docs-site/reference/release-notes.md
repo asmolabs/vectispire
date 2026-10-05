@@ -134,6 +134,11 @@ another branch, is another target and is accepted as before.
   `forge_unlinked`, `forge_unreadable`, `review_incomplete` or `no_change_merged`, a repository's
   `status` the same, and its `source` `forge_review`. Only on a line bound to the new kind; a client that
   switches over these vocabularies exhaustively needs the new members.
+- **A test rule may name several suite patterns, `suitePatterns`, each of which must be met** — unit **and**
+  functional tests on one line ([the rule kinds](../administration/checklist-templates.md)). `ChecklistRuleForm`
+  gains `suitePatterns` (2 to 10 globs), stated instead of `suitePattern`, never beside it; each pattern is
+  judged on its own suites, against the same `minimumTests`. A rule with one pattern is written `suitePattern`
+  exactly as before — its canonical form and its digest unchanged, so no bound line is marked changed.
 - **The project export is schema 1.1**: each `inventory.components[]` gains `sources` — `build`, `scanner`
   or both, who listed the component across its targets. An optional field, by the schema's own rule; a
   plugin written for 1.0 reads 1.1 as it read 1.0. `GET /api/v1/inventory/search` occurrences gain

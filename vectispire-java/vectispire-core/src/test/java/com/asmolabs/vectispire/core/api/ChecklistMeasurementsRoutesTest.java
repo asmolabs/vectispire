@@ -470,6 +470,29 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             testReport(second, hoursAgo(0), "com.example.arch.CyclesTest", 2, 0);
             assertThat(measurements(developer, project, 1).at("/lines/0/measurement/outcome").asText()).isEqualTo("pass");
         }
+
+        @Test
+        @DisplayName("test reports: unit and functional suites on one line, each pattern met on its own")
+        void unitAndFunctionalSuites() throws Exception {
+            publishWithRule(Map.of("kind", "test_suite_passed", "maxAgeDays", 7, "suitePatterns", List.of("*Test", "*IT"),
+                    "minimumTests", 2));
+            testReport(first, hoursAgo(1), "com.example.LedgerTest", 30, 0, "com.example.LedgerIT", 3, 0);
+            testReport(second, hoursAgo(1), "com.example.AppTest", 30, 0);
+            open(developer, project);
+            JsonNode line = measurements(developer, project, 1).at("/lines/0");
+            // The rule as it was bound, read back through the API's form: the two patterns, sorted, and no single one.
+            assertThat(line.at("/rule/suitePatterns").toString()).isEqualTo("[\"*IT\",\"*Test\"]");
+            assertThat(line.at("/rule/suitePattern").isMissingNode() || line.at("/rule/suitePattern").isNull()).isTrue();
+            assertThat(line.at("/measurement/reason").asText())
+                    .as("thirty unit tests and no functional suite on the second repository").isEqualTo("suite_not_found");
+
+            testReport(second, hoursAgo(0), "com.example.AppTest", 30, 0, "com.example.AppIT", 1, 0);
+            assertThat(measurements(developer, project, 1).at("/lines/0/measurement/outcome").asText())
+                    .as("one functional test, two asked — the unit tests do not make up for it").isEqualTo("fail");
+
+            testReport(second, hoursAgo(0), "com.example.AppTest", 30, 0, "com.example.AppIT", 2, 0);
+            assertThat(measurements(developer, project, 1).at("/lines/0/measurement/outcome").asText()).isEqualTo("pass");
+        }
     }
 
     // ------------------------------------------------------------------ relied on
@@ -1295,13 +1318,29 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
     }
 
     private void testReport(long repositoryId, Instant at, String suite, int tests, int failures) {
+        testReport(repositoryId, at, new Object[] {suite, tests, failures});
+    }
+
+    private void testReport(long repositoryId, Instant at, String suite, int tests, int failures, String other,
+            int otherTests, int otherFailures) {
+        testReport(repositoryId, at, new Object[] {suite, tests, failures}, new Object[] {other, otherTests, otherFailures});
+    }
+
+    /** One import holding each suite given, as name, tests and failures. */
+    private void testReport(long repositoryId, Instant at, Object[]... given) {
+        int tests = 0;
+        int failures = 0;
+        for (Object[] suite : given) {
+            tests += (int) suite[1];
+            failures += (int) suite[2];
+        }
         TestReportImportEntity row = new TestReportImportEntity();
         row.setSourceId(1L);
         row.setSourceSlug("ledger-ci");
         row.setRepoId(repositoryId);
         row.setFormat("junit");
         row.setDocumentsCount(1);
-        row.setSuitesCount(1);
+        row.setSuitesCount(given.length);
         row.setTestsCount(tests);
         row.setFailuresCount(failures);
         row.setDocumentSha256("d".repeat(64));
@@ -1309,12 +1348,14 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         row.setImportedBy("pipeline");
         row.setApiKeyId(UUID.randomUUID());
         long id = testReports.save(row).getId();
-        TestSuiteResultEntity result = new TestSuiteResultEntity();
-        result.setImportId(id);
-        result.setName(suite);
-        result.setTestsCount(tests);
-        result.setFailuresCount(failures);
-        suites.save(result);
+        for (Object[] suite : given) {
+            TestSuiteResultEntity result = new TestSuiteResultEntity();
+            result.setImportId(id);
+            result.setName((String) suite[0]);
+            result.setTestsCount((int) suite[1]);
+            result.setFailuresCount((int) suite[2]);
+            suites.save(result);
+        }
     }
 
     private String typeOf(MvcResult result) throws Exception {

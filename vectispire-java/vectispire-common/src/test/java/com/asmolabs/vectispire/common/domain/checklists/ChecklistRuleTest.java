@@ -248,6 +248,43 @@ class ChecklistRuleTest {
     }
 
     @Test
+    @DisplayName("keeps a one-pattern test rule byte for byte, and writes several sorted and once, under their own key")
+    void severalSuitePatterns() {
+        // What a rule bound before several patterns existed was stored as: it must read back to the same bytes.
+        String stored = "{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,\"suitePattern\":\"*Test\"}";
+        assertThat(ChecklistRule.fromCanonical(stored).canonical()).isEqualTo(stored);
+        assertThat(ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[\"*Test\"]}").canonical()).as("one pattern in a list is the one-pattern rule")
+                .isEqualTo(stored);
+
+        ChecklistRule both = ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[\" *Test\",\"*IT\",\"*Test\"]}");
+        String canonical = "{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[\"*IT\",\"*Test\"]}";
+        assertThat(both.canonical()).isEqualTo(canonical);
+        assertThat(ChecklistRule.fromCanonical(canonical).digest()).isEqualTo(both.digest());
+        assertThat(ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[\"*IT\",\"*Test\"]}").digest()).as("the order typed is not the rule").isEqualTo(both.digest());
+
+        assertThatThrownBy(() -> ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePattern\":\"*Test\",\"suitePatterns\":[\"*IT\"]}"))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("not both");
+        assertThatThrownBy(() -> ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[]}"))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("1 to 10 suite patterns");
+        assertThatThrownBy(() -> ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[\"*Test\",\" \"]}"))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("A suite pattern names the suites");
+        assertThatThrownBy(() -> ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1,"
+                + "\"suitePatterns\":[\"*Test\",3]}"))
+                .isInstanceOf(InvalidInputException.class).hasMessageContaining("is a string");
+        assertThatThrownBy(() -> new ChecklistRule.TestSuitePassed(7, List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"), 1))
+                .isInstanceOf(InvalidInputException.class);
+        assertThatThrownBy(() -> ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,\"minimumTests\":1}"))
+                .as("a rule naming no suite").isInstanceOf(InvalidInputException.class).hasMessageContaining("suite pattern");
+    }
+
+    @Test
     @DisplayName("matches a suite's whole name with * and ?, and nothing else as a wildcard")
     void suitePatterns() {
         SuitePattern arch = SuitePattern.of("com.example.arch.*Test");

@@ -93,10 +93,11 @@ export const RULE_BOUNDS = {
     /** `ChecklistRule.MAX_AGE_DAYS`: a year and a day. */
     minAgeDays: 1,
     maxAgeDays: 366,
-    /** `ChecklistRule.MAX_SCOPES`, `MAX_COMPONENTS`, `MAX_PATTERN`, `MAX_TESTS`. */
+    /** `ChecklistRule.MAX_SCOPES`, `MAX_COMPONENTS`, `MAX_PATTERN`, `MAX_SUITE_PATTERNS`, `MAX_TESTS`. */
     maxScopes: 20,
     maxComponents: 50,
     maxPattern: 500,
+    maxSuitePatterns: 10,
     maxTests: 10_000_000,
     /** `SeverityThreshold.MAX_OPEN`. */
     maxOpen: 1_000_000,
@@ -188,6 +189,7 @@ export type RuleProblem =
     | 'coverage_pattern'
     | 'coverage_pattern_twice'
     | 'pattern'
+    | 'suite_patterns_count'
     | 'minimum_tests'
     | 'components_count'
     | 'purl'
@@ -216,6 +218,7 @@ export const RULE_PROBLEM_KEYS = {
     coverage_pattern: 'checklist_rules.problem_coverage_pattern',
     coverage_pattern_twice: 'checklist_rules.problem_coverage_pattern_twice',
     pattern: 'checklist_rules.problem_pattern',
+    suite_patterns_count: 'checklist_rules.problem_suite_patterns_count',
     minimum_tests: 'checklist_rules.problem_minimum_tests',
     components_count: 'checklist_rules.problem_components_count',
     purl: 'checklist_rules.problem_purl',
@@ -298,7 +301,8 @@ export function draftOf(rule: ChecklistRule | null): RuleDraft {
     draft.metric = rule.metric ?? null;
     draft.minimumRatio = rule.minimumRatio ?? null;
     draft.aggregation = rule.aggregation ?? null;
-    draft.suitePattern = rule.suitePattern ?? '';
+    // Several patterns are typed in the one field, separated by commas: a suite's name never holds one.
+    draft.suitePattern = rule.suitePatterns?.length ? rule.suitePatterns.join(', ') : (rule.suitePattern ?? '');
     draft.minimumTests = rule.minimumTests ?? null;
     draft.components = (rule.components ?? []).map((component) => ({
         purlPrefix: component.purlPrefix,
@@ -312,7 +316,7 @@ export function draftOf(rule: ChecklistRule | null): RuleDraft {
     return draft;
 }
 
-/** The patterns typed in one of a coverage scope's lists, blanks dropped. */
+/** The patterns typed in one field, separated by commas — a coverage scope's list, a test rule's suites — blanks dropped. */
 export function patternsOf(typed: string): string[] {
     return typed
         .split(',')
@@ -488,8 +492,14 @@ export function ruleRefusal(draft: RuleDraft): RuleRefusal | null {
             if (!draft.aggregation) return { problem: 'aggregation', params: {} };
             return coverageScopeRefusal(draft);
         case 'test_suite_passed': {
-            const pattern = draft.suitePattern.trim();
-            if (!pattern || pattern.length > RULE_BOUNDS.maxPattern || CONTROL.test(pattern)) {
+            const patterns = patternsOf(draft.suitePattern);
+            if (patterns.length > RULE_BOUNDS.maxSuitePatterns) {
+                return { problem: 'suite_patterns_count', params: { max: RULE_BOUNDS.maxSuitePatterns } };
+            }
+            if (
+                patterns.length === 0 ||
+                patterns.some((pattern) => pattern.length > RULE_BOUNDS.maxPattern || CONTROL.test(pattern))
+            ) {
                 return { problem: 'pattern', params: { max: RULE_BOUNDS.maxPattern } };
             }
             if (!wholeIn(draft.minimumTests, 1, RULE_BOUNDS.maxTests)) {
@@ -586,13 +596,13 @@ export function ruleOf(draft: RuleDraft): ChecklistRule | null {
             if (scope) rule.scope = scope;
             return rule;
         }
-        case 'test_suite_passed':
-            return {
-                kind: draft.kind,
-                maxAgeDays,
-                suitePattern: draft.suitePattern.trim(),
-                minimumTests: draft.minimumTests!
-            };
+        case 'test_suite_passed': {
+            // One pattern keeps the key every rule had before several existed, and with it its digest.
+            const patterns = patternsOf(draft.suitePattern);
+            return patterns.length === 1
+                ? { kind: draft.kind, maxAgeDays, suitePattern: patterns[0], minimumTests: draft.minimumTests! }
+                : { kind: draft.kind, maxAgeDays, suitePatterns: patterns, minimumTests: draft.minimumTests! };
+        }
         case 'component_versions':
             return {
                 kind: draft.kind,
@@ -771,10 +781,15 @@ export function describeRule(i18n: I18nService, rule: ChecklistRule): string[] {
             break;
         case 'test_suite_passed':
             lines.push(
-                i18n.t('checklist_rules.summary_suite', {
-                    pattern: rule.suitePattern ?? '',
-                    tests: rule.minimumTests ?? 0
-                })
+                rule.suitePatterns?.length
+                    ? i18n.t('checklist_rules.summary_suites', {
+                          patterns: rule.suitePatterns.join(', '),
+                          tests: rule.minimumTests ?? 0
+                      })
+                    : i18n.t('checklist_rules.summary_suite', {
+                          pattern: rule.suitePattern ?? '',
+                          tests: rule.minimumTests ?? 0
+                      })
             );
             break;
         case 'component_versions':

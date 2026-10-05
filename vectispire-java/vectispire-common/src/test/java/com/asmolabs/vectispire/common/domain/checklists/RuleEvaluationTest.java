@@ -317,6 +317,33 @@ class RuleEvaluationTest {
         }
 
         @Test
+        @DisplayName("tests: several patterns are each met on their own suites — unit and functional, never one for the other")
+        void severalSuitePatterns() {
+            ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"test_suite_passed\",\"maxAgeDays\":7,"
+                    + "\"suitePatterns\":[\"*Test\",\"*IT\"],\"minimumTests\":3}");
+            Look at = new Look(Source.TEST_REPORT_IMPORT, 5, FRESH, Optional.of("cc"));
+            Suite unit = new Suite("com.example.LedgerTest", 40, 0, 0, 0);
+
+            Measurement unitOnly = RuleEvaluation.evaluate(rule, facts(List.of(1L)).tests(1L, new TestReport(at,
+                    List.of(unit))).build(), NOW);
+            assertThat(unitOnly.reason()).as("no functional suite: the line is not met by the unit tests")
+                    .contains(NoDataReason.SUITE_NOT_FOUND);
+            // Forty unit tests and two functional ones: summed they are 42, but the functional suites ran two.
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).tests(1L, new TestReport(at,
+                    List.of(unit, new Suite("com.example.LedgerIT", 2, 0, 0, 0)))).build(), NOW).outcome())
+                    .as("each pattern's own count").isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).tests(1L, new TestReport(at,
+                    List.of(unit, new Suite("com.example.LedgerIT", 5, 1, 0, 0)))).build(), NOW).outcome())
+                    .as("a failed functional test").isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).tests(1L, new TestReport(at,
+                    List.of(unit, new Suite("com.example.LedgerIT", 5, 0, 0, 5)))).build(), NOW).reason())
+                    .as("functional suites that skipped everything").contains(NoDataReason.NO_TEST_RAN);
+            assertThat(RuleEvaluation.evaluate(rule, facts(List.of(1L)).tests(1L, new TestReport(at,
+                    List.of(unit, new Suite("com.example.LedgerIT", 5, 0, 0, 0)))).build(), NOW).outcome())
+                    .isEqualTo(MeasurementOutcome.PASS);
+        }
+
+        @Test
         @DisplayName("components: every declared package present at an allowed version, every occurrence")
         void components() {
             ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"component_versions\",\"maxAgeDays\":7,\"components\":["

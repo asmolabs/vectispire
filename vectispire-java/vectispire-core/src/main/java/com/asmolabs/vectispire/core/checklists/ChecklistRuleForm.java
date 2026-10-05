@@ -20,8 +20,9 @@ import java.util.Map;
  *       minimumRatio} (above 0, to 1), {@code aggregation} ({@code per_repository} or {@code project_weighted}) and
  *       an optional {@code scope} — the packages measured, {@code include} and {@code exclude} patterns over
  *       package paths; absent, the whole report;
- *   <li>{@code test_suite_passed}: {@code maxAgeDays}, {@code suitePattern} (a glob, {@code *} and {@code ?}) and
- *       {@code minimumTests};
+ *   <li>{@code test_suite_passed}: {@code maxAgeDays}, {@code suitePattern} (a glob, {@code *} and {@code ?}) — or
+ *       {@code suitePatterns}, 2 to 10 globs each of which must be met, unit <em>and</em> functional tests — and
+ *       {@code minimumTests}, which each pattern's suites must run;
  *   <li>{@code component_versions}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} and its
  *       allowed {@code versions} — exact, or Maven ranges ({@code [1.17,2.0)}) on a {@code pkg:maven/} prefix;
  *   <li>{@code component_present}: {@code maxAgeDays} and {@code components}, each a {@code purlPrefix} alone —
@@ -46,6 +47,7 @@ public record ChecklistRuleForm(
         BigDecimal minimumRatio,
         String aggregation,
         String suitePattern,
+        List<String> suitePatterns,
         Integer minimumTests,
         List<ComponentForm> components,
         CoverageScopeForm scope,

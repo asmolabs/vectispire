@@ -2112,6 +2112,12 @@
           "suitePattern" : {
             "type" : "string"
           },
+          "suitePatterns" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "thresholds" : {
             "additionalProperties" : {
               "$ref" : "#/components/schemas/ThresholdForm"

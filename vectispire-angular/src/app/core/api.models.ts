@@ -2938,6 +2938,7 @@ export type ChecklistRule = Refine<
         minimumRatio?: number | null;
         aggregation?: 'per_repository' | 'project_weighted' | null;
         suitePattern?: string | null;
+        suitePatterns?: string[] | null;
         minimumTests?: number | null;
         components?: ChecklistAllowedComponent[] | null;
         scope?: ChecklistCoverageScope | null;

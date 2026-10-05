@@ -5276,6 +5276,7 @@ export interface components {
             scope?: components["schemas"]["CoverageScopeForm"];
             scopes?: string[];
             suitePattern?: string;
+            suitePatterns?: string[];
             thresholds?: {
                 [key: string]: components["schemas"]["ThresholdForm"];
             };
