@@ -348,14 +348,21 @@ jobs:
           NAMESPACE="$(echo "$NAMESPACE" | tr '[:upper:]' '[:lower:]')"
           echo "NAMESPACE=$NAMESPACE" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          # **`latest` moves on a release, never on a candidate.** A tag with a suffix
+          # (`v0.11.0-rc.1`) is pushed under its version alone: `latest` is what someone pulls without
+          # choosing, and handing them a candidate is the opposite of what a candidate is for.
+          case "$VERSION" in *-*) MOVES_LATEST=false ;; *) MOVES_LATEST=true ;; esac
+          echo "MOVES_LATEST=$MOVES_LATEST" >> "$GITHUB_ENV"
           echo "${{ github.token }}" | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
           # The archives `build` wrote and the checksums above vouched for, tagged as Jib named
           # them. The digest is the registry's after the push, read back and signed below.
           for NAME in vectispire vectispire-agent vectispire-report-demo; do
             docker load --input "${NAME}-image.tar"
-            docker tag "${NAMESPACE}/${NAME}:${VERSION}" "${NAMESPACE}/${NAME}:latest"
             docker push "${NAMESPACE}/${NAME}:${VERSION}"
-            docker push "${NAMESPACE}/${NAME}:latest"
+            if [ "$MOVES_LATEST" = true ]; then
+              docker tag "${NAMESPACE}/${NAME}:${VERSION}" "${NAMESPACE}/${NAME}:latest"
+              docker push "${NAMESPACE}/${NAME}:latest"
+            fi
           done
 
       # **Signed by digest, never by tag.** A tag is a mutable pointer: signing `:0.9.0` says
@@ -525,6 +532,7 @@ jobs:
           # file it names is the one `sha256sum --check` vouched for and `cosign verify-blob` above
           # verified.
           CLI_SHA256="$(sha256sum vectispire-cli.sh | cut -d' ' -f1)"
+          if [ "$MOVES_LATEST" = true ]; then TAGGED="\`${VERSION}\` and \`latest\`"; else TAGGED="\`${VERSION}\` only — a candidate does not move \`latest\`"; fi
           prerelease=
           case "$GITHUB_REF_NAME" in v0.*) prerelease=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" ${prerelease:+"$prerelease"} \
@@ -541,7 +549,7 @@ jobs:
               docker pull ${NAMESPACE}/vectispire@${CORE_DIGEST}
               docker pull ${NAMESPACE}/vectispire-agent@${AGENT_DIGEST}
 
-          Also tagged \`${VERSION}\` and \`latest\`.
+          Also tagged ${TAGGED}.
 
           **Demonstration report plugin** — signed by the same identity, with its SBOM attested:
 
