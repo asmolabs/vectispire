@@ -51,8 +51,10 @@ Ouvrir une version montre sa feuille sous forme de grille — numéros de ligne 
 colonne en haut — avec un sélecteur pour les autres feuilles du classeur. Le lecteur a **proposé** une
 disposition à partir de la structure du classeur : ses plages de validation, ses cellules fusionnées,
 et la ligne suivie d'une suite de lignes remplies. Il ne cherche jamais de mots attendus, qui seraient
-le vocabulaire d'une seule organisation inscrit dans le produit. La grille dessine la disposition à
-l'écran par-dessus les cellules :
+le vocabulaire d'une seule organisation inscrit dans le produit. Il ne propose jamais non plus de colonne
+d'identifiant — c'est à vous de la désigner —, mais une colonne du bord gauche remplie sur chaque ligne,
+sans jamais deux fois la même valeur, devant le domaine, est enjambée plutôt que prise pour le contrôle.
+La grille dessine la disposition à l'écran par-dessus les cellules :
 
 - l'en-tête d'une colonne nomme le champ qu'elle porte — `C · Contrôle` ;
 - les lignes d'items des colonnes nommées sont surlignées en bleu ;

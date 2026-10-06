@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +42,36 @@ class LayoutProposalTest {
                 ChecklistColumn.ANSWER, "F",
                 ChecklistColumn.COMMENT, "G"));
         assertThat(proposal.columns()).doesNotContainKey(ChecklistColumn.ID);
+    }
+
+    @Test
+    @DisplayName("an identifier column in front of the domain is stepped over, and every other column keeps its place")
+    void identifierColumnInFront() {
+        // The fixture's table moved one column right, an id written on every line in front of it (ID-1…):
+        // nothing grouped at the edge read the id as the control and every column after it one off.
+        XlsxFixture fixture = new XlsxFixture();
+        String sheet = fixture.parts.get("xl/worksheets/sheet2.xml");
+        Matcher cells = Pattern.compile("r=\"([A-G])([6-9]|1[01])\"").matcher(sheet);
+        sheet = cells.replaceAll(m -> "r=\"" + (char) (m.group(1).charAt(0) + 1) + m.group(2) + "\"");
+        sheet = sheet.replace("<row r=\"6\">", "<row r=\"6\"><c r=\"A6\" t=\"inlineStr\"><is><t>ID</t></is></c>");
+        for (int row = 7; row <= 11; row++) {
+            sheet = sheet.replace("<row r=\"" + row + "\">", "<row r=\"" + row + "\"><c r=\"A" + row
+                    + "\" t=\"inlineStr\"><is><t>ID-" + (row - 6) + "</t></is></c>");
+        }
+        fixture.put("xl/worksheets/sheet2.xml", sheet.replace("<xm:sqref>F7:F11</xm:sqref>", "<xm:sqref>G7:G11</xm:sqref>"));
+
+        LayoutProposal proposal = LayoutProposal.of(fixture.read());
+
+        assertThat(proposal.columns()).containsExactlyInAnyOrderEntriesOf(Map.of(
+                ChecklistColumn.DOMAIN, "B",
+                ChecklistColumn.OBJECTIVE, "C",
+                ChecklistColumn.CONTROL, "D",
+                ChecklistColumn.CONTACT, "E",
+                ChecklistColumn.KPI, "F",
+                ChecklistColumn.ANSWER, "G",
+                ChecklistColumn.COMMENT, "H"));
+        assertThat(proposal.firstItemRow()).contains(7);
+        assertThat(proposal.lastItemRow()).contains(11);
     }
 
     @Test

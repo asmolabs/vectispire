@@ -49,7 +49,9 @@ Opening a version shows its sheet as a grid — row numbers down the side, colum
 top — with a selector for the workbook's other sheets. The reader has **proposed** a layout from the
 workbook's structure: its validation ranges, merged cells, and which row is followed by a run of
 filled rows. It never looks for expected words, which would be one organisation's vocabulary built
-into the product. The grid draws the layout on screen over the cells:
+into the product. It never proposes an identifier column either — that one is yours to name — but a
+column at the left edge filled on every line with values never repeated, in front of the domain, is
+stepped over rather than taken for the control. The grid draws the layout on screen over the cells:
 
 - a column head names the field it holds — `C · Control`;
 - the item rows of the named columns are highlighted in blue;

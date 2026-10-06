@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -32,7 +34,9 @@ import java.util.TreeMap;
  *       Left of it, the grouped ones first — filled on the first item row and blank below somewhere,
  *       as a domain and an objective are written — then the control, the contact and the KPI in the
  *       order they come. The id column is never proposed: whether a column identifies the lines is
- *       the organisation's to say.
+ *       the organisation's to say. But one at the left edge — filled on every line, never twice the
+ *       same, a grouped column right after it — is stepped over rather than taken for the control:
+ *       otherwise it shifted every column after it by one.
  *   <li><b>The header cells</b> are the label-and-value pairs above the header row, a merged title
  *       aside: the date is the one whose value is a formula or a number, the product and the author
  *       the next two in reading order.
@@ -186,10 +190,17 @@ public record LayoutProposal(
         answer.flatMap(column -> block.columns().stream().filter(heading -> heading > column).findFirst())
                 .ifPresent(comment -> columns.put(ChecklistColumn.COMMENT, CellRef.letters(comment)));
 
-        int next = 0;
+        // A template that adds an identifier column in front of its domain (SEC-01, SEC-02…) read as
+        // control = the identifier, contact = the domain, KPI = the objective: nothing grouped could be
+        // found at the edge, so the place of every column after it was off by one. Only that shape is
+        // stepped over — one column, identifier-like, a grouped one after it — since a template with
+        // no domain may well start with its control and have a KPI left blank on some lines.
+        int next = left.size() > 1 && identifierLike(sheet, left.get(0), block) && grouped(sheet, left.get(1), block)
+                ? 1 : 0;
         ChecklistColumn[] grouped = {ChecklistColumn.DOMAIN, ChecklistColumn.OBJECTIVE};
-        while (next < left.size() && next < grouped.length && grouped(sheet, left.get(next), block)) {
-            columns.put(grouped[next], CellRef.letters(left.get(next)));
+        int first = next;
+        while (next < left.size() && next - first < grouped.length && grouped(sheet, left.get(next), block)) {
+            columns.put(grouped[next - first], CellRef.letters(left.get(next)));
             next++;
         }
         for (ChecklistColumn column : new ChecklistColumn[] {ChecklistColumn.CONTROL, ChecklistColumn.CONTACT,
@@ -201,6 +212,18 @@ public record LayoutProposal(
         headerCells(sheet, block.headerRow(), header);
         return new LayoutProposal(sheet.name(), Optional.of(block.headerRow()), Optional.of(block.firstRow()),
                 Optional.of(block.lastRow()), columns, header, values);
+    }
+
+    /** Written on every item row, and never twice the same: the shape of a line's identifier. */
+    private static boolean identifierLike(Sheet sheet, int column, Block block) {
+        Set<String> seen = new HashSet<>();
+        for (int row = block.firstRow(); row <= block.lastRow(); row++) {
+            CellRef cell = new CellRef(column, row);
+            if (sheet.blank(cell) || !seen.add(sheet.text(cell))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Written on the first item row, and left blank on some row below: the fill-down shape. */
