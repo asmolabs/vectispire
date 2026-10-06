@@ -33,7 +33,10 @@ jobs:
   # localhost, and Ryuk works. Both variables are gone rather than carried over — a setting kept
   # "just in case" is a setting nobody can explain later.
   databases:
-    runs-on: ubuntu-latest
+    # **Pinned, not `ubuntu-latest`**: the label moves to Ubuntu 26 from 2026-10-19, in the middle of
+    # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
+    # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,7 +56,7 @@ jobs:
   # The `Dockerfile` route is the one that ships — it can chown the audit mirror's directory where
   # Jib can only set a mode — so it is built here even though `images` already built with Jib.
   dockerfiles:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +86,7 @@ jobs:
   # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
   # the settings audit trail, and VEX triage.
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
       # **Must match `@playwright/test` in `package-lock.json`** — currently 1.62.1. Playwright
@@ -196,7 +199,7 @@ jobs:
   # Built through the Dockerfile rather than Jib: the drill drives the API and never loads a page,
   # so the interface bundle Jib wants would be twenty minutes bought for nothing.
   restore:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

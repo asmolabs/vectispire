@@ -74,7 +74,10 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # **Pinned, not `ubuntu-latest`**: the label moves to Ubuntu 26 from 2026-10-19, in the middle of
+    # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
+    # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -104,7 +107,7 @@ jobs:
   deploy:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     # Write to Pages, and an OIDC token because `deploy-pages` authenticates with one, with no
     # secret to hold. This job runs one pinned action and no third-party code.

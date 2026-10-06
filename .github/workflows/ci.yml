@@ -87,7 +87,10 @@ env:
 
 jobs:
   secrets:
-    runs-on: ubuntu-latest
+    # **Pinned, not `ubuntu-latest`**: the label moves to Ubuntu 26 from 2026-10-19, in the middle of
+    # 0.11.0's acceptance; a release candidate and the release it becomes are built and checked on one
+    # image. Moving to the next one is a change of its own, reviewed, with the suites green on it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     container:
       image: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
@@ -128,7 +131,7 @@ jobs:
           exit "$status"
 
   docs-consistency:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -161,7 +164,7 @@ jobs:
             scripts/vectispire-cli.sh
 
   c4-drift:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -191,7 +194,7 @@ jobs:
           echo "C4 diagrams are in step with the model."
 
   dockerfile-policy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     container:
       image: bridgecrew/checkov@sha256:12a62da01af22654883aee3b9da18ba4297f123f5122663bf65235db37934144
@@ -225,7 +228,7 @@ jobs:
   # the cost that teaches people to route around CI, and an image that builds and carries its jar
   # is what the defect above would have needed.
   dockerfile-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       touched: ${{ steps.detect.outputs.touched }}
@@ -259,7 +262,7 @@ jobs:
           fi
 
   dockerfiles:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [dockerfile-changes]
     # Skipped rather than run empty, like `engines` and `e2e`.
@@ -289,7 +292,7 @@ jobs:
   # checksum file and compared, the day they were pinned, with the one in the release notes of the
   # other origin (get.helm.sh against GitHub for Helm). A moved archive is a red job, never a new tool.
   helm-chart:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       HELM_VERSION: v3.22.0
@@ -376,7 +379,7 @@ jobs:
             { echo "::error::the control plane may share a node with a privileged agent"; exit 1; }
 
   jvm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     container: eclipse-temurin:25-jdk
     # **The context and HTTP suites run on MySQL (decision 0034).** A job service beside the job's
@@ -438,7 +441,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: node:24
     steps:
@@ -483,7 +486,7 @@ jobs:
   # the daemon could not see the checkout. Here the daemon is the runner's, so a bind mount is
   # both possible and obvious.
   sbom:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [jvm]
     steps:
@@ -513,7 +516,7 @@ jobs:
           retention-days: 30
 
   vulnerabilities:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [sbom]
     steps:
@@ -544,7 +547,7 @@ jobs:
           exit $failed
 
   npm-audit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     container: node:24
     steps:
@@ -563,7 +566,7 @@ jobs:
   # invisible to the daemon that runs the image under test. Here either would work, and this one
   # is kept because it is the arrangement that has actually been executed.
   images:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [jvm, frontend]
     steps:
@@ -785,7 +788,7 @@ jobs:
   # No `container:` here, unlike `jvm` above: Testcontainers needs the runner's daemon, which a job
   # container cannot reach. The same shape as `nightly.yml`'s `databases` job, deliberately.
   migration-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       touched: ${{ steps.detect.outputs.touched }}
@@ -837,7 +840,7 @@ jobs:
           fi
 
   engines:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     needs: [migration-changes]
     # Skipped rather than run empty: a job reporting green having done nothing is a signal nobody
@@ -872,7 +875,7 @@ jobs:
   # is precisely the cost that teaches people to route around CI. It is the OpenAPI contract that
   # must catch it, as a diff rather than in a browser.
   frontend-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       touched: ${{ steps.detect.outputs.touched }}
@@ -904,7 +907,7 @@ jobs:
   # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
   # the settings log, and VEX triage.
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [frontend-changes]
     # Skipped rather than run empty, like `engines`: a green job that did nothing is a signal
