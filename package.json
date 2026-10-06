@@ -1,6 +1,6 @@
 {
     "name": "vectispire",
-    "version": "0.10.0",
+    "version": "0.11.0-rc.1",
     "private": true,
     "license": "Apache-2.0",
     "description": "Vectispire — application security posture management and attestation. Spring Boot control plane in vectispire-java/, Angular interface in vectispire-angular/.",
