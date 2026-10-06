@@ -563,6 +563,13 @@ another branch, is another target and is accepted as before.
 
 ### Fixed
 
+- **Refreshing a project's checklist, or opening a link to it, no longer answers 404.** The server handed
+  the interface paths of one and two segments only; `/projects/{id}/checklist` and
+  `/solutions/{id}/compliance` have three, and answered "Nothing is served at this path" unless reached by
+  clicking. Every route of the interface is now forwarded, and the build checks it.
+- **A template with an identifier column in front of its domain is proposed in the right columns.**
+  The column left of the domain shifted every proposed column by one (control on the identifier,
+  contact on the domain, KPI on the objective).
 - **A Docker daemon on `tcp://` with `DOCKER_TLS_VERIFY` is spoken to over TLS.** The client read
   `DOCKER_TLS_VERIFY` and `DOCKER_CERT_PATH` and then built its connection without them, so a daemon
   listening with TLS on 2376 was sent plain HTTP and every call failed. The client certificate under

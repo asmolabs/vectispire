@@ -612,6 +612,13 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 ### Corrigé
 
+- **Recharger la checklist d'un projet, ou ouvrir un lien vers elle, ne répond plus 404.** Le serveur ne
+  renvoyait à l'interface que les chemins d'un ou deux segments ; `/projects/{id}/checklist` et
+  `/solutions/{id}/compliance` en ont trois, et répondaient « Nothing is served at this path » sauf en y
+  arrivant par un clic. Toutes les routes de l'interface sont désormais renvoyées, et le build le vérifie.
+- **Un modèle avec une colonne d'identifiant devant son domaine est proposé dans les bonnes colonnes.**
+  La colonne à gauche du domaine décalait toutes les colonnes proposées (contrôle sur l'identifiant,
+  contact sur le domaine, KPI sur l'objectif).
 - **Un démon Docker en `tcp://` avec `DOCKER_TLS_VERIFY` est joint en TLS.** Le client lisait
   `DOCKER_TLS_VERIFY` et `DOCKER_CERT_PATH` puis construisait sa connexion sans eux : un démon à
   l'écoute en TLS sur 2376 recevait du HTTP en clair, et chaque appel échouait. Le certificat client
