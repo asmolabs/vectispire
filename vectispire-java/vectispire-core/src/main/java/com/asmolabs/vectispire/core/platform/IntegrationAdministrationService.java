@@ -60,6 +60,9 @@ public class IntegrationAdministrationService {
      * @param enabled the state wanted; null is refused, never read as off
      * @throws NotFoundException for a key no integration has
      * @throws InvalidInputException without a state
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationInUseException switching off an
+     *     integration a configuration uses (0040 §3) — asked by the registry, inside the switch's transaction
+     *     ({@link Integrations.InUse}); nothing changes, so nothing is audited
      */
     public IntegrationView setEnabled(String key, Boolean enabled, UserView governor, RequestActor actor) {
         Integration integration = Integration.byKey(key).orElseThrow(() -> new NotFoundException("Integration not found."));

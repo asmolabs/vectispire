@@ -100,6 +100,24 @@ refusée, un délai dépassé, un statut HTTP — est écrite dans le journal du
 elle distingue un port fermé d'un serveur à l'écoute, ce qui ferait du bouton un scanner de chaque
 réseau que l'export peut atteindre.
 
+### Chaque transport est une intégration
+
+Les quatre transports sont des intégrations que le gouverneur de la plateforme active et désactive
+dans *Administration → Intégrations* — `siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`,
+`siem.syslog_tls`, toutes activées au départ ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Un export activé ne s'enregistre pas sur un transport désactivé, et un transport désactivé ne se teste
+pas : les deux répondent 409 `integration-disabled`. Désactiver l'export s'enregistre toujours, quel
+que soit son protocole.
+
+**Le transport utilisé ne peut pas être désactivé.** Tant que l'export est activé, la bascule de son
+transport par le gouverneur est refusée en 409 `integration-in-use` : les événements de sécurité qui
+attendent dans l'outbox n'auraient sinon plus nulle part où aller, et seraient perdus en silence.
+Pointez d'abord l'export vers un autre transport, ou désactivez-le — le collecteur quitté en est
+averti — et l'ancien transport peut alors être désactivé. Si un transport se trouve malgré tout
+désactivé sous un export activé (une ligne modifiée à la main), les événements ne partent pas et ne
+se perdent pas : ils attendent dans l'outbox, en attente, la raison en dernière erreur et sans
+tentative comptée, et partent dès que le transport est réactivé ou que l'export pointe ailleurs.
+
 ## Sévérité minimale
 
 Chaque événement porte une sévérité CEF de 0 à 10. La sévérité minimale garde les bandes qui

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.SettingType;
@@ -14,6 +15,7 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
@@ -24,6 +26,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The SIEM export's configuration and its connection test.
@@ -32,6 +35,11 @@ import org.springframework.stereotype.Service;
  * that caused them and sent by {@link SiemDelivery} after it commits. This class used to send them
  * — from an {@code @Async} method in a codebase with no {@code @EnableAsync}, so synchronously and
  * inside the caller's transaction, and always over HTTP whatever the protocol said.
+ *
+ * <p><b>Each transport is an integration</b> (decision 0040, {@code siem.<protocol>}): an enabled export is
+ * not saved over a disabled one, nor is one tested, and the governor cannot switch off the one an enabled
+ * export uses ({@code SiemTransportInUse}). The two checks meet on the registry's row, which the save
+ * holds until it commits ({@link Integrations#holdEnabled}).
  */
 @Service
 public class SiemExporterService {
@@ -49,21 +57,32 @@ public class SiemExporterService {
 
     private final SiemConfigRepository repository;
     private final SiemSender sender;
+    private final Integrations integrations;
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
 
+    /**
+     * Opened explicitly, for the reason {@code ScanDispatcher} gives: the save's transaction is opened from
+     * inside this class, and it must close before the stop notice leaves and the audit entry is written.
+     */
+    private final TransactionTemplate transactions;
+
     public SiemExporterService(
             SiemConfigRepository repository,
             SiemSender sender,
+            Integrations integrations,
             EncryptionService encryption,
             AuditLogService audit,
-            Clock clock) {
+            Clock clock,
+            TransactionTemplate transactions) {
         this.repository = repository;
         this.sender = sender;
+        this.integrations = integrations;
         this.encryption = encryption;
         this.audit = audit;
         this.clock = clock;
+        this.transactions = transactions;
     }
 
     public Optional<SiemConfigView> getConfig() {
@@ -77,6 +96,10 @@ public class SiemExporterService {
      * @param tlsCaPem the collector CA for syslog over TLS: {@code null} keeps the stored one, blank
      *     removes it. Absent keeps because a client written before the field existed would otherwise
      *     unpin the CA at every save; the screen always sends what it shows
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException an enabled
+     *     export over a transport the governor has disabled: 409 {@code integration-disabled}. A disabled
+     *     export is saved over any protocol — it sends over none, and switching the export off must never be
+     *     what a disabled transport prevents
      */
     public SiemConfigView saveConfig(
             boolean enabled,
@@ -92,6 +115,12 @@ public class SiemExporterService {
         SiemProtocol parsedProtocol = protocol == null || protocol.isBlank()
                 ? SiemProtocol.WEBHOOK
                 : parseProtocol(protocol);
+        Integration transport = Integration.of(parsedProtocol);
+        if (enabled) {
+            // Asked first, so the refusal comes before the form's other words; asked again, and held, in
+            // the transaction that writes the row.
+            integrations.requireEnabled(transport);
+        }
         Severity threshold = minSeverity == null || minSeverity.isBlank()
                 ? Severity.HIGH
                 : SettingType.THRESHOLDS.stream()
@@ -131,6 +160,51 @@ public class SiemExporterService {
         }
         CollectorCa pinned = caGiven ? CollectorCa.parse(tlsCaPem, clock.instant()) : null;
 
+        Written written = transactions.execute(status -> {
+            if (enabled) {
+                // **Held until the row commits.** Checked and not held, a governor's switch could read
+                // "not in use" between this check and the commit, and the export would stand on a
+                // transport that is off — its events held in the outbox until somebody noticed.
+                integrations.holdEnabled(transport);
+            }
+            return write(enabled, parsedProtocol, endpoint, authHeader, threshold, tlsCaPem, pinned);
+        });
+        SiemConfigEntity saved = written.saved();
+
+        // The collector being left hears it, before the silence: a feed that stops is otherwise
+        // read by a SOC as an outage — or not noticed at all — when it was a decision, possibly by
+        // somebody covering their tracks. Sent after the save has committed — no outbound call holds
+        // the row — so it announces a change that happened, and before the audit entry, which records
+        // whether it arrived.
+        String notice = written.leaving()
+                .filter(previous -> !saved.isEnabled() || !previous.sameDestinationAs(saved))
+                .map(previous -> announceStop(previous, saved.isEnabled(), actor))
+                .orElse("");
+
+        // Signalled, and sent to the collector configured by this very save when it is on: a SOC
+        // should hear about the export being repointed, at the new collector as at the old one.
+        audit.record(actor.entry(
+                        AuditOperation.SETTING_UPDATED,
+                        String.valueOf(saved.getId()),
+                        "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol()
+                                + ", minimum severity=" + saved.getMinSeverity()
+                                + (saved.getTlsCaPem() != null ? ", collector CA pinned" : "") + ")" + notice)
+                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
+        return SiemConfigView.of(saved);
+    }
+
+    /** The row as the save left it, and the collector it was exporting to before. */
+    private record Written(SiemConfigEntity saved, Optional<Collector> leaving) {}
+
+    /** Writes the checked configuration onto the row; runs inside the save's transaction. */
+    private Written write(
+            boolean enabled,
+            SiemProtocol parsedProtocol,
+            String endpoint,
+            String authHeader,
+            Severity threshold,
+            String tlsCaPem,
+            CollectorCa pinned) {
         SiemConfigEntity entity = repository.findById(SiemConfigEntity.SINGLETON_ID)
                 .orElseGet(() -> {
                     SiemConfigEntity fresh = new SiemConfigEntity();
@@ -173,27 +247,7 @@ public class SiemExporterService {
         // Stored in capitals, as the screen sends it and the default has always been written.
         entity.setMinSeverity(threshold.name());
         entity.setUpdatedAt(Instant.now());
-        SiemConfigEntity saved = repository.save(entity);
-
-        // The collector being left hears it, before the silence: a feed that stops is otherwise
-        // read by a SOC as an outage — or not noticed at all — when it was a decision, possibly by
-        // somebody covering their tracks. Sent after the save, so it announces a change that
-        // happened, and before the audit entry, which records whether it arrived.
-        String notice = leaving
-                .filter(previous -> !saved.isEnabled() || !previous.sameDestinationAs(saved))
-                .map(previous -> announceStop(previous, saved.isEnabled(), actor))
-                .orElse("");
-
-        // Signalled, and sent to the collector configured by this very save when it is on: a SOC
-        // should hear about the export being repointed, at the new collector as at the old one.
-        audit.record(actor.entry(
-                        AuditOperation.SETTING_UPDATED,
-                        String.valueOf(saved.getId()),
-                        "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol()
-                                + ", minimum severity=" + saved.getMinSeverity()
-                                + (saved.getTlsCaPem() != null ? ", collector CA pinned" : "") + ")" + notice)
-                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
-        return SiemConfigView.of(saved);
+        return new Written(repository.save(entity), leaving);
     }
 
     /**
@@ -239,8 +293,16 @@ public class SiemExporterService {
      *
      * <p>The new destination is not named: the collector being left has no business learning where
      * the feed went.
+     *
+     * <p><b>Not over a disabled transport.</b> The governor cannot switch off the one an enabled export
+     * uses, so this is a row written by hand; nothing of a disabled integration runs, and the audit entry
+     * says the notice was not sent and why.
      */
     private String announceStop(Collector previous, boolean redirected, RequestActor actor) {
+        Integration transport = Integration.of(previous.protocol());
+        if (!integrations.isEnabled(transport)) {
+            return "; stop notice NOT sent to the previous collector: its transport " + transport.key() + " is disabled";
+        }
         CefEvent stopped = CefEvent.builder(SecurityEventType.SIEM_EXPORT_STOPPED)
                 .message(redirected
                         ? "The SIEM export was pointed at another collector: this one will receive no further events."
@@ -307,6 +369,10 @@ public class SiemExporterService {
      * @param tlsCaPem the collector CA to verify against, for syslog over TLS: {@code null} tests the
      *     stored one, blank tests the runtime's trust store — so the button tests the CA on the form,
      *     saved or not
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException the transport
+     *     tested — given, or the stored one — is disabled: 409 {@code integration-disabled}, nothing sent.
+     *     Thrown, not reported: it is not an answer about the collector, and a test that answered "not
+     *     delivered" would send the security lead to look at a network that is fine
      */
     public TestResult testConnection(String protocol, String endpoint, String authHeader, String tlsCaPem) {
         if (endpoint == null || endpoint.isBlank()) {
@@ -319,6 +385,8 @@ public class SiemExporterService {
             parsed = protocol == null || protocol.isBlank()
                     ? getConfig().flatMap(config -> SiemProtocol.byName(config.protocol())).orElse(SiemProtocol.WEBHOOK)
                     : parseProtocol(protocol);
+            // Not an IllegalArgumentException, so it leaves this block as the 409 it is.
+            integrations.requireEnabled(Integration.of(parsed));
             destination = SiemEndpoint.parse(parsed, endpoint);
             String ca = tlsCaPem != null ? tlsCaPem : getConfig().map(SiemConfigView::tlsCaPem).orElse(null);
             pinned = parsed == SiemProtocol.SYSLOG_TLS && ca != null && !ca.isBlank()

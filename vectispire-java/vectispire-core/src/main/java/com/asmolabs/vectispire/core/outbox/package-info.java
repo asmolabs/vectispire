@@ -1,6 +1,6 @@
 /**
  * The relay: {@code OutboxService}, and the two contracts it dispatches to, {@code OutboxHandler}
- * and {@code NotificationChannel}, with {@code GoneDestinationException}.
+ * and {@code NotificationChannel}, with {@code GoneDestinationException} and {@code HeldDeliveryException}.
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
  * ModularityTest}, decision 0030): a dependency on a module, or on a named interface ({@code

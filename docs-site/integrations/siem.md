@@ -92,6 +92,22 @@ could not be reached or did not accept the event. The socket's own error — a r
 timeout, an HTTP status — is written to the server log, not answered: those tell a closed port from a
 listening server, which would make the button a scanner of every network the export may reach.
 
+### Each transport is an integration
+
+The four transports are integrations the platform governor switches on and off under
+*Administration → Integrations* — `siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`,
+`siem.syslog_tls`, all enabled to begin with ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+An enabled export is not saved over a disabled transport, nor is a disabled transport tested: both
+answer 409 `integration-disabled`. Switching the export off is always saved, whatever its protocol.
+
+**The transport in use cannot be disabled.** While the export is on, the governor's switch of its
+transport is refused with 409 `integration-in-use`: the security events waiting in the outbox would
+otherwise have nowhere to go, and be lost in silence. Point the export at another transport, or
+switch it off, first — the collector being left is told — and the old transport may be disabled
+then. Should a transport be off under an enabled export all the same (a row changed by hand), events
+are not sent and not lost: they wait in the outbox, pending, with the reason as their last error and
+no attempt counted, and leave once the transport is enabled again or the export points elsewhere.
+
 ## Minimum severity
 
 Each event carries a CEF severity from 0 to 10. The minimum severity keeps the bands at or above it:

@@ -49,6 +49,14 @@ public final class OutboxRetry {
      */
     public static final Duration CLAIM_WINDOW = Duration.ofMinutes(5);
 
+    /**
+     * How long a held message — one whose destination exists but may not be reached for now, a disabled
+     * SIEM transport — waits before it is offered again. No attempt is counted, so the wait does not
+     * widen: a governor who switches the transport back on sees the queue drain within this, and a hold
+     * that lasts costs one read per message per interval rather than the abandonment of its events.
+     */
+    public static final Duration HOLD_INTERVAL = Duration.ofMinutes(5);
+
     /** Delivered messages are kept for a few days, so "did it go out?" has an answer. */
     public static final Duration SENT_RETENTION = Duration.ofDays(7);
 

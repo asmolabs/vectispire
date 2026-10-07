@@ -10,9 +10,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,8 +80,13 @@ public class OutboxService {
         this.transactions = transactions;
     }
 
-    /** @param sent delivered this pass; @param failed will be retried; @param abandoned out of attempts */
-    public record RelayResult(int sent, int failed, int abandoned) {}
+    /**
+     * @param sent delivered this pass
+     * @param failed will be retried
+     * @param abandoned out of attempts, or its destination gone
+     * @param held kept pending, no attempt counted, because its destination may not be reached for now
+     */
+    public record RelayResult(int sent, int failed, int abandoned, int held) {}
 
     /**
      * Adds a message to the transaction <b>the caller already opened</b>.
@@ -148,6 +155,8 @@ public class OutboxService {
         int sent = 0;
         int failed = 0;
         int abandoned = 0;
+        int held = 0;
+        Set<String> holdReasons = new LinkedHashSet<>();
 
         for (OutboxMessageEntity message : due) {
             // **Claimed before it is sent.** Every instance runs this pass and reads the same due
@@ -159,6 +168,14 @@ public class OutboxService {
             int attempts = message.getAttempts() + 1;
             try {
                 deliver(message);
+            } catch (HeldDeliveryException hold) {
+                // **Kept, not counted.** Settled through the failure path it would have spent the
+                // eight attempts in four hours and been abandoned — the security events a disabled
+                // transport was meant to keep, lost to a switch that may be turned back in a minute.
+                transactions.executeWithoutResult(status -> keep(message, at, hold));
+                holdReasons.add(hold.getMessage());
+                held++;
+                continue;
             } catch (GoneDestinationException gone) {
                 // **Abandoned at once, not retried twelve times.** Nothing about waiting brings
                 // back a team somebody deleted, and twelve attempts would fill the log with an
@@ -183,7 +200,12 @@ public class OutboxService {
         if (sent > 0) {
             log.info("Outbox: {} message(s) delivered.", sent);
         }
-        return new RelayResult(sent, failed, abandoned);
+        if (held > 0) {
+            // One line a pass rather than one a message: the reason is the same for every event the
+            // switch holds, and a log that repeats it twenty times every few minutes is read by nobody.
+            log.warn("Outbox: {} message(s) held, not sent and kept pending: {}", held, String.join("; ", holdReasons));
+        }
+        return new RelayResult(sent, failed, abandoned, held);
     }
 
     /** Deletes messages delivered long enough ago. The table is written on every scan. */
@@ -212,6 +234,16 @@ public class OutboxService {
     private void abandon(OutboxMessageEntity message, int attempts, Instant at, RuntimeException reason) {
         messages.recordAttempt(message.getId(), attempts, reason.getMessage(), STATUS_FAILED, null);
         log.error("Outbox message {} abandoned: {}", message.getId(), reason.getMessage());
+    }
+
+    /**
+     * A message whose destination may not be reached for now: pending still, its attempts as they were —
+     * so a hold however long never brings it nearer abandonment — and the reason in {@code last_error},
+     * where the screen and an operator read why it has not left.
+     */
+    private void keep(OutboxMessageEntity message, Instant at, RuntimeException reason) {
+        messages.recordAttempt(message.getId(), message.getAttempts(), reason.getMessage(),
+                STATUS_PENDING, at.plus(OutboxRetry.HOLD_INTERVAL));
     }
 
     /** @return whether the message was abandoned for good */

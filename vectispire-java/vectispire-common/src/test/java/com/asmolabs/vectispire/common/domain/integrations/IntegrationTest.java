@@ -81,4 +81,16 @@ class IntegrationTest {
         assertThat(refused.members()).containsExactlyEntriesOf(java.util.Map.of("integration", "ai.openai"));
         assertThat(refused.getMessage()).contains("\"ai.openai\"").contains("disabled");
     }
+
+    @Test
+    @DisplayName("an integration in use is a conflict of its own cause, integration-in-use, naming it as data and saying what uses it")
+    void inUse() {
+        IntegrationInUseException refused = new IntegrationInUseException(
+                Integration.of(SiemProtocol.SYSLOG_TLS), "it is the transport the SIEM export sends over.");
+        assertThat(refused).isInstanceOf(ConflictException.class);
+        assertThat(refused.conflictCause()).contains("integration-in-use");
+        assertThat(refused.members()).containsExactlyEntriesOf(java.util.Map.of("integration", "siem.syslog_tls"));
+        assertThat(refused.getMessage()).isEqualTo("The integration \"siem.syslog_tls\" is in use and cannot be disabled: "
+                + "it is the transport the SIEM export sends over.");
+    }
 }
