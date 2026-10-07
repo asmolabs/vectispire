@@ -22,7 +22,7 @@ l'auteur de la requête.
 | `retryAfterSeconds` | sur un 429 | Le temps d'attente. L'en-tête `Retry-After` porte le même nombre. |
 | `correlationId` | sur un 500 | Une référence à transmettre à votre administrateur ; elle figure aussi dans `detail`. |
 | `type` | sur certains 409 | `urn:vectispire:problem:<cause>`, qui nomme la raison — voir [Causes d'un 409](#causes-dun-409). Absent, il vaut `about:blank`. |
-| `integration` | avec `integration-disabled` | La clé de l'intégration désactivée, par exemple `forge.gitlab`. |
+| `integration` | avec `integration-disabled` ou `integration-in-use` | La clé de l'intégration désactivée, ou qui n'a pas pu l'être, par exemple `forge.gitlab` ou `siem.syslog_tls`. |
 
 Le type de contenu est `application/problem+json`, y compris pour une requête que le serveur web
 refuse avant que l'application ne la voie : une URL que le pare-feu de sécurité rejette — `//`, un
@@ -55,11 +55,12 @@ membres, en `application/json` sauf si le client demande `application/problem+js
 Quand une route refuse pour plusieurs raisons qui appellent des gestes différents, le `type` du
 problème nomme la cause, pour qu'un client les distingue sans lire la phrase, qui peut changer.
 Chaque route énonce ses causes dans la [référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md).
-L'une vaut pour plusieurs routes :
+Deux concernent les intégrations — la première sur plusieurs routes, la seconde sur la bascule du gouverneur :
 
 | `type` | Quand | Membres |
 |---|---|---|
 | `urn:vectispire:problem:integration-disabled` | Le geste a besoin d'une intégration — un type de forge, un transport SIEM, un fournisseur d'IA, un canal de notification, un gestionnaire de tickets — que le gouverneur de la plateforme a désactivée dans *Administration → Intégrations* ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)). La même requête réussit une fois l'intégration réactivée. | `integration` : sa clé |
+| `urn:vectispire:problem:integration-in-use` | Le gouverneur de la plateforme a demandé de désactiver une intégration qu'une configuration utilise encore — le transport SIEM par lequel l'export activé envoie. Rien n'est changé ni enregistré : ce qui attend dans la file n'aurait sinon plus nulle part où aller et serait perdu en silence. Changez d'abord cette configuration — pointez l'export SIEM vers un autre transport, ou désactivez-le — puis désactivez l'intégration. | `integration` : sa clé |
 
 ## Un 500 ne s'explique jamais
 

@@ -21,7 +21,7 @@ document. Read `detail`: it is the sentence written for whoever made the request
 | `retryAfterSeconds` | on a 429 | How long to wait. The `Retry-After` header carries the same number. |
 | `correlationId` | on a 500 | A reference to quote to your administrator; also found in `detail`. |
 | `type` | on some 409s | `urn:vectispire:problem:<cause>`, naming why — see [409 causes](#409-causes). Absent, it is `about:blank`. |
-| `integration` | with `integration-disabled` | The key of the integration that is switched off, such as `forge.gitlab`. |
+| `integration` | with `integration-disabled` or `integration-in-use` | The key of the integration that is switched off, or that could not be, such as `forge.gitlab` or `siem.syslog_tls`. |
 
 The content type is `application/problem+json`, including for a request the web server rejects
 before the application sees it: a URL the security firewall refuses — `//`, an encoded `..`, a
@@ -53,11 +53,12 @@ client asks for `application/problem+json` in `Accept`.
 Where a route refuses for several reasons that call for different gestures, the problem's `type`
 names the cause, so that a client tells them apart without reading the sentence, which may change.
 Each route states its causes in the [REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md).
-One applies across routes:
+Two concern the integrations — the first across routes, the second on the governor's switch:
 
 | `type` | When | Members |
 |---|---|---|
 | `urn:vectispire:problem:integration-disabled` | The gesture needs an integration — a forge kind, a SIEM transport, an AI provider, a notification channel, a tracker — that the platform governor has switched off under *Administration → Integrations* ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)). The same request succeeds once it is enabled again. | `integration`: its key |
+| `urn:vectispire:problem:integration-in-use` | The platform governor asked to disable an integration a configuration still uses — the SIEM transport the enabled export sends over. Nothing is changed and nothing is recorded: what is queued for it would otherwise have nowhere to go and be lost in silence. Change that configuration first — point the SIEM export at another transport, or switch it off — and disable it then. | `integration`: its key |
 
 ## A 500 never explains itself
 

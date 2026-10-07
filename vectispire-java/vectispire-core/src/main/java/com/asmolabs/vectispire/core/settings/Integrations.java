@@ -2,15 +2,18 @@ package com.asmolabs.vectispire.core.settings;
 
 import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationInUseException;
 import com.asmolabs.vectispire.core.settings.persistence.IntegrationEntity;
 import com.asmolabs.vectispire.core.settings.persistence.IntegrationRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -27,15 +30,42 @@ import org.springframework.transaction.annotation.Transactional;
  * was introduced, enabled; one added to an adapter's enum later has no row and reads off until a governor
  * enables it, so an upgrade never widens what an installation reaches (0040 §5). A row whose key no
  * integration has any more is ignored, as {@code t_setting} ignores a retired setting.
+ *
+ * <p><b>What is in use is not switched off</b> (0040 §3). The registry asks every {@link InUse} the
+ * modules above it contribute — the SIEM export for its transport — and refuses with {@link
+ * IntegrationInUseException}; the question is asked here, in the switch's own transaction, rather than by
+ * the governor's route before it, so that no caller of {@link #switchTo} can go round it and no
+ * configuration can start using the integration between the answer and the switch (see {@link
+ * #holdEnabled}).
  */
 @Service
 public class Integrations {
 
+    /**
+     * Port: a module whose configuration may be using an integration answers whether it is, and the registry
+     * refuses to switch it off while it is (0040 §3). Declared here and implemented by the module that owns
+     * the configuration, because the owners sit above the foundation: the registry may use none of them.
+     *
+     * <p>Called inside the switch's transaction once the integration's row is locked. A configuration that
+     * starts using an integration takes that same row through {@link #holdEnabled}, so the answer read here
+     * is still true when the switch commits.
+     */
+    public interface InUse {
+
+        /**
+         * @return what uses the integration and what to change first, as the sentence the refusal ends with;
+         *     empty when nothing of this module's uses it
+         */
+        Optional<String> use(Integration integration);
+    }
+
     private final IntegrationRepository rows;
+    private final List<InUse> uses;
     private final Clock clock;
 
-    public Integrations(IntegrationRepository rows, Clock clock) {
+    public Integrations(IntegrationRepository rows, List<InUse> uses, Clock clock) {
         this.rows = rows;
+        this.uses = List.copyOf(uses);
         this.clock = clock;
     }
 
@@ -69,18 +99,50 @@ public class Integrations {
     }
 
     /**
+     * What a configuration calls, in the transaction that writes it, before it starts using an integration:
+     * refused when the integration is off, and otherwise held on until that transaction ends.
+     *
+     * <p><b>Held, because checking is not enough.</b> A save that read "enabled" and a governor's switch
+     * that read "not in use" could both commit — the save before the switch's question, the switch before
+     * the save — and leave the configuration on a transport that is off. The row is read {@code for
+     * share}: the switch, which takes it {@code for update} before it asks {@link InUse}, waits for the
+     * save to commit and then sees it; a save that comes second waits for the switch and then reads "off".
+     *
+     * @throws IntegrationDisabledException when the integration is off
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void holdEnabled(Integration integration) {
+        boolean enabled = rows.lockForUse(integration.key()).map(row -> Boolean.TRUE.equals(row.getEnabled()))
+                .orElse(false);
+        if (!enabled) {
+            throw new IntegrationDisabledException(integration);
+        }
+    }
+
+    /**
      * Switches an integration on or off, attributing the change; the same state again changes nothing and
      * writes nothing — the caller records an audit entry only for a change.
+     *
+     * <p>Switching off an integration a module reports in use is refused, and changes nothing. The row is
+     * locked before the question is asked, and the lock is the transaction's first statement: on MySQL's
+     * repeatable read the snapshot the owners' reads see is taken after it, so a configuration that
+     * committed while this switch waited for the row is read, not the state from before.
      *
      * <p>A key with no row — an integration that arrived after V83 — gets one when it is enabled. Two first
      * enablings of such a key at once would both insert and the second fail on the key; that is a gesture
      * made at human speed, once per adapter's lifetime, and the error is the honest answer.
+     *
+     * @throws IntegrationInUseException when switching off what a configuration uses
      */
     @Transactional
     public Switched switchTo(Integration integration, boolean enabled, String by) {
         Instant now = clock.instant();
         boolean changed;
-        if (rows.existsById(integration.key())) {
+        Optional<IntegrationEntity> locked = rows.lockForSwitch(integration.key());
+        if (locked.isPresent()) {
+            if (!enabled && Boolean.TRUE.equals(locked.get().getEnabled())) {
+                refuseIfInUse(integration);
+            }
             changed = rows.switchTo(integration.key(), enabled, now, by) == 1;
         } else if (enabled) {
             IntegrationEntity row = new IntegrationEntity();
@@ -95,6 +157,15 @@ public class Integrations {
             return new Switched(view(integration, null), false);
         }
         return new Switched(view(integration, rows.findById(integration.key()).orElseThrow()), changed);
+    }
+
+    private void refuseIfInUse(Integration integration) {
+        for (InUse owner : uses) {
+            Optional<String> use = owner.use(integration);
+            if (use.isPresent()) {
+                throw new IntegrationInUseException(integration, use.get());
+            }
+        }
     }
 
     private static IntegrationView view(Integration integration, IntegrationEntity row) {

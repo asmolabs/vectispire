@@ -1,12 +1,15 @@
 package com.asmolabs.vectispire.core.siem;
 
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.CollectorCa;
 import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
+import com.asmolabs.vectispire.core.outbox.HeldDeliveryException;
 import com.asmolabs.vectispire.core.outbox.OutboxHandler;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
@@ -27,20 +30,33 @@ import org.springframework.stereotype.Component;
  *
  * <p>Runs outside any transaction: the relay claims the row in one, sends, and settles it in
  * another. A collector that takes ten seconds to answer holds no lock.
+ *
+ * <p><b>Never over a disabled transport</b> (decision 0040 §1), and never losing the event for it. The
+ * governor cannot switch off the transport an enabled export uses ({@code SiemTransportInUse}, under the
+ * registry's lock), so this is the case of a row written by hand — or by a version that did not ask: the
+ * event is held, pending with its reason and its attempts uncounted, until the transport is enabled again
+ * or the export pointed at one that is.
  */
 @Component
 public class SiemDelivery implements OutboxHandler {
 
     private final SiemConfigRepository configs;
     private final SiemSender sender;
+    private final Integrations integrations;
     private final EncryptionService encryption;
     private final ObjectMapper json;
     private final Clock clock;
 
     public SiemDelivery(
-            SiemConfigRepository configs, SiemSender sender, EncryptionService encryption, ObjectMapper json, Clock clock) {
+            SiemConfigRepository configs,
+            SiemSender sender,
+            Integrations integrations,
+            EncryptionService encryption,
+            ObjectMapper json,
+            Clock clock) {
         this.configs = configs;
         this.sender = sender;
+        this.integrations = integrations;
         this.encryption = encryption;
         this.json = json;
         this.clock = clock;
@@ -55,6 +71,7 @@ public class SiemDelivery implements OutboxHandler {
      * @throws GoneDestinationException when the export has been switched off or
      *     its endpoint cleared or made unreadable since the event was queued: nothing about waiting
      *     brings a destination back, so the relay abandons the row at once, with this reason
+     * @throws HeldDeliveryException when the configured transport is disabled: the row waits, uncounted
      */
     @Override
     public void deliver(UUID messageId, String payload) {
@@ -67,6 +84,14 @@ public class SiemDelivery implements OutboxHandler {
         SiemProtocol protocol = SiemProtocol.byName(config.getProtocol()).orElseThrow(() ->
                 new GoneDestinationException(
                         "the stored SIEM protocol \"" + config.getProtocol() + "\" is not one this version speaks"));
+        // Before anything is decrypted or resolved: nothing of a disabled transport runs. Held, not gone —
+        // the export still wants these events, and the switch is a gesture away from being turned back.
+        Integration transport = Integration.of(protocol);
+        if (!integrations.isEnabled(transport)) {
+            throw new HeldDeliveryException("the SIEM transport \"" + transport.key() + "\" is disabled on this "
+                    + "installation: the event waits until the platform governor enables it, or the SIEM export is "
+                    + "pointed at an enabled transport");
+        }
         SiemEndpoint endpoint;
         try {
             endpoint = SiemEndpoint.parse(protocol, config.getEndpoint());
