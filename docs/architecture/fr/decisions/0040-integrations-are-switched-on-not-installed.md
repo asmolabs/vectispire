@@ -1,4 +1,4 @@
-# 0040 — Une intégration s'active, elle ne s'installe pas : les forges et les transports SIEM que le gouverneur active
+# 0040 — Une intégration s'active, elle ne s'installe pas : les forges, les transports SIEM, les fournisseurs d'IA, les canaux de notification et les trackers que le gouverneur active
 
 **Date :** 2026-10-07 · **Statut :** acceptée · **S'appuie sur :** [0025](0025-siem-events-leave-through-the-outbox.md), [0035](0035-report-plugins.md), [0037](0037-discovering-repositories-at-setup.md) · **Décideur :** Laurent Boucher
 
@@ -16,6 +16,10 @@ GitHub, un SIEM en syslog TLS mais jamais un webhook. Aujourd'hui, chaque adapta
   restreints par `VECTISPIRE_GIT_ALLOWED_HOSTS`.
 - **SIEM** (0025) : une destination, quatre transports (`SiemProtocol` : webhook, syslog UDP, TCP et
   TLS), en CEF ou JSON.
+- **IA** (`AiProvider`) : Ollama, sur un hôte que l'exploitant fait tourner, et OpenAI.
+- **Notifications** (`Setting`, section notifications) : un webhook générique, Microsoft Teams, Slack,
+  Discord et l'e-mail.
+- **Trackers** (`TicketProvider`) : tickets GitLab, GitHub, Jira et ServiceNow.
 
 La demande parlait de « plugins » : choisir dans l'administration ce qui est chargé ou non. Deux choses
 peuvent s'entendre.
@@ -23,8 +27,10 @@ peuvent s'entendre.
 ## Décision
 
 **Option A — des intégrations activées et désactivées, dans le produit.** Les adaptateurs restent dans
-Vectispire. Un registre liste chaque intégration — les types de forge, les transports SIEM — et le
-gouverneur de la plateforme active ou désactive chacune dans *Administration → Intégrations*.
+Vectispire. Un registre liste chaque intégration — les types de forge, les transports SIEM, les
+fournisseurs d'IA, les canaux de notification et les trackers (amendé le 2026-10-07) — et le gouverneur
+de la plateforme active ou désactive chacune dans *Administration → Intégrations*. Une installation qui
+veut Ollama et jamais OpenAI, Teams et jamais Discord, le dit une fois.
 
 1. **Une intégration désactivée est injoignable, pas seulement masquée.** Elle quitte chaque
    formulaire et chaque liste qui la proposerait ; ses routes refusent par un 409
@@ -34,9 +40,16 @@ gouverneur de la plateforme active ou désactive chacune dans *Administration �
    garde sa ligne et son jeton chiffré, se lit *suspendue — intégration désactivée*, et ne lance ni
    découverte ni lecture des relectures ; une ligne de checklist qu'elle alimentait n'a pas de données,
    avec cette raison. La réactiver la reprend telle qu'elle était.
-3. **Un transport SIEM en service ne peut pas être désactivé.** On change d'abord la configuration du
-   SIEM : des événements de sécurité restés dans l'outbox sans destination seraient perdus en silence,
-   l'échec même que 0025 empêche. Le refus le dit.
+3. **Ce qui est désactivé en service dépend de ce qui serait perdu.**
+   - **Un transport SIEM ou un canal de notification en service ne peut pas être désactivé.** On change
+     d'abord sa configuration : des événements de sécurité ou des alertes restés dans l'outbox sans
+     destination seraient perdus en silence, l'échec même que 0025 et 0033 empêchent. Le refus le dit.
+   - **Un fournisseur d'IA en service peut l'être**, et les fonctions qui le lisent disent *IA
+     indisponible — fournisseur désactivé* plutôt que de répondre par un autre fournisseur : rien
+     d'enregistré n'est perdu, et une revue ne passe jamais en silence d'un hôte de l'exploitant à un
+     service hébergé.
+   - **Un tracker en service est suspendu comme une connexion forge** : les liens entre issues et
+     tickets sont gardés, aucun ticket n'est ouvert ni synchronisé, et la réactivation reprend.
 4. **Chaque bascule est un geste de gouvernance.** Auditée, et envoyée au SIEM comme changement de
    réglage de sécurité. Activer élargit ce que l'installation peut joindre et peut passer sous les
    quatre yeux par le même réglage que l'enregistrement des plugins ; désactiver le restreint et ne
@@ -75,3 +88,5 @@ gouverneur de la plateforme active ou désactive chacune dans *Administration �
 | I2 | Connexions forge : l'état suspendu, découverte et lecture des relectures sautées avec leur raison | M |
 | I3 | SIEM : les transports dans le registre, le refus d'un transport en service | S |
 | I4 | L'écran *Administration → Intégrations*, les formulaires filtrés ; la documentation en anglais et en français | M |
+| I5 | Fournisseurs d'IA : le registre, *IA indisponible — fournisseur désactivé* dans les fonctions qui le lisent | S |
+| I6 | Canaux de notification (le refus en service) et trackers (suspendus) | M |

@@ -1,4 +1,4 @@
-# 0040 — An integration is switched on, not installed: forges and SIEM transports the governor enables
+# 0040 — An integration is switched on, not installed: forges, SIEM transports, AI providers, notification channels and trackers the governor enables
 
 **Date:** 2026-10-07 · **Status:** accepted · **Builds on:** [0025](0025-siem-events-leave-through-the-outbox.md), [0035](0035-report-plugins.md), [0037](0037-discovering-repositories-at-setup.md) · **Decider:** Laurent Boucher
 
@@ -16,6 +16,10 @@ over syslog TLS but never a webhook. Today every adapter is on for everyone:
   `VECTISPIRE_GIT_ALLOWED_HOSTS`.
 - **SIEM** (0025): one destination, four transports (`SiemProtocol`: webhook, syslog over UDP, TCP and
   TLS), CEF or JSON.
+- **AI** (`AiProvider`): Ollama, on a host the operator runs, and OpenAI.
+- **Notifications** (`Setting`, section notifications): a generic webhook, Microsoft Teams, Slack,
+  Discord and mail.
+- **Trackers** (`TicketProvider`): GitLab, GitHub, Jira and ServiceNow issues.
 
 The request named it "plugins": choose in the administration what is loaded and what is not. Two
 things can be meant.
@@ -23,8 +27,10 @@ things can be meant.
 ## Decision
 
 **Option A — integrations switched on and off, in the product.** The adapters stay part of
-Vectispire. A registry lists each integration — the forge kinds, the SIEM transports — and the
-platform governor enables or disables each one in *Administration → Integrations*.
+Vectispire. A registry lists each integration — the forge kinds, the SIEM transports, the AI providers,
+the notification channels and the trackers (amended 2026-10-07) — and the platform governor enables or
+disables each one in *Administration → Integrations*. An installation that wants Ollama and never
+OpenAI, Teams and never Discord, says so once.
 
 1. **A disabled integration is unreachable, not hidden only.** It leaves every form and list that
    would offer it; its routes refuse with 409 `integration-disabled`, naming it; and no code path
@@ -33,9 +39,15 @@ platform governor enables or disables each one in *Administration → Integratio
    its row and its encrypted token, reads *suspended — integration disabled*, and runs no discovery
    and no change-review reading; a checklist line it fed reads no data with that reason. Re-enabling
    resumes it as it was.
-3. **A SIEM transport in use cannot be disabled.** The SIEM's own configuration is changed first:
-   security events left queued in the outbox with nowhere to go would be lost in silence, the one
-   failure 0025 exists to prevent. The refusal says so.
+3. **What is disabled while in use depends on what would be lost.**
+   - **A SIEM transport or a notification channel in use cannot be disabled.** Its configuration is
+     changed first: security events or alerts left queued in the outbox with nowhere to go would be
+     lost in silence, the one failure 0025 and 0033 exist to prevent. The refusal says so.
+   - **An AI provider in use can be**, and the features that read it say *AI unavailable — provider
+     disabled* rather than answering from another provider: nothing recorded is lost, and a review never
+     silently moves from a host the operator runs to a hosted service.
+   - **A tracker in use is suspended like a forge connection**: the links between issues and tickets
+     are kept, no ticket is opened or synchronised, and re-enabling resumes.
 4. **Each switch is a governance gesture.** Audited, and sent to the SIEM as a security setting
    change. Enabling widens what the installation can reach and may be put under four-eyes by the
    same setting as plugin registration; disabling narrows it and needs no second person.
@@ -70,3 +82,5 @@ platform governor enables or disables each one in *Administration → Integratio
 | I2 | Forge connections: suspended state, discovery and change review skipped with their reason | M |
 | I3 | SIEM: transports in the registry, the in-use refusal | S |
 | I4 | *Administration → Integrations* screen, forms filtered; documentation in English and French | M |
+| I5 | AI providers: the registry, *AI unavailable — provider disabled* in the features that read it | S |
+| I6 | Notification channels (the in-use refusal) and trackers (suspended) | M |

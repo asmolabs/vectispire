@@ -43,7 +43,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0037](0037-discovering-repositories-at-setup.md) | Repositories are discovered through a read-only forge connection, chosen by a person, and imported as ordinary targets | accepted |
 | [0038](0038-deploying-on-kubernetes.md) | On Kubernetes the control plane runs without a container endpoint, scans run on agents with a Docker daemon of their own, the database is external, and report plugins wait for an executor that can reach a remote daemon | accepted |
 | [0039](0039-a-build-sbom-completes-the-scanners-inventory.md) | A build's SBOM completes the scanner's inventory: union, the build's stated version wins, the newest one for every later scan | proposed |
-| [0040](0040-integrations-are-switched-on-not-installed.md) | An integration is switched on, not installed: forges and SIEM transports the governor enables | accepted |
+| [0040](0040-integrations-are-switched-on-not-installed.md) | An integration is switched on, not installed: forges, SIEM transports, AI providers, notification channels and trackers the governor enables | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
