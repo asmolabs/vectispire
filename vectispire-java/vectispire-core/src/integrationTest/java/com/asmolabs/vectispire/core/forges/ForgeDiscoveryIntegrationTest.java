@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.UnreadableNamespace;
 import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
+import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryEntity;
@@ -71,6 +73,9 @@ class ForgeDiscoveryIntegrationTest {
     @Autowired
     private ForgeRepositoryRepository snapshot;
 
+    @Autowired
+    private ForgeConnectionRepository connections;
+
     @BeforeEach
     void empty() {
         snapshot.deleteAll();
@@ -119,6 +124,51 @@ class ForgeDiscoveryIntegrationTest {
         ForgeDiscoveryEntity taken = discoveries.findById(older).orElseThrow();
         assertThat(taken.getClaimedBy()).isEqualTo("east");
         assertThat(taken.getAttempts()).isOne();
+    }
+
+    @Test
+    @DisplayName("a waiting run of a suspended forge is passed over and counted, and one given back is waiting again, uncounted")
+    void suspendedForges() {
+        UUID gitlab = connection("gitlab");
+        UUID github = connection("github");
+        long held = run(gitlab, PENDING, "held", AT).getId();
+        long free = run(github, PENDING, "free", AT.plusSeconds(5)).getId();
+
+        assertThat(discoveries.waitingExcept(PENDING, List.of("gitlab"), PageRequest.of(0, 8)))
+                .as("the older run, of a suspended GitLab, is passed over").containsExactly(free);
+        assertThat(discoveries.waitingExcept(PENDING, List.of("gitlab", "github"), PageRequest.of(0, 8))).isEmpty();
+        assertThat(discoveries.countWaitingOn(PENDING, List.of("gitlab"))).isOne();
+        assertThat(discoveries.countWaitingOn(PENDING, List.of("github"))).isOne();
+
+        assertThat(discoveries.take(held, PENDING, RUNNING, "east", AT, AT.plusSeconds(60))).isOne();
+        assertThat(discoveries.giveBack(held, RUNNING, PENDING, "west")).as("not west's to give back").isZero();
+        assertThat(discoveries.giveBack(held, RUNNING, PENDING, "east")).isOne();
+        ForgeDiscoveryEntity given = discoveries.findById(held).orElseThrow();
+        assertThat(given.getState()).isEqualTo(PENDING);
+        assertThat(given.getClaimedBy()).isNull();
+        assertThat(given.getLeaseExpiresAt()).isNull();
+        assertThat(given.getAttempts()).as("the take not counted").isZero();
+        assertThat(given.getActiveKey()).as("still the connection's one active run").isEqualTo("held");
+    }
+
+    private UUID connection(String kind) {
+        ForgeConnectionEntity row = new ForgeConnectionEntity();
+        UUID id = UUID.randomUUID();
+        row.setId(id);
+        row.setName(kind + " " + id);
+        row.setKind(kind);
+        row.setEdition("gitlab".equals(kind) ? "gitlab_self_managed" : "github_enterprise_server");
+        row.setBaseUrl("https://" + kind + ".example.org");
+        row.setInternalNetwork(false);
+        row.setToken("v2:sealed");
+        row.setCredentialKind("gitlab".equals(kind) ? "gitlab_bot" : "github_classic");
+        row.setProbedAt(AT);
+        row.setCreatedAt(AT);
+        row.setCreatedBy("ada");
+        row.setUpdatedAt(AT);
+        row.setUpdatedBy("ada");
+        connections.saveAndFlush(row);
+        return id;
     }
 
     @Test

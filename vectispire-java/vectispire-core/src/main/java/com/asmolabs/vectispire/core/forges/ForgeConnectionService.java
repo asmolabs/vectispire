@@ -6,9 +6,11 @@ import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.forges.ForgeAddress;
 import com.asmolabs.vectispire.common.domain.forges.ForgeConnectionRefusal;
+import com.asmolabs.vectispire.common.domain.forges.ForgeConnectionState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeCredential;
 import com.asmolabs.vectispire.common.domain.forges.ForgeEdition;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -17,6 +19,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.forges.internal.ForgeClient;
+import com.asmolabs.vectispire.core.forges.internal.ForgeIntegrations;
 import com.asmolabs.vectispire.core.forges.internal.ForgeProbes;
 import com.asmolabs.vectispire.core.forges.internal.ForgeTargets;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
@@ -31,6 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -51,6 +55,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  * looks: an address the outbound guard blocks and a token broader than read-only ({@code
  * FORGE_CONNECTION_REFUSED}, {@code VECTI-SEC-036}). The audit entry is written after the refusal and
  * outside any transaction, as every entry here is: {@link AuditLogService#record} opens its own.
+ *
+ * <p><b>Suspended, never deleted, when its forge is switched off</b> (decision 0040 §2). A connection of a kind
+ * whose integration is disabled keeps its row and its encrypted token and reads {@code suspended}; nothing that would
+ * present the token — a creation, a new token, a new trust, all of them probes — is attempted ({@link ForgeProbes}
+ * refuses, 409 {@code integration-disabled}). A rename, which calls no forge, and a deletion still go through: the
+ * governor's switch narrows what the installation reaches, it does not freeze what an administrator keeps.
  *
  * <p><b>The address cannot be changed.</b> Another server is another connection: the token was issued by
  * this one, and presenting it to a server typed later is the binding decision 0022 exists to keep.
@@ -99,6 +109,7 @@ public class ForgeConnectionService {
     private final ForgeImportLinkRepository links;
     private final ForgeReviewReadingRepository readings;
     private final ForgeProbes probes;
+    private final ForgeIntegrations integrations;
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
@@ -111,6 +122,7 @@ public class ForgeConnectionService {
             ForgeImportLinkRepository links,
             ForgeReviewReadingRepository readings,
             ForgeProbes probes,
+            ForgeIntegrations integrations,
             EncryptionService encryption,
             AuditLogService audit,
             Clock clock,
@@ -121,6 +133,7 @@ public class ForgeConnectionService {
         this.links = links;
         this.readings = readings;
         this.probes = probes;
+        this.integrations = integrations;
         this.encryption = encryption;
         this.audit = audit;
         this.clock = clock;
@@ -128,7 +141,8 @@ public class ForgeConnectionService {
     }
 
     public List<ForgeConnectionView> list() {
-        return connections.findAllByOrderByNameAsc().stream().map(this::viewOf).toList();
+        Set<ForgeKind> suspended = integrations.disabled();
+        return connections.findAllByOrderByNameAsc().stream().map(entity -> viewOf(entity, suspended)).toList();
     }
 
     public ForgeConnectionView get(UUID id) {
@@ -147,6 +161,8 @@ public class ForgeConnectionService {
         }
         String name = BoundedText.required(request.name(), NAME_LENGTH, "The name");
         ForgeKind kind = ForgeKind.parse(request.kind());
+        // Before the form's other words: no field of it can make a disabled forge acceptable.
+        integrations.requireEnabled(kind);
         ForgeAddress address = ForgeAddress.of(kind, request.baseUrl());
         String owner = ownerOf(kind, request.owner());
         boolean internal = Boolean.TRUE.equals(request.internalNetwork());
@@ -343,6 +359,11 @@ public class ForgeConnectionService {
     }
 
     private ForgeConnectionView viewOf(ForgeConnectionEntity entity) {
+        return viewOf(entity, integrations.disabled());
+    }
+
+    private ForgeConnectionView viewOf(ForgeConnectionEntity entity, Set<ForgeKind> suspended) {
+        ForgeKind kind = ForgeKind.parse(entity.getKind());
         Optional<PinnedCa> ca = Optional.ofNullable(entity.getCaPem()).map(pem -> PinnedCa.read(pem, CA));
         return new ForgeConnectionView(
                 entity.getId(),
@@ -364,6 +385,8 @@ public class ForgeConnectionService {
                         .state()
                         .name()
                         .toLowerCase(Locale.ROOT),
+                ForgeConnectionState.of(!suspended.contains(kind)),
+                Integration.of(kind).key(),
                 entity.getCreatedAt(),
                 entity.getCreatedBy(),
                 entity.getUpdatedAt(),

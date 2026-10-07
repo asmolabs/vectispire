@@ -90,7 +90,7 @@ public class ForgeImportsController {
     }
 
     @Operation(summary = "Preview forge import", description = "What importing the selected repositories would do, "
-            + "nothing written: the targets to create with their URL, default branch, credential, solution and project, "
+            + "nothing written (409 integration-disabled for a suspended connection, as the import): the targets to create with their URL, default branch, credential, solution and project, "
             + "who will see them (visibleTo) and their first scan; the repositories skipped and why (already_imported, "
             + "already_present with the targets, no_default_branch, no_clone_url, duplicate_in_selection); those the "
             + "import would refuse and the form's reason; the solutions and projects reused (existingId, with the "

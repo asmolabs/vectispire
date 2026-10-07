@@ -182,6 +182,33 @@ Une AC qui expire arrête la connexion ; remplacez-la par un `PATCH`, qui sonde 
   autre. Ses découvertes, son instantané et la provenance des cibles importées par elle partent avec elle ;
   les cibles restent, et cessent seulement de dire d'où elles viennent.
 
+## Quand l'intégration de la forge est désactivée
+
+Le gouverneur de la plateforme décide des forges auxquelles cette installation parle, `forge.gitlab` et
+`forge.github`, dans le registre des intégrations ([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+En désactiver une **suspend** les connexions de ce type ; rien n'est supprimé.
+
+- **La connexion est gardée telle quelle** : sa ligne, son jeton chiffré, son instantané, la provenance de
+  ce qu'elle a importé et ses lectures de revues des changements. Elle se lit `"state": "suspended"`, à
+  côté de `"integration": "forge.gitlab"` — la clé à réactiver ; une connexion active se lit `"active"`.
+- **Rien ne part vers la forge.** Créer une connexion de ce type, demander une découverte, prévisualiser
+  ou lancer un import, remplacer le jeton et changer la déclaration de réseau ou l'AC (tous deux sondent
+  le jeton) répondent **409** `urn:vectispire:problem:integration-disabled`, la clé dans `integration`.
+  Le contrôle se trouve là où un jeton est remis à une forge — la sonde, la découverte quand elle ouvre
+  un passage, la lecture des revues — et dans la planification de l'import : aucune route ni aucun tour
+  planifié ne le contourne. Lire la connexion, ses découvertes et leur sélection, la renommer et la
+  supprimer restent possibles.
+- **Une découverte mise en file avant la bascule attend**, `pending`, ni échouée ni comptée dans ses
+  tentatives ; le journal du plan de contrôle dit une fois combien attendent, et sur quelle intégration.
+- **Une ligne `change_review`** alimentée par une connexion suspendue se lit *pas de données*,
+  [`forge_integration_disabled`](checklist-templates.fr.md#revue-des-changements-comment-ils-arrivent-sur-une-branche)
+  — jamais une réussite ni un échec, même sur une lecture qui passait avant la bascule. Le tour horaire
+  n'envoie rien à cette forge et journalise une fois combien de lectures il a laissées.
+
+**Réactiver la forge reprend tout** sans rien refaire : les connexions se lisent `active`, une découverte
+en attente est prise au tour suivant, et les lectures sont reprises au tour horaire suivant dès qu'elles
+sont dues — d'ici là, une ligne est jugée sur la lecture gardée, selon sa propre date.
+
 ## Découvrir les dépôts
 
 `POST /api/v1/forge-connections/{id}/discoveries` demande une découverte et répond aussitôt, **202**, avec

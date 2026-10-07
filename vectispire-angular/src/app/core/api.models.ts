@@ -3257,6 +3257,9 @@ export type ReportRun = Refine<
 /** Where a forge discovery stands (decision 0037 §3) — the document's own enum. */
 export type ForgeDiscoveryState = NonNullable<Schema<'ForgeDiscoveryView'>['state']>;
 
+/** `suspended` when the platform governor disabled the connection's forge integration (decision 0040 §2). */
+export type ForgeConnectionState = NonNullable<Schema<'ForgeConnectionView'>['state']>;
+
 /** Why a discovery ended `partial` or `failed` — the document's own enum. */
 export type ForgeDiscoveryReason = NonNullable<Schema<'ForgeDiscoveryView'>['reason']>;
 
@@ -3304,6 +3307,8 @@ export type ForgeConnection = Refine<
         caSubject: string | null;
         caNotAfter: string | null;
         encryptionState: EncryptionState;
+        state: ForgeConnectionState;
+        integration: string;
         lastDiscovery: ForgeDiscovery | null;
         createdAt: string;
         createdBy: string | null;

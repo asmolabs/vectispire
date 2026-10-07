@@ -135,6 +135,7 @@ const MEASUREMENT_OUTCOMES = ['pass', 'fail', 'no_data']; // MeasurementOutcome
 const NO_DATA_REASONS = [
     'no_repository',
     'never_examined',
+    'forge_integration_disabled',
     'forge_unlinked',
     'forge_unreadable',
     'step_absent',

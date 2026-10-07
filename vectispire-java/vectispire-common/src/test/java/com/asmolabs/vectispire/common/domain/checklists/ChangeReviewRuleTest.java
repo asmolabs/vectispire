@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.checklists.ChangeReviewEvidence.Set
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Look;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ReviewFacts;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ReviewRead;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ReviewSuspended;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ReviewUnlinked;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ReviewUnreadable;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Source;
@@ -165,6 +166,28 @@ class ChangeReviewRuleTest {
                 assertThat(measured.repositories().getFirst().detail()).get(InstanceOfAssertFactories.STRING)
                         .contains(weak.described() + ", not enough on their own");
             }
+        }
+
+        @Test
+        @DisplayName("a suspended connection: no data, forge_integration_disabled, over a reading that passed, a stale one or none")
+        void suspended() {
+            ReviewRead passing = read(history(true, change("!1", 1, 1, false)));
+            assertThat(evaluate(EVERY_ONE, Map.of(1L, passing)).outcome()).isEqualTo(MeasurementOutcome.PASS);
+            String why = "the forge.gitlab integration is disabled: the forge connection is suspended";
+
+            Measurement over = evaluate(EVERY_ONE, Map.of(1L, new ReviewSuspended(Optional.of(passing.look()), why)));
+            assertThat(over.outcome()).isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(over.reason()).contains(NoDataReason.FORGE_INTEGRATION_DISABLED);
+            assertThat(over.summary()).as("the headline carries the sentence").contains("forge.gitlab integration is disabled");
+            assertThat(over.repositories().getFirst().look()).as("the reading it kept, for its date").isPresent();
+            assertThat(evaluate(EVERY_ONE, Map.of(1L, new ReviewSuspended(Optional.empty(), why))).reason())
+                    .as("never read").contains(NoDataReason.FORGE_INTEGRATION_DISABLED);
+            assertThat(evaluate(EVERY_ONE, Map.of(1L, new ReviewSuspended(Optional.of(look(NOW.minus(Duration.ofDays(3)))),
+                    why))).reason()).as("the switch, not the age, is what to undo").contains(NoDataReason.FORGE_INTEGRATION_DISABLED);
+            Measurement mixed = RuleEvaluation.evaluate(EVERY_ONE, facts(List.of(1L, 2L), Map.of(
+                    1L, new ReviewUnlinked(look(READ), "unlinked"), 2L, new ReviewSuspended(Optional.empty(), why))), NOW);
+            assertThat(mixed.reason()).as("the installation's decision heads the forge's own reasons")
+                    .contains(NoDataReason.FORGE_INTEGRATION_DISABLED);
         }
 
         @Test

@@ -10,7 +10,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.forges.ForgeReviewService;
@@ -21,6 +26,7 @@ import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeReviewReadingRepository;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
@@ -38,7 +44,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
@@ -76,6 +84,12 @@ class ChangeReviewRoutesTest extends ApiTestBase {
 
     @Autowired
     private SettingsService settings;
+
+    @Autowired
+    private Integrations integrations;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     private ForgeStub gitlab;
     private String connectionId;
@@ -227,6 +241,64 @@ class ChangeReviewRoutesTest extends ApiTestBase {
         assertThat(looks.get(byUrl).at("/detail").asText()).contains("HTTP 403").contains("Reporter");
         assertThat(looks.get(imported).at("/status").asText()).as("nothing merged in thirty days is no data too")
                 .isEqualTo("no_change_merged");
+    }
+
+    @Test
+    @DisplayName("forge.gitlab disabled: a line that passed reads no data, forge_integration_disabled; nothing is read; re-enabled it passes again")
+    void disabledForge() throws Exception {
+        communityEdition(42, "main", "[" + mergeRequest(5, Duration.ofDays(1), 7) + "]");
+        communityEdition(43, "trunk", "[" + mergeRequest(2, Duration.ofDays(2), 8) + "]");
+        gitlab.route("/api/v4/projects/42/merge_requests/5/approvals", Reply.json(approvedBy(8)));
+        gitlab.route("/api/v4/projects/43/merge_requests/2/approvals", Reply.json(approvedBy(7)));
+        publishWithRule(EVERY_CHANGE);
+        open(project);
+        assertThat(readAll()).isEqualTo(2);
+        assertThat(measurement().at("/outcome").asText()).isEqualTo("pass");
+
+        IntegrationRows rows = IntegrationRows.remember(jdbc);
+        try {
+            integrations.switchTo(Integration.of(ForgeKind.GITLAB), false, "test");
+
+            JsonNode suspended = measurement();
+            assertThat(suspended.at("/outcome").asText()).as("the reading that passed is not judged").isEqualTo("no_data");
+            assertThat(suspended.at("/reason").asText()).isEqualTo("forge_integration_disabled");
+            assertThat(suspended.at("/evidence/repositories")).hasSize(2).allSatisfy(look -> {
+                assertThat(look.at("/status").asText()).isEqualTo("forge_integration_disabled");
+                assertThat(look.at("/detail").asText()).contains("forge.gitlab integration is disabled");
+            });
+            assertThat(suspended.at("/evidence/summary").asText()).contains("forge.gitlab integration is disabled");
+
+            // Due again: the turn claims, sends nothing, keeps the readings and says so once for both.
+            readings.findAll().forEach(row -> {
+                row.setReadAt(Instant.now().minus(Duration.ofDays(2)));
+                readings.save(row);
+            });
+            gitlab.seen.clear();
+            ListAppender<ILoggingEvent> logged = new ListAppender<>();
+            Logger logger = (Logger) LoggerFactory.getLogger(ForgeReviewService.class);
+            logged.start();
+            logger.addAppender(logged);
+            try {
+                assertThat(readAll()).isZero();
+            } finally {
+                logger.detachAppender(logged);
+            }
+            assertThat(gitlab.seen).as("nothing sent to a disabled forge").isEmpty();
+            assertThat(logged.list).filteredOn(event -> event.getFormattedMessage().contains("integration(s) disabled"))
+                    .singleElement()
+                    .satisfies(event -> assertThat(event.getFormattedMessage()).contains("2 not taken")
+                            .contains("forge.gitlab"));
+            assertThat(readings.findAll()).allSatisfy(row -> {
+                assertThat(row.getState()).as("the reading is kept").isEqualTo("read");
+                assertThat(row.getClaimedUntil()).as("the claim is let go").isNull();
+            });
+            assertThat(measurement().at("/reason").asText()).isEqualTo("forge_integration_disabled");
+        } finally {
+            rows.putBack();
+        }
+
+        assertThat(readAll()).as("re-enabled: read again, as it was due").isEqualTo(2);
+        assertThat(measurement().at("/outcome").asText()).isEqualTo("pass");
     }
 
     @Test

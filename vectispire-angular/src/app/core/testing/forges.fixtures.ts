@@ -66,6 +66,8 @@ export const CONNECTION: ForgeConnection = asSchema('ForgeConnectionView', {
     caSubject: 'CN=Example Internal Root CA',
     caNotAfter: '2030-01-01T00:00:00Z',
     encryptionState: 'current',
+    state: 'active',
+    integration: 'forge.gitlab',
     lastDiscovery: COMPLETED_DISCOVERY,
     importedTargets: 5,
     createdAt: '2026-10-01T09:00:00Z',

@@ -16,8 +16,8 @@ import java.util.function.Function;
  * typed, which is what {@code evidenceDigest} is the SHA-256 of.
  *
  * @param outcome {@code pass}, {@code fail} or {@code no_data} — no data is never a pass
- * @param reason for no data: {@code no_repository}, {@code never_examined}, {@code forge_unlinked}, {@code
- *     forge_unreadable}, {@code step_absent}, {@code
+ * @param reason for no data: {@code no_repository}, {@code never_examined}, {@code
+ *     forge_integration_disabled}, {@code forge_unlinked}, {@code forge_unreadable}, {@code step_absent}, {@code
  *     language_not_analysed}, {@code examination_unrecorded}, {@code languages_unrecorded}, {@code
  *     packages_unrecorded}, {@code packages_not_kept}, {@code scope_matches_nothing}, {@code review_incomplete},
  *     {@code no_change_merged}, {@code stale}, {@code

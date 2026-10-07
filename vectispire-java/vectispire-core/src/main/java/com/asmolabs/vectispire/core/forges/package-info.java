@@ -25,6 +25,10 @@
  * module, which holds the forge tokens: the dependency runs one way, from the module that calls the forge to the
  * one that judges what it said.
  *
+ * <p>Which forges the installation talks to is the integrations' registry's ({@code Integrations}, decision 0040), in
+ * {@code settings}: the foundation, shared, so no line here. A connection of a disabled kind is suspended — kept,
+ * used for nothing — and {@code internal.ForgeIntegrations} says where the registry is asked.
+ *
  * <p>{@code access::security} for its routes alone: the markers, the principal and {@code RequestActors}.
  * Its services decide nothing about who the caller is — the routes are administrators' and name no target
  * ({@code ArchitectureTest.accessForRoutesOnly}).

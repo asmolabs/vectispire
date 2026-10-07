@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
+import com.asmolabs.vectispire.core.forges.internal.ForgeIntegrations;
 import com.asmolabs.vectispire.core.forges.internal.ForgeProbes;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
@@ -60,7 +61,8 @@ class ForgeConnectionKeyRotationTest {
         ForgeProbes probes = mock(ForgeProbes.class);
         ForgeConnectionService service = new ForgeConnectionService(connections,
                 mock(ForgeDiscoveryRepository.class), mock(ForgeRepositoryRepository.class),
-                mock(ForgeImportLinkRepository.class), mock(ForgeReviewReadingRepository.class), probes, during,
+                mock(ForgeImportLinkRepository.class), mock(ForgeReviewReadingRepository.class), probes,
+                mock(ForgeIntegrations.class), during,
                 mock(AuditLogService.class), Clock.systemUTC(), mock(PlatformTransactionManager.class));
 
         assertThat(service.list()).singleElement()

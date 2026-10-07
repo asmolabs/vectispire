@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.forges.internal.DiscoveryExecution;
+import com.asmolabs.vectispire.core.forges.internal.ForgeIntegrations;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeConnectionRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeDiscoveryEntity;
@@ -91,6 +92,7 @@ public class ForgeDiscoveryService {
     private final ForgeDiscoveryRepository discoveries;
     private final ForgeRepositoryRepository repositories;
     private final DiscoveryExecution execution;
+    private final ForgeIntegrations integrations;
     private final AuditLogService audit;
     private final Clock clock;
     private final TransactionTemplate transactions;
@@ -100,6 +102,7 @@ public class ForgeDiscoveryService {
             ForgeDiscoveryRepository discoveries,
             ForgeRepositoryRepository repositories,
             DiscoveryExecution execution,
+            ForgeIntegrations integrations,
             AuditLogService audit,
             Clock clock,
             PlatformTransactionManager transactions) {
@@ -107,6 +110,7 @@ public class ForgeDiscoveryService {
         this.discoveries = discoveries;
         this.repositories = repositories;
         this.execution = execution;
+        this.integrations = integrations;
         this.audit = audit;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactions);
@@ -116,12 +120,16 @@ public class ForgeDiscoveryService {
      * Queues a discovery of the connection.
      *
      * @throws NotFoundException "Forge connection not found."
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException the connection is
+     *     suspended, its forge's integration disabled: nothing is queued — a run queued before the switch waits
+     *     (the claim passes it over) and resumes when the forge is enabled again
      * @throws ForgeDiscoveryConflict {@code forge-discovery-in-progress} with the running one's {@code discoveryId};
      *     {@code forge-discovery-unsupported} for a forge this version does not list
      */
     public ForgeDiscoveryView request(UUID connectionId, RequestActor actor) {
         ForgeConnectionEntity connection = requireConnection(connectionId);
         ForgeKind kind = ForgeKind.parse(connection.getKind());
+        integrations.requireEnabled(kind);
         if (!execution.lists(kind)) {
             throw new ForgeDiscoveryConflict(ForgeDiscoveryConflict.Cause.UNSUPPORTED, "This version does not discover "
                     + "the repositories of a " + kind.wireName() + " connection yet.");

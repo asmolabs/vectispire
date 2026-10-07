@@ -28,6 +28,47 @@ public interface ForgeDiscoveryRepository extends JpaRepository<ForgeDiscoveryEn
     List<Long> waiting(@Param("pending") String pending, Pageable page);
 
     /**
+     * The waiting runs, oldest first, but those of connections whose forge is switched off (decision 0040 §2): they
+     * stay waiting, suspended with their connection, and the first claim after a governor switches the forge back
+     * on takes them. Never called with an empty list ({@link #waiting} is that case), since {@code in ()} is no
+     * statement every engine accepts; the list is of forge kinds, two today, never sized by the data.
+     */
+    @Query("""
+            select d.id from ForgeDiscoveryEntity d
+             where d.state = :pending
+               and not exists (select c.id from ForgeConnectionEntity c
+                                where c.id = d.connectionId and c.kind in :suspendedKinds)
+             order by d.requestedAt asc, d.id asc""")
+    List<Long> waitingExcept(
+            @Param("pending") String pending,
+            @Param("suspendedKinds") Collection<String> suspendedKinds,
+            Pageable page);
+
+    /** How many runs wait on a connection whose forge is switched off: what the discovery turn reports. */
+    @Query("""
+            select count(d) from ForgeDiscoveryEntity d
+             where d.state = :pending
+               and exists (select c.id from ForgeConnectionEntity c
+                            where c.id = d.connectionId and c.kind in :suspendedKinds)""")
+    long countWaitingOn(@Param("pending") String pending, @Param("suspendedKinds") Collection<String> suspendedKinds);
+
+    /**
+     * Gives a run its owner took back to waiting, its attempt not counted: its forge was switched off between the
+     * claim and the run's first step. 0 when the run is no longer the owner's.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ForgeDiscoveryEntity d
+               set d.state = :pending, d.claimedBy = null, d.leaseExpiresAt = null, d.attempts = d.attempts - 1
+             where d.id = :id and d.state = :running and d.claimedBy = :owner""")
+    int giveBack(
+            @Param("id") long id,
+            @Param("running") String running,
+            @Param("pending") String pending,
+            @Param("owner") String owner);
+
+    /**
      * Takes one waiting run, counts the attempt and starts its progress afresh — a resumed run lists again from
      * the first page: 1 for the instance whose update matched, 0 for any other.
      */

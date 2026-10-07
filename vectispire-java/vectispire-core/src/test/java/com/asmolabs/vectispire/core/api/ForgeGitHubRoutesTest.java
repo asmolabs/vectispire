@@ -5,12 +5,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.core.forges.ForgeStub;
 import com.asmolabs.vectispire.core.forges.ForgeStub.Reply;
 import com.asmolabs.vectispire.core.forges.internal.DiscoveryWorker;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeImportLinkRepository;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryEntity;
 import com.asmolabs.vectispire.core.forges.persistence.ForgeRepositoryRepository;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
@@ -56,6 +60,12 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
 
     @Autowired
     private GitRepositoryRepository repositories;
+
+    @Autowired
+    private Integrations integrations;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     private ForgeStub github;
 
@@ -160,6 +170,26 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
     }
 
     // ---- What a discovery does.
+
+    @Test
+    @DisplayName("forge.gitlab disabled: a GitHub connection is made, reads active and discovers — the switch is per forge")
+    void anotherForgeSwitchedOff() throws Exception {
+        IntegrationRows rows = IntegrationRows.remember(jdbc);
+        try {
+            integrations.switchTo(Integration.of(ForgeKind.GITLAB), false, "test");
+            String connectionId = connection(FINE_GRAINED);
+            assertThat(read("/api/v1/forge-connections/" + connectionId).at("/state").asText()).isEqualTo("active");
+            assertThat(read("/api/v1/forge-connections/" + connectionId).at("/integration").asText())
+                    .isEqualTo("forge.github");
+            github.route(ORGS, Reply.json("[{\"login\":\"acme\"}]"));
+            github.route(orgRepos("acme"), list(repository(101, "acme/api", "private", false, false)));
+            github.route(USER_REPOS, list());
+
+            assertThat(discover(connectionId).at("/state").asText()).isEqualTo("completed");
+        } finally {
+            rows.putBack();
+        }
+    }
 
     @Test
     @DisplayName("a classic token: every organisation, the user's own flagged personal, at /api/v3, page by page")

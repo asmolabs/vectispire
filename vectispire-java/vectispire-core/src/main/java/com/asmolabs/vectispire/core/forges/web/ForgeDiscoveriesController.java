@@ -38,7 +38,7 @@ public class ForgeDiscoveriesController {
     }
 
     @Operation(summary = "Discover forge repositories", description = "Queues a discovery of the connection and answers "
-            + "at once, 202 with the run — pending — to poll. A control-plane instance claims it under a lease and lists "
+            + "at once, 202 with the run — pending — to poll; 409 integration-disabled for a suspended connection. A control-plane instance claims it under a lease and lists "
             + "the namespaces, then the repositories with their metadata (GitLab: the groups and projects the token is a "
             + "member of, min_access_level 10, membership=true; GitHub: the connection's owner, the organisations a "
             + "classic token sees and the user's own repositories, an organisation the token cannot read — single "

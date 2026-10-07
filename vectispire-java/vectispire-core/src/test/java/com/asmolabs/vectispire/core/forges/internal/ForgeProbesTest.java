@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.forges.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import com.asmolabs.vectispire.common.domain.forges.ForgeAddress;
 import com.asmolabs.vectispire.common.domain.forges.ForgeConnectionRefusal;
@@ -47,7 +48,8 @@ class ForgeProbesTest {
     void start() throws Exception {
         forge = ForgeStub.start();
         OutboundJson outbound = new OutboundJson(new PinnedHttpSender(), new OutboundUrlGuard(), new ObjectMapper());
-        probes = new ForgeProbes(List.of(new GitLabClient(outbound), new GitHubClient(outbound)));
+        probes = new ForgeProbes(List.of(new GitLabClient(outbound), new GitHubClient(outbound)),
+                mock(ForgeIntegrations.class));
         ca = PinnedCa.parse(forge.caPem, Instant.now(), new PinnedCa.Subject("The forge's CA", "the forge"));
     }
 

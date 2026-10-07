@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -86,6 +87,7 @@ public class DiscoveryExecution {
     private final OutboundJson outbound;
     private final Map<ForgeKind, ForgeLister> listers = new EnumMap<>(ForgeKind.class);
     private final DiscoveryBounds bounds;
+    private final ForgeIntegrations integrations;
     private final AuditLogService audit;
     private final Clock clock;
     private final TransactionTemplate transactions;
@@ -98,6 +100,7 @@ public class DiscoveryExecution {
             OutboundJson outbound,
             List<ForgeLister> listers,
             DiscoveryBounds bounds,
+            ForgeIntegrations integrations,
             AuditLogService audit,
             Clock clock,
             PlatformTransactionManager transactions) {
@@ -108,6 +111,7 @@ public class DiscoveryExecution {
         this.outbound = outbound;
         listers.forEach(lister -> this.listers.put(lister.kind(), lister));
         this.bounds = bounds;
+        this.integrations = integrations;
         this.audit = audit;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactions);
@@ -131,6 +135,15 @@ public class DiscoveryExecution {
             outcome = new Outcome(DiscoveryState.COMPLETED, null, null, null);
         } catch (LeaseLost lost) {
             log.info("Forge discovery {} is no longer this instance's ({}); left to its new owner.", id, owner);
+            return;
+        } catch (Suspended suspended) {
+            // Switched off between the claim, which leaves such runs waiting, and here: given back as it was taken,
+            // the attempt not counted. A governor's switch is not the run's failure, and re-enabling resumes it.
+            if (discoveries.giveBack(id, DiscoveryState.RUNNING.wireName(), DiscoveryState.PENDING.wireName(),
+                    owner) == 1) {
+                log.info("Forge discovery {} left waiting: the {} integration is disabled.", id,
+                        ForgeIntegrations.keys(EnumSet.of(suspended.kind)));
+            }
             return;
         } catch (ForgeLister.RepositoryBoundReached bound) {
             outcome = Outcome.of(DiscoveryReason.REPOSITORY_BOUND, bound.getMessage());
@@ -181,6 +194,19 @@ public class DiscoveryExecution {
         }
     }
 
+    /** The connection's forge is switched off: the run is not this turn's to carry out, nor to fail. */
+    static final class Suspended extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final transient ForgeKind kind;
+
+        Suspended(ForgeKind kind) {
+            super("The forge's integration is disabled.");
+            this.kind = kind;
+        }
+    }
+
     /** One run's state while it lists: what the listing writes to. */
     private final class Run implements ForgeLister.Listing {
 
@@ -211,6 +237,10 @@ public class DiscoveryExecution {
         ForgeLister open() {
             ForgeConnectionEntity connection = connections.findById(connectionId).orElseThrow(LeaseLost::new);
             ForgeKind kind = ForgeKind.parse(connection.getKind());
+            // Before the token is decrypted: a disabled forge is handed nothing (decision 0040 §1).
+            if (!integrations.enabled(kind)) {
+                throw new Suspended(kind);
+            }
             ForgeLister lister = listers.get(kind);
             if (lister == null) {
                 throw new ForgeListingException(DiscoveryReason.UNSUPPORTED, "This version does not list the "

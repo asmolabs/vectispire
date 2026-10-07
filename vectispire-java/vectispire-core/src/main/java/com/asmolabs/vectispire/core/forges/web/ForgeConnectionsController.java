@@ -59,7 +59,9 @@ public class ForgeConnectionsController {
     @Operation(summary = "List forge connections", description = "Never the token: the forge, the address, the "
             + "owner, the credential the forge identified with its scopes (null when not reported — a GitHub "
             + "fine-grained token), whether it can write (null when not reported), its expiry, the server's "
-            + "version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it.")
+            + "version, and encryptionState — previous_key while an ENCRYPTION_KEY rotation has not reached it; state, "
+            + "suspended while the platform governor has disabled the forge's integration (decision 0040), and the "
+            + "integration's key.")
     @GetMapping
     public List<ForgeConnectionView> listForgeConnections() {
         return connections.list();
@@ -78,7 +80,8 @@ public class ForgeConnectionsController {
             + "read_user; GitHub: a fine-grained token, or on Enterprise Server a classic one with repo, public_repo, "
             + "read:org, read:user, user:email, flagged canWrite), a server older than GitLab 16 or GHES 3.12, or "
             + "an owner it does not know. Audited FORGE_CONNECTION_CHANGED and signalled VECTI-SEC-034; a blocked "
-            + "address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036.")
+            + "address or a refused scope is audited FORGE_CONNECTION_REFUSED and signalled VECTI-SEC-036. 409 "
+            + "integration-disabled, nothing probed, when the platform governor has disabled that forge.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ForgeConnectionView createForgeConnection(
@@ -93,7 +96,8 @@ public class ForgeConnectionsController {
 
     @Operation(summary = "Replace forge connection token", description = "Rotation in place: the new token is "
             + "probed as at creation, and the connection keeps its id and everything that hangs on it. 400 as at "
-            + "creation; VECTI-SEC-034, or VECTI-SEC-036 for a refused scope.")
+            + "creation, 409 integration-disabled for a suspended connection; VECTI-SEC-034, or VECTI-SEC-036 for a "
+            + "refused scope.")
     @PutMapping("/{id}/token")
     public ForgeConnectionView replaceForgeConnectionToken(
             @PathVariable UUID id,
@@ -105,8 +109,9 @@ public class ForgeConnectionsController {
 
     @Operation(summary = "Update forge connection", description = "Rename it, or change how its token is presented "
             + "— the internal-network statement, the pinned CA (blank unpins it) — which probes the stored token "
-            + "again first and signals VECTI-SEC-034. The address cannot change: another server is another "
-            + "connection. Saving re-seals the token under the current ENCRYPTION_KEY.")
+            + "again first and signals VECTI-SEC-034 — 409 integration-disabled for a suspended connection, which "
+            + "may still be renamed. The address cannot change: another server is another connection. Saving "
+            + "re-seals the token under the current ENCRYPTION_KEY.")
     @PatchMapping("/{id}")
     public ForgeConnectionView updateForgeConnection(
             @PathVariable UUID id,

@@ -176,6 +176,32 @@ through the new CA before keeping it.
   discoveries, its snapshot and the provenance of the targets imported through it go with it; the targets
   stay, and only stop saying where they came from.
 
+## When the forge's integration is disabled
+
+The platform governor decides which forges this installation talks to, `forge.gitlab` and
+`forge.github`, on the integrations' registry ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Switching one off **suspends** the connections of that kind; it deletes nothing.
+
+- **The connection is kept as it was**: its row, its encrypted token, its snapshot, the provenance of
+  what it imported and its change-review readings. It reads `"state": "suspended"`, beside
+  `"integration": "forge.gitlab"` — the key to switch back on; an enabled one reads `"active"`.
+- **Nothing goes to the forge.** Creating a connection of that kind, requesting a discovery, previewing
+  or running an import, replacing the token and changing the network statement or the CA (both probe
+  the token) answer **409** `urn:vectispire:problem:integration-disabled`, the key in `integration`.
+  The check sits where a token is handed to a forge — the probe, the discovery as it opens a run, the
+  change-review reading — and in the import's planning, so no route and no scheduled turn goes round it.
+  Reading the connection, its discoveries and their selection, renaming it and deleting it still work.
+- **A discovery queued before the switch waits**, `pending`, neither failed nor counted against its
+  attempts; the control plane's log says once how many wait, and on which integration.
+- **A `change_review` line** fed by a suspended connection reads *no data*,
+  [`forge_integration_disabled`](checklist-templates.md#change-review-how-changes-reach-a-branch) —
+  never a pass and never a fail, even over a reading that passed before the switch. The hourly turn
+  sends nothing to that forge and logs once how many readings it left.
+
+**Switching the forge back on resumes everything** with nothing to redo: the connections read `active`,
+a waiting discovery is claimed at the next turn, and the readings are taken again at the next hourly turn
+once they are due — until then a line is judged on the reading it kept, by its own date.
+
 ## Discovering repositories
 
 `POST /api/v1/forge-connections/{id}/discoveries` asks for a discovery and answers at once, **202**, with the

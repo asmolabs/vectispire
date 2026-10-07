@@ -279,7 +279,9 @@ approval prevented, direct push refused* — and, on a failure, the changes with
 is named by its id and its SHA-256, which the measurement's evidence carries.
 
 **No data, never a pass:** `never_examined` (not read yet — the first reading comes within the hour),
-`forge_unlinked`, `forge_unreadable` (the token was refused the project, its merge requests or pull
+`forge_integration_disabled` (the platform governor switched the forge's integration off: the
+connection is [suspended](forge-connections.md#when-the-forges-integration-is-disabled), nothing is
+read, and a reading taken before is not judged), `forge_unlinked`, `forge_unreadable` (the token was refused the project, its merge requests or pull
 requests — the evidence gives the forge's answer, `HTTP 403` and the permission to grant), `review_incomplete`
 (more than 500 changes merged in the window, or a reading narrower than the rule's window just after
 it was widened), `no_change_merged` (nothing merged in the window: none of none is not all), and

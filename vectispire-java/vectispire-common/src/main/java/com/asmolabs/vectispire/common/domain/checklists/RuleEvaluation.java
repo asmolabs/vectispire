@@ -717,6 +717,9 @@ public final class RuleEvaluation {
             switch (recorded) {
                 case null -> collector.missing(repository, Optional.empty(), NoDataReason.NEVER_EXAMINED, Optional.empty(),
                         "no reading of its forge yet: the change-review measurement runs hourly");
+                // Before the stored reading's own state: a reading that passed before the switch must not pass now.
+                case MeasurementFacts.ReviewSuspended suspended -> collector.missing(repository, Optional.empty(),
+                        NoDataReason.FORGE_INTEGRATION_DISABLED, suspended.look(), suspended.why());
                 case MeasurementFacts.ReviewUnlinked unlinked -> collector.missing(repository, Optional.empty(),
                         NoDataReason.FORGE_UNLINKED, Optional.of(unlinked.look()), unlinked.why());
                 case MeasurementFacts.ReviewUnreadable unreadable -> {
@@ -932,7 +935,8 @@ public final class RuleEvaluation {
         }
 
         /** The headlines whose summary carries the first repository's own sentence. */
-        private static final Set<NoDataReason> EXPLAINED = EnumSet.of(NoDataReason.FORGE_UNLINKED,
+        private static final Set<NoDataReason> EXPLAINED = EnumSet.of(NoDataReason.FORGE_INTEGRATION_DISABLED,
+                NoDataReason.FORGE_UNLINKED,
                 NoDataReason.FORGE_UNREADABLE, NoDataReason.REVIEW_INCOMPLETE, NoDataReason.LANGUAGE_NOT_ANALYSED,
                 NoDataReason.LANGUAGES_UNRECORDED, NoDataReason.INVENTORY_ABSENT, NoDataReason.VERSION_UNRECORDED,
                 NoDataReason.PACKAGES_UNRECORDED,

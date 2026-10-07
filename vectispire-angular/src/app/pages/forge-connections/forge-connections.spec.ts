@@ -144,6 +144,21 @@ describe('the forge connections screen', () => {
         expect(text('[data-testid="connection-can-write"]', classic)).toBe('Can write');
     });
 
+    it('tells a connection suspended by a disabled integration from an active one, naming the integration', async () => {
+        list([
+            { ...CONNECTION, id: 'c1' },
+            { ...CONNECTION, id: 'c2', name: 'Suspended GitLab', state: 'suspended', integration: 'forge.gitlab' }
+        ]);
+        await settle();
+
+        const [active, suspended] = Array.from(dom().querySelectorAll('[data-testid="connection"]'));
+        expect(active.querySelector('[data-testid="connection-suspended"]')).toBeNull();
+        expect(text('[data-testid="connection-suspended"]', suspended)).toBe('Suspended — integration disabled');
+        // Everything it holds is still shown: a suspended connection is kept, not emptied.
+        expect(text('[data-testid="connection-token"]', suspended)).toBe('GitLab group or project token (read_api)');
+        expect(missingFromBundles(['forges.connections.suspended', 'forges.connections.suspended_hint'])).toEqual([]);
+    });
+
     it('announces an expiry within fourteen days, and an expired token', async () => {
         const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
         list([

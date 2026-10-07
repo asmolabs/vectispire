@@ -15,6 +15,14 @@ public enum NoDataReason {
     /** A repository has no scan or import in which the scope produced, at any age. */
     NEVER_EXAMINED,
     /**
+     * A change-review rule, on a repository whose forge connection is suspended: the platform governor disabled
+     * the integration of its forge (decision 0040 §2). Nothing is read from that forge, and a reading taken before
+     * the switch is not judged either — a line must never pass, nor fail, on a forge the installation no longer
+     * talks to. Before the forge's own reasons: it is the installation's decision, and the one to undo first.
+     * Twenty-six characters, within the measurement's forty.
+     */
+    FORGE_INTEGRATION_DISABLED,
+    /**
      * A change-review rule, on a repository no forge connection imported and whose URL no discovered repository
      * has: there is no forge project to ask. Imported through a connection, or discovered by one, it is linked.
      */

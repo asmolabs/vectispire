@@ -31,6 +31,18 @@
                     <h2 class="text-xl font-semibold m-0 break-words" data-testid="connection-name">
                         {{ connection.name }}
                     </h2>
+                    @if (connection.state === 'suspended') {
+                        <p-tag
+                            class="mt-1"
+                            severity="warn"
+                            data-testid="connection-suspended"
+                            [value]="'forges.connections.suspended' | translate"
+                            [pTooltip]="
+                                'forges.connections.suspended_hint' | translate: { integration: connection.integration }
+                            "
+                            tooltipPosition="top"
+                        />
+                    }
                     <p class="m-0 mt-1 text-muted-color break-all">
                         <span data-testid="connection-edition">{{ edition(connection) }}</span> ·
                         <span class="font-mono text-sm" data-testid="connection-address">{{ connection.baseUrl }}</span>
