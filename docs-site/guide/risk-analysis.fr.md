@@ -75,6 +75,13 @@ d'entrée qu'un constat doit franchir pour compter.
 revues de sécurité et la plupart des auditeurs parlent déjà. C'est une reformulation des mêmes
 constats, pas un scan séparé.
 
+La grille actuelle lit tout le parc que vous voyez, ou **une solution ou un projet**, choisi au-dessus
+d'elle — le même sélecteur que *Par semaine*, gardé dans l'adresse pour qu'un lien montre la même vue.
+Chaque chiffre est alors celui de ce périmètre : un projet jamais scanné se lit *non mesuré* même là où
+ses voisins sont couverts. Un périmètre que vous ne voyez qu'en partie le dit, et compte ce que vous
+voyez. Un nombre de constats ouverts ouvre le backlog de cette catégorie dans le même périmètre, le
+triage réglé laissé de côté comme la grille le laisse.
+
 ### Le Top 10, semaine par semaine
 
 *Rapport OWASP* → *Par semaine* montre les mêmes dix catégories sur 12, 26 ou 52 semaines — ou un

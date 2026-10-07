@@ -15,7 +15,7 @@
 >
     <a
         routerLink="."
-        [queryParams]="{}"
+        [queryParams]="currentParams()"
         class="px-4 py-2 text-sm font-medium"
         [class.bg-primary]="!weekly()"
         [class.text-primary-contrast]="!weekly()"
@@ -26,7 +26,7 @@
     >
     <a
         routerLink="."
-        [queryParams]="{ view: 'weekly' }"
+        [queryParams]="weeklyParams()"
         class="px-4 py-2 text-sm font-medium"
         [class.bg-primary]="weekly()"
         [class.text-primary-contrast]="weekly()"
@@ -40,7 +40,10 @@
 @if (weekly()) {
     <zs-owasp-weekly />
 } @else {
-    <zs-owasp-grid />
+    <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end mb-4 print:hidden">
+        <zs-owasp-scope-picker inputId="grid-scope" [scope]="scope()" (scopeChange)="scopeChanged($event)" />
+    </div>
+    <zs-owasp-grid [scope]="scope()" (estateAsked)="scopeChanged(null)" />
 
     <p-card styleClass="mb-4">
         <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">

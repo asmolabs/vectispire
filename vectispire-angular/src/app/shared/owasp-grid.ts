@@ -1,6 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import {
+    Component,
+    computed,
+    effect,
+    inject,
+    input,
+    output,
+    signal,
+    untracked,
+    ChangeDetectionStrategy
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Params, RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -11,7 +22,9 @@ import { messageOf } from '@/app/core/api-error';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { keyFor } from '@/app/core/i18n/literal-keys';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 import { SessionStore } from '@/app/core/session.store';
+import { OwaspScope, scopeParams, scopeQuery } from './owasp-scope';
 import type {
     Applicability,
     EvidenceSource,
@@ -66,6 +79,7 @@ export const GRID_IMPLEMENTATION_KEYS = {
         InputTextModule,
         MessageModule,
         SelectModule,
+        RouterLink,
         TranslatePipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -74,9 +88,17 @@ export const GRID_IMPLEMENTATION_KEYS = {
 export class OwaspGridComponent {
     private readonly owaspApi = inject(OwaspApi);
     private readonly session = inject(SessionStore);
+    private readonly load = new LatestRequest();
     readonly i18n = inject(I18nService);
 
+    /** The project or solution the grid is read over; `null` is the reader's estate. */
+    readonly scope = input<OwaspScope>(null);
+    /** Asked when a scope can no longer be read: the page owns the URL the scope lives in. */
+    readonly estateAsked = output<void>();
+
     readonly grid = signal<OwaspGrid | null>(null);
+    /** Why a scoped grid could not be read — a project deleted, or no longer visible, since the link was made. */
+    readonly loadError = signal<string | null>(null);
 
     /**
      * The declaration being written, and the fields it carries.
@@ -174,10 +196,31 @@ export class OwaspGridComponent {
     }
 
     private reload(): void {
-        this.owaspApi.owaspCoverage().subscribe({
+        const scope = this.scope();
+        this.loadError.set(null);
+        // Through one slot: a reader switching scopes twice must not see the first answer land last,
+        // under the second scope's name.
+        this.load.run(this.owaspApi.owaspCoverage(scopeQuery(scope)), {
             next: (data) => this.grid.set(data),
-            error: () => this.grid.set(null)
+            error: (failure) => {
+                this.grid.set(null);
+                // The estate's grid failing stays quiet — the report below carries its own errors. A
+                // scope's does not: a link to a project since deleted would otherwise open on an empty
+                // page with the project's name in the picker, which reads as a project with no grid.
+                if (scope !== null) {
+                    this.loadError.set(messageOf(failure, this.i18n.t('owasp_grid.load_failed')));
+                }
+            }
         });
+    }
+
+    /**
+     * The backlog a category's count counts: its open issues as the grid places them, settled triage
+     * left out as the grid leaves it out, in the same scope. Without `unsettled` the list would hold
+     * the accepted risks too and come out longer than the figure clicked.
+     */
+    openParams(line: OwaspCoverageLine): Params {
+        return { owasp_category: line.id, unsettled: 'true', ...scopeParams(this.scope()) };
     }
 
     /**
@@ -190,7 +233,11 @@ export class OwaspGridComponent {
     readonly lines = computed<OwaspCoverageLine[]>(() => this.grid()?.lines ?? []);
 
     constructor() {
-        this.reload();
+        // Read again whenever the scope changes, and only then: the scope is the one input.
+        effect(() => {
+            this.scope();
+            untracked(() => this.reload());
+        });
     }
 
     /**

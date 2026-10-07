@@ -1273,8 +1273,10 @@
       "category_any": "Issues placées dans une catégorie du Top 10 OWASP",
       "category": "Issues placées en {{category}}",
       "origin": "depuis la vue OWASP par semaine",
+      "origin_grid": "depuis la grille OWASP",
       "triage_today": "non réglées par le triage tel qu'il est aujourd'hui",
       "back": "Retour à la vue par semaine",
+      "back_grid": "Retour à la grille OWASP",
       "clear": "Retirer ce filtre"
     },
     "action_accept": "Accepter le risque",
@@ -1654,6 +1656,10 @@
     "declare": "Déclarer",
     "revise": "Réviser",
     "declare_failed": "La déclaration n'a pas été enregistrée.",
+    "load_failed": "La grille de couverture n'a pas pu être chargée.",
+    "back_to_estate": "Afficher tout le parc",
+    "open_issues_one": "{{count}} issue ouverte en {{category}}",
+    "open_issues_other": "{{count}} issues ouvertes en {{category}}",
     "evidence_source": {
       "VECTISPIRE": "Vectispire",
       "BOTH": "Vectispire et une source externe",

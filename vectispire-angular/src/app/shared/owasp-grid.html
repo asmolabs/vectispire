@@ -1,7 +1,32 @@
+@if (loadError(); as message) {
+    <div class="card mb-4" data-testid="grid-scope-error">
+        <p-message severity="error" [closable]="false" styleClass="mb-3 w-full">{{ message }}</p-message>
+        <p-button
+            [label]="'owasp_grid.back_to_estate' | translate"
+            icon="pi pi-arrow-left"
+            severity="secondary"
+            size="small"
+            (onClick)="estateAsked.emit()"
+        />
+    </div>
+}
+
 @if (grid(); as data) {
     <div class="card mb-4">
         <div class="font-semibold text-xl mb-1">{{ 'owasp_grid.title' | translate }}</div>
         <p class="text-muted-color mb-4" style="max-width: 68ch">{{ 'owasp_grid.subtitle' | translate }}</p>
+        <!--
+            Whose grid this is, and — when the reader sees only part of the project — that every figure
+            covers that part: a count read as the project's whole would understate it.
+        -->
+        @if (data.scope; as scope) {
+            <p class="text-sm text-muted-color -mt-2 mb-4" data-testid="grid-scope">
+                {{ scope.name }}
+                @if (scope.partial) {
+                    — {{ 'owasp_weekly.scope_partial' | translate: { count: scope.targetCount } }}
+                }
+            </p>
+        }
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
             <div class="pl-4 border-l-4 border-surface-300">
@@ -49,7 +74,20 @@
                                 {{ stateLabel(line.state) }}
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
-                                {{ line.state === 'FINDINGS' ? line.findings : '—' }}
+                                @if (line.state === 'FINDINGS') {
+                                    <a
+                                        routerLink="/issues"
+                                        [queryParams]="openParams(line)"
+                                        [attr.aria-label]="
+                                            'owasp_grid.open_issues'
+                                                | translate: { count: line.findings, category: line.id }
+                                        "
+                                        data-testid="grid-open"
+                                        >{{ line.findings }}</a
+                                    >
+                                } @else {
+                                    —
+                                }
                             </td>
                             <td class="py-3 text-muted-color">
                                 @if (line.state !== 'NOT_COVERED') {

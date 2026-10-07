@@ -6,6 +6,7 @@ import {
     DeclarationRequest,
     OwaspGrid,
     OwaspReport,
+    OwaspScopeQuery,
     OwaspWeeklyCoverage,
     OwaspWeeklyQuery
 } from '../api.models';
@@ -41,8 +42,12 @@ export class OwaspApi {
         return this.http.put<ControlDeclaration>(`/api/v1/owasp/coverage/${category}/declaration`, body);
     }
 
-    owaspCoverage(): Observable<OwaspGrid> {
-        return this.http.get<OwaspGrid>('/api/v1/owasp/coverage');
+    /**
+     * The grid as it stands, over the reader's estate or one project or solution. Nothing is sent
+     * for the estate: a request without parameters is the estate's, as it was before scopes existed.
+     */
+    owaspCoverage(query: OwaspScopeQuery = {}): Observable<OwaspGrid> {
+        return this.http.get<OwaspGrid>('/api/v1/owasp/coverage', { params: paramsOf(query) });
     }
 
     /**
@@ -52,10 +57,15 @@ export class OwaspApi {
      * current one — are the server's, and restating them here would be a second copy to drift.
      */
     weeklyCoverage(query: OwaspWeeklyQuery = {}): Observable<OwaspWeeklyCoverage> {
-        let params = new HttpParams();
-        for (const [key, value] of Object.entries(query)) {
-            if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
-        }
-        return this.http.get<OwaspWeeklyCoverage>('/api/v1/owasp/coverage/weekly', { params });
+        return this.http.get<OwaspWeeklyCoverage>('/api/v1/owasp/coverage/weekly', { params: paramsOf(query) });
     }
+}
+
+/** Only what is set: an empty value sent as `?project_id=` would be a 400 for a question nobody asked. */
+function paramsOf(query: OwaspWeeklyQuery): HttpParams {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined && value !== null && value !== '') params = params.set(key, String(value));
+    }
+    return params;
 }

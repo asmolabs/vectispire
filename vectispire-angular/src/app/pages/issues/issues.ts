@@ -298,7 +298,14 @@ export class Issues {
     });
 
     /**
-     * The way back to the weekly view, on the week the figure came from and in the same scope. Built
+     * A category with no date is the current OWASP grid's drill-down: every link of the weekly view
+     * names a week, the grid's counts are today's and name none. Said apart, or the banner would send
+     * a reader who came from the grid "back" to a weekly view they never opened.
+     */
+    readonly fromGrid = computed(() => this.owaspCategory() !== null && !this.asksDates());
+
+    /**
+     * The way back to the OWASP view, on the week the figure came from and in the same scope. Built
      * from the parameters themselves, never from a URL the link carried: a return address taken from
      * the query string is an open redirect.
      */
@@ -311,7 +318,9 @@ export class Issues {
             this.firstSeenTo() ??
             this.resolvedTo() ??
             this.reopenedTo();
-        const params: Params = { view: 'weekly' };
+        // No date at all: the link came from the current grid, whose counts are today's — back there,
+        // not to a weekly view the reader never opened.
+        const params: Params = this.fromGrid() ? {} : { view: 'weekly' };
         if (day !== null) params['week'] = mondayOf(day);
         const projectId = this.projectId();
         const solutionId = this.solutionId();

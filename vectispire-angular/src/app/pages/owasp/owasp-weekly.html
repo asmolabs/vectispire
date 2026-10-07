@@ -58,21 +58,7 @@
             </div>
             <p-button [label]="'owasp_weekly.apply' | translate" size="small" (onClick)="applyRange()" />
         }
-        <div class="flex flex-col gap-1">
-            <label for="weekly-scope" class="text-sm text-muted-color">{{ 'owasp_weekly.scope' | translate }}</label>
-            <p-select
-                inputId="weekly-scope"
-                [options]="scopeOptions()"
-                optionLabel="label"
-                optionValue="value"
-                [ngModel]="scopeValue()"
-                (ngModelChange)="scopeChanged($event)"
-                [filter]="true"
-                filterBy="label"
-                styleClass="w-full"
-                class="w-full sm:min-w-[20rem]"
-            />
-        </div>
+        <zs-owasp-scope-picker inputId="weekly-scope" [scope]="view().scope" (scopeChange)="scopeChanged($event)" />
     </div>
 
     @if (error(); as message) {

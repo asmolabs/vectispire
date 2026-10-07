@@ -19,14 +19,15 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { MultiSelectModule } from '@openng/optimus-ui/multiselect';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { OwaspApi } from '@/app/core/api/owasp.api';
-import { SolutionsApi } from '@/app/core/api/solutions.api';
 import { messageOf } from '@/app/core/api-error';
 import { saveBlob } from '@/app/core/download';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import { LayoutService } from '@/app/layout/service/layout.service';
-import type { OwaspWeek, OwaspWeekCategory, OwaspWeeklyCoverage, SolutionTree } from '@/app/core/api.models';
+import type { OwaspWeek, OwaspWeekCategory, OwaspWeeklyCoverage } from '@/app/core/api.models';
+import { OwaspScope } from '@/app/shared/owasp-scope';
+import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
 import {
     CategoryOrTotal,
     HeatCell,
@@ -103,6 +104,7 @@ interface HeatRow {
         ChartModule,
         MessageModule,
         MultiSelectModule,
+        OwaspScopePicker,
         SelectModule,
         TranslatePipe
     ],
@@ -115,7 +117,6 @@ export class OwaspWeekly {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly owaspApi = inject(OwaspApi);
-    private readonly solutionsApi = inject(SolutionsApi);
     private readonly layout = inject(LayoutService);
     private readonly injector = inject(Injector);
     private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
@@ -125,7 +126,6 @@ export class OwaspWeekly {
     readonly data = signal<OwaspWeeklyCoverage | null>(null);
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
-    private readonly tree = signal<SolutionTree | null>(null);
     private lastQuery = '';
 
     /** The curves' categories as chosen; `null` until somebody chooses, which reads as "those with findings". */
@@ -147,8 +147,6 @@ export class OwaspWeekly {
             }
             this.reload();
         });
-        // For the scope picker only; a failure leaves the estate, which is still a view.
-        this.solutionsApi.solutionTree().subscribe({ next: (tree) => this.tree.set(tree), error: () => undefined });
     }
 
     private reload(): void {
@@ -228,33 +226,8 @@ export class OwaspWeekly {
         this.go({ ...this.view(), window: { kind: 'range', from, to }, week: null });
     }
 
-    readonly scopeOptions = computed(() => {
-        this.i18n.translations();
-        const options = [{ value: 'estate', label: this.i18n.t('owasp_weekly.scope_estate') }];
-        for (const solution of this.tree()?.solutions ?? []) {
-            options.push({
-                value: `solution:${solution.id}`,
-                label: this.i18n.t('owasp_weekly.scope_solution', { name: solution.name })
-            });
-            for (const project of solution.projects ?? []) {
-                options.push({
-                    value: `project:${project.id}`,
-                    label: this.i18n.t('owasp_weekly.scope_project', { name: `${solution.name} / ${project.name}` })
-                });
-            }
-        }
-        return options;
-    });
-
-    readonly scopeValue = computed(() => {
-        const scope = this.view().scope;
-        return scope ? `${scope.kind}:${scope.id}` : 'estate';
-    });
-
-    scopeChanged(value: string | null): void {
-        const [kind, id] = (value ?? 'estate').split(':');
-        const scope = (kind === 'project' || kind === 'solution') && Number(id) > 0 ? { kind, id: Number(id) } : null;
-        this.go({ ...this.view(), scope } as WeeklyView);
+    scopeChanged(scope: OwaspScope): void {
+        this.go({ ...this.view(), scope });
     }
 
     selectWeek(week: OwaspWeek): void {

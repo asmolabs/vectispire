@@ -69,6 +69,12 @@ to traverse to matter.
 security reviews and most auditors already speak. It is a reframing of the same findings,
 not a separate scan.
 
+The current grid reads the whole estate you see, or **one solution or one project**, chosen above it —
+the same picker as *By week*, kept in the address so a link shows the same view. Every figure is then
+that scope's: a project never scanned reads *unmeasured* even where its neighbours are covered. A scope
+you see only in part says so, and counts what you see. A count of open findings opens the backlog of
+that category in the same scope, settled triage left out as the grid leaves it out.
+
 ### The Top 10, week by week
 
 *OWASP report* → *By week* shows the same ten categories over 12, 26 or 52 weeks — or a range you

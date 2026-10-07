@@ -2198,7 +2198,14 @@ export type OwaspCoverageLine = Refine<
 >;
 
 /** `covered` says how many of the ten a scanner here can even look at. **Read before the rest.** */
-export type OwaspGrid = Refine<Schema<'DeclaredGrid'>, { lines: OwaspCoverageLine[] }>;
+export type OwaspGrid = Refine<
+    Schema<'DeclaredGrid'>,
+    {
+        lines: OwaspCoverageLine[];
+        /** The project or solution asked for, as the weekly route spells it; `null` for the estate. */
+        scope: OwaspWeeklyScope | null;
+    }
+>;
 
 /**
  * One category in one week of `GET /api/v1/owasp/coverage/weekly`.
@@ -2253,6 +2260,9 @@ export interface OwaspWeeklyQuery {
     project_id?: number;
     solution_id?: number;
 }
+
+/** The query string of the current grid: a project or a solution, never both; nothing is the estate. */
+export type OwaspScopeQuery = Pick<OwaspWeeklyQuery, 'project_id' | 'solution_id'>;
 
 export type ComplianceMovement = NonNullable<Schema<'Step'>['movement']>;
 

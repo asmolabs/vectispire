@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -31,6 +31,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { OwaspGridComponent } from '@/app/shared/owasp-grid';
 import { LatestRequest } from '@/app/core/latest-request';
 import { messageOf } from '@/app/core/api-error';
+import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
+import { OwaspScope, readScope, sameScope, scopeParams } from '@/app/shared/owasp-scope';
 import { OwaspWeekly } from './owasp-weekly';
 
 @Component({
@@ -44,6 +46,7 @@ import { OwaspWeekly } from './owasp-weekly';
         SelectModule,
         TagModule,
         OwaspGridComponent,
+        OwaspScopePicker,
         OwaspWeekly,
         RouterLink,
         TranslatePipe
@@ -59,6 +62,7 @@ export class Owasp {
     private readonly documentsApi = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
     private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
 
     /**
      * Which of the two views, from the URL: the grid as it stands, or the same grid week by week.
@@ -67,6 +71,26 @@ export class Owasp {
      */
     private readonly params = toSignal(this.route.queryParamMap);
     readonly weekly = computed(() => this.params()?.get('view') === 'weekly');
+
+    /**
+     * The project or solution both views are read over, from the same two parameters: switching views
+     * keeps it, and a link to either reproduces it. Compared by value, so that a navigation which does
+     * not move the scope — the weekly view picking a week — does not read the grid again.
+     */
+    readonly scope = computed<OwaspScope>(
+        () => {
+            const params = this.params();
+            return params ? readScope(params) : null;
+        },
+        { equal: sameScope }
+    );
+    readonly currentParams = computed<Params>(() => scopeParams(this.scope()));
+    readonly weeklyParams = computed<Params>(() => ({ view: 'weekly', ...scopeParams(this.scope()) }));
+
+    /** The current view's scope, into its URL; the grid reads it back from there. */
+    scopeChanged(scope: OwaspScope): void {
+        void this.router.navigate([], { relativeTo: this.route, queryParams: scopeParams(scope), replaceUrl: true });
+    }
 
     selected: number | null = null;
 

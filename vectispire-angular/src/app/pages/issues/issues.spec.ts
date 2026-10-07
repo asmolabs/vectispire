@@ -938,6 +938,27 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         );
     });
 
+    /**
+     * A category with no date is the current grid's link, and the grid is where it goes back to: the
+     * banner used to say "from the weekly OWASP view" and offer a way back to a view never opened.
+     */
+    it('names the current grid as the origin of a dateless category, and goes back to it in its scope', async () => {
+        const params = await open('/issues?owasp_category=A06&unsettled=true&project_id=12', 4);
+        expect(params.get('owasp_category')).toBe('A06');
+        expect(params.get('unsettled')).toBe('true');
+        expect(params.get('project_id')).toBe('12');
+        expect(params.get('state')).toBe('open');
+        const banner = page().querySelector('[data-testid="weekly-banner"]')!;
+        expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues placed in A06 — from the OWASP grid'
+        );
+        const back = banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!;
+        expect(back.textContent?.trim()).toBe('Back to the OWASP grid');
+        const address = new URL(back.href);
+        expect(address.pathname).toBe('/owasp');
+        expect(Object.fromEntries(address.searchParams)).toEqual({ project_id: '12' });
+    });
+
     it('asks a reopened bar its recorded reopenings over every state, and its way back is the week', async () => {
         const week = threeWeeks().weeks[2];
         const params = await open(url(reopenedLink(week, 'A06', null)!), 2);

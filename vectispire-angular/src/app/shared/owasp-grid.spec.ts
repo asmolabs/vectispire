@@ -168,7 +168,8 @@ describe('la grille OWASP', () => {
             ],
             covered: 0,
             withFindings: 0,
-            unmeasured: 0
+            unmeasured: 0,
+            scope: null
         };
         asSchema('DeclaredGrid', declared);
 

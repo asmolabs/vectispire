@@ -7,6 +7,7 @@ import type {
     OwaspWeeklyQuery
 } from '@/app/core/api.models';
 import type { I18nService } from '@/app/core/i18n/i18n.service';
+import { OwaspScope, readScope, scopeParams, scopeQuery } from './owasp-scope';
 
 /**
  * The weekly OWASP view's rules, apart from any screen.
@@ -27,7 +28,8 @@ export type WindowSize = (typeof WINDOW_SIZES)[number];
 export const DEFAULT_WINDOW: WindowSize = 12;
 export const MAX_WEEKS = 52;
 
-export type WeeklyScope = { kind: 'project' | 'solution'; id: number } | null;
+/** The scope both OWASP views share — see `owasp-scope.ts`. */
+export type WeeklyScope = OwaspScope;
 
 export type WeeklyWindow = { kind: 'last'; weeks: WindowSize } | { kind: 'range'; from: string; to: string };
 
@@ -90,12 +92,6 @@ function weeksBetween(from: string, to: string): number {
     return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / (7 * 86_400_000));
 }
 
-function idOf(value: string | null): number | null {
-    if (value === null || !/^\d+$/.test(value)) return null;
-    const id = Number(value);
-    return id > 0 ? id : null;
-}
-
 /**
  * The view from its URL.
  *
@@ -104,15 +100,7 @@ function idOf(value: string | null): number | null {
  * year that starts with it.
  */
 export function readView(params: { get(name: string): string | null }, now: Date): WeeklyView {
-    const projectId = idOf(params.get('project_id'));
-    const solutionId = idOf(params.get('solution_id'));
-    // The server refuses both; a link carrying both keeps the narrower one.
-    const scope: WeeklyScope =
-        projectId !== null
-            ? { kind: 'project', id: projectId }
-            : solutionId !== null
-              ? { kind: 'solution', id: solutionId }
-              : null;
+    const scope = readScope(params);
 
     const picked = isoDay(params.get('week'));
     const week = picked === null ? null : mondayOf(picked);
@@ -145,7 +133,7 @@ export function viewParams(view: WeeklyView): Params {
     } else if (view.window.weeks !== DEFAULT_WINDOW) {
         params['weeks'] = String(view.window.weeks);
     }
-    if (view.scope) params[`${view.scope.kind}_id`] = String(view.scope.id);
+    Object.assign(params, scopeParams(view.scope));
     if (view.week) params['week'] = view.week;
     return params;
 }
@@ -156,9 +144,7 @@ export function queryOf(view: WeeklyView, now: Date): OwaspWeeklyQuery {
         view.window.kind === 'range'
             ? { from: view.window.from, to: view.window.to }
             : { from: addDays(currentMonday(now), -7 * (view.window.weeks - 1)) };
-    if (view.scope?.kind === 'project') query.project_id = view.scope.id;
-    if (view.scope?.kind === 'solution') query.solution_id = view.scope.id;
-    return query;
+    return { ...query, ...scopeQuery(view.scope) };
 }
 
 /**
@@ -287,8 +273,7 @@ export function stateLabel(i18n: I18nService, state: OwaspState | null, reconstr
 export type CategoryOrTotal = string | null;
 
 function scoped(params: Params, scope: WeeklyScope): Params {
-    if (scope) params[`${scope.kind}_id`] = String(scope.id);
-    return params;
+    return { ...params, ...scopeParams(scope) };
 }
 
 function filterOf(category: CategoryOrTotal): string {

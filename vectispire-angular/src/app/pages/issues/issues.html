@@ -122,7 +122,8 @@
             <i class="pi pi-calendar text-primary" aria-hidden="true"></i>
             <div class="flex-1">
                 <div class="font-medium" data-testid="weekly-banner-text">
-                    {{ banner }} — {{ 'issues.weekly.origin' | translate }}
+                    {{ banner }} —
+                    {{ fromGrid() ? ('issues.weekly.origin_grid' | translate) : ('issues.weekly.origin' | translate) }}
                 </div>
                 <div class="text-sm text-muted-color">
                     {{ pageLabel() }}
@@ -137,7 +138,7 @@
                     [queryParams]="weeklyBack()"
                     class="p-button p-button-sm p-button-text no-underline"
                     data-testid="weekly-back"
-                    >{{ 'issues.weekly.back' | translate }}</a
+                    >{{ fromGrid() ? ('issues.weekly.back_grid' | translate) : ('issues.weekly.back' | translate) }}</a
                 >
                 <p-button
                     [label]="'issues.weekly.clear' | translate"
