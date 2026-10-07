@@ -95,6 +95,10 @@ class RouteScopingTest {
             Map.entry("PluginsController#list", "the plugin registry, platform configuration naming no target"),
             Map.entry("PluginsController#get", "one plugin's definition, platform configuration naming no target"),
 
+            // Which outside systems the installation may talk to (decision 0040): seventeen switches, the
+            // same for every reader; who flipped one is withheld from those who do not read governance.
+            Map.entry("IntegrationsController#list", "the integrations' registry, platform configuration naming no target"),
+
             // The JSON Schema a report plugin's author writes against (decision 0035 §1): a file shipped
             // with the build, the same for every reader. The export itself resolves an allowance.
             Map.entry("ProjectExportController#schema", "the export's published schema, a file of the build naming no target"),

@@ -70,7 +70,9 @@ class EntityViewsTest {
                 Arguments.of(com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity.class,
                         com.asmolabs.vectispire.core.checklists.ChecklistItemView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementEntity.class,
-                        com.asmolabs.vectispire.core.checklists.ChecklistMeasurementView.class, Set.of()));
+                        com.asmolabs.vectispire.core.checklists.ChecklistMeasurementView.class, Set.of()),
+                Arguments.of(com.asmolabs.vectispire.core.settings.persistence.IntegrationEntity.class,
+                        com.asmolabs.vectispire.core.settings.IntegrationView.class, Set.of("family", "name")));
     }
 
     /**

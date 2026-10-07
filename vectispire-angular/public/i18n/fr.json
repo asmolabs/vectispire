@@ -452,7 +452,8 @@
       "report_produced": "Rapport produit",
       "report_failed": "Exécution de rapport en échec",
       "report_refused": "Plugin de rapport ou sa sortie refusés",
-      "report_downloaded": "Rapport téléchargé"
+      "report_downloaded": "Rapport téléchargé",
+      "integration_enabled_changed": "Intégration activée ou désactivée"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",

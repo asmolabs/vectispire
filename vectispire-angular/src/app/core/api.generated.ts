@@ -427,7 +427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_22"];
+        get: operations["list_23"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1711,7 +1711,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_21"];
+        get: operations["list_22"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1861,6 +1861,46 @@ export interface paths {
         };
         get: operations["pdf_2"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List integrations
+         * @description Every integration this version knows — forge kinds, SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor has switched it; updatedBy is null too for a reader who does not read governance.
+         */
+        get: operations["list_21"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{key}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable integration
+         * @description Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.
+         */
+        put: operations["setEnabled_3"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6419,6 +6459,18 @@ export interface components {
             /** Format: int32 */
             triagedIssues: number;
         };
+        IntegrationEnabled: {
+            enabled?: boolean;
+        };
+        IntegrationView: {
+            enabled: boolean;
+            family?: string;
+            key?: string;
+            name?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            updatedBy?: string;
+        };
         Invocation: {
             branch?: string;
             commitSha?: string;
@@ -9536,7 +9588,7 @@ export interface operations {
             };
         };
     };
-    list_22: {
+    list_23: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -11312,7 +11364,7 @@ export interface operations {
             };
         };
     };
-    list_21: {
+    list_22: {
         parameters: {
             query?: never;
             header?: never;
@@ -11575,6 +11627,52 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": string;
+                };
+            };
+        };
+    };
+    list_21: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IntegrationView"][];
+                };
+            };
+        };
+    };
+    setEnabled_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["IntegrationEnabled"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IntegrationView"];
                 };
             };
         };

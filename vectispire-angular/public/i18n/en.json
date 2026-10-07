@@ -452,7 +452,8 @@
       "report_produced": "Report produced",
       "report_failed": "Report run failed",
       "report_refused": "Report plugin or its output refused",
-      "report_downloaded": "Report downloaded"
+      "report_downloaded": "Report downloaded",
+      "integration_enabled_changed": "Integration enabled or disabled"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

@@ -139,6 +139,9 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SEALING_KEY_ACCEPTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.GATE_POLICY_UPDATED))
                 .contains(SecurityEventType.SECURITY_SETTING_CHANGED);
+        // An integration switched either way changes what the installation may reach (decision 0040 §4).
+        assertThat(SecurityEventType.signalledBy(AuditOperation.INTEGRATION_ENABLED_CHANGED))
+                .contains(SecurityEventType.SECURITY_SETTING_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_REGISTERED)).contains(SecurityEventType.PLUGIN_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_ACTIVATED)).contains(SecurityEventType.PLUGIN_CHANGED);
         // Running a plugin nobody vouched for is a change to what reads the source, like the others.

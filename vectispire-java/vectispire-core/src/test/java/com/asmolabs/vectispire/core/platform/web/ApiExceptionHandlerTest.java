@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
+import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.core.checklists.ChecklistConflict;
 import java.net.URI;
 import java.util.List;
@@ -61,6 +64,16 @@ class ApiExceptionHandlerTest {
         ProblemDetail plain = handler.conflict(new ConflictException("Already there."));
         assertThat(plain.getType()).isNull();
         assertThat(plain.getStatus()).isEqualTo(409);
+    }
+
+    @Test
+    @DisplayName("a disabled integration answers 409 integration-disabled, naming it in the member integration")
+    void aDisabledIntegrationIsTypedAndNamed() {
+        ProblemDetail problem = handler.conflict(new IntegrationDisabledException(Integration.of(SiemProtocol.SYSLOG_UDP)));
+        assertThat(problem.getStatus()).isEqualTo(409);
+        assertThat(problem.getType()).isEqualTo(URI.create("urn:vectispire:problem:integration-disabled"));
+        assertThat(problem.getProperties()).containsEntry("integration", "siem.syslog_udp");
+        assertThat(problem.getDetail()).contains("\"siem.syslog_udp\" is disabled");
     }
 
     @Test

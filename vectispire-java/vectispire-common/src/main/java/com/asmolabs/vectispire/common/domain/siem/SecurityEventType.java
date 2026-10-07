@@ -87,7 +87,10 @@ public enum SecurityEventType {
     /** The audit log's hash chain, or its mirror, no longer agrees with itself. */
     AUDIT_CHAIN_BROKEN("VECTI-SEC-018", "Audit log integrity verification failed", 10, Outcome.FAILURE),
 
-    /** A setting that governs security changed: SIEM export, four-eyes, visibility, a gate policy, a credential. */
+    /**
+     * A setting that governs security changed: SIEM export, four-eyes, visibility, a gate policy, a credential,
+     * an integration switched on or off.
+     */
     SECURITY_SETTING_CHANGED("VECTI-SEC-019", "Security-relevant setting changed", 6, Outcome.SUCCESS),
 
     /**
@@ -335,6 +338,9 @@ public enum SecurityEventType {
             case AGENT_RESULT_REFUSED -> Optional.of(AGENT_RESULT_REFUSED);
             case AGENT_SEALING_KEY_REFUSED -> Optional.of(AGENT_SEALING_KEY_REFUSED);
             case GATE_POLICY_UPDATED -> Optional.of(SECURITY_SETTING_CHANGED);
+            // What the installation may reach widened or narrowed (decision 0040 §4): a security setting
+            // change, either way — a disabled SIEM transport is a SOC's own feed being cut.
+            case INTEGRATION_ENABLED_CHANGED -> Optional.of(SECURITY_SETTING_CHANGED);
             case PLUGIN_REGISTERED, PLUGIN_UPDATED, PLUGIN_ENABLED_CHANGED, PLUGIN_ACTIVATED, PLUGIN_DEACTIVATED,
                     PLUGIN_SIGNATURE_WAIVED, PLUGIN_SIGNATURE_WAIVER_REVOKED -> Optional.of(PLUGIN_CHANGED);
             case SARIF_SOURCE_CHANGED -> Optional.of(SARIF_SOURCE_CHANGED);

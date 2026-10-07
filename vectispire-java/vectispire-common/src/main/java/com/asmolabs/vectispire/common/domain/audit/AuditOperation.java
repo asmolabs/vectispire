@@ -515,7 +515,15 @@ public enum AuditOperation {
      * A produced report's package — the document, its signature and its provenance — was downloaded (decision 0035
      * §4). The entry names the run, the output's and the package's SHA-256.
      */
-    REPORT_DOWNLOADED;
+    REPORT_DOWNLOADED,
+
+    /**
+     * The platform governor switched an integration on or off (decision 0040): a forge kind, a SIEM
+     * transport, an AI provider, a notification channel or a tracker. The resource is the integration's
+     * key; the entry says which way. Its own operation rather than {@code SETTING_UPDATED}, so an auditor
+     * finds what the installation was allowed to reach, and when, without reading every settings change.
+     */
+    INTEGRATION_ENABLED_CHANGED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

@@ -187,7 +187,7 @@ change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in
 | `VECTI-SEC-016` | Four-eyes triage request approved | 5 | a second person settles a pending request |
 | `VECTI-SEC-017` | Four-eyes triage request refused | 4 | a pending request is sent back |
 | `VECTI-SEC-018` | Audit log integrity verification failed | 10 | a verification finds the hash chain broken or entries missing from the table |
-| `VECTI-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes |
+| `VECTI-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes, or the platform governor switches an integration on or off (`INTEGRATION_ENABLED_CHANGED`) |
 | `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | an agent's sealing key announcement is refused: its signature does not verify against the pinned signing key, or it is older than the key already accepted; no credential is sealed for it |
 | `VECTI-SEC-021` | Analysis plugin registered, changed or activated | 6 | a plugin is registered, updated, enabled or disabled by the platform governor, allowed to run unsigned or no longer, or switched on or off for a project — third-party code gains or loses read access to some of the source |
 | `VECTI-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |

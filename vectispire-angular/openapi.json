@@ -5249,6 +5249,39 @@
         "required" : [ "matchedIssues", "statementsProcessed", "triagedIssues" ],
         "type" : "object"
       },
+      "IntegrationEnabled" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "IntegrationView" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "family" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "enabled" ],
+        "type" : "object"
+      },
       "Invocation" : {
         "properties" : {
           "branch" : {
@@ -12537,7 +12570,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_22",
+        "operationId" : "list_23",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -14970,7 +15003,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_21",
+        "operationId" : "list_22",
         "responses" : {
           "200" : {
             "content" : {
@@ -15298,6 +15331,66 @@
           }
         },
         "tags" : [ "history-controller" ]
+      }
+    },
+    "/api/v1/integrations" : {
+      "get" : {
+        "description" : "Every integration this version knows — forge kinds, SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor has switched it; updatedBy is null too for a reader who does not read governance.",
+        "operationId" : "list_21",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/IntegrationView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List integrations",
+        "tags" : [ "Integrations" ]
+      }
+    },
+    "/api/v1/integrations/{key}/enabled" : {
+      "put" : {
+        "description" : "Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.",
+        "operationId" : "setEnabled_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IntegrationEnabled"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/IntegrationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Enable or disable integration",
+        "tags" : [ "Integrations" ]
       }
     },
     "/api/v1/inventory/search" : {
@@ -21738,6 +21831,9 @@
   }, {
     "description" : "The register of risk acceptances and dismissals",
     "name" : "Exceptions"
+  }, {
+    "description" : "The outside systems this installation may talk to, switched on and off",
+    "name" : "Integrations"
   }, {
     "description" : "Security scan lifecycle, pipeline execution and status reporting",
     "name" : "Scans"

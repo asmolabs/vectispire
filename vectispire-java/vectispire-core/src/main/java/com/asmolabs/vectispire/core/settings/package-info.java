@@ -1,7 +1,7 @@
 /**
- * The deployment's configuration: {@code SettingsService}, the first-install defaults, and what
- * Vectispire says about itself ({@code ProductVersion}, {@code ExportProperties}, {@code
- * BrandingProperties}).
+ * The deployment's configuration: {@code SettingsService}, the first-install defaults, the integrations'
+ * registry ({@code Integrations}, decision 0040), and what Vectispire says about itself ({@code
+ * ProductVersion}, {@code ExportProperties}, {@code BrandingProperties}).
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
  * ModularityTest}, decision 0030): a dependency on a module, or on a named interface ({@code

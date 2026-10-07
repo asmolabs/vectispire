@@ -34,7 +34,10 @@ class TableEmptyingTest extends VectispireContextTest {
             "flyway_schema_history", "Flyway's own record: emptied, the next context would migrate again onto "
                     + "tables that already exist",
             "t_audit_chain_head", "the one row the migration seeds and every audit entry locks to chain onto the "
-                    + "log's head: emptied, no audit entry could be written (AuditLogService refuses without it)");
+                    + "log's head: emptied, no audit entry could be written (AuditLogService refuses without it)",
+            "t_integration", "the integrations V83 seeds enabled: emptied, every integration would read disabled — "
+                    + "a state no installation starts in — so a test that switches one puts the rows back as it "
+                    + "found them (IntegrationsRoutesTest)");
 
     @Autowired
     private JdbcTemplate jdbc;
