@@ -459,7 +459,8 @@
       "integration_token_stopped": "Integration token stopped working",
       "integration_token_restored": "Integration token working again",
       "checklist_contact_changed": "Checklist contact changed",
-      "checklist_reminder_sent": "Weekly checklist reminder sent"
+      "checklist_reminder_sent": "Weekly checklist reminder sent",
+      "integration_enabled_changed": "Integration enabled or disabled"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

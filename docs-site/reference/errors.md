@@ -20,6 +20,8 @@ document. Read `detail`: it is the sentence written for whoever made the request
 | `instance` | yes | The path that was requested. |
 | `retryAfterSeconds` | on a 429 | How long to wait. The `Retry-After` header carries the same number. |
 | `correlationId` | on a 500 | A reference to quote to your administrator; also found in `detail`. |
+| `type` | on some 409s | `urn:vectispire:problem:<cause>`, naming why — see [409 causes](#409-causes). Absent, it is `about:blank`. |
+| `integration` | with `integration-disabled` | The key of the integration that is switched off, such as `forge.gitlab`. |
 
 The content type is `application/problem+json`, including for a request the web server rejects
 before the application sees it: a URL the security firewall refuses — `//`, an encoded `..`, a
@@ -38,13 +40,24 @@ client asks for `application/problem+json` in `Accept`.
 | **403** | The credential is valid and may not do this: the role does not allow it, a password change is owed, or the key or agent credential is not accepted on this route. The detail does not name the roles that would be. |
 | **404** | The route does not exist, or what the path names does not — **or it exists and you may not see it**. The two read the same, in the same words, on purpose: a different answer would confirm that a repository, a scan or an issue you were not given exists. |
 | **405 / 406 / 415** | Wrong method, an `Accept` the route cannot answer, a body in a media type the route does not read. |
-| **409** | The request conflicts with the current state and may succeed later unchanged: a scan already queued, a solution that still holds projects, an OWASP review that cannot run yet. |
+| **409** | The request conflicts with the current state and may succeed later unchanged: a scan already queued, a solution that still holds projects, an OWASP review that cannot run yet, an integration switched off. |
 | **412** | The deployment is missing something an operator sets: the encryption key, a credential an agent cannot receive. |
 | **413** | The body is larger than the route accepts. The detail names the ceiling. |
 | **422** | A destination refused by the outbound policy. |
 | **429** | Too many attempts from this address or with this key. Wait `retryAfterSeconds`. |
 | **500** | A failure nobody wrote a sentence for. The detail says only that it happened and quotes a `correlationId`; the full error is in the control plane's log under that reference. |
 | **503** | Transient: too many sign-ins awaiting their second factor. Try again in a few minutes. |
+
+## 409 causes
+
+Where a route refuses for several reasons that call for different gestures, the problem's `type`
+names the cause, so that a client tells them apart without reading the sentence, which may change.
+Each route states its causes in the [REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md).
+One applies across routes:
+
+| `type` | When | Members |
+|---|---|---|
+| `urn:vectispire:problem:integration-disabled` | The gesture needs an integration — a forge kind, a SIEM transport, an AI provider, a notification channel, a tracker — that the platform governor has switched off under *Administration → Integrations* ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)). The same request succeeds once it is enabled again. | `integration`: its key |
 
 ## A 500 never explains itself
 

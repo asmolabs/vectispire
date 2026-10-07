@@ -459,7 +459,8 @@
       "integration_token_stopped": "Jeton d’intégration hors service",
       "integration_token_restored": "Jeton d’intégration de nouveau en service",
       "checklist_contact_changed": "Contact de checklist modifié",
-      "checklist_reminder_sent": "Rappel hebdomadaire de checklist envoyé"
+      "checklist_reminder_sent": "Rappel hebdomadaire de checklist envoyé",
+      "integration_enabled_changed": "Intégration activée ou désactivée"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",
