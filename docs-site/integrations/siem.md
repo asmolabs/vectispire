@@ -137,6 +137,32 @@ the request path: a sign-in, a scan ingest or a sync never waits on your collect
 - **Security events come from the audit log.** An event exists when its audit entry does, and carries
   the same actor, address and target.
 
+## Wazuh
+
+Wazuh reads Vectispire's events with the decoder and rules shipped in
+[`ci/siem/wazuh/`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh), checked on Wazuh 4.14 with real events sent over syslog TLS.
+
+- **Transport: Syslog TLS to an rsyslog relay on the Wazuh host.** Wazuh's own syslog listener reads
+  neither TLS nor the octet-counted framing Vectispire uses over TCP and TLS; rsyslog reads both and writes
+  one line per event to a file Wazuh follows. [`rsyslog-vectispire.conf`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/rsyslog-vectispire.conf)
+  is the relay (its certificate must name the host you type in Vectispire; pin its CA as the collector
+  CA), [`ossec-localfile.xml`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/ossec-localfile.xml) the block to add to `ossec.conf`. Syslog UDP
+  straight to Wazuh's listener also works, without encryption or delivery guarantee. The webhook does
+  not: Wazuh has no HTTP input.
+- **Decoder:** [`vectispire_decoders.xml`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/vectispire_decoders.xml) in `/var/ossec/etc/decoders/`.
+  Each event gives `vectispire.signature`, `vectispire.name`, `vectispire.severity`,
+  `vectispire.action`, `vectispire.outcome`, `vectispire.target`, `vectispire.message`, and the standard
+  `dstuser` and `srcip`.
+- **Rules:** [`vectispire_rules.xml`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/vectispire_rules.xml) in `/var/ossec/etc/rules/`, IDs
+  120100–120199. The level follows the CEF severity — 0–2 → 3, 3–4 → 5, 5–6 → 7, 7–8 → 10, 9–10 → 12 — so
+  a new event type is alerted at its weight without a rule of its own; the audit log failing its
+  integrity check (`VECTI-SEC-018`) is raised to 15, the credential throttles (`007`–`009`) are grouped
+  as `authentication_failures` with MITRE T1110, a KEV detection (`002`) as `vulnerability-detector`.
+  Correlate on `vectispire.signature`, never on the name.
+
+Check a line with `/var/ossec/bin/wazuh-logtest` before switching the export on: phase 2 lists the
+fields, phase 3 the rule and its level.
+
 ## Event catalogue
 
 The signature identifier is a contract: correlation rules are written against it, and it will not

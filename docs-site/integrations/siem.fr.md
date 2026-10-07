@@ -149,6 +149,32 @@ synchronisation n'attendent jamais votre collecteur.
 - **Les événements de sécurité viennent du journal d'audit.** Un événement existe quand son entrée
   d'audit existe, et porte le même acteur, la même adresse et la même cible.
 
+## Wazuh
+
+Wazuh lit les événements de Vectispire avec le décodeur et les règles livrés dans
+[`ci/siem/wazuh/`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh), vérifiés sur Wazuh 4.14 avec de vrais événements envoyés en syslog TLS.
+
+- **Transport : Syslog TLS vers un relais rsyslog sur l'hôte Wazuh.** L'écoute syslog de Wazuh ne lit ni
+  le TLS ni le cadrage par longueur que Vectispire utilise en TCP et TLS ; rsyslog lit les deux et écrit
+  une ligne par événement dans un fichier que Wazuh suit. [`rsyslog-vectispire.conf`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/rsyslog-vectispire.conf)
+  est le relais (son certificat doit nommer l'hôte saisi dans Vectispire ; épinglez son AC comme AC du
+  collecteur), [`ossec-localfile.xml`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/ossec-localfile.xml) le bloc à ajouter à `ossec.conf`. Le
+  syslog UDP directement vers l'écoute de Wazuh fonctionne aussi, sans chiffrement ni garantie de
+  livraison. Le webhook non : Wazuh n'a pas d'entrée HTTP.
+- **Décodeur :** [`vectispire_decoders.xml`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/vectispire_decoders.xml) dans `/var/ossec/etc/decoders/`.
+  Chaque événement donne `vectispire.signature`, `vectispire.name`, `vectispire.severity`,
+  `vectispire.action`, `vectispire.outcome`, `vectispire.target`, `vectispire.message`, et les champs
+  standard `dstuser` et `srcip`.
+- **Règles :** [`vectispire_rules.xml`](https://github.com/asmolabs/vectispire/blob/main/ci/siem/wazuh/vectispire_rules.xml) dans `/var/ossec/etc/rules/`, ID
+  120100–120199. Le niveau suit la sévérité CEF — 0–2 → 3, 3–4 → 5, 5–6 → 7, 7–8 → 10, 9–10 → 12 —, si bien
+  qu'un nouveau type d'événement est alerté à son poids sans règle propre ; l'échec du contrôle
+  d'intégrité du journal d'audit (`VECTI-SEC-018`) monte à 15, les plafonds d'identification
+  (`007`–`009`) sont groupés en `authentication_failures` avec MITRE T1110, une détection KEV (`002`) en
+  `vulnerability-detector`. Corrélez sur `vectispire.signature`, jamais sur le nom.
+
+Vérifiez une ligne avec `/var/ossec/bin/wazuh-logtest` avant d'activer l'export : la phase 2 liste les
+champs, la phase 3 la règle et son niveau.
+
 ## Catalogue des événements
 
 L'identifiant de signature est un contrat : les règles de corrélation s'écrivent dessus, et il ne

@@ -1,0 +1,57 @@
+<!--
+  Vectispire's SIEM events, as Wazuh reads them (Wazuh 4.x, PCRE2 decoders).
+
+  Vectispire sends ArcSight CEF in an RFC 5424 syslog frame whose APP-NAME is "vectispire". The rsyslog
+  relay of this directory writes each one as a line "<date> <host> vectispire: CEF:0|Vectispire|…", which
+  Wazuh's syslog pre-decoder splits: program_name "vectispire", the CEF line as the log. Install as
+  /var/ossec/etc/decoders/vectispire_decoders.xml.
+
+  Each child below adds its fields to the same event. A CEF value runs to the next " key=" — an
+  escaped "\=" inside a value is not a key — so a message with spaces is read whole.
+-->
+<decoder name="vectispire">
+  <program_name type="pcre2">^vectispire$</program_name>
+</decoder>
+
+<!-- The header: version, signature (the contract correlation rules are written against), name, severity. -->
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">^CEF:0\|Vectispire\|[^|]*\|((?:[^|\\]|\\.)*)\|(VECTI-SEC-\d+)\|((?:[^|\\]|\\.)*)\|(\d+)\|</regex>
+  <order>vectispire.version, vectispire.signature, vectispire.name, vectispire.severity</order>
+</decoder>
+
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">\bsrc=(\S+)</regex>
+  <order>srcip</order>
+</decoder>
+
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">\bsuser=(.+?)(?= [A-Za-z0-9]+=|$)</regex>
+  <order>dstuser</order>
+</decoder>
+
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">\bact=(\S+)</regex>
+  <order>vectispire.action</order>
+</decoder>
+
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">\boutcome=(\S+)</regex>
+  <order>vectispire.outcome</order>
+</decoder>
+
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">\bcs1=(.+?)(?= [A-Za-z0-9]+=|$)</regex>
+  <order>vectispire.target</order>
+</decoder>
+
+<decoder name="vectispire-fields">
+  <parent>vectispire</parent>
+  <regex type="pcre2">\bmsg=(.+?)(?= [A-Za-z0-9]+=|$)</regex>
+  <order>vectispire.message</order>
+</decoder>
