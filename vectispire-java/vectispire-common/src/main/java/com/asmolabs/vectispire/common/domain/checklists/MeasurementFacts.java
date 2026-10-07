@@ -294,7 +294,21 @@ public record MeasurementFacts(
      * it is linked to a forge's project at all, whether that forge could be read with the connection's token,
      * and, when it could, what it said.
      */
-    public sealed interface ReviewFacts permits ReviewUnlinked, ReviewUnreadable, ReviewRead {}
+    public sealed interface ReviewFacts permits ReviewSuspended, ReviewUnlinked, ReviewUnreadable, ReviewRead {}
+
+    /**
+     * The repository's forge connection is suspended — its forge's integration disabled (decision 0040 §2): whatever
+     * was read before the switch is not judged, and nothing is read since.
+     *
+     * @param look the newest reading, for its date; empty when the repository was never read
+     */
+    public record ReviewSuspended(Optional<Look> look, String why) implements ReviewFacts {
+
+        public ReviewSuspended {
+            Objects.requireNonNull(look, "look");
+            Objects.requireNonNull(why, "why");
+        }
+    }
 
     /**
      * No forge connection imported the repository and no discovered repository has its URL: nothing to ask.

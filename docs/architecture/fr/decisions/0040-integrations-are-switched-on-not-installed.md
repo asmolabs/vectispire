@@ -84,7 +84,7 @@ veut Ollama et jamais OpenAI, Teams et jamais Discord, le dit une fois.
 
 | Lot | Contenu | Taille |
 |---|---|---|
-| I1 | Le registre, son réglage, la route du gouverneur et l'audit ; 409 sur les routes d'une intégration désactivée | M |
+| I1 | Le registre dans une table à lui (`t_integration`, pas un réglage : un réglage ne garde ni qui l'a basculé ni quand), la route du gouverneur et l'audit ; 409 sur les routes d'une intégration désactivée | M |
 | I2 | Connexions forge : l'état suspendu, découverte et lecture des relectures sautées avec leur raison | M |
 | I3 | SIEM : les transports dans le registre, le refus d'un transport en service | S |
 | I4 | L'écran *Administration → Intégrations*, les formulaires filtrés ; la documentation en anglais et en français | M |

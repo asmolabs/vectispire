@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.checklists.ChangeReviewDemand;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.forges.internal.ForgeClient;
+import com.asmolabs.vectispire.core.forges.internal.ForgeIntegrations;
 import com.asmolabs.vectispire.core.forges.internal.ForgeTargets;
 import com.asmolabs.vectispire.core.forges.internal.ReviewBounds;
 import com.asmolabs.vectispire.core.forges.internal.ReviewReader;
@@ -33,6 +34,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -71,6 +73,13 @@ import org.springframework.stereotype.Service;
  * <p><b>A reading that did not happen leaves the previous one.</b> A rate limit longer than a minute, the reading's
  * deadline, a forge that does not answer: the claim is let go and the stored reading stands until it is stale, when
  * the line says so. A refusal is a reading — the forge said no — and is written as one.
+ *
+ * <p><b>A suspended connection is not read</b> (decision 0040 §2). When the integration of the connection's forge is
+ * disabled, nothing is sent to it: the claim is let go with the link noted on the row — so that the checklists' port
+ * can tell a repository never read because its forge is off from one never read yet — and the stored reading,
+ * whatever it said, is kept for the day the forge is switched back on. The turn says so once, with how many readings
+ * it left, not once per repository. The line reads no data, {@code forge_integration_disabled}: {@code
+ * ForgeChangeReviews} asks the registry at every read, so a reading that passed before the switch does not pass now.
  */
 @Service
 public class ForgeReviewService {
@@ -91,6 +100,7 @@ public class ForgeReviewService {
     private final EncryptionService encryption;
     private final OutboundJson outbound;
     private final Map<ForgeKind, ReviewReader> readers = new EnumMap<>(ForgeKind.class);
+    private final ForgeIntegrations integrations;
     private final ReviewBounds bounds;
     private final Clock clock;
 
@@ -104,6 +114,7 @@ public class ForgeReviewService {
             EncryptionService encryption,
             OutboundJson outbound,
             List<ReviewReader> readers,
+            ForgeIntegrations integrations,
             ReviewBounds bounds,
             Clock clock) {
         this.demand = demand;
@@ -115,12 +126,23 @@ public class ForgeReviewService {
         this.encryption = encryption;
         this.outbound = outbound;
         readers.forEach(reader -> this.readers.put(reader.kind(), reader));
+        this.integrations = integrations;
         this.bounds = bounds;
         this.clock = clock;
     }
 
     /** Where a target's forge project is: the connection and the forge's own id. */
     record Link(UUID connectionId, String forgeId) {}
+
+    /** What became of one claimed reading. */
+    private enum Outcome {
+        /** Read, or found unreadable or unlinked, and written. */
+        WRITTEN,
+        /** Nothing read — a rate limit, a deadline, a forge that did not answer: the previous reading stands. */
+        LET_GO,
+        /** The connection is suspended, its forge switched off: nothing sent, the previous reading kept. */
+        SUSPENDED
+    }
 
     /**
      * One turn: the readings no line asks for deleted, then every due reading read, up to the turn's bounds.
@@ -137,7 +159,10 @@ public class ForgeReviewService {
         }
         // Only once a reading is due: matching by URL walks every snapshot, and most turns read nothing.
         Map<Long, Link> linked = null;
+        // The forges found switched off: named once, at the turn's end.
+        Set<ForgeKind> suspended = EnumSet.noneOf(ForgeKind.class);
         int written = 0;
+        int skipped = 0;
         for (ChangeReviewDemand.Wanted want : wanted) {
             Instant now = clock.instant();
             if (written >= bounds.maxReadings() || !now.isBefore(turnEnds)) {
@@ -152,9 +177,17 @@ public class ForgeReviewService {
             if (linked == null) {
                 linked = links(wanted.stream().map(ChangeReviewDemand.Wanted::repositoryId).distinct().toList());
             }
-            if (read(claimed.get(), want, Optional.ofNullable(linked.get(want.repositoryId())), turnEnds)) {
-                written++;
+            switch (read(claimed.get(), want, Optional.ofNullable(linked.get(want.repositoryId())), suspended,
+                    turnEnds)) {
+                case WRITTEN -> written++;
+                case SUSPENDED -> skipped++;
+                case LET_GO -> { }
             }
+        }
+        if (skipped > 0) {
+            log.info("Change-review readings: {} not taken, the {} integration(s) disabled; their connections are "
+                    + "suspended and their lines read no data until a governor re-enables them.", skipped,
+                    ForgeIntegrations.keys(suspended));
         }
         return written;
     }
@@ -236,25 +269,32 @@ public class ForgeReviewService {
 
     // ------------------------------------------------------------------ one reading
 
-    /** Reads one claimed row and writes what was read; false when nothing was, and the claim was let go. */
-    private boolean read(ForgeReviewReadingEntity row, ChangeReviewDemand.Wanted want, Optional<Link> link,
-            Instant turnEnds) {
+    /** Reads one claimed row and writes what was read, or lets the claim go. */
+    private Outcome read(ForgeReviewReadingEntity row, ChangeReviewDemand.Wanted want, Optional<Link> link,
+            Set<ForgeKind> suspended, Instant turnEnds) {
         Instant now = clock.instant();
         if (link.isEmpty()) {
             write(row, want, now, Optional.empty(), ReviewState.UNLINKED, UNLINKED, null);
-            return true;
+            return Outcome.WRITTEN;
         }
         Optional<ForgeConnectionEntity> connection = connections.findById(link.get().connectionId());
         if (connection.isEmpty()) {
             write(row, want, now, Optional.empty(), ReviewState.UNLINKED, UNLINKED, null);
-            return true;
+            return Outcome.WRITTEN;
         }
         ForgeKind kind = ForgeKind.parse(connection.get().getKind());
+        // Before the reader is picked and the token decrypted: a disabled forge is handed nothing (decision 0040 §1).
+        // Asked per reading, not once per turn: a turn lasts minutes, and a switch made during it holds at once.
+        if (!integrations.enabled(kind)) {
+            suspended.add(kind);
+            suspend(row, link.get());
+            return Outcome.SUSPENDED;
+        }
         ReviewReader reader = readers.get(kind);
         if (reader == null) {
             write(row, want, now, link, ReviewState.UNREADABLE, "this version does not read change reviews from "
                     + kind.wireName() + " connections", null);
-            return true;
+            return Outcome.WRITTEN;
         }
         Optional<PinnedCa> ca;
         try {
@@ -262,14 +302,14 @@ public class ForgeReviewService {
         } catch (InvalidInputException unusable) {
             write(row, want, now, link, ReviewState.UNREADABLE, unusable.getMessage() + " Replace the CA on the connection.",
                     null);
-            return true;
+            return Outcome.WRITTEN;
         }
         SecretCipher.Decrypted sealed = encryption.inspect(connection.get().getToken(),
                 SecretCipher.forgeConnectionContext(link.get().connectionId().toString()));
         if (sealed.state() == SecretCipher.SecretState.UNREADABLE) {
             write(row, want, now, link, ReviewState.UNREADABLE, "the connection's token can no longer be decrypted by "
                     + "any configured key: replace it on the connection", null);
-            return true;
+            return Outcome.WRITTEN;
         }
         ForgeClient.Target target = ForgeTargets.of(connection.get(), connection.get().isInternalNetwork(), ca);
         Instant deadline = now.plus(bounds.readingDuration());
@@ -283,25 +323,37 @@ public class ForgeReviewService {
                     now.minus(Duration.ofDays(want.windowDays())), want.windowDays(), bounds.maxChanges());
         } catch (UnsafeUrlException | OutboundPager.CrossOriginPageException refused) {
             write(row, want, now, link, ReviewState.UNREADABLE, refused.getMessage(), null);
-            return true;
+            return Outcome.WRITTEN;
         } catch (OutboundPager.RateLimitedException | OutboundPager.DeadlineReachedException
                 | OutboundJson.OutboundFailureException transientFailure) {
             log.warn("Change-review reading of repository {} did not happen ({}); the previous one stands.",
                     want.repositoryId(), transientFailure.getMessage());
             readings.release(row.getId());
-            return false;
+            return Outcome.LET_GO;
         } catch (RuntimeException unforeseen) {
             log.error("Change-review reading of repository {} failed unexpectedly: {}", want.repositoryId(),
                     unforeseen.getMessage(), unforeseen);
             readings.release(row.getId());
-            return false;
+            return Outcome.LET_GO;
         }
         switch (reading) {
             case ReviewReader.Reading.Read read -> write(row, want, now, link, ReviewState.READ, null, read.evidence());
             case ReviewReader.Reading.Unreadable unreadable -> write(row, want, now, link, ReviewState.UNREADABLE,
                     unreadable.why(), null);
         }
-        return true;
+        return Outcome.WRITTEN;
+    }
+
+    /**
+     * Lets the claim go and notes the link, leaving the state, the date and the evidence as they were: the checklists'
+     * port reads the connection off the row to say the line has no data because its forge is off, and the reading kept
+     * is judged again once the forge is back — fresh enough or not, by its own date.
+     */
+    private void suspend(ForgeReviewReadingEntity row, Link link) {
+        row.setConnectionId(link.connectionId());
+        row.setForgeId(link.forgeId());
+        row.setClaimedUntil(null);
+        readings.saveAndFlush(row);
     }
 
     private void write(ForgeReviewReadingEntity row, ChangeReviewDemand.Wanted want, Instant at, Optional<Link> link,

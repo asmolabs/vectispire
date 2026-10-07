@@ -78,7 +78,7 @@ OpenAI, Teams and never Discord, says so once.
 
 | Lot | Content | Size |
 |---|---|---|
-| I1 | The registry, its setting, the governor's route and audit; 409 on the routes of a disabled integration | M |
+| I1 | The registry in a table of its own (`t_integration`, not a setting: a setting records neither who switched it nor when), the governor's route and audit; 409 on the routes of a disabled integration | M |
 | I2 | Forge connections: suspended state, discovery and change review skipped with their reason | M |
 | I3 | SIEM: transports in the registry, the in-use refusal | S |
 | I4 | *Administration → Integrations* screen, forms filtered; documentation in English and French | M |
