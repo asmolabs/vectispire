@@ -2117,7 +2117,7 @@ export interface paths {
         };
         /**
          * OWASP Top 10 coverage
-         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here.
+         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.
          */
         get: operations["grid"];
         put?: never;
@@ -5701,6 +5701,7 @@ export interface components {
             /** Format: int32 */
             covered: number;
             lines?: components["schemas"]["DeclaredCoverageLine"][];
+            scope?: components["schemas"]["OwaspWeeklyScope"];
             /** Format: int32 */
             unmeasured: number;
             /** Format: int32 */
@@ -11991,7 +11992,10 @@ export interface operations {
     };
     grid: {
         parameters: {
-            query?: never;
+            query?: {
+                project_id?: number;
+                solution_id?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;

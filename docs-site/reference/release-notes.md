@@ -535,6 +535,14 @@ another branch, is another target and is accepted as before.
   back in the week — what makes open rise with no opened figure to match. **It is `null`, not zero, on a
   week that began before reopenings were recorded** (dated by V68's application, a day's margin aside);
   `reopenedRecordedFrom` names the first week that has it.
+- **The live OWASP grid takes a project or a solution too: `GET /api/v1/owasp/coverage?project_id=…` or
+  `?solution_id=…`**, with the weekly view's rules — both at once answer 400, a scope that does not exist
+  and one the caller sees nothing of answer 404 in the same words, and one seen in part is computed over
+  the targets they see. Every figure is narrowed to the scope, whether anything was scanned included: a
+  project nothing has scanned reads *not measured*, however covered the rest of the estate is. The
+  response gains `scope` (`kind`, `id`, `name`, `partial`, `targetCount`, `null` without one); the
+  category declarations are the category's, whatever the scope. Without a parameter the grid is
+  unchanged.
 - **New backlog filters for that view's figures**: `owasp_category` (`A01`…`A10`, placed as the grid
   places issues — a vulnerability is `A06`), `open_at` (open at the end of that day, UTC) and
   `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` and the resolved range

@@ -104,15 +104,36 @@ public class OwaspCoverageController {
         }
     }
 
-    /** @param lines the grid in the standard's order, each row with its declaration if it has one */
-    public record DeclaredGrid(List<DeclaredCoverageLine> lines, int covered, int withFindings, int unmeasured) {}
+    /**
+     * @param lines the grid in the standard's order, each row with its declaration if it has one
+     * @param scope the project or solution the grid was computed over, as the weekly route states it;
+     *     null for the reader's estate. The declarations are the category's, whatever the scope
+     */
+    public record DeclaredGrid(
+            List<DeclaredCoverageLine> lines,
+            int covered,
+            int withFindings,
+            int unmeasured,
+            OwaspWeeklyHistoryService.OwaspWeeklyScope scope) {}
 
-    @Operation(summary = "OWASP Top 10 coverage", description = "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here.")
+    /**
+     * The grid, over the reader's estate or one project or solution of it. The scope's rules, the
+     * refusals included, are the weekly route's — one resolver serves both.
+     */
+    @Operation(summary = "OWASP Top 10 coverage", description = "Each category's state — findings, nothing found, "
+            + "unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, "
+            + "whether anything was scanned, the code findings by category — to the scope's targets the caller sees; "
+            + "both answer 400. A project or a solution that does not exist and one the caller sees nothing of both "
+            + "answer 404; one seen in part is computed over its visible targets and says partial. The declarations "
+            + "are per category and do not depend on the scope.")
     @ApiResponse(responseCode = "200", description = "Grid returned")
     @GetMapping
-    public DeclaredGrid grid(@AuthenticationPrincipal VectispirePrincipal principal) {
-        OwaspCoverage.Grid grid = coverage.grid(
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    public DeclaredGrid grid(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestParam(name = "project_id", required = false) Long projectId,
+            @RequestParam(name = "solution_id", required = false) Long solutionId) {
+        OwaspCoverageService.ScopedGrid scoped = coverage.grid(projectId, solutionId, allowanceOf(principal));
+        OwaspCoverage.Grid grid = scoped.grid();
 
         Map<String, Declaration> byCategory = declarations.declarations(FRAMEWORK).stream()
                 .collect(Collectors.toMap(Declaration::controlId, Function.identity()));
@@ -123,7 +144,8 @@ public class OwaspCoverageController {
                         .toList(),
                 grid.covered(),
                 grid.withFindings(),
-                grid.unmeasured());
+                grid.unmeasured(),
+                scoped.scope());
     }
 
     /**

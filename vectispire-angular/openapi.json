@@ -3290,6 +3290,9 @@
             },
             "type" : "array"
           },
+          "scope" : {
+            "$ref" : "#/components/schemas/OwaspWeeklyScope"
+          },
           "unmeasured" : {
             "format" : "int32",
             "type" : "integer"
@@ -15981,8 +15984,25 @@
     },
     "/api/v1/owasp/coverage" : {
       "get" : {
-        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here.",
+        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.",
         "operationId" : "grid",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "project_id",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "solution_id",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {

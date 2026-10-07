@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.core.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.owasp.CoverageWeek;
@@ -13,7 +12,6 @@ import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.ReopeningsRecord;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
-import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -73,7 +71,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <h2>Who sees what</h2>
  *
  * <p>The reader's visibility, intersected with the scope; a project or a solution the reader sees
- * nothing of answers 404 in the words one that does not exist answers ({@code SolutionQueryService}). A
+ * nothing of answers 404 in the words one that does not exist answers ({@link OwaspScopes}, which the live
+ * grid shares). A
  * restricted reader gets the sum of their targets and of no others, on both sources.
  */
 @Service
@@ -88,19 +87,19 @@ public class OwaspWeeklyHistoryService {
     private final OwaspWeeklyCoverageRepository records;
     private final IssueCatalog issues;
     private final ReopeningsRecord reopenings;
-    private final SolutionQueryService solutions;
+    private final OwaspScopes scopes;
     private final Clock clock;
 
     public OwaspWeeklyHistoryService(
             OwaspWeeklyCoverageRepository records,
             IssueCatalog issues,
             ReopeningsRecord reopenings,
-            SolutionQueryService solutions,
+            OwaspScopes scopes,
             Clock clock) {
         this.records = records;
         this.issues = issues;
         this.reopenings = reopenings;
-        this.solutions = solutions;
+        this.scopes = scopes;
         this.clock = clock;
     }
 
@@ -195,15 +194,11 @@ public class OwaspWeeklyHistoryService {
      */
     @Transactional(readOnly = true)
     public OwaspWeeklyCoverage weeks(Request request, VisibilityService.Allowance allowance) {
-        if (request.projectId() != null && request.solutionId() != null) {
-            throw new InvalidInputException("Name a project or a solution, not both.");
-        }
+        OwaspScopes.atMostOne(request.projectId(), request.solutionId());
         List<Instant> weeks = window(request);
 
-        VisibleScope scope = request.projectId() != null
-                ? solutions.visibleProject(request.projectId(), allowance)
-                : request.solutionId() != null ? solutions.visibleSolution(request.solutionId(), allowance) : null;
-        Visibility allowed = scope != null ? scope.visibility() : allowance.visibility();
+        OwaspScopes.Scoped scoped = scopes.resolve(request.projectId(), request.solutionId(), allowance);
+        Visibility allowed = scoped.visibility();
 
         Map<Instant, List<OwaspWeeklyStateCount>> recorded = records
                 .sumByWeekCategoryAndState(weeks.getFirst(), weeks.getLast(), allowed).stream()
@@ -218,8 +213,7 @@ public class OwaspWeeklyHistoryService {
         return new OwaspWeeklyCoverage(
                 day(weeks.getFirst()),
                 day(weeks.getLast()),
-                scope == null ? null : new OwaspWeeklyScope(
-                        scope.kind().wireName(), scope.id(), scope.name(), scope.partial(), scope.targets().size()),
+                scoped.stated(),
                 reopenedFrom.map(OwaspWeeklyHistoryService::day).orElse(null),
                 answered);
     }

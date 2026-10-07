@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
@@ -40,13 +41,19 @@ public class OwaspCoverageService {
     private final ScanCatalog scans;
     private final RuleCoverageService ruleCoverage;
     private final SettingsService settings;
+    private final OwaspScopes scopes;
 
     public OwaspCoverageService(
-            IssueCatalog issues, ScanCatalog scans, RuleCoverageService ruleCoverage, SettingsService settings) {
+            IssueCatalog issues,
+            ScanCatalog scans,
+            RuleCoverageService ruleCoverage,
+            SettingsService settings,
+            OwaspScopes scopes) {
         this.issues = issues;
         this.scans = scans;
         this.ruleCoverage = ruleCoverage;
         this.settings = settings;
+        this.scopes = scopes;
     }
 
     /**
@@ -80,6 +87,34 @@ public class OwaspCoverageService {
                 // "looked at, nothing to report".
                 ruleCoverage.declaredOwaspCategories(),
                 scanned());
+    }
+
+    /**
+     * The grid and the scope it was computed over.
+     *
+     * @param scope the project or solution as far as the reader sees it, null for the reader's estate —
+     *     the weekly route's record, so the screen reads both alike
+     */
+    public record ScopedGrid(OwaspCoverage.Grid grid, OwaspWeeklyHistoryService.OwaspWeeklyScope scope) {}
+
+    /**
+     * The grid over one project or solution, or over the reader's estate when neither is named.
+     *
+     * <p><b>Every count is narrowed, the {@code scanned} flag included.</b> The scope's visibility —
+     * the reader's intersected with the scope's targets — is the one the whole grid is computed with,
+     * so a project whose targets were never scanned reads unmeasured even where its neighbours are
+     * covered, and its findings are its own: a project's grid reporting another project's evidence is
+     * the defect the estate's grid already refuses between readers.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException for both a project
+     *     and a solution
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException for a project or a
+     *     solution that does not exist and one the reader sees nothing of, in the same words
+     */
+    @Transactional(readOnly = true)
+    public ScopedGrid grid(Long projectId, Long solutionId, VisibilityService.Allowance allowance) {
+        OwaspScopes.Scoped scoped = scopes.resolve(projectId, solutionId, allowance);
+        return new ScopedGrid(grid(scoped.visibility()), scoped.stated());
     }
 
     @Transactional(readOnly = true)

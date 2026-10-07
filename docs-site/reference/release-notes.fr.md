@@ -581,6 +581,14 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
   les ouverts sans chiffre d'apparues correspondant. **Il vaut `null`, pas zéro, sur une semaine commencée
   avant que les réouvertures soient consignées** (datées par l'application de V68, à un jour près) ;
   `reopenedRecordedFrom` nomme la première semaine qui l'a.
+- **La grille OWASP courante prend aussi un projet ou une solution : `GET /api/v1/owasp/coverage?project_id=…`
+  ou `?solution_id=…`**, avec les règles de la vue hebdomadaire — les deux à la fois répondent 400, un
+  périmètre inexistant et un périmètre dont l'appelant ne voit rien répondent 404 dans les mêmes termes, et
+  un périmètre vu en partie est calculé sur les cibles qu'il voit. Chaque chiffre est restreint au
+  périmètre, y compris le fait que quelque chose ait été analysé : un projet que rien n'a analysé se lit
+  *non mesuré*, si couvert que soit le reste du parc. La réponse gagne `scope` (`kind`, `id`, `name`,
+  `partial`, `targetCount`, `null` sans périmètre) ; les déclarations restent celles de la catégorie, quel
+  que soit le périmètre. Sans paramètre, la grille est inchangée.
 - **De nouveaux filtres du backlog pour les chiffres de cette vue** : `owasp_category` (`A01`…`A10`,
   rangée comme la grille range les issues — une vulnérabilité est `A06`), `open_at` (ouverte à la fin de
   ce jour, UTC) et `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` et
