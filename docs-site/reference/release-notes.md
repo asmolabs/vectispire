@@ -137,6 +137,8 @@ another branch, is another target and is accepted as before.
 
 #### Other changes
 
+- **The OWASP report is in the menu's *Security* section**, after *Attack paths*, no longer under
+  *Compliance & evidence*: it reads the findings, as the Security screens do. Same page, same access.
 - **A checklist rule has a sixth kind, `component_present`, and a measurement a new reason,
   `inventory_absent`.** `kind` on the rules route and in `boundRule`, `ruleKind` on a measurement, may read
   `component_present`; its `components` carry a `purlPrefix` and no `versions`. A `component_versions`

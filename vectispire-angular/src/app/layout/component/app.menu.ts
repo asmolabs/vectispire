@@ -58,7 +58,13 @@ export class AppMenu {
             { label: this.i18n.t('menu.blast_radius'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/blast-radius'] },
             { label: this.i18n.t('menu.licenses'), icon: 'pi pi-fw pi-book', routerLink: ['/licenses'] },
             { label: this.i18n.t('menu.attack_surface'), icon: 'pi pi-fw pi-compass', routerLink: ['/attack-surface'] },
-            { label: this.i18n.t('menu.attack_paths'), icon: 'pi pi-fw pi-share-alt', routerLink: ['/attack-paths'] }
+            { label: this.i18n.t('menu.attack_paths'), icon: 'pi pi-fw pi-share-alt', routerLink: ['/attack-paths'] },
+
+            // **With the estate's state, not with the evidence, by the product owner's decision.** The OWASP
+            // report reads the findings — the grid by category, week by week, the model's review of a
+            // repository — as the screens above do; an assessor's evidence is the matrix and the
+            // statement, which cite it.
+            { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] }
         ];
 
         /**
@@ -78,11 +84,11 @@ export class AppMenu {
          * <p><b>Every entry carries its own condition, never the section.</b> Five of these routes
          * require governance read access; offering them to everybody would be offering a link that
          * leads to a refusal — the defect the deployment keys already had here. An ordinary account
-         * sees the first three, an auditor all eight.
+         * sees the first two, an auditor all seven. The OWASP report moved to
+         * the Security section.
          */
         const evidenceItems = [
             { label: this.i18n.t('menu.compliance'), icon: 'pi pi-fw pi-check-circle', routerLink: ['/compliance'] },
-            { label: this.i18n.t('menu.owasp_report'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/owasp'] },
 
             // **Under compliance, because it is the question an assessor asks directly
             // afterwards.** The compliance screen says where things stand; this one says what was

@@ -23,8 +23,8 @@ test.describe('Sidebar grouping', () => {
         'Verdict register'
     ];
 
-    /** Les trois que tout compte peut ouvrir. */
-    const EVERYONE = ['Compliance matrix', 'OWASP report', 'Exceptions register'];
+    /** The two every account may open. */
+    const EVERYONE = ['Compliance matrix', 'Exceptions register'];
 
     test('offers an ordinary account no link it would be refused', async ({ page }) => {
         await signInAs(page, 'USER');
@@ -53,6 +53,14 @@ test.describe('Sidebar grouping', () => {
             has: page.locator('.layout-menuitem-root-text', { hasText: title })
         });
     }
+
+    test('files the OWASP report under Security, once, for every account', async ({ page }) => {
+        // The product owner's decision: it reads the findings, as the Security screens do, and left the
+        // evidence section.
+        await signInAs(page, 'USER');
+        await expect(section(page, 'Security').locator('a[href="/owasp"]')).toHaveCount(1);
+        await expect(page.locator('app-menu a[href="/owasp"]'), 'only once').toHaveCount(1);
+    });
 
     test('files the plugins and the audit log under Administration, and offers them to no one else', async ({
         page, browser

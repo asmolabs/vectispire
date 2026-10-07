@@ -147,6 +147,8 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 
 #### Autres changements
 
+- **Le rapport OWASP est dans la section *Sécurité* du menu**, après *Chemins d'attaque*, et non plus sous
+  *Conformité & preuves* : il lit les constats, comme les écrans de Sécurité. Même page, mêmes accès.
 - **Une règle de checklist a un sixième type, `component_present`, et une mesure une nouvelle raison,
   `inventory_absent`.** `kind` sur la route des règles et dans `boundRule`, `ruleKind` sur une mesure,
   peuvent valoir `component_present` ; ses `components` portent un `purlPrefix` et aucune `versions`. Une
