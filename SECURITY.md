@@ -42,7 +42,8 @@ nothing — a report that goes quiet is the failure this policy exists to preven
 
 | Version | Supported |
 |---|---|
-| `0.9.x` | ✅ the current line |
+| `0.10.x` | ✅ the current line |
+| `0.11.0-rc.*` | ⚠️ release candidates — fixed on `develop` and in the next candidate, never patched in place |
 | earlier | ❌ |
 
 The project has not reached 1.0. There is no long-term support line yet, and pretending otherwise
@@ -137,7 +138,8 @@ cette politique existe pour empêcher.
 
 | Version | Suivie |
 |---|---|
-| `0.9.x` | ✅ la ligne courante |
+| `0.10.x` | ✅ la ligne courante |
+| `0.11.0-rc.*` | ⚠️ versions candidates — corrigées sur `develop` et dans la candidate suivante, jamais corrigées sur place |
 | antérieures | ❌ |
 
 Le projet n'a pas atteint la 1.0. Il n'existe pas encore de ligne de support long terme, et

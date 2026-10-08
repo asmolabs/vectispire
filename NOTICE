@@ -32,12 +32,10 @@ MIT
   org.bouncycastle:bcprov-jdk18on           Bouncy Castle provider
   org.bouncycastle:bcpkix-jdk18on           Bouncy Castle PKIX
 
-LGPL-2.1
-
 GPL-2.0 WITH Universal-FOSS-Exception-1.0
   com.mysql:mysql-connector-j               MySQL Connector/J
 
-  Two of the four JDBC drivers Vectispire ships are copyleft, and both are
+  Vectispire ships two JDBC drivers, and one of them is copyleft. Both are
   `runtimeOnly` in the build: no compiled Vectispire class links against a driver,
   and the connection is obtained through the JDBC API. MySQL Connector/J is
   distributed under the GPL with Oracle's Universal FOSS Exception, whose list of
