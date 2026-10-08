@@ -63,3 +63,7 @@ suppressed finding and a genuinely fixed one must not look alike.
 - A security problem in Vectispire itself: see
   [SECURITY.md](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md) for the
   disclosure policy — please do not open a public issue.
+- Contributing a fix, a feature or a translation: see
+  [CONTRIBUTING.md](https://github.com/asmolabs/vectispire/blob/main/CONTRIBUTING.md) for where a
+  pull request goes and what it has to carry, and the
+  [Code of Conduct](https://github.com/asmolabs/vectispire/blob/main/CODE_OF_CONDUCT.md).

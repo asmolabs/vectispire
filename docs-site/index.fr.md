@@ -66,3 +66,7 @@ pas se ressembler.
 - Un problème de sécurité dans Vectispire lui-même : voir
   [SECURITY.md](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md) pour la politique
   de divulgation — merci de ne pas ouvrir de ticket public.
+- Contribuer une correction, une fonctionnalité ou une traduction : voir
+  [CONTRIBUTING.md](https://github.com/asmolabs/vectispire/blob/main/CONTRIBUTING.md) pour savoir
+  où va une pull request et ce qu'elle doit apporter, et le
+  [Code de conduite](https://github.com/asmolabs/vectispire/blob/main/CODE_OF_CONDUCT.md).
