@@ -8,10 +8,10 @@ Vectispire provides real-time alerting and notification delivery to inform devel
 
 | Platform | Integration Type | Message Format | Security & Signature |
 |---|---|---|---|
-| **Discord** | Native Discord Webhook | Interactive Rich Embeds with severity color coding | Encrypted webhook URL |
-| **Slack** | Incoming Webhook / Slack App | Block Kit JSON / Formatted text | HMAC-SHA256 signature supported |
-| **Microsoft Teams** | Power Automate / Workflow Webhook | Adaptive Cards / Structured JSON | HMAC-SHA256 signature supported |
-| **Generic Webhooks** | Custom HTTP POST Endpoint | Standardized scan delta JSON payload | `X-Vectispire-Signature` + `X-Vectispire-Timestamp` |
+| **Discord** | Native Discord Webhook | Interactive Rich Embeds with severity color coding | URL hidden from non-administrators; unsigned |
+| **Slack** | Incoming Webhook / Slack App | Block Kit JSON / Formatted text | URL hidden from non-administrators; unsigned — Slack would ignore a signature |
+| **Microsoft Teams** | Power Automate / Workflow Webhook | Adaptive Cards / Structured JSON | URL hidden from non-administrators; unsigned — Teams would ignore a signature |
+| **Generic Webhooks** | Custom HTTP POST Endpoint | Standardized scan delta JSON payload | `X-Vectispire-Signature` + `X-Vectispire-Timestamp`, when a signing secret is set |
 
 ---
 
@@ -43,8 +43,8 @@ Vectispire includes a specialized Discord channel (`DiscordNotificationChannel`)
    * Pick your channel (e.g. `#secops-alerts` or `#dev-security`).
    * Copy the generated URL (`https://hooks.slack.com/services/T.../B.../...`).
 2. In Vectispire (**Settings > Notifications**):
-   * Paste the URL into **Notification webhook URL** (`notification_webhook_url`).
-   * *(Optional)* Set a **Webhook Secret** (`notification_webhook_secret`) to enable HMAC-SHA256 payload signing.
+   * Paste the URL into **Slack webhook URL** (`notification_slack_url`), which posts Block Kit cards. The generic **Webhook URL** (`notification_webhook_url`) posts Vectispire's own JSON, which Slack does not render as a card.
+   * No signing secret applies: Slack accepts whatever reaches an incoming webhook and checks nothing, so the URL itself is the credential — keep it out of tickets and screenshots.
 
 ---
 
@@ -57,14 +57,14 @@ Microsoft Teams receives Vectispire alerts via **Power Automate** Workflow Webho
 2. Search and select the template **"Post to a channel when a webhook request is received"**.
 3. Copy the generated HTTP POST URL provided by Power Automate.
 4. In Vectispire (**Settings > Notifications**):
-   * Paste the URL into **Notification webhook URL** (`notification_webhook_url`).
-   * If webhook signing is enabled, add an HMAC header validation step in your Power Automate workflow.
+   * Paste the URL into **Microsoft Teams webhook URL** (`notification_teams_url`), which posts an Adaptive Card, so nothing has to be mapped in the designer. **Enable Microsoft Teams notifications** (`notification_teams_enabled`) is the toggle beside it.
+   * Messages to Teams are not signed, and a workflow triggered by a webhook request does not check a signature: the workflow URL is the credential.
 
 ---
 
 ## 🔒 SSRF Protection & Cryptographic Signing
 
 * **Strict SSRF Guard (`OutboundUrlGuard`)**: Internal IP destinations (`127.0.0.1`, `10.0.0.0/8`, `192.168.0.0/16`) are refused by default unless `notification_allow_private_url` is explicitly allowed by an administrator.
-* **Encrypted at Rest**: Webhook URLs and signing secrets are encrypted using AES-GCM-256.
+* **What is encrypted, and what is not**: the **signing secret** (`notification_webhook_secret`) is a credential — encrypted at rest with AES-256-GCM, written only by its own route, returned by none. The **webhook URLs** (generic, Slack, Teams, Discord) are a capability rather than a credential: they are stored as written and hidden from non-administrators (`Sensitivity.SECRET`), not encrypted — and a team's own webhook URL is a plain column of `t_team_webhook`. Whoever can read the database can read them.
 * **The SIEM export follows the same rule, over every protocol.** Its endpoint — a URL for the webhook, `host:port` for syslog over UDP, TCP or TLS — is refused on a private address unless `siem_allow_private_destination` is on — the export's own setting, which only an administrator may change — and a syslog host goes through the same address classifier as a URL. A SIEM collector on an internal network needs that setting; the connection test answers an outcome (delivered, refused by the policy, not delivered) and leaves the socket's error to the server log. Its authorization header is sent with the webhook only, encrypted at rest like the other credentials, and leaving the field empty when saving keeps the stored one. Events leave through the same outbox as notifications, after the change that caused them commits — see the [SIEM export](../../docs-site/integrations/siem.md) page and [decision 0025](../architecture/en/decisions/0025-siem-events-leave-through-the-outbox.md).
-* **Replay Protection**: The `X-Vectispire-Timestamp` header combined with `X-Vectispire-Signature` guarantees message authenticity and prevents replay attacks.
+* **Replay Protection — the receiver's to enforce**: the signature covers `X-Vectispire-Timestamp` together with the exact body, so the timestamp cannot be rewritten; a replay is stopped only by a receiver that checks the signature, refuses a timestamp outside a window it chooses, and deduplicates on the payload's `message_id` within it. A receiver that does none of this — Slack, Teams, Discord — gets no protection from either header.

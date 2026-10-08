@@ -12,8 +12,9 @@
    clés SSH privées.
 2. **Isolation Étanche du Code Scanné** : Aucun risque d'exfiltration de code source par les
    conteneurs d'analyse.
-3. **Infalsificabilité du Journal d'Audit** : Impossibilité d'altérer les traces d'actions
-   d'administration et de qualification VEX.
+3. **Altération Détectable du Journal d'Audit** : Une modification ou une suppression sélective des
+   traces d'actions d'administration et de qualification VEX est détectée. Elle n'est pas empêchée :
+   qui peut écrire dans la table peut réécrire toute la chaîne.
 4. **Moindre Privilège des Agents Distants** : Les agents distants ne peuvent pas atteindre la base
    SQL — imposé par le graphe de modules, la violation échoue donc à la compilation — et ne
    détiennent jamais l'`ENCRYPTION_KEY`. Ils reçoivent *bien* des clés de déploiement de dépôt en
@@ -134,18 +135,20 @@ Tous les conteneurs d'analyse exécutés par `ContainerRunner` sont durcis pour 
 
 ---
 
-## 5. Infalsificabilité de l'Audit Log (Scellement Cryptographique)
+## 5. Altération Détectable de l'Audit Log (Chaîne d'Empreintes)
 
 La table `t_audit_log` conserve l'historique de toutes les actions d'administration et de triage
-VEX. Chaque entrée intègre un hash SHA-256 calculé à partir de la ligne courante et du hash de la
-ligne précédente :
+VEX. Chaque entrée intègre une empreinte SHA-256 sans clé de ses champs et de l'empreinte de la
+ligne précédente (`AuditChain.computeEntryHash`), les champs séparés par un octet NUL :
 
 ```
-Hash_N = SHA256( Id_N + Action_N + User_N + Timestamp_N + Hash_N-1 )
+Hash_N = SHA256( Hash_N-1 | Timestamp_N | Operation_N | Resource_N | User_N | IP_N | UserAgent_N | Description_N )
 ```
 
-La méthode `AuditLogService.verifyIntegrity()` vérifie automatiquement l'intégralité de la chaîne et
-détecte la moindre altération ou suppression SQL.
+`AuditLogService.verify()` recalcule la chaîne et signale la première rupture : une modification
+ou une suppression sélective casse toutes les empreintes qui suivent. L'empreinte est sans clé, ce
+qui ne rend donc pas le journal immuable — qui peut écrire dans la table peut recalculer toute la
+chaîne ; c'est la comparaison avec le miroir hors base (`verifyAgainstMirror`) qui le révèle.
 
 ---
 

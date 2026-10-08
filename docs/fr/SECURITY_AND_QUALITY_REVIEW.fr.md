@@ -15,7 +15,7 @@ Les contrôles de sécurité ne reposent pas sur des conventions implicites mais
 1. **Le graphe de dépendances au niveau compilation** (isolation physique des modules sans fuite JDBC vers l'agent).
 2. **Des tests d'architecture automatisés (ArchUnit)** vérifiant l'étanchéité des couches.
 3. **Des suites d'intégration multi-moteurs (PostgreSQL, MySQL)** testant la parité du schéma et la concurrence.
-4. **Une politique CSP stricte sans compromis** sur l'exécution dynamique de scripts (`'unsafe-eval'` exclu).
+4. **Une politique CSP stricte sur les scripts** — `script-src 'self'`, sans `'unsafe-inline'` ni `'unsafe-eval'` — et **assouplie sur les styles** : `style-src` garde `'unsafe-inline'`, parce que l'interface écrit encore des attributs de style. Un style injecté peut maquiller une page ; il ne peut pas s'exécuter.
 5. **Une chaîne d'approvisionnement (Supply Chain)** vérifiée par signature Sigstore keyless, verrous de dépendances Gradle (`gradle.lockfile`) et scans SBOM.
 6. **Un moteur de conformité réglementaire intégré** (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA) avec coffre-fort de preuves scellé (`EvidenceVaultService`).
 7. **Une gouvernance à 4 yeux & ingestion VEX amont** (`SECURITY_CHAMPION`, `VexIngestorService`, `CsafGeneratorService`) garantissant l'intégrité des dérogations et l'extinction automatique des vulnérabilités.
@@ -35,7 +35,7 @@ flowchart TB
         AUTH["Auth & Sessions (Argon2id, Bearer hash SHA-256)"]
         CIPHER["SecretCipher (AES-GCM + Row AAD Context)"]
         SSRF["OutboundUrlGuard + PinnedHttpSender (DNS Pinning)"]
-        AUDIT["AuditChain (Graph Hash HMAC Integrity + Mirror)"]
+        AUDIT["AuditChain (chaîne d'empreintes SHA-256 + miroir)"]
         COMPLIANCE["ComplianceEngine (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA)"]
         VAULT["EvidenceVaultService (Signed ZIP / In-Toto / OpenVEX / CSAF 2.0)"]
         VEX["VexIngestorService (Cascade Suppression & 4-Eyes Triage)"]
@@ -88,7 +88,7 @@ flowchart TB
 ### 2.5. Moteur de Conformité & Preuves d'Audit (`ComplianceEngine`, `EvidenceVaultService`)
 - **Calcul Déterministe** : Scoring continu sur 6 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA, SOC 2) et 7 catégories d'évaluation sans heuristique opaque.
 - **Principe de Non-Dilution** : Un seul contrôle critique non conforme invalide l'ensemble du référentiel.
-- **Coffre-Fort de Preuves Certifiées** : Génération d'un paquet ZIP scellé avec manifest SHA-256, attestations In-Toto, déclarations OpenVEX, avis OASIS CSAF 2.0, SBOM CycloneDX 1.5 avec VEX intégré et chaîne d'audit signée.
+- **Coffre-Fort de Preuves Certifiées** : Génération d'un paquet ZIP scellé avec manifest SHA-256, attestations In-Toto, déclarations OpenVEX, avis OASIS CSAF 2.0, SBOM CycloneDX 1.5 avec VEX intégré et journal d'audit chaîné par empreintes SHA-256 (altération détectable, sans clé — c'est le manifeste du paquet qui est signé).
 
 ### 2.6. Gouvernance 4-Yeux & Ingestion VEX Amont (`IssueTriageService`, `VexIngestorService`)
 - **Principe des Quatre Yeux** : Les exemptions initiées par les développeurs basculent en `PENDING_APPROVAL`, conservant la Gate bloquante jusqu'à approbation explicite par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN`.

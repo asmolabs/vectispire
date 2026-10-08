@@ -1,6 +1,6 @@
 # Journal d'audit
 
-Un registre immuable et chaîné par empreintes de ce qui a été fait, et par qui.
+Un registre chaîné par empreintes, où toute altération se voit, de ce qui a été fait et par qui : chaque entrée porte l'empreinte de la précédente, si bien qu'une modification ou une suppression sélective est détectée — pas empêchée.
 
 !!! info "Qui peut le lire"
     Les administrateurs, le CISO, et le rôle **Auditeur** — qui lit cette page et ne change rien,

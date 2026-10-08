@@ -51,7 +51,7 @@ MySQL 8 by default — the engine `docker-compose.yml` ships and the one
 the engine is read from the URL and there is no separate dialect setting.
 
 ```bash
-docker run -d --name vectispire-db -p 3306:3306 \
+docker run -d --name vectispire-db -p 127.0.0.1:3306:3306 \
   -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
   -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire \
   mysql:8
@@ -60,11 +60,16 @@ docker run -d --name vectispire-db -p 3306:3306 \
 For PostgreSQL instead, point `VECTISPIRE_DB_URL` at it — nothing else changes:
 
 ```bash
-docker run -d --name vectispire-db -p 5432:5432 \
+docker run -d --name vectispire-db -p 127.0.0.1:5432:5432 \
   -e POSTGRES_USER=vectispire -e POSTGRES_PASSWORD=vectispire -e POSTGRES_DB=vectispire \
   postgres:16-alpine
 # VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
 ```
+
+Both bind to `127.0.0.1`, not to every interface: `-p 3306:3306` publishes the port on all of the
+host's addresses — Docker also writes its own firewall rules, so a host firewall does not
+necessarily stop it — and these are development passwords. Vectispire, run on the same machine,
+reaches `localhost` either way.
 
 The schema belongs to **Flyway migrations**, applied at startup:
 
@@ -138,10 +143,14 @@ ollama pull gemma4:e4b-it-qat   # ~6.1GB, lighter/faster, lower review quality
 **Docker** — simpler to reproduce across machines, but on **Apple Silicon Macs, Docker Desktop has no GPU/Metal passthrough**, so the container runs CPU-only and inference is noticeably slower than the native app. On Linux with an NVIDIA GPU (+ nvidia-container-toolkit), GPU acceleration is still possible in the container. A ready-made compose file is provided at the repository root:
 
 ```bash
-docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
+docker run -d --name vectispire-ollama -p 127.0.0.1:11434:11434 -v ollama:/root/.ollama ollama/ollama
 docker exec -it vectispire-ollama ollama pull gemma4:12b-it-qat
 docker exec -it vectispire-ollama ollama pull gemma4:e4b-it-qat   # optional, lighter alternative
 ```
+
+`127.0.0.1` again, and for a stronger reason: Ollama's API has **no authentication at all**.
+Published on every interface, anyone who can reach the host can run models on it, pull new ones and
+delete yours.
 
 (Add `--gpus all` for NVIDIA passthrough on Linux.)
 
@@ -308,7 +317,7 @@ supports.
 
 ## 10. REST API Documentation & Swagger UI
 
-- **Official REST Reference**: Consult the [REST API Reference Documentation](api/rest_api_reference.md) for full descriptions of authentication schemes (`Bearer JWT`, `X-API-Key`, `X-Agent-Key`), endpoints, and `curl` examples.
+- **Official REST Reference**: Consult the [REST API Reference Documentation](api/rest_api_reference.md) for the authentication schemes — an opaque session token, an agent key or an integration API key, each as `Authorization: Bearer`, with `X-API-Key` accepted for a key — a curated selection of endpoints, and `curl` examples. The complete contract is the OpenAPI document, [`vectispire-angular/openapi.json`](../../vectispire-angular/openapi.json).
 - **Swagger UI (Development & Staging)**:
   Swagger UI is disabled by default in production. You can activate it in local development environments:
   ```bash

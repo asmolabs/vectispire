@@ -61,7 +61,7 @@ Dès qu'un compte existe, les deux sont ignorés.
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | Les valeurs `amr` (RFC 8176) qui valent second facteur. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *aucun* | Les niveaux `acr` qui en valent un, quand le fournisseur signale le MFA ainsi. |
 | `VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE` | `600` | Requêtes par minute par [clé d'API d'intégration](../administration/api-keys.md) ; au-delà, `429` avec `Retry-After`. Les sessions et les agents ne sont pas comptés. |
-| `VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW` | `300` | Livraisons acceptées par fenêtre et par adresse sur le [webhook entrant du tracker](../integrations/ticketing.fr.md) ; au-delà, `429` avec `Retry-After`. À relever si un tracker derrière une sortie partagée fait des transitions en masse plus grandes. |
+| `VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW` | `300` | Livraisons acceptées par fenêtre et par adresse sur le [webhook entrant du tracker](../integrations/ticketing.md#inbound-webhook) ; au-delà, `429` avec `Retry-After`. À relever si un tracker derrière une sortie partagée fait des transitions en masse plus grandes. |
 | `VECTISPIRE_WEBHOOK_REQUEST_WINDOW` | `PT1M` | La fenêtre du réglage ci-dessus, en durée ISO-8601. |
 
 Les livraisons de webhook refusées sont auditées avec parcimonie : la première d'une adresse sur dix

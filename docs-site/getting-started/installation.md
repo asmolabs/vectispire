@@ -200,7 +200,7 @@ counts the proxy's address rather than the caller's and stops protecting anyone.
 | Setting | Default | Change it when |
 |---|---|---|
 | `VECTISPIRE_HOST_SSH` | `true` | **More than one team shares the install.** With the fallback on, a repository with no key of its own is cloned using the host's `~/.ssh` identity — so adding a URL is enough to have Vectispire clone it as that identity. On a single-team install the host key already reaches every target and the fallback costs nothing; on a shared one, set it to `false` and attach a deployment key per repository. The shipped `docker-compose.yml` sets it to `false` and mounts no `~/.ssh`: inside its container there is no host key to fall back on. |
-| `TICKET_WEBHOOK_SECRET` | unset | **You wire a tracker webhook.** Unset, the webhook route accepts unauthenticated calls rather than refusing them — chosen so that an upgrade does not silently stop existing triage synchronisation. Set it as soon as the route is reachable by anything you do not control. Note that verification is not replay-bound: a legitimate payload replayed re-applies its decision. |
+| Inbound webhook secret (`ticket_webhook_secret`) | empty | **You wire a tracker webhook.** This one is not an environment variable: it is a database setting, set in **Settings → Tickets → Inbound webhook secret** and stored encrypted. While it is empty the webhook route refuses every call with a `403` saying the webhook is not configured, which the tracker shows in its delivery log — the route cannot hold a session, so the secret is its whole authentication. Set the same value in the tracker. A delivery is acted on once within thirty days, and a decision it carries is queued for approval rather than applied; see [Ticketing](../integrations/ticketing.md#inbound-webhook). |
 
 Both are recorded with their reasoning in the project's threat model.
 
@@ -461,25 +461,25 @@ identity came from GitHub's token service — without it, a string that merely *
 the identity above is enough. Replace the tag in both places for another version; the
 identity is per-tag by design.
 
-!!! warning "Releases signed before the move to GitHub"
-    The signing identity belongs to the forge that ran the workflow, so a release built on
-    the old GitLab pipeline verifies against `https://gitlab.com` and that pipeline's path,
-    not against the command above. Verifying a signature with the wrong issuer cannot
-    succeed — and an instruction that cannot succeed is worse than none, because it teaches
-    its reader that the check passed the day they mistype it into passing. Use the identity
-    of the forge that built the artefact you hold.
-
 ### Verifying an image
 
 The images are signed the same way, by digest rather than by tag — a tag can be moved to
-another image, a digest cannot.
+another image, a digest cannot. So verify the digest, and deploy that same digest: checking
+the tag and then pulling it again checks an image you may not be running. Resolve the tag once,
+with the command the release workflow uses itself:
 
 ```bash
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 --format '{{.Manifest.Digest}}')"
+echo "$DIGEST"   # sha256:…
+
 cosign verify \
   --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/asmolabs/vectispire:0.10.0
+  "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
+
+Then reference the image as `ghcr.io/asmolabs/vectispire@sha256:<digest>` in your Compose file
+or chart rather than by its tag.
 
 Each image also carries its SBOM as an attestation rather than as a file beside it, because a
 file beside an image is one anybody can swap:
@@ -488,7 +488,7 @@ file beside an image is one anybody can swap:
 cosign verify-attestation --type cyclonedx \
   --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/asmolabs/vectispire:0.10.0
+  "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
 
 There is no signing key. Sigstore keyless signs with the workflow's own OIDC identity, so

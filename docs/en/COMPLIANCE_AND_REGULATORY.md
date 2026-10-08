@@ -142,7 +142,7 @@ $$\text{Score} = \text{round}\left(\frac{N_{\text{gate passing targets}}}{N_{\te
 ---
 
 ### ⑦ Tamper-Evident Audit Logging (`AUDIT_AND_LOGGING`)
-Verifies cryptographic HMAC-SHA256 hash-chain integrity of all audit log entries:
+Verifies the audit log's SHA-256 hash chain — each entry carries the hash of the previous one, unkeyed, so that a selective modification or deletion breaks every hash after it (tamper-evident, not immutable: see 5.1):
 - **Chain intact and verified**: $\text{Score} = 100$, Status = **`COMPLIANT`**.
 - **Tampering or broken chain detected**: $\text{Score} = 0$, Status = **`NON_COMPLIANT`**.
 
@@ -200,15 +200,24 @@ Vectispire exports cryptographically sealed evidence packages ready for external
 - **Executive PDF Report (`/api/v1/compliance/export.pdf`)**: Posture digest, scores across all 6 frameworks, 24 controls, and prioritized remediation roadmap.
 - **Evidence Bundle ZIP (`/api/v1/compliance/evidence-bundle.zip`)**:
   - `manifest.json` & `manifest.json.sig`: Sealed evidence manifest with detached Cosign signature (ECDSA P-256).
-  - `00_vectispire_public_key.pub`: Active instance public key for independent auditor verification.
+  - `00_vectispire_public_key.pub`: the instance's public key, **for convenience only**. A key carried inside the bundle it verifies proves nothing about the bundle — whoever altered the bundle replaces the key too. Verify the signatures against a key obtained out of band: `GET /api/v1/crypto/public-key.pub` on the instance, or a copy pinned before this bundle existed.
   - `01_compliance_frameworks.json`: Continuous compliance assessments across all 6 frameworks: NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2.
-  - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
+  - `02_immutable_audit_log.jsonl`: the audit trail, each entry chained to the previous one by an unkeyed SHA-256 hash. Tamper-evident rather than immutable, whatever the file name says (5.1); the name is kept because it is the archive's layout.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
   - `04_attestations/`: in-toto attestations and signed DSSE envelopes, for the twenty most recent completed scans the caller may see. The **subject is the scan's SBOM**, named by its SHA-256 — the only artefact a scan records by digest (it stores neither the commit nor the image digest, so `commitSha` is null). The **gate verdict** is the one the gate recorded for the target between that scan and the next, with its policy source, version and date; absent when no pipeline asked. KEV and secret counts are the scan's own. A scan that cannot be attested — not completed, or no SBOM — ships a `scan_<id>_not_attested.txt` saying why instead of a statement with the gap filled in.
   - `05_openvex_advisory.json` & `.sig`: OpenVEX v0.2.0 document and detached signature.
   - `06_csaf_2_0_vex.json` & `.sig`: Standardized OASIS CSAF 2.0 security advisory and signature.
   - `07_license_compliance.json`: License inventory & copyleft governance.
   - `08_cyclonedx_1_5_vex.json` & `.sig`: CycloneDX 1.5 SBOM with BOM-linked VEX statements and signature.
+  - `09_gate_verdict_register.json`: every answer the release gate returned — monthly continuity, totals, and each refusal in full.
+  - `10_exception_register.json`: risk acceptances and dismissals with author, justification, approver and expiry, lapsed ones flagged.
+  - `11_remediation_timeliness.json`: time to fix against each deadline — share within target, median, 90th percentile, overdue backlog, oldest open item.
+  - `12_control_coverage.json`: which languages the installed rules reach, and the freshness window applied to `01` — what a zero finding count does and does not mean.
+  - `13_statement_of_applicability.json`: the declaration of applicability per framework, each control reconciled against its measured status.
+  - `14_compliance_progression.json`: each framework's verdict month by month, with the estate that produced it.
+
+  Sections `01`–`08` describe what the estate contains; `09`–`13` are the process evidence — that
+  the controls operated over the period — and `14` whether that operation improved.
 
   **An integration key restricted to some targets receives a narrower bundle.** Every section is
   built within the caller's allowance; for such a key the licence summary (`07`) covers its targets

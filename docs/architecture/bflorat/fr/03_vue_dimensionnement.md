@@ -36,7 +36,7 @@
 | **`t_scan` (Historique scans)** | ~ 100 000 lignes / an | Nettoyage des métadonnées de scans obsolètes via `RetentionService`. Ajoutés le 2026-09-02 : `(repo_id, id)` et `(container_id, id)`, parce que « le dernier scan par cible » est une sous-requête corrélée — sans index sur `repo_id`, la liste des dépôts était quadratique en nombre de scans. |
 | **`t_finding` (Constats bruts)** | ~ 500 000 lignes | Transitoire, purgé périodiquement par la tâche de rétention. Ajoutés le 2026-09-02 : `(scan_id)`, `(package_name)` et `(issue_id)`. **La plus grande table du schéma ne portait rien d'autre que sa clé primaire** — `scan_id` était déclaré par un `references` en ligne, forme qui ne créait d'index sur aucun des moteurs que la campagne exécutait alors. |
 | **`t_issue` (Backlog réconcilié)** | ~ 10 000 à 50 000 anomalies uniques | `(state, repo_id)` et `(state, container_id)` pour le gate et le sommaire de conformité, `(fingerprint)` pour la recherche d'identité par finding à l'ingestion, et `(identifier)` depuis le 2026-09-02 parce que le générateur CycloneDX et l'ingesteur VEX cherchent par CVE dans une boucle. Ajoutés le 2026-08-25 : cette table ne portait **aucun index** alors que ce document en annonçait trois, et `SchemaParityIntegrationTest` vérifie désormais leur existence sur chaque moteur, si bien qu'un refactoring ne peut plus les faire disparaître en silence. |
-| **`t_audit_log` (Journal scellé)** | ~ 50 000 entrées d'audit / an | Immuable, stockage d'empreintes SHA-256 compactes. |
+| **`t_audit_log` (Journal scellé)** | ~ 50 000 entrées d'audit / an | Chaîné par empreintes (un SHA-256 par entrée) : altération détectable, pas immuable. |
 
 ---
 

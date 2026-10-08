@@ -407,7 +407,7 @@ public final class ComplianceEngine {
     private static ComplianceEvaluation.ControlAssessment evaluateAudit(ComplianceControl control, PostureInput input) {
         int score = input.auditChainValid() ? 100 : 0;
         ComplianceControl.Status status = input.auditChainValid() ? ComplianceControl.Status.COMPLIANT : ComplianceControl.Status.NON_COMPLIANT;
-        String details = input.auditChainValid() ? "Cryptographic HMAC audit chain integrity is verified and intact." : "Audit log integrity check failed or tampering detected.";
+        String details = input.auditChainValid() ? "The audit log's SHA-256 hash chain verifies intact: no entry was modified or removed selectively." : "Audit log integrity check failed or tampering detected.";
         String guidance = input.auditChainValid() ? "Audit logs are continuously sealed and tamper-evident." : "Investigate audit log integrity anomaly immediately.";
 
         return new ComplianceEvaluation.ControlAssessment(control, status, score, details, guidance);

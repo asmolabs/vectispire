@@ -33,6 +33,10 @@ sent by whoever learned the URL — worth doing for a script, a bus or your own 
 Slack and Teams accept whatever arrives and cannot check it, so the signature buys nothing
 there.
 
+The timestamp is inside the signature, so it cannot be rewritten — but a replay is refused only
+by a receiver that checks: reject a timestamp outside a window you choose, and deduplicate on the
+payload's `message_id` within it.
+
 An empty secret means unsigned, which is what an existing deployment stays until you set
 one.
 

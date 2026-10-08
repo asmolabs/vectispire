@@ -45,5 +45,5 @@ Le CSV est destiné à l'analyse que quelqu'un veut mener lui-même.
 ## Voir aussi
 
 - [Constats et triage](issues.md) — comment les décisions sont consignées en premier lieu.
-- [Journal d'audit](../administration/audit-log.md) — la chaîne infalsifiable en dessous.
+- [Journal d'audit](../administration/audit-log.md) — la chaîne à altération détectable en dessous.
 - [Conformité](compliance.md) — l'évaluation par référentiel que ce registre soutient.

@@ -26,9 +26,19 @@ Rien dans cette restauration ne ressemble à un échec jusqu'à ce que quelqu'un
 capture une page à moitié écrite aussi volontiers qu'une page entière.
 
 ```bash
-docker exec vectispire-db mysqldump -u vectispire -p"$MYSQL_PASSWORD" \
-  --single-transaction --routines --triggers vectispire > vectispire-$(date +%F).sql
+docker exec vectispire-db sh -c '
+  umask 077; cnf=$(mktemp)
+  printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$(cat /run/secrets/mysql_password)" > "$cnf"
+  mysqldump --defaults-extra-file="$cnf" --single-transaction --routines --triggers vectispire
+  status=$?; rm -f "$cnf"; exit $status' > vectispire-$(date +%F).sql
 ```
+
+Le mot de passe est lu **dans le conteneur**, depuis le secret que Compose monte en
+`/run/secrets/mysql_password`, et remis au client dans un fichier d'options temporaire lisible par
+son seul propriétaire. Pas `-p"$MYSQL_PASSWORD"` : un mot de passe sur une ligne de commande est
+dans la liste des processus de l'hôte et du conteneur — `ps` montre les arguments de tout processus
+à tout utilisateur — et dans l'historique du shell par-dessus le marché. `printf` est une commande
+interne du shell : le mot de passe n'est jamais l'argument de quoi que ce soit.
 
 `--single-transaction` est ce qui rend le dump cohérent sans verrouiller les tables dans
 lesquelles le plan de contrôle écrit.
@@ -60,9 +70,15 @@ docker compose down
 docker volume rm vectispire_mysql_data
 docker compose up -d db          # recrée le volume, vide
 # attendre qu'il accepte les connexions, puis :
-docker exec -i vectispire-db mysql -u vectispire -p"$MYSQL_PASSWORD" vectispire < vectispire-2026-08-27.sql
+docker exec -i vectispire-db sh -c '
+  umask 077; cnf=$(mktemp)
+  printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$(cat /run/secrets/mysql_password)" > "$cnf"
+  mysql --defaults-extra-file="$cnf" vectispire
+  status=$?; rm -f "$cnf"; exit $status' < vectispire-2026-08-27.sql
 docker compose up -d
 ```
+
+Même lecture du mot de passe que pour le dump, pour la même raison.
 
 Ne restaurez **pas** `vectispire_audit` en même temps. Laissez le miroir vivant en place. §5.
 

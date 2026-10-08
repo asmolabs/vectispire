@@ -25,9 +25,18 @@ failure until somebody launches a scan.
 engine captures a half-written page as readily as a whole one.
 
 ```bash
-docker exec vectispire-db mysqldump -u vectispire -p"$MYSQL_PASSWORD" \
-  --single-transaction --routines --triggers vectispire > vectispire-$(date +%F).sql
+docker exec vectispire-db sh -c '
+  umask 077; cnf=$(mktemp)
+  printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$(cat /run/secrets/mysql_password)" > "$cnf"
+  mysqldump --defaults-extra-file="$cnf" --single-transaction --routines --triggers vectispire
+  status=$?; rm -f "$cnf"; exit $status' > vectispire-$(date +%F).sql
 ```
+
+The password is read **inside the container**, from the secret Compose mounts at
+`/run/secrets/mysql_password`, and handed to the client in a temporary option file readable only by
+its owner. Not `-p"$MYSQL_PASSWORD"`: a password on a command line is in the process list of the
+host and of the container — `ps` shows any process's arguments to every user — and in the shell's
+history besides. `printf` is a shell builtin, so the password is never an argument of anything.
 
 `--single-transaction` is what makes it consistent without locking the tables the control plane is
 writing to.
@@ -59,9 +68,15 @@ docker compose down
 docker volume rm vectispire_mysql_data
 docker compose up -d db          # recreates the volume, empty
 # wait for it to accept connections, then:
-docker exec -i vectispire-db mysql -u vectispire -p"$MYSQL_PASSWORD" vectispire < vectispire-2026-08-27.sql
+docker exec -i vectispire-db sh -c '
+  umask 077; cnf=$(mktemp)
+  printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$(cat /run/secrets/mysql_password)" > "$cnf"
+  mysql --defaults-extra-file="$cnf" vectispire
+  status=$?; rm -f "$cnf"; exit $status' < vectispire-2026-08-27.sql
 docker compose up -d
 ```
+
+Same reading of the password as for the dump, for the same reason.
 
 Do **not** restore `vectispire_audit` at the same time. Leave the live mirror in place. §5.
 

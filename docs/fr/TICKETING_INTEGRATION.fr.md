@@ -17,7 +17,7 @@ Vectispire propose un moteur de synchronisation bidirectionnelle transparent ent
 
 3. **Synchronisation du Statut & Décisions de Triage (Webhooks Entrants)** :
    * Si un lead tech ou un développeur met à jour le ticket dans Jira, GitLab, GitHub ou ServiceNow avec une résolution telle que *Faux Positif*, *Won't Fix*, *Refusé* ou *Risque Accepté*, Vectispire intercepte l'événement via un webhook entrant.
-   * L'issue dans Vectispire est immédiatement basculée au statut de triage **`not_affected`** avec la justification formelle OpenVEX / CSAF appropriée, et l'événement est tracé dans le **journal d'audit cryptographique** sous l'opération `TICKET_SYNCED`.
+   * La décision est **mise en file pour approbation par une seconde personne**, pas appliquée : l'issue passe en `pending_approval` avec le statut proposé **`not_affected`** et sa justification OpenVEX / CSAF, et les documents exportés la montrent en cours de revue jusqu'à ce que quelqu'un l'approuve. Un gestionnaire de tickets n'est pas une personne, ni authentifié comme telle, et `not_affected` part tel quel dans les documents CycloneDX, OpenVEX et CSAF signés. L'événement est tracé dans le journal d'audit chaîné par empreintes sous l'opération `TICKET_SYNCED`.
 
 ---
 
@@ -38,12 +38,12 @@ Dans les paramètres de votre gestionnaire de tickets, ajoutez un Webhook pointa
 ### 1. 🏷️ Jira Software (Atlassian)
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/jira`
 * **Événements** : `Issue -> updated`
-* **Comportement** : Si la résolution est marquée comme *"Won't Fix"*, *"False Positive"* ou *"Declined"*, le triage de l'issue Vectispire est mis à jour automatiquement.
+* **Comportement** : Si la résolution est marquée comme *"Won't Fix"*, *"False Positive"* ou *"Declined"*, Vectispire met en file une décision `not_affected` pour approbation.
 
 ### 2. 🦊 GitLab Issues
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/gitlab`
 * **Événements** : `Issues Events`
-* **Comportement** : Lorsque l'issue est fermée ou commentée avec mention *"false positive"* ou *"wontfix"*, le statut Vectispire est synchronisé.
+* **Comportement** : Lorsque l'issue est fermée ou commentée avec mention *"false positive"* ou *"wontfix"*, une décision `not_affected` est mise en file pour approbation dans Vectispire.
 
 ### 3. 🐙 GitHub Issues
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/github`
@@ -59,4 +59,4 @@ Dans les paramètres de votre gestionnaire de tickets, ajoutez un Webhook pointa
 
 * Les jetons d'accès aux trackers (`TICKET_TOKEN`) sont **chiffrés au repos** via AES-GCM-256 avec contexte de clé `setting:ticket_token`.
 * Une livraison n'est traitée qu'une fois : son corps est mémorisé trente jours, si bien qu'une requête signée capturée et renvoyée plus tard reçoit *« Delivery already processed »* et ne change rien. La redélivrance du même événement par le traqueur y aboutit aussi.
-* Chaque décision de synchronisation produit une entrée horodatée et signée dans le registre d'audit.
+* Chaque décision de synchronisation produit une entrée horodatée dans le journal d'audit chaîné par empreintes.

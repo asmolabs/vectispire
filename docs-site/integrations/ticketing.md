@@ -50,3 +50,39 @@ needs **read** access to `incident` as well as write.
 
 If it is not going to be fixed, that is a [triage decision](../guide/issues.md), with a
 justification and preferably a review date.
+
+## The inbound webhook {#inbound-webhook}
+
+A tracker can also call Vectispire back, at `POST /api/v1/tickets/webhook/{provider}` —
+`gitlab`, `github`, `jira` or `servicenow`. When a ticket Vectispire knows by its reference is
+closed as a false positive or as not going to be fixed, the call **proposes** a `not_affected`
+decision on the issue; any other update is only recorded in the audit log.
+
+**It is refused until a secret is set.** The route is the only one open without an account —
+the tracker holds no session — so the secret is its whole authentication. While
+**Settings → Tickets → Inbound webhook secret** is empty, every call is answered `403` with
+*"The ticket webhook is not configured on this instance"*, which is what the tracker's delivery
+log shows. Set the secret, then the same value in the tracker, presented the way that tracker
+presents one:
+
+| Tracker | Header | What it carries |
+|---|---|---|
+| GitLab | `X-Gitlab-Token` | the secret itself, GitLab's own *Secret token* field |
+| GitHub | `X-Hub-Signature-256` | `sha256=` and the HMAC-SHA256 of the raw body, GitHub's own *Secret* field |
+| Jira, ServiceNow | `X-Vectispire-Token` | the secret itself — neither has a convention, so this header is accepted for those two and no other |
+
+A wrong or missing header is answered `401`, with no detail on which header was expected. A
+stored secret that no configured key can decrypt refuses the same way: set it again.
+
+**A delivery is acted on once.** The hash of each accepted body is kept for thirty days; the same
+body arriving again within that window — a replay, or the tracker's own redelivery — is answered
+`200` *"Delivery already processed"* and changes nothing.
+
+**A decision is queued, never applied.** The issue moves to `pending_approval` with the proposed
+status and its justification, and stays *under review* in the exported VEX documents until a
+second person approves it under [four-eyes](../administration/four-eyes.md). The author recorded is
+the integration (`GITLAB_webhook`, …); the name the tracker reports goes into the comment, as
+reported data rather than as an identity.
+
+Deliveries are limited per caller address (`VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW`, see
+[Configuration](../reference/configuration.md)).

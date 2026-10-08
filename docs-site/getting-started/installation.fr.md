@@ -205,7 +205,7 @@ de protéger qui que ce soit.
 | Réglage | Défaut | Le changer quand |
 |---|---|---|
 | `VECTISPIRE_HOST_SSH` | `true` | **Plus d'une équipe partage l'installation.** Avec le repli actif, un dépôt sans clé propre est cloné avec l'identité `~/.ssh` de l'hôte — donc ajouter une URL suffit à faire cloner Vectispire sous cette identité. Sur une installation mono-équipe, la clé de l'hôte atteint déjà toutes les cibles et le repli ne coûte rien ; sur une installation partagée, mettez-le à `false` et attachez une clé de déploiement par dépôt. Le `docker-compose.yml` livré le met à `false` et ne monte aucun `~/.ssh` : dans son conteneur, il n'y a pas de clé d'hôte sur laquelle se replier. |
-| `TICKET_WEBHOOK_SECRET` | non posé | **Vous branchez un webhook de tracker.** Non posé, la route de webhook accepte les appels non authentifiés plutôt que de les refuser — choisi pour qu'une mise à jour n'interrompe pas silencieusement une synchronisation de triage existante. Posez-le dès que la route est joignable par quoi que ce soit que vous ne contrôlez pas. Notez que la vérification n'est pas liée à un anti-rejeu : un message légitime rejoué réapplique sa décision. |
+| Secret du webhook entrant (`ticket_webhook_secret`) | vide | **Vous branchez un webhook de tracker.** Celui-ci n'est pas une variable d'environnement : c'est un réglage en base, posé dans **Paramètres → Tickets → Secret du webhook entrant** et stocké chiffré. Tant qu'il est vide, la route de webhook refuse chaque appel par un `403` qui dit que le webhook n'est pas configuré, ce que le tracker affiche dans son journal de livraison — la route ne peut pas porter de session, le secret est donc toute son authentification. Posez la même valeur dans le tracker. Une livraison n'est traitée qu'une fois sur trente jours, et la décision qu'elle porte est mise en file pour approbation au lieu d'être appliquée ; voir [Tickets](../integrations/ticketing.md#inbound-webhook). |
 
 Les deux sont consignés avec leur raisonnement dans le modèle de menaces du projet.
 
@@ -477,26 +477,25 @@ GitHub — sans lui, une chaîne qui *ressemble* simplement à l'identité ci-de
 Remplacez le tag aux deux endroits pour une autre version ; l'identité est par tag, par
 conception.
 
-!!! warning "Les releases signées avant la bascule vers GitHub"
-    L'identité de signature appartient à la forge qui a exécuté le workflow : une release
-    construite sur l'ancien pipeline GitLab se vérifie contre `https://gitlab.com` et le
-    chemin de ce pipeline, pas contre la commande ci-dessus. Vérifier une signature avec le
-    mauvais émetteur ne peut pas réussir — et une instruction qui ne peut pas réussir est pire
-    que pas d'instruction du tout, parce qu'elle apprend à son lecteur que le contrôle est
-    passé le jour où il la tape mal jusqu'à ce qu'elle passe. Utilisez l'identité de la forge
-    qui a construit l'artefact que vous détenez.
-
 ### Vérifier une image
 
 Les images sont signées de la même façon, **par empreinte plutôt que par tag** — un tag peut être
-déplacé vers une autre image, pas une empreinte.
+déplacé vers une autre image, pas une empreinte. Vérifiez donc l'empreinte, et déployez cette même
+empreinte : vérifier le tag puis le tirer de nouveau vérifie une image que vous ne faites peut-être
+pas tourner. Résolvez le tag une fois, avec la commande qu'utilise le workflow de release lui-même :
 
 ```bash
+DIGEST="$(docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:0.10.0 --format '{{.Manifest.Digest}}')"
+echo "$DIGEST"   # sha256:…
+
 cosign verify \
   --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/asmolabs/vectispire:0.10.0
+  "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
+
+Désignez ensuite l'image par `ghcr.io/asmolabs/vectispire@sha256:<empreinte>` dans votre fichier
+Compose ou votre chart plutôt que par son tag.
 
 Chaque image porte aussi son SBOM en attestation plutôt qu'en fichier posé à côté, parce qu'un
 fichier posé à côté d'une image est un fichier que n'importe qui peut remplacer :
@@ -505,7 +504,7 @@ fichier posé à côté d'une image est un fichier que n'importe qui peut rempla
 cosign verify-attestation --type cyclonedx \
   --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.10.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/asmolabs/vectispire:0.10.0
+  "ghcr.io/asmolabs/vectispire@${DIGEST}"
 ```
 
 Il n'y a pas de clé de signature. Sigstore *keyless* signe avec l'identité OIDC du workflow

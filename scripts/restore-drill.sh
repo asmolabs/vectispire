@@ -222,8 +222,16 @@ echo "  $BEFORE"
 TOTAL_BEFORE=$(field "$BEFORE" total)
 
 log "2. the dump — taken from the running engine, as an operator would"
-docker exec "$DB_ORIGIN" sh -c \
-  'exec mysqldump -u vectispire -pvectispire --single-transaction --routines --triggers vectispire' \
+# The password is read inside the container and handed over in an option file, as
+# `docs/en/BACKUP_AND_RESTORE.md` §2 does it: `-p<password>` would put it in the process list. The
+# drill's password is a throwaway, but the command is the one an operator copies, so it is the
+# documented one. Here it comes from the container's `MYSQL_PASSWORD`; under Compose, from
+# `/run/secrets/mysql_password`.
+WITH_CLIENT_FILE='umask 077; cnf=$(mktemp)
+printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$MYSQL_PASSWORD" > "$cnf"'
+docker exec "$DB_ORIGIN" sh -c "$WITH_CLIENT_FILE"'
+mysqldump --defaults-extra-file="$cnf" --single-transaction --routines --triggers vectispire
+status=$?; rm -f "$cnf"; exit $status' \
   > "$WORK/vectispire.sql" 2>/dev/null
 [ -s "$WORK/vectispire.sql" ] || fail "the dump is empty"
 echo "  $(wc -l < "$WORK/vectispire.sql" | tr -d ' ') lines, $(du -h "$WORK/vectispire.sql" | cut -f1)"
@@ -239,8 +247,9 @@ echo "  $GREW entries written after the dump, and the mirror has them all"
 
 log "4. restored into an empty engine, with the live mirror kept in place"
 start_db "$DB_RESTORED"
-docker exec -i "$DB_RESTORED" sh -c \
-  'exec mysql -u vectispire -pvectispire vectispire' < "$WORK/vectispire.sql" 2>/dev/null \
+docker exec -i "$DB_RESTORED" sh -c "$WITH_CLIENT_FILE"'
+mysql --defaults-extra-file="$cnf" vectispire
+status=$?; rm -f "$cnf"; exit $status' < "$WORK/vectispire.sql" 2>/dev/null \
   || fail "the dump did not load"
 docker rm -f "$APP_ORIGIN" >/dev/null
 start_app "$APP_RESTORED" "$DB_RESTORED" "$MIRROR_VOL"

@@ -15,7 +15,7 @@ class EvidenceBundleManifestTest {
     void recordsManifestMetadata() {
         EvidenceBundleManifest.EvidenceFileEntry file = new EvidenceBundleManifest.EvidenceFileEntry(
                 "immutable_audit_log.jsonl",
-                "Cryptographic HMAC audit ledger",
+                "Audit trail as a SHA-256 hash chain",
                 1024,
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 

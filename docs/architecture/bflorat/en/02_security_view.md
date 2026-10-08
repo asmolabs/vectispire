@@ -12,8 +12,9 @@
    deployment keys.
 2. **Watertight Source Code Isolation**: Zero risk of source code exfiltration by scanner
    containers.
-3. **Audit Log Tamper-Proofing**: Inability to modify administrative action traces or VEX triage
-   decisions.
+3. **Audit Log Tamper-Evidence**: A selective modification or deletion of administrative action
+   traces or VEX triage decisions is detected. It is not prevented: whoever can write the table can
+   rewrite the whole chain.
 4. **Least Privilege for Remote Agents**: Remote agents cannot reach the SQL database — enforced by
    the module graph, so the violation fails to compile — and never hold `ENCRYPTION_KEY`. They *do*
    receive repository deployment keys in `DELEGATED` mode, sealed (X25519 → HKDF → AES-256-GCM)
@@ -125,17 +126,20 @@ exfiltration:
 
 ---
 
-## 5. Audit Log Tamper-Proofing (Cryptographic Sealing)
+## 5. Audit Log Tamper-Evidence (Hash Chain)
 
 The `t_audit_log` table stores historical administrative and VEX triage records. Each row
-incorporates a SHA-256 hash calculated from the current entry and the preceding row's hash:
+incorporates an unkeyed SHA-256 hash of its fields and of the preceding row's hash
+(`AuditChain.computeEntryHash`), the fields separated by a NUL byte:
 
 ```
-Hash_N = SHA256( Id_N + Action_N + User_N + Timestamp_N + Hash_N-1 )
+Hash_N = SHA256( Hash_N-1 | Timestamp_N | Operation_N | Resource_N | User_N | IP_N | UserAgent_N | Description_N )
 ```
 
-`AuditLogService.verifyIntegrity()` verifies chain integrity automatically and flags any SQL
-modification or deletion.
+`AuditLogService.verify()` recomputes the chain and reports the first break: a selective
+modification or deletion breaks every hash after it. The hash is unkeyed, so this does not make
+the log immutable — whoever can write the table can recompute the whole chain; comparing it with
+the off-database mirror (`verifyAgainstMirror`) is what exposes that.
 
 ---
 

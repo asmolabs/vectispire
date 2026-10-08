@@ -77,7 +77,7 @@ sequenceDiagram
 | **SOC 2** | `SOC2-CC6.8` | Prévention des modifications non autorisées & Code malveillant | `SECURE_CODING` |
 | **SOC 2** | `SOC2-CC7.1` | Évaluation des vulnérabilités & Détection des menaces | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.6` | Sécurité des accès logiques & Gestion des secrets | `SECRETS_MANAGEMENT` |
-| **SOC 2** | `SOC2-CC7.2` | Surveillance des incidents & Traçabilité d'audit infalsifiable | `AUDIT_AND_LOGGING` |
+| **SOC 2** | `SOC2-CC7.2` | Surveillance des incidents & Traçabilité d'audit à altération détectable | `AUDIT_AND_LOGGING` |
 
 ---
 
@@ -133,8 +133,8 @@ $$\text{Score} = \text{round}\left(\frac{N_{\text{cibles passant le Gate}}}{N_{\
 
 ---
 
-### ⑦ Traçabilité & Registre d'Audit Immuable (`AUDIT_AND_LOGGING`)
-Vérifie l'intégrité cryptographique du chaînage HMAC-SHA256 du journal d'audit :
+### ⑦ Traçabilité & Journal d'Audit à Altération Détectable (`AUDIT_AND_LOGGING`)
+Vérifie la chaîne d'empreintes SHA-256 du journal d'audit — chaque entrée porte l'empreinte de la précédente, sans clé, si bien qu'une modification ou une suppression sélective casse toutes les empreintes qui suivent (détection d'altération, pas immuabilité : voir 5.1) :
 - **Chaîne intacte et validée** : $\text{Score} = 100$, Statut = **CONFORME (`COMPLIANT`)**.
 - **Altération ou rupture détectée** : $\text{Score} = 0$, Statut = **NON CONFORME (`NON_COMPLIANT`)**.
 
@@ -197,15 +197,25 @@ Vectispire produit des paquets de preuves directement opposables aux auditeurs e
    - Synthèse de la posture, scores par référentiel, détail des 24 contrôles et plan de remédiation priorisé.
 2. **Paquet de Preuves Certifié (`/api/v1/compliance/evidence-bundle.zip`)** :
    - `manifest.json` & `manifest.json.sig` : Manifeste d'audit scellé et sa signature détachée Cosign (ECDSA P-256).
-   - `00_vectispire_public_key.pub` : Clé publique PEM de l'instance pour vérification indépendante.
+   - `00_vectispire_public_key.pub` : la clé publique PEM de l'instance, **par commodité seulement**. Une clé portée dans le paquet qu'elle vérifie ne prouve rien sur ce paquet — qui a modifié le paquet remplace aussi la clé. Vérifiez les signatures avec une clé obtenue par un autre canal : `GET /api/v1/crypto/public-key.pub` sur l'instance, ou une copie épinglée avant que ce paquet n'existe.
    - `01_compliance_frameworks.json` : Évaluations continues des 6 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2).
-   - `02_immutable_audit_log.jsonl` : Journal d'audit scellé HMAC-SHA256.
+   - `02_immutable_audit_log.jsonl` : le journal d'audit, chaque entrée chaînée à la précédente par une empreinte SHA-256 sans clé. Altération détectable plutôt qu'immuable, quoi qu'en dise le nom du fichier (5.1) ; le nom est gardé parce qu'il fait partie de la structure de l'archive.
    - `03_triage_and_exemptions.json` : Registre des décisions de triage et approbations 4-yeux.
    - `04_attestations/` : Attestations in-toto et enveloppes signées DSSE, pour les vingt scans terminés les plus récents que l'appelant peut voir. Le **sujet est le SBOM du scan**, désigné par son SHA-256 — le seul artefact qu'un scan enregistre avec une empreinte (il ne conserve ni le commit ni l'empreinte de l'image, d'où `commitSha` nul). Le **verdict de la barrière** est celui qu'elle a enregistré pour la cible entre ce scan et le suivant, avec la source, la version et la date de la politique ; absent quand aucun pipeline ne l'a demandé. Les compteurs KEV et secrets sont ceux du scan. Un scan qui ne peut pas être attesté — non terminé, ou sans SBOM — produit un `scan_<id>_not_attested.txt` qui dit pourquoi, au lieu d'une attestation dont le manque serait comblé.
    - `05_openvex_advisory.json` & `.sig` : Avis VEX OpenVEX v0.2.0 et signature Cosign.
    - `06_csaf_2_0_vex.json` & `.sig` : Avis standardisé OASIS CSAF 2.0 et signature Cosign.
    - `07_license_compliance.json` : Inventaire des licences et analyse de risque copyleft.
    - `08_cyclonedx_1_5_vex.json` & `.sig` : SBOM CycloneDX 1.5 enrichi et signature Cosign.
+   - `09_gate_verdict_register.json` : chaque réponse rendue par la barrière de mise en production — continuité mensuelle, totaux, et chaque refus en entier.
+   - `10_exception_register.json` : acceptations de risque et écartements, avec auteur, justification, approbateur et échéance, les échus signalés.
+   - `11_remediation_timeliness.json` : délais de correction face à chaque échéance — part dans l'objectif, médiane, 90e centile, retard en cours, plus ancien élément ouvert.
+   - `12_control_coverage.json` : les langages que les règles installées atteignent, et la fenêtre de fraîcheur appliquée à `01` — ce que signifie, et ne signifie pas, un compte de constats à zéro.
+   - `13_statement_of_applicability.json` : la déclaration d'applicabilité par référentiel, chaque contrôle confronté à son statut mesuré.
+   - `14_compliance_progression.json` : le verdict de chaque référentiel mois par mois, avec le parc qui l'a produit.
+
+   Les sections `01` à `08` décrivent ce que contient le parc ; `09` à `13` sont la preuve de
+   processus — que les contrôles ont fonctionné sur la période — et `14` dit si ce fonctionnement
+   s'est amélioré.
 
    **Une clé d'intégration restreinte à certaines cibles reçoit un paquet plus étroit.** Chaque
    section est construite dans le périmètre de l'appelant ; pour une telle clé, la synthèse des

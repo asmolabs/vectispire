@@ -243,9 +243,9 @@ public enum Setting {
                     + "a triage decision, so without this an anonymous caller who guesses a ticket reference can "
                     + "close a finding. GitLab sends `X-Gitlab-Token` verbatim; GitHub sends "
                     + "`X-Hub-Signature-256` as HMAC-SHA256 over the raw body; Jira and ServiceNow have no "
-                    + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. **Empty means "
-                    + "the route stays anonymous and unauthenticated**, which is where every existing deployment "
-                    + "is today: set it, then set the same value in the tracker. Encrypted at rest and written only by "
+                    + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. **While it is "
+                    + "empty the route refuses every call** with a 403 telling the tracker the webhook is not "
+                    + "configured: set it, then set the same value in the tracker. Encrypted at rest and written only by "
                     + "`PUT /api/v1/settings/ticket-webhook-secret`.",
             "", Sensitivity.ENCRYPTED),
 

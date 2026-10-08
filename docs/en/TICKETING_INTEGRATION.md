@@ -17,7 +17,7 @@ Vectispire provides an automated bidirectional synchronization engine between it
 
 3. **Status Sync & Triage Decisions (Inbound Webhooks)**:
    * When an engineering lead or developer updates the ticket in Jira, GitLab, GitHub, or ServiceNow with a disposition such as *False Positive*, *Won't Fix*, *Declined*, or *Risk Accepted*, Vectispire receives the inbound webhook event.
-   * The issue in Vectispire is immediately triaged to **`not_affected`** with the appropriate OpenVEX / CSAF justification, and an immutable log entry is added to the cryptographic audit trail under `TICKET_SYNCED`.
+   * The decision is **queued for approval by a second person**, not applied: the issue moves to `pending_approval` with the proposed **`not_affected`** status and its OpenVEX / CSAF justification, and the exported documents show it as under review until someone approves it. A tracker is neither a person nor authenticated as one, and `not_affected` travels as it stands into the signed CycloneDX, OpenVEX and CSAF documents. The event is recorded in the hash-chained audit log under `TICKET_SYNCED`.
 
 ---
 
@@ -37,12 +37,12 @@ Add the following webhook endpoints in your external issue tracker:
 ### 1. 🏷️ Jira Software (Atlassian)
 * **Webhook URL**: `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/jira`
 * **Events**: `Issue -> updated`
-* **Behavior**: If the resolution is marked as *"Won't Fix"*, *"False Positive"*, or *"Declined"*, Vectispire updates the issue triage status automatically.
+* **Behavior**: If the resolution is marked as *"Won't Fix"*, *"False Positive"*, or *"Declined"*, Vectispire queues a `not_affected` decision for approval.
 
 ### 2. 🦊 GitLab Issues
 * **Webhook URL**: `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/gitlab`
 * **Events**: `Issues Events`
-* **Behavior**: When an issue is closed or commented with *"false positive"* or *"wontfix"*, status is automatically mirrored in Vectispire.
+* **Behavior**: When an issue is closed or commented with *"false positive"* or *"wontfix"*, a `not_affected` decision is queued for approval in Vectispire.
 
 ### 3. 🐙 GitHub Issues
 * **Webhook URL**: `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/github`

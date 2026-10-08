@@ -576,7 +576,7 @@ Two rules the harness enforces on itself:
 ## 15. OpenAPI 3.0 Documentation & REST Reference
 
 - **Static Reference Documentation**:
-  - [`docs/en/api/rest_api_reference.md`](api/rest_api_reference.md): Complete bilingual reference of all REST endpoints, headers, request bodies, responses, and `curl` examples.
+  - [`docs/en/api/rest_api_reference.md`](api/rest_api_reference.md): bilingual reference of a curated selection of REST endpoints — not all of them — with authentication headers and `curl` examples. The complete contract is [`vectispire-angular/openapi.json`](../../vectispire-angular/openapi.json); `ApiReferenceTest` fails the build on a documented route the contract does not carry.
 - **Optional OpenAPI 3.0 & Swagger UI**:
   - In production deployments, Swagger UI and `/v3/api-docs` are **strictly disabled by default** (`springdoc.swagger-ui.enabled: false`) to avoid unnecessary exposure.
   - Can be activated in development or staging environments via `VECTISPIRE_SWAGGER_UI_ENABLED=true` and `VECTISPIRE_API_DOCS_ENABLED=true`.

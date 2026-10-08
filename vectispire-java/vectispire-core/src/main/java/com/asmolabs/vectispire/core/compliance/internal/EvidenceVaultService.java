@@ -160,13 +160,14 @@ public class EvidenceVaultService {
                     "Continuous compliance assessments for NIS 2, DORA, ISO 27001, PCI-DSS, and EU CRA",
                     complianceBytes);
 
-            // 2. Immutable Audit Log
+            // 2. Audit log, hash-chained. Tamper-evident, not immutable: the file name says
+            // "immutable" and stays, because it is the archive's layout and auditors' tooling reads it.
             Long auditEntryCount = null;
             if (wholeEstate) {
                 AuditLogQueryService.JsonLines logEntries = auditLogRepo.asJsonLines(json);
                 byte[] auditBytes = logEntries.text().getBytes(StandardCharsets.UTF_8);
                 addZipEntry(zip, entries, AUDIT_LOG,
-                        "Cryptographic HMAC Merkle-like immutable audit trail",
+                        "Audit trail as a SHA-256 hash chain: tamper-evident, each entry carrying the previous one's hash",
                         auditBytes);
                 auditEntryCount = (long) logEntries.entries();
             } else {

@@ -15,7 +15,7 @@ Security guarantees do not rely on implicit conventions; they are verified and l
 1. **Compilation-level module boundaries** (physical JVM separation without JDBC leakage to remote agents).
 2. **Automated architecture tests (ArchUnit)** verifying layer boundaries.
 3. **Multi-engine integration test suites (PostgreSQL, MySQL)** verifying schema parity and concurrency.
-4. **Strict, uncompromising Content Security Policy (CSP)** prohibiting dynamic script execution (`'unsafe-eval'` excluded).
+4. **A Content Security Policy (CSP) strict on scripts** — `script-src 'self'`, with neither `'unsafe-inline'` nor `'unsafe-eval'` — and **relaxed on styles**: `style-src` keeps `'unsafe-inline'`, because the interface still writes style attributes. An injected style can redress a page; it cannot execute.
 5. **Supply Chain Security** enforced via Sigstore keyless signing, Gradle dependency locking (`gradle.lockfile`), and SBOM audits.
 6. **Integrated Regulatory Compliance Engine** (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA) backed by a certified, cryptographically-sealed evidence vault (`EvidenceVaultService`).
 7. **Four-Eyes Triage Governance & Upstream VEX Ingestion** (`SECURITY_CHAMPION`, `VexIngestorService`, `CsafGeneratorService`) guaranteeing risk acceptance auditability and automated vulnerability suppressions.
@@ -35,7 +35,7 @@ flowchart TB
         AUTH["Auth & Sessions (Argon2id, Bearer hash SHA-256)"]
         CIPHER["SecretCipher (AES-GCM + Row AAD Context)"]
         SSRF["OutboundUrlGuard + PinnedHttpSender (DNS Pinning)"]
-        AUDIT["AuditChain (HMAC-SHA256 Hash Chain Integrity + Mirror)"]
+        AUDIT["AuditChain (SHA-256 Hash Chain Integrity + Mirror)"]
         COMPLIANCE["ComplianceEngine (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA)"]
         VAULT["EvidenceVaultService (Signed ZIP / In-Toto / OpenVEX / CSAF 2.0)"]
         VEX["VexIngestorService (Cascade Suppression & 4-Eyes Triage)"]
@@ -88,7 +88,7 @@ flowchart TB
 ### 2.5. Regulatory Compliance Engine & Evidence Vault (`ComplianceEngine`, `EvidenceVaultService`)
 - **Deterministic Scoring**: Real-time evaluation across 6 frameworks (NIS 2, DORA, ISO 27001, PCI-DSS, Cyber Resilience Act EU CRA, SOC 2) and 7 assessment categories.
 - **Strict Non-Dilution**: A single non-compliant critical control invalidates the overall compliance status of the framework.
-- **Certified Evidence Bundles**: Generates cryptographically sealed ZIP archives with SHA-256 manifests, In-Toto attestations, OpenVEX statements, OASIS CSAF 2.0 advisories, CycloneDX 1.5 SBOMs with embedded VEX, and signed HMAC audit trails.
+- **Certified Evidence Bundles**: Generates cryptographically sealed ZIP archives with SHA-256 manifests, In-Toto attestations, OpenVEX statements, OASIS CSAF 2.0 advisories, CycloneDX 1.5 SBOMs with embedded VEX, and the audit trail as a SHA-256 hash chain (tamper-evident, unkeyed — the bundle's manifest is what is signed).
 
 ### 2.6. Four-Eyes Triage Governance & Upstream VEX Ingestion (`IssueTriageService`, `VexIngestorService`)
 - **Four-Eyes Principle**: Developer-initiated risk exemptions enter `PENDING_APPROVAL`, blocking CI/CD quality gates until explicitly approved by a `SECURITY_CHAMPION`, `CISO`, or `ADMIN`.

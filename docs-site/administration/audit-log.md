@@ -1,6 +1,6 @@
 # Audit log
 
-An immutable, hash-chained record of what was done and by whom.
+A hash-chained, tamper-evident record of what was done and by whom: each entry carries the previous one's hash, so a selective change or deletion is detected — not prevented.
 
 !!! info "Who can read it"
     Administrators, the CISO, and the **Auditor** role — which reads this page and changes nothing

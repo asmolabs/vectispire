@@ -34,6 +34,10 @@ envoyé par Vectispire d'un message envoyé par quiconque a appris l'URL — cel
 pour un script, un bus ou votre propre passerelle. Slack et Teams acceptent ce qui arrive et ne
 peuvent rien vérifier : la signature n'y achète rien.
 
+L'horodatage est à l'intérieur de la signature, il ne peut donc pas être réécrit — mais un rejeu
+n'est refusé que par un destinataire qui vérifie : rejetez un horodatage hors d'une fenêtre que
+vous choisissez, et dédupliquez sur le `message_id` du message dans cette fenêtre.
+
 Un secret vide signifie non signé, et c'est ce que reste un déploiement existant tant que vous
 n'en posez pas un.
 

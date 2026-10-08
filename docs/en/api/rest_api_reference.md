@@ -1,25 +1,37 @@
 # Vectispire REST API Reference
 
-This document provides the official, comprehensive reference for all REST endpoints exposed by the **Vectispire Control Plane** (v4.1.0).
+This document is a **curated selection** of the REST endpoints exposed by the **Vectispire Control
+Plane** — the ones somebody reads before writing a client — not the full list. The complete,
+generated contract is the OpenAPI document,
+[`vectispire-angular/openapi.json`](../../../vectispire-angular/openapi.json), which a test keeps
+in step with the routes the server answers; every row below is checked against it.
 
 ---
 
 ## 🔒 Security & Authentication
 
-Vectispire APIs support three distinct authentication mechanisms:
+Every credential travels in the same header, `Authorization: Bearer <credential>`; what it is
+decides who the caller is.
 
-### 1. User Session Token (`Bearer JWT`)
+### 1. User Session Token
 * **Header**: `Authorization: Bearer <token>`
+* **What it is**: an opaque random token, not a JWT — it carries no claims, and the server keeps
+  only its SHA-256 hash. It means something only to the instance that issued it, and revoking it
+  takes effect on the next request.
 * **Usage**: Angular web console and interactive user sessions.
 * **Acquisition**: Via `POST /api/v1/auth/login` (with MFA / TOTP step verification via `POST /api/v1/auth/mfa/verify`).
 
-### 2. Scanner Agent Key (`X-Agent-Key`)
-* **Header**: `X-Agent-Key: <agent_key>`
-* **Usage**: Distributed remote scanning agent protocol (`/api/v1/agent/**`).
+### 2. Scanner Agent Key
+* **Header**: `Authorization: Bearer <agent_key>` — an API key with the `agent` scope, which is
+  what the agent sends. There is no separate agent header.
+* **Usage**: Distributed remote scanning agent protocol (`/api/v1/agent/**`), and nothing else.
 
-### 3. Programmatic API Key (`X-API-Key`)
-* **Header**: `X-API-Key: <api_key>`
+### 3. Programmatic API Key
+* **Header**: `Authorization: Bearer <api_key>`, or `X-API-Key: <api_key>` as an alternative
+  when the client cannot set `Authorization`. `X-API-Key` is read only when there is no
+  `Authorization` header, and only for a key — a session token presented there is ignored.
 * **Usage**: Automation scripts, CI/CD pipelines (GitHub Actions, GitLab CI), and SIEM integration.
+  A key reaches only the routes that accept its scope — the `… key` mentions in the table below.
 
 ---
 
@@ -29,15 +41,15 @@ Vectispire APIs support three distinct authentication mechanisms:
 |---|---|---|---|---|
 | **Auth** | `POST` | `/api/v1/auth/login` | Public | User credentials authentication (username / password). |
 | **Auth** | `GET` | `/api/v1/auth/methods` | Public | Discover active login methods (Password, SSO OIDC). |
-| **Auth** | `POST` | `/api/v1/auth/session/exchange` | Public | Exchange SSO hand-off cookie for a valid JWT session. |
+| **Auth** | `POST` | `/api/v1/auth/session/exchange` | Public | Exchange SSO hand-off cookie for a session token. |
 | **Auth** | `POST` | `/api/v1/auth/mfa/verify` | Public | Verify TOTP code for active MFA challenge. |
 | **Auth** | `POST` | `/api/v1/auth/mfa/setup` | Account | Initialize two-factor authentication (generate TOTP secret). |
 | **Auth** | `POST` | `/api/v1/auth/mfa/enable` | Account | Confirm and activate 2FA with an initial code. |
 | **Auth** | `POST` | `/api/v1/auth/mfa/disable` | Account | Disable 2FA after providing verification code. |
 | **Attack Surface** | `GET` | `/api/v1/attack-surface` | Account | Global attack surface summary and high-risk exposed routes. |
-| **Attack Surface** | `DELETE` | `/api/v1/attack-surface` | Account | Atomically purge all discovered endpoints and contracts. |
+| **Attack Surface** | `DELETE` | `/api/v1/attack-surface` | Lead/Admin | Atomically purge all discovered endpoints and contracts. |
 | **Attack Surface** | `GET` | `/api/v1/repositories/{id}/apis` | Account | Discovered endpoints and declared OpenAPI contracts for a target. |
-| **Attack Surface** | `DELETE` | `/api/v1/repositories/{id}/apis` | Account | Purge endpoints and contracts for a specific repository. |
+| **Attack Surface** | `DELETE` | `/api/v1/repositories/{id}/apis` | Lead/Admin | Purge endpoints and contracts for a specific repository. |
 | **Attack Surface** | `GET` | `/api/v1/repositories/{id}/apis/export/openapi` | Account | Export synthesized OpenAPI 3.0 specification from source code. |
 | **Repositories** | `GET` | `/api/v1/repositories` | Account | List monitored repositories with latest scan status, and `detectedLanguages`: the languages the newest completed scan found in the tree, sorted, in the plugin manifests' vocabulary — `null` when unknown (no completed scan, or one that recorded no whole count), `[]` when none ([Plugins](../../../docs-site/administration/plugins.md#the-languages-detected-in-a-repository)). Each repository also carries `scanManualOnly` and `schedule`, the schedule in force as the server decides it: `mode` — `manual`, `cron`, `interval` or `default` (neither an interval nor an expression: the installation's `scan_default_interval_days`) — and `intervalMinutes`, the interval it runs at under `interval` and `default`, `null` otherwise and under a default of zero. `GET /api/v1/containers` carries the same two fields ([Recurrence](../../../docs-site/guide/repositories.md#recurrence)). |
 | **Repositories** | `POST` | `/api/v1/repositories` | Admin | Register a new Git repository for continuous scanning. With no `scanIntervalMinutes` and no `scanCron`, it runs on the installation's default interval; `scanManualOnly: true` never rescans it. The same repository — its URL compared without scheme, user part, port, case, trailing `.git` or slashes — on the same branch and sub-path as an existing target answers 409 with the type `urn:vectispire:problem:target-already-registered`, carrying `existingRepositoryId` only when the caller sees that target ([Filed once](../../../docs-site/guide/repositories.md#filed-once)). |
@@ -77,7 +89,7 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **Compliance** | `GET` | `/api/v1/projects/{id}/compliance`, `/api/v1/solutions/{id}/compliance` | Account, `read` key | The estate summary computed over the project's targets (or those filed in the solution's projects) that the caller sees, and nothing else — same controls, coverage and freshness caps, `NO_DATA` when none of them was scanned: `compliance` (the summary's shape), `scorecard` (the scope's scorecard over the same targets, `targetKind` `project` or `solution`: graded by its weakest scanned target, named in `weakestTarget`, capped at the scanned share; `riskPoints` over the scope's whole open backlog, each issue and licence once), `kind`, `id`, `name`, `partial`, `targetCount`. 404 `Project not found.` / `Solution not found.` for one absent or of which the caller sees nothing ([Compliance](../../../docs-site/guide/compliance.md#per-project-and-per-solution)). |
 | **Compliance** | `GET` | `/api/v1/compliance/frameworks/{fw}` | Account | Detailed evaluation for a specific compliance standard. |
 | **Compliance** | `GET` | `/api/v1/compliance/export.pdf` | Account | Download executive regulatory compliance report in PDF format. |
-| **Compliance** | `GET` | `/api/v1/compliance/evidence-bundle.zip` | Account | Export cryptographically sealed audit evidence bundle with SHA-256 proofs. |
+| **Compliance** | `GET` | `/api/v1/compliance/evidence-bundle.zip` | Governance, `export` key | Export cryptographically sealed audit evidence bundle with SHA-256 proofs. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Account | Repository security posture scorecard: `score` (1–100, 100 × e^(−risk points / 55), an exploited issue capping at 54) and its letter `grade`, and `riskPoints` — the weighted open backlog (exploited 25, critical 10, high 4, medium 0.5, low 0.125, disallowed licence 4) — since 0.11.0 ([decision 0036](../../architecture/en/decisions/0036-the-posture-score-formula.md)). `NO_DATA` with a `null` score and `null` risk points for a repository with no completed scan. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/containers/{id}` | Account | Container image security scorecard, grade and risk points, as for a repository. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/global` | Account | The portfolio over the targets the caller sees, **with no grade of its own since 0.11.0**: `grades` (every grade, `NO_DATA` included, with how many targets read it), `weakestTarget` (the scanned target with the lowest score, its risk points breaking a tie; `null` when none is scanned), `riskPoints` (everything open, each issue and licence once), `totalTargets`, `observedTargets` and the open counts. The `score`, `grade`, `targetId`, `targetKind`, `targetName`, `hasAttestation` and `recommendations` it carried before 0.11.0 are gone. |
@@ -177,18 +189,18 @@ curl -X POST "https://vectispire.example.com/api/v1/auth/login" \
 ### 2. Triggering a Repository Scan
 ```bash
 curl -X POST "https://vectispire.example.com/api/v1/repositories/1/scan" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+  -H "Authorization: Bearer <YOUR_SESSION_TOKEN>"
 ```
 
 ### 3. Querying the Attack Surface
 ```bash
 curl -X GET "https://vectispire.example.com/api/v1/attack-surface" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+  -H "Authorization: Bearer <YOUR_SESSION_TOKEN>"
 ```
 
 ### 4. Downloading Scan SBOM
 ```bash
 curl -X GET "https://vectispire.example.com/api/v1/scans/42/sbom" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
+  -H "Authorization: Bearer <YOUR_SESSION_TOKEN>" \
   -o scan-42-sbom.json
 ```

@@ -1,25 +1,37 @@
-# Référence Complète de l'API REST Vectispire
+# Référence de l'API REST Vectispire
 
-Ce document constitue la référence officielle et exhaustive des interfaces de programmation REST exposées par le Control Plane **Vectispire** (v4.1.0).
+Ce document est une **sélection commentée** des endpoints REST exposés par le Control Plane
+**Vectispire** — ceux qu'on lit avant d'écrire un client —, pas leur liste complète. Le contrat
+complet, généré, est le document OpenAPI,
+[`vectispire-angular/openapi.json`](../../../vectispire-angular/openapi.json), qu'un test garde
+aligné sur les routes que le serveur répond ; chaque ligne ci-dessous est vérifiée contre lui.
 
 ---
 
 ## 🔒 Sécurité et Authentification
 
-L'API Vectispire utilise trois mécanismes d'authentification selon le type d'appelant :
+Chaque justificatif voyage dans le même en-tête, `Authorization: Bearer <justificatif>` ; c'est sa
+nature qui décide de qui est l'appelant.
 
-### 1. Jeton de Session Utilisateur (`Bearer JWT`)
+### 1. Jeton de Session Utilisateur
 * **En-tête** : `Authorization: Bearer <token>`
+* **Ce que c'est** : un jeton aléatoire opaque, pas un JWT — il ne porte aucune revendication, et
+  le serveur n'en garde que l'empreinte SHA-256. Il n'a de sens que pour l'instance qui l'a émis,
+  et sa révocation prend effet dès la requête suivante.
 * **Utilisation** : Interface Web Angular, sessions d'utilisateurs interactives.
 * **Obtention** : Via `POST /api/v1/auth/login` (avec support éventuel du 2FA/TOTP via `POST /api/v1/auth/mfa/verify`).
 
-### 2. Clé d'Agent de Scan (`X-Agent-Key`)
-* **En-tête** : `X-Agent-Key: <agent_key>`
-* **Utilisation** : Protocoles d'agents distants distribués (`/api/v1/agent/**`).
+### 2. Clé d'Agent de Scan
+* **En-tête** : `Authorization: Bearer <agent_key>` — une clé d'API de portée `agent`, ce que
+  l'agent envoie. Il n'existe pas d'en-tête propre à l'agent.
+* **Utilisation** : Protocole des agents distants (`/api/v1/agent/**`), et rien d'autre.
 
-### 3. Clé d'API Programmatique (`X-API-Key`)
-* **En-tête** : `X-API-Key: <api_key>`
+### 3. Clé d'API Programmatique
+* **En-tête** : `Authorization: Bearer <api_key>`, ou `X-API-Key: <api_key>` en alternative quand
+  le client ne peut pas poser `Authorization`. `X-API-Key` n'est lu qu'en l'absence d'en-tête
+  `Authorization`, et seulement pour une clé — un jeton de session présenté là est ignoré.
 * **Utilisation** : Pipelines CI/CD (GitHub Actions, GitLab CI), intégrations SIEM et scripts d'automatisation.
+  Une clé n'atteint que les routes qui acceptent sa portée — les mentions « clé … » du tableau ci-dessous.
 
 ---
 
@@ -35,9 +47,9 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Auth** | `POST` | `/api/v1/auth/mfa/enable` | Compte | Activation définitive du MFA après saisie d'un premier code. |
 | **Auth** | `POST` | `/api/v1/auth/mfa/disable` | Compte | Désactivation du MFA avec validation par code. |
 | **Surface d'Attaque** | `GET` | `/api/v1/attack-surface` | Compte | Synthèse globale de la surface d'attaque et routes à haut risque. |
-| **Surface d'Attaque** | `DELETE` | `/api/v1/attack-surface` | Compte | Purge globale de l'inventaire des endpoints et contrats. |
+| **Surface d'Attaque** | `DELETE` | `/api/v1/attack-surface` | Responsable/Admin | Purge globale de l'inventaire des endpoints et contrats. |
 | **Surface d'Attaque** | `GET` | `/api/v1/repositories/{id}/apis` | Compte | Inventaire des routes découvertes et contrats OpenAPI d'un dépôt. |
-| **Surface d'Attaque** | `DELETE` | `/api/v1/repositories/{id}/apis` | Compte | Purge des endpoints et contrats d'un dépôt spécifique. |
+| **Surface d'Attaque** | `DELETE` | `/api/v1/repositories/{id}/apis` | Responsable/Admin | Purge des endpoints et contrats d'un dépôt spécifique. |
 | **Surface d'Attaque** | `GET` | `/api/v1/repositories/{id}/apis/export/openapi` | Compte | Export du schéma OpenAPI 3.0 synthétisé à partir du code source. |
 | **Dépôts Git** | `GET` | `/api/v1/repositories` | Compte | Liste des dépôts surveillés avec état du dernier scan, et `detectedLanguages` : les langages trouvés dans l'arbre par le scan terminé le plus récent, triés, dans le vocabulaire des manifestes de plugins — `null` si inconnu (aucun scan terminé, ou un scan sans recensement complet), `[]` si aucun ([Plugins](../../../docs-site/administration/plugins.fr.md#les-langages-detectes-dans-un-depot)). Chaque dépôt porte aussi `scanManualOnly` et `schedule`, la planification en vigueur telle que le serveur la décide : `mode` — `manual`, `cron`, `interval` ou `default` (ni intervalle ni expression : le `scan_default_interval_days` de l'installation) — et `intervalMinutes`, l'intervalle effectif sous `interval` et `default`, `null` sinon et sous un défaut à zéro. `GET /api/v1/containers` porte les deux mêmes champs ([Récurrence](../../../docs-site/guide/repositories.fr.md#recurrence)). |
 | **Dépôts Git** | `POST` | `/api/v1/repositories` | Admin | Enregistrement d'un nouveau dépôt Git à analyser. Sans `scanIntervalMinutes` ni `scanCron`, il suit l'intervalle par défaut de l'installation ; `scanManualOnly: true` ne le réanalyse jamais. Le même dépôt — son URL comparée sans schéma, partie utilisateur, port, casse, `.git` ni barres obliques finales — sur la même branche et le même sous-chemin qu'une cible existante répond 409 avec le type `urn:vectispire:problem:target-already-registered`, portant `existingRepositoryId` seulement quand l'appelant voit cette cible ([Enregistré une seule fois](../../../docs-site/guide/repositories.fr.md#filed-once)). |
@@ -77,7 +89,7 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Conformité** | `GET` | `/api/v1/projects/{id}/compliance`, `/api/v1/solutions/{id}/compliance` | Compte, clé `read` | La synthèse du parc calculée sur les cibles du projet (ou celles rangées dans les projets de la solution) que voit l'appelant, et sur rien d'autre — mêmes contrôles, mêmes plafonds de couverture et de fraîcheur, `NO_DATA` quand aucune n'a été analysée : `compliance` (la forme de la synthèse), `scorecard` (la fiche de score de la portée sur les mêmes cibles, `targetKind` `project` ou `solution` : notée par sa cible analysée la plus faible, nommée dans `weakestTarget`, plafonnée à la part analysée ; `riskPoints` sur tout le backlog ouvert de la portée, chaque problème et licence une fois), `kind`, `id`, `name`, `partial`, `targetCount`. 404 `Project not found.` / `Solution not found.` pour un périmètre absent ou dont l'appelant ne voit rien ([Conformité](../../../docs-site/guide/compliance.fr.md#par-projet-et-par-solution)). |
 | **Conformité** | `GET` | `/api/v1/compliance/frameworks/{fw}` | Compte | Évaluation détaillée des exigences pour un référentiel réglementaire. |
 | **Conformité** | `GET` | `/api/v1/compliance/export.pdf` | Compte | Téléchargement du rapport exécutif de conformité au format PDF. |
-| **Conformité** | `GET` | `/api/v1/compliance/evidence-bundle.zip` | Compte | Export du bundle d'audit scellé (preuves cryptographiques SHA-256). |
+| **Conformité** | `GET` | `/api/v1/compliance/evidence-bundle.zip` | Gouvernance, clé `export` | Export du bundle d'audit scellé (preuves cryptographiques SHA-256). |
 | **Scorecards** | `GET` | `/api/v1/scorecards/repositories/{id}` | Compte | Scorecard de posture de sécurité d'un dépôt : `score` (1–100, 100 × e^(−points de risque / 55), un problème exploité plafonnant à 54) et sa lettre `grade`, et `riskPoints` — le backlog ouvert pondéré (exploité 25, critique 10, haut 4, moyen 0,5, bas 0,125, licence interdite 4) — depuis la 0.11.0 ([décision 0036](../../architecture/fr/decisions/0036-the-posture-score-formula.md)). `NO_DATA` avec un score `null` et des points de risque `null` pour un dépôt sans scan terminé. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/containers/{id}` | Compte | Scorecard, note et points de risque d'une image conteneur, comme pour un dépôt. |
 | **Scorecards** | `GET` | `/api/v1/scorecards/global` | Compte | Le portefeuille sur les cibles que l'appelant voit, **sans note propre depuis la 0.11.0** : `grades` (chaque note, `NO_DATA` compris, avec le nombre de cibles qui la lisent), `weakestTarget` (la cible analysée au plus bas score, ses points de risque départageant les ex æquo ; `null` quand aucune n'est analysée), `riskPoints` (tout ce qui est ouvert, chaque problème et licence une fois), `totalTargets`, `observedTargets` et les compteurs ouverts. Les champs `score`, `grade`, `targetId`, `targetKind`, `targetName`, `hasAttestation` et `recommendations` qu'il portait avant la 0.11.0 ont disparu. |
@@ -177,18 +189,18 @@ curl -X POST "https://vectispire.example.com/api/v1/auth/login" \
 ### 2. Déclenchement d'une Analyse de Dépôt
 ```bash
 curl -X POST "https://vectispire.example.com/api/v1/repositories/1/scan" \
-  -H "Authorization: Bearer <VOTRE_JWT_TOKEN>"
+  -H "Authorization: Bearer <VOTRE_JETON_DE_SESSION>"
 ```
 
 ### 3. Consultation de la Surface d'Attaque
 ```bash
 curl -X GET "https://vectispire.example.com/api/v1/attack-surface" \
-  -H "Authorization: Bearer <VOTRE_JWT_TOKEN>"
+  -H "Authorization: Bearer <VOTRE_JETON_DE_SESSION>"
 ```
 
 ### 4. Téléchargement du SBOM d'une Analyse
 ```bash
 curl -X GET "https://vectispire.example.com/api/v1/scans/42/sbom" \
-  -H "Authorization: Bearer <VOTRE_JWT_TOKEN>" \
+  -H "Authorization: Bearer <VOTRE_JETON_DE_SESSION>" \
   -o scan-42-sbom.json
 ```
