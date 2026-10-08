@@ -1,30 +1,68 @@
 # Vectispire
 
-Vectispire is a software dependency and security tracking application built around SBOM (Software Bill of Materials) analysis. It scans Git repositories and container images, detects known vulnerabilities, hardcoded secrets, problematic licenses, and infrastructure-as-code misconfigurations, then centralizes the results in a single dashboard — in the spirit of a unified ASPM (Application Security Posture Management) platform. Scanning runs in local Docker containers.
+*[Version française](README.fr.md)*
 
-Built with [Spring Boot](https://spring.io/projects/spring-boot) on JDK 25 and [Angular](https://angular.dev) over PostgreSQL.
+Vectispire is a self-hosted platform that tracks the security of the software you build. It scans
+Git repositories and container images — dependencies through an SBOM, known vulnerabilities,
+hardcoded secrets, licences, end-of-life runtimes, infrastructure-as-code and, optionally, the
+source itself — and keeps every finding as an issue with a history, a triage decision and a
+verdict a CI pipeline can ask for. Every scanner runs in a container with the network disabled,
+on your machines.
 
-## Why "Vectispire"?
+A Spring Boot control plane on JDK 25, an Angular interface, MySQL or PostgreSQL, released under
+[Apache 2.0](LICENSE). **The project is pre-1.0**: `0.10.x` is the supported line
+([SECURITY.md](SECURITY.md)), and the user guide is published at
+<https://asmolabs.github.io/vectispire/>.
 
-The name **Vectispire** reflects two foundational pillars of application security posture management:
+## What it is for
 
-- **`Vectis`** *(Latin for "Security Lever & Locking Mechanism")*: The platform acts as the **cryptographic security lever and policy gatekeeper** of the software supply chain. It enforces strict compliance and gate verdicts, generates DSSE Cosign signatures, signs in-toto attestations, and issues tamper-evident VEX statements (OASIS CSAF 2.0, OpenVEX, CycloneDX) and immutable audit log chains.
-- **`Spire`** *(The Elevated ASPM Watchtower & Posture Horizon)*: The platform provides a **panoramic, high-ground vantage point** over your entire application security posture — mapping multi-tier dependency graphs, calculating blast radius impact, resolving license copyleft matrices, and tracking vulnerability remediation velocity (MTTR) across all repositories and container registries.
+Most of what Vectispire finds, other tools find too — it runs Syft, Grype, Gitleaks, Checkov and
+Semgrep rather than reimplementing them. What it adds is what happens **after** a scanner has
+spoken:
 
-Together, **Vectispire** locks down software integrity while elevating visibility across the entire attack surface.
+- **A triage decision that survives.** A finding becomes an issue identified by a fingerprint that
+  ignores the package version, so a dependency that stays vulnerable through three patch releases
+  keeps one history and one decision. Decisions use the VEX vocabulary, can carry a review date,
+  and are exported as OpenVEX, CSAF 2.0, CycloneDX and SARIF suppressions — a triage is done once,
+  not once per tool.
+- **A history written for someone who was not there.** For each repository: every scan, the
+  version it read, what it observed, and every decision taken on it — by whom, from which status to
+  which, with which justification. Exportable as PDF and CSV, for an auditor or an incident review.
+- **A gate that says why.** A pipeline asks "should this build fail?" and gets the verdict, the
+  stored, versioned policy that produced it, and three exit codes — because "the control plane was
+  unreachable" must not read as "your code is clean".
+- **The evidence an ISO/IEC 27001 audit asks for.** A statement of applicability that sets what
+  is declared against what is measured, a certified scope compared with what is actually watched,
+  a register of accepted risks that shows the lapsed and the never-reviewed, the organisation's own
+  security checklists signed off per project, remediation delays by their tail, and the state of
+  the estate at a given hour — each described [below](#features).
+- **A scanner that failed is not a clean result.** An analysis that did not run reports *absent*,
+  never an empty list, so it cannot close a backlog it never looked at
+  ([decision 0007](docs/architecture/en/decisions/0007-none-is-not-an-empty-list.md)).
+- **Nothing about your code leaves the machine.** Scanners run with no network, a read-only mount
+  and every capability dropped; EPSS and CISA KEV data are downloaded whole, so no third party
+  learns which CVE a repository carries. Remote agents scan from other network segments and hold no
+  database access by construction.
+
+The reasoning behind each of these — and the alternatives that were rejected — is in the
+[decision register](docs/architecture/en/decisions/), together with the
+[threat model](docs/architecture/security/en/STRIDE_THREAT_MODEL.en.md) and the audits that record
+where this project got it wrong.
+
+*The name joins* vectis, *Latin for a lever or bolt — the gate — and* spire, *a high point to see
+the whole estate from.*
 
 ## Features
 
 - **SCA analysis (dependencies)**: SBOM generation (Syft) and known-vulnerability detection (Grype), with severity, CVE, and affected component.
 - **EPSS / CISA KEV enrichment**: every vulnerability is enriched with its exploitation probability (EPSS) and "actively exploited" status (KEV catalog), to prioritize beyond the raw CVSS score.
 - **Direct versus transitive dependencies**: each issue records whether the project declared the package itself or something else pulled it in, read from the SBOM's dependency graph. A critical CVE in a declared dependency is a version bump this afternoon; the same CVE four levels down waits on an upstream release. Ranked identically they produce a backlog nobody finishes, so the listing can be narrowed to what is fixable today. Unknown when the SBOM carries no dependency graph — a missing answer rather than a default one.
-- **Secret detection** (Gitleaks): finds hardcoded API keys, tokens, and credentials in scanned repositories using dual-engine analysis with automatic deduplication.
+- **Secret detection** (Gitleaks): finds hardcoded API keys, tokens, and credentials in scanned repositories. Vectispire keeps the file, the line and the rule, **never the value**: a detected secret has to be revoked, not archived in a database, an export and a ticket.
 - **License compliance**: evaluates a configurable license blocklist against data already present in the SBOM.
 - **End-of-life detection** (endoflife.date): flags platforms and runtimes whose security support has ended — the container's own distribution first of all. A whole class of risk with no CVE attached: nothing will be fixed for the *next* vulnerability, whatever it turns out to be. Coverage is deliberately scoped to products (languages, runtimes, frameworks, distributions), not every library.
 - **IaC scanning** (checkov): detects Terraform/Kubernetes misconfigurations in repositories.
 - **Security and Quality sections.** The navigation is grouped: *Sécurité* holds an
-  overview that finally shows the gate verdict per target — computed since gate policies
-  existed and displayed nowhere until now — alongside the issue backlog, repositories and
+  overview that shows the gate verdict per target alongside the issue backlog, repositories and
   containers. *Qualité* ranks the code-quality backlog by rule, file and repository, and
   says plainly that none of it can fail a build. The overview also names the two states
   no other screen did: a target never scanned, and one whose last scan failed — both have
@@ -39,17 +77,48 @@ Together, **Vectispire** locks down software integrity while elevating visibilit
   [Installing a Semgrep rule set](#installing-a-semgrep-rule-set).
 - **Issue tracking and triage**: every finding is tracked across scans as an *issue* — first seen, times seen, whether a fix exists, and a triage decision in VEX vocabulary (affected / not affected / fixed / under review) with a justification, and optionally a **review date**. A suppression is a statement about a context — "not reachable in our configuration", "not shipped in production" — and contexts change; at its review date the issue returns to *under review* with its justification and comment intact. Each scan reports what it *changed*: new issues, resolved issues.
 - **Backlog over time**: the dashboard's figures are snapshots, which answer "how much" and never "better or worse than last month". A series does: the standing backlog day by day, what appeared against what was resolved, and the mean time to resolve — absent rather than zero when nothing was resolved, because zero reads as "fixed the day it appears". Narrowed by the reader's visibility like every other view, and computed in a pure function rather than in SQL, because two engines spell date truncation four ways.
+- **OWASP Top 10, week by week** (`/owasp`): the backlog by category of the Top 10, as a heatmap and curves, each figure opening the issues it counts. Weeks from before the record started are reconstructed from the issues' dates and drawn hatched, so a change of definition is not read as progress.
 - **Weekly posture report** (off by default): every other notification fires when something *appears*, which is right for an alert and wrong for a report — on a quiet week nobody is told anything, and a quiet week is also the week a target has silently not been scanned for twenty days. Once a week to the webhook and the e-mail recipients: how much there is, which way it is moving, and what was never examined. It needs no outbox, unlike a scan delta: a report is derived from the database, so a failed send is simply recomputed on the next tick.
 - **Bulk triage**: one CVE across forty repositories is one judgement about one context, not forty — and deciding it forty times is how a backlog stops being triaged at all. Narrow the list, select, decide once. All or nothing in one transaction, with each issue still recording its own transition in the triage history, because a bulk decision that changed forty rows silently would be indistinguishable from forty rows edited by hand.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day. A target with neither is rescanned on the installation's default interval — weekly unless changed, each target at a moment of its own in the week — and one that must never be rescanned is set to *manual only*.
 - **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?". The verdict names the policy it applied, and a `policy` object in the request can only *tighten* what applies, never loosen it — the rules used to arrive in the request body, which meant each project decided its own bar. The policy applied is a **stored, versioned** one — global, or overridden per target — written on *Administration → Gate policies*; where none is stored, the built-in default applies, and the screen shows it beside what is stored so that "not set" and "set to the same thing" do not look alike. Authenticated with the API keys the UI issues, and callable without writing the request by hand: [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), a GitHub composite action and a GitLab template.
 - **Tracker tickets** (GitLab, Jira): opens one ticket per problem that would fail a build, using the same policy — one threshold, defined once. The reference is kept on the issue, so a tracker outage is retried and never duplicated.
 - **Notifications**: a webhook, a **Microsoft Teams** card and an **e-mail** fire when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The three are independent rather than exclusive: a team wants the card in its channel *and* the mail on a distribution list. Each destination gets its own outbox row, so a mail server being down does not make Teams receive the message twice on the retry. Teams is reached through a Power Automate **workflow** — the Office 365 connector it replaces was retired — and Vectispire posts an Adaptive Card, so nothing has to be mapped in the designer. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once. Webhook messages can be **signed** (HMAC-SHA256 over the timestamp and the exact body, in `X-Vectispire-Signature`) so a receiver can tell a message Vectispire sent from one sent by whoever learned the URL — worth it for a script, a bus or your own gateway, which can check it; Slack and Teams accept whatever arrives. Empty secret means unsigned, which is what an existing deployment stays.
-- **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus an OpenVEX document built from the triage decisions, issues as CSV, the SBOM as the cataloguer produced it, and two documents written for a person rather than a tool: a target's **posture** and its **detection-and-triage history**, both as PDF.
+- **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus the triage decisions as OpenVEX, CSAF 2.0 and CycloneDX VEX, issues as CSV, the SBOM as the cataloguer produced it, and two documents written for a person rather than a tool: a target's **posture** and its **detection-and-triage history**, both as PDF.
 - **Detection and triage history**: per repository, every scan with the project version it read, the issues that scan observed, and every triage decision taken on them — from which status to which, by whom, with which justification, and against which version. For the reader who has to be convinced after the fact and was not there. Exportable as PDF and CSV. An issue nobody triaged is printed saying so: silence would let it pass for a decision that was merely not written down.
-- **Regulatory Compliance & Audit Evidence Vault**: deterministic evaluation across **NIS 2**, **DORA**, **ISO/IEC 27001:2022**, **PCI-DSS v4.0**, **Cyber Resilience Act (EU CRA)**, and **SOC 2 Type II**, with one-click export of cryptographically signed Evidence Vault packages (`/api/v1/compliance/evidence-bundle.zip`).
-- **SBOM Drift & Diff Viewer**: visual and API comparison engine (`GET /api/v1/sbom/diff`) that pinpoints added/pruned packages, license migrations (e.g. permissive to GPL/AGPL copyleft), and net CVE impact between releases.
-- **Security Debt & High-Impact Remediation**: converts open vulnerabilities and findings into estimated engineering hours and person-days (`GET /api/v1/remediation/debt`), highlighting the Top High-Impact Fixes with maximum security ROI.
+- **Compliance evidence**: maps what the scans observe, and what the platform itself has switched on (encryption, audit mirror, four-eyes exemptions, single sign-on), onto controls of **NIS 2**, **DORA**, **ISO/IEC 27001:2022**, **PCI-DSS v4.0**, the **Cyber Resilience Act** and **SOC 2**, and exports a signed evidence package (`/api/v1/compliance/evidence-bundle.zip`). It prepares an assessment; it is not one — an estate nobody scanned recently is capped, not scored on its zero findings.
+- **Running an ISO/IEC 27001 management system.** The screens an assessor asks for, each built
+  around the question a dashboard does not answer:
+  - **Statement of applicability** (`/soa`): what is declared for each control, set against what
+    the estate measures, sorted by **disagreement** rather than by control number — a control
+    declared in place and measured non-compliant is exactly what gets written up. Clause 6.1.3 d
+    asks for every control to be addressed, so an undeclared one is shown as a gap, and a control
+    whose evidence lives in another document is shown as *not measured here* rather than as a
+    finding ([guide](docs-site/guide/statement-of-applicability.md)).
+  - **Certified scope** (`/certified-scope`): the assets the scope document names against the
+    ones this instance holds, and how many carry current evidence. Nothing is in scope by default:
+    a scope nobody drew reads "not declared", not a percentage of an unknown denominator
+    ([guide](docs-site/guide/certified-scope.md)).
+  - **Exceptions** (`/exceptions`): what was accepted rather than fixed, with the two numbers that
+    matter — acceptances whose period has lapsed, and acceptances nobody has reviewed since they
+    were granted. Granting and reviewing are reserved to the security lead, and a developer's
+    exemption can require a second person ([guide](docs-site/guide/exceptions.md)).
+  - **Security checklists**: the organisation's own checklist, imported from its workbook as a
+    template, answered per project with dated proofs that expire, and signed off by an approver;
+    a signed-off revision is never modified again
+    ([decision 0032](docs/architecture/en/decisions/0032-security-checklists.md),
+    [guide](docs-site/guide/security-checklists.md)).
+  - **Remediation delays** (`/remediation-delays`): the share fixed within its deadline, the 90th
+    percentile and the oldest item still open — the tail, not a mean dragged down by easy fixes.
+  - **Compliance history** (`/compliance-history`): each framework month by month, every month
+    carrying its plausible cause, and a series whose estate changed announced *not comparable*
+    rather than drawn as a regression. No overall score: an aggregate gets improved by adding an
+    easy framework.
+  - **Attestation** (`/attestation`): what the estate looked like at a given hour, with the audit
+    chain verified first — the question is "where were you on the day I looked", and no other
+    screen carries a time ([guide](docs-site/guide/attestation.md)).
+- **SBOM diff**: compares two scans (`GET /api/v1/sbom/diff`) — packages added and removed, licences that changed (a permissive dependency turning copyleft), and the net change in CVEs between releases.
+- **Remediation effort**: an estimate of the open backlog in engineering hours (`GET /api/v1/remediation/debt`), and the few upgrades that close the most issues at once (`/api/v1/remediation/high-impact-fixes`).
 - **Optional single sign-on** (OpenID Connect, tested against Keycloak): the provider answers *who is this*, and Vectispire still issues its own session — so the visibility rules, the audit trail, the session lifetimes and the API keys keep working unchanged. **No account is created on sign-on**: an administrator creates it first, and the role stays Vectispire's to decide. Whoever can obtain a token from a shared realm must not thereby obtain a reader's view of every target. The first sign-on binds the account whose username matches the claim, and every later one matches on the provider's subject — a username is not stable for the life of a person.
 - **Scanning that stays on the machine**: every scanner runs in an ephemeral container with the network disabled and a read-only mount. **There is one scan backend, and it is Docker.** An OSV.dev matcher and an HTTP sidecar were considered and dropped: the sidecar was redundant, and OSV matching bought little that a pinned Grype image does not ([decision 0010](docs/architecture/en/decisions/0010-one-scan-runner.md)).
 
@@ -79,7 +148,7 @@ Results are normalized into a single `Finding` table (type, severity, identifier
 
 A `Finding` is an *observation*, valid for one scan. Above it, an `Issue` tracks the same problem across scans — identified by a fingerprint that deliberately ignores the package version, so a dependency that stays vulnerable through three patch releases keeps one history and one triage decision. Two axes are kept strictly separate: `state` (open/resolved) is written only by the pipeline, from what the scanners observe; `triage_status` (VEX) is written only by a human. Conflating them would make "resolved" meaningless — a suppressed finding and a genuinely fixed one must not look alike. See [`IssueSyncService`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/issues/IssueSyncService.java).
 
-The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/) (written in French). For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/TECHNICAL_DOCUMENTATION.md`](docs/en/TECHNICAL_DOCUMENTATION.md).
+The architecture dossier — overview, data model, security, deployment, and a decision register with the discarded alternatives — is in [`docs/architecture/`](docs/architecture/), in English and French. For diagrams of the layered architecture, the full database schema, and the scan pipeline's sequence flow, see [`docs/en/TECHNICAL_DOCUMENTATION.md`](docs/en/TECHNICAL_DOCUMENTATION.md).
 
 ### Distributed scanning: agents
 
@@ -170,12 +239,14 @@ Start it wrong and the application says so: it refuses, or warns, with the reaso
 
 ## Quick start
 
-Prerequisites: Node ≥ 24, Docker (for the scanners and, in development, for the database).
+Prerequisites: JDK 25, Node 24 (as `.nvmrc` pins it — Angular refuses Node 25), and Docker, for the
+scanners and, in development, for the database. `docker compose up` starts the whole stack instead;
+the [installation guide](https://asmolabs.github.io/vectispire/) covers it.
 
 ```bash
-npm install
-cd vectispire-java && ./gradlew :vectispire-core:bootRun   # API on http://localhost:8000
-npm --workspace @vectispire/frontend start            # UI on http://localhost:4200
+npm ci
+cd vectispire-java && ./gradlew :vectispire-core:bootRun   # API on http://localhost:3180
+npm --workspace @vectispire/frontend start            # UI on http://localhost:4280
 ```
 
 The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/common/`, then `db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
@@ -200,12 +271,15 @@ the HTTP suite does the same on MySQL at every context start ([ADR 0034](docs/ar
 | `/security` | The gate verdict for every target, and the policy that produced it |
 | `/quality` | Code-quality findings, aggregated by rule, file and repository |
 | `/issues` | Issue backlog across scans, with triage (VEX) |
+| `/owasp` | The backlog by category of the OWASP Top 10, week by week |
 | `/containers` | Tracked container images |
+| `/inventory` | Dependency inventory and SBOM comparison |
+| `/compliance` | Controls per framework, and the exports for an audit |
 | `/ssh-keys` | Encrypted SSH keys for cloning private repositories |
 | `/api-keys` | Programmatic API keys (Argon2id hash, secret shown once) |
 | `/agents` | Scan agents (built-in and remote), the queue, and leases (admin only) |
-| `/settings` | Scan backend selection, enrichment toggle, license blocklist |
-| `/users` | User management (admin only) |
+| `/settings` | Runtime settings: enrichment, licence blocklist, notifications, integrations |
+| `/users`, `/teams` | Accounts, roles and per-team visibility (admin only) |
 | `/audit-log` | Audit log of sensitive actions (admin only) |
 | `/history` | Per repository: every scan with its version, the issues it observed, and every triage decision — with PDF and CSV export |
 
@@ -291,7 +365,7 @@ gh api -X POST /repos/{owner}/{repo}/code-scanning/sarifs \
      -f commit_sha="$GITHUB_SHA" -f ref="$GITHUB_REF" -f sarif="$(gzip -c vectispire.sarif | base64 -w0)"
 ```
 
-Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Vectispire's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. There is no generated API reference yet: the routes are the ones listed here and in the controllers each module keeps in its `web` package, under [`core/`](vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/). If one is added it will require a key like every other route — an anonymous map of the routes and payload shapes is a free reconnaissance step.
+Triaged issues are uploaded as SARIF *suppressions* rather than dropped: removing them would make the platform re-report them as new on the next upload, undoing the triage work, and the suppression carries the justification. Vectispire's own issue fingerprint travels as a `partialFingerprint`, so a platform still matches an issue after the file moves or the line shifts. Every route is listed in the [REST API reference](docs/en/api/rest_api_reference.md), which the build checks against the routes the API actually answers. The live OpenAPI document is off by default (`VECTISPIRE_API_DOCS_ENABLED`) and, once on, requires a key unless `VECTISPIRE_ANONYMOUS_API_DOCS=true` — an anonymous map of the routes and payload shapes is a free reconnaissance step.
 
 A key can be narrowed when it is created, and a CI key normally should be:
 
@@ -327,7 +401,7 @@ Operational tuning (all optional, shown with their defaults):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VECTISPIRE_DB_URL` | `jdbc:postgresql://localhost:5432/vectispire` | JDBC connection URL. The engine is read from the URL itself — there is no separate dialect variable to keep in step with it. |
+| `VECTISPIRE_DB_URL` | `jdbc:mysql://localhost:3306/vectispire` | JDBC connection URL. The engine is read from the URL itself — there is no separate dialect variable to keep in step with it. |
 | `VECTISPIRE_DB_USER` / `VECTISPIRE_DB_PASSWORD` | `vectispire` / — | Database credentials. |
 | `VECTISPIRE_PORT` | `3180` | HTTP port. The API and the agent protocol share it. |
 | `VECTISPIRE_PUBLIC_URL` | — | Public base URL, used in exports and tracker tickets so a link written today still resolves tomorrow. |
@@ -396,8 +470,8 @@ Every "no" comes from a defect found by running, and **none of them raises an er
   tampered with. `datetime(6)` is declared once in the migrations rather than
   column by column, and the connection is pinned to UTC for the same reason.
 
-PostgreSQL remains the reference engine: the one where everything is true without
-reservation, and the one the code picks by default.
+PostgreSQL is the engine where everything above is true without reservation; MySQL is the one the
+code and `docker-compose.yml` pick by default.
 
 
 ## Installing a Semgrep rule set
@@ -511,13 +585,20 @@ nothing of Hibernate or HTTP, which is what makes the rules that matter — a fi
 gate verdict, a due date — testable without a database.
 
 
+## Contributing and security
+
+Contributions are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) says where a pull request goes and
+what it has to carry, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+**A vulnerability is reported privately**, as [SECURITY.md](SECURITY.md) describes, never in a
+public issue.
+
 ## License
 
 Vectispire is licensed under the [Apache License 2.0](LICENSE) — patent grant included, and
 contributions are under the same terms without a CLA. [`NOTICE`](NOTICE) lists the
-third-party components the jar and the image bundle, including the two JDBC drivers that are
-copyleft; both are `runtimeOnly`, and moving either onto the compile classpath changes the
-legal position and not just the build file. The AGPL was the alternative and lost on
+third-party components the jar and the image bundle, including MySQL Connector/J, which is
+copyleft; both JDBC drivers are `runtimeOnly`, and moving the copyleft one onto the compile
+classpath changes the legal position and not just the build file. The AGPL was the alternative and lost on
 adoption — [decision 0012](docs/architecture/en/decisions/0012-apache-2-0.md) says on what
 judgement, and what it would cost to reverse.
 
