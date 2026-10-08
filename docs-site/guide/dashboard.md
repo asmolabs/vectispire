@@ -20,8 +20,9 @@ agree. The verdict has been computed since gate policies existed; this screen is
 is finally shown.
 
 Two states are named here that appear nowhere else: a target **never scanned**, and one
-whose **last scan failed**. Both carry an empty backlog, and an empty backlog passes every
-policy. A dashboard that only showed the numbers would show these two as green.
+whose **last scan failed**. Both carry an empty or stale backlog, which would pass every policy, so
+both fail their verdict with an `observation` violation — the one `POST /api/v1/gate` answers — and
+the badge beside it says which.
 
 ![The security overview: a verdict per target, and the banner naming the targets no scan has yet observed.](../assets/screens/en/security-overview.png)
 

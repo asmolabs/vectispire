@@ -43,9 +43,11 @@ décision de Vectispire. Voir [Authentification unique](../administration/sso.md
 
 ## Scan
 
-**Un scan a échoué et le tableau de bord paraît quand même vert.** Un backlog vide passe toutes
-les politiques. La vue d'ensemble Sécurité nomme « jamais analysée » et « dernier scan échoué »
-exactement pour cette raison — voir
+**Un scan a échoué — la cible passe-t-elle encore ?** Non. Une cible jamais analysée, ou dont le
+dernier scan a échoué, échoue à son verdict de barrière avec une violation `observation` — dans la vue
+d'ensemble Sécurité, parmi les cibles en échec du tableau de bord et depuis `POST /api/v1/gate` — parce
+que son backlog vide ou périmé ne dit rien de son code. La vue d'ensemble nomme lequel des deux cas
+c'est — voir
 [Lire les résultats](../getting-started/reading-results.md#two-states-with-an-empty-backlog).
 
 **Rien n'est pris en charge et la file grossit.** Soit l'agent intégré est désactivé sans

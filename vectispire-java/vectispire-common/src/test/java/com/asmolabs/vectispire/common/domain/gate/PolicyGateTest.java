@@ -295,7 +295,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("passes a target no rule covers, until somebody asks it not to")
         void offByDefault() {
-            GateVerdict verdict = PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN, NOTHING_REACHED);
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN, NOTHING_REACHED, Observation.OK);
 
             assertThat(verdict.passed()).isTrue();
             assertThat(verdict.violations()).isEmpty();
@@ -306,7 +306,7 @@ class PolicyGateTest {
         void failsWhenAsked() {
             GatePolicy strict = GatePolicy.BUILT_IN.with(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, true);
 
-            GateVerdict verdict = PolicyGate.evaluate(List.of(), strict, NOTHING_REACHED);
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), strict, NOTHING_REACHED, Observation.OK);
 
             assertThat(verdict.passed()).isFalse();
             assertThat(verdict.violations()).singleElement().satisfies(violation -> {
@@ -323,7 +323,7 @@ class PolicyGateTest {
             GatePolicy strict = GatePolicy.BUILT_IN.with(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES, true);
 
             GateVerdict verdict =
-                    PolicyGate.evaluate(List.of(), strict, new GateVerdict.Coverage(List.of()));
+                    PolicyGate.evaluate(List.of(), strict, new GateVerdict.Coverage(List.of()), Observation.OK);
 
             assertThat(verdict.passed()).isTrue();
         }
@@ -354,6 +354,94 @@ class PolicyGateTest {
 
             assertThat(hardened.policy().failOnUncoveredLanguages()).isTrue();
             assertThat(hardened.ignoredRelaxations()).containsExactly("fail_on_uncovered_languages");
+        }
+    }
+
+    /**
+     * The rule that fails on a target nobody examined — and the one with no switch.
+     *
+     * <p>A target never scanned has an empty backlog, and the gate answered {@code passed: true}
+     * for it while the security screen called it never scanned (decision 0007).
+     */
+    @Nested
+    @DisplayName("the observation clause")
+    class ObservationClause {
+
+        private static final GateVerdict.Coverage COVERED = new GateVerdict.Coverage(List.of());
+
+        @Test
+        @DisplayName("refuses a target never scanned, with no issue behind the violation")
+        void neverScannedFails() {
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN, COVERED, Observation.NEVER_SCANNED);
+
+            assertThat(verdict.passed()).isFalse();
+            assertThat(verdict.evaluated()).isZero();
+            assertThat(verdict.violations()).singleElement().satisfies(violation -> {
+                assertThat(violation.rule()).isEqualTo(GateVerdict.Rule.OBSERVATION);
+                assertThat(violation.issueId()).isNull();
+                assertThat(violation.severity()).isNull();
+                assertThat(violation.reason()).contains("never examined");
+            });
+        }
+
+        @Test
+        @DisplayName("refuses a target whose last scan failed, and says so")
+        void lastScanFailedFails() {
+            GateVerdict verdict =
+                    PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN, COVERED, Observation.LAST_SCAN_FAILED);
+
+            assertThat(verdict.passed()).isFalse();
+            assertThat(verdict.violations()).singleElement().satisfies(violation -> {
+                assertThat(violation.rule()).isEqualTo(GateVerdict.Rule.OBSERVATION);
+                assertThat(violation.reason()).contains("last scan of this target failed");
+            });
+        }
+
+        @Test
+        @DisplayName("refuses whatever every flag of the policy says, the laxest included")
+        void noPolicyRelaxesIt() {
+            // No threshold, no KEV rule, triaged and unfixable findings out: the policy that fails
+            // nothing. The observation rule does not read the policy at all, and this pins that.
+            GatePolicy laxest = new GatePolicy(null, false, true, false, false, false, false);
+
+            for (Observation unexamined : List.of(Observation.NEVER_SCANNED, Observation.LAST_SCAN_FAILED)) {
+                GateVerdict verdict = PolicyGate.evaluate(List.of(), laxest, COVERED, unexamined);
+
+                assertThat(verdict.passed()).as(unexamined.name()).isFalse();
+                assertThat(verdict.violations()).extracting(GateVerdict.Violation::rule)
+                        .containsExactly(GateVerdict.Rule.OBSERVATION);
+            }
+        }
+
+        @Test
+        @DisplayName("comes first, before the findings a stale backlog still holds")
+        void reportedBeforeTheFindings() {
+            GateVerdict verdict = PolicyGate.evaluate(
+                    List.of(issue(1, FindingType.VULNERABILITY, Severity.CRITICAL, null)),
+                    GatePolicy.BUILT_IN,
+                    COVERED,
+                    Observation.LAST_SCAN_FAILED);
+
+            assertThat(verdict.violations()).extracting(GateVerdict.Violation::rule)
+                    .containsExactly(GateVerdict.Rule.OBSERVATION, GateVerdict.Rule.SEVERITY);
+            assertThat(verdict.evaluated()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("says nothing about a target whose newest finished scan completed")
+        void examinedPasses() {
+            GateVerdict verdict = PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN, COVERED, Observation.OK);
+
+            assertThat(verdict.passed()).isTrue();
+            assertThat(verdict.violations()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("does not apply where the verdict is about one issue rather than a target")
+        void notApplicableForASingleIssue() {
+            // The ticket sweep asks whether one issue is acceptable now; the target's last scan
+            // failing is no answer to that, and would keep a fixed issue's ticket open.
+            assertThat(PolicyGate.evaluate(List.of(), GatePolicy.BUILT_IN).passed()).isTrue();
         }
     }
 }

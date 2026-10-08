@@ -34,7 +34,7 @@
     # Written by hand beside `ci/vectispire-gate.sh`, and checked against it on every push
     # (`ci.yml`, docs-consistency) and before a release is built (`release.yml`): a template whose
     # digest is not its script's would refuse to run on the first pipeline that included it.
-    VECTISPIRE_GATE_SHA256: "542654a034b41b98a6001cbac8acf8411054ee7b91203326bc54b6c0c27a456b"
+    VECTISPIRE_GATE_SHA256: "984e40fa93e54a47ee4d2333746c86eac47288ad9bb5fc0767ab26ed51a02ce0"
     VECTISPIRE_FAIL_ON_SEVERITY: ""
     # `fail` blocks the pipeline when the gate cannot be asked at all (exit 2). `warn` lets the
     # build through ungated — availability over assurance, which is a decision somebody should make

@@ -7,7 +7,7 @@
 #
 # Exit codes are the gate script's (`ci/vectispire-gate.sh`), and three rather than two on purpose:
 #   0  done — the gate passed, the scan completed, the file was sent
-#   1  the gate failed: findings above the policy. Nothing else exits 1
+#   1  the gate failed: findings above the policy, or a target no finished scan examined. Nothing else exits 1
 #   2  no answer to trust — a refusal (the server's `detail` is printed), the control plane
 #      unreachable, a scan that failed or did not finish in time, a usage error
 #
@@ -110,7 +110,7 @@ Report Options (coverage, test-report, build-sbom):
 
 Exit codes:
   0  done: gate passed, scan completed, file sent
-  1  the gate failed — findings above the policy
+  1  the gate failed — findings above the policy, or a target no finished scan examined
   2  no answer to trust: a refusal (its detail is printed), the control plane unreachable,
      a scan that failed or timed out, a usage error
 
@@ -402,9 +402,9 @@ cmd_gate() {
         exit 0
     fi
 
-    printf "\n${RED}${BOLD}✖ GATE FAILED:${NC} findings above the applied policy.\n" >&2
+    printf "\n${RED}${BOLD}✖ GATE FAILED:${NC} the applied policy refused this target.\n" >&2
     if command -v jq >/dev/null 2>&1; then
-        printf "%s" "$HTTP_BODY" | jq -r '.violations[]? | "  [\(.severity // "unknown")] \(.identifier // "issue #\(.issueId)") \(.package // "") — \(.reason)\(if .fixVersions then " (fixed in \(.fixVersions))" else "" end)"' >&2
+        printf "%s" "$HTTP_BODY" | jq -r '.violations[]? | if .issueId == null then "  [\(.rule)] \(.reason)" else "  [\(.severity // "unknown")] \(.identifier // "issue #\(.issueId)") \(.package // "") — \(.reason)\(if .fixVersions then " (fixed in \(.fixVersions))" else "" end)" end' >&2
     else
         printf " Install jq for the list of violations, or see the Verdict register.\n" >&2
     fi

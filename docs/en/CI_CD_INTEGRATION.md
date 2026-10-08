@@ -10,7 +10,7 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 
 ### Core Commands:
 * `scan` : Enqueue a security scan on a repository or container and optionally wait for completion (`--wait`).
-* `gate` : Evaluate the active Security Quality Gate policy and exit with code `0` (PASS), `1` (FAIL / break build) or `2` (the gate could not be asked).
+* `gate` : Evaluate the active Security Quality Gate policy and exit with code `0` (PASS), `1` (FAIL / break build) or `2` (the gate could not be asked). A target no finished scan examined — never scanned, its first scan still running, or its last scan failed — is a FAIL too, with an `observation` violation, whatever the policy: run `scan --wait` first.
 * `status` : Show the status of a scan (`--scan-id`), or of a target's latest scan.
 * `sbom` : Download the raw Software Bill of Materials, in Syft's native JSON; with `--repo-id`, of the latest **completed** scan. For CycloneDX with VEX, use the export route `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (scope `export`).
 * `coverage` : Send a JaCoCo, Cobertura or lcov coverage report for a repository (`--format` is required, never guessed).

@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.compliance.ComplianceEngine;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.gate.Observation;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
@@ -424,11 +425,11 @@ public class ComplianceService {
             String status = scored.status();
             
             String gateStatus;
-            if (targetPosture.observation() == SecurityOverview.Observation.IN_PROGRESS) {
+            if (targetPosture.observation() == Observation.IN_PROGRESS) {
                 gateStatus = "SCANNING";
-            } else if (targetPosture.observation() == SecurityOverview.Observation.NEVER_SCANNED) {
+            } else if (targetPosture.observation() == Observation.NEVER_SCANNED) {
                 gateStatus = "NEVER_SCANNED";
-            } else if (targetPosture.observation() == SecurityOverview.Observation.LAST_SCAN_FAILED) {
+            } else if (targetPosture.observation() == Observation.LAST_SCAN_FAILED) {
                 gateStatus = "FAILED";
             } else {
                 gateStatus = targetPosture.passed() ? "PASSED" : "FAILED";
@@ -579,11 +580,11 @@ public class ComplianceService {
             String status = scored.status();
             
             String gateStatus;
-            if (tp.observation() == SecurityOverview.Observation.IN_PROGRESS) {
+            if (tp.observation() == Observation.IN_PROGRESS) {
                 gateStatus = "SCANNING";
-            } else if (tp.observation() == SecurityOverview.Observation.NEVER_SCANNED) {
+            } else if (tp.observation() == Observation.NEVER_SCANNED) {
                 gateStatus = "NEVER_SCANNED";
-            } else if (tp.observation() == SecurityOverview.Observation.LAST_SCAN_FAILED) {
+            } else if (tp.observation() == Observation.LAST_SCAN_FAILED) {
                 gateStatus = "FAILED";
             } else {
                 gateStatus = tp.passed() ? "PASSED" : "FAILED";

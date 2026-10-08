@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview.LatestScan;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview.NamedTarget;
-import com.asmolabs.vectispire.common.domain.gate.SecurityOverview.Observation;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
@@ -23,14 +22,23 @@ class SecurityOverviewTest {
     private static final ScanTarget IMAGE = new ScanTarget.Container(1);
     private static final Instant AT = Instant.parse("2026-08-10T08:00:00Z");
 
+    /** Where every newest scan has finished, so the verdict and the observation read the same one. */
     private static SecurityOverview.Input input(
             Map<ScanTarget, List<GateIssue>> issues, Map<ScanTarget, LatestScan> scans) {
+        return input(issues, scans, scans);
+    }
+
+    private static SecurityOverview.Input input(
+            Map<ScanTarget, List<GateIssue>> issues,
+            Map<ScanTarget, LatestScan> scans,
+            Map<ScanTarget, LatestScan> finished) {
         return new SecurityOverview.Input(
                 List.of(new NamedTarget(REPO, "api-service"), new NamedTarget(IMAGE, "api-image")),
                 Map.of(),
                 Optional.empty(),
                 issues,
                 scans,
+                finished,
                 Map.of());
     }
 
@@ -59,19 +67,23 @@ class SecurityOverviewTest {
     }
 
     @Test
-    @DisplayName("a target never scanned passes, and says it was never looked at")
-    void neverScannedPassesButIsNotObserved() {
+    @DisplayName("a target never scanned fails, and says it was never looked at")
+    void neverScannedFailsAndIsNotObserved() {
         // The distinction the screen exists for. An empty backlog passes every policy, so a
-        // target nobody has scanned reads as healthy — the worst posture there is, presented
-        // as the best.
+        // target nobody has scanned read as healthy — the worst posture there is, presented as
+        // the best — and the gate endpoint answered the same green to a pipeline. The verdict
+        // here is the endpoint's: refused, by the observation rule.
         SecurityOverview.Overview overview = SecurityOverview.build(input(Map.of(), Map.of()));
 
         assertThat(overview.targets()).allSatisfy(posture -> {
-            assertThat(posture.passed()).isTrue();
+            assertThat(posture.passed()).isFalse();
+            assertThat(posture.verdict().violations()).extracting(GateVerdict.Violation::rule)
+                    .containsExactly(GateVerdict.Rule.OBSERVATION);
             assertThat(posture.observed()).isFalse();
             assertThat(posture.observation()).isEqualTo(Observation.NEVER_SCANNED);
         });
         assertThat(overview.neverScannedCount()).isEqualTo(2);
+        assertThat(overview.failingCount()).isEqualTo(2);
     }
 
     @Test
@@ -87,14 +99,20 @@ class SecurityOverviewTest {
                 .satisfies(posture -> {
                     assertThat(posture.observed()).isFalse();
                     assertThat(posture.observation()).isEqualTo(Observation.LAST_SCAN_FAILED);
+                    assertThat(posture.passed()).isFalse();
+                    assertThat(posture.verdict().violations()).extracting(GateVerdict.Violation::rule)
+                            .containsExactly(GateVerdict.Rule.OBSERVATION);
                 });
+        assertThat(overview.failingCount()).isEqualTo(1);
     }
 
     @Test
     @DisplayName("a scan still running is neither a failure nor an observation")
     void inFlightScanIsItsOwnState() {
-        SecurityOverview.Overview overview = SecurityOverview.build(
-                input(Map.of(), Map.of(REPO, scan(ScanStatus.SCANNING), IMAGE, scan(ScanStatus.PENDING))));
+        SecurityOverview.Overview overview = SecurityOverview.build(input(
+                Map.of(),
+                Map.of(REPO, scan(ScanStatus.SCANNING), IMAGE, scan(ScanStatus.PENDING)),
+                Map.of(REPO, scan(ScanStatus.COMPLETED))));
 
         assertThat(overview.targets()).allSatisfy(posture -> {
             assertThat(posture.observation()).isEqualTo(Observation.IN_PROGRESS);
@@ -102,6 +120,31 @@ class SecurityOverviewTest {
         });
         assertThat(overview.neverScannedCount()).isZero();
         assertThat(overview.lastScanFailedCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("the verdict rests on the newest finished scan, not on the one still running")
+    void verdictReadsTheNewestFinishedScan() {
+        // The repository was examined before its re-scan started: its verdict is that
+        // examination's, and it does not turn red for as long as the re-scan runs. The image's
+        // first scan has not finished: nothing has examined it yet, whatever is queued.
+        SecurityOverview.Overview overview = SecurityOverview.build(input(
+                Map.of(),
+                Map.of(REPO, scan(ScanStatus.SCANNING), IMAGE, scan(ScanStatus.PENDING)),
+                Map.of(REPO, scan(ScanStatus.COMPLETED))));
+
+        assertThat(overview.targets())
+                .filteredOn(posture -> posture.target().equals(REPO))
+                .singleElement()
+                .satisfies(posture -> assertThat(posture.passed()).isTrue());
+        assertThat(overview.targets())
+                .filteredOn(posture -> posture.target().equals(IMAGE))
+                .singleElement()
+                .satisfies(posture -> {
+                    assertThat(posture.passed()).isFalse();
+                    assertThat(posture.verdict().violations()).extracting(GateVerdict.Violation::rule)
+                            .containsExactly(GateVerdict.Rule.OBSERVATION);
+                });
     }
 
     @Test
@@ -135,6 +178,7 @@ class SecurityOverviewTest {
                 Map.of(REPO, lenientTarget),
                 Optional.of(strictGlobal),
                 Map.of(REPO, List.of(high)),
+                Map.of(REPO, scan(ScanStatus.COMPLETED)),
                 Map.of(REPO, scan(ScanStatus.COMPLETED)),
                 Map.of()));
 

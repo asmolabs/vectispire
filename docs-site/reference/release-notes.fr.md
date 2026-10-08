@@ -22,6 +22,11 @@ Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la no
   livrée le fait désormais ([plugins de rapport](../administration/report-plugins.fr.md)).
 - **Une intégration qui crée des dépôts sans condition doit lire un 409 comme « déjà là ».** Une cible
   dépôt n'est enregistrée qu'une fois (*Une cible dépôt n'est enregistrée qu'une fois*, plus bas).
+- **Un pipeline qui interroge la barrière sur une cible pas encore analysée échoue désormais.** De même
+  pour une cible dont le dernier scan a échoué. Analysez d'abord, attendez la fin du scan, puis
+  interrogez la barrière ; repérez avant la mise à niveau, dans la vue d'ensemble Sécurité, les cibles
+  marquées jamais analysées ou dernier scan échoué : chacun de leurs pipelines passera au rouge (*La
+  barrière refuse une cible que personne n'a examinée*, plus bas).
 
 ### Changements visibles d'une intégration
 
@@ -144,6 +149,35 @@ d'un monodépôt, ou une autre branche, est une autre cible et reste accepté.
 - **Jusqu'au premier tour de maintenance après la mise à jour** (trente secondes après le démarrage,
   puis toutes les heures), les cibles enregistrées avant elle ne sont pas encore comparées, et le doublon
   de l'une d'elles est accepté — puis listé par la route ci-dessus.
+
+#### La barrière refuse une cible que personne n'a examinée (0.11.0)
+
+**`POST /api/v1/gate` répondait `passed: true` pour une cible jamais analysée** : son backlog était vide,
+et un backlog vide satisfait toutes les politiques — alors que la vue d'ensemble Sécurité disait de la
+même cible qu'elle n'avait jamais été analysée. Elle échoue désormais, fermée, comme la vue d'ensemble
+l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examined-never-passes)).
+
+- **Une nouvelle règle de violation, `observation`**, à côté de `kev`, `severity` et `coverage` :
+  `passed: false`, HTTP 200 comme pour tout refus, sans `issueId`, `identifier`, `severity` ni `package`,
+  et une `reason` qui nomme le cas — aucun scan de la cible n'est terminé (jamais analysée, ou seulement
+  des scans en attente ou en cours), ou le dernier scan terminé a échoué. Elle vient en tête de
+  `violations`. Un client qui aiguille sur `rule` rencontre une quatrième valeur.
+- **Aucun indicateur de politique ni aucun champ de requête ne l'assouplit.** `include_triaged`,
+  `fixable_only` et le seuil restreignent toujours les constats pris en compte, et cette règle n'en
+  prend aucun.
+- **Le verdict repose sur le dernier scan *terminé*.** Un scan en attente ou en cours n'est pas encore
+  un examen : une cible réanalysée selon sa planification garde le verdict de son scan précédent pendant
+  que le suivant tourne, et une cible dont le premier scan tourne encore échoue.
+- **Enregistré et signalé comme tout refus** : une ligne au registre des verdicts, comptée dans son taux
+  de refus, et un événement `SECURITY_GATE_FAILED` vers le SIEM.
+- **La vue d'ensemble Sécurité et tout ce qui en dépend concordent avec la route.** Une cible jamais
+  analysée ou dont le dernier scan a échoué y est désormais *en échec* (`passed: false`, la même
+  violation) ; `failingCount` la compte — sur `GET /api/v1/security/overview`, parmi les cibles en échec
+  du tableau de bord et dans le rapport de posture hebdomadaire — et le PDF de posture la lit en échec. Le
+  champ `observation` et les comptes jamais analysées et dernier scan échoué ne changent pas ; les
+  chiffres de conformité écartaient déjà ces cibles des cibles conformes et ne bougent pas.
+- **Le script de barrière, l'action GitHub et le modèle GitLab ne changent pas** : ils sortent déjà en
+  1 sur `passed: false` et affichent la raison de la violation.
 
 #### Autres changements
 

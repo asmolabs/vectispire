@@ -10,7 +10,7 @@ Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'i
 
 ### Commandes Principales :
 * `scan` : Déclenche une analyse de sécurité sur un dépôt ou un conteneur et attend optionnellement sa finalisation (`--wait`).
-* `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès), `1` (Échec / Blocage du build) ou `2` (la barrière n'a pas pu être interrogée).
+* `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès), `1` (Échec / Blocage du build) ou `2` (la barrière n'a pas pu être interrogée). Une cible qu'aucun scan terminé n'a examinée — jamais analysée, son premier scan encore en cours, ou son dernier scan échoué — est aussi un Échec, avec une violation `observation`, quelle que soit la politique : lancez d'abord `scan --wait`.
 * `status` : Affiche le statut d'un scan (`--scan-id`), ou du dernier scan d'une cible.
 * `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft ; avec `--repo-id`, celui du dernier scan **terminé**. Pour du CycloneDX avec VEX, utilisez la route d'export `GET /api/v1/cyclonedx/scans/{id}/cyclonedx-vex.json` (portée `export`).
 * `coverage` : Envoie le rapport de couverture JaCoCo, Cobertura ou lcov d'un dépôt (`--format` est obligatoire, jamais deviné).

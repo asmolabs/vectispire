@@ -68,6 +68,9 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     private IssueRepository issues;
 
     @Autowired
+    private com.asmolabs.vectispire.core.scanning.persistence.ScanRepository scans;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     @Autowired
@@ -211,6 +214,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     void gateRefusal() throws Exception {
         exportTo("127.0.0.1:9");
         long target = repository();
+        examined(target);
         issue(target, "CVE-SIEM-GATE");
 
         mvc.perform(authenticated(post("/api/v1/gate"), asAdmin())
@@ -230,6 +234,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     void gatePass() throws Exception {
         exportTo("127.0.0.1:9");
         long target = repository();
+        examined(target);
 
         mvc.perform(authenticated(post("/api/v1/gate"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -237,6 +242,23 @@ class SiemSignalsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.passed").value(true));
 
         assertThat(queued("SECURITY_GATE_FAILED")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a CI gate refusal of a target no scan examined is signalled like any other")
+    void gateRefusalOfAnUnexaminedTarget() throws Exception {
+        exportTo("127.0.0.1:9");
+        long target = repository();
+
+        mvc.perform(authenticated(post("/api/v1/gate"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repository_id\":" + target + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passed").value(false))
+                .andExpect(jsonPath("$.violations[0].rule").value("observation"));
+
+        assertThat(queued("SECURITY_GATE_FAILED")).singleElement()
+                .satisfies(event -> assertThat(event.at("/extensions/cs1").asText()).isEqualTo("repository " + target));
     }
 
     @Test
@@ -440,6 +462,17 @@ class SiemSignalsRoutesTest extends ApiTestBase {
                                 "justification", "vulnerable_code_not_in_execute_path",
                                 "comment", "SIEM signal test"))))
                 .andExpect(status().isOk());
+    }
+
+    /** One completed scan, so that the gate judges the backlog rather than refusing an unexamined target. */
+    private void examined(long repoId) {
+        com.asmolabs.vectispire.core.scanning.persistence.ScanEntity scan =
+                new com.asmolabs.vectispire.core.scanning.persistence.ScanEntity();
+        scan.setRepoId(repoId);
+        scan.setBranch("main");
+        scan.setStatus(com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(Instant.now());
+        scans.save(scan);
     }
 
     private long repository() {

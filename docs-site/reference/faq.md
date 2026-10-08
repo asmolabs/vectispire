@@ -40,9 +40,10 @@ sign-on. An administrator creates it first, and the role stays Vectispire's to d
 
 ## Scanning
 
-**A scan failed and the dashboard still looks green.** An empty backlog passes every
-policy. The Security overview names both "never scanned" and "last scan failed" for exactly
-this reason — see
+**A scan failed — does the target still pass?** No. A target never scanned, or whose last scan
+failed, fails its gate verdict with an `observation` violation — on the Security overview, on the
+dashboard's failing targets and from `POST /api/v1/gate` alike — because its empty or stale backlog
+says nothing about its code. The overview names which of the two it is — see
 [Reading the results](../getting-started/reading-results.md#two-states-with-an-empty-backlog).
 
 **Nothing is picked up and the queue grows.** Either the built-in agent is disabled with no

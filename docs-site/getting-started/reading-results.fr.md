@@ -69,14 +69,16 @@ n'a été résolu, parce qu'un zéro se lit comme « corrigé le jour de son app
 
 ## Deux états avec un backlog vide {#two-states-with-an-empty-backlog}
 
-Un backlog vide passe toutes les politiques — y compris quand il est vide parce que rien n'a
-jamais tourné. La vue d'ensemble Sécurité nomme les deux cas qu'aucun autre écran ne nommait :
+Un backlog vide satisferait toute règle qui lit un backlog — y compris quand il est vide parce que
+rien n'a jamais tourné. Deux cas échouent donc au verdict de barrière quelle que soit la politique,
+avec une violation `observation`, et la vue d'ensemble Sécurité les nomme :
 
-- une cible **jamais analysée** ;
+- une cible **jamais analysée** — aucun de ses scans n'est encore terminé ;
 - une cible dont le **dernier scan a échoué**.
 
-Les deux paraissent vertes partout ailleurs. Vérifiez-les avant de conclure quoi que ce soit
-d'un tableau de bord propre.
+Toutes deux comptent parmi les cibles en échec, à l'écran comme pour un pipeline qui interroge la
+[barrière](../integrations/ci-gate.md#a-target-nobody-examined-never-passes). Un scan encore en cours
+est affiché comme tel, et le verdict à côté est celui du scan précédent.
 
 ## Où trouver quoi
 

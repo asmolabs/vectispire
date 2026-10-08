@@ -73,6 +73,20 @@ what is stored, so that "not set" and "set to the same thing" do not look alike.
 Semgrep quality findings cannot fail a gate, by construction rather than by configuration.
 See [Code quality](../guide/quality.md) for why that boundary is load-bearing.
 
+## A target nobody examined never passes
+
+**A target whose scans never ran to their end fails the gate, whatever the policy says**: never
+scanned, its only scans still pending or running, or the newest scan that finished failed. Its backlog
+is empty or stale, and an empty backlog would pass every rule that reads one. The answer is an HTTP
+200 like any other refusal — `passed: false`, and a violation of rule `observation` with no issue
+behind it and a `reason` that says which case it is — so the script exits 1, the verdict joins the
+register and the refusal is signalled to the SIEM.
+
+No policy flag switches it off, and a request cannot: `include_triaged`, `fixable_only` and the
+threshold choose which findings count, and this rule counts none. A scan still running changes
+nothing either way — the verdict rests on the newest scan that *finished*, so a scheduled re-scan does
+not turn a passing target red while it runs.
+
 ## Where to put the gate
 
 After the scan and before the deploy. Two failure modes to avoid:
@@ -80,7 +94,9 @@ After the scan and before the deploy. Two failure modes to avoid:
 **Gating on a stale scan.** A verdict about last week's commit tells you nothing about this
 one. Trigger the scan in the pipeline, then gate on it.
 
-**Gating on a target that was never scanned.** An empty backlog passes every policy. See
+**Gating before the scan finished.** A target whose first scan has not completed fails with an
+`observation` violation, and so does one whose last scan failed — a red build, not a green one. Wait
+for the scan the pipeline triggered, then gate. See
 [Reading the results](../getting-started/reading-results.md#two-states-with-an-empty-backlog).
 
 ## Annotating the pull request too

@@ -76,6 +76,21 @@ Les constats de qualité Semgrep ne peuvent pas faire échouer une barrière, pa
 plutôt que par configuration. Voir [Qualité du code](../guide/quality.md) pour comprendre
 pourquoi cette frontière est portante.
 
+## Une cible que personne n'a examinée ne passe jamais {#a-target-nobody-examined-never-passes}
+
+**Une cible dont aucun scan n'est allé à son terme échoue à la barrière, quoi que dise la
+politique** : jamais analysée, ses seuls scans encore en attente ou en cours, ou le dernier scan
+terminé a échoué. Son backlog est vide ou périmé, et un backlog vide satisferait toute règle qui en lit
+un. La réponse est un HTTP 200 comme tout autre refus — `passed: false`, et une violation de règle
+`observation`, sans issue derrière elle, dont la `reason` dit de quel cas il s'agit — : le script sort
+en 1, le verdict entre au registre et le refus est signalé au SIEM.
+
+Aucun indicateur de politique ne la désactive, et une requête non plus : `include_triaged`,
+`fixable_only` et le seuil choisissent les constats qui comptent, et cette règle n'en compte aucun.
+Un scan encore en cours ne change rien, dans un sens comme dans l'autre — le verdict repose sur le
+dernier scan *terminé*, si bien qu'une réanalyse planifiée ne fait pas virer au rouge une cible qui
+passe pendant qu'elle tourne.
+
 ## Où placer la barrière
 
 Après le scan et avant le déploiement. Deux modes d'échec à éviter :
@@ -83,7 +98,9 @@ Après le scan et avant le déploiement. Deux modes d'échec à éviter :
 **Barrer sur un scan périmé.** Un verdict sur le commit de la semaine dernière ne dit rien de
 celui-ci. Déclenchez le scan dans le pipeline, puis barrez dessus.
 
-**Barrer sur une cible jamais analysée.** Un backlog vide passe toutes les politiques. Voir
+**Barrer avant la fin du scan.** Une cible dont le premier scan n'est pas terminé échoue avec une
+violation `observation`, de même qu'une cible dont le dernier scan a échoué — un build rouge, pas un
+vert. Attendez le scan que le pipeline a déclenché, puis barrez. Voir
 [Lire les résultats](../getting-started/reading-results.md#two-states-with-an-empty-backlog).
 
 ## Annoter aussi la demande de fusion

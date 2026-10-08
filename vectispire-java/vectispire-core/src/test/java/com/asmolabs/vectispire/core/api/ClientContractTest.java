@@ -37,6 +37,9 @@ class ClientContractTest extends ApiTestBase {
     @Autowired
     private com.asmolabs.vectispire.core.issues.persistence.IssueRepository issues;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.scanning.persistence.ScanRepository scans;
+
     @Test
     @DisplayName("a setting's default is called \"default\", not \"defaultValue\"")
     void theSettingsScreenFindsItsDefaults() throws Exception {
@@ -104,6 +107,9 @@ class ClientContractTest extends ApiTestBase {
     @DisplayName("a violation names its rule, severity and package as the client reads them")
     void aViolationIsReadableByTheClientAndByAPipeline() throws Exception {
         long id = seedRepository();
+        // Examined, so that the first violation is the finding's: a target no scan examined is
+        // refused first by the observation rule, which names no severity and no package.
+        seedCompletedScan(id);
         seedViolatingIssue(id);
 
         // This is the payload a build failure is explained by. The enum would have arrived as
@@ -135,6 +141,16 @@ class ClientContractTest extends ApiTestBase {
         issue.setLastSeenAt(java.time.Instant.now());
         issue.setTimesSeen(1);
         issues.save(issue);
+    }
+
+    private void seedCompletedScan(long repositoryId) {
+        com.asmolabs.vectispire.core.scanning.persistence.ScanEntity scan =
+                new com.asmolabs.vectispire.core.scanning.persistence.ScanEntity();
+        scan.setRepoId(repositoryId);
+        scan.setBranch("main");
+        scan.setStatus(com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(java.time.Instant.now());
+        scans.save(scan);
     }
 
     private long seedRepository() {

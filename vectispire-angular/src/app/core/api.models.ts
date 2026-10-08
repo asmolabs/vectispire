@@ -477,9 +477,11 @@ export type BulkTriageRequest = Refine<
 export type GateViolation = Refine<
     Schema<'ViolationView'>,
     {
-        /** `coverage` fails on the absence of an examination rather than on a finding. */
-        rule: 'kev' | 'severity' | 'coverage';
-        /** Null on a `coverage` violation: there is no issue behind it, which is the point. */
+        /** `coverage` and `observation` fail on the absence of an examination rather than on a
+         *  finding: no rule reached the target's ecosystems, or no scan of it ran to its end (never
+         *  scanned, or the last one failed). `observation` has no policy switch. */
+        rule: 'kev' | 'severity' | 'coverage' | 'observation';
+        /** Null on a `coverage` or `observation` violation: there is no issue behind it, which is the point. */
         issueId: number | null;
         severity: string | null;
         reason: string;

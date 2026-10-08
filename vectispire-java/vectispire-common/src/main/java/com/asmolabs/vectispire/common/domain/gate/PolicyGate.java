@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Pass/fail verdict of a target's backlog against a policy.
@@ -29,26 +30,45 @@ public final class PolicyGate {
     private PolicyGate() {}
 
     /**
-     * Applies {@code policy} to a target's issues and explains the result.
-     *
-     * <p>For a caller whose verdict is about a single issue rather than a target — see
-     * {@link GateVerdict.Coverage#NOT_APPLICABLE}.
+     * Applies {@code policy} to issues and explains the result, <b>for a caller whose verdict is
+     * about a single issue rather than a target</b> — see {@link GateVerdict.Coverage#NOT_APPLICABLE}.
+     * Whether the target was examined is not this caller's question either: the ticket sweep asks
+     * whether one issue is acceptable now, and "the target's last scan failed" is no answer to it.
      */
     public static GateVerdict evaluate(Collection<GateIssue> issues, GatePolicy policy) {
-        return evaluate(issues, policy, GateVerdict.Coverage.NOT_APPLICABLE);
+        return evaluate(issues, policy, GateVerdict.Coverage.NOT_APPLICABLE, Optional.empty());
     }
 
     /**
-     * The same, with what the examination could reach.
+     * Applies {@code policy} to a target's backlog, knowing what the examination could reach and
+     * whether there was one.
      *
      * <p><b>The coverage rule is not about the backlog, and that is why it is checked apart.</b>
      * Every other rule here reads an issue; this one fails on the absence of any — a target whose
      * ecosystems no rule covers reports nothing, and nothing passes. It is reported as a violation
      * rather than as a bare {@code false} because a pipeline that stops has to be told why, and
      * "no violation, build failed" is the least actionable sentence a gate can produce.
+     *
+     * <p><b>Nor is the observation rule, and it has no switch.</b> A target never scanned, or whose
+     * last scan failed, has an empty or stale backlog, and an empty backlog passes every policy:
+     * the gate failed open on exactly the targets nobody had looked at (decision 0007 — absent is
+     * not empty). No flag of {@link GatePolicy} reaches it, so neither a stored policy nor a
+     * request — which can only tighten one anyway — can turn it off; {@code include_triaged} and
+     * {@code fixable_only} narrow the issues considered, and this rule considers none.
+     *
+     * @param examination the observation of the target's newest <em>finished</em> scan — see
+     *     {@link Observation}
      */
     public static GateVerdict evaluate(
-            Collection<GateIssue> issues, GatePolicy policy, GateVerdict.Coverage coverage) {
+            Collection<GateIssue> issues, GatePolicy policy, GateVerdict.Coverage coverage, Observation examination) {
+        return evaluate(issues, policy, coverage, Optional.of(examination));
+    }
+
+    private static GateVerdict evaluate(
+            Collection<GateIssue> issues,
+            GatePolicy policy,
+            GateVerdict.Coverage coverage,
+            Optional<Observation> examination) {
         List<GateIssue> considered = issues.stream().filter(issue -> isConsidered(issue, policy)).toList();
 
         Map<Severity, Long> countsBySeverity = new EnumMap<>(Severity.class);
@@ -57,6 +77,10 @@ public final class PolicyGate {
         }
 
         List<GateVerdict.Violation> violations = new ArrayList<>();
+        // First, because it explains the rest: a screen showing one reason shows this one, and a
+        // stale backlog's findings read differently once the reader knows the last scan failed.
+        examination.flatMap(Observation::refusal).ifPresent(reason -> violations.add(
+                new GateVerdict.Violation(GateVerdict.Rule.OBSERVATION, null, null, null, null, null, reason)));
         for (GateIssue issue : considered) {
             if (policy.failOnKev() && issue.kev()) {
                 violations.add(violation(issue, GateVerdict.Rule.KEV,

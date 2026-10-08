@@ -32,21 +32,16 @@ import java.util.Optional;
  *
  * <p><b>A target never scanned, or whose last scan failed, is not a target that passes.</b> It
  * is a target nobody has looked at — the worst posture there is, and the one no screen named.
- * An empty backlog passes every policy; saying so without the qualifier would be the most
- * misleading thing this screen could do. That is what {@link TargetPosture#observed()} carries,
- * and why it is a separate field from {@code passed}.
+ * An empty backlog passes every policy, so the verdict carries a {@link GateVerdict.Rule#OBSERVATION}
+ * violation for it — the same one the gate endpoint answers, from the same {@link Observation}. It
+ * did not, once: the screen qualified a green verdict with "never scanned" while the endpoint handed
+ * a pipeline the green alone. {@link TargetPosture#observed()} stays a field apart from {@code
+ * passed}, because it says what the newest scan is doing — running included — where the verdict
+ * reads the newest scan that finished.
  */
 public final class SecurityOverview {
 
     private SecurityOverview() {}
-
-    /** What the last scan says about how much the verdict can be trusted. */
-    public enum Observation {
-        OK,
-        NEVER_SCANNED,
-        LAST_SCAN_FAILED,
-        IN_PROGRESS
-    }
 
     /** A target as this screen names it. */
     public record NamedTarget(ScanTarget target, String name) {}
@@ -54,9 +49,9 @@ public final class SecurityOverview {
     public record LatestScan(long id, ScanStatus status, Instant createdAt) {}
 
     /**
-     * @param observed whether the verdict rests on a real observation — a target nobody has
-     *     successfully scanned produces an empty backlog, and an empty backlog passes
-     *     everything
+     * @param observation what the newest scan says, running or not
+     * @param observed whether that newest scan is a finished, successful one. False while a scan
+     *     runs, even when the verdict rests on an earlier one that completed
      */
     public record TargetPosture(
             ScanTarget target,
@@ -93,6 +88,10 @@ public final class SecurityOverview {
      *     nothing uncovered, so a target with no inventory at all reads as "nothing to report"
      *     here — its {@link Observation} is what says it was never looked at, and saying it twice
      *     in two vocabularies would be worse than saying it once
+     * @param latestScans each target's newest scan, whatever its status — what the screen shows
+     * @param latestFinishedScans each target's newest scan that is no longer in flight — what the
+     *     verdict rests on, as it does on the gate endpoint. Absent for a target none of whose scans
+     *     has finished
      */
     public record Input(
             List<NamedTarget> targets,
@@ -100,6 +99,7 @@ public final class SecurityOverview {
             Optional<PolicyResolution.StoredPolicy> globalPolicy,
             Map<ScanTarget, List<GateIssue>> openIssues,
             Map<ScanTarget, LatestScan> latestScans,
+            Map<ScanTarget, LatestScan> latestFinishedScans,
             Map<ScanTarget, List<String>> uncoveredEcosystems) {}
 
     /** Assembles the view from already-read data. No queries here, by construction. */
@@ -133,13 +133,15 @@ public final class SecurityOverview {
                 PolicyResolution.resolve(lookup, RequestedPolicy.none(), PolicyResolution.Scope.TARGET);
 
         Optional<LatestScan> latest = Optional.ofNullable(input.latestScans().get(named.target()));
-        Observation observation = observationOf(latest);
+        Observation observation = Observation.of(latest.map(LatestScan::status));
 
         GateVerdict verdict = PolicyGate.evaluate(
                 input.openIssues().getOrDefault(named.target(), List.of()),
                 policy.policy(),
                 new GateVerdict.Coverage(
-                        input.uncoveredEcosystems().getOrDefault(named.target(), List.of())));
+                        input.uncoveredEcosystems().getOrDefault(named.target(), List.of())),
+                Observation.of(Optional.ofNullable(input.latestFinishedScans().get(named.target()))
+                        .map(LatestScan::status)));
 
         return new TargetPosture(
                 named.target(),
@@ -149,20 +151,6 @@ public final class SecurityOverview {
                 observation,
                 latest,
                 verdict.passed(),
-                observation == Observation.OK);
-    }
-
-    private static Observation observationOf(Optional<LatestScan> latest) {
-        if (latest.isEmpty()) {
-            return Observation.NEVER_SCANNED;
-        }
-        ScanStatus status = latest.get().status();
-        if (status == null) {
-            return Observation.OK;
-        }
-        if (status.isInFlight()) {
-            return Observation.IN_PROGRESS;
-        }
-        return status == ScanStatus.FAILED ? Observation.LAST_SCAN_FAILED : Observation.OK;
+                observation.examined());
     }
 }

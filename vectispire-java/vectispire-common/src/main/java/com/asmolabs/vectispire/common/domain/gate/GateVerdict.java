@@ -22,8 +22,8 @@ public record GateVerdict(
      * Which rule was tripped, and enough context to act on it without a second call.
      *
      * @param issueId the issue behind the violation, <b>or {@code null} when there is none</b>.
-     *     {@link Rule#COVERAGE} is about the examination rather than about a finding: there is no
-     *     issue to point at, which is the whole reason it fails. Reporting {@code 0} instead would
+     *     {@link Rule#COVERAGE} and {@link Rule#OBSERVATION} are about the examination rather than
+     *     about a finding: there is no issue to point at, which is the whole reason they fail. Reporting {@code 0} instead would
      *     hand every consumer an id that looks like one and matches nothing.
      */
     public record Violation(
@@ -33,7 +33,12 @@ public record GateVerdict(
         KEV,
         SEVERITY,
         /** No rule reached the target's ecosystems, so nothing was examined. */
-        COVERAGE
+        COVERAGE,
+        /**
+         * No scan of the target ran to its end — never scanned, or the last one failed — so its
+         * backlog is not an observation. Fails whatever the policy says (see {@link PolicyGate}).
+         */
+        OBSERVATION
     }
 
     /**

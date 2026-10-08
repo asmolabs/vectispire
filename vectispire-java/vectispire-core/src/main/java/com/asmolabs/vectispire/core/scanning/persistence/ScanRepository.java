@@ -412,6 +412,59 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     List<LatestScanRow> findLatestPerContainer();
 
     /**
+     * Each repository's most recent scan whose status is one of {@code statuses} — the finished
+     * ones, for the security screen's verdict, which rests on what the newest finished scan left
+     * rather than on a scan still running. The same correlated subquery as {@link
+     * #findLatestPerRepository}, for the same reason; {@code statuses} is a closed set of wire
+     * names, never sized by the data.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow(
+                       s.repoId, s.id, s.status, s.createdAt, s.error)
+              from ScanEntity s
+             where s.repoId is not null
+               and s.id = (select max(l.id) from ScanEntity l
+                            where l.repoId = s.repoId
+                              and l.status in :statuses)""")
+    List<LatestScanRow> findLatestWithStatusPerRepository(@Param("statuses") Collection<String> statuses);
+
+    /** The container half of {@link #findLatestWithStatusPerRepository}. */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow(
+                       s.containerId, s.id, s.status, s.createdAt, s.error)
+              from ScanEntity s
+             where s.containerId is not null
+               and s.id = (select max(l.id) from ScanEntity l
+                            where l.containerId = s.containerId
+                              and l.status in :statuses)""")
+    List<LatestScanRow> findLatestWithStatusPerContainer(@Param("statuses") Collection<String> statuses);
+
+    /**
+     * One repository's most recent scans whose status is one of {@code statuses}, newest first —
+     * what the gate endpoint reads on every build, so one target's rows and not the estate's.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow(
+                       s.repoId, s.id, s.status, s.createdAt, s.error)
+              from ScanEntity s
+             where s.repoId = :repoId
+               and s.status in :statuses
+             order by s.id desc""")
+    List<LatestScanRow> findNewestWithStatusOfRepository(
+            @Param("repoId") Long repoId, @Param("statuses") Collection<String> statuses, Limit limit);
+
+    /** The container half of {@link #findNewestWithStatusOfRepository}. */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow(
+                       s.containerId, s.id, s.status, s.createdAt, s.error)
+              from ScanEntity s
+             where s.containerId = :containerId
+               and s.status in :statuses
+             order by s.id desc""")
+    List<LatestScanRow> findNewestWithStatusOfContainer(
+            @Param("containerId") Long containerId, @Param("statuses") Collection<String> statuses, Limit limit);
+
+    /**
      * Each of these repositories' newest scan with this status, created at or after {@code since},
      * whose {@code examined_types} holds the type {@code pattern} matches — see {@code
      * ExaminedTypes.pattern}.

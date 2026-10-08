@@ -19,10 +19,10 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
  * It had always been computed for `POST /api/v1/gate` and displayed nowhere: a team could only
  * learn whether its repository passed by running a build against it.
  *
- * **The column that matters most is not the verdict, it is the observation.** An empty backlog
- * passes every policy, so a target nobody has successfully scanned reads as "compliant" without
- * that meaning anything. The "not observed" badge is what keeps this screen from being
- * misleading, and the banner repeats it at the top.
+ * **The verdict and the observation go together.** An empty backlog passes every policy, so a
+ * target nobody had successfully scanned read as "compliant" here and passed the gate; the server
+ * now refuses it, with an `observation` violation, and the "not observed" badge says why — or, for
+ * a scan still running, that the verdict rests on the scan before it. The banner repeats it at the top.
  */
 @Component({
     selector: 'zs-security',

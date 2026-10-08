@@ -293,6 +293,26 @@ describe('the failing targets table', () => {
         expect(fixture.nativeElement.textContent as string).toContain('KEV');
     });
 
+    it('tags a target nobody examined as such, and never as a severity', () => {
+        // A never-scanned target fails the gate with an `observation` violation; the template read
+        // "KEV, or else Severity", which tagged it — and every coverage violation — "Severity".
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('observation'));
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Not examined');
+        expect(text).not.toContain('Severity');
+    });
+
+    it('tags a coverage violation as coverage', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('coverage'));
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Coverage');
+        expect(text).not.toContain('Severity');
+    });
+
     it('links each severity figure to the list with unsettled=true, the clause the figure counts by', () => {
         // The figure leaves settled triage out; a link without the flag opens a list that does
         // not, and "1 critical" arrives on a page of several.

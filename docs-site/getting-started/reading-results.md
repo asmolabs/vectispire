@@ -69,14 +69,16 @@ resolved, because a zero reads as "fixed the day it appeared".
 
 ## Two states with an empty backlog
 
-An empty backlog passes every policy — including when it is empty because nothing ever ran.
-The Security overview names the two cases that no other screen did:
+An empty backlog would pass every rule that reads a backlog — including when it is empty because
+nothing ever ran. So two cases fail the gate verdict whatever the policy, with an `observation`
+violation, and the Security overview names them:
 
-- a target that was **never scanned**;
+- a target that was **never scanned** — no scan of it has completed yet;
 - a target whose **last scan failed**.
 
-Both look green everywhere else. Check them before concluding anything from a clean
-dashboard.
+Both count among the failing targets, on the screen and for a pipeline asking the
+[gate](../integrations/ci-gate.md#a-target-nobody-examined-never-passes). A scan still running is shown
+as such, and the verdict beside it is that of the scan before it.
 
 ## Where to find what
 

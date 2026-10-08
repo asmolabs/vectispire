@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.gate.Observation;
 import com.asmolabs.vectispire.common.domain.gate.PolicyGate;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.PolicyLookup;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.ResolvedPolicy;
@@ -298,7 +299,22 @@ public class GateService {
                 Scope.TARGET);
 
         return new Decision(
-                PolicyGate.evaluate(openIssuesOf(target), resolved.policy(), coverageOf(target)), resolved);
+                PolicyGate.evaluate(
+                        openIssuesOf(target), resolved.policy(), coverageOf(target), examinationOf(target)),
+                resolved);
+    }
+
+    /**
+     * Whether the backlog about to be judged rests on a scan that ran to its end.
+     *
+     * <p><b>The newest finished scan, not the newest scan.</b> A scan still pending or running has
+     * changed nothing in the backlog yet; reading it would turn every gate red for as long as a
+     * scheduled re-scan runs, and a gate that flaps is a gate somebody switches off. A target with no
+     * finished scan at all — nothing yet, or only scans still in flight — was never examined, and that
+     * is the verdict a pipeline asking too early receives.
+     */
+    private Observation examinationOf(ScanTarget target) {
+        return Observation.of(scans.latestFinished(target).flatMap(row -> ScanStatus.fromWireName(row.status())));
     }
 
     /** Every target's posture, for the security screen — narrowed to what the caller may see. */
@@ -331,6 +347,7 @@ public class GateService {
                 Optional.ofNullable(byScope.get(SCOPE_GLOBAL + ":0")),
                 openIssuesByTarget(),
                 latestScans(),
+                latestFinishedScans(),
                 uncoveredByTarget()));
     }
 
@@ -455,12 +472,25 @@ public class GateService {
         return latest;
     }
 
+    /** The scans the overview's verdicts rest on — see {@link #examinationOf}. */
+    private Map<ScanTarget, SecurityOverview.LatestScan> latestFinishedScans() {
+        Map<ScanTarget, SecurityOverview.LatestScan> latest = new HashMap<>();
+        scans.latestFinishedPerRepository()
+                .forEach(row -> latestScan(row)
+                        .ifPresent(scan -> latest.put(new ScanTarget.Repository(row.targetId()), scan)));
+        scans.latestFinishedPerContainer()
+                .forEach(row -> latestScan(row)
+                        .ifPresent(scan -> latest.put(new ScanTarget.Container(row.targetId()), scan)));
+        return latest;
+    }
+
     /**
      * Empty when the stored status is not one this version knows.
      *
      * <p>Dropping the scan rather than guessing: the overview reads the status to say "never
-     * scanned", "last scan failed" or "green", and an unreadable value mapped to any of the
-     * three would be a confident wrong answer on a security screen.
+     * scanned", "last scan failed" or "green", and an unreadable value mapped to "green" would be a
+     * confident wrong answer on a security screen. Dropped, it reads as no observation — the
+     * cautious one, and the one the verdict then refuses.
      */
     private static Optional<SecurityOverview.LatestScan> latestScan(LatestScanRow row) {
         return ScanStatus.fromWireName(row.status())

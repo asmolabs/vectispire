@@ -21,6 +21,10 @@ Each point is written out in full below; this is what to do before the new image
   ([report plugins](../administration/report-plugins.md)).
 - **An integration creating repositories unconditionally must read 409 as "already there".** A repository
   target is filed once (*A repository target is filed once*, below).
+- **A pipeline that gates a target not yet scanned now fails.** So does one gating a target whose last
+  scan failed. Scan first and wait for the scan to complete, then gate; look on the Security overview for
+  targets marked never scanned or last scan failed before the upgrade, since each of their pipelines turns
+  red (*The gate refuses a target nobody examined*, below).
 
 ### Changes an integration can see
 
@@ -134,6 +138,34 @@ another branch, is another target and is accepted as before.
 - **Until the first maintenance turn after the upgrade** (thirty seconds after the start, then hourly),
   targets registered before it are not yet compared, and a duplicate of one of them is accepted — and
   then listed by the route above.
+
+#### The gate refuses a target nobody examined (0.11.0)
+
+**`POST /api/v1/gate` answered `passed: true` for a target that had never been scanned**: its backlog was
+empty, and an empty backlog passes every policy — while the Security overview called the same target
+never scanned. It now fails, closed, as the overview always said it should
+([the rule](../integrations/ci-gate.md#a-target-nobody-examined-never-passes)).
+
+- **A new violation rule, `observation`**, beside `kev`, `severity` and `coverage`: `passed: false`,
+  HTTP 200 as for any refusal, no `issueId`, `identifier`, `severity` or `package`, and a `reason` naming
+  the case — no scan of the target has completed (never scanned, or only scans still pending or running),
+  or the last scan that finished failed. It comes first in `violations`. A client switching on `rule`
+  meets a fourth value.
+- **No policy flag and no request field relaxes it.** `include_triaged`, `fixable_only` and the
+  threshold still narrow the findings considered, and this rule considers none.
+- **The verdict rests on the newest *finished* scan.** A scan still pending or running is not an
+  examination yet: a target re-scanned on a schedule keeps the verdict of its previous scan while the
+  next one runs, and a target whose first scan is still running fails.
+- **Recorded and signalled like any refusal**: a row in the verdict register, counted in its refusal
+  rate, and a `SECURITY_GATE_FAILED` event to the SIEM.
+- **The Security overview and everything built on it agree with the endpoint.** A never-scanned or
+  last-scan-failed target is now *failing* there (`passed: false`, the same violation), so `failingCount`
+  counts it — on `GET /api/v1/security/overview`, the dashboard's failing targets and the weekly posture
+  report — and the posture PDF reads it as failing. The `observation` field and the never-scanned and
+  last-scan-failed counts are unchanged; compliance figures already left these targets out of the passing
+  ones and do not move.
+- **The gate script, the GitHub action and the GitLab template are unchanged**: they already exit 1 on
+  `passed: false`, and print the violation's reason.
 
 #### Other changes
 

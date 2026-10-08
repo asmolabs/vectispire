@@ -12,6 +12,7 @@ import { RemediationApi } from '../../core/api/remediation.api';
 import { ScorecardsApi } from '../../core/api/scorecards.api';
 import type {
     DashboardOverview,
+    GateViolation,
     PortfolioScorecard,
     Trends,
     PostureTrendAnalytics,
@@ -32,6 +33,19 @@ const SEVERITY_TILES = [
     { key: 'medium', labelKey: 'severities.medium', severity: 'secondary' as const },
     { key: 'low', labelKey: 'severities.low', severity: 'secondary' as const }
 ];
+
+/**
+ * The tag of each gate rule. Literal keys (decision 0019), and every rule spelt: the template used
+ * to read "KEV, or else Severity", so a coverage violation — and a target never examined — was
+ * tagged "Severity" beside a reason that said otherwise. A rule added to the type fails to compile
+ * here instead.
+ */
+const RULE_KEYS = {
+    kev: 'dashboard.rule_kev',
+    severity: 'dashboard.rule_severity',
+    coverage: 'dashboard.rule_coverage',
+    observation: 'dashboard.rule_observation'
+} as const satisfies Record<GateViolation['rule'], string>;
 
 /** The windows offered. Days, because that is the unit the route clamps and the axis shows. */
 const WINDOW_DAYS = [
@@ -327,5 +341,12 @@ export class Dashboard {
      *  stops serving its purpose, which is spotting what to handle. */
     firstViolations(violations: DashboardOverview['failing'][number]['violations']) {
         return violations.slice(0, 3);
+    }
+
+    /** A rule this version does not know shows as the server spells it rather than as another rule. */
+    ruleLabel(rule: string): string {
+        this.i18n.translations();
+        const key = (RULE_KEYS as Record<string, string | undefined>)[rule];
+        return key ? this.i18n.t(key) : rule;
     }
 }

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingGraphQueries;
@@ -242,6 +243,39 @@ public class ScanCatalog {
 
     public List<LatestScanRow> latestPerContainer() {
         return scans.findLatestPerContainer();
+    }
+
+    /**
+     * The wire names of the statuses a scan ends in, read off {@link ScanStatus#isInFlight()} so that
+     * a status added later is classified where its meaning is declared rather than in a list here.
+     */
+    private static final List<String> FINISHED = java.util.Arrays.stream(ScanStatus.values())
+            .filter(status -> !status.isInFlight())
+            .map(ScanStatus::wireName)
+            .toList();
+
+    /** Each repository's newest scan that is no longer in flight; a repository with none is absent. */
+    public List<LatestScanRow> latestFinishedPerRepository() {
+        return scans.findLatestWithStatusPerRepository(FINISHED);
+    }
+
+    /** The image half of {@link #latestFinishedPerRepository}. */
+    public List<LatestScanRow> latestFinishedPerContainer() {
+        return scans.findLatestWithStatusPerContainer(FINISHED);
+    }
+
+    /**
+     * One target's newest scan that is no longer in flight — completed or failed — or empty when none
+     * has finished: never scanned, or every scan still pending or running.
+     */
+    public Optional<LatestScanRow> latestFinished(ScanTarget target) {
+        List<LatestScanRow> newest = switch (target) {
+            case ScanTarget.Repository repository ->
+                    scans.findNewestWithStatusOfRepository(repository.id(), FINISHED, Limit.of(1));
+            case ScanTarget.Container container ->
+                    scans.findNewestWithStatusOfContainer(container.id(), FINISHED, Limit.of(1));
+        };
+        return newest.stream().findFirst();
     }
 
     /**

@@ -2,25 +2,34 @@ package com.asmolabs.vectispire.core.gate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
+import com.asmolabs.vectispire.common.domain.gate.Observation;
 import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
+import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
+import java.util.List;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -63,6 +72,9 @@ class GateDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private IssueRepository issues;
+
+    @Autowired
+    private ScanRepository scans;
 
     @Autowired
     private EntityManagerFactory entityManagerFactory;
@@ -112,6 +124,8 @@ class GateDatabaseTest extends VectispireContextTest {
     @DisplayName("a target nobody has filed anything against is judged on nothing")
     void aQuietTarget() {
         ScanTarget quiet = new ScanTarget.Repository(repository("ssh://git@example.com/team/quiet.git", "quiet"));
+        // Examined and clean: "nothing filed" is a pass only once a scan has looked.
+        scan(quiet, ScanStatus.COMPLETED);
 
         // Zero, not "whatever the map's default happened to be": a quiet target inheriting the
         // orphan row, or another target's group, would fail a build for somebody else's finding.
@@ -130,6 +144,7 @@ class GateDatabaseTest extends VectispireContextTest {
     @Test
     @DisplayName("a noisier estate does not make one target's gate more expensive")
     void theCostFollowsTheTargetNotTheEstate() {
+        scan(audited, ScanStatus.COMPLETED);
         int onASmallEstate = entitiesLoadedEvaluating();
 
         // Three hundred issues, none of them on the audited target. Its verdict is unchanged, so
@@ -148,6 +163,134 @@ class GateDatabaseTest extends VectispireContextTest {
         assertThat(entitiesLoadedEvaluating())
                 .as("whatever the estate holds, one verdict reads a bounded number of rows")
                 .isLessThanOrEqualTo(20);
+    }
+
+    /**
+     * Whether a scan examined the target, read from the scans table by the query the endpoint runs.
+     *
+     * <p>The order of the scans is the identifier's, as everywhere a "newest" is read, so each case
+     * writes its scans oldest first.
+     */
+    @Nested
+    @DisplayName("a target no finished scan examined")
+    class Unexamined {
+
+        @Test
+        @DisplayName("is refused when it was never scanned, whatever its backlog")
+        void neverScanned() {
+            // The audited repository carries two open issues and no scan: an import or a fixture
+            // is not an examination, and neither is the empty backlog of a target nobody looked at.
+            GateVerdict verdict = gate.evaluate(audited, RequestedPolicy.none()).verdict();
+
+            assertThat(verdict.passed()).isFalse();
+            assertThat(verdict.violations().getFirst().rule()).isEqualTo(GateVerdict.Rule.OBSERVATION);
+            assertThat(verdict.violations().getFirst().reason()).contains("never examined");
+        }
+
+        @Test
+        @DisplayName("is refused while its only scans are pending or running")
+        void onlyInFlight() {
+            ScanTarget fresh = new ScanTarget.Repository(repository("ssh://git@example.com/team/fresh.git", "fresh"));
+            scan(fresh, ScanStatus.PENDING);
+            scan(fresh, ScanStatus.SCANNING);
+
+            assertThat(rules(fresh)).containsExactly(GateVerdict.Rule.OBSERVATION);
+        }
+
+        @Test
+        @DisplayName("is refused when the newest finished scan failed, an earlier completed one notwithstanding")
+        void lastFinishedFailed() {
+            ScanTarget broken = new ScanTarget.Repository(repository("ssh://git@example.com/team/broken.git", "broken"));
+            scan(broken, ScanStatus.COMPLETED);
+            scan(broken, ScanStatus.FAILED);
+            // A retry queued behind the failure is not an examination yet either.
+            scan(broken, ScanStatus.PENDING);
+
+            GateVerdict verdict = gate.evaluate(broken, RequestedPolicy.none()).verdict();
+
+            assertThat(verdict.passed()).isFalse();
+            assertThat(verdict.violations()).singleElement().satisfies(violation -> {
+                assertThat(violation.rule()).isEqualTo(GateVerdict.Rule.OBSERVATION);
+                assertThat(violation.reason()).contains("last scan of this target failed");
+            });
+        }
+
+        @Test
+        @DisplayName("an image is read by its own column")
+        void anImageThatFailed() {
+            scan(image, ScanStatus.FAILED);
+
+            assertThat(rules(image)).first().isEqualTo(GateVerdict.Rule.OBSERVATION);
+        }
+
+        @Test
+        @DisplayName("passes once a scan completed after the failure, and stays passing while the next one runs")
+        void examinedAgain() {
+            ScanTarget mended = new ScanTarget.Repository(repository("ssh://git@example.com/team/mended.git", "mended"));
+            scan(mended, ScanStatus.FAILED);
+            scan(mended, ScanStatus.COMPLETED);
+            scan(mended, ScanStatus.SCANNING);
+
+            assertThat(gate.evaluate(mended, RequestedPolicy.none()).verdict().passed()).isTrue();
+        }
+
+        @Test
+        @DisplayName("is not examined by another target's scan")
+        void notByTheNeighbour() {
+            scan(neighbour, ScanStatus.COMPLETED);
+
+            assertThat(rules(audited)).first().isEqualTo(GateVerdict.Rule.OBSERVATION);
+        }
+
+        @Test
+        @DisplayName("is failing on the security screen too, on the same reading")
+        void theOverviewAgrees() {
+            // Targets with no issue at all, so that only the examination can fail them.
+            ScanTarget unscanned =
+                    new ScanTarget.Repository(repository("ssh://git@example.com/team/unscanned.git", "unscanned"));
+            ScanTarget broken = new ScanTarget.Container(container("registry.example.com", "team/broken", "2.0"));
+            scan(broken, ScanStatus.COMPLETED);
+            scan(broken, ScanStatus.FAILED);
+            ScanTarget mended = new ScanTarget.Repository(repository("ssh://git@example.com/team/mended.git", "mended"));
+            scan(mended, ScanStatus.COMPLETED);
+            scan(mended, ScanStatus.SCANNING);
+
+            SecurityOverview.Overview overview = gate.overview(Visibility.everything());
+
+            assertThat(posture(overview, unscanned).passed()).as("never scanned").isFalse();
+            assertThat(posture(overview, broken).passed()).as("last scan failed").isFalse();
+            assertThat(posture(overview, mended).passed())
+                    .as("examined, its re-scan running — the verdict is the examination's")
+                    .isTrue();
+            assertThat(posture(overview, mended).observation()).isEqualTo(Observation.IN_PROGRESS);
+            for (ScanTarget target : List.of(unscanned, broken, mended)) {
+                assertThat(posture(overview, target).passed())
+                        .as("the screen's verdict is the endpoint's, for " + target)
+                        .isEqualTo(gate.evaluate(target, RequestedPolicy.none()).verdict().passed());
+            }
+        }
+
+        private List<GateVerdict.Rule> rules(ScanTarget target) {
+            return gate.evaluate(target, RequestedPolicy.none()).verdict().violations().stream()
+                    .map(GateVerdict.Violation::rule)
+                    .toList();
+        }
+
+        private SecurityOverview.TargetPosture posture(SecurityOverview.Overview overview, ScanTarget target) {
+            return overview.targets().stream().filter(posture -> posture.target().equals(target)).findFirst().orElseThrow();
+        }
+    }
+
+    private void scan(ScanTarget target, ScanStatus status) {
+        ScanEntity scan = new ScanEntity();
+        switch (target) {
+            case ScanTarget.Repository repository -> scan.setRepoId(repository.id());
+            case ScanTarget.Container container -> scan.setContainerId(container.id());
+        }
+        scan.setBranch("main");
+        scan.setStatus(status.wireName());
+        scan.setCreatedAt(Instant.now());
+        scans.save(scan);
     }
 
     private int entitiesLoadedEvaluating() {

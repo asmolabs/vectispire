@@ -60,6 +60,9 @@ class ProcessEvidenceTest extends VectispireContextTest {
     private IssueRepository issues;
 
     @Autowired
+    private com.asmolabs.vectispire.core.scanning.persistence.ScanRepository scans;
+
+    @Autowired
     private Clock clock;
 
     private ScanTarget failing;
@@ -155,12 +158,21 @@ class ProcessEvidenceTest extends VectispireContextTest {
         return RequestedPolicy.none().with(new SeverityRequest.Threshold(severity));
     }
 
+    /** Scanned once, so that "clean" passes: a target no scan examined fails whatever its backlog. */
     private long repository(String url, String name) {
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl(url);
         entity.setName(name);
         entity.setBranch("main");
-        return repositories.save(entity).getId();
+        long id = repositories.save(entity).getId();
+        com.asmolabs.vectispire.core.scanning.persistence.ScanEntity scan =
+                new com.asmolabs.vectispire.core.scanning.persistence.ScanEntity();
+        scan.setRepoId(id);
+        scan.setBranch("main");
+        scan.setStatus(com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(clock.instant());
+        scans.save(scan);
+        return id;
     }
 
     private void issue(ScanTarget target, String fingerprint, Severity severity) {

@@ -99,7 +99,7 @@ export function urlCarriesSecret(url: string): boolean {
  * `ci/check-cli-pin.sh` fails the push and the release when the two drift apart.
  */
 const CLI_SCRIPT_URL = `https://github.com/asmolabs/vectispire/releases/download/v${RELEASE}/vectispire-cli.sh`;
-const CLI_SCRIPT_SHA256 = '0bb7c89767201f46b05c39137ad3124d47c339b7911efa5f841842afb2305eac';
+const CLI_SCRIPT_SHA256 = '0397ab0375e60e4a9793e85a3aa95e2a61f1dec906df2522ab8011b29cce359a';
 /** The identity the release workflow signs with — per tag, naming the workflow file, never the repository alone. */
 const CLI_SIGNER = `https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v${RELEASE}`;
 

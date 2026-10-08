@@ -65,8 +65,9 @@ the whole estate from.*
   overview that shows the gate verdict per target alongside the issue backlog, repositories and
   containers. *Qualité* ranks the code-quality backlog by rule, file and repository, and
   says plainly that none of it can fail a build. The overview also names the two states
-  no other screen did: a target never scanned, and one whose last scan failed — both have
-  an empty backlog, and an empty backlog passes every policy.
+  no other screen did: a target never scanned, and one whose last scan failed. Both fail the
+  gate, on the screen and for a pipeline — their empty or stale backlog would otherwise pass
+  every policy.
 - **Source-code analysis** (Semgrep, off by default): reads the code itself — a
   concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
   which no other scanner here sees. Produces two kinds of finding: *security* ones, gated

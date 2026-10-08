@@ -12,8 +12,9 @@ import java.util.Locale;
  * them without a human in the loop:
  *
  * <ul>
- *   <li>{@code rule} is {@code kev} or {@code severity}. The enum serializes as {@code KEV}, and
- *       both the dashboard and any pipeline that branches on the rule compare lowercase.
+ *   <li>{@code rule} is {@code kev}, {@code severity}, {@code coverage} or {@code observation}. The
+ *       enum serializes as {@code KEV}, and both the dashboard and any pipeline that branches on the
+ *       rule compare lowercase.
  *   <li>{@code severity} is the wire name. {@code HIGH} matches none of the client's colours and
  *       none of a pipeline's thresholds.
  *   <li>{@code package} is what the client calls it. It cannot be a Java field name, so it can
@@ -21,8 +22,8 @@ import java.util.Locale;
  * </ul>
  *
  * <p><b>{@code issueId} is nullable, and that is a fourth difference from the domain record.</b>
- * The coverage rule fails on the absence of an examination rather than on a finding, so there is
- * no issue to point at. It was a primitive here, which the published document read as "always
+ * The coverage and observation rules fail on the absence of an examination rather than on a
+ * finding, so there is no issue to point at. It was a primitive here, which the published document read as "always
  * sent" — a promise this API would have broken the first time that rule fired.
  *
  * <p>This is the payload a build failure is explained by. Getting it wrong does not break the

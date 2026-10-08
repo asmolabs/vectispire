@@ -16,7 +16,7 @@
 #
 # Exit codes, and they are three rather than two on purpose:
 #   0  the gate passed
-#   1  the gate failed — findings above the policy
+#   1  the gate failed — findings above the policy, or a target no finished scan examined
 #   2  the gate could not be asked — network, credential, unknown target
 #
 # **2 is not 1.** A pipeline that treats "Vectispire was unreachable" as "your code is clean" has
@@ -118,7 +118,7 @@ if command -v jq >/dev/null 2>&1; then
     fi
 
     echo "Vectispire gate: FAILED." >&2
-    jq -r '.violations[] | "  [\(.severity // "unknown")] \(.identifier // "issue #\(.issueId)") \(.package // "") — \(.reason)\(if .fixVersions then " (fixed in \(.fixVersions))" else "" end)"' \
+    jq -r '.violations[] | if .issueId == null then "  [\(.rule)] \(.reason)" else "  [\(.severity // "unknown")] \(.identifier // "issue #\(.issueId)") \(.package // "") — \(.reason)\(if .fixVersions then " (fixed in \(.fixVersions))" else "" end)" end' \
         "$response_file" >&2
     exit 1
 fi

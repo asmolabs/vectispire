@@ -539,11 +539,6 @@
             <ng-template #title>{{ 'dashboard.targets_in_failure' | translate }}</ng-template>
             @if (overview.failing.length === 0) {
                 <p class="text-muted-color m-0">{{ 'dashboard.no_target_failing' | translate }}</p>
-                @if (overview.posture.neverScannedCount > 0) {
-                    <p class="text-muted-color text-sm mt-2 mb-0">
-                        {{ 'dashboard.never_scanned_count' | translate: { count: overview.posture.neverScannedCount } }}
-                    </p>
-                }
             } @else {
                 <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
                     <ng-template #header>
@@ -569,11 +564,7 @@
                                 @for (violation of firstViolations(target.violations); track $index) {
                                     <div class="text-sm">
                                         <p-tag
-                                            [value]="
-                                                violation.rule === 'kev'
-                                                    ? ('dashboard.rule_kev' | translate)
-                                                    : ('dashboard.rule_severity' | translate)
-                                            "
+                                            [value]="ruleLabel(violation.rule)"
                                             severity="danger"
                                             styleClass="mr-2"
                                         />

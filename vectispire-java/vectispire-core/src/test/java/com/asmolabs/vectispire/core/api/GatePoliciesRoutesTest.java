@@ -11,8 +11,11 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
@@ -39,6 +42,9 @@ class GatePoliciesRoutesTest extends ApiTestBase {
 
     @Autowired
     private IssueRepository issues;
+
+    @Autowired
+    private ScanRepository scans;
 
     @Test
     @DisplayName("a stored global policy is what the verdict applies")
@@ -263,11 +269,22 @@ class GatePoliciesRoutesTest extends ApiTestBase {
         return body;
     }
 
+    /**
+     * A repository with one completed scan: these tests are about the policy, and a target no scan
+     * examined fails whatever the policy says.
+     */
     private long repository(String url) {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl(url);
         repository.setBranch("main");
-        return repositories.save(repository).getId();
+        long id = repositories.save(repository).getId();
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(id);
+        scan.setBranch("main");
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(Instant.now());
+        scans.save(scan);
+        return id;
     }
 
     private void issue(long repoId, String identifier, Severity severity) {

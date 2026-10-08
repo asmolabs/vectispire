@@ -93,6 +93,9 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     @Autowired
     private TransactionTemplate transactions;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.scanning.persistence.ScanRepository scanRows;
+
     private ScanTarget failing;
     private ScanTarget clean;
 
@@ -145,6 +148,28 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("records the refusal of a target no scan examined, like any other refusal")
+    void records_an_unexamined_refusal() {
+        ScanTarget unscanned = new ScanTarget.Repository(repositories.save(unscannedRepository()).getId());
+
+        gate.evaluateAndRecord(checked(unscanned), RequestedPolicy.none(), new GateService.Caller("ci-pipeline", null));
+
+        GateVerdictEntity row = onlyRow();
+        assertThat(row.isPassed()).isFalse();
+        assertThat(row.getViolations()).isEqualTo(1);
+        assertThat(row.getEvaluated()).as("no finding was judged — the examination was missing").isZero();
+        assertThat(row.getDecidedBy()).isEqualTo("ci-pipeline");
+    }
+
+    private static RepositoryEntity unscannedRepository() {
+        RepositoryEntity entity = new RepositoryEntity();
+        entity.setUrl("ssh://git@example.com/team/unscanned.git");
+        entity.setName("unscanned");
+        entity.setBranch("main");
+        return entity;
+    }
+
+    @Test
     @DisplayName("keeps the answer when the register cannot be written")
     void keeps_the_answer_when_recording_fails() {
         // The pipeline is waiting on a verdict. A register that cannot be written is a hole to
@@ -155,7 +180,8 @@ class GateVerdictRegisterTest extends VectispireContextTest {
         GateService.Decision decision =
                 gate.evaluateAndRecord(checked(vanished), RequestedPolicy.none(), GateService.Caller.unattributed());
 
-        assertThat(decision.verdict().passed()).isTrue();
+        // Refused — nothing ever examined a target that does not exist — but answered.
+        assertThat(decision.verdict().passed()).isFalse();
         assertThat(verdicts.findAllByOrderByDecidedAtDesc(Limit.of(10)))
                 .as("the foreign key refuses the row, and the caller is not told about it")
                 .isEmpty();
@@ -237,12 +263,21 @@ class GateVerdictRegisterTest extends VectispireContextTest {
         return RequestedPolicy.none().with(new SeverityRequest.Threshold(severity));
     }
 
+    /** Scanned once, so that "clean" passes: a target no scan examined is refused whatever its backlog. */
     private long repository(String url, String name) {
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl(url);
         entity.setName(name);
         entity.setBranch("main");
-        return repositories.save(entity).getId();
+        long id = repositories.save(entity).getId();
+        com.asmolabs.vectispire.core.scanning.persistence.ScanEntity scan =
+                new com.asmolabs.vectispire.core.scanning.persistence.ScanEntity();
+        scan.setRepoId(id);
+        scan.setBranch("main");
+        scan.setStatus(com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName());
+        scan.setCreatedAt(clock.instant());
+        scanRows.save(scan);
+        return id;
     }
 
     private void issue(ScanTarget target, String fingerprint, Severity severity) {

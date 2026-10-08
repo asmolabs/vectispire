@@ -22,9 +22,9 @@ Le verdict est calculé depuis que les politiques de barrière existent ; cet é
 où il est enfin montré.
 
 Deux états sont nommés ici et nulle part ailleurs : une cible **jamais analysée**, et une cible
-dont le **dernier scan a échoué**. Toutes deux portent un backlog vide, et un backlog vide
-passe toutes les politiques. Un tableau de bord qui n'afficherait que les chiffres montrerait
-ces deux-là en vert.
+dont le **dernier scan a échoué**. Toutes deux portent un backlog vide ou périmé, qui satisferait
+toutes les politiques ; elles échouent donc à leur verdict avec une violation `observation` — celle que
+répond `POST /api/v1/gate` — et le badge à côté dit laquelle.
 
 ![La vue d'ensemble Sécurité : un verdict par cible, et le bandeau qui nomme les cibles qu'aucun scan n'a encore observées.](../assets/screens/fr/security-overview.png)
 
