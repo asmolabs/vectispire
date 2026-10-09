@@ -27,6 +27,8 @@ Welcome to the **Vectispire Analysis Reports** directory. Please select your pre
 - 📄 **[Rapport d'Audit Approfondi : Documentation, Code Source & Sécurité (25 août 2026)](fr/2026-08-25_audit_approfondi_code_securite_doc.fr.md)** — audit de vérification : **7,9 / 10**, 3 constats bloquants. **Les 14 constats (🔴 🟠 🟡) sont corrigés** — voir l'état de remédiation en tête du rapport.
 - 📄 **[Rapport d'Audit Approfondi : Documentation, Code Source & Sécurité (24 août 2026)](fr/2026-08-24_audit_approfondi_code_securite_doc.fr.md)**
 - 📄 **[Rapport d'Évaluation de l'Architecture, de la Sécurité et de la Documentation (24 août 2026)](fr/2026-08-24_evaluation_qualite_securite_doc.fr.md)**
+- 📄 **[Auto-revue d'architecture, de qualité et de sécurité (août 2026)](fr/2026-08_auto_revue_securite_qualite.fr.md)** — rédigée par les mainteneurs sur leur propre code, sans vérification extérieure ; déplacée depuis `docs/fr/` en octobre 2026, sans notes ni superlatifs.
+- 📄 **[Note d'incident : identifiants commités dans une base de développement (6 août 2026)](fr/2026-08-06_incident_exposition_identifiants.fr.md)** — ce qui a été exposé, ce qui a été fait, ce qui a changé dans le projet ; remplace la note de travail `ROTATION_AND_PURGE` en octobre 2026.
 
 ---
 
@@ -53,6 +55,8 @@ Welcome to the **Vectispire Analysis Reports** directory. Please select your pre
 - 📄 **[In-Depth Audit Report: Documentation, Source Code & Security (August 25, 2026)](en/2026-08-25_in_depth_code_security_doc_audit.en.md)** — verification audit: **7.9 / 10**, 3 blocking findings. **All 14 findings (🔴 🟠 🟡) are fixed** — see the remediation status at the top of the report.
 - 📄 **[In-Depth Audit Report: Documentation, Source Code & Security (August 24, 2026)](en/2026-08-24_in_depth_code_security_doc_audit.en.md)**
 - 📄 **[Architecture, Security & Documentation Evaluation Report (August 24, 2026)](en/2026-08-24_code_security_and_doc_evaluation.en.md)**
+- 📄 **[Architecture, quality and security self-review (August 2026)](en/2026-08_security_and_quality_self_review.en.md)** — written by the maintainers about their own code, not independently checked; moved from `docs/en/` in October 2026, with the ratings and superlatives removed.
+- 📄 **[Incident note: credentials committed in a development database (August 6, 2026)](en/2026-08-06_credential_exposure_incident.en.md)** — what was exposed, what was done, what changed in the project; replaces the `ROTATION_AND_PURGE` working note in October 2026.
 
 ---
 

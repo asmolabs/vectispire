@@ -1,7 +1,22 @@
 # Compliance
 
-Vectispire evaluates the estate against six frameworks, deterministically, and packages the
-result as signed evidence.
+Vectispire maps what the scans observe, and what the platform itself has switched on, onto a
+handful of technical controls named after six frameworks, and packages the result as signed
+evidence.
+
+## What this is and is not
+
+It is a mechanical evaluation of the controls Vectispire can observe: what is scanned, how
+often, what was found, what was decided about it, who decided, and whether the record is
+intact.
+
+Each framework is represented by **four** technical controls — 24 in all. The frameworks are much
+larger: Annex A of ISO/IEC 27001:2022 alone holds ninety-three controls, and Vectispire measures a few of its
+technological ones. Most of what these frameworks require — governance, personnel, physical
+security, supplier management — is nothing a scanner can see.
+
+It is **not** a compliance verdict for your organisation. It prepares an assessment; it is not
+one. Treat the export as evidence for the technical controls, filed alongside everything else.
 
 | Framework | |
 |---|---|
@@ -10,15 +25,30 @@ result as signed evidence.
 | **ISO/IEC 27001:2022** | Information security management |
 | **PCI-DSS v4.0** | Payment card industry |
 | **Cyber Resilience Act (EU CRA)** | Product security obligations |
-| **SOC 2 Type II** | Trust services criteria |
+| **SOC 2** | Trust services criteria — a SOC 2 report is an auditor's; Vectispire supplies evidence for it |
 
 ![Compliance progress: a nineteen-point fall attributed to a wider estate rather than to a regression, and a series marked not comparable.](../assets/screens/en/compliance-progress.png)
 
-## Deterministic evaluation
+Each control is scored by its category — vulnerabilities, supply chain (the share of targets with
+an SBOM), secrets, secure coding, infrastructure as code, gate governance, audit trail — so its
+title names the requirement it relates to, not everything that requirement asks. `CRA-ART11-NOTIF`,
+for instance, scores the open critical, CISA KEV-listed and overdue vulnerabilities an Article 11
+notification would start from; it neither makes nor tracks the notification. The formulas are in
+the [compliance reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/COMPLIANCE_AND_REGULATORY.md).
+The same posture yields the same verdict, so a result can be reproduced.
 
-The same estate at the same moment produces the same verdict, every time. That is a
-requirement rather than a nicety: an evaluation that varies between runs is one an auditor
-is right to discard, and one you cannot use to show that a control held over a period.
+## Platform settings cap some controls
+
+A control resting on a capability of this instance is capped — score lowered, status at best
+*partial* — while the capability is off, and the control's detail names the setting:
+
+| When | Ceiling | Controls |
+|---|---|---|
+| No encryption key (`ENCRYPTION_KEY`) | 60 | the secrets controls of every framework |
+| No audit mirror (`vectispire.audit.mirror-path`) | 70 | the audit controls: `DORA-ART16-INCIDENT`, `PCI-REQ-10.2`, `SOC2-CC7.2` |
+| No identity provider (`VECTISPIRE_OIDC_ISSUER`) | 65 | the same audit controls |
+| An identity provider, with local password sign-in still open (`VECTISPIRE_PASSWORD_LOGIN`) | 85 | the same audit controls |
+| Four-eyes approval off (`triage_four_eyes_required`) | 75 | `NIS2-ART21-GOV` |
 
 ## No data is not compliant
 
@@ -74,9 +104,9 @@ reads *No data* throughout — the frameworks and the score alike show a dash. T
 scorecard's own `NO_DATA`: the scorecard starts at a hundred and subtracts what it finds, and answered
 100, A+, for a scope nobody had looked at until it learned to say it had nothing to grade.
 
-## The Evidence Vault
+## The evidence bundle
 
-One click exports a **cryptographically signed evidence bundle**:
+One click exports a **signed evidence bundle**:
 
 ```
 GET /api/v1/compliance/evidence-bundle.zip
@@ -95,17 +125,6 @@ bundle carries: whoever alters a bundle replaces that file too. Fetch the key fr
 `/api/v1/crypto/public-key.pub` or keep a copy pinned from before. The attestation inside is a DSSE
 envelope signed over the specification's pre-authentication encoding, so `cosign verify-attestation`
 and in-toto verifiers check it as they would any other.
-
-## What this is and is not
-
-It is a mechanical evaluation of the controls Vectispire can observe: what is scanned, how
-often, what was found, what was decided about it, who decided, and whether the record is
-intact.
-
-It is **not** a compliance verdict for your organisation. Most of these frameworks cover
-governance, personnel, physical security and supplier management, none of which a scanner
-can see. Treat the export as evidence for the technical controls, filed alongside
-everything else.
 
 ## Supporting records
 

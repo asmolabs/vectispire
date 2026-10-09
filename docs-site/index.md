@@ -6,7 +6,10 @@ hardcoded secrets, problematic licenses and infrastructure-as-code misconfigurat
 centralises everything in one dashboard.
 
 Every scanner runs in an ephemeral local container with **the network disabled** and a
-read-only mount. Nothing about the code you scan leaves your machine.
+read-only mount. What does leave the machine is listed, not implied: the end-of-life lookup sends
+product names and versions, a rule-set plugin may declare a network exception, and the optional AI
+code review sends source code to the model endpoint you configure — which can be an external
+provider such as OpenAI once you allow it ([what leaves, and when](guide/scans.md#the-pipeline)).
 
 ## Where to start
 

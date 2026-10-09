@@ -118,7 +118,7 @@ L'affirmation d'une « synchronisation bilingue stricte » tient pour `bflorat/`
 | `COMPLIANCE_AND_REGULATORY` | 204 | 263 | **EN 22 % plus court** — la divergence joue dans les deux sens |
 | `01-overview` | 112 | 95 | EN en avance |
 
-Le contenu français existant est une véritable traduction, non un remplissage automatique ([`ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) se lit comme du français natif) — le déficit porte sur la couverture, pas sur la qualité. Pour un produit vendu sur la traçabilité réglementaire à destination d'un marché francophone, une procédure de rotation et de purge en français réduite à 18 % de son équivalent anglais est une lacune de preuve de conformité, pas un simple retard de traduction.
+Le contenu français existant est une véritable traduction, non un remplissage automatique ([`ROTATION_AND_PURGE.fr.md`](2026-08-06_incident_exposition_identifiants.fr.md) se lit comme du français natif) — le déficit porte sur la couverture, pas sur la qualité. Pour un produit vendu sur la traçabilité réglementaire à destination d'un marché francophone, une procédure de rotation et de purge en français réduite à 18 % de son équivalent anglais est une lacune de preuve de conformité, pas un simple retard de traduction.
 
 ### 2.4 Vocabulaire Liquibase résiduel
 

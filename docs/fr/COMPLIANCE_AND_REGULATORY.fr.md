@@ -1,13 +1,27 @@
-# Moteur de Calcul de la Conformité Réglementaire & Coffre-Fort de Preuves
+# Évaluation de conformité
 
-Le sous-système de conformité réglementaire de Vectispire (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) évalue automatiquement et de manière déterministe la posture de sécurité de votre organisation par rapport à six référentiels internationaux majeurs :
+Le module de conformité de Vectispire (`ComplianceEngine`, `ComplianceService`, `EvidenceVaultService`, `ComplianceReportPdf`) rapporte ce que les analyses observent, et ce que la plateforme elle-même a activé, à un petit ensemble de contrôles techniques nommés d'après six référentiels :
 
 - **Directive NIS 2** (UE 2022/2555 — Gestion des risques cyber & Sécurité de la chaîne d'approvisionnement)
 - **Règlement DORA** (UE 2022/2554 — Résilience opérationnelle numérique pour le secteur financier)
 - **ISO/IEC 27001:2022** (Système de management de la sécurité de l'information — Contrôles de l'Annexe A)
 - **PCI-DSS v4.0** (Standard de sécurité des données de l'industrie des cartes de paiement)
 - **Cyber Resilience Act (EU CRA)** (Règlement européen sur la cyber-résilience des produits numériques)
-- **SOC 2 Type II** (AICPA Trust Services Criteria — Sécurité, Disponibilité et Confidentialité)
+- **SOC 2** (AICPA Trust Services Criteria — Sécurité, Disponibilité et Confidentialité)
+
+**Ce que cela couvre, et ce que cela ne couvre pas.** Chaque référentiel est représenté par
+**quatre** contrôles techniques — 24 en tout (§2) —
+chacun noté à partir des observations des analyses (vulnérabilités, secrets, SAST, IaC, présence d'un
+SBOM, verdicts de la barrière) ou de la piste d'audit de cette instance, et plafonné par des réglages
+de la plateforme (§4). Les référentiels
+eux-mêmes sont bien plus vastes : l'Annexe A de l'ISO/IEC 27001:2022 compte à elle seule quatre-vingt-treize contrôles,
+pour la plupart de gouvernance, de personnel, de fournisseurs et de sécurité physique, qu'aucun
+scanner n'observe ; Vectispire en mesure quelques-uns parmi les contrôles technologiques. Un statut
+`COMPLIANT` signifie ici « ce contrôle technique, tel que Vectispire le mesure, tient sur le parc
+observé », non que l'organisation est conforme au référentiel. **Cela prépare une évaluation ; ce
+n'en est pas une.** SOC 2 en particulier est un rapport d'auditeur (un Type II porte sur l'efficacité
+des contrôles sur une période) : Vectispire produit des preuves qu'un auditeur peut utiliser, jamais
+le rapport.
 
 ---
 
@@ -40,13 +54,17 @@ sequenceDiagram
         Ctrl-->>Auditeur: vectispire-compliance-report.pdf
     end
 
-    opt Export Paquet de Preuves Certifiées (ZIP)
+    opt Export du paquet de preuves signé (ZIP)
         UI->>Ctrl: GET /api/v1/compliance/evidence-bundle.zip
         Ctrl->>Vault: generateEvidenceBundle(username)
-        Vault-->>Ctrl: Archive ZIP scellée cryptographiquement
+        Vault-->>Ctrl: Archive ZIP au manifeste signé
         Ctrl-->>Auditeur: vectispire-audit-evidence-bundle.zip
     end
 ```
+
+**L'évaluation a lieu dans le domaine pur.** `ComplianceEngine` reçoit un `PostureInput` et rend des
+évaluations ; il ne touche ni base, ni horloge, ni framework, si bien que chaque contrôle se teste
+sans serveur, et que la même entrée donne le même verdict.
 
 ---
 
@@ -70,8 +88,8 @@ sequenceDiagram
 | **PCI-DSS** | `PCI-REQ-6.4` | Remédiation des vulnérabilités publiques | `VULNERABILITY_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-6.5` | Protection contre les failles logicielles & secrets | `SECRETS_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-10.2` | Mise en œuvre des journaux d'audit | `AUDIT_AND_LOGGING` |
-| **EU CRA** | `CRA-ART11-NOTIF` | Notification ENISA / CSIRT sous 24h des failles exploitées (KEV/EPSS) | `VULNERABILITY_MANAGEMENT` |
-| **EU CRA** | `CRA-ART10-SBOM` | Fourniture obligatoire d'un SBOM machine-readable (CycloneDX 1.5 avec VEX intégré) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART11-NOTIF` | Vulnérabilités activement exploitées (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART10-SBOM` | Fourniture d'un SBOM lisible par machine | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-LIFECYCLE` | Traçabilité du support de sécurité et dates d'obsolescence (EOL) | `SUPPLY_CHAIN` |
 | **EU CRA** | `CRA-ART10-VULN` | Remédiation continue et gestion des correctifs de sécurité | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.8` | Prévention des modifications non autorisées & Code malveillant | `SECURE_CODING` |
@@ -79,9 +97,21 @@ sequenceDiagram
 | **SOC 2** | `SOC2-CC6.6` | Sécurité des accès logiques & Gestion des secrets | `SECRETS_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC7.2` | Surveillance des incidents & Traçabilité d'audit à altération détectable | `AUDIT_AND_LOGGING` |
 
+**Un contrôle est noté par sa catégorie, et par elle seule.** Le titre dit à quelle exigence du
+référentiel le contrôle se rapporte ; le score vient de la formule de sa catégorie au §3, la même pour
+tous les contrôles de cette catégorie. Deux conséquences à lire littéralement :
+
+- `CRA-ART11-NOTIF` est un score de gestion des vulnérabilités — vulnérabilités critiques ouvertes,
+  inscrites au catalogue CISA KEV, en retard et de sévérité élevée. C'est ce dont partirait une
+  notification au titre de l'article 11 ; la notification elle-même n'est ni faite ni suivie par
+  Vectispire, et l'EPSS n'entre pas dans le score.
+- `CRA-ART10-LIFECYCLE`, comme `CRA-ART10-SBOM`, `NIS2-ART21-SUPPLY` et `DORA-ART11-THIRD`, est la
+  part des cibles qui portent un SBOM. Les constats de fin de support sont rapportés ailleurs (le
+  backlog des problèmes) et n'entrent pas dans ce score.
+
 ---
 
-## 3. Catégories d'Évaluation & Formules Mathématiques
+## 3. Catégories d'évaluation et formules de score
 
 ### ① Gestion des Vulnérabilités (`VULNERABILITY_MANAGEMENT`)
 Le score initial est de **100 points**, diminué par des pénalités cumulatives :
@@ -98,7 +128,7 @@ $$\text{Score} = \max\Big(0,\; 100 - P_{\text{critique}} - P_{\text{kev}} - P_{\
 ---
 
 ### ② Sécurité de la Chaîne d'Approvisionnement & SBOM (`SUPPLY_CHAIN`)
-Mesure le taux de cibles monitorées disposant d'un inventaire SBOM actif généré par Syft/Grype :
+La part des cibles suivies pour lesquelles une analyse a enregistré un inventaire de composants (un SBOM, produit par Syft) :
 $$\text{Score} = \text{round}\left(\frac{N_{\text{cibles avec SBOM actif}}}{N_{\text{total cibles surveillées}}} \times 100\right)$$
 
 ---
@@ -140,7 +170,7 @@ Vérifie la chaîne d'empreintes SHA-256 du journal d'audit — chaque entrée p
 
 ---
 
-## 4. Détermination des Statuts & Règle d'Étanchéité au Risque
+## 4. Détermination des statuts et agrégation
 
 ### Seuils par Contrôle
 $$\text{Statut Contrôle} = \begin{cases} 
@@ -182,23 +212,43 @@ une cible jamais analysée y compte déjà contre le score.
 ### Score Global du Référentiel
 $$\text{Score Global} = \text{round}\left(\frac{1}{K} \sum_{i=1}^{K} \text{Score}(\text{Contrôle}_i)\right)$$
 
-### Statut Global du Référentiel (Principe de Non-Dilution)
+### Statut global du référentiel
 1. **NON CONFORME (`NON_COMPLIANT`)** : Dès qu'au moins **un contrôle** est non conforme ($N_{\text{non\_compliant}} > 0$) OU si le score global $< 70\%$.
 2. **PARTIELLEMENT CONFORME (`PARTIAL`)** : Si aucun contrôle n'est en échec critique mais qu'au moins un contrôle est partiel ($N_{\text{partial}} > 0$) OU si le score global $< 95\%$.
 3. **CONFORME (`COMPLIANT`)** : Uniquement si **100% des contrôles sont conformes** ET score global $\ge 95\%$.
 
 ---
 
-## 5. Coffre-Fort de Preuves d'Audit (Evidence Vault)
+### Plafonds de plateforme
 
-Vectispire produit des paquets de preuves directement opposables aux auditeurs externes :
+Certains contrôles reposent sur une capacité de cette instance plutôt que sur le parc. Quand la
+capacité est désactivée, le contrôle est plafonné — son score ramené au plafond ci-dessous et son
+statut à **`PARTIAL`** au mieux (un contrôle `NON_COMPLIANT` ou `NO_DATA` garde son statut) — et le
+détail nomme le réglage à changer. Plusieurs plafonds sur un même contrôle gardent le plus bas.
+
+| État de la plateforme | Plafond | Contrôles plafonnés |
+|---|---|---|
+| Aucune clé de chiffrement (`ENCRYPTION_KEY` / `ENCRYPTION_KEY_FILE`) : les identifiants que Vectispire conserve ne peuvent pas être chiffrés au repos | 60 | ③ secrets : `NIS2-ART21-CRYPTO`, `ISO-A.5.15`, `DORA-ART13-SECRETS`, `PCI-REQ-6.5`, `SOC2-CC6.6` |
+| Aucun miroir d'audit (`vectispire.audit.mirror-path`) : la suppression de la dernière entrée d'audit est indétectable (§5.1) | 70 | ⑦ audit : `DORA-ART16-INCIDENT`, `PCI-REQ-10.2`, `SOC2-CC7.2` |
+| Aucun fournisseur d'identité (`VECTISPIRE_OIDC_ISSUER`) : chaque compte se connecte par mot de passe local sans second facteur, et le nom porté par une entrée d'audit ne vaut que ce mot de passe | 65 | ⑦ audit : les trois mêmes contrôles |
+| Un fournisseur d'identité est configuré et la connexion par mot de passe local reste ouverte à côté (`VECTISPIRE_PASSWORD_LOGIN` différent de `false`) : le second facteur du royaume peut être contourné | 85 | ⑦ audit : les trois mêmes contrôles |
+| Approbation à quatre yeux désactivée (`triage_four_eyes_required`) : qui demande une dérogation peut l'accorder | 75 | ⑥ gouvernance : `NIS2-ART21-GOV` |
+
+Le fait que la garde des clés soit externe (Vault Transit) est relevé mais ne plafonne rien.
+
+---
+
+## 5. Paquet de preuves
+
+Vectispire exporte un rapport PDF et un paquet ZIP dont le manifeste et les principaux documents sont
+signés avec la clé de l'instance (§8) :
 
 1. **Rapport PDF Exécutif (`/api/v1/compliance/export.pdf`)** :
    - Synthèse de la posture, scores par référentiel, détail des 24 contrôles et plan de remédiation priorisé.
-2. **Paquet de Preuves Certifié (`/api/v1/compliance/evidence-bundle.zip`)** :
-   - `manifest.json` & `manifest.json.sig` : Manifeste d'audit scellé et sa signature détachée Cosign (ECDSA P-256).
+2. **Paquet de preuves (`/api/v1/compliance/evidence-bundle.zip`)** :
+   - `manifest.json` & `manifest.json.sig` : le manifeste du paquet et sa signature détachée Cosign (ECDSA P-256).
    - `00_vectispire_public_key.pub` : la clé publique PEM de l'instance, **par commodité seulement**. Une clé portée dans le paquet qu'elle vérifie ne prouve rien sur ce paquet — qui a modifié le paquet remplace aussi la clé. Vérifiez les signatures avec une clé obtenue par un autre canal : `GET /api/v1/crypto/public-key.pub` sur l'instance, ou une copie épinglée avant que ce paquet n'existe.
-   - `01_compliance_frameworks.json` : Évaluations continues des 6 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2).
+   - `01_compliance_frameworks.json` : l'évaluation des 24 contrôles, pour les six référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2).
    - `02_immutable_audit_log.jsonl` : le journal d'audit, chaque entrée chaînée à la précédente par une empreinte SHA-256 sans clé. Altération détectable plutôt qu'immuable, quoi qu'en dise le nom du fichier (5.1) ; le nom est gardé parce qu'il fait partie de la structure de l'archive.
    - `03_triage_and_exemptions.json` : Registre des décisions de triage et approbations 4-yeux.
    - `04_attestations/` : Attestations in-toto et enveloppes signées DSSE, pour les vingt scans terminés les plus récents que l'appelant peut voir. Le **sujet est le SBOM du scan**, désigné par son SHA-256 — le seul artefact qu'un scan enregistre avec une empreinte (il ne conserve ni le commit ni l'empreinte de l'image, d'où `commitSha` nul). Le **verdict de la barrière** est celui qu'elle a enregistré pour la cible entre ce scan et le suivant, avec la source, la version et la date de la politique ; absent quand aucun pipeline ne l'a demandé. Les compteurs KEV et secrets sont ceux du scan. Un scan qui ne peut pas être attesté — non terminé, ou sans SBOM — produit un `scan_<id>_not_attested.txt` qui dit pourquoi, au lieu d'une attestation dont le manque serait comblé.
@@ -246,8 +296,11 @@ reste du rapport.
 Cette concession est délibérée et sa raison mérite d'être dite : exiger une chaîne strictement
 linéaire faisait bifurquer deux instances écrivant dans le même instant, et un journal parfaitement
 honnête se déclarait rompu. Une fausse alerte dans un contrôle d'intégrité est pire qu'inutile —
-on apprend à l'ignorer, et elle couvre ensuite les vraies. Clore le cas en base signifierait
-sérialiser chaque écriture d'audit derrière toutes les autres.
+on apprend à l'ignorer, et elle couvre ensuite les vraies. Les écritures concurrentes ne font plus
+bifurquer la chaîne — chaque écriture d'audit prend d'abord le verrou `t_audit_chain_head` (V66) —
+mais cela ordonne les écrivains ; cela ne rend pas une suppression visible. Qui peut supprimer la
+dernière ligne peut aussi faire reculer la tête, et rien dans la base ne se souvient que la ligne a
+existé.
 
 **Ce qui le ferme.** Le **miroir d'audit** (`vectispire.audit.mirror-path`) : une seconde copie,
 ajoutée hors de la base, une ligne NDJSON par entrée. `/api/v1/audit-log/verify` compare les deux
@@ -262,36 +315,44 @@ d'audit peut réécrire une table de points de contrôle de façon cohérente : 
 problème d'un cran tout en ayant l'air d'une preuve.
 
 **Le rapport dit laquelle des deux vous avez.** Sans miroir configuré, les contrôles
-`AUDIT_AND_LOGGING` (`DORA-ART16-INCIDENT`, `PCI-REQ-10.2`) sont plafonnés à **PARTIAL** quoi que
-dise la chaîne, avec la raison ci-dessus en détail du contrôle. Une pastille verte sur un contrôle
+`AUDIT_AND_LOGGING` (`DORA-ART16-INCIDENT`, `PCI-REQ-10.2`, `SOC2-CC7.2`) sont plafonnés à
+**PARTIAL** (score 70 au plus) quoi que dise la chaîne, avec la raison ci-dessus en détail du
+contrôle ; la politique de connexion les plafonne davantage (§4, *Plafonds de plateforme*). Une pastille verte sur un contrôle
 d'audit dont le cas de suppression est ouvert est exactement le genre de conclusion que ce
 document existe pour ne pas produire.
 
 ---
 
-## 6. Interopérabilité VEX & Échange B2B (OpenVEX, CSAF 2.0 & CycloneDX VEX)
+## 6. Import et export VEX (OpenVEX, CSAF 2.0, CycloneDX VEX)
 
-Vectispire supporte le triptyque complet des formats VEX mondiaux :
+### Import
+`POST /api/v1/vex/ingest`, ou **Importer VEX** sur `/compliance`, lit un document amont **OpenVEX**
+ou **CycloneDX VEX** (le format est détecté ; la version déclarée d'un document CycloneDX n'est pas
+inspectée, si bien que 1.5 et 1.6 sont acceptés l'un comme l'autre). **CSAF est exporté, pas
+importé.** Un document qu'aucun format ne sait lire est refusé avec la raison, jamais accepté par un
+succès vide.
 
-### 1. Ingestion Multi-Formats Amont (*Upstream Suppression Cascade*)
-Vectispire permet d'ingérer automatiquement les avis VEX officiels publiés par les éditeurs tiers ou mainteneurs open-source aux formats **OpenVEX**, **CSAF 2.0** et **CycloneDX VEX** (la version déclarée n'est pas inspectée : les documents 1.5 et 1.6 sont acceptés l'un comme l'autre) :
-- **Endpoint API** : `POST /api/v1/vex/ingest` (détection automatique du format JSON).
-- **Interface Web** : Bouton `Importer VEX` sur `/compliance`.
-- **Comportement** : Lorsqu'un éditeur publie une déclaration `not_affected` (ex: code vulnérable non exécutable ou mitigation en ligne), Vectispire classe automatiquement les CVEs correspondantes dans le parc avec traçabilité d'audit (`origin: upstream_vex`).
+Chaque déclaration `not_affected` s'applique aux problèmes ouverts portant cet identifiant de
+vulnérabilité **que la personne qui importe peut voir**. Un import est une décision de triage prise
+par la personne qui le dépose : la décision est enregistrée à son nom, l'auteur du document passe dans
+le commentaire, **le principe des quatre yeux s'applique exactement comme dans l'interface** (un
+appelant qui ne peut pas approuver laisse les problèmes en attente d'approbation), et une entrée
+d'audit consigne l'import. Le rôle de gouverneur de la plateforme ne peut pas importer.
 
-### 2. Export Standardisé OASIS CSAF 2.0
-- `GET /api/v1/csaf/scans/{scanId}/csaf.json` : Avis CSAF par scan de release.
-- `GET /api/v1/csaf/aggregate.json` : Avis CSAF agrégé de l'ensemble du parc applicatif.
-
-### 3. Export CycloneDX 1.5 BOM-Linked VEX
-- `GET /api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json` : SBOM de la cible avec analyse VEX par composant.
-- `GET /api/v1/cyclonedx/aggregate.json` : Inventaire agrégé du parc avec statut de justification VEX intégré.
+### Export
+- **OpenVEX** : `GET /api/v1/vex/scans/{scanId}/openvex.json`, `GET /api/v1/vex/aggregate.json`.
+- **OASIS CSAF 2.0** : `GET /api/v1/csaf/scans/{scanId}/csaf.json` (par scan),
+  `GET /api/v1/csaf/aggregate.json` (le parc que voit l'appelant).
+- **CycloneDX 1.5 avec VEX lié au BOM** : `GET /api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json`,
+  `GET /api/v1/cyclonedx/projects/{projectId}/cyclonedx-vex.json`, `GET /api/v1/cyclonedx/aggregate.json`.
 
 ---
 
-## 7. Gouvernance des Dérogations : Principe des "Quatre Yeux" (4-Eyes Workflow)
+## 7. Approbation des dérogations à quatre yeux
 
-Pour satisfaire aux exigences strictes de DORA (Art. 9/13), NIS 2 et ISO 27001 (A.8.8) sur les dérogations et acceptations de risques :
+Les dérogations et acceptations de risque — la partie de DORA (art. 9/13), NIS 2 et ISO 27001 (A.8.8)
+que ce circuit concerne — suivent une règle à quatre yeux tant que `triage_four_eyes_required` est
+activé (le défaut) :
 
 1. **Rôle `SECURITY_CHAMPION`** :
    - Délégué sécurité au sein des équipes de développement (`administrative = false`, `globalSecurityScope = false`).
@@ -305,7 +366,7 @@ Pour satisfaire aux exigences strictes de DORA (Art. 9/13), NIS 2 et ISO 27001 (
    - L'approbation est refusée lorsque le compte approbateur est celui enregistré comme ayant demandé la dérogation. Sans cela le contrôle est une barrière de rôle et non un contrôle à quatre yeux, et un évaluateur lisant littéralement DORA art. 9 ou NIS 2 art. 21 a raison de le rejeter.
 
 4. **Double Validation & Piste d'Audit** :
-   - L'approbation par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN` consigne un événement d'audit scellé avec l'origine `"approval"`.
+   - L'approbation par un `SECURITY_CHAMPION`, `CISO` ou `ADMIN` consigne une entrée d'audit avec l'origine `"approval"`.
 
 ---
 
@@ -316,7 +377,7 @@ Vectispire signe les documents qu'il produit — SBOM, VEX, CSAF, paquets de pre
 - **Paire de clés de signature** : ECDSA P-256 (courbe `secp256r1`) avec condensé SHA-256.
 - **Export Clé Publique** : `GET /api/v1/crypto/public-key.pub` (téléchargeable publiquement pour audit).
 - **Enveloppes DSSE** : Attestations in-toto empaquetées en Dead Simple Signing Envelope (DSSE, signées sur l'encodage de pré-authentification de la spécification) (`application/vnd.in-toto+json`).
-- **Signatures Détachées Cosign** : Tous les SBOMs et avis VEX de l'archive Evidence Vault sont accompagnés de leur signature `.sig`.
+- **Signatures Détachées Cosign** : Les documents VEX et SBOM du paquet de preuves sont accompagnés de leur signature `.sig`.
 - **Vérification CLI** :
   ```bash
   cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
@@ -328,21 +389,21 @@ Vectispire signe les documents qu'il produit — SBOM, VEX, CSAF, paquets de pre
 
 ## 9. Comparateur Différentiel SBOM (SBOM Drift & Diff Viewer)
 
-Le comparateur de versions de SBOM (`SbomDiffService`, `SbomDiffController`) permet de suivre déterministement l'évolution des dépendances logicielles entre deux scans :
+Le comparateur de versions de SBOM (`SbomDiffService`, `SbomDiffController`) compare les composants enregistrés par deux scans :
 
 - **Endpoints API** :
-  - `GET /api/v1/sbom/diff?fromScanId={id1}&toScanId={id2}` : Comparatif complet entre deux scans quelconques.
+  - `GET /api/v1/sbom/diff?fromScanId={id1}&toScanId={id2}` : différence entre deux scans quelconques.
   - `GET /api/v1/sbom/diff/latest?repoId={id}` : Comparatif automatique entre les deux derniers scans d'une cible.
 - **Indicateurs calculés** :
   - **Composants ajoutés / supprimés** : Nouveaux packages introduits ou retirés de la release.
   - **Changements de versions & de licences** : Détection des migrations et des dérives de licences open-source (ex: passage silencieux en GPL/AGPL).
-  - **Balance nette des CVEs** : Décompte précis des vulnérabilités résolues par rapport aux nouvelles vulnérabilités introduites.
+  - **Balance nette des CVEs** : vulnérabilités nouvellement introduites face aux vulnérabilités résolues.
 
 ---
 
 ## 10. Indicateur de Dette de Sécurité & Actions à Fort Impact (*High-Impact Fixes*)
 
-Le module d'optimisation de la remédiation (`SecurityDebtService`, `SecurityDebtController`) quantifie l'effort d'ingénierie nécessaire pour résorber le backlog de sécurité et identifie les actions correctives à ROI maximal :
+Le module d'optimisation de la remédiation (`SecurityDebtService`, `SecurityDebtController`) estime l'effort que représente le backlog ouvert et classe les montées de version de dépendances selon ce qu'elles referment par heure d'effort :
 
 - **Endpoints API** :
   - `GET /api/v1/remediation/debt` : Synthèse globale du temps estimé en heures et jours-hommes (J/H).
@@ -359,7 +420,7 @@ Le module d'optimisation de la remédiation (`SecurityDebtService`, `SecurityDeb
   anomalies comme de l'estimation. Leur sévérité est produite par un modèle local lisant un
   dépôt potentiellement hostile : les chiffrer permettrait à un dépôt de gonfler sa propre
   estimation de remédiation.
-- **Score de Levier (ROI Sécurité)** :
+- **Score de levier** :
   $$\text{Levier} = \frac{N_{\text{CVEs résolues}} \times 2.0 + N_{\text{Critiques}} \times 3.0 + N_{\text{Élevées}} \times 1.5}{\text{Effort Estimé (h)}}$$
-  Ce calcul met en lumière la montée de version unique qui résout le plus grand nombre de CVEs sur le parc d'applications.
+  Classe en tête les montées de version qui referment le plus de vulnérabilités, pondérées par sévérité, par heure estimée. Les chiffres d'effort sont des estimations calibrées, pas des mesures.
 

@@ -42,13 +42,18 @@ Vectispire runs no call-graph analysis, so it cannot say whether the vulnerable 
 
 ![An attack path: an unauthenticated route reaching a vulnerable component, reaching the data store — with the narrative the chain produces.](../assets/screens/en/attack-paths.png)
 
-The attack path visualiser chains findings into routes rather than listing them
-individually: an exposed component, a vulnerability that reaches it, a credential that was
-committed near it. A route made of three medium findings can matter more than any one high
-finding on the same target, and no severity-sorted list will ever show it.
+The attack path view puts side by side, for one repository, the routes it exposes (public, or
+requiring no authentication, from the API inventory) and its open critical, high or KEV-listed
+vulnerabilities and secrets. **It is a co-location heuristic, not a reachability analysis**: every
+exposed route is linked to every such vulnerability of the same repository, the *Internet* node at
+the start and the *database* node at the end are drawn for every repository, and a vulnerability is
+marked exploitable when the repository has any unauthenticated route. Nothing establishes that the
+route calls the vulnerable code, that the application is reachable from the Internet, or that it has
+a database at all.
 
-A finding triaged **not affected** or **fixed** is no hop on a route: the screen's claim is that
-something can be reached, and the team has already argued it cannot.
+Use it to see which repositories carry an open door and a critical flaw at the same time, then
+confirm a path by hand. A finding triaged **not affected** or **fixed** is left out. The details are
+in the [attack path reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/ATTACK_PATH_VISUALIZER.md).
 
 ## Blast radius
 
@@ -65,8 +70,9 @@ that touches a Tier 1 payment path.
 **Attack surface** collects what is reachable from outside — the entry points a finding has
 to traverse to matter.
 
-**OWASP** groups the backlog by the OWASP categories, which is the vocabulary most
-security reviews and most auditors already speak. It is a reframing of the same findings,
+**OWASP** groups the backlog by the categories of the **OWASP Top 10:2021** — the edition the
+mapping is written for; no other edition is supported — which is the vocabulary most security
+reviews and most auditors already speak. It is a reframing of the same findings,
 not a separate scan.
 
 The current grid reads the whole estate you see, or **one solution or one project**, chosen above it —
@@ -75,9 +81,9 @@ that scope's: a project never scanned reads *unmeasured* even where its neighbou
 you see only in part says so, and counts what you see. A count of open findings opens the backlog of
 that category in the same scope, settled triage left out as the grid leaves it out.
 
-### The Top 10, week by week
+### The OWASP Top 10:2021, week by week
 
-*OWASP report* → *By week* shows the same ten categories over 12, 26 or 52 weeks — or a range you
+*OWASP Top 10:2021* → *By week* shows the same ten categories over 12, 26 or 52 weeks — or a range you
 choose — for the whole estate or one project or solution. Each column is an ISO week, Monday to
 Sunday in UTC; a column header selects the week, whose figures and grid appear below the heatmap.
 

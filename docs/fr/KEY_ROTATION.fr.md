@@ -8,10 +8,10 @@ scellées qu'un agent ouvre. La faire tourner est donc une opération sur des do
 cette page en est la procédure.
 
 > **Pourquoi cette page est séparée.** La procédure vivait dans
-> [`ROTATION_AND_PURGE.fr.md`](ROTATION_AND_PURGE.fr.md), qui est le compte rendu d'une exposition
-> d'identifiants précise, en août 2026. Quelqu'un cherchant « comment faire tourner la clé »
-> ouvrait un rapport d'incident et lisait l'histoire d'une fuite. Le compte rendu reste où il est —
-> c'est un relevé daté et il était exact — et la partie réutilisable est ici.
+> la note de travail d'une exposition d'identifiants précise, en août 2026, remplacée depuis par une
+> [note d'incident](../analysis/fr/2026-08-06_incident_exposition_identifiants.fr.md). Quelqu'un cherchant « comment faire tourner la clé »
+> ouvrait un rapport d'incident et lisait l'histoire d'une fuite. Le récit de l'incident est gardé à part, daté, et la
+> partie réutilisable est ici.
 
 ## La rotation
 

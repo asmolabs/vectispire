@@ -200,8 +200,8 @@ existe.
 
 ### 3.2 🟠 Un runbook de sécurité oriente son lecteur vers la mauvaise forge, et déclare impossible une vérification qui ne l'est plus
 
-**Exécuté.** [`docs/en/ROTATION_AND_PURGE.md:116`](../../en/ROTATION_AND_PURGE.md) et
-[`docs/fr/ROTATION_AND_PURGE.fr.md:116`](../../fr/ROTATION_AND_PURGE.fr.md) portent le même
+**Exécuté.** [`docs/en/ROTATION_AND_PURGE.md:116`](../en/2026-08-06_credential_exposure_incident.en.md) et
+[`docs/fr/ROTATION_AND_PURGE.fr.md:116`](2026-08-06_incident_exposition_identifiants.fr.md) portent le même
 encadré :
 
 > *Le remote du projet est désormais GitLab : quiconque rejoue la procédure a besoin de

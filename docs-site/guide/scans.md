@@ -12,7 +12,8 @@ database credentials.
 1. **Clone or pull** the target into a temporary working directory.
 2. **Catalogue** it with Syft, producing the SBOM.
 3. **Match** known vulnerabilities with Grype.
-4. **Secrets** with gitleaks, dual-engine with automatic deduplication.
+4. **Secrets** with gitleaks, under Vectispire's own configuration rather than one the target
+   ships. The file, the line and the rule are kept — never the value.
 5. **IaC** with checkov, for Terraform and Kubernetes.
 6. **Source code** with Semgrep, if enabled — see [Semgrep rule sets](../administration/rule-sets.md).
 7. **Normalise** everything into `Finding` rows, enrich with EPSS and KEV, evaluate the
@@ -21,10 +22,20 @@ database credentials.
 Steps 2 to 6 run in ephemeral containers with **the network disabled**, a read-only mount,
 `cap_drop: ALL` and `no-new-privileges`. Every image is pinned by digest.
 
-The only outbound call a scan makes is the end-of-life catalogue, carrying product names and
-versions — made before the scan's results are written, never while they are. EPSS scores and KEV
-status are read from FIRST's daily file and CISA's catalogue, which the control plane synchronises
-whole, so no third party learns which CVE a repository carries. The code being scanned does not leave the machine.
+Besides fetching the target itself, the scanners make no network call. What does leave the
+machine, and when:
+
+- **the end-of-life lookup** sends product names and versions (a runtime, a distribution) to the
+  end-of-life catalogue — made before the scan's results are written, never while they are;
+- **a Semgrep rule-set plugin** runs without a network unless its manifest declares the exception,
+  with a justification recorded in the audit log ([Plugins](../administration/plugins.md));
+- **the AI code review**, off by default, sends source code to the model endpoint configured — a
+  machine you run, or, once a public endpoint has been explicitly allowed, a third party such as
+  OpenAI ([Settings](../administration/settings.md#ai-code-review)).
+
+EPSS scores and KEV status are read from FIRST's daily file and CISA's catalogue, which the control
+plane synchronises whole, so no third party learns which CVE a repository carries. With the AI review
+off or kept on your network, no scanned source leaves it.
 
 ## Reading a scan
 

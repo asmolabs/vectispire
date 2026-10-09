@@ -34,7 +34,7 @@
 | **`t_scan` (Scan history)** | ~ 100,000 rows / year | Pruning old scan execution metadata via `RetentionService`. Added 2026-09-02: `(repo_id, id)` and `(container_id, id)`, because "the latest scan per target" is a correlated subquery — with no index on `repo_id`, the repository list was quadratic in the number of scans. |
 | **`t_finding` (Raw findings)** | ~ 500,000 rows | Transient data, purged periodically by retention task. Added 2026-09-02: `(scan_id)`, `(package_name)` and `(issue_id)`. **The largest table in the schema carried nothing but its primary key** — `scan_id` was declared by an inline `references`, a form that created no index on any engine the campaign then ran. |
 | **`t_issue` (Reconciled backlog)** | ~ 10,000 to 50,000 unique issues | `(state, repo_id)` and `(state, container_id)` for the gate and the compliance summary, `(fingerprint)` for the per-finding identity lookup at ingestion, and `(identifier)` since 2026-09-02 because the CycloneDX generator and the VEX ingestor look up by CVE inside a loop. Added 2026-08-25: this table had carried **no index at all** while this document claimed three, and `SchemaParityIntegrationTest` now asserts they exist on every engine, so a refactor cannot drop them quietly. |
-| **`t_audit_log` (Sealed log)** | ~ 50,000 audit entries / year | Hash-chained (one SHA-256 per entry): tamper-evident, not immutable. |
+| **`t_audit_log` (hash-chained log)** | ~ 50,000 audit entries / year | Hash-chained (one SHA-256 per entry): tamper-evident, not immutable. |
 
 ---
 

@@ -117,7 +117,7 @@ The claim of "strict bilingual synchronisation" holds for `bflorat/`, STRIDE, th
 | `COMPLIANCE_AND_REGULATORY` | 204 | 263 | **EN 22% shorter** — the divergence runs both ways |
 | `01-overview` | 112 | 95 | EN ahead |
 
-The French content that exists is genuine translation, not machine filler ([`ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) reads as native French) — the deficit is coverage, not quality. For a product sold on regulatory traceability into a Francophone market, a French rotation-and-purge procedure that is 18% of the English one is a compliance-evidence gap, not a translation backlog.
+The French content that exists is genuine translation, not machine filler ([`ROTATION_AND_PURGE.fr.md`](../fr/2026-08-06_incident_exposition_identifiants.fr.md) reads as native French) — the deficit is coverage, not quality. For a product sold on regulatory traceability into a Francophone market, a French rotation-and-purge procedure that is 18% of the English one is a compliance-evidence gap, not a translation backlog.
 
 ### 2.4 Residual Liquibase vocabulary
 

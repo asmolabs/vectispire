@@ -109,12 +109,32 @@ GitLab or Jira: URL, project, token. Covered under
 
 ## AI code review
 
-Off by default. A local LLM run via [Ollama](https://ollama.com) reviews source code with a
-"security architect" prompt, as a lightweight complement to Grype, gitleaks and checkov —
-not a replacement for any of them. When enabled it runs on repository scans, and its
-narrative result and normalised findings appear in the scan detail.
+Off by default. A language model reviews source code with a "security architect" prompt, as a
+lightweight complement to Grype, gitleaks and checkov — not a replacement for any of them. When
+enabled it runs on repository scans, and its narrative result and normalised findings appear in
+the scan detail. Its findings are tagged as coming from a model and excluded from the gate by
+default: the reviewed code is written by whoever is being audited, and can try to steer the model.
 
-Set the Ollama URL (default `http://localhost:11434`) and pick a model. The list is read
+**The provider decides where the code goes** (`ai_review_provider`):
+
+- **`ollama`** (the default) — a model on a machine you run.
+- **`openai`** — any endpoint speaking the OpenAI chat-completions protocol, at
+  `ai_review_openai_url` (default `https://api.openai.com/v1`), with `ai_review_openai_key` (stored
+  encrypted, never returned) and `ai_review_model`. Left at OpenAI's address, **the source of every
+  scanned repository — private ones included, and any secret still committed in them — is sent to
+  OpenAI**, a third party applying its own retention and jurisdiction. Check your contract with the
+  provider on retention and training, and whether the code you scan is yours to send. Pointed at
+  vLLM, LM Studio, llama.cpp or an internal gateway, the code stays on your network.
+
+**A public endpoint is refused until it is acknowledged.** Both URLs go through the outbound guard;
+a destination outside your network — OpenAI's API, or a public Ollama — needs **Allow a public model
+endpoint** (`ai_review_allow_remote_url`, off by default). Turning it on records, server-side, the
+account that accepted the risk and when (`ai_review_risk_acknowledged_by` / `_at`, and the audit
+log); turning it off clears them. `ai_review_timeout_seconds` (default 300) bounds the wait.
+
+### With Ollama
+
+Set the Ollama URL (`ai_review_ollama_url`, default `http://localhost:11434`) and pick a model. The list is read
 live from Ollama's own `/api/tags`, so whatever you have actually pulled shows up. If
 Ollama is unreachable the dropdown falls back to two suggestions rather than being empty —
 which is also the symptom to recognise.

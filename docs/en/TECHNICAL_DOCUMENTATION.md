@@ -7,11 +7,8 @@ its [decision register](../architecture/en/decisions/).
 
 ---
 
-### Origin & Philosophy of the Name: *Vectispire*
-
-The name **Vectispire** is the synthesis of two pillars of software supply chain security:
-- **`Vectis`** *(Latin for "Security Lever & Lock")*: The platform acts as the **cryptographic security lever and policy gatekeeper** of your delivery pipeline. It enforces hard quality and security gates, signs in-toto attestations, generates DSSE Cosign signatures, deterministic SBOMs, and verifiable VEX statements (OASIS CSAF 2.0, OpenVEX, CycloneDX) with a tamper-evident cryptographic audit chain.
-- **`Spire`** *(The Elevated ASPM Watchtower & Posture Horizon)*: The platform provides a **panoramic, elevated vantage point** across your entire application portfolio — mapping multi-tier dependency trees, measuring blast radius dispersion, evaluating open-source license copyleft conflicts, and tracking vulnerability remediation velocity (MTTR) across all Git repositories and container fleets.
+*The name joins* vectis, *Latin for a lever or bolt — the gate — and* spire, *a high point to see
+the whole estate from.*
 
 ---
 
@@ -516,7 +513,7 @@ Two rules the harness enforces on itself:
   - **Microsoft Teams** (`TeamsNotificationChannel`, `TeamsCard`): Adaptive Cards v1.4 sent via Power Automate workflows.
   - **Discord** (`DiscordNotificationChannel`, `DiscordEmbed`): Rich Embeds with dynamic severity color codes.
   - **Email** (`MailNotificationChannel`): Multipart HTML/text delivery to distribution lists.
-  - **Generic Webhook / SIEM** (`NotificationService`): Standard JSON POST with HMAC-SHA256 signature verification (`X-Vectispire-Signature`).
+  - **Generic Webhook** (`NotificationService`): JSON POST. **Unsigned unless a signing secret is set** (`notification_webhook_secret`, empty by default): with one, an `X-Vectispire-Signature` header carries HMAC-SHA256 over the timestamp and the exact body, for a receiver that checks it (Slack, Teams and Discord do not).
 - **Resiliency & Outbox Guarantee**:
   - Outbox rows are inserted into `t_outbox_message` in the exact transaction that reconciles scan results. Deliveries use capped exponential backoff with per-destination isolation.
 - **REST Endpoints**:
@@ -564,14 +561,14 @@ Two rules the harness enforces on itself:
   - Kubernetes Ingress route extractor mapping public hostname paths directly to discovered services.
 - **Shadow API & Attack Surface Drift Detection**:
   - Automatically identifies **Shadow APIs** (active HTTP endpoints discovered in source code but missing from OpenAPI specifications).
-  - Flags **Sensitive Unprotected Endpoints** (e.g. unauthenticated `/admin`, `/actuator`, `/debug`, `/metrics`, `/env` routes) mapped to OWASP API Security Top 10 risks (API1: BOLA, API2: Broken Authentication, API9: Improper Asset Management).
-  - Dynamically synthesizes compliant OpenAPI 3.0.3 specifications from discovered code routes for undocumented legacy services.
+  - Counts **sensitive unprotected endpoints**: unauthenticated routes whose path contains `/admin`, `/actuator`, `/debug`, `/internal`, `/metrics`, `/env` or `/health` — a path-name match, not a mapping to any OWASP list.
+  - Exports the discovered routes of a repository as a skeleton OpenAPI 3.0.3 document: paths and methods, a summary and an operation id each, and a placeholder `200` response — no parameters, schemas or security schemes. A starting point for documenting an undocumented service, not a specification of it.
 - **REST Endpoints**:
   - `GET /api/v1/attack-surface`: Global cross-repository attack surface summary, frameworks inventory, and high-risk exposed endpoints.
   - `DELETE /api/v1/attack-surface`: Atomically purges all discovered endpoints and contracts across the platform.
   - `GET /api/v1/repositories/{id}/apis`: Discovered endpoints, contracts, and shadow API status for a repository.
   - `DELETE /api/v1/repositories/{id}/apis`: Purges endpoints and contracts for a specific repository.
-  - `GET /api/v1/repositories/{id}/apis/export/openapi`: Synthesized OpenAPI 3.0.3 specification export for a repository.
+  - `GET /api/v1/repositories/{id}/apis/export/openapi`: skeleton OpenAPI 3.0.3 document listing the repository's discovered routes.
 
 ## 15. OpenAPI 3.0 Documentation & REST Reference
 

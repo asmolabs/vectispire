@@ -7,10 +7,10 @@ repositories, the credentials for container registries, ticketing tokens, the se
 agent opens. Rotating it is therefore an operation on live data, and this page is the procedure.
 
 > **Why this page exists separately.** The procedure used to live inside
-> [`ROTATION_AND_PURGE.md`](ROTATION_AND_PURGE.md), which is the record of a specific credential
-> exposure in August 2026. Somebody looking for "how do I rotate the key" opened an incident
-> report and read the history of a leak. The record stays where it is — it is a dated account and
-> it was accurate — and the reusable part is here.
+> the working note of a specific credential exposure in August 2026, now replaced by an
+> [incident note](../analysis/en/2026-08-06_credential_exposure_incident.en.md). Somebody looking for "how do I rotate the key" opened an incident
+> report and read the history of a leak. The account of the incident is kept apart, dated, and the
+> reusable part is here.
 
 ## The rotation
 

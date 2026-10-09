@@ -6,7 +6,11 @@ secrets écrits en dur, les licences problématiques et les erreurs de configura
 d'infrastructure, et centralise l'ensemble dans un seul tableau de bord.
 
 Chaque scanner s'exécute dans un conteneur local éphémère, **réseau désactivé** et montage en
-lecture seule. Rien du code que vous analysez ne quitte votre machine.
+lecture seule. Ce qui quitte la machine est énuméré, pas sous-entendu : la consultation de fin de
+support envoie des noms de produits et des versions, un plugin de jeu de règles peut déclarer une
+exception réseau, et la revue de code par IA, optionnelle, envoie le code source au point d'accès de
+modèle que vous configurez — qui peut être un fournisseur externe comme OpenAI si vous l'autorisez
+([ce qui sort, et quand](guide/scans.md#le-pipeline)).
 
 ## Par où commencer
 

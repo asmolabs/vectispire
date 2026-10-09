@@ -69,7 +69,7 @@ consignent les erreurs de ce projet.
   jeu que vous installez ([décision 0006](docs/architecture/fr/decisions/0006-semgrep-rules-written-here.md)).
 - **Triage** individuel ou en masse, avec justification, date de revue et historique de chaque
   transition ; une issue revient *en revue* à sa date.
-- **OWASP Top 10 semaine par semaine** (`/owasp`) : le backlog par catégorie du Top 10, en carte
+- **OWASP Top 10:2021 semaine par semaine** (`/owasp`) : le backlog par catégorie de l'OWASP Top 10:2021 (la seule édition que couvre la correspondance), en carte
   de chaleur et en courbes. Les semaines antérieures à l'enregistrement sont reconstituées et
   hachurées, pour qu'un changement de définition ne se lise pas comme un progrès.
 - **Barrière CI** : script [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), action GitHub et
@@ -145,7 +145,7 @@ Le schéma appartient aux migrations Flyway, appliquées au démarrage ; `ddl-au
 | `/dashboard` | Vue d'ensemble |
 | `/security` | Verdict de la barrière pour chaque cible, et la politique qui l'a produit |
 | `/issues` | Backlog des issues à travers les analyses, avec le triage (VEX) |
-| `/owasp` | Le backlog par catégorie de l'OWASP Top 10, semaine par semaine |
+| `/owasp` | Le backlog par catégorie de l'OWASP Top 10:2021, semaine par semaine |
 | `/quality` | Constats de qualité du code, par règle, fichier et dépôt |
 | `/repositories` | Dépôts Git suivis, historique des analyses, détail des constats |
 | `/containers` | Images de conteneurs suivies |
@@ -171,7 +171,7 @@ Le schéma appartient aux migrations Flyway, appliquées au démarrage ; `ddl-au
 - [Rotation d'`ENCRYPTION_KEY`](docs/fr/KEY_ROTATION.fr.md) et
   [sauvegarde et restauration](docs/fr/BACKUP_AND_RESTORE.fr.md) — vérifiée chaque nuit, pas
   seulement écrite
-- [Exposition d'identifiants d'août 2026 et purge](docs/fr/ROTATION_AND_PURGE.fr.md) — un compte
+- [Exposition d'identifiants d'août 2026](docs/analysis/fr/2026-08-06_incident_exposition_identifiants.fr.md) — un compte
   rendu, pas une procédure
 - [Dossier d'architecture](docs/architecture/fr/) et
   [registre des décisions](docs/architecture/fr/decisions/README.md)

@@ -1,52 +1,67 @@
-# Attack Path Visualizer Integration Guide
+# Attack Path View
 
-Vectispire's **Interactive Attack Path Visualizer** models and correlates isolated vulnerability findings into realistic end-to-end exploit scenarios.
+The attack path view (`AttackPathService`, `/api/v1/attack-paths`) puts side by side, for one
+repository, the routes it exposes and the critical vulnerabilities and secrets it carries. **It is a
+co-location heuristic, not a reachability analysis**: two findings are linked because they belong to
+the same repository, never because anything established that one leads to the other.
 
-It helps security teams, CISOs, and engineers immediately distinguish between theoretical security debt and **critical vulnerabilities that are actively exploitable from the public Internet**.
-
----
-
-## 🎯 The Topological Exploit Flow
-
-Vectispire maps architecture along a 4-echelon exposure chain:
-
-$$\text{1. Ingress / Internet Exposure} \longrightarrow \text{2. Unauthenticated API Endpoint} \longrightarrow \text{3. Vulnerable Component (RCE)} \longrightarrow \text{4. High-Value Asset / Database}$$
-
-```mermaid
-flowchart LR
-    A["🌐 Internet Ingress\n(0.0.0.0/0)"] -->|Exposes| B["⚡ POST /api/v1/auth/login\n(Unauthenticated)"]
-    B -->|Invokes| C["🔥 log4j-core 2.14.1\n(CVE-2021-44228 RCE - KEV)"]
-    C -->|Exfiltrates / Compromises| D["🔑 STRIPE_SECRET_KEY &\n🗄️ PostgreSQL Database"]
-
-    style A fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style B fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
-    style C fill:#ef4444,stroke:#b91c1c,stroke-width:2px,color:#fff
-    style D fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff
-```
+Read it as "this repository has an unauthenticated route *and* a critical vulnerability — look at
+both together", not as "this vulnerability is exploitable from the Internet".
 
 ---
 
-## 🚀 Key Capabilities
+## How the graph is built
 
-1. **Multi-Source Real-Time Correlation**:
-   * **API Attack Surface (`ApiInventory`)**: Identifies public and unauthenticated HTTP endpoints (`authRequired = false`).
-   * **Exploitability**: Prioritizes critical vulnerabilities (`CVSS >= 9.0`, CISA KEV catalog, RCE descriptions). Reachability is **not** a criterion: Vectispire runs no call-graph analysis (`ReachabilityAnalyzer`, never wired, was removed), so the issue's `reachability` column reads `UNKNOWN` everywhere, and the graph no longer reads it to admit, rank or flag a node. A hop is exploitable when an unauthenticated route stands in front of the component.
-   * **Crown Jewels & Data Sinks (`Gitleaks` / `SAST`)**: Uncovered plaintext secrets, cloud keys, database connection strings.
+For each repository the caller may see:
 
-2. **Interactive Topological Graph**:
-   * Multi-column layout showing entry-to-asset propagation.
-   * Quick filter: *"Show only directly exploitable critical paths"*.
-   * Node Inspector: Click any node to view its EPSS probability, source file and CVSS score.
+1. **An `Internet Ingress (0.0.0.0/0)` node.** Synthetic: it is drawn for every repository, whether
+   or not the application is deployed, let alone reachable from the Internet. Vectispire knows
+   nothing of the network in front of the code.
+2. **Exposed routes.** Every route of the API inventory that is declared public or that requires no
+   authentication (`authRequired = false`), linked from the ingress node. An unauthenticated route
+   whose path contains `admin`, `auth`, `login`, `user`, `payment`, `checkout`, `secret`, `token` or
+   `upload` is drawn as critical, any other unauthenticated route as high.
+3. **Vulnerable components.** The repository's open, untriaged issues that are critical, high or on
+   the CISA KEV list (secrets apart), KEV first then by severity, at most ten. **Every exposed route
+   is linked to every one of them** — the product of the two lists. The edge does not mean the route
+   calls the component; the API inventory records no call graph, and Vectispire runs no call-graph
+   analysis (the issue's `reachability` column reads `UNKNOWN` everywhere and the graph does not read
+   it). Without any exposed route, the vulnerabilities are linked to the ingress node directly.
+4. **A `Database / Production Data Sink` node**, fixed: drawn for every repository, linked from every
+   vulnerability, whether or not the application has a database.
+5. **Secrets** found in the repository, at most ten, linked from the first vulnerability or, with
+   none, from the ingress node.
 
-3. **Attack Scenarios & Prioritized Remediation**:
-   * Step-by-step guidance to break the exploit chain (lock down unauthenticated API routes, upgrade vulnerable libraries, isolate internal network segments).
+A finding triaged *not affected* or *fixed* is left out. The node lists are cut at ten for
+legibility; the counts and the score below are computed before the cut.
 
-4. **Topological Risk Score (0 to 100)**:
-   * Quantitative score measuring exposure, exploitability, and potential asset impact.
+**"Exploitable" means one thing here:** a vulnerability node is flagged exploitable when the
+repository has at least one unauthenticated route — any route, not one shown to reach that
+component.
 
----
+## Scenarios and score
 
-## 📡 REST API Endpoints
+- **Unauthenticated route + critical vulnerability**: when the repository has both, one scenario
+  names its first unauthenticated route and its worst vulnerability, ending at the data sink.
+- **Plaintext secret**: when the repository carries a secret, one scenario names the file.
+- Otherwise a baseline scenario says no such pairing was found.
 
-* `GET /api/v1/attack-paths/repositories/{repoId}`: Retrieves full attack path graph and scenarios for a repository.
-* `GET /api/v1/attack-paths/overview`: Fleet-wide summary of exploitable critical attack chains.
+The risk score (0–100) is
+`35 × scenarios + 25 × secrets + 10 × min(3, vulnerabilities) + 5 × min(3, unauthenticated routes)`,
+at least 15 when a vulnerability or secret was found and 10 otherwise. It ranks repositories by what they
+carry, not by a likelihood of compromise.
+
+## What it cannot tell you
+
+- whether the vulnerable code is loaded or called by any route;
+- whether the application is deployed, or reachable from the Internet at all;
+- whether a database, or the secret's target system, is reachable from the vulnerable component;
+- anything about containers: the view covers repositories only.
+
+Use it to decide what to look at together, then confirm a path by hand before reporting it as one.
+
+## REST API
+
+* `GET /api/v1/attack-paths/repositories/{repoId}`: the graph and scenarios of one repository (404
+  for one the caller may not see).
+* `GET /api/v1/attack-paths/overview`: the same for every repository the caller may see.

@@ -25,11 +25,11 @@ and track issues from scan to scan in a **reconciled backlog**.
 5. **Quality Gate & CI/CD Attestation**: Deterministic decision engine (`POST /api/v1/gate`)
    evaluating build compliance.
 6. **Regulatory Compliance & Audit Packages**: Global and target-level compliance matrices for NIS
-   2, DORA, ISO 27001, PCI-DSS v4.0, Cyber Resilience Act (EU CRA), and SOC 2 Type II.
+   2, DORA, ISO 27001, PCI-DSS v4.0, Cyber Resilience Act (EU CRA), and SOC 2 — four technical controls each.
 7. **SBOM Drift & Diff Viewer**: Differential comparison between scan releases tracking
    added/removed components, license shifts, and net CVE changes.
-8. **Security Debt & High-Impact Remediation**: Engineering effort quantification (in person-days)
-   and maximum-ROI package upgrade discovery.
+8. **Security Debt & High-Impact Remediation**: Estimated remediation effort (in person-days)
+   and package upgrades ranked by vulnerabilities closed per hour of estimated effort.
 
 ---
 

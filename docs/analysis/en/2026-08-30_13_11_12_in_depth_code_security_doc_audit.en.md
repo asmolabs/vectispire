@@ -194,8 +194,8 @@ matters are sound. It is the scenery around it that describes something other th
 
 ### 3.2 🟠 A security runbook points its reader at the wrong forge, and declares impossible a check that no longer is
 
-**Executed.** [`docs/en/ROTATION_AND_PURGE.md:116`](../../en/ROTATION_AND_PURGE.md) and
-[`docs/fr/ROTATION_AND_PURGE.fr.md:116`](../../fr/ROTATION_AND_PURGE.fr.md) carry the same
+**Executed.** [`docs/en/ROTATION_AND_PURGE.md:116`](2026-08-06_credential_exposure_incident.en.md) and
+[`docs/fr/ROTATION_AND_PURGE.fr.md:116`](../fr/2026-08-06_incident_exposition_identifiants.fr.md) carry the same
 blockquote:
 
 > *The project's remote is now GitLab, so anybody repeating the procedure needs GitLab's

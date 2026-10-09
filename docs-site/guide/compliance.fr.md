@@ -1,7 +1,24 @@
 # Conformité
 
-Vectispire évalue le parc contre six référentiels, de façon déterministe, et emballe le
-résultat en preuve signée.
+Vectispire rapporte ce que les analyses observent, et ce que la plateforme elle-même a activé, à
+une poignée de contrôles techniques nommés d'après six référentiels, et emballe le résultat en
+preuve signée.
+
+## Ce que c'est, et ce que ce n'est pas
+
+C'est une évaluation mécanique des contrôles que Vectispire peut observer : ce qui est analysé,
+à quelle fréquence, ce qui a été trouvé, ce qui en a été décidé, par qui, et si le registre est
+intact.
+
+Chaque référentiel est représenté par **quatre** contrôles techniques — 24 en tout. Les référentiels
+sont bien plus vastes : l'Annexe A de l'ISO/IEC 27001:2022 compte à elle seule quatre-vingt-treize contrôles, et
+Vectispire en mesure quelques-uns parmi les contrôles technologiques. L'essentiel de ce que ces
+référentiels exigent — gouvernance, personnel, sécurité physique, gestion des fournisseurs — échappe
+à tout scanner.
+
+Ce n'est **pas** un verdict de conformité pour votre organisation. Cela prépare une évaluation ; ce
+n'en est pas une. Traitez l'export comme une preuve pour les contrôles techniques, classée à côté
+de tout le reste.
 
 | Référentiel | |
 |---|---|
@@ -10,16 +27,31 @@ résultat en preuve signée.
 | **ISO/IEC 27001:2022** | Management de la sécurité de l'information |
 | **PCI-DSS v4.0** | Industrie des cartes de paiement |
 | **Cyber Resilience Act (EU CRA)** | Obligations de sécurité des produits |
-| **SOC 2 Type II** | Trust services criteria |
+| **SOC 2** | Trust services criteria — un rapport SOC 2 est celui d'un auditeur ; Vectispire lui fournit des preuves |
 
 ![La progression de la conformité : une chute de dix-neuf points attribuée à un parc plus large plutôt qu'à une régression, et une série annoncée non comparable.](../assets/screens/fr/compliance-progress.png)
 
-## Évaluation déterministe
+Chaque contrôle est noté par sa catégorie — vulnérabilités, chaîne d'approvisionnement (la part des
+cibles dotées d'un SBOM), secrets, développement sécurisé, infrastructure as code, gouvernance de la
+barrière, piste d'audit — si bien que son titre nomme l'exigence à laquelle il se rapporte, non tout
+ce qu'elle demande. `CRA-ART11-NOTIF`, par exemple, note les vulnérabilités critiques ouvertes,
+inscrites au catalogue CISA KEV ou en retard dont partirait une notification au titre de l'article
+11 ; il ne fait ni ne suit la notification. Les formules sont dans la
+[référence de conformité](https://github.com/asmolabs/vectispire/blob/main/docs/fr/COMPLIANCE_AND_REGULATORY.fr.md).
+La même posture donne le même verdict : un résultat peut être reproduit.
 
-Le même parc au même instant produit le même verdict, à chaque fois. C'est une exigence et non
-une élégance : une évaluation qui varie d'une exécution à l'autre est une évaluation qu'un
-auditeur a raison d'écarter, et dont vous ne pouvez pas vous servir pour montrer qu'un contrôle
-a tenu sur une période.
+## Des réglages de la plateforme plafonnent certains contrôles
+
+Un contrôle qui repose sur une capacité de cette instance est plafonné — score abaissé, statut
+*partiel* au mieux — tant que la capacité est désactivée, et le détail du contrôle nomme le réglage :
+
+| Quand | Plafond | Contrôles |
+|---|---|---|
+| Aucune clé de chiffrement (`ENCRYPTION_KEY`) | 60 | les contrôles de secrets de chaque référentiel |
+| Aucun miroir d'audit (`vectispire.audit.mirror-path`) | 70 | les contrôles d'audit : `DORA-ART16-INCIDENT`, `PCI-REQ-10.2`, `SOC2-CC7.2` |
+| Aucun fournisseur d'identité (`VECTISPIRE_OIDC_ISSUER`) | 65 | les mêmes contrôles d'audit |
+| Un fournisseur d'identité, avec la connexion par mot de passe local encore ouverte (`VECTISPIRE_PASSWORD_LOGIN`) | 85 | les mêmes contrôles d'audit |
+| Approbation à quatre yeux désactivée (`triage_four_eyes_required`) | 75 | `NIS2-ART21-GOV` |
 
 ## Sans donnée n'est pas conforme
 
@@ -79,9 +111,9 @@ affichent un tiret. Le tiret du score est le `NO_DATA` de la fiche elle-même : 
 retranche ce qu'elle trouve, et répondait 100, A+, pour un périmètre que personne n'avait regardé, jusqu'à
 ce qu'elle sache dire qu'elle n'avait rien à noter.
 
-## Le coffre de preuves
+## Le paquet de preuves
 
-Un clic exporte un **paquet de preuves signé cryptographiquement** :
+Un clic exporte un **paquet de preuves signé** :
 
 ```
 GET /api/v1/compliance/evidence-bundle.zip
@@ -100,17 +132,6 @@ paquet transporte : qui modifie un paquet remplace aussi ce fichier. Récupérez
 `/api/v1/crypto/public-key.pub` ou gardez-en une copie épinglée d'avant. L'attestation qu'il contient
 est une enveloppe DSSE signée sur l'encodage de pré-authentification de la spécification :
 `cosign verify-attestation` et les vérificateurs in-toto la contrôlent comme n'importe quelle autre.
-
-## Ce que c'est, et ce que ce n'est pas
-
-C'est une évaluation mécanique des contrôles que Vectispire peut observer : ce qui est analysé,
-à quelle fréquence, ce qui a été trouvé, ce qui en a été décidé, par qui, et si le registre est
-intact.
-
-Ce n'est **pas** un verdict de conformité pour votre organisation. La plupart de ces
-référentiels couvrent la gouvernance, le personnel, la sécurité physique et la gestion des
-fournisseurs, dont un scanner ne voit rien. Traitez l'export comme une preuve pour les
-contrôles techniques, classée à côté de tout le reste.
 
 ## Registres à l'appui
 

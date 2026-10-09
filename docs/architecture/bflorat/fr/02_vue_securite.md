@@ -64,7 +64,7 @@ L'application applique un contrôle strict sur tous les endpoints REST via Sprin
   dérogation ne peut pas l'approuver, même après avoir obtenu le rôle — quatre yeux signifie deux
   personnes, et une simple barrière de rôle laisse une seule personne tenir les deux moitiés.
 - **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement
-  consigné dans le journal d'audit scellé SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur
+  consigné dans le journal d'audit chaîné par empreintes SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur
   (`SETTING_UPDATED`).
 - `ROLE_USER` / `ROLE_SECURITY_CHAMPION` : Consultation du posture dashboard et qualification des
   vulnérabilités. Le référent sécurité peut approuver un triage, mais dans le seul périmètre que sa

@@ -36,8 +36,8 @@ existent.
 - [`docs/fr/BACKUP_AND_RESTORE.fr.md`](../../fr/BACKUP_AND_RESTORE.fr.md) — sauvegarder les trois
   états, restaurer, et pourquoi le miroir d'audit ne doit pas être restauré avec la base. Vérifié
   chaque nuit par `scripts/restore-drill.sh`.
-- [`docs/fr/ROTATION_AND_PURGE.fr.md`](../../fr/ROTATION_AND_PURGE.fr.md) — le compte rendu de
-  l'exposition d'identifiants d'août 2026 et de la purge GitHub. Un récit, pas une procédure.
+- [`docs/analysis/fr/2026-08-06_incident_exposition_identifiants.fr.md`](../../analysis/fr/2026-08-06_incident_exposition_identifiants.fr.md) — la note sur
+  l'exposition d'identifiants d'août 2026. Un récit, pas une procédure.
 - [`docs/fr/api/rest_api_reference.md`](../../fr/api/rest_api_reference.md) — référence complète des
   endpoints REST.
 - [`docs/fr/CI_CD_INTEGRATION.fr.md`](../../fr/CI_CD_INTEGRATION.fr.md) — guide d'intégration CI/CD

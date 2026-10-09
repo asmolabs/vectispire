@@ -1,52 +1,71 @@
-# Guide du Visualiseur de Chemins d'Attaque (Attack Path Visualizer)
+# Vue des chemins d'attaque
 
-Le **Visualiseur Interactif de Chemins d'Attaque** de Vectispire cartographie et corrèle les vulnérabilités isolées en scénarios réels d'exploitation bout-en-bout.
+La vue des chemins d'attaque (`AttackPathService`, `/api/v1/attack-paths`) met côte à côte, pour un
+dépôt, les routes qu'il expose et les vulnérabilités critiques et secrets qu'il porte. **C'est une
+heuristique de co-localisation, pas une analyse d'atteignabilité** : deux constats sont reliés parce
+qu'ils appartiennent au même dépôt, jamais parce que quoi que ce soit a établi que l'un mène à
+l'autre.
 
-Il permet aux équipes de sécurité, RSSI et développeurs de distinguer immédiatement une vulnérabilité théorique d'une **faille critique directement exploitable depuis l'extérieur**.
-
----
-
-## 🎯 Le Flux d'Exploitation Topologique
-
-Vectispire modélise l'architecture selon une chaîne à 4 niveaux d'exposition :
-
-$$\text{1. Exposition Ingress / Internet} \longrightarrow \text{2. Endpoint API Non-Authentifié} \longrightarrow \text{3. Composant Vulnérable (RCE)} \longrightarrow \text{4. Asset / Base de Données}$$
-
-```mermaid
-flowchart LR
-    A["🌐 Internet Ingress\n(0.0.0.0/0)"] -->|Expose| B["⚡ POST /api/v1/auth/login\n(Non-Authentifié)"]
-    B -->|Invoque| C["🔥 log4j-core 2.14.1\n(CVE-2021-44228 RCE - KEV)"]
-    C -->|Exfiltre / Compromission| D["🔑 STRIPE_SECRET_KEY &\n🗄️ PostgreSQL Database"]
-
-    style A fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style B fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
-    style C fill:#ef4444,stroke:#b91c1c,stroke-width:2px,color:#fff
-    style D fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff
-```
+Lisez-la comme « ce dépôt a une route non authentifiée *et* une vulnérabilité critique — regardez-les
+ensemble », non comme « cette vulnérabilité est exploitable depuis Internet ».
 
 ---
 
-## 🚀 Fonctionnalités Clés
+## Comment le graphe est construit
 
-1. **Corrélation Multi-Sources en Temps Réel** :
-   * **Points d'Entrée API (`ApiInventory`)** : Identification automatique des routes publiques et non-authentifiées (`authRequired = false`).
-   * **Exploitabilité** : Filtrage des vulnérabilités critiques (`CVSS >= 9.0`, CISA KEV, exécution de code à distance RCE). L'atteignabilité n'est **pas** un critère : Vectispire n'exécute aucune analyse de graphe d'appels (`ReachabilityAnalyzer`, jamais branché, a été supprimé), si bien que la colonne `reachability` du problème vaut `UNKNOWN` partout, et que le graphe ne la lit plus pour retenir, classer ou signaler un nœud. Un saut est exploitable quand une route non authentifiée se tient devant le composant.
-   * **Puits de Données & Secrets (`Gitleaks` / `SAST`)** : Clés d'API en clair, mots de passe de production et connexions base de données.
+Pour chaque dépôt que l'appelant peut voir :
 
-2. **Graphe Topologique Interactif** :
-   * Vue en colonnes réactives avec connexions visuelles entre composants.
-   * Filtre rapide : *"Afficher uniquement les chemins critiques exploitables"*.
-   * Inspecteur de nœuds : Clic sur n'importe quel élément pour afficher les détails techniques (scores CVSS/EPSS, fichier source).
+1. **Un nœud `Internet Ingress (0.0.0.0/0)`.** Synthétique : il est dessiné pour chaque dépôt, que
+   l'application soit déployée ou non, et a fortiori joignable depuis Internet. Vectispire ne sait
+   rien du réseau devant le code.
+2. **Les routes exposées.** Chaque route de l'inventaire d'API déclarée publique ou qui n'exige aucune
+   authentification (`authRequired = false`), reliée au nœud d'entrée. Une route non authentifiée
+   dont le chemin contient `admin`, `auth`, `login`, `user`, `payment`, `checkout`, `secret`, `token`
+   ou `upload` est dessinée critique, toute autre route non authentifiée élevée.
+3. **Les composants vulnérables.** Les problèmes ouverts et non triés du dépôt qui sont critiques,
+   élevés ou inscrits au catalogue CISA KEV (secrets à part), KEV d'abord puis par sévérité, dix au
+   plus. **Chaque route exposée est reliée à chacun d'eux** — le produit des deux listes. L'arête ne
+   signifie pas que la route appelle le composant : l'inventaire d'API n'enregistre aucun graphe
+   d'appels, et Vectispire n'exécute aucune analyse de graphe d'appels (la colonne `reachability` du
+   problème vaut `UNKNOWN` partout et le graphe ne la lit pas). Sans route exposée, les vulnérabilités
+   sont reliées directement au nœud d'entrée.
+4. **Un nœud `Database / Production Data Sink`**, fixe : dessiné pour chaque dépôt, relié depuis
+   chaque vulnérabilité, que l'application ait une base de données ou non.
+5. **Les secrets** trouvés dans le dépôt, dix au plus, reliés depuis la première vulnérabilité ou, à
+   défaut, depuis le nœud d'entrée.
 
-3. **Scénarios d'Attaque & Plan de Remédiation Actionnable** :
-   * Synthèse narrative de l'attaque avec étapes concrètes de correction (verrouillage de la route API, mise à jour de la librairie, isolation réseau).
+Un constat trié *non affecté* ou *corrigé* est écarté. Les listes de nœuds sont coupées à dix pour
+rester lisibles ; les comptes et le score ci-dessous sont calculés avant la coupe.
 
-4. **Score de Risque Topologique (0 à 100)** :
-   * Calcul pondéré tenant compte de la surface d'exposition externe, de la présence de failles RCE actives et des données sensibles atteignables.
+**« Exploitable » veut dire une seule chose ici :** un nœud de vulnérabilité est marqué exploitable
+quand le dépôt a au moins une route non authentifiée — n'importe laquelle, pas une dont on aurait
+montré qu'elle atteint ce composant.
 
----
+## Scénarios et score
 
-## 📡 Endpoints d'API REST
+- **Route non authentifiée + vulnérabilité critique** : quand le dépôt a les deux, un scénario nomme
+  sa première route non authentifiée et sa pire vulnérabilité, et aboutit au nœud de données.
+- **Secret en clair** : quand le dépôt porte un secret, un scénario nomme le fichier.
+- Sinon, un scénario de référence dit qu'aucun tel couple n'a été trouvé.
 
-* `GET /api/v1/attack-paths/repositories/{repoId}` : Récupère le graphe topologique et les scénarios d'attaque pour un dépôt donné.
-* `GET /api/v1/attack-paths/overview` : Synthèse globale du nombre de chemins d'attaque critiques exploitables sur l'ensemble de la flotte de dépôts.
+Le score de risque (0–100) vaut
+`35 × scénarios + 25 × secrets + 10 × min(3, vulnérabilités) + 5 × min(3, routes non authentifiées)`,
+au moins 15 dès qu'une vulnérabilité ou un secret est trouvé, et 10 sinon. Il classe les dépôts selon ce qu'ils
+portent, pas selon une probabilité de compromission.
+
+## Ce qu'elle ne peut pas dire
+
+- si le code vulnérable est chargé ou appelé par une route ;
+- si l'application est déployée, ni même joignable depuis Internet ;
+- si une base de données, ou le système visé par le secret, est joignable depuis le composant
+  vulnérable ;
+- quoi que ce soit des conteneurs : la vue ne couvre que les dépôts.
+
+Servez-vous-en pour décider quoi regarder ensemble, puis confirmez un chemin à la main avant de le
+présenter comme tel.
+
+## API REST
+
+* `GET /api/v1/attack-paths/repositories/{repoId}` : le graphe et les scénarios d'un dépôt (404 pour
+  un dépôt que l'appelant ne peut pas voir).
+* `GET /api/v1/attack-paths/overview` : la même chose pour chaque dépôt que l'appelant peut voir.

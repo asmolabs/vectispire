@@ -8,11 +8,8 @@ voir [`README.md`](../../README.md). Pour le raisonnement derrière les choix st
 
 ---
 
-### Origine & Philosophie du Nom : *Vectispire*
-
-Le nom **Vectispire** est la synthèse de deux piliers de la sécurité de la chaîne d'approvisionnement logicielle :
-- **`Vectis`** *(latin pour « levier de sécurité et verrou »)* : la plateforme agit comme le **levier cryptographique de sécurité et le gardien de politique** de votre chaîne de livraison. Elle impose des barrières strictes de qualité et de sécurité, signe des attestations in-toto, génère des signatures DSSE Cosign, des SBOM déterministes et des déclarations VEX vérifiables (OASIS CSAF 2.0, OpenVEX, CycloneDX) avec une chaîne d'audit cryptographique à intégrité vérifiable.
-- **`Spire`** *(la vigie ASPM élevée et l'horizon de posture)* : la plateforme offre un **point de vue panoramique et surélevé** sur l'ensemble de votre portefeuille applicatif — cartographie des arbres de dépendances multi-niveaux, mesure de la dispersion du rayon d'impact, évaluation des conflits de copyleft des licences open source, et suivi de la vélocité de remédiation des vulnérabilités (MTTR) sur tous les dépôts Git et flottes de conteneurs.
+*Le nom réunit* vectis, *le levier ou le verrou en latin — la barrière — et* spire, *un point
+élevé d'où voir tout le parc.*
 
 ---
 
@@ -527,7 +524,7 @@ Deux règles que le harnais s'impose à lui-même :
   - **Microsoft Teams** (`TeamsNotificationChannel`, `TeamsCard`) : Adaptive Cards v1.4 envoyées via des workflows Power Automate.
   - **Discord** (`DiscordNotificationChannel`, `DiscordEmbed`) : Rich Embeds avec codes couleur dynamiques par sévérité.
   - **Courriel** (`MailNotificationChannel`) : remise multipart HTML/texte vers des listes de diffusion.
-  - **Webhook générique / SIEM** (`NotificationService`) : POST JSON standard avec vérification de signature HMAC-SHA256 (`X-Vectispire-Signature`).
+  - **Webhook générique** (`NotificationService`) : POST JSON. **Non signé tant qu'aucun secret de signature n'est défini** (`notification_webhook_secret`, vide par défaut) : avec un secret, un en-tête `X-Vectispire-Signature` porte un HMAC-SHA256 sur l'horodatage et le corps exact, pour un récepteur qui le vérifie (Slack, Teams et Discord ne le font pas).
 - **Résilience & garantie d'outbox** :
   - Les lignes d'outbox sont insérées dans `t_outbox_message` dans la transaction exacte qui réconcilie les résultats d'analyse. Les remises utilisent un backoff exponentiel plafonné avec isolation par destination.
 - **Endpoints REST** :
@@ -575,14 +572,14 @@ Deux règles que le harnais s'impose à lui-même :
   - Extracteur de routes Kubernetes Ingress associant les chemins d'hôtes publics directement aux services découverts.
 - **Détection des API fantômes et de la dérive de surface d'attaque** :
   - Identifie automatiquement les **API fantômes** (endpoints HTTP actifs découverts dans le code source mais absents des spécifications OpenAPI).
-  - Signale les **endpoints sensibles non protégés** (par exemple les routes `/admin`, `/actuator`, `/debug`, `/metrics`, `/env` non authentifiées) rattachés aux risques de l'OWASP API Security Top 10 (API1 : BOLA, API2 : authentification défaillante, API9 : gestion inadéquate des actifs).
-  - Synthétise dynamiquement des spécifications OpenAPI 3.0.3 conformes à partir des routes découvertes dans le code, pour les services hérités non documentés.
+  - Compte les **endpoints sensibles non protégés** : les routes non authentifiées dont le chemin contient `/admin`, `/actuator`, `/debug`, `/internal`, `/metrics`, `/env` ou `/health` — une correspondance sur le nom du chemin, non un rattachement à une liste OWASP.
+  - Exporte les routes découvertes d'un dépôt en document OpenAPI 3.0.3 squelette : chemins et méthodes, un résumé et un identifiant d'opération chacun, et une réponse `200` de convention — ni paramètres, ni schémas, ni schémas de sécurité. Un point de départ pour documenter un service qui ne l'est pas, pas sa spécification.
 - **Endpoints REST** :
   - `GET /api/v1/attack-surface` : synthèse globale inter-dépôts de la surface d'attaque, inventaire des frameworks et endpoints exposés à haut risque.
   - `DELETE /api/v1/attack-surface` : purge atomique de tous les endpoints et contrats découverts sur la plateforme.
   - `GET /api/v1/repositories/{id}/apis` : endpoints découverts, contrats et statut d'API fantôme pour un dépôt.
   - `DELETE /api/v1/repositories/{id}/apis` : purge des endpoints et contrats d'un dépôt précis.
-  - `GET /api/v1/repositories/{id}/apis/export/openapi` : export de la spécification OpenAPI 3.0.3 synthétisée pour un dépôt.
+  - `GET /api/v1/repositories/{id}/apis/export/openapi` : document OpenAPI 3.0.3 squelette listant les routes découvertes du dépôt.
 
 ## 15. Documentation OpenAPI 3.0 & référence REST
 

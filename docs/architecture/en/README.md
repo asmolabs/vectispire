@@ -35,8 +35,8 @@ from the folder above — a reader who enters at this page should not have to gu
 - [`docs/en/BACKUP_AND_RESTORE.md`](../../en/BACKUP_AND_RESTORE.md) — backing up the three states,
   restoring, and why the audit mirror must not be restored alongside the database. Verified
   nightly by `scripts/restore-drill.sh`.
-- [`docs/en/ROTATION_AND_PURGE.md`](../../en/ROTATION_AND_PURGE.md) — the record of the August 2026
-  credential exposure and the GitHub purge. An account of what happened, not a procedure.
+- [`docs/analysis/en/2026-08-06_credential_exposure_incident.en.md`](../../analysis/en/2026-08-06_credential_exposure_incident.en.md) — the note on the August 2026
+  credential exposure. An account of what happened, not a procedure.
 - [`docs/en/api/rest_api_reference.md`](../../en/api/rest_api_reference.md) — complete REST API
   endpoints reference.
 - [`docs/en/CI_CD_INTEGRATION.md`](../../en/CI_CD_INTEGRATION.md) — CI/CD integration guide &

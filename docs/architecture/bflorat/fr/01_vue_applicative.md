@@ -27,11 +27,11 @@ de conformité. Son rôle est de surveiller de manière continue la sécurité a
 5. **Quality Gate & Attestation CI/CD** : Moteur de décision déterministe (`POST /api/v1/gate`)
    évaluant le passage des builds.
 6. **Conformité Réglementaire & Packs d'Audit** : Matrices et dossiers d'audit pour NIS 2, DORA, ISO
-   27001, PCI-DSS v4.0, Cyber Resilience Act (EU CRA) et SOC 2 Type II.
+   27001, PCI-DSS v4.0, Cyber Resilience Act (EU CRA) et SOC 2 — quatre contrôles techniques chacun.
 7. **Comparateur Différentiel SBOM (SBOM Drift & Diff Viewer)** : Comparaison entre scans pour
    traquer les ajouts/suppressions de paquets, dérives de licences et balance de CVEs.
-8. **Dette de Sécurité & Actions à Fort Impact (High-Impact Fixes)** : Quantification de l'effort de
-   remédiation en J/H et priorisation par ROI sécurité.
+8. **Dette de Sécurité & Actions à Fort Impact (High-Impact Fixes)** : Estimation de l'effort de
+   remédiation en J/H, et montées de version classées par vulnérabilités refermées par heure d'effort estimé.
 
 ---
 

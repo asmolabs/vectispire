@@ -12,7 +12,8 @@ distant qui ne détient aucun identifiant de base de données.
 1. **Cloner ou mettre à jour** la cible dans un répertoire de travail temporaire.
 2. **Cataloguer** avec Syft, ce qui produit le SBOM.
 3. **Rapprocher** les vulnérabilités connues avec Grype.
-4. **Secrets** avec gitleaks, en double moteur avec déduplication automatique.
+4. **Secrets** avec gitleaks, sous la configuration de Vectispire plutôt que sous une configuration
+   fournie par la cible. Le fichier, la ligne et la règle sont conservés — jamais la valeur.
 5. **IaC** avec checkov, pour Terraform et Kubernetes.
 6. **Code source** avec Semgrep, si activé — voir
    [Jeux de règles Semgrep](../administration/rule-sets.md).
@@ -24,10 +25,21 @@ Les étapes 2 à 6 s'exécutent dans des conteneurs éphémères avec **le rése
 montage en lecture seule, `cap_drop: ALL` et `no-new-privileges`. Chaque image est épinglée par
 empreinte.
 
-Le seul appel sortant d'un scan est le catalogue de fin de support, qui transporte des noms de
-produits et des versions — fait avant l'écriture des résultats du scan, jamais pendant. Les scores
-EPSS et le statut KEV sont lus dans le fichier quotidien du FIRST et le catalogue de la CISA, que le
-plan de contrôle synchronise en entier, si bien qu'aucun tiers n'apprend quelles CVE porte un dépôt. Le code analysé ne quitte pas la machine.
+En dehors de la récupération de la cible elle-même, les scanners ne font aucun appel réseau. Ce qui
+quitte la machine, et quand :
+
+- **la consultation de fin de support** envoie des noms de produits et des versions (un runtime, une
+  distribution) au catalogue de fin de support — avant l'écriture des résultats du scan, jamais
+  pendant ;
+- **un plugin de jeu de règles Semgrep** s'exécute sans réseau, sauf si son manifeste déclare
+  l'exception, avec une justification consignée au journal d'audit ([Plugins](../administration/plugins.md)) ;
+- **la revue de code par IA**, désactivée par défaut, envoie le code source au point d'accès de modèle
+  configuré — une machine que vous exploitez ou, une fois un point d'accès public explicitement
+  autorisé, un tiers comme OpenAI ([Réglages](../administration/settings.md#revue-de-code-par-ia)).
+
+Les scores EPSS et le statut KEV sont lus dans le fichier quotidien du FIRST et le catalogue de la
+CISA, que le plan de contrôle synchronise en entier, si bien qu'aucun tiers n'apprend quelles CVE
+porte un dépôt. Revue par IA désactivée ou gardée sur votre réseau, aucun code analysé n'en sort.
 
 ## Lire un scan
 

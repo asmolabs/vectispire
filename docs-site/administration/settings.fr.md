@@ -115,13 +115,35 @@ GitLab ou Jira : URL, projet, jeton. Couvert sous [Tickets](../integrations/tick
 
 ## Revue de code par IA
 
-Désactivée par défaut. Un LLM local exécuté via [Ollama](https://ollama.com) relit le code
-source avec une invite d'« architecte sécurité », en complément léger de Grype, gitleaks et
-checkov — et non en remplacement d'aucun d'eux. Une fois activée, elle s'exécute sur les scans
-de dépôt, et son résultat narratif ainsi que ses constats normalisés apparaissent dans le
-détail du scan.
+Désactivée par défaut. Un modèle de langage relit le code source avec une invite d'« architecte
+sécurité », en complément léger de Grype, gitleaks et checkov — et non en remplacement d'aucun
+d'eux. Une fois activée, elle s'exécute sur les scans de dépôt, et son résultat narratif ainsi que
+ses constats normalisés apparaissent dans le détail du scan. Ses constats sont marqués comme venant
+d'un modèle et exclus de la barrière par défaut : le code relu est écrit par qui est audité, et peut
+chercher à orienter le modèle.
 
-Posez l'URL d'Ollama (par défaut `http://localhost:11434`) et choisissez un modèle. La liste
+**Le fournisseur décide où va le code** (`ai_review_provider`) :
+
+- **`ollama`** (le défaut) — un modèle sur une machine que vous exploitez.
+- **`openai`** — tout point d'accès parlant le protocole chat-completions d'OpenAI, à
+  `ai_review_openai_url` (par défaut `https://api.openai.com/v1`), avec `ai_review_openai_key`
+  (conservée chiffrée, jamais renvoyée) et `ai_review_model`. Laissé à l'adresse d'OpenAI, **le code
+  source de chaque dépôt analysé — privés compris, et tout secret encore commité dedans — est envoyé
+  à OpenAI**, un tiers qui y applique sa propre conservation et sa propre juridiction. Vérifiez ce que
+  dit votre contrat avec le fournisseur sur la conservation et l'entraînement, et si le code que vous
+  analysez est à vous d'envoyer. Pointé vers vLLM, LM Studio, llama.cpp ou une passerelle interne, le
+  code reste sur votre réseau.
+
+**Un point d'accès public est refusé tant qu'il n'est pas reconnu.** Les deux URL passent par la garde
+sortante ; une destination hors de votre réseau — l'API d'OpenAI, ou un Ollama public — exige
+le réglage **Allow a public model endpoint** (`ai_review_allow_remote_url`, désactivé par défaut).
+L'activer enregistre, côté serveur, le compte qui a accepté le risque et la date
+(`ai_review_risk_acknowledged_by` / `_at`, et le journal d'audit) ; le désactiver les efface.
+`ai_review_timeout_seconds` (300 par défaut) borne l'attente.
+
+### Avec Ollama
+
+Posez l'URL d'Ollama (`ai_review_ollama_url`, par défaut `http://localhost:11434`) et choisissez un modèle. La liste
 est lue en direct depuis le `/api/tags` d'Ollama, si bien que ce que vous avez réellement
 téléchargé s'y trouve. Si Ollama est injoignable, la liste déroulante retombe sur deux
 suggestions plutôt que d'être vide — ce qui est aussi le symptôme à reconnaître.

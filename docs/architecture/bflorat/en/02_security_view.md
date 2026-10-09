@@ -59,7 +59,7 @@ Strict endpoint authorization via Spring Security:
   exemption cannot approve it, even after being granted the role — four eyes means two people, and a
   role gate alone lets one person hold both halves.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
-  sealed audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
+  hash-chained audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
 - `ROLE_USER` / `ROLE_SECURITY_CHAMPION`: Posture dashboard inspection and vulnerability triage. A
   security champion may approve a triage, but only within the scope its visibility grants — it has
   no global reach.

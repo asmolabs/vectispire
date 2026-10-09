@@ -48,13 +48,18 @@ si le code vulnérable est appelé.
 
 ![Un chemin d'attaque : une route non authentifiée atteignant un composant vulnérable, puis la base — avec le récit que la chaîne produit.](../assets/screens/fr/attack-paths.png)
 
-La visionneuse de chemins d'attaque enchaîne les constats en itinéraires plutôt que de les
-énumérer un à un : un composant exposé, une vulnérabilité qui l'atteint, un identifiant commité
-à côté. Un itinéraire fait de trois constats moyens peut compter davantage que n'importe quel
-constat élevé sur la même cible, et aucune liste triée par gravité ne le montrera jamais.
+La vue des chemins d'attaque met côte à côte, pour un dépôt, les routes qu'il expose (publiques, ou
+sans authentification, selon l'inventaire d'API) et ses vulnérabilités ouvertes critiques, élevées ou
+inscrites au catalogue KEV, et ses secrets. **C'est une heuristique de co-localisation, pas une analyse
+d'atteignabilité** : chaque route exposée est reliée à chacune de ces vulnérabilités du même dépôt, le
+nœud *Internet* au départ et le nœud *base de données* à l'arrivée sont dessinés pour chaque dépôt, et
+une vulnérabilité est marquée exploitable dès que le dépôt a une route non authentifiée, quelle
+qu'elle soit. Rien n'établit que la route appelle le code vulnérable, que l'application soit joignable
+depuis Internet, ni même qu'elle ait une base de données.
 
-Un constat trié **non affecté** ou **corrigé** n'est pas une étape d'un itinéraire : l'écran affirme
-que quelque chose est atteignable, et l'équipe a déjà soutenu que ce ne l'était pas.
+Servez-vous-en pour voir quels dépôts portent à la fois une porte ouverte et une faille critique, puis
+confirmez un chemin à la main. Un constat trié **non affecté** ou **corrigé** est écarté. Le détail est
+dans la [référence des chemins d'attaque](https://github.com/asmolabs/vectispire/blob/main/docs/fr/ATTACK_PATH_VISUALIZER.fr.md).
 
 ## Rayon d'impact
 
@@ -71,8 +76,9 @@ lundi qu'un rayon qui touche un chemin de paiement de niveau 1.
 La **surface d'attaque** rassemble ce qui est joignable depuis l'extérieur — les points
 d'entrée qu'un constat doit franchir pour compter.
 
-**OWASP** regroupe le backlog par catégories OWASP, qui sont le vocabulaire que la plupart des
-revues de sécurité et la plupart des auditeurs parlent déjà. C'est une reformulation des mêmes
+**OWASP** regroupe le backlog par catégories de l'**OWASP Top 10:2021** — l'édition pour laquelle la
+correspondance est écrite ; aucune autre édition n'est prise en charge — qui sont le vocabulaire que la
+plupart des revues de sécurité et la plupart des auditeurs parlent déjà. C'est une reformulation des mêmes
 constats, pas un scan séparé.
 
 La grille actuelle lit tout le parc que vous voyez, ou **une solution ou un projet**, choisi au-dessus
@@ -82,9 +88,9 @@ ses voisins sont couverts. Un périmètre que vous ne voyez qu'en partie le dit,
 voyez. Un nombre de constats ouverts ouvre le backlog de cette catégorie dans le même périmètre, le
 triage réglé laissé de côté comme la grille le laisse.
 
-### Le Top 10, semaine par semaine
+### L'OWASP Top 10:2021, semaine par semaine
 
-*Rapport OWASP* → *Par semaine* montre les mêmes dix catégories sur 12, 26 ou 52 semaines — ou un
+*OWASP Top 10:2021* → *Par semaine* montre les mêmes dix catégories sur 12, 26 ou 52 semaines — ou un
 intervalle choisi — pour tout le parc ou un projet ou une solution. Chaque colonne est une semaine ISO,
 du lundi au dimanche en UTC ; un en-tête de colonne sélectionne la semaine, dont les chiffres et la grille
 s'affichent sous la carte de chaleur.
