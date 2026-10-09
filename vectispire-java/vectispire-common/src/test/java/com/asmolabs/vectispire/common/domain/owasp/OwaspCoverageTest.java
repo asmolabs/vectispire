@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Grid;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.CoverageLine;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Measurement;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.State;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -29,9 +30,11 @@ import org.junit.jupiter.api.Test;
 @DisplayName("the OWASP coverage grid")
 class OwaspCoverageTest {
 
-    private static final Measurement FULL = new Measurement(
-            true, true, true,
-            Map.of(FindingType.IAC, 0L, FindingType.VULNERABILITY, 0L, FindingType.EOL, 0L, FindingType.SECRET, 0L));
+    /** One repository whose latest scan examined everything, its rules reaching the categories declared below. */
+    private static final List<OwaspCoverage.Evidence> ONE =
+            List.of(OwaspEvidence.examinedRepository(1, "A03", "A05", "A06"));
+
+    private static final Measurement FULL = new Measurement(true, true, Map.of(FindingType.IAC, 0L, FindingType.VULNERABILITY, 0L, FindingType.EOL, 0L, FindingType.SECRET, 0L), Set.of(), Map.of(), ONE);
 
     @Test
     @DisplayName("says outright which categories nothing here looks at")
@@ -49,9 +52,7 @@ class OwaspCoverageTest {
     @Test
     @DisplayName("places a finding by its type, and says which rule placed it")
     void placesFindingsByType() {
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, true,
-                Map.of(FindingType.IAC, 3L, FindingType.VULNERABILITY, 12L, FindingType.SECRET, 1L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(FindingType.IAC, 3L, FindingType.VULNERABILITY, 12L, FindingType.SECRET, 1L), Set.of(), Map.of(), ONE));
 
         assertThat(line(grid, "A05").state()).isEqualTo(State.FINDINGS);
         assertThat(line(grid, "A05").findings()).isEqualTo(3);
@@ -62,8 +63,7 @@ class OwaspCoverageTest {
     @Test
     @DisplayName("adds the two types that share a category, and only those")
     void sumsTheTypesOfOneCategory() {
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, true, Map.of(FindingType.VULNERABILITY, 12L, FindingType.EOL, 4L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(FindingType.VULNERABILITY, 12L, FindingType.EOL, 4L), Set.of(), Map.of(), ONE));
 
         assertThat(line(grid, "A06").findings())
                 .as("\"vulnerable *and outdated*\" names both halves")
@@ -73,8 +73,7 @@ class OwaspCoverageTest {
     @Test
     @DisplayName("reports a switched-off detector as unmeasured, never as clean")
     void switchedOffIsNotClean() {
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, false, true, Map.of(FindingType.VULNERABILITY, 0L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(false, true, Map.of(FindingType.VULNERABILITY, 0L), Set.of(), Map.of(), ONE));
 
         // A06 stays measured by grype even without end-of-life: it is the sum that loses a half,
         // not the category that disappears.
@@ -88,8 +87,7 @@ class OwaspCoverageTest {
         // Switching detection off leaves the findings open rather than resolving them — that is a
         // deliberate product choice. Counting them here would make the grid say we are still
         // measuring.
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, false, true, Map.of(FindingType.VULNERABILITY, 0L, FindingType.EOL, 9L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(false, true, Map.of(FindingType.VULNERABILITY, 0L, FindingType.EOL, 9L), Set.of(), Map.of(), ONE));
 
         assertThat(line(grid, "A06").findings()).isZero();
         assertThat(line(grid, "A06").state()).isEqualTo(State.NO_FINDING);
@@ -98,7 +96,7 @@ class OwaspCoverageTest {
     @Test
     @DisplayName("reports an estate nobody has scanned as unmeasured across the board")
     void neverScannedIsUnmeasured() {
-        Grid grid = OwaspCoverage.assess(new Measurement(false, true, true, Map.of()));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(), Set.of(), Map.of(), List.of()));
 
         assertThat(states(grid, State.NOT_MEASURED)).containsExactly("A05", "A06", "A07");
         assertThat(grid.unmeasured()).isEqualTo(3);
@@ -127,8 +125,7 @@ class OwaspCoverageTest {
         // A03 — Injection — is covered by no finding type. It is covered as soon as a code-analysis
         // rule declares so in its own metadata, and that is what moves it out of "nothing here looks
         // at that".
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, true, Map.of(), Set.of("A03"), Map.of("A03", 4L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(), Set.of("A03"), Map.of("A03", 4L), ONE));
 
         assertThat(line(grid, "A03").state()).isEqualTo(State.FINDINGS);
         assertThat(line(grid, "A03").findings()).isEqualTo(4);
@@ -144,8 +141,7 @@ class OwaspCoverageTest {
         // **The case that justifies reading the rules rather than the findings.** Deriving coverage
         // from the findings would drop A03 out of the grid the day its last finding is fixed — that
         // is, at the moment it most deserves to say it was looked at.
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, true, Map.of(), Set.of("A03"), Map.of()));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(), Set.of("A03"), Map.of(), ONE));
 
         assertThat(line(grid, "A03").state()).isEqualTo(State.NO_FINDING);
         assertThat(line(grid, "A03").because()).contains("code analysis");
@@ -154,8 +150,7 @@ class OwaspCoverageTest {
     @Test
     @DisplayName("a declared category stays unmeasured when code analysis reaches nothing")
     void aDeclaredCategoryUnreached() {
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, false, Map.of(), Set.of("A03"), Map.of("A03", 4L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, false, Map.of(), Set.of("A03"), Map.of("A03", 4L), ONE));
 
         assertThat(line(grid, "A03").state()).isEqualTo(State.NOT_MEASURED);
         assertThat(line(grid, "A03").findings())
@@ -169,8 +164,7 @@ class OwaspCoverageTest {
     void aCategoryCoveredTwice() {
         // A05 is covered by the infrastructure checks, and a code rule can declare it too. The two
         // counts add up — they are distinct findings.
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, true, Map.of(FindingType.IAC, 3L), Set.of("A05"), Map.of("A05", 2L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(FindingType.IAC, 3L), Set.of("A05"), Map.of("A05", 2L), ONE));
 
         assertThat(line(grid, "A05").findings()).isEqualTo(5);
         assertThat(line(grid, "A05").state()).isEqualTo(State.FINDINGS);
@@ -184,8 +178,7 @@ class OwaspCoverageTest {
         // resolve them — and adding them here would pass them off as a measurement of today, under
         // a category that is itself properly measured. That is the worst form of the defect: a
         // correct number in the wrong place, in an otherwise green row.
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, false, Map.of(FindingType.IAC, 3L), Set.of("A05"), Map.of("A05", 7L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, false, Map.of(FindingType.IAC, 3L), Set.of("A05"), Map.of("A05", 7L), ONE));
 
         assertThat(line(grid, "A05").state()).isEqualTo(State.FINDINGS);
         assertThat(line(grid, "A05").findings())
@@ -200,8 +193,7 @@ class OwaspCoverageTest {
         // A06 is covered by grype and by end-of-life; if a code rule declares it too and the
         // analysis reaches nothing, naming only one of the two causes would send somebody to switch
         // back on a detector that was already running.
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, false, false, Map.of(), Set.of("A06"), Map.of()));
+        Grid grid = OwaspCoverage.assess(new Measurement(false, false, Map.of(), Set.of("A06"), Map.of(), ONE));
 
         assertThat(line(grid, "A06").state())
                 .as("grype still measures A06: the category stays measured")
@@ -213,8 +205,7 @@ class OwaspCoverageTest {
     void anUndeclaredCodeFindingIsPlacedNowhere() {
         // Most rules declare nothing. Finding them a default category would put findings into a
         // category nobody claimed.
-        Grid grid = OwaspCoverage.assess(new Measurement(
-                true, true, true, Map.of(), Set.of(), Map.of("A03", 12L)));
+        Grid grid = OwaspCoverage.assess(new Measurement(true, true, Map.of(), Set.of(), Map.of("A03", 12L), ONE));
 
         assertThat(line(grid, "A03").state()).isEqualTo(State.NOT_COVERED);
         assertThat(line(grid, "A03").findings()).isZero();

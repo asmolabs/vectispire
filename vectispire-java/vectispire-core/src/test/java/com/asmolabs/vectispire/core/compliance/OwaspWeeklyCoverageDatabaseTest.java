@@ -104,14 +104,17 @@ class OwaspWeeklyCoverageDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("a target never scanned reads unmeasured, and keeps the findings the grid counts beside a scanned one")
+    @DisplayName("a target never scanned reads unmeasured where it holds nothing, and its open findings are findings")
     void aNeverScannedTarget() {
         // The estate is scanned (alpha is); beta is not. Narrowed to beta, the grid must not borrow
-        // alpha's scan: its categories are unmeasured. Its open vulnerability is kept all the same — the
-        // live grid counts it for any reader who sees alpha too, and `acrossTargets` adds it back then.
+        // alpha's scan: a category with nothing open is unmeasured, never clean. An open finding is a
+        // fact whatever examined it, so its open vulnerability reads as one.
         List<Split> lines = coverage.ofTarget(new ScanTarget.Repository(beta), coverage.reading());
 
-        assertThat(line(lines, "A06")).isEqualTo(new Split("A06", State.NOT_MEASURED, 1, 0));
+        assertThat(line(lines, "A06")).isEqualTo(new Split("A06", State.FINDINGS, 1, 0));
+        assertThat(line(lines, "A07"))
+                .as("nothing open, nothing examined: not \"nothing found\"")
+                .isEqualTo(new Split("A07", State.NOT_MEASURED, 0, 0));
         assertThat(line(lines, "A01").state()).isEqualTo(State.NOT_COVERED);
     }
 
@@ -132,7 +135,7 @@ class OwaspWeeklyCoverageDatabaseTest extends VectispireContextTest {
                 .returns("FINDINGS", OwaspWeeklyCoverageEntity::getState)
                 .returns(1L, OwaspWeeklyCoverageEntity::getOpenCount)
                 .returns(1L, OwaspWeeklyCoverageEntity::getSettledCount);
-        assertThat(row(week, "repository", beta, "A06").getState())
+        assertThat(row(week, "repository", beta, "A07").getState())
                 .as("a target nobody examined is recorded, and recorded as such")
                 .isEqualTo("NOT_MEASURED");
     }
@@ -256,10 +259,14 @@ class OwaspWeeklyCoverageDatabaseTest extends VectispireContextTest {
         return containers.save(entity).getId();
     }
 
+    /** A scan whose every step produced: a category reads clean only on what the latest scan recorded examining. */
     private void scan(long repoId) {
         ScanEntity entity = new ScanEntity();
         entity.setRepoId(repoId);
         entity.setStatus(ScanStatus.COMPLETED.wireName());
+        entity.setExaminedTypes("vulnerability,secret,iac,license,eol,sast");
+        entity.setDetectedLanguages("java");
+        entity.setSastLanguages("java");
         entity.setBranch("main");
         entity.setCreatedAt(Instant.parse("2026-01-01T00:00:00Z"));
         scans.save(entity);

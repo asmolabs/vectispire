@@ -315,6 +315,19 @@ class ScanDispatcherTest {
     }
 
     @Test
+    @DisplayName("an image scan reads its dependencies alone — what the OWASP grid assumes it cannot be examined for")
+    void imageScansReadTheirDependenciesAlone() {
+        queueHolds(imageScan());
+        when(containers.findById(4L)).thenReturn(Optional.of(container()));
+
+        // `OwaspCoverage.examinable` reads an image as never examined for secrets, misconfiguration or code
+        // analysis, and leaves it aside for those categories. A step added to an image's task without
+        // that rule moving would leave its findings examined and its categories still set aside.
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)).orElseThrow().task().steps())
+                .containsExactly(ScanTask.Step.DEPENDENCIES);
+    }
+
+    @Test
     @DisplayName("the SAST step is on the task only when the setting says so")
     void sastIsDecidedByTheControlPlane() {
         queueHolds(repositoryScan());

@@ -301,7 +301,8 @@ public class OwaspWeeklyHistoryService {
                                 reopeningsKnown ? flow.reopened() : null);
                     }
                     // Summed per state in the database; combined here by the grid's rule, which needs the
-                    // states apart — a never-scanned target's findings count only beside a measured one.
+                    // states apart — a target nothing can examine for the category is left aside, and one
+                    // left unexamined holds the whole scope unmeasured.
                     Optional<OwaspCoverage.Split> combined = OwaspCoverage.acrossTargets(category.getKey(),
                             byCategory.getOrDefault(category.getKey(), List.of()).stream()
                                     .flatMap(row -> stateOf(row.state())

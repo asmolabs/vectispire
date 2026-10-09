@@ -37,15 +37,29 @@ class OwaspCoverageSplitTest {
     @Test
     @DisplayName("counts nothing, settled or not, in a category nothing measures or nothing covers")
     void unmeasuredCountsNothing() {
-        // Nothing scanned: settled findings exist in the counts, and a category with no measurement
-        // has no figure of either kind — the grid's own rule, applied to both readings alike.
+        // Code analysis switched off: settled code findings exist in the counts, and a category with no
+        // measurement has no figure of either kind — the grid's own rule, applied to both readings alike.
         List<Split> split = OwaspCoverage.split(
-                OwaspCoverage.assess(new Measurement(false, true, true, Map.of(FindingType.VULNERABILITY, 0L))),
-                OwaspCoverage.assess(new Measurement(false, true, true, Map.of(FindingType.VULNERABILITY, 4L))));
+                OwaspCoverage.assess(new Measurement(true, false, Map.of(), Set.of("A03"), Map.of("A03", 0L),
+                        List.of(OwaspEvidence.examinedRepository(1, "A03")))),
+                OwaspCoverage.assess(new Measurement(true, false, Map.of(), Set.of("A03"), Map.of("A03", 4L),
+                        List.of(OwaspEvidence.examinedRepository(1, "A03")))));
 
-        assertThat(of(split, "A06")).isEqualTo(new Split("A06", State.NOT_MEASURED, 0, 0));
+        assertThat(of(split, "A03")).isEqualTo(new Split("A03", State.NOT_MEASURED, 0, 0));
         assertThat(of(split, "A01")).isEqualTo(new Split("A01", State.NOT_COVERED, 0, 0));
         assertThat(split).map(Split::id).containsExactlyElementsOf(OwaspCoverage.CATEGORIES.keySet());
+    }
+
+    @Test
+    @DisplayName("keeps the settled findings of a scope nothing examined: an accepted risk is a fact too")
+    void settledOverAnUnexaminedScope() {
+        List<Split> split = OwaspCoverage.split(
+                OwaspCoverage.assess(new Measurement(true, true, Map.of(FindingType.VULNERABILITY, 0L), Set.of(), Map.of(),
+                        List.of())),
+                OwaspCoverage.assess(new Measurement(true, true, Map.of(FindingType.VULNERABILITY, 4L), Set.of(), Map.of(),
+                        List.of())));
+
+        assertThat(of(split, "A06")).isEqualTo(new Split("A06", State.NOT_MEASURED, 0, 4));
     }
 
     @Test
@@ -71,7 +85,7 @@ class OwaspCoverageSplitTest {
     }
 
     private static Measurement measured(Map<FindingType, Long> open) {
-        return new Measurement(true, true, true, open, Set.of(), Map.of());
+        return OwaspEvidence.measured(open);
     }
 
     private static Split of(List<Split> split, String id) {

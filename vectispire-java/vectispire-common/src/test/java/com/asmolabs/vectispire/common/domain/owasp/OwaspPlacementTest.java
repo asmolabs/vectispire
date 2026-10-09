@@ -3,13 +3,11 @@ package com.asmolabs.vectispire.common.domain.owasp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
-import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Measurement;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.Split;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.State;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +56,7 @@ class OwaspPlacementTest {
     void agreesWithTheGrid() {
         for (FindingType type : FindingType.values()) {
             Map<FindingType, Long> one = Map.of(type, 1L);
-            OwaspCoverage.Grid grid = OwaspCoverage.assess(new Measurement(true, true, true, one, Set.of(), Map.of()));
+            OwaspCoverage.Grid grid = OwaspCoverage.assess(OwaspEvidence.measured(one));
             Optional<String> counted = grid.lines().stream()
                     .filter(line -> line.findings() > 0)
                     .map(OwaspCoverage.CoverageLine::id)
@@ -68,39 +66,31 @@ class OwaspPlacementTest {
     }
 
     @Test
-    @DisplayName("over several targets: counted where any target measured, else not covered only when all are, else not measured")
+    @DisplayName("over several targets: findings anywhere count, a target nothing can examine is left aside, one unexamined holds the scope unmeasured")
     void acrossTargets() {
         assertThat(across(line(State.NOT_MEASURED, 0, 0), line(State.NO_FINDING, 0, 1), line(State.FINDINGS, 2, 0)))
                 .contains(new Split("A06", State.FINDINGS, 2, 1));
         assertThat(across(line(State.NOT_MEASURED, 0, 0), line(State.NO_FINDING, 0, 0)))
-                .as("one target scanned and clean measures the category, as one scanned target does in the grid")
-                .contains(new Split("A06", State.NO_FINDING, 0, 0));
+                .as("one target examined and clean, one not: a scope examined in part is not measured")
+                .contains(new Split("A06", State.NOT_MEASURED, 0, 0));
+        assertThat(across(line(State.NOT_COVERED, 0, 0), line(State.NO_FINDING, 0, 2)))
+                .as("an image beside an examined repository, for a category no image is examined for")
+                .contains(new Split("A06", State.NO_FINDING, 0, 2));
         assertThat(across(line(State.NOT_MEASURED, 3, 1), line(State.NO_FINDING, 0, 0)))
-                .as("a never-scanned target's findings, beside a measured target: the grid counts them")
+                .as("a line written before 0.11.0 for a never-scanned target: its findings are facts")
                 .contains(new Split("A06", State.FINDINGS, 3, 1));
         assertThat(across(line(State.NOT_MEASURED, 3, 1), line(State.NOT_MEASURED, 0, 0)))
-                .as("nothing scanned: the grid counts nothing, a never-scanned target's findings included")
-                .contains(new Split("A06", State.NOT_MEASURED, 0, 0));
+                .as("findings count whatever examined the targets since")
+                .contains(new Split("A06", State.FINDINGS, 3, 1));
         assertThat(across(line(State.NOT_COVERED, 0, 0), line(State.NOT_COVERED, 0, 0)))
-                .contains(new Split("A06", State.NOT_COVERED, 0, 0));
+                .as("a category a type places, over targets none of which it applies to: not measured, never not covered")
+                .contains(new Split("A06", State.NOT_MEASURED, 0, 0));
+        assertThat(OwaspCoverage.acrossTargets("A03", List.of(new Split("A03", State.NOT_COVERED, 0, 0))))
+                .as("only code analysis reaches it: the lines cannot say whether a rule declared it")
+                .contains(new Split("A03", State.NOT_COVERED, 0, 0));
         assertThat(across(line(State.NOT_COVERED, 0, 0), line(State.NOT_MEASURED, 0, 0)))
                 .contains(new Split("A06", State.NOT_MEASURED, 0, 0));
         assertThat(OwaspCoverage.acrossTargets("A06", List.of())).as("nothing recorded is not a state").isEmpty();
-    }
-
-    @Test
-    @DisplayName("a never-scanned target is not measured, and keeps the findings the grid would count")
-    void unscanned() {
-        assertThat(OwaspCoverage.unscanned(List.of(
-                        new Split("A05", State.FINDINGS, 2, 1),
-                        new Split("A06", State.NO_FINDING, 0, 3),
-                        new Split("A01", State.NOT_COVERED, 0, 0),
-                        new Split("A03", State.NOT_MEASURED, 0, 0))))
-                .containsExactly(
-                        new Split("A05", State.NOT_MEASURED, 2, 1),
-                        new Split("A06", State.NOT_MEASURED, 0, 3),
-                        new Split("A01", State.NOT_COVERED, 0, 0),
-                        new Split("A03", State.NOT_MEASURED, 0, 0));
     }
 
     private static Optional<Split> across(Split... lines) {

@@ -39,12 +39,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * dozen counts per target, and the grid moves at the rate scans and triage do.
  *
  * <p><b>The whole estate, every target that exists, whether scanned or not.</b> A target never
- * scanned is recorded: its categories read not measured or not covered, and that is the information —
- * a heatmap leaving it out would show an estate better examined than it is. Its open and settled
- * findings are counted all the same, as the grid would count them were it scanned: the live grid counts
- * them once any target beside it is, and a sum without them fell short of the grid shown beside the
- * week ({@code OwaspCoverage.unscanned}, {@code acrossTargets}). Per target so that a reader
- * can aggregate to a project or a solution and see only what they may.
+ * examined is recorded: its categories read not measured or not covered, and that is the information —
+ * a heatmap leaving it out would show an estate better examined than it is. Its open findings are
+ * counted all the same, since an open finding is a fact whatever examined it since. Per target so that
+ * a reader can aggregate to a project or a solution and see only what they may, and the line is the one
+ * the grid's own rule gives that target ({@code OwaspCoverage.assessTarget}), so that folding a scope's
+ * lines ({@code acrossTargets}) gives the grid of that scope: a target nothing here can examine for a
+ * category — an image, for secrets — reads not covered, and a fold leaves it aside.
  *
  * <p><b>Two instances may capture the same week at once, and the unique key decides.</b> No instance
  * is elected: every instance runs every maintenance task. The week is deleted and written again in one

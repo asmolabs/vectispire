@@ -163,6 +163,14 @@ public final class RuleCoverage {
     }
 
     /**
+     * The language one rule file is written for, by its directory as {@link #languagesRead} reads it —
+     * empty for a directory naming no language of the vocabulary, which reaches no language at all.
+     */
+    public static Optional<Language> languageRead(String ruleTreePath) {
+        return languageOf(ruleTreePath).flatMap(Language::fromWireName);
+    }
+
+    /**
      * A stored file's path, expressed the way the shipped rule tree spells it.
      *
      * <p>The storage name is flat by construction; the original name carries the upstream path. It is

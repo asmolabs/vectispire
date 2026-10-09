@@ -127,14 +127,17 @@ class OwaspCoverageScopeRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a project nothing scanned reads unmeasured, however covered its neighbours are")
+    @DisplayName("a project nothing scanned reads unmeasured, however covered its neighbours are — and its open findings are findings")
     void scannedIsAskedOfTheScope() throws Exception {
         Estate estate = anEstate();
 
         JsonNode dormant = grid("project_id=" + estate.dormant(), asAdmin());
-        assertThat(state(dormant, "A06")).as("gamma was never scanned").isEqualTo("NOT_MEASURED");
-        assertThat(findings(dormant, "A06")).as("its vulnerability is not a measurement").isZero();
-        assertThat(state(grid("", asAdmin()), "A06")).as("the estate beside it is measured").isEqualTo("FINDINGS");
+        assertThat(state(dormant, "A07")).as("gamma was never scanned: nothing open is not nothing found").isEqualTo("NOT_MEASURED");
+        assertThat(state(grid("project_id=" + estate.api(), asAdmin()), "A07"))
+                .as("alpha, beside it, was examined for secrets and holds none")
+                .isEqualTo("NO_FINDING");
+        assertThat(state(dormant, "A06")).as("an open finding is a fact whatever examined it").isEqualTo("FINDINGS");
+        assertThat(findings(dormant, "A06")).isEqualTo(1);
     }
 
     @Test
@@ -325,6 +328,10 @@ class OwaspCoverageScopeRoutesTest extends ApiTestBase {
         ScanEntity scan = new ScanEntity();
         scan.setRepoId(repoId);
         scan.setStatus(ScanStatus.COMPLETED.wireName());
+        // Every step produced: a category reads clean only on what the latest scan recorded examining.
+        scan.setExaminedTypes("vulnerability,secret,iac,license,eol,sast");
+        scan.setDetectedLanguages("java");
+        scan.setSastLanguages("java");
         scan.setBranch("main");
         scan.setCreatedAt(Instant.now().minusSeconds(7200));
         scans.save(scan);

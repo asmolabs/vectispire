@@ -122,7 +122,7 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a never-scanned target counts beside a scanned one, and nowhere when the reader sees only it — as in the grid")
+    @DisplayName("a never-scanned target's open findings count, alone or beside a scanned one, and its empty categories stay unmeasured — as in the grid")
     void aNeverScannedTargetCountsAsTheGridCountsIt() throws Exception {
         Estate estate = anEstate();
         long gamma = aNeverScannedTarget();
@@ -134,7 +134,10 @@ class OwaspWeeklyCoverageRoutesTest extends ApiTestBase {
         JsonNode alone = lastWeek(weekly("", reader));
         assertSameAsTheGrid(alone, grid(reader));
         assertThat(List.of(category(alone, "A05").path("state").asText(), category(alone, "A05").path("open").asLong()))
-                .as("nothing the reader sees was scanned: not measured, its findings not counted")
+                .as("an open finding is a fact whatever examined it")
+                .containsExactly("FINDINGS", 1L);
+        assertThat(List.of(category(alone, "A07").path("state").asText(), category(alone, "A07").path("open").asLong()))
+                .as("nothing the reader sees was scanned: nothing open is not nothing found")
                 .containsExactly("NOT_MEASURED", 0L);
 
         grant(readerId(), List.of(estate.alpha(), gamma));

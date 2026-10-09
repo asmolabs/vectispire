@@ -15,11 +15,12 @@ import java.time.Instant;
  * target is named by kind and identifier, with no foreign key; {@code OwaspCoveragePurge} removes a
  * deleted target's rows in the deleting transaction.
  *
- * <p><b>V67 says both counts are zero unless the category was measured; one case reads otherwise.</b> A
- * target never scanned keeps {@code NOT_MEASURED} with the findings the grid would count where the
- * category is measured — what the live grid counts for it once a target beside it is scanned. A reader
- * combines the rows with {@code OwaspCoverage.acrossTargets}, which counts them only then; summing the
- * counts without the states would count them where the grid does not.
+ * <p><b>V67 says both counts are zero unless the category was measured; the rows read otherwise.</b> An
+ * open finding counts wherever the settings measure its type, whatever examined the target since
+ * ({@code FINDINGS}), and rows written before 0.11.0 kept a never-scanned target {@code NOT_MEASURED}
+ * with the findings the grid would count. A reader combines the rows with {@code
+ * OwaspCoverage.acrossTargets}, which reads both; summing the states without the rule would count a
+ * target nothing can examine for a category — {@code NOT_COVERED}, an image for secrets — against it.
  */
 @Entity
 @Table(name = "t_owasp_weekly_coverage")

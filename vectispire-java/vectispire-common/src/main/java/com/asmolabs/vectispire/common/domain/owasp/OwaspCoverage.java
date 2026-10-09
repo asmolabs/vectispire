@@ -1,6 +1,9 @@
 package com.asmolabs.vectispire.common.domain.owasp;
 
+import com.asmolabs.vectispire.common.domain.gate.Observation;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,9 +81,10 @@ public final class OwaspCoverage {
         /**
          * A scanner covers it and has not looked at this estate.
          *
-         * <p>Switched off, or — for code analysis — running without a rule that reaches the
-         * languages present. Distinct from the next one: here the product could answer and has
-         * not been allowed to.
+         * <p>Switched off; or a target in scope whose latest finished scan did not examine it — never
+         * scanned, failed, the step absent ({@link Evidence}); or — for code analysis — no installed rule
+         * declaring it written for the languages of a repository in scope. Distinct from the next one:
+         * here the product could answer and has not been allowed to.
          */
         NOT_MEASURED,
         /**
@@ -88,7 +92,9 @@ public final class OwaspCoverage {
          *
          * <p>A property of the product, not of the estate. Nothing in Vectispire detects broken
          * access control or insecure design; a grid that showed those green would be claiming a
-         * clean bill of health over an examination that never happened.
+         * clean bill of health over an examination that never happened. A target's own line also
+         * reads so where nothing here examines that kind of target for it — an image, for secrets
+         * ({@link #assessTarget}).
          */
         NOT_COVERED,
         /** A scanner covers it, looked, and found nothing. */
@@ -176,20 +182,202 @@ public final class OwaspCoverage {
                 : Optional.empty();
     }
 
+
+    /**
+     * Whether a target's scans can examine it for this type at all — by what its kind of scan runs, not
+     * by what one scan did.
+     *
+     * <p><b>An image's scan runs the dependency step alone</b> ({@code ScanDispatcher}'s image steps): its
+     * SBOM gives the vulnerabilities, the components past support and the licences, and nothing reads
+     * an image for committed secrets, for infrastructure code or with code analysis. Asking an image for
+     * them and reading "not examined" would hold a project's every category unmeasured for owning an
+     * image; reading "examined" was the defect this replaces — an image-only scope showed A05 and A07 as
+     * clean. {@code ScanDispatcherTest} keeps the image's steps what this assumes.
+     */
+    public static boolean examinable(FindingType type, ScanTarget target) {
+        return switch (target) {
+            case ScanTarget.Repository ignored -> true;
+            case ScanTarget.Container ignored -> type == FindingType.VULNERABILITY || type == FindingType.EOL
+                    || type == FindingType.LICENSE;
+        };
+    }
+
+    /**
+     * What one target's newest finished scan says it was examined for — the evidence a category's
+     * "nothing found" rests on (decision 0007: absent is not empty).
+     *
+     * <p><b>A scan having run is not the question; which of its steps produced is.</b> The grid used to
+     * read a category measured as soon as any target in scope had a scan, so an image-only project showed
+     * the secrets and misconfiguration categories as clean — an image's scan looks for neither — and a
+     * repository whose secret step failed showed A07 clean on the strength of the steps that did not.
+     * The scan records the types whose step produced ({@code examined_types}, decision 0032 §6), and that
+     * record is what is read here.
+     *
+     * <p><b>The newest finished scan, as the gate reads it</b> ({@link Observation}): a running scan has
+     * changed nothing in the backlog, and a failed one examined nothing that can be relied on — the
+     * backlog its predecessor left is still there, and it is counted, but it is no observation of the code
+     * as it is.
+     *
+     * @param observation the newest finished scan's status, as {@link Observation#of} reads it
+     * @param examined the types that scan's steps produced; empty unless {@code observation} is {@link
+     *     Observation#OK} and the scan recorded them — a scan from before the record says nothing
+     * @param analysed the languages of the target's tree that its scan's code-analysis rules read: the
+     *     census's languages intersected with the rules' ({@code sast_languages}). Empty when either side
+     *     was not recorded, which is not the empty set: "nobody counted" is not "no rule reads it"
+     * @param codeReaches the categories declared by an installed rule written for one of {@code analysed};
+     *     empty exactly when {@code analysed} is
+     */
+    public record Evidence(
+            ScanTarget target,
+            Observation observation,
+            Optional<Set<FindingType>> examined,
+            Optional<Set<Language>> analysed,
+            Optional<Set<String>> codeReaches) {
+
+        public Evidence {
+            examined = observation == Observation.OK ? examined.map(Set::copyOf) : Optional.empty();
+            analysed = analysed.map(Set::copyOf);
+            codeReaches = analysed.isEmpty() ? Optional.empty() : codeReaches.map(Set::copyOf).or(() -> Optional.of(Set.of()));
+        }
+
+        /** A target with no finished scan. */
+        public static Evidence neverScanned(ScanTarget target) {
+            return new Evidence(target, Observation.NEVER_SCANNED, Optional.empty(), Optional.empty(), Optional.empty());
+        }
+
+        /**
+         * The evidence of one finished scan.
+         *
+         * <p><b>The rules' categories are today's, narrowed to the languages the scan's own rules read.</b>
+         * The scan records which languages its rule set read, not the set itself; a category is placed
+         * from the installed rules of that language. A set swapped since for one of the same languages
+         * declaring other categories would be read with the new declarations until the next scan, which
+         * the next scan corrects — and a language the scan's rules did not read is never credited, which
+         * is the direction that would let a category read clean.
+         *
+         * @param detected the languages the scan's census found in the tree; empty when unrecorded
+         * @param sastRules the languages its code-analysis rules read; empty when unrecorded
+         * @param declaredByLanguage the categories the installed rules of each language declare
+         */
+        public static Evidence of(
+                ScanTarget target,
+                Observation observation,
+                Optional<Set<FindingType>> examined,
+                Optional<Set<Language>> detected,
+                Optional<Set<Language>> sastRules,
+                Map<Language, Set<String>> declaredByLanguage) {
+            Optional<Set<Language>> analysed = detected.isEmpty() || sastRules.isEmpty()
+                    ? Optional.empty()
+                    : Optional.of(detected.get().stream().filter(sastRules.get()::contains)
+                            .collect(java.util.stream.Collectors.toUnmodifiableSet()));
+            Optional<Set<String>> reaches = analysed.map(languages -> languages.stream()
+                    .flatMap(language -> declaredByLanguage.getOrDefault(language, Set.of()).stream())
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet()));
+            return new Evidence(target, observation, examined, analysed, reaches);
+        }
+
+        boolean examinedFor(FindingType type) {
+            return examined.map(types -> types.contains(type)).orElse(false);
+        }
+    }
+
+    /**
+     * Why one target was not examined for a category, for the sentence that says how many were not.
+     * Declared in the order the sentence names them.
+     */
+    private enum Gap {
+        NEVER_SCANNED("never finished a scan"),
+        LAST_SCAN_FAILED("whose latest scan failed"),
+        UNRECORDED("whose latest scan predates the record of what it examined"),
+        STEP_ABSENT("whose latest scan did not complete that step"),
+        LANGUAGES_UNRECORDED("whose latest scan did not record its languages, or its rules'"),
+        NO_RULE_FOR_ITS_LANGUAGES("in whose languages no installed rule declares this category");
+
+        private final String words;
+
+        Gap(String words) {
+            this.words = words;
+        }
+    }
+
+    /** Where a category's examination comes from, for one grid: the types placed in it, or code analysis. */
+    private sealed interface Source {
+
+        /** @param types the types placed in the category that the settings measure */
+        record Types(List<FindingType> types) implements Source {}
+
+        record Code(String category) implements Source {}
+
+        default boolean appliesTo(ScanTarget target) {
+            return switch (this) {
+                case Types placed -> placed.types().stream().anyMatch(type -> examinable(type, target));
+                case Code ignored -> target instanceof ScanTarget.Repository;
+            };
+        }
+
+        /** Why this target was not examined for it, or empty when it was. */
+        default Optional<Gap> gapOf(Evidence evidence) {
+            switch (evidence.observation()) {
+                case OK -> {}
+                case LAST_SCAN_FAILED -> {
+                    return Optional.of(Gap.LAST_SCAN_FAILED);
+                }
+                // IN_PROGRESS does not reach here — the evidence is the newest *finished* scan — and would
+                // be no examination if it did.
+                default -> {
+                    return Optional.of(Gap.NEVER_SCANNED);
+                }
+            }
+            if (evidence.examined().isEmpty()) {
+                return Optional.of(Gap.UNRECORDED);
+            }
+            return switch (this) {
+                // Every type this target can be examined for: A06 is "vulnerable *and* outdated", and an
+                // end-of-life lookup that failed leaves the second half unlooked at.
+                case Types placed -> placed.types().stream()
+                                .filter(type -> examinable(type, evidence.target()))
+                                .allMatch(evidence::examinedFor)
+                        ? Optional.empty()
+                        : Optional.of(Gap.STEP_ABSENT);
+                case Code code -> !evidence.examinedFor(FindingType.SAST)
+                        ? Optional.of(Gap.STEP_ABSENT)
+                        : evidence.codeReaches().isEmpty()
+                                ? Optional.of(Gap.LANGUAGES_UNRECORDED)
+                                : evidence.codeReaches().get().contains(code.category())
+                                        ? Optional.empty()
+                                        : Optional.of(Gap.NO_RULE_FOR_ITS_LANGUAGES);
+            };
+        }
+    }
+
     /**
      * One category over several targets, from each target's recorded line — the weekly record kept per
      * target, read for a project, a solution or a reader's estate. The lines may be per target or already
      * summed per state; the answer is the same.
      *
-     * <p><b>The live grid's answer for the same targets</b>, which is what makes a heatmap's last column
-     * agree with the grid beside it. The grid counts every visible target's open findings once one of
-     * them has been scanned, so: a category some target measured ({@link State#FINDINGS} or {@link
-     * State#NO_FINDING} — a scanned target's line, the reading's settings being the estate's) counts every
-     * line's findings, those of a target never scanned included ({@link #unscanned}), and reads {@code
-     * FINDINGS} when the sum is above zero, {@code NO_FINDING} otherwise; a category nothing here covers is
-     * {@link State#NOT_COVERED} for every target, since that is a property of the deployment; anything
-     * else is {@link State#NOT_MEASURED}, and counts nothing — a target never scanned holds findings the
-     * grid does not count until something visible beside it is scanned.
+     * <p><b>The live grid's answer for the same targets</b> ({@link #assess}), which is what makes a
+     * heatmap's last column agree with the grid beside it — the grid of a scope is the fold of its
+     * targets' lines ({@link #assessTarget}), by construction and by test:
+     *
+     * <ul>
+     *   <li>open findings anywhere make it {@link State#FINDINGS}, with every line's counts — an open
+     *       finding is a fact whatever examined it;
+     *   <li>otherwise a line {@link State#NOT_COVERED} is a target nothing here can examine for it — an
+     *       image, for secrets — and is left aside; a category nothing in this deployment covers reads so
+     *       on every line;
+     *   <li>of the rest, one {@link State#NOT_MEASURED} line makes it {@link State#NOT_MEASURED}: a scope
+     *       examined in part has not been examined, and "nothing found" over half of it is the false
+     *       green this rule removes;
+     *   <li>every remaining line {@link State#NO_FINDING} makes it {@link State#NO_FINDING};
+     *   <li>no line left at all reads {@link State#NOT_MEASURED} for a category a type places — no target
+     *       here can be examined for it, which is a property of the scope, the product examining it on
+     *       repositories — and {@link State#NOT_COVERED} for one only code analysis reaches, the lines
+     *       not saying whether a rule declared it that week.
+     * </ul>
+     *
+     * <p>Lines recorded before the evidence was read per target — a never-scanned target kept {@link
+     * State#NOT_MEASURED} with the findings the grid would count — fold the same way: their findings are
+     * counted, as the grid now counts them.
      *
      * @return empty when no target was recorded — never a state invented for nothing
      */
@@ -197,49 +385,34 @@ public final class OwaspCoverage {
         if (perTarget.isEmpty()) {
             return Optional.empty();
         }
-        boolean measured = perTarget.stream()
-                .anyMatch(line -> line.state() == State.FINDINGS || line.state() == State.NO_FINDING);
-        if (measured) {
-            long open = perTarget.stream().mapToLong(Split::open).sum();
-            long settled = perTarget.stream().mapToLong(Split::settled).sum();
-            return Optional.of(new Split(id, open > 0 ? State.FINDINGS : State.NO_FINDING, open, settled));
+        long open = perTarget.stream().mapToLong(Split::open).sum();
+        long settled = perTarget.stream().mapToLong(Split::settled).sum();
+        if (open > 0) {
+            return Optional.of(new Split(id, State.FINDINGS, open, settled));
         }
-        return Optional.of(new Split(id,
-                perTarget.stream().allMatch(line -> line.state() == State.NOT_COVERED) ? State.NOT_COVERED : State.NOT_MEASURED,
-                0, 0));
-    }
-
-    /**
-     * The lines of a target nothing has scanned, from its grid read as if it had been.
-     *
-     * <p><b>Not measured, with the findings the grid would count.</b> The live grid reads a whole visible
-     * estate: one scanned target makes it measured, and from then on it counts every target's open
-     * findings — a target never scanned among them. Recorded per target, such a target used to read not
-     * measured with nothing, and an estate's sum then fell short of the grid shown beside it. Its state
-     * stays {@link State#NOT_MEASURED}, since nothing looked at it, and its counts are kept: {@link
-     * #acrossTargets} adds them where something measured the category, and drops them where nothing did,
-     * which is what the grid does. A category no scanner covers, or one unmeasured by the settings, counts
-     * nothing already.
-     *
-     * @param asIfScanned the target's split, read with the estate measured
-     */
-    public static List<Split> unscanned(List<Split> asIfScanned) {
-        return asIfScanned.stream()
-                .map(line -> line.state() == State.FINDINGS || line.state() == State.NO_FINDING
-                        ? new Split(line.id(), State.NOT_MEASURED, line.open(), line.settled())
-                        : line)
+        List<State> applicable = perTarget.stream()
+                .map(Split::state)
+                .filter(state -> state != State.NOT_COVERED)
                 .toList();
+        State state;
+        if (applicable.isEmpty()) {
+            state = typesPlacedIn(id).isEmpty() ? State.NOT_COVERED : State.NOT_MEASURED;
+        } else if (applicable.stream().allMatch(line -> line == State.NO_FINDING || line == State.FINDINGS)) {
+            state = State.NO_FINDING;
+        } else {
+            state = State.NOT_MEASURED;
+        }
+        return Optional.of(new Split(id, state, 0, settled));
     }
 
     /**
      * What the deployment measures, as opposed to what it found.
      *
-     * @param scanned a scan has completed somewhere in the caller's estate. Without one, every
-     *     covered category is unmeasured rather than clean
      * @param endOfLifeEnabled whether components past support are detected
-     * @param codeAnalysisReaches code analysis runs <em>and</em> a rule reaches the languages
-     *     present. Both halves matter: rules that reach nothing find nothing, which is not the
-     *     same sentence as "there is nothing"
+     * @param codeAnalysisEnabled code analysis runs <em>and</em> more than the rule this product ships is
+     *     installed — the deployment's half of the question. Whether a rule reaches <em>this</em> target's
+     *     languages is the evidence's ({@link Evidence#codeReaches}): a Python rule declaring A03 says
+     *     nothing of a Java repository
      * @param openByType open findings per type, however they were counted
      * @param declaredByRules the categories the <em>installed</em> rules declare. <b>This is what
      *     makes an empty category honest.</b> Counting only the categories that already have a
@@ -248,27 +421,23 @@ public final class OwaspCoverage {
      *     category from covered to uncovered the day its last finding is fixed
      * @param openByCategory open code findings per declared category. Only categories in
      *     {@code declaredByRules} are read from it
+     * @param targets the evidence of every target the counts were read over — one for a target's own
+     *     line. A target the counts cover and this omits is a target taken as examined, which is the
+     *     false green; the caller hands every one
      */
     public record Measurement(
-            boolean scanned,
             boolean endOfLifeEnabled,
-            boolean codeAnalysisReaches,
+            boolean codeAnalysisEnabled,
             Map<FindingType, Long> openByType,
             Set<String> declaredByRules,
-            Map<String, Long> openByCategory) {
-
-        /** The reading a caller that knows nothing of code analysis gets: the previous shape. */
-        public Measurement(
-                boolean scanned,
-                boolean endOfLifeEnabled,
-                boolean codeAnalysisReaches,
-                Map<FindingType, Long> openByType) {
-            this(scanned, endOfLifeEnabled, codeAnalysisReaches, openByType, Set.of(), Map.of());
-        }
+            Map<String, Long> openByCategory,
+            List<Evidence> targets) {
 
         public Measurement {
+            openByType = openByType == null ? Map.of() : Map.copyOf(openByType);
             declaredByRules = declaredByRules == null ? Set.of() : Set.copyOf(declaredByRules);
             openByCategory = openByCategory == null ? Map.of() : Map.copyOf(openByCategory);
+            targets = targets == null ? List.of() : List.copyOf(targets);
         }
     }
 
@@ -286,10 +455,33 @@ public final class OwaspCoverage {
      */
     public record Grid(List<CoverageLine> lines, int covered, int withFindings, int unmeasured) {}
 
-    /** The grid, in the standard's own order — the order a questionnaire asks the questions in. */
+    /** The grid of a scope, in the standard's own order — the order a questionnaire asks the questions in. */
     public static Grid assess(Measurement measurement) {
+        return grid(measurement, false);
+    }
+
+    /**
+     * One target's own grid — the line the weekly record keeps for it, and what the model-written report
+     * is told of a repository.
+     *
+     * <p><b>One difference from a scope of that one target</b>, and it is what lets a scope's grid be the
+     * fold of its targets' ({@link #acrossTargets}): a category the target cannot be examined for at all
+     * — an image, for secrets — reads {@link State#NOT_COVERED} here, nothing in this product covering it
+     * for that target, so that a fold can leave it aside; a scope holding only such targets reads not
+     * measured instead. For a repository the two readings are the same.
+     *
+     * @param measurement read over this target alone, its {@code targets} its own evidence
+     */
+    public static Grid assessTarget(Measurement measurement) {
+        if (measurement.targets().size() != 1) {
+            throw new IllegalArgumentException("A target's grid is read over that one target.");
+        }
+        return grid(measurement, true);
+    }
+
+    private static Grid grid(Measurement measurement, boolean oneTarget) {
         List<CoverageLine> lines = CATEGORIES.entrySet().stream()
-                .map(category -> line(category.getKey(), category.getValue(), measurement))
+                .map(category -> line(category.getKey(), category.getValue(), measurement, oneTarget))
                 .toList();
 
         return new Grid(
@@ -304,7 +496,7 @@ public final class OwaspCoverage {
      *
      * @param state the state the grid reports — the one read without the settled findings, which is
      *     the grid this product shows. A category whose every open finding is accepted reads
-     *     {@link State#NO_FINDING} here, and its {@code settled} says what that cost
+     *     {@link State#NO_FINDING} here when it was examined, and its {@code settled} says what that cost
      * @param open open findings whose triage is not settled: the grid's own figure
      * @param settled open findings whose triage is settled — accepted, not applicable, a false
      *     positive. <b>Kept apart rather than dropped or added in</b>: dropped, an accepted risk
@@ -331,10 +523,11 @@ public final class OwaspCoverage {
                 .toList();
     }
 
-    private static CoverageLine line(String id, String title, Measurement measurement) {
+    private static CoverageLine line(String id, String title, Measurement measurement, boolean oneTarget) {
         List<FindingType> types = BY_TYPE.entrySet().stream()
                 .filter(entry -> entry.getValue().equals(id))
                 .map(Map.Entry::getKey)
+                .sorted()
                 .toList();
 
         // **Two ways in, and they are not the same question.** A type covers a category by rule,
@@ -347,31 +540,82 @@ public final class OwaspCoverage {
             return new CoverageLine(id, title, State.NOT_COVERED, 0,
                     "No scanner in this deployment produces a finding in this category.");
         }
-        if (!measurement.scanned()) {
-            return new CoverageLine(id, title, State.NOT_MEASURED, 0,
-                    "Nothing has been scanned yet, so no finding of this category could exist.");
-        }
 
         // **A type that is switched off measures nothing, and its zero is not a result.** End of
         // life is the case that made this explicit: turning detection off leaves existing findings
         // open rather than resolving them, precisely so that "we stopped looking" never reads as
         // "it is fixed". The same sentence belongs here.
         List<FindingType> measured = types.stream().filter(type -> measures(type, measurement)).toList();
-        boolean codeMeasured = declared && measurement.codeAnalysisReaches();
+        boolean codeMeasured = declared && measurement.codeAnalysisEnabled();
 
         if (measured.isEmpty() && !codeMeasured) {
             return new CoverageLine(id, title, State.NOT_MEASURED, 0, whyUnmeasured(types, declared));
         }
 
+        // **An open finding is a fact, whatever examined the target since.** A secret found last week
+        // whose step failed this week is still open — absent resolves nothing — and a grid reading
+        // "not measured" over it would hide what is known. So findings decide first; the evidence decides
+        // only whether a zero means anything.
         long findings = measured.stream()
                 .mapToLong(type -> measurement.openByType().getOrDefault(type, 0L))
                 .sum()
                 + (codeMeasured ? measurement.openByCategory().getOrDefault(id, 0L) : 0L);
 
-        return findings > 0
-                ? new CoverageLine(id, title, State.FINDINGS, findings, "Open findings placed here by rule.")
-                : new CoverageLine(id, title, State.NO_FINDING, 0, "Scanned by " + what(measured, codeMeasured)
-                        + ", with nothing open.");
+        if (findings > 0) {
+            return new CoverageLine(id, title, State.FINDINGS, findings, "Open findings placed here by rule.");
+        }
+
+        // A category a type places is examined by those types — the code rules declaring it too add
+        // their findings to the count, not a second condition to its examination.
+        Source source = measured.isEmpty() ? new Source.Code(id) : new Source.Types(measured);
+        String what = source instanceof Source.Types placed ? names(placed.types()) : "code analysis";
+
+        if (measurement.targets().isEmpty()) {
+            return new CoverageLine(id, title, State.NOT_MEASURED, 0,
+                    "Nothing has been scanned yet, so no finding of this category could exist.");
+        }
+        List<Evidence> applicable = measurement.targets().stream()
+                .filter(evidence -> source.appliesTo(evidence.target()))
+                .toList();
+        if (applicable.isEmpty()) {
+            if (oneTarget) {
+                return new CoverageLine(id, title, State.NOT_COVERED, 0, source instanceof Source.Types
+                        ? "Nothing here examines this kind of target for " + what + ": an image's scan reads its "
+                                + "dependencies only."
+                        : "Only code analysis places findings here, and it reads repositories, not images.");
+            }
+            return source instanceof Source.Types
+                    ? new CoverageLine(id, title, State.NOT_MEASURED, 0, "No target in this scope can be examined for "
+                            + what + ": an image's scan reads its dependencies only, and this scope holds no repository.")
+                    : new CoverageLine(id, title, State.NOT_COVERED, 0,
+                            "Only code analysis places findings here, and this scope holds no repository for it to read.");
+        }
+
+        Map<Gap, Long> gaps = new java.util.EnumMap<>(Gap.class);
+        applicable.forEach(evidence -> source.gapOf(evidence)
+                .ifPresent(gap -> gaps.merge(gap, 1L, Long::sum)));
+        if (gaps.isEmpty()) {
+            return new CoverageLine(id, title, State.NO_FINDING, 0, "Scanned by " + what
+                    + " — the latest scan of every target it applies to examined it — with nothing open.");
+        }
+        return new CoverageLine(id, title, State.NOT_MEASURED, 0, unexamined(source, what, applicable.size(), gaps));
+    }
+
+    /**
+     * "2 of 3 targets…", and why each was not — the sentence an assessor quotes when a category reads not
+     * measured over a scope that was scanned.
+     */
+    private static String unexamined(Source source, String what, int applicable, Map<Gap, Long> gaps) {
+        long missing = gaps.values().stream().mapToLong(Long::longValue).sum();
+        String noun = source instanceof Source.Types
+                ? (applicable == 1 ? "target" : "targets")
+                : (applicable == 1 ? "repository" : "repositories");
+        String why = gaps.entrySet().stream()
+                .map(gap -> gap.getValue() + " " + gap.getKey().words)
+                .collect(java.util.stream.Collectors.joining(", "));
+        return missing + " of " + applicable + " " + noun + " this category applies to "
+                + (missing == 1 ? "was" : "were") + " not examined for it by " + what + " (" + why + "), so a "
+                + "zero here would not be a result.";
     }
 
     private static boolean measures(FindingType type, Measurement measurement) {
@@ -388,23 +632,16 @@ public final class OwaspCoverage {
      * switch on a detector that was already running.
      */
     private static String whyUnmeasured(List<FindingType> types, boolean declared) {
-        // **Three causes, all three named.** On a fresh instance the commonest is the second —
-        // only the shipped rule is installed — and naming just one would send somebody to switch
-        // back on a detector that was already running.
-        String code = "code analysis is off, or only the rule this product ships is installed, or none "
-                + "of the installed rules reaches the languages in this estate";
+        // **Both causes named.** On a fresh instance the commonest is the second — only the shipped
+        // rule is installed — and naming just one would send somebody to switch back on a detector
+        // that was already running. Whether a rule reaches a target's languages is not said here: it is
+        // the evidence's, target by target, and a scope the rules do not reach says so in its own words.
+        String code = "code analysis is off, or only the rule this product ships is installed";
         if (types.isEmpty()) {
             return capitalise(code) + ".";
         }
         String detectors = "detection is switched off for " + names(types);
         return capitalise(declared ? detectors + ", and " + code : detectors) + ", so this category is not measured.";
-    }
-
-    private static String what(List<FindingType> measured, boolean codeMeasured) {
-        if (measured.isEmpty()) {
-            return "code analysis";
-        }
-        return codeMeasured ? names(measured) + ", code analysis" : names(measured);
     }
 
     private static String capitalise(String sentence) {

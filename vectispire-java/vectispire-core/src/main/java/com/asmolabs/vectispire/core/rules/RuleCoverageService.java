@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.rules;
 
 import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
@@ -61,6 +62,35 @@ public class RuleCoverageService {
                 .forEach(file -> declared.addAll(OwaspTag.declaredIn(file.content()))));
 
         return declared;
+    }
+
+    /**
+     * The OWASP categories the installed rules declare, by the language each rule file is written for —
+     * what tells the grid that an A03 rule for Python says nothing of a Java repository.
+     *
+     * <p><b>{@link #declaredOwaspCategories} answers "does any rule here look at this category"; this
+     * answers "for which code".</b> The grid read the first alone, as a flag for the whole estate, so one
+     * Python rule tagged A03 made Injection "examined, nothing found" for every Java project. A file whose
+     * directory names no language ({@code generic/}) reaches no language and is in no entry here, though
+     * its categories are in the other answer: covered by the deployment, measured on no target.
+     */
+    @Transactional(readOnly = true)
+    public Map<Language, Set<String>> declaredOwaspCategoriesByLanguage() {
+        Map<Language, Set<String>> declared = new java.util.EnumMap<>(Language.class);
+        BundledRules.expected().stream()
+                .filter(path -> path.startsWith("semgrep/"))
+                .forEach(path -> RuleCoverage.languageRead(path).ifPresent(language -> declared
+                        .computeIfAbsent(language, ignored -> new LinkedHashSet<>())
+                        .addAll(OwaspTag.declaredIn(BundledRules.contentOf(path)))));
+
+        ruleSets.active().ifPresent(row -> ruleSets.filesOf(row)
+                .forEach(file -> RuleCoverage.languageRead(RuleCoverage.ruleTreePath(file)).ifPresent(language -> declared
+                        .computeIfAbsent(language, ignored -> new LinkedHashSet<>())
+                        .addAll(OwaspTag.declaredIn(file.content())))));
+
+        Map<Language, Set<String>> answer = new java.util.EnumMap<>(Language.class);
+        declared.forEach((language, categories) -> answer.put(language, Set.copyOf(categories)));
+        return java.util.Collections.unmodifiableMap(answer);
     }
 
     @Transactional(readOnly = true)

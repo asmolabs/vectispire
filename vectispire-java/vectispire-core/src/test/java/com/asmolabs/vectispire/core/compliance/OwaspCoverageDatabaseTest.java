@@ -215,10 +215,18 @@ class OwaspCoverageDatabaseTest extends VectispireContextTest {
         return repositories.save(entity).getId();
     }
 
+    /**
+     * A scan whose every step produced, over a Java tree its rules read: the grid reads a category clean
+     * only on what the latest scan recorded examining (decision 0007), and a scan without the record
+     * holds every category unmeasured — which is not what these cases are about.
+     */
     private void scan(long repoId) {
         ScanEntity entity = new ScanEntity();
         entity.setRepoId(repoId);
         entity.setStatus(ScanStatus.COMPLETED.wireName());
+        entity.setExaminedTypes("vulnerability,secret,iac,license,eol,sast");
+        entity.setDetectedLanguages("java");
+        entity.setSastLanguages("java");
         entity.setBranch("main");
         entity.setCreatedAt(Instant.parse("2026-01-01T00:00:00Z"));
         scans.save(entity);

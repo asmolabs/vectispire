@@ -7,11 +7,9 @@ import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceHistory;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceSnapshot;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
-import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
-import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -51,7 +49,7 @@ public class ComplianceHistoryService {
     private final ComplianceSnapshotRepository snapshots;
     private final ComplianceService compliance;
     private final StatementOfApplicabilityService soa;
-    private final RuleCoverageService ruleCoverage;
+    private final OwaspCoverageService coverage;
     private final SettingsService settings;
     private final Clock clock;
 
@@ -59,13 +57,13 @@ public class ComplianceHistoryService {
             ComplianceSnapshotRepository snapshots,
             ComplianceService compliance,
             StatementOfApplicabilityService soa,
-            RuleCoverageService ruleCoverage,
+            OwaspCoverageService coverage,
             SettingsService settings,
             Clock clock) {
         this.snapshots = snapshots;
         this.compliance = compliance;
         this.soa = soa;
-        this.ruleCoverage = ruleCoverage;
+        this.coverage = coverage;
         this.settings = settings;
         this.clock = clock;
     }
@@ -87,8 +85,11 @@ public class ComplianceHistoryService {
 
             var summary = compliance.getSummary(Visibility.everything());
             int freshnessDays = Math.max(0, settings.asInt(Setting.COMPLIANCE_FRESHNESS_DAYS));
-            boolean codeAnalysisReaches = settings.isEnabled(Setting.SAST_ENABLED)
-                    && ruleCoverage.assess().state() != RuleCoverage.State.UNCONFIGURED;
+            // **Read as the OWASP grid reads it, per repository and per language.** It was one flag —
+            // code analysis on and more than the shipped rule installed — so a Java estate "reached" by a
+            // Python rule set was recorded as reached, and a month whose rules stopped reading its
+            // languages was attributed to nothing.
+            boolean codeAnalysisReaches = coverage.reading().codeAnalysisReachesItsRepositories();
             boolean eol = settings.isEnabled(Setting.EOL_ENABLED);
 
             int captured = 0;
