@@ -342,7 +342,12 @@
                             }}
                         </div>
                     </td>
-                    <td><p-tag [severity]="severityColour(issue.severity)" [value]="issue.severity ?? 'unknown'" /></td>
+                    <td>
+                        <p-tag
+                            [severity]="severityColour(issue.severity)"
+                            [value]="issue.severity ?? 'unknown' | severityLabel"
+                        />
+                    </td>
                     <td>
                         <span>{{ issue.packageName ?? '—' }}</span>
                         @if (issue.packageVersion) {
@@ -676,7 +681,7 @@
                             {{ 'issues.ai_vex_suggestion' | translate }}
                         </h5>
                         <p-tag
-                            [value]="aiAdvice()!.vexSuggestion.status"
+                            [value]="triageLabel(aiAdvice()!.vexSuggestion.status)"
                             [severity]="aiAdvice()!.vexSuggestion.status === 'not_affected' ? 'success' : 'warn'"
                         />
                     </div>

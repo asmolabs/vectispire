@@ -57,6 +57,8 @@ type RankedIssue = HistoryIssue & { severityRank: number };
  * gets handed to an auditor is a file, not a URL into an application they cannot log into.
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { IssueStatePipe, ScanStatusPipe } from '@/app/shared/scan-status';
 
 @Component({
     selector: 'app-history',
@@ -69,7 +71,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         MessageModule,
         ButtonModule,
         SelectModule,
-        TranslatePipe
+        TranslatePipe,
+        SeverityLabelPipe,
+        IssueStatePipe,
+        ScanStatusPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './history.html'

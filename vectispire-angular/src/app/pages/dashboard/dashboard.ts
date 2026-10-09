@@ -69,6 +69,8 @@ function themeColour(variable: string, fallback: string): string {
 }
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { TargetKindPipe } from '@/app/shared/target-kind';
 
 @Component({
     selector: 'app-dashboard',
@@ -83,7 +85,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         LastScanTag,
         TranslatePipe,
         GradeLabelPipe,
-        RiskPointsPipe
+        RiskPointsPipe,
+        LocalNumberPipe,
+        TargetKindPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './dashboard.html'
@@ -218,7 +222,9 @@ export class Dashboard {
     meanLabel(): string {
         const mean = this.trends()?.mean_days_to_resolve;
         if (mean === null || mean === undefined) return this.i18n.t('dashboard.no_measurement');
-        return this.i18n.t('dashboard.days_count', { count: mean.toFixed(1) });
+        // One decimal always ("5,0 jours" beside "12,5 jours"), in the reader's mark: `toFixed` wrote
+        // "11.4 jours" on the French dashboard. The plural reads the figure back in the same marks.
+        return this.i18n.t('dashboard.days_count', { count: this.i18n.decimal(mean, 1, 1) });
     }
 
     /** Why there is no mean, when there is none — a stat with no explanation gets read as a bug. */

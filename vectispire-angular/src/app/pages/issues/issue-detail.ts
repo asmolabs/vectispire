@@ -36,6 +36,9 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
  * release we shipped" and "why is this dismissed".
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { IssueStatePipe } from '@/app/shared/scan-status';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 @Component({
     selector: 'app-issue-detail',
@@ -49,7 +52,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         TableModule,
         TagModule,
         MessageModule,
-        TranslatePipe
+        TranslatePipe,
+        SeverityLabelPipe,
+        IssueStatePipe,
+        LocalNumberPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './issue-detail.html'

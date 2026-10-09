@@ -155,7 +155,7 @@
                 <span>{{ 'agents.running_title' | translate }}</span>
             </div>
             @if (activity()?.runningScans?.length; as count) {
-                <p-tag [value]="count + ' en cours'" severity="info" />
+                <p-tag [value]="'agents.running_count' | translate: { count: count }" severity="info" />
             }
         </div>
     </ng-template>
@@ -231,7 +231,7 @@
                 <span>{{ 'agents.pending_title' | translate }}</span>
             </div>
             @if (activity()?.pendingScans?.length; as count) {
-                <p-tag [value]="count + ' en attente'" severity="warn" />
+                <p-tag [value]="'agents.pending_count' | translate: { count: count }" severity="warn" />
             }
         </div>
     </ng-template>

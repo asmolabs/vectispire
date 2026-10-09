@@ -17,6 +17,7 @@ import type {
     SecurityDebtReport
 } from '@/app/core/api.models';
 import { LatestRequest } from '@/app/core/latest-request';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
  * What to do, in order — and not what is wrong.
@@ -39,7 +40,16 @@ import { LatestRequest } from '@/app/core/latest-request';
  */
 @Component({
     selector: 'app-remediation',
-    imports: [RouterLink, FormsModule, ButtonModule, MessageModule, SelectModule, TagModule, TranslatePipe],
+    imports: [
+        RouterLink,
+        FormsModule,
+        ButtonModule,
+        MessageModule,
+        SelectModule,
+        TagModule,
+        TranslatePipe,
+        LocalNumberPipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remediation.html'
 })

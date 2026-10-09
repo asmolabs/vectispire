@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Epss } from './epss';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The screen where one looks at a CVE before knowing whether it concerns them.
@@ -328,6 +329,29 @@ describe('EPSS prioritisation', () => {
         // The card printed "0.0e %" — a rank nobody computed — beside an EPSS shown as "—".
         const text = document.body.textContent ?? '';
         expect(text).not.toContain('0.0e');
+    });
+
+    it("writes the lookup's probability and percentile in the reader's marks", () => {
+        useEnglish();
+        lookup();
+        const card = () => (document.body.textContent ?? '').replace(/\s+/g, ' ');
+        expect(card()).toContain('97.00 %');
+        expect(card()).toContain('pctl 99.0');
+
+        // The percentile was `toFixed(1) + 'e %'`: a French ordinal glued to an English decimal.
+        useFrench();
+        fixture.detectChanges();
+        expect(card()).toContain('97,00 %');
+        expect(card()).toContain('99,0e pctl');
+    });
+
+    it('shows the matrix and its help as text, with no HTML entity left in them', () => {
+        useFrench();
+        fixture.detectChanges();
+        const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+        expect(text).toContain('CVSS × EPSS');
+        expect(text).toContain('EPSS ≥ 50% et CVSS ≥ 7,0');
+        expect(text).not.toMatch(/&(?:[a-z]+|#\d+);/);
     });
 
     it("leaves a model's own words alone", () => {

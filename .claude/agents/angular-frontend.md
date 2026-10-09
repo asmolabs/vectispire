@@ -87,6 +87,18 @@ and show a value the client does not know as sent. `check-i18n-keys.mjs` now **r
 its reason) and counts the literals a map holds — so a new map moves `EXPECTED_KEYS`, and a spec checks
 its values with `missingFromBundles` (`core/testing/bundles.ts`).
 
+**Three ways a screen speaks the wrong language, all shipped until the screenshots showed them**
+(2026-10-09). An enum value printed raw — `critical`, `PARTIAL`, `ISO_27001` — goes through the maps
+in `shared/severity.ts`, `shared/compliance-labels.ts`, `shared/scan-status.ts` and
+`shared/target-kind.ts`, never `replace('_', ' ')` or a third copy of a list. A word glued to a value
+(`count + ' en cours'` showed French in the English UI) is a key with interpolation; the i18n check
+now refuses a quoted literal beside a `+` in displayed bindings, but it cannot see a word typed in a
+ternary or concatenated in component code. A fractional number goes through `I18nService.decimal` or
+the `localNumber` pipe — `toFixed` writes "11.4 jours" in French, and `Number('1,5')` is NaN, which
+silently chose the plural. And a bundle value carries the character itself, never an HTML entity:
+the translate pipe interpolates text, so `&gt;` reached the EPSS screen as five characters; the check
+refuses those too.
+
 **A finding type has one list: `shared/finding-types.ts`.** Three screens spelt it, none alike — the
 scan detail built `issues.types.${type}`, the issue detail translated `sast` alone — so a new type
 (`plugin`, `imported`) shipped as a raw word on two of them. Add a type there, and to `FINDING_TYPES`

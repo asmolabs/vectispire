@@ -18,13 +18,16 @@
         <p-card>
             <div class="text-muted-color text-sm">{{ 'issues.filter_severity' | translate }}</div>
             <div class="mt-2">
-                <p-tag [value]="detail.severity ?? 'unknown'" [severity]="severityOf(detail.severity)" />
+                <p-tag
+                    [value]="detail.severity ?? 'unknown' | severityLabel"
+                    [severity]="severityOf(detail.severity)"
+                />
             </div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'issues.filter_state' | translate }}</div>
             <div class="mt-2">
-                <p-tag [value]="detail.state" [severity]="detail.state === 'open' ? 'warn' : 'success'" />
+                <p-tag [value]="detail.state | issueState" [severity]="detail.state === 'open' ? 'warn' : 'success'" />
             </div>
         </p-card>
         <p-card>
@@ -71,12 +74,14 @@
             }
             @if (detail.cvssScore) {
                 <div>
-                    <span class="text-muted-color">{{ 'issues.cvss' | translate }}</span> · {{ detail.cvssScore }}
+                    <span class="text-muted-color">{{ 'issues.cvss' | translate }}</span> ·
+                    {{ detail.cvssScore | localNumber }}
                 </div>
             }
             @if (detail.epssScore) {
                 <div>
-                    <span class="text-muted-color">{{ 'issues.epss' | translate }}</span> · {{ detail.epssScore }}
+                    <span class="text-muted-color">{{ 'issues.epss' | translate }}</span> ·
+                    {{ detail.epssScore | localNumber: 5 }}
                 </div>
             }
             @if (detail.isKev) {
@@ -296,7 +301,7 @@
                             <span class="text-muted-color">{{ 'history.unknown_version' | translate }}</span>
                         }
                     </td>
-                    <td>{{ sighting.severity ?? '—' }}</td>
+                    <td>{{ sighting.severity | severityLabel }}</td>
                 </tr>
             </ng-template>
             <ng-template #emptymessage>

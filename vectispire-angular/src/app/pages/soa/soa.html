@@ -58,7 +58,7 @@
                     @for (declaration of overdue(); track declaration.framework + declaration.controlId) {
                         <li class="flex flex-wrap gap-2">
                             <span class="font-mono">{{ declaration.controlId }}</span>
-                            <span class="text-muted-color">{{ declaration.framework }}</span>
+                            <span class="text-muted-color">{{ frameworkLabel(declaration.framework) }}</span>
                             @if (declaration.owner) {
                                 <span class="text-muted-color">· {{ declaration.owner }}</span>
                             }

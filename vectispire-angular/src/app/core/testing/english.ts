@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import english from '../../../../public/i18n/en.json';
+import french from '../../../../public/i18n/fr.json';
 import { I18nService, TranslationTree } from '../i18n/i18n.service';
 
 /**
@@ -23,4 +24,16 @@ function merge(base: TranslationTree, over: TranslationTree): TranslationTree {
         out[key] = typeof value === 'object' && typeof below === 'object' ? merge(below, value) : value;
     }
     return out;
+}
+
+/**
+ * The real French bundle, and French as the current language — the decimal mark and the plural rule
+ * follow `currentLang`, so a spec about how a French reader sees a figure needs both, not the bundle
+ * alone. It **replaces** what was loaded rather than merging under it: called after `useEnglish`, a
+ * merge would keep every English sentence, which is the switch a spec of the French screen is testing.
+ */
+export function useFrench(): void {
+    const i18n = TestBed.inject(I18nService);
+    i18n.translations.set(french);
+    i18n.currentLang.set('fr');
 }

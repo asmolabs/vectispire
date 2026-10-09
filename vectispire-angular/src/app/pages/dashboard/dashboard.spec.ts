@@ -1,5 +1,5 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -111,6 +111,20 @@ describe('the backlog trend', () => {
         expect(fixture.componentInstance.meanLabel()).toBe('12.4 days');
         // An average with no denominator is a number people quote and should not.
         expect(fixture.nativeElement.textContent).toContain('9 issues resolved');
+    });
+
+    it('writes the mean with the French decimal mark, and keeps its one decimal', () => {
+        flushTrends({
+            points: [{ day: '2026-08-21', open: 7, opened: 2, resolved: 3 }],
+            mean_days_to_resolve: 11.42,
+            resolved_in_window: 9
+        });
+        useFrench();
+        fixture.detectChanges();
+
+        // "11.4 jours" was the screenshot: `toFixed` writes the English point whatever the language.
+        expect(fixture.nativeElement.querySelector('#mean-days-to-resolve').textContent.trim()).toBe('11,4 jours');
+        expect(fixture.componentInstance.meanLabel()).toBe('11,4 jours');
     });
 
     it('separates the backlog from the movements, on two charts and not two axes', () => {
@@ -432,6 +446,27 @@ describe('the maturity ranking', () => {
         expect(found).toBeDefined();
         return found!;
     }
+
+    it("writes the time to resolve per severity and per target in the reader's decimal mark", () => {
+        fixture.componentInstance.postureAnalytics.set({
+            ...ANALYTICS,
+            mttrBySeverity: { CRITICAL: 12.5, HIGH: 3 },
+            targetScoreboard: [{ ...row(1, 'graded-repo', 'B', 72, 18.125), targetMttrDays: 4.25 }]
+        });
+        useFrench();
+        fixture.detectChanges();
+
+        const tiles = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.grid-cols-2 > div')].map((tile) =>
+            [...tile.querySelectorAll('span')].map((span) => span.textContent.trim()).join(' ')
+        );
+        expect(tiles).toEqual(['Critique 12,5 j', 'Élevée 3 j', 'Moyenne —', 'Faible —']);
+        // The figure and its unit stay on one line in a half-width tile: "12,5" over "j" read as two values.
+        const figure = (fixture.nativeElement as HTMLElement).querySelector('.grid-cols-2 > div span.font-mono')!;
+        expect(figure.classList).toContain('whitespace-nowrap');
+        // …and apart from its label: without a gap, "Moyenne12,5 j" read as one word.
+        expect(figure.parentElement!.classList).toContain('gap-1');
+        expect(rowOf('graded-repo').textContent).toContain('4,3 jours');
+    });
 
     it('shows no data, and neither a score nor a bar, for a target nobody scanned', () => {
         const tr = rowOf('unscanned-repo');

@@ -202,7 +202,7 @@ if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 3540;
+const EXPECTED_KEYS = 3547;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -676,6 +676,53 @@ if (frozenAttributes.length > 0) {
     process.exit(1);
 }
 
+// **The seventh rule: a word glued to a value with `+`, which every rule above reads past.**
+//
+// `<p-tag [value]="count + ' en cours'">` showed "2 en cours" on the English agents screen, and
+// `'Container ' + scan.containerId` showed English on the French dashboard. The bound-label ratchet
+// reads `[label]`, `[header]` and their kin, never `[value]`; the text-node ratchets blank every
+// `{{ … }}` before they look. A literal joined to a value is a sentence assembled in one language —
+// the bundles take a parameter (`'agents.running_count' | translate: { count }`) for exactly this.
+//
+// **Narrow on purpose.** Only a quoted literal holding a letter with a `+` beside it, inside an
+// interpolation or a binding that is shown — the attributes the sixth rule reads, `[text]`, `[detail]`,
+// `[summary]`, and `[value]` on the display components alone (on an `<option>` it is the form's value).
+// An id, a `for`, a test id or a `[loading]` token is built the same way and is never read, so those
+// bindings are not looked at. A key prefix (`'ns.part.' + x`) is the built-key rule's, above. Two
+// tokens pass, each the same in every language: `v` before a version number, `x` after a leverage
+// factor. A third is a decision for the review.
+const CONCAT_TOKENS = new Set(['v', 'x']);
+const SHOWN_BINDINGS = new Set([...SHOWN_ATTRIBUTES, 'text', 'detail', 'summary', 'attr.aria-label', 'attr.title']);
+const gluedWords = [];
+for (const { file, source } of templates()) {
+    const raw = source.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '));
+    const expressions = [...raw.matchAll(/\{\{([\s\S]*?)\}\}/g)].map((match) => ({ text: match[1], at: match.index }));
+    for (const tag of openingTags(raw)) {
+        for (const match of tag.text.matchAll(/\s\[([\w.-]+)\]="([^"]*)"/g)) {
+            const shown = SHOWN_BINDINGS.has(match[1]) || (match[1] === 'value' && DISPLAY_COMPONENTS.has(tag.name));
+            if (shown) expressions.push({ text: match[2], at: tag.at });
+        }
+    }
+    for (const { text, at } of expressions) {
+        const parts = text.split("'");
+        for (let i = 1; i < parts.length; i += 2) {
+            const literal = parts[i];
+            if (!/[A-Za-zÀ-ÿ]/.test(literal) || CONCAT_TOKENS.has(literal.trim()) || keyPrefix(literal)) continue;
+            const glued = parts[i - 1].trimEnd().endsWith('+') || (parts[i + 1] ?? '').trimStart().startsWith('+');
+            if (!glued) continue;
+            gluedWords.push(`${file.slice(root.length + 1)}:${raw.slice(0, at).split('\n').length}  '${literal}'`);
+        }
+    }
+}
+if (gluedWords.length > 0) {
+    console.error(`${gluedWords.length} word(s) joined to a value with + in a template, shown in one language to every reader:`);
+    for (const offender of gluedWords) console.error(`  ${offender}`);
+    console.error(
+        `Write the sentence in both bundles with a parameter — 'ns.key' | translate: { count: value } — ` +
+            `or, for a token every language writes alike, add it to CONCAT_TOKENS with its reason.`);
+    process.exit(1);
+}
+
 // **A plural key is referenced by its stem.** `t('repositories.scan_all_queued', { count })` reads
 // `scan_all_queued_one` or `scan_all_queued_other` as the language's rule says (I18nService.t), so
 // the stem is present when both forms are: the `_one` alone would leave every other count a raw
@@ -723,6 +770,23 @@ for (const lang of ['en', 'fr']) {
     }
 }
 
+// **A bundle value is text, never HTML: no character entity.** The translate pipe interpolates a
+// value as a text node, and Angular escapes it — nothing decodes `&gt;` on the way. The EPSS screen
+// showed "EPSS &ge; 50% &amp; CVSS &ge; 7.0" and "CVSS &times; EPSS" to every French reader, and
+// "&gt; 20%" in both languages, for as long as those labels existed. Write the character itself.
+// The pattern is the entity's whole shape — `&` then a name or a number then `;` — so a bare `&`
+// ("Security & compliance") and an `&` before a space never match.
+const htmlEntity = /&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#x[0-9A-Fa-f]+);/;
+for (const lang of ['en', 'fr']) {
+    const tree = JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'));
+    const encoded = flatten(tree).filter((key) => htmlEntity.test(key.split('.').reduce((node, part) => node[part], tree)));
+    if (encoded.length > 0) {
+        failed = true;
+        console.error(`Messages holding an HTML entity in public/i18n/${lang}.json — the pipe shows it as typed, write the character:`);
+        for (const key of encoded) console.error(`  - ${key}`);
+    }
+}
+
 // **And a plural key asked for by name is given its count.** Without one, I18nService.t falls back
 // on `_other`: "1 entries verified", exactly the sentence the pair exists to prevent, and nothing on
 // screen tells the missing argument apart from a correct plural. Only a literal reference can be read
@@ -760,8 +824,8 @@ if (countless.length > 0) {
 
 if (failed) {
     console.error(
-        'Fix the keys listed above: an unresolved key is shown as it stands, and a hedged or countless ' +
-            'plural reads wrong for every number but one.');
+        'Fix the keys listed above: an unresolved key or an HTML entity is shown as it stands, and a hedged ' +
+            'or countless plural reads wrong for every number but one.');
     process.exit(1);
 }
 
@@ -772,4 +836,5 @@ console.log(
     `${boundLabels} hard-coded labels inside a binding (ceiling ${BOUND_LABEL_CEILING}); ` +
     `${untranslated} untranslated strings in the templates (ceiling ${UNTRANSLATED_TEXT_CEILING}); ` +
     `${messagesInCode} sentences in the code (ceiling ${MESSAGES_IN_CODE_CEILING}); ` +
-    `no static attribute showing text (${STATIC_TOKENS.size} tokens allowed).`);
+    `no static attribute showing text (${STATIC_TOKENS.size} tokens allowed); ` +
+    `no word joined to a value (${CONCAT_TOKENS.size} tokens allowed); no HTML entity in a bundle.`);

@@ -9,6 +9,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { saveDocument } from '@/app/core/download';
+import { FRAMEWORKS, complianceStatusLabel, frameworkLabel } from '@/app/shared/compliance-labels';
 import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from '@/app/core/api.models';
 
 /**
@@ -52,7 +53,7 @@ export class Attestation {
      * loads is a grid nobody can compare against last month's screenshot, which is most of what
      * this page is for.
      */
-    private static readonly ORDER = ['NIS_2', 'ISO_27001', 'EU_CRA', 'DORA', 'PCI_DSS', 'SOC_2'];
+    private static readonly ORDER: readonly string[] = FRAMEWORKS;
 
     readonly frameworks = computed<ComplianceEvaluation[]>(() => {
         const evaluations = this.compliance()?.evaluations ?? [];
@@ -122,7 +123,16 @@ export class Attestation {
         return 'no';
     }
 
+    /**
+     * The framework's name and its verdict in words, through the maps every compliance screen reads.
+     * The tile printed the verdict as the server spells it — "PARTIAL", "NON_COMPLIANT" under a French
+     * heading — and the name by rewriting the constant's underscores.
+     */
     frameworkLabel(framework: string): string {
-        return framework.replace('_', ' ').replace('NIS 2', 'NIS 2').replace('EU CRA', 'EU CRA');
+        return frameworkLabel(this.i18n, framework);
+    }
+
+    statusLabel(status: string): string {
+        return complianceStatusLabel(this.i18n, status);
     }
 }

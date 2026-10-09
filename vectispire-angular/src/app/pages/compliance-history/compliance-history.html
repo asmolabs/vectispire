@@ -6,7 +6,7 @@
         @for (one of series(); track one.framework) {
             <div class="mb-8">
                 <div class="flex flex-wrap items-baseline gap-3 mb-3">
-                    <span class="font-medium">{{ one.framework }}</span>
+                    <span class="font-medium">{{ one.framework | frameworkLabel }}</span>
                     @if (!one.comparable) {
                         <span class="text-amber-700 text-sm">{{
                             'history_compliance.not_comparable' | translate

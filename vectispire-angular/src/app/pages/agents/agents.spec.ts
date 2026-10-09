@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Agents } from './agents';
 import { asSchema } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { SessionStore } from '@/app/core/session.store';
 import type { UnservedCredentialedScans } from '@/app/core/api.models';
 
@@ -68,6 +68,65 @@ describe('the agents screen, on concurrent scans', () => {
         }
         fixture.detectChanges();
     }
+
+    /**
+     * The two queue tags, read as a reader reads them. They were `count + ' en cours'` and
+     * `count + ' en attente'`: French words glued to a number, shown as such on the English screen.
+     */
+    it("counts the running and the waiting scans in the reader's language", () => {
+        const running = asSchema('RunningScanItem', {
+            scanId: 7,
+            targetType: 'repository' as const,
+            targetId: 3,
+            targetName: 'billing-api',
+            branch: 'main',
+            agentName: 'runner-dmz-01',
+            claimedAt: '2026-09-26T05:00:00Z',
+            agentId: AGENT.id,
+            requiredLabel: null,
+            durationSeconds: 40
+        });
+        const pending = asSchema('PendingScanItem', {
+            scanId: 8,
+            targetType: 'repository' as const,
+            targetId: 4,
+            targetName: 'ledger',
+            branch: 'main',
+            queuedAt: '2026-09-26T05:01:00Z',
+            requiredLabel: null,
+            isRoutable: true,
+            positionInQueue: 1,
+            waitDurationSeconds: 12
+        });
+        component.activity.set(
+            asSchema('AgentActivitySummary', {
+                runningScans: [running, { ...running, scanId: 9 }],
+                pendingScans: [pending, { ...pending, scanId: 10 }, { ...pending, scanId: 11 }],
+                stats: {
+                    avgScanDurationSeconds: 40,
+                    busyAgents: 1,
+                    idleAgents: 0,
+                    onlineAgents: 1,
+                    pendingScansCount: 3,
+                    runningScansCount: 2,
+                    scansCompleted24h: 5,
+                    totalAgents: 1
+                }
+            })
+        );
+        const tags = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('p-tag')]
+                .map((tag) => tag.textContent.trim())
+                .filter((text) => /^\d+ /.test(text));
+
+        fixture.detectChanges();
+        expect(tags()).toEqual(expect.arrayContaining(['2 running', '3 waiting']));
+        expect(tags().join(' ')).not.toMatch(/en cours|en attente/);
+
+        useFrench();
+        fixture.detectChanges();
+        expect(tags()).toEqual(expect.arrayContaining(['2 en cours', '3 en attente']));
+    });
 
     it('shows each agent as running out of allowed', () => {
         const cell = fixture.nativeElement.querySelector('td[title*="allowed at once"]') as HTMLElement;

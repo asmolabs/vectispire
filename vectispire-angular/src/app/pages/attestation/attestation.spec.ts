@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { Attestation } from './attestation';
 import { asSchema } from '@/app/core/testing/contract';
+import { useFrench } from '@/app/core/testing/english';
 
 /**
  * The auditor's page.
@@ -133,5 +134,23 @@ describe('the attestation', () => {
 
         expect(fixture.nativeElement.textContent).toContain("Chaîne d'audit intacte");
         expect(fixture.componentInstance.compliance()).toBeNull();
+    });
+
+    it('names each framework and its verdict in words, never as the server spells them', () => {
+        chain(true);
+        compliance();
+        useFrench();
+        fixture.detectChanges();
+
+        // The tiles are the grid's only children with a border: each reads name, score, verdict.
+        const tiles = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.grid > div.rounded-lg')].map(
+            (tile) => [...tile.querySelectorAll('span')].map((span) => span.textContent.replace(/\s+/g, ' ').trim())
+        );
+        expect(tiles).toEqual([
+            ['Directive NIS 2', '92 %', 'Conforme'],
+            ['PCI-DSS v4.0', '64 %', 'Partiel'],
+            ['SOC 2', '90 %', 'Conforme']
+        ]);
+        expect(fixture.nativeElement.textContent).not.toMatch(/PARTIAL|COMPLIANT|NIS_2|PCI_DSS/);
     });
 });

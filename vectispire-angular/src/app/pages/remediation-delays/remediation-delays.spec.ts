@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RemediationDelays } from './remediation-delays';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The deadlines, and the percentage the screen refuses to show.
@@ -94,5 +95,35 @@ describe('remediation times', () => {
 
         expect(component.barColour(critical)).toBe('#b91c1c');
         expect(component.barColour(high)).toBe('#d97706');
+    });
+
+    /** The rows as a reader sees them: the severity cell and the median cell of each. */
+    const cells = () =>
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')].map((row) => {
+            const tds = row.querySelectorAll('td');
+            return { severity: tds[0].textContent.trim(), median: tds[3].textContent.trim() };
+        });
+
+    it("names each severity in the reader's language, never as the server spells it", () => {
+        useEnglish();
+        fixture.detectChanges();
+        expect(cells().map((row) => row.severity)).toEqual(['Critical', 'High', 'Low']);
+
+        useFrench();
+        fixture.detectChanges();
+        expect(cells().map((row) => row.severity)).toEqual(['Critique', 'Élevée', 'Faible']);
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('— Critique');
+    });
+
+    it("writes a fractional median with the reader's decimal mark", () => {
+        useEnglish();
+        fixture.detectChanges();
+        expect(cells()[0].median).toBe('4.5');
+
+        // "11.4 jours" on the French screen: a point a French reader takes for a thousands separator.
+        useFrench();
+        fixture.detectChanges();
+        expect(cells()[0].median).toBe('4,5');
+        expect(cells()[1].median).toBe('6');
     });
 });

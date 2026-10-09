@@ -11,6 +11,7 @@ import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { messageOf } from '@/app/core/api-error';
+import { TargetKindPipe } from '@/app/shared/target-kind';
 
 @Component({
     selector: 'app-blast-radius',
@@ -22,7 +23,8 @@ import { messageOf } from '@/app/core/api-error';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        TranslatePipe
+        TranslatePipe,
+        TargetKindPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './blast-radius.html'

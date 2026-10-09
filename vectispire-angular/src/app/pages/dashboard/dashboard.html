@@ -115,7 +115,7 @@
 
             <div class="flex flex-col justify-center gap-4">
                 <div>
-                    <div class="text-muted-color text-sm">{{ 'dashboard.mean_time_resolve' | translate }} (Global)</div>
+                    <div class="text-muted-color text-sm">{{ 'dashboard.mean_time_resolve_global' | translate }}</div>
                     <div id="mean-days-to-resolve" class="text-3xl font-semibold mt-1">{{ meanLabel() }}</div>
                     <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
                 </div>
@@ -127,50 +127,54 @@
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div
-                                class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center"
+                                class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center gap-1"
                             >
                                 <span class="font-bold text-red-600 dark:text-red-400">{{
                                     'dashboard.sev_critical' | translate
                                 }}</span>
-                                <span class="font-mono font-semibold">{{
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
                                     pa.mttrBySeverity?.['CRITICAL'] != null
-                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['CRITICAL'] })
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['CRITICAL'] | localNumber) })
                                         : '—'
                                 }}</span>
                             </div>
                             <div
-                                class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center"
+                                class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center gap-1"
                             >
                                 <span class="font-bold text-amber-600 dark:text-amber-400">{{
                                     'dashboard.sev_high' | translate
                                 }}</span>
-                                <span class="font-mono font-semibold">{{
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
                                     pa.mttrBySeverity?.['HIGH'] != null
-                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['HIGH'] })
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['HIGH'] | localNumber) })
                                         : '—'
                                 }}</span>
                             </div>
                             <div
-                                class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center"
+                                class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center gap-1"
                             >
                                 <span class="font-bold text-blue-600 dark:text-blue-400">{{
                                     'dashboard.sev_medium' | translate
                                 }}</span>
-                                <span class="font-mono font-semibold">{{
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
                                     pa.mttrBySeverity?.['MEDIUM'] != null
-                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['MEDIUM'] })
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['MEDIUM'] | localNumber) })
                                         : '—'
                                 }}</span>
                             </div>
                             <div
-                                class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center"
+                                class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center gap-1"
                             >
                                 <span class="font-semibold text-muted-color">{{
                                     'dashboard.sev_low' | translate
                                 }}</span>
-                                <span class="font-mono font-semibold">{{
+                                <span class="font-mono font-semibold whitespace-nowrap">{{
                                     pa.mttrBySeverity?.['LOW'] != null
-                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['LOW'] })
+                                        ? ('dashboard.days_short'
+                                          | translate: { count: (pa.mttrBySeverity['LOW'] | localNumber) })
                                         : '—'
                                 }}</span>
                             </div>
@@ -189,7 +193,7 @@
                                     'dashboard.resolution_ratio'
                                         | translate
                                             : {
-                                                  percent: pa.netResolutionRatePercentage,
+                                                  percent: (pa.netResolutionRatePercentage | localNumber),
                                                   resolved: pa.totalResolvedInWindow,
                                                   opened: pa.totalOpenedInWindow
                                               }
@@ -210,7 +214,11 @@
                     <div class="flex items-center justify-between">
                         <span>{{ 'dashboard.estimated_debt' | translate }}</span>
                         <p-tag
-                            [value]="debt.totalEstimatedPersonDays + ' ' + ('dashboard.person_days' | translate)"
+                            [value]="
+                                (debt.totalEstimatedPersonDays | localNumber) +
+                                ' ' +
+                                ('dashboard.person_days' | translate)
+                            "
                             severity="warn"
                         />
                     </div>
@@ -223,44 +231,46 @@
                         class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
                     >
                         <span class="text-muted-color">{{ 'dashboard.debt_sca' | translate }}</span>
-                        <span class="font-semibold">{{ debt.vulnerabilitiesDebtHours }} h</span>
+                        <span class="font-semibold">{{ debt.vulnerabilitiesDebtHours | localNumber }} h</span>
                     </div>
                     <div
                         class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
                     >
                         <span class="text-muted-color">{{ 'dashboard.debt_secrets' | translate }}</span>
-                        <span class="font-semibold">{{ debt.secretsDebtHours }} h</span>
+                        <span class="font-semibold">{{ debt.secretsDebtHours | localNumber }} h</span>
                     </div>
                     <div
                         class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
                     >
                         <span class="text-muted-color">{{ 'dashboard.debt_sast' | translate }}</span>
-                        <span class="font-semibold">{{ debt.sastDebtHours }} h</span>
+                        <span class="font-semibold">{{ debt.sastDebtHours | localNumber }} h</span>
                     </div>
                     <div
                         class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
                     >
                         <span class="text-muted-color">{{ 'dashboard.debt_iac' | translate }}</span>
-                        <span class="font-semibold">{{ debt.iacDebtHours }} h</span>
+                        <span class="font-semibold">{{ debt.iacDebtHours | localNumber }} h</span>
                     </div>
                     <div
                         class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
                     >
                         <span class="text-muted-color">{{ 'dashboard.debt_licenses' | translate }}</span>
-                        <span class="font-semibold">{{ debt.licenseDebtHours }} h</span>
+                        <span class="font-semibold">{{ debt.licenseDebtHours | localNumber }} h</span>
                     </div>
                     <div
                         class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
                     >
                         <span class="text-muted-color">{{ 'dashboard.debt_eol' | translate }}</span>
-                        <span class="font-semibold">{{ debt.eolDebtHours }} h</span>
+                        <span class="font-semibold">{{ debt.eolDebtHours | localNumber }} h</span>
                     </div>
                     <div
                         class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400"
                     >
                         <span>{{ 'dashboard.debt_total' | translate }}</span>
                         <span
-                            >{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }}
+                            >{{ debt.totalEstimatedHours | localNumber }} h (~{{
+                                debt.totalEstimatedPersonDays | localNumber
+                            }}
                             {{ 'dashboard.person_days' | translate }})</span
                         >
                     </div>
@@ -311,10 +321,10 @@
                                     }
                                 </td>
                                 <td>
-                                    <span class="font-mono text-sm">{{ fix.estimatedHours }} h</span>
+                                    <span class="font-mono text-sm">{{ fix.estimatedHours | localNumber }} h</span>
                                 </td>
                                 <td>
-                                    <p-tag [value]="fix.leverageScore + 'x'" severity="success" />
+                                    <p-tag [value]="(fix.leverageScore | localNumber) + 'x'" severity="success" />
                                 </td>
                                 <td>
                                     <div
@@ -430,7 +440,7 @@
                     <tr>
                         <td>
                             <div class="font-bold text-sm">{{ target.targetName }}</div>
-                            <div class="text-xs text-muted-color">{{ target.targetKind }}</div>
+                            <div class="text-xs text-muted-color">{{ target.targetKind | targetKind }}</div>
                         </td>
                         <td>
                             <!-- A target nobody scanned has no grade and no score: "/100" and an empty
@@ -496,7 +506,8 @@
                         <td class="text-right font-mono text-xs">
                             {{
                                 target.targetMttrDays != null
-                                    ? ('dashboard.days_count' | translate: { count: target.targetMttrDays })
+                                    ? ('dashboard.days_count'
+                                      | translate: { count: (target.targetMttrDays | localNumber) })
                                     : '—'
                             }}
                         </td>
@@ -604,11 +615,11 @@
                         <a [routerLink]="['/scans', scan.id]">{{
                             scan.targetName ??
                                 (scan.targetKind === 'container'
-                                    ? 'Container ' + scan.containerId
-                                    : 'Repository ' + scan.repoId)
+                                    ? ('dashboard.container_numbered' | translate: { id: scan.containerId ?? '—' })
+                                    : ('dashboard.repository_numbered' | translate: { id: scan.repoId ?? '—' }))
                         }}</a>
                         <div class="text-xs text-muted-color">
-                            {{ scan.targetKind === 'container' ? 'image' : 'repository' }}
+                            {{ scan.targetKind | targetKind }}
                         </div>
                     </td>
                     <td><app-last-scan [scan]="scan" /></td>

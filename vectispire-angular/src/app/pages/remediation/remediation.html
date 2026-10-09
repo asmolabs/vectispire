@@ -42,7 +42,7 @@
                 <div class="text-sm text-muted-color">{{ 'remediation.critical' | translate }}</div>
             </div>
             <div>
-                <div class="text-2xl font-semibold">{{ d.totalEstimatedPersonDays }}</div>
+                <div class="text-2xl font-semibold">{{ d.totalEstimatedPersonDays | localNumber }}</div>
                 <div class="text-sm text-muted-color">{{ 'remediation.person_days' | translate }}</div>
             </div>
             <div>
@@ -165,7 +165,7 @@
                             <div class="mt-2 text-sm text-muted-color">
                                 {{ 'remediation.closes' | translate }} {{ fix.cveCountResolved }} ·
                                 {{ fix.affectedTargetNames.length }} {{ 'remediation.targets' | translate }} · ~{{
-                                    fix.estimatedHours
+                                    fix.estimatedHours | localNumber
                                 }}
                                 h
                             </div>
@@ -173,7 +173,9 @@
 
                         <div class="flex items-center gap-2 shrink-0">
                             <div class="text-right">
-                                <div class="text-lg font-semibold tabular-nums">{{ fix.leverageScore }}</div>
+                                <div class="text-lg font-semibold tabular-nums">
+                                    {{ fix.leverageScore | localNumber }}
+                                </div>
                                 <div class="text-xs text-muted-color">{{ 'remediation.leverage' | translate }}</div>
                             </div>
                             <p-button
@@ -222,7 +224,10 @@
 
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div class="text-sm text-muted-color">
-                {{ 'remediation.plan_total' | translate }} {{ closedByTheList() }} · ~{{ hoursOfTheList() }} h
+                {{ 'remediation.plan_total' | translate }} {{ closedByTheList() }} · ~{{
+                    hoursOfTheList() | localNumber
+                }}
+                h
             </div>
 
             <!--

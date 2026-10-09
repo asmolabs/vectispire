@@ -12,6 +12,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/core/api.models';
+import { SeverityLabelPipe } from '@/app/shared/severity';
 
 /**
  * What somebody decided not to fix, and on what conditions.
@@ -38,7 +39,8 @@ import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/co
         InputTextModule,
         MessageModule,
         TagModule,
-        TranslatePipe
+        TranslatePipe,
+        SeverityLabelPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './exceptions.html'

@@ -28,6 +28,8 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 };
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
  * Why a plugin's report was refused, through literal keys (decision 0019): the tag used to build
@@ -59,7 +61,9 @@ export type Examination =
         TagModule,
         LastScanTag,
         TranslatePipe,
-        RuleCoverageBanner
+        RuleCoverageBanner,
+        SeverityLabelPipe,
+        LocalNumberPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './scan-detail.html'

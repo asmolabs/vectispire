@@ -42,7 +42,9 @@ describe('I18nService & TranslatePipe', () => {
             lose_one: '{{count}} membre perd {{targets}}.',
             lose_other: '{{count}} membres perdent {{targets}}.',
             targets_one: '{{count}} cible',
-            targets_other: '{{count}} cibles'
+            targets_other: '{{count}} cibles',
+            mean_one: '{{count}} jour',
+            mean_other: '{{count}} jours'
         }
     };
 
@@ -121,6 +123,22 @@ describe('I18nService & TranslatePipe', () => {
             expect(service.t('scans.mean', { count: '2.5' })).toBe('2.5 days');
         });
 
+        it('reads a French figure in its own marks, as `decimal` wrote it', async () => {
+            // `Number('1,5')` is NaN: read with the English point, every French decimal took the
+            // general form, and "1,5 jours" is not what French says — 1,5 is singular there.
+            await service.setLanguage('fr');
+            expect(service.t('scans.mean', { count: service.decimal(1.5) })).toBe('1,5 jour');
+            expect(service.t('scans.mean', { count: service.decimal(1, 1, 1) })).toBe('1,0 jour');
+            expect(service.t('scans.mean', { count: service.decimal(2.5) })).toBe('2,5 jours');
+            expect(service.t('scans.mean', { count: service.decimal(1234.5) })).toBe('1\u202f234,5 jours');
+        });
+
+        it('reads an English figure with its grouping, not as a decimal', async () => {
+            await service.setLanguage('en');
+            expect(service.t('scans.mean', { count: service.decimal(1, 1, 1) })).toBe('1.0 days');
+            expect(service.t('scans.mean', { count: service.decimal(1234.5) })).toBe('1,234.5 days');
+        });
+
         it('gives the general form to a plural key asked without a count, never the raw key', async () => {
             await service.setLanguage('en');
             expect(service.t('scans.queued')).toBe('Scan queued for {{count}} repositories.');
@@ -147,6 +165,25 @@ describe('I18nService & TranslatePipe', () => {
             await service.setLanguage('en');
             const pipe = TestBed.inject(TranslatePipe);
             expect(pipe.transform('scans.queued', { count: 1 })).toBe('Scan queued for 1 repository.');
+        });
+    });
+
+    describe('figures', () => {
+        it("writes a decimal in the reader's mark", async () => {
+            await service.setLanguage('en');
+            expect(service.decimal(11.4)).toBe('11.4');
+            expect(service.decimal(12.25, 1)).toBe('12.3');
+            expect(service.decimal(5, 1, 1)).toBe('5.0');
+            await service.setLanguage('fr');
+            expect(service.decimal(11.4)).toBe('11,4');
+            expect(service.decimal(5, 1, 1)).toBe('5,0');
+            expect(service.decimal(0.00043 * 100, 3)).toBe('0,043');
+        });
+
+        it('drops a trailing zero unless a width is asked for', async () => {
+            await service.setLanguage('fr');
+            expect(service.decimal(12)).toBe('12');
+            expect(service.decimal(12.5)).toBe('12,5');
         });
     });
 });

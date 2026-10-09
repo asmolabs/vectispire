@@ -10,7 +10,7 @@ import { messageOf } from '@/app/core/api-error';
 import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { keyFor } from '@/app/core/i18n/literal-keys';
-import { STATUS_KEYS } from '@/app/shared/compliance-summary';
+import { COMPLIANCE_STATUS_KEYS, frameworkLabel } from '@/app/shared/compliance-labels';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type {
@@ -213,7 +213,12 @@ export class Soa {
     }
 
     measuredLabel(value: string | null): string {
-        return value ? this.labelOf(STATUS_KEYS, value) : '—';
+        return value ? this.labelOf(COMPLIANCE_STATUS_KEYS, value) : '—';
+    }
+
+    /** A declaration's framework by its name; one this client does not know (`OWASP_2021`) as sent. */
+    frameworkLabel(value: string): string {
+        return frameworkLabel(this.i18n, value);
     }
 
     divergenceLabel(value: string): string {

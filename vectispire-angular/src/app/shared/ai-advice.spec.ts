@@ -78,7 +78,14 @@ describe('the advisor wording', () => {
     });
 
     it('does not round a small measured score to zero', () => {
-        expect(epssPercent(0.00043)).toBe('0.043');
-        expect(epssPercent(0.975)).toBe('97.5');
+        expect(epssPercent(i18n, 0.00043)).toBe('0.043');
+        expect(epssPercent(i18n, 0.975)).toBe('97.5');
+    });
+
+    it("writes the probability in the reader's decimal mark", () => {
+        i18n.currentLang.set('fr');
+        expect(epssPercent(i18n, 0.00043)).toBe('0,043');
+        expect(epssPercent(i18n, 0.975)).toBe('97,5');
+        expect(adviceExploitation(i18n, OWN)).toBe('KEV-LISTED EPSS 94,358');
     });
 });

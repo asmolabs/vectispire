@@ -32,7 +32,7 @@ export function adviceExploitation(i18n: I18nService, own: AiDeterministic): str
     const epss =
         own.exploitProbability == null
             ? i18n.t('ai.epss_unknown')
-            : i18n.t('ai.epss', { chance: epssPercent(own.exploitProbability) });
+            : i18n.t('ai.epss', { chance: epssPercent(i18n, own.exploitProbability) });
     return `${kev} ${epss}`;
 }
 
@@ -53,8 +53,9 @@ export function adviceFix(i18n: I18nService, own: AiDeterministic): string {
 
 /**
  * A probability as a percentage, to three decimals at most. One decimal wrote 0.0 % for most of
- * FIRST's scores — measured, small, and not zero.
+ * FIRST's scores — measured, small, and not zero. In the reader's decimal mark: French reads
+ * "0,043 %", and `toFixed` wrote the English point on both screens.
  */
-export function epssPercent(probability: number): string {
-    return String(Number((probability * 100).toFixed(3)));
+export function epssPercent(i18n: Pick<I18nService, 'decimal'>, probability: number): string {
+    return i18n.decimal(probability * 100, 3);
 }

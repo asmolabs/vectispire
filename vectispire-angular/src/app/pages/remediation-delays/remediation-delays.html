@@ -16,7 +16,7 @@
                 <div class="text-sm">
                     <strong>{{ 'delays.oldest_open' | translate }}</strong>
                     @if (data.oldestOpenSeverity) {
-                        <span> — {{ data.oldestOpenSeverity }}</span>
+                        <span> — {{ data.oldestOpenSeverity | severityLabel }}</span>
                     }
                     <span class="block text-muted-color">{{ 'delays.oldest_open_help' | translate }}</span>
                 </div>
@@ -55,7 +55,7 @@
                 <tbody>
                     @for (row of rows(); track row.severity) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
-                            <td class="py-3 pr-4 font-medium">{{ row.severity }}</td>
+                            <td class="py-3 pr-4 font-medium">{{ row.severity | severityLabel }}</td>
                             <td
                                 class="py-3 pr-4 text-muted-color whitespace-nowrap"
                                 style="font-variant-numeric: tabular-nums"
@@ -74,7 +74,7 @@
                                 } @else if (hasDeadline(row)) {
                                     <div class="flex items-baseline gap-2 mb-1">
                                         <span class="font-medium" style="font-variant-numeric: tabular-nums"
-                                            >{{ row.percentageWithinSla }}&nbsp;%</span
+                                            >{{ row.percentageWithinSla | localNumber }}&nbsp;%</span
                                         >
                                         <span
                                             class="text-muted-color text-xs"
@@ -99,10 +99,10 @@
                                 }
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
-                                {{ row.medianDays ?? '—' }}
+                                {{ (row.medianDays | localNumber) ?? '—' }}
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
-                                {{ row.ninetiethDays ?? '—' }}
+                                {{ (row.ninetiethDays | localNumber) ?? '—' }}
                             </td>
                             <td
                                 class="py-3 pr-4 whitespace-nowrap"

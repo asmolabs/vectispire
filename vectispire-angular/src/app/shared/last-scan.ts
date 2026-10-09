@@ -1,7 +1,19 @@
 import { DatePipe } from '@angular/common';
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, input, ChangeDetectionStrategy } from '@angular/core';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { I18nService } from '../core/i18n/i18n.service';
 import type { LastScan } from '../core/api.models';
+import { scanStatusLabel } from './scan-status';
+
+/** The tag's colour; the words are `SCAN_STATUS_KEYS`, shared with the history. */
+const STATUS_SEVERITY: Record<string, 'success' | 'warn' | 'danger' | 'info'> = {
+    pending: 'info',
+    scanning: 'info',
+    completed: 'success',
+    failed: 'danger',
+    cancelled: 'warn'
+};
 
 /**
  * The state of a target's last scan, repository or container alike.
@@ -10,27 +22,6 @@ import type { LastScan } from '../core/api.models';
  * **"never scanned" is not "no problem"**, it is an absence of observation. A screen that
  * renders an empty cell in that case lies by omission.
  */
-/**
- * The keys are the database's, not the ones you would expect.
- *
- * `pending` and `scanning` — not `queued` and `running` — because those are the values the
- * column holds. The first version used the expected names and the screen displayed a raw
- * "pending": the closed table had done its job by showing the unknown value rather than
- * hiding it behind a reassuring label, but it translated nothing. Seen on screen, not in
- * review.
- */
-import { inject } from '@angular/core';
-import { TranslatePipe } from '../core/i18n/translate.pipe';
-import { I18nService } from '../core/i18n/i18n.service';
-
-const STATUS_KEYS: Record<string, { key: string; severity: 'success' | 'warn' | 'danger' | 'info' }> = {
-    pending: { key: 'scans.status_queued', severity: 'info' },
-    scanning: { key: 'scans.status_running', severity: 'info' },
-    completed: { key: 'scans.status_completed', severity: 'success' },
-    failed: { key: 'scans.status_failed', severity: 'danger' },
-    cancelled: { key: 'scans.status_cancelled', severity: 'warn' }
-};
-
 @Component({
     selector: 'app-last-scan',
     imports: [DatePipe, TagModule, TranslatePipe],
@@ -42,11 +33,10 @@ export class LastScanTag {
     readonly scan = input.required<LastScan | null>();
 
     label(status: string): string {
-        const item = STATUS_KEYS[status];
-        return item ? this.i18n.t(item.key) : status;
+        return scanStatusLabel(this.i18n, status);
     }
 
     severity(status: string): 'success' | 'warn' | 'danger' | 'info' {
-        return STATUS_KEYS[status]?.severity ?? 'info';
+        return STATUS_SEVERITY[status] ?? 'info';
     }
 }

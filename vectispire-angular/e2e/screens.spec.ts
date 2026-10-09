@@ -763,8 +763,8 @@ test.describe('documentation screenshots', () => {
             await openScreen(page, '/dashboard');
 
             await expect(page.getByText('helios-portal').first()).toBeVisible({ timeout: 15_000 });
-            // The velocity line, by its figures: the same in both editions.
-            await expect(page.getByText(/55\.3\s?%/).first()).toBeVisible({ timeout: 15_000 });
+            // The velocity line, by its figures — each edition in its own decimal mark: "55.3 %", "55,3 %".
+            await expect(page.getByText(/55[.,]3\s?%/).first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'dashboard', locale);
         });
 

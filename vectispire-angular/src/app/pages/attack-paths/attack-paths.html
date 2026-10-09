@@ -278,7 +278,7 @@
                                 >
                                 <p-tag
                                     [severity]="getSeverityBadge(node.severity)"
-                                    [value]="node.severity"
+                                    [value]="node.severity | severityLabel"
                                     size="small"
                                 />
                             </div>
@@ -328,7 +328,7 @@
                                 }}</span>
                                 <p-tag
                                     [severity]="getSeverityBadge(node.severity)"
-                                    [value]="node.severity"
+                                    [value]="node.severity | severityLabel"
                                     size="small"
                                 />
                             </div>
@@ -422,7 +422,7 @@
                                 </span>
                             }
                         </div>
-                        <p-tag [severity]="getSeverityBadge(path.riskLevel)" [value]="path.riskLevel" />
+                        <p-tag [severity]="getSeverityBadge(path.riskLevel)" [value]="path.riskLevel | severityLabel" />
                     </div>
 
                     <!--
@@ -560,7 +560,7 @@
                     <i [class]="getNodeIcon(node.type)" class="text-xl"></i>
                     <span class="text-base font-bold">{{ node.label }}</span>
                 </div>
-                <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity" />
+                <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity | severityLabel" />
             </div>
 
             <div class="p-3 rounded-lg bg-surface-100 dark:bg-surface-800 text-xs flex flex-col gap-1">

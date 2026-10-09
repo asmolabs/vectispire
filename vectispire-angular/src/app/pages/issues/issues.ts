@@ -48,6 +48,7 @@ import { ANY_CATEGORY, isoDay, mondayOf, owaspCategory } from '@/app/shared/owas
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { SeverityLabelPipe } from '@/app/shared/severity';
 
 @Component({
     selector: 'zs-issues',
@@ -66,7 +67,8 @@ import { LatestRequest } from '@/app/core/latest-request';
         TextareaModule,
         MessageModule,
         ToggleSwitchModule,
-        TranslatePipe
+        TranslatePipe,
+        SeverityLabelPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './issues.html'

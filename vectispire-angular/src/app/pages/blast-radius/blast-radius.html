@@ -485,7 +485,7 @@
                                         t.targetName
                                     }}</span>
                                     <p-tag
-                                        [value]="t.targetKind"
+                                        [value]="t.targetKind | targetKind"
                                         [severity]="t.targetKind === 'REPOSITORY' ? 'info' : 'warn'"
                                     ></p-tag>
                                 </div>

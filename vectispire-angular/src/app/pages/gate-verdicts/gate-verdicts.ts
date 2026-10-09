@@ -9,6 +9,8 @@ import { GateApi } from '@/app/core/api/gate.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
  * What the gate answered, newest first.
@@ -24,7 +26,16 @@ import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
  */
 @Component({
     selector: 'zs-gate-verdicts',
-    imports: [DatePipe, FormsModule, ButtonModule, MessageModule, TagModule, TranslatePipe],
+    imports: [
+        DatePipe,
+        FormsModule,
+        ButtonModule,
+        MessageModule,
+        TagModule,
+        TranslatePipe,
+        SeverityLabelPipe,
+        LocalNumberPipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './gate-verdicts.html'
 })

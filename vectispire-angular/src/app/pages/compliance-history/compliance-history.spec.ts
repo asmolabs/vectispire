@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ComplianceHistoryPage } from './compliance-history';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * Progress, and the colour it refuses to give a drop.
@@ -97,6 +98,18 @@ describe('compliance progress', () => {
         const component = fixture.componentInstance;
         expect(component.height(step('2026-08', 50, 'STEADY') as never)).toBe(50);
         expect(component.height(step('2026-08', 0, 'STEADY') as never)).toBeGreaterThan(0);
+    });
+
+    it("heads each series with the standard's name, not the Java constant", () => {
+        const heading = () =>
+            (fixture.nativeElement as HTMLElement).querySelector('span.font-medium')!.textContent.trim();
+        useEnglish();
+        fixture.detectChanges();
+        expect(heading()).toBe('ISO/IEC 27001:2022');
+        useFrench();
+        fixture.detectChanges();
+        expect(heading()).toBe('ISO/IEC 27001:2022');
+        expect(fixture.nativeElement.textContent).not.toContain('ISO_27001');
     });
 
     it('announces the absence of captures rather than an empty chart', async () => {

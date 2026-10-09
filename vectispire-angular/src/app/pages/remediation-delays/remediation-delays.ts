@@ -5,6 +5,8 @@ import { RemediationApi } from '@/app/core/api/remediation.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/api.models';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
  * Remediation times, by the distribution's tail and not by the mean.
@@ -21,7 +23,7 @@ import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/
  */
 @Component({
     selector: 'zs-remediation-delays',
-    imports: [MessageModule, TranslatePipe],
+    imports: [MessageModule, TranslatePipe, SeverityLabelPipe, LocalNumberPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remediation-delays.html'
 })

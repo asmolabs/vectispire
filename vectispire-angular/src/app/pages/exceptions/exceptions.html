@@ -73,7 +73,7 @@
                                     <div class="font-medium font-mono text-xs">{{ entry.identifier ?? '—' }}</div>
                                     <p-tag
                                         [severity]="severityOf(entry)"
-                                        [value]="entry.severity ?? '—'"
+                                        [value]="entry.severity | severityLabel"
                                         styleClass="mt-1"
                                     />
                                 </td>

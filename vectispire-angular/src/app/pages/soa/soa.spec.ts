@@ -199,12 +199,15 @@ describe('the statement of applicability', () => {
     it('opens the overdue-review counter onto the list, across all frameworks', () => {
         // **A number you cannot open is not a record of review, it is a reproach.** Every document
         // displayed "n reviews overdue" and nothing said which, although the route existed.
+        useEnglish();
+        fixture.detectChanges();
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('ISO-A.8.8');
         expect(text).toContain('NIS2-ART21-2-E');
         // The framework is named on every row: the list crosses documents, and a row without its
-        // framework attaches to nothing.
-        expect(text).toContain('NIS_2');
+        // framework attaches to nothing. By its standard's name — the row printed `NIS_2`.
+        expect(text).toContain('NIS 2 Directive');
+        expect(text).not.toContain('NIS_2');
         expect(text).toContain('c.moreau');
     });
 

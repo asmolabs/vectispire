@@ -203,8 +203,8 @@ export class ProjectReports {
     size(bytes: number | null): string {
         if (bytes === null) return '—';
         if (bytes < 1024) return this.i18n.t('reports.size_bytes', { n: bytes });
-        if (bytes < 1024 * 1024) return this.i18n.t('reports.size_kib', { n: (bytes / 1024).toFixed(1) });
-        return this.i18n.t('reports.size_mib', { n: (bytes / (1024 * 1024)).toFixed(1) });
+        if (bytes < 1024 * 1024) return this.i18n.t('reports.size_kib', { n: this.i18n.decimal(bytes / 1024, 1, 1) });
+        return this.i18n.t('reports.size_mib', { n: this.i18n.decimal(bytes / (1024 * 1024), 1, 1) });
     }
 
     // --- Activations ---------------------------------------------------------------------------------

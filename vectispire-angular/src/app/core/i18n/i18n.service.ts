@@ -106,14 +106,43 @@ export class I18nService {
     }
 
     /**
+     * A figure with decimals, in the reader's decimal mark: "12.5" in English, "12,5" in French.
+     *
+     * `toFixed` and a bare `{{ value }}` write the English mark whatever the language, and the
+     * French screens read "11.4 jours" — a decimal point a French reader takes for a thousands
+     * separator. `minimumFractionDigits` keeps a fixed width where a column or a tile wants one
+     * ("5,0 j" beside "12,5 j"); the default drops a trailing zero.
+     */
+    decimal(value: number, maximumFractionDigits = 1, minimumFractionDigits = 0): string {
+        return this.numberFormat(maximumFractionDigits, minimumFractionDigits).format(value);
+    }
+
+    private numberFormat(maximumFractionDigits: number, minimumFractionDigits: number): Intl.NumberFormat {
+        return new Intl.NumberFormat(this.currentLang(), { maximumFractionDigits, minimumFractionDigits });
+    }
+
+    /** The current language's decimal and grouping marks, to read back a figure `decimal` wrote. */
+    private readonly marks = computed(() => {
+        const parts = new Intl.NumberFormat(this.currentLang()).formatToParts(12345.6);
+        return {
+            decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.',
+            group: parts.find((part) => part.type === 'group')?.value ?? ','
+        };
+    });
+
+    /**
      * A count passed as text keeps its decimals for the rule: "1.0" is plural in English ("1.0
-     * days") although the number it parses to is 1.
+     * days") although the number it parses to is 1. The text is read in the current language's
+     * marks, since `decimal` wrote it so: `Number("1,5")` is `NaN`, and a French "1,5 jour" would
+     * have fallen to the plural form.
      */
     private pluralForm(count: string | number): Intl.LDMLPluralRule {
         if (typeof count === 'number') return this.pluralRules().select(count);
-        const value = Number(count);
+        const { decimal, group } = this.marks();
+        const plain = count.split(group).join('').split(decimal).join('.');
+        const value = Number(plain);
         if (!Number.isFinite(value)) return 'other';
-        const decimals = count.split('.')[1]?.length ?? 0;
+        const decimals = plain.split('.')[1]?.length ?? 0;
         return decimals === 0
             ? this.pluralRules().select(value)
             : new Intl.PluralRules(this.currentLang(), { minimumFractionDigits: decimals }).select(value);

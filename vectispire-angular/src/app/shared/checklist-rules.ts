@@ -8,6 +8,7 @@ import type {
 } from '../core/api.models';
 import { I18nService } from '../core/i18n/i18n.service';
 import { findingTypeLabel } from './finding-types';
+import { SEVERITIES, severityLabel } from './severity';
 
 /**
  * The rules a checklist line is measured by (decision 0032 §6), **written once for both screens**: the
@@ -47,16 +48,8 @@ export const RULE_KIND_KEYS = {
     change_review: 'checklist_rules.kind_change_review'
 } as const satisfies Record<ChecklistRuleKind, string>;
 
-export const SEVERITIES: readonly ChecklistSeverity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'];
-
-export const SEVERITY_KEYS = {
-    critical: 'severities.critical',
-    high: 'severities.high',
-    medium: 'severities.medium',
-    low: 'severities.low',
-    negligible: 'severities.negligible',
-    unknown: 'severities.unknown'
-} as const satisfies Record<ChecklistSeverity, string>;
+// The severities and their words are every screen's, not the rules' alone: `shared/severity.ts`.
+export { SEVERITIES, SEVERITY_KEYS, severityLabel } from './severity';
 
 export type CoverageMetric = NonNullable<ChecklistRule['metric']>;
 export type CoverageAggregation = NonNullable<ChecklistRule['aggregation']>;
@@ -685,20 +678,15 @@ export function sameRule(a: ChecklistRule | null, b: ChecklistRule | null): bool
 // ---------------------------------------------------------------------- in words
 
 /** A ratio as a person reads it: 0.6 is 60, 0.3333 is 33.33. */
-export function percentOf(ratio: number): string {
-    return String(Math.round(ratio * 1_000_000) / 10_000);
+export function percentOf(i18n: Pick<I18nService, 'decimal'>, ratio: number): string {
+    // In the reader's decimal mark: a KPI of "87,5 %" is a French sentence, "87.5 %" is not.
+    return i18n.decimal(ratio * 100, 4);
 }
 
 export function ruleKindLabel(i18n: I18nService, kind: string): string {
     i18n.translations();
     const key = (RULE_KIND_KEYS as Record<string, string | undefined>)[kind];
     return key ? i18n.t(key) : kind;
-}
-
-export function severityLabel(i18n: I18nService, severity: string): string {
-    i18n.translations();
-    const key = (SEVERITY_KEYS as Record<string, string | undefined>)[severity];
-    return key ? i18n.t(key) : severity;
 }
 
 /**
@@ -723,7 +711,9 @@ function thresholdWords(i18n: I18nService, severity: string, threshold: Checklis
         parts.push(i18n.t('checklist_rules.summary_max_open', { count: threshold.maxOpen }));
     }
     if (threshold.minResolvedRatio !== null && threshold.minResolvedRatio !== undefined) {
-        parts.push(i18n.t('checklist_rules.summary_min_resolved', { percent: percentOf(threshold.minResolvedRatio) }));
+        parts.push(
+            i18n.t('checklist_rules.summary_min_resolved', { percent: percentOf(i18n, threshold.minResolvedRatio) })
+        );
     }
     return `${severityLabel(i18n, severity)} — ${parts.join(', ')}`;
 }
@@ -763,7 +753,7 @@ export function describeRule(i18n: I18nService, rule: ChecklistRule): string[] {
                     metric: rule.metric ? i18n.t(METRIC_KEYS[rule.metric]) : '—',
                     percent:
                         rule.minimumRatio !== null && rule.minimumRatio !== undefined
-                            ? percentOf(rule.minimumRatio)
+                            ? percentOf(i18n, rule.minimumRatio)
                             : '—',
                     aggregation: rule.aggregation ? i18n.t(AGGREGATION_KEYS[rule.aggregation]) : '—'
                 })
@@ -813,7 +803,7 @@ export function describeRule(i18n: I18nService, rule: ChecklistRule): string[] {
                     count: rule.minimumApprovals ?? 0,
                     percent:
                         rule.minimumRatio !== null && rule.minimumRatio !== undefined
-                            ? percentOf(rule.minimumRatio)
+                            ? percentOf(i18n, rule.minimumRatio)
                             : '—',
                     days: rule.windowDays ?? 0
                 })

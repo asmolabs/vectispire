@@ -101,7 +101,10 @@
                 <div class="flex items-center gap-2">
                     <span class="font-semibold">{{ 'history.scan_number' | translate: { id: scan.id } }}</span>
                     <span class="text-muted-color">{{ scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
-                    <p-tag [value]="scan.status" [severity]="scan.status === 'completed' ? 'success' : 'danger'" />
+                    <p-tag
+                        [value]="scan.status | scanStatus"
+                        [severity]="scan.status === 'completed' ? 'success' : 'danger'"
+                    />
                     @if (scan.version) {
                         <p-tag [value]="scan.version" severity="secondary" />
                     }
@@ -161,7 +164,7 @@
                             <tr>
                                 <td>
                                     <p-tag
-                                        [value]="issue.severity ?? 'unknown'"
+                                        [value]="issue.severity ?? 'unknown' | severityLabel"
                                         [severity]="severityOf(issue.severity)"
                                     />
                                 </td>
@@ -208,7 +211,7 @@
                                         </div>
                                     }
                                 </td>
-                                <td>{{ issue.state }}</td>
+                                <td>{{ issue.state | issueState }}</td>
                                 <td>{{ triageLabel(issue.triageStatus) }}</td>
                             </tr>
                         </ng-template>

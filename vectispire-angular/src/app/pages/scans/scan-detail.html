@@ -7,7 +7,7 @@
         <p class="text-muted-color mt-1 mb-0">
             {{ detail.scan.branch }} · {{ detail.scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}
             @if (detail.scan.durationMs) {
-                · {{ seconds(detail.scan.durationMs) }} s
+                · {{ seconds(detail.scan.durationMs) | localNumber }} s
             }
             @if (detail.projectType) {
                 · {{ detail.projectType }}
@@ -296,7 +296,9 @@
             <ng-template #body let-finding>
                 <tr>
                     <td>{{ typeLabel(finding.type) }}</td>
-                    <td><p-tag [value]="finding.severity" [severity]="severityOf(finding.severity)" /></td>
+                    <td>
+                        <p-tag [value]="finding.severity | severityLabel" [severity]="severityOf(finding.severity)" />
+                    </td>
                     <td>
                         <div class="font-medium">
                             @if (finding.link) {

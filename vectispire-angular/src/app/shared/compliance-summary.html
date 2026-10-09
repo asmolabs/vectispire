@@ -14,7 +14,8 @@
                 <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">
                     {{
                         summary().mttr.overallMttrDays !== null
-                            ? ('compliance.mttr_days' | translate: { days: summary().mttr.overallMttrDays ?? '' })
+                            ? ('compliance.mttr_days'
+                              | translate: { days: (summary().mttr.overallMttrDays | localNumber) ?? '' })
                             : ('compliance.not_available' | translate)
                     }}
                 </span>
@@ -185,7 +186,7 @@
                                 </td>
                                 <td class="p-3">
                                     <p-tag
-                                        [value]="target.gateStatus"
+                                        [value]="gateStatusLabel(target.gateStatus)"
                                         [severity]="gateStatusSeverity(target.gateStatus)"
                                         [icon]="target.gateStatus === 'SCANNING' ? 'pi pi-spin pi-spinner' : undefined"
                                     ></p-tag>

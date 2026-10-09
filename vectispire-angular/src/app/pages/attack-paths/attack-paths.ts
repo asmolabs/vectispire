@@ -14,6 +14,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository } from '../../core/api.models';
+import { SeverityLabelPipe } from '@/app/shared/severity';
 
 @Component({
     selector: 'app-attack-paths',
@@ -29,7 +30,8 @@ import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository }
         SelectModule,
         TableModule,
         TagModule,
-        TranslatePipe
+        TranslatePipe,
+        SeverityLabelPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attack-paths.html'

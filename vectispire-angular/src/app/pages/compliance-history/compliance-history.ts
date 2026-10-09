@@ -4,6 +4,7 @@ import { messageOf } from '@/app/core/api-error';
 import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { FrameworkLabelPipe } from '@/app/shared/compliance-labels';
 import type { ComplianceMovement, ComplianceSeries, ComplianceStep } from '@/app/core/api.models';
 
 /**
@@ -23,7 +24,7 @@ import type { ComplianceMovement, ComplianceSeries, ComplianceStep } from '@/app
  */
 @Component({
     selector: 'zs-compliance-history',
-    imports: [MessageModule, TranslatePipe],
+    imports: [MessageModule, TranslatePipe, FrameworkLabelPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance-history.html'
 })

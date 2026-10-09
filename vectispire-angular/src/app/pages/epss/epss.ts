@@ -14,6 +14,9 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { DialogModule } from '@openng/optimus-ui/dialog';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { SeverityLabelPipe } from '@/app/shared/severity';
+import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { TargetKindPipe } from '@/app/shared/target-kind';
 
 @Component({
     selector: 'app-epss',
@@ -26,7 +29,10 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
         MessageModule,
         ProgressSpinnerModule,
         DialogModule,
-        TranslatePipe
+        TranslatePipe,
+        SeverityLabelPipe,
+        LocalNumberPipe,
+        TargetKindPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './epss.html'

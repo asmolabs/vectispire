@@ -15,7 +15,7 @@
             <div>
                 <div class="text-2xl font-medium">
                     @if (refusalRate() !== null) {
-                        {{ refusalRate() }}&nbsp;%
+                        {{ refusalRate() | localNumber }}&nbsp;%
                     } @else {
                         —
                     }
@@ -90,7 +90,7 @@
                             <td class="py-3 pr-4">
                                 <div>
                                     {{ 'gate_verdicts.fails_at' | translate }}
-                                    <strong>{{ row.fail_on_severity ?? '—' }}</strong>
+                                    <strong>{{ row.fail_on_severity | severityLabel }}</strong>
                                 </div>
                                 <div class="text-muted-color text-xs">
                                     {{ row.policy_source ?? '—' }}
@@ -105,7 +105,7 @@
                                 }
                                 @for (count of counts(row); track count.severity) {
                                     <span class="text-muted-color text-xs mr-2"
-                                        >{{ count.severity }} {{ count.count }}</span
+                                        >{{ count.severity | severityLabel }} {{ count.count }}</span
                                     >
                                 }
                             </td>
