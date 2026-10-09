@@ -115,8 +115,8 @@ public class ScanDispatcher {
      */
     private final AuditLogService audit;
 
-    /** Told of every repository's completed scan once it is committed — see {@link RepositoryScanned}. */
-    private final Optional<RepositoryScanned> scanned;
+    /** Told of every repository's completed scan, in its transaction — see {@link RepositoryScanned}. */
+    private final List<RepositoryScanned> scanned;
 
     public ScanDispatcher(
             ScanQueue queue,
@@ -134,7 +134,7 @@ public class ScanDispatcher {
             PlatformMetrics metrics,
             TransactionTemplate transactions,
             GitHostAllowlist allowedHosts,
-            Optional<RepositoryScanned> scanned) {
+            List<RepositoryScanned> scanned) {
         this.queue = queue;
         this.targets = targets;
         this.credentials = credentials;
@@ -150,7 +150,7 @@ public class ScanDispatcher {
         this.metrics = metrics;
         this.transactions = transactions;
         this.allowedHosts = allowedHosts;
-        this.scanned = scanned;
+        this.scanned = List.copyOf(scanned);
     }
 
     /** @param claimed how many scans this round took, of which {@code completed + failed} ran */
@@ -646,10 +646,9 @@ public class ScanDispatcher {
      * is retried rather than dropped.
      */
     private void announce(ScanEntity scan) {
-        if (scanned.isPresent()
-                && scan.getRepoId() != null
+        if (scan.getRepoId() != null
                 && com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName().equals(scan.getStatus())) {
-            scanned.get().scanned(scan.getRepoId());
+            scanned.forEach(reaction -> reaction.scanned(scan.getRepoId(), scan.getId()));
         }
     }
 

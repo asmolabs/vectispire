@@ -55,6 +55,15 @@ public class AiReviewResultEntity {
     @Column(name = "inputs")
     private String inputs;
 
+    /**
+     * The identifiers of the findings {@link #getInputs() inputs} lists, as a JSON array, or null on a
+     * review written before V84. What the report's links may point at, and the only thing: an
+     * identifier the prose cites and this does not hold was not shown to the model.
+     */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "evidence_identifiers")
+    private String evidenceIdentifiers;
+
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "response")
     private String response;
@@ -117,6 +126,14 @@ public class AiReviewResultEntity {
 
     public void setInputs(String inputs) {
         this.inputs = inputs;
+    }
+
+    public String getEvidenceIdentifiers() {
+        return evidenceIdentifiers;
+    }
+
+    public void setEvidenceIdentifiers(String evidenceIdentifiers) {
+        this.evidenceIdentifiers = evidenceIdentifiers;
     }
 
     public void setPrompt(String prompt) {

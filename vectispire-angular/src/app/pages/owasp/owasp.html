@@ -141,44 +141,72 @@
                 }
 
                 <div class="owasp-report">
-                    @for (block of current.blocks; track $index) {
-                        @switch (block.kind) {
+                    @for (rendered of blocks(); track $index) {
+                        @switch (rendered.block.kind) {
                             @case ('CATEGORY') {
                                 <h2
                                     class="text-lg font-semibold mt-5 mb-2 px-3 py-2 rounded"
                                     style="background: var(--surface-100); color: var(--primary-color)"
                                 >
-                                    {{ block.text }}
+                                    {{ rendered.block.text }}
                                 </h2>
+                                <!--
+                                    The category's backlog as it stands now, beside prose written
+                                    from it then: the count is the issues list's own total, so the
+                                    link never opens a list that disagrees with it. No link to an
+                                    empty list — a zero says so instead.
+                                -->
+                                @if (rendered.findings !== null) {
+                                    @if (rendered.findings > 0) {
+                                        <a
+                                            routerLink="/issues"
+                                            [queryParams]="rendered.findingsParams"
+                                            class="inline-block mb-2 text-sm text-primary underline"
+                                            data-testid="category-findings"
+                                            >{{
+                                                'owasp.category_findings' | translate: { count: rendered.findings }
+                                            }}</a
+                                        >
+                                    } @else {
+                                        <p
+                                            class="mt-0 mb-2 text-sm text-muted-color"
+                                            data-testid="category-findings-none"
+                                        >
+                                            {{ 'owasp.category_no_finding' | translate }}
+                                        </p>
+                                    }
+                                }
                             }
                             @case ('HEADING') {
                                 <h3
                                     class="font-semibold mt-5 mb-2 pb-1"
-                                    [class.text-lg]="block.level <= 2"
-                                    [style.border-bottom]="block.level <= 2 ? '1px solid var(--surface-border)' : null"
+                                    [class.text-lg]="rendered.block.level <= 2"
+                                    [style.border-bottom]="
+                                        rendered.block.level <= 2 ? '1px solid var(--surface-border)' : null
+                                    "
                                 >
-                                    {{ block.text }}
+                                    {{ rendered.block.text }}
                                 </h3>
                             }
                             @case ('BULLET') {
                                 <div class="flex gap-2 mb-1">
                                     <span style="color: var(--primary-color)">•</span>
-                                    <span>{{ block.text }}</span>
+                                    <span><zs-linked-text [segments]="rendered.text" /></span>
                                 </div>
                             }
                             @case ('NUMBERED') {
                                 <div class="flex gap-2 mb-1">
                                     <span class="font-semibold" style="color: var(--primary-color)">
-                                        {{ block.marker }}.
+                                        {{ rendered.block.marker }}.
                                     </span>
-                                    <span>{{ block.text }}</span>
+                                    <span><zs-linked-text [segments]="rendered.text" /></span>
                                 </div>
                             }
                             @case ('BLOCKQUOTE') {
                                 <div
                                     class="my-4 p-3.5 rounded-lg border-l-4 border-primary bg-surface-50 dark:bg-surface-800 text-sm text-surface-700 dark:text-surface-300 italic shadow-xs"
                                 >
-                                    {{ block.text }}
+                                    <zs-linked-text [segments]="rendered.text" />
                                 </div>
                             }
                             @case ('TABLE') {
@@ -186,12 +214,12 @@
                                     class="my-4 overflow-x-auto rounded-lg border border-surface-200 dark:border-surface-700 shadow-xs"
                                 >
                                     <table class="w-full text-sm border-collapse bg-surface-0 dark:bg-surface-900">
-                                        @if (block.headers && block.headers.length > 0) {
+                                        @if (rendered.block.headers && rendered.block.headers.length > 0) {
                                             <thead
                                                 class="bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
                                             >
                                                 <tr>
-                                                    @for (h of block.headers; track $index) {
+                                                    @for (h of rendered.block.headers; track $index) {
                                                         <th
                                                             class="p-3 text-left font-semibold border-b border-surface-200 dark:border-surface-700"
                                                         >
@@ -202,7 +230,7 @@
                                             </thead>
                                         }
                                         <tbody>
-                                            @for (row of block.rows; track $index) {
+                                            @for (row of rendered.rows; track $index) {
                                                 <tr
                                                     class="border-b border-surface-200 dark:border-surface-700 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800/50"
                                                 >
@@ -213,7 +241,7 @@
                                                             [class.text-surface-900]="$index === 0"
                                                             [class.dark:text-surface-0]="$index === 0"
                                                         >
-                                                            {{ cell }}
+                                                            <zs-linked-text [segments]="cell" />
                                                         </td>
                                                     }
                                                 </tr>
@@ -223,7 +251,7 @@
                                 </div>
                             }
                             @default {
-                                <p class="my-2 leading-relaxed">{{ block.text }}</p>
+                                <p class="my-2 leading-relaxed"><zs-linked-text [segments]="rendered.text" /></p>
                             }
                         }
                     } @empty {
@@ -232,10 +260,10 @@
                 </div>
             }
         </p-card>
-    } @else if (selected !== null && !running() && !error()) {
+    } @else if (noReport() && !running() && !error()) {
         <p-card>
-            <p class="text-muted-color m-0">
-                {{ 'owasp.no_findings' | translate }}
+            <p class="text-muted-color m-0" data-testid="no-report">
+                {{ 'owasp.no_report' | translate }}
             </p>
         </p-card>
     }

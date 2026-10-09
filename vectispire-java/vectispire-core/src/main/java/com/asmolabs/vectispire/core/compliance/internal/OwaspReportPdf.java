@@ -49,6 +49,9 @@ public final class OwaspReportPdf {
      * @param subject the target, so the document names what it is about without its filename
      * @param model recorded on the page: comparing two reports written by different models
      *     without knowing it is a trap, and the reader is usually not the operator
+     * @param placedByRule the model was handed each finding's category ({@code
+     *     OwaspReview.placedByRule}); a report written before that was placed by the model, and the
+     *     page says which of the two it is
      */
     public record Subject(
             String targetName,
@@ -59,7 +62,22 @@ public final class OwaspReportPdf {
             Instant scanAt,
             Instant generatedAt,
             long openIssues,
-            String brandName) {
+            String brandName,
+            boolean placedByRule) {
+
+        /** A report whose findings' categories were not recorded as handed over: the model placed them. */
+        public Subject(
+                String targetName,
+                String branch,
+                String projectVersion,
+                String model,
+                Long scanId,
+                Instant scanAt,
+                Instant generatedAt,
+                long openIssues,
+                String brandName) {
+            this(targetName, branch, projectVersion, model, scanId, scanAt, generatedAt, openIssues, brandName, false);
+        }
 
         public Subject(
                 String targetName,
@@ -122,11 +140,21 @@ public final class OwaspReportPdf {
         // outlives the screen that carried the warning. A reader who takes model prose for
         // scanner output will act on a sentence nobody verified.
         cursor.text("How to read this", ReportCursor.HELVETICA_BOLD_10, INK);
+        // **"No finding" is not one sentence.** This page used to say a category with no finding meant no
+        // scanner here looked for it, which the OWASP grid contradicts: a category can be examined and come
+        // back clean. Neither reading is a clean bill of health, and the page now says both.
         cursor.paragraph(
-                "Every fact below comes from an automated scanner. A language model grouped those findings under "
-                        + "the OWASP categories and wrote the prose; it detected nothing itself, and nothing it "
-                        + "says becomes an issue or reaches a build gate. A category with no finding means no "
-                        + "scanner here looked for it — not that the code is sound.",
+                "Every fact below comes from an automated scanner. "
+                        + (subject.placedByRule()
+                                ? "Each finding sits under the OWASP category Vectispire's own rules place it in — "
+                                        + "the same placement as the OWASP coverage grid — and a finding they place "
+                                        + "nowhere is listed apart. A language model grouped them and wrote the prose; "
+                                : "A language model grouped those findings under the OWASP categories and wrote the "
+                                        + "prose; ")
+                        + "it detected nothing itself, and nothing it says becomes an issue or reaches a build gate. "
+                        + "A category with no finding is not a clean bill of health: either no scanner here can "
+                        + "examine it, or none is set to, or one examined the part it can see and found nothing "
+                        + "open. The OWASP coverage grid says which.",
                 ReportCursor.HELVETICA_9,
                 0);
         cursor.gap();

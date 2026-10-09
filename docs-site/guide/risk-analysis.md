@@ -112,6 +112,40 @@ Sunday in UTC; a column header selects the week, whose figures and grid appear b
 PDF* prints the view without the menus, through the browser's own "save as PDF". The address carries
 the window, the scope and the selected week, so a link reproduces the view.
 
+### The OWASP report written by a model
+
+*Security* → *OWASP Top 10:2021*, a repository picked, **Run the analysis** asks the configured model ([Settings](../administration/settings.md#ai-code-review))
+for one repository's posture report against the Top 10:2021, from its latest scan. **The model is sent the
+repository's open findings, never its source**: type, category, severity, identifier, component, location,
+triage and description, three hundred at most, the rest stated as left out — and the repository's OWASP
+grid. The report records the model, the scan it was built from and what it was sent; it is prose a model
+wrote, not evidence, and nothing it says becomes an issue or reaches a gate.
+
+- **The categories are Vectispire's, not the model's.** Each finding goes with the category the grid
+  above places it in — infrastructure checks in A05, vulnerable dependencies and components past their
+  support in A06, committed secrets in A07, a static analysis finding where its rule declares — and the
+  model is told to group the findings under it and never move one. The findings the grid places nowhere
+  are listed apart, under *Not placed by the scanners*, rather than given a category. A report written
+  before this was introduced had the model choose, and could disagree with the grid — secrets under A02,
+  for instance; its PDF says the model placed them.
+- **An empty category says why it is empty.** The model is given each category's state in the grid —
+  findings, nothing found, not measured, no scanner here — and the *Not evidenced* section repeats it.
+  None of the three empty states is a clean bill of health: a scanner that found nothing looked only at
+  the part of the category it can see.
+- **After each scan, if you ask for it.** With **Write the OWASP report after each repository scan**
+  (`ai_review_owasp_after_scan`, off by default) and model review on, a repository scan that completes
+  asks for the report — built from that scan, never from a failed one, never for a container image. It is
+  written beside the scans and never holds one up, **one at a time**: a local model answers one request
+  at a time, so no report starts while another is being written, on any instance of the control plane or
+  from the button. A repository whose report is being written is not asked again, and several scans of
+  one repository waiting for the model become one report, from the newest. A report that failed says
+  why on the page, as one asked by hand does, and the scan stays completed. The audit log records each
+  one as `AI_REVIEW_REQUESTED`, with no user — nobody asked. A request waiting on an instance that stops
+  is lost; the next scan asks again.
+
+Whoever reads the report reads it through their own visibility: the route refuses a repository you do
+not see, and the counts and links beside the report are counted as your backlog counts them.
+
 ## Using these well
 
 None of these views produce new findings. They re-rank the ones you have according to a

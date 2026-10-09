@@ -9,7 +9,7 @@ encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 
 
 Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la nouvelle image démarre.
 
-- **Sauvegardez la base.** Les migrations V65 à V82 s'exécutent au démarrage et n'ont pas de retour
+- **Sauvegardez la base.** Les migrations V65 à V84 s'exécutent au démarrage et n'ont pas de retour
   arrière : revenir à 0.10.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
   ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
 - **Prévenez les équipes que leurs notes vont baisser.** La formule du score compte les moyennes, les
@@ -186,6 +186,17 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 - **Le rapport OWASP est dans la section *Sécurité* du menu**, après *Chemins d'attaque*, et non plus sous
   *Conformité & preuves* : il lit les constats, comme les écrans de Sécurité. Même page, mêmes accès.
+- **Le rapport OWASP porte ce que son écran relie** (`GET` et `POST`
+  `/api/v1/repositories/{id}/owasp-review`). Un bloc `CATEGORY` gagne `category`, le code Top 10:2021 que
+  nomme son titre (`A01`…`A10` ; `null` sur tout autre bloc). `categoryFindings` donne les dix codes, un
+  zéro compris, chacun avec le nombre d'issues ouvertes du dépôt au triage non réglé rangées dans la
+  catégorie — le `total` de `GET /api/v1/issues?repository_id=…&owasp_category=…&unsettled=true` pour le
+  même appelant, maintenant, et non à l'analyse revue. `issueLinks` associe chaque identifiant d'un
+  constat montré au modèle aux issues ouvertes du dépôt qui portent exactement cet identifiant
+  maintenant (`issueId` s'il y en a une, `null` s'il y en a plusieurs ; `count`) ; un identifiant
+  qu'aucune issue ouverte ne porte est omis, et un identifiant que la prose du rapport cite sans que le
+  modèle l'ait vu n'y figure jamais. Un rapport écrit avant cette version n'a consigné aucun ensemble
+  d'identifiants et lit `issueLinks: null`. La migration V84 ajoute `t_ai_review_result.evidence_identifiers`.
 - **Une règle de checklist a un sixième type, `component_present`, et une mesure une nouvelle raison,
   `inventory_absent`.** `kind` sur la route des règles et dans `boundRule`, `ruleKind` sur une mesure,
   peuvent valoir `component_present` ; ses `components` portent un `purlPrefix` et aucune `versions`. Une
@@ -287,6 +298,25 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 ### Nouveautés
 
+- **Le rapport OWASP renvoie vers les constats qu'il décrit.** Sous chaque catégorie, *Voir les N
+  constats* ouvre les constats ouverts et non tranchés du dépôt dans cette catégorie — la liste que
+  le chiffre de la grille ouvre — ou dit qu'il n'y en a aucun. Les identifiants montrés au modèle (CVE,
+  règles, paquets) renvoient vers leur constat, ou vers une recherche quand plusieurs constats le
+  portent ; un identifiant que le texte cite sans que le modèle l'ait reçu reste du texte.
+- **Le rapport OWASP peut être rédigé après chaque scan de dépôt**
+  ([rapport OWASP](../guide/risk-analysis.md#le-rapport-owasp-redige-par-un-modele)). Avec **Write the
+  OWASP report after each repository scan** (`ai_review_owasp_after_scan`, désactivé par défaut) et la
+  revue par modèle activée, un scan de dépôt qui se termine demande au modèle le rapport de ce dépôt,
+  construit à partir de ce scan — jamais pour un scan en échec, jamais pour une image de conteneur. La
+  demande est mise en file avec les résultats du scan et le rapport est rédigé à côté des scans, sans
+  jamais en retenir un : un rapport à la fois par instance, et aucun commencé tant qu'un rapport est en
+  cours de rédaction, par une autre instance ou depuis le bouton, car un modèle local répond à une
+  demande à la fois. Un dépôt dont le rapport est en cours n'est pas redemandé, et les scans d'un même
+  dépôt qui arrivent pendant que son rapport attend sont fondus en un seul, à partir du plus récent. Un
+  échec est enregistré sur le rapport comme pour un rapport demandé à la main, et le scan reste terminé.
+  Le journal d'audit enregistre chacun comme `AI_REVIEW_REQUESTED`, sans utilisateur. Désactivé, rien ne
+  change. Une demande retenue par une instance qui s'arrête avant de la commencer est perdue ; le scan
+  suivant la redemande.
 - **Une ligne de checklist répond à « la bibliothèque X est utilisée » et à « les versions de la famille Y
   utilisées », et à une plage de versions**
   ([Composants](../administration/checklist-templates.md#composants-presence-versions-et-plages)). Une
@@ -659,6 +689,22 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 ### Corrigé
 
+- **Un dépôt sans rapport OWASP le dit.** La carte affichait *Aucun constat classé dans cette
+  section*, qui se lit comme un rapport n'ayant rien trouvé ; et tout échec de lecture, une 500 comprise,
+  s'affichait comme une absence de rapport. Seule une 404 veut désormais dire « pas encore de rapport » ;
+  le reste est une erreur.
+- **Le rapport OWASP range chaque constat là où la grille OWASP le range.** Le modèle choisissait
+  lui-même les catégories, et plaçait les secrets commités sous A02 quand la grille du même écran les
+  compte en A07. Il reçoit désormais la catégorie de chaque constat telle que la grille la place — par
+  type, ou par la catégorie que déclare une règle d'analyse statique —, la consigne de ne jamais en
+  déplacer un, et les constats que la grille ne place nulle part à part, sous *Not placed by the
+  scanners*, plutôt que dans une catégorie de son choix. Il reçoit aussi l'état de chaque catégorie dans
+  la grille, et ne se fait plus dire qu'une catégorie sans constat est une catégorie qu'aucun scanner n'a
+  regardée : le *rien trouvé* de la grille dit qu'un scanner l'a fait. Le « How to read this » du PDF dit
+  la même chose, et dit de laquelle des deux façons un rapport a été rédigé : un rapport antérieur à
+  cette version a été rangé par le modèle. Les `inputs` d'un rapport (`GET
+  /api/v1/repositories/{id}/owasp-review`) gagnent une colonne `owasp_category`, en deuxième position, et
+  la couverture du dépôt au-dessus du tableau.
 - **Recharger la checklist d'un projet, ou ouvrir un lien vers elle, ne répond plus 404.** Le serveur ne
   renvoyait à l'interface que les chemins d'un ou deux segments ; `/projects/{id}/checklist` et
   `/solutions/{id}/compliance` en ont trois, et répondaient « Nothing is served at this path » sauf en y

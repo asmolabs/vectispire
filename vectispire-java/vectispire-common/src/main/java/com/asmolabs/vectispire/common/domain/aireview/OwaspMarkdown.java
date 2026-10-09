@@ -35,6 +35,17 @@ public final class OwaspMarkdown {
     private static final Pattern NUMBERED = Pattern.compile("^\\s*(\\d+)[.)]\\s+(.*)$");
     private static final Pattern BLOCKQUOTE = Pattern.compile("^\\s*>\\s?(.*)$");
 
+    /**
+     * A heading that opens with a Top 10:2021 code — {@code A01} to {@code A10}, as the prompt asks
+     * ({@code ## A0X — Name}) and as models also write it ({@code A01:2021 – …}).
+     *
+     * <p><b>Not followed by a digit</b>, which the prefix test this replaced did not ask: it read
+     * {@code A100} as {@code A10} and {@code A011} as {@code A01}. The code is what the screen links a
+     * section to the backlog with now, and a section about something else linked to a category's issues
+     * is a figure attached to the wrong prose.
+     */
+    private static final Pattern CATEGORY_CODE = Pattern.compile("^(A(?:0[1-9]|10))(?!\\d)");
+
     /** What a block is. Deliberately few: this is a report, not a document format. */
     public enum Kind {
         HEADING,
@@ -50,6 +61,9 @@ public final class OwaspMarkdown {
     /**
      * @param level 1 to 4 for a heading, 0 otherwise
      * @param marker the number of a numbered item, absent elsewhere
+     * @param category the Top 10:2021 code a {@link Kind#CATEGORY} heading names, {@code A01} to
+     *     {@code A10}; null on every other block. Never null on a category: a heading is one
+     *     <em>because</em> its code was read ({@code categoryOf}), so the two cannot disagree
      */
     public record Block(
             Kind kind,
@@ -57,10 +71,15 @@ public final class OwaspMarkdown {
             String marker,
             String text,
             List<String> headers,
-            List<List<String>> rows) {
+            List<List<String>> rows,
+            String category) {
 
         public Block(Kind kind, int level, String marker, String text) {
-            this(kind, level, marker, text, null, null);
+            this(kind, level, marker, text, null, null, null);
+        }
+
+        public Block(Kind kind, int level, String marker, String text, List<String> headers, List<List<String>> rows) {
+            this(kind, level, marker, text, headers, rows, null);
         }
     }
 
@@ -113,11 +132,15 @@ public final class OwaspMarkdown {
             if (heading.matches()) {
                 flushParagraph(blocks, paragraph);
                 String text = strip(heading.group(2));
+                String category = categoryOf(text);
                 blocks.add(new Block(
-                        isCategory(text) ? Kind.CATEGORY : Kind.HEADING,
+                        category == null ? Kind.HEADING : Kind.CATEGORY,
                         heading.group(1).length(),
                         null,
-                        text));
+                        text,
+                        null,
+                        null,
+                        category));
                 continue;
             }
 
@@ -208,9 +231,17 @@ public final class OwaspMarkdown {
         return List.copyOf(cells);
     }
 
-    private static boolean isCategory(String heading) {
-        String upper = heading.toUpperCase(Locale.ROOT);
-        return OwaspReview.TOP_TEN.keySet().stream().anyMatch(upper::startsWith);
+    /**
+     * The Top 10:2021 code a heading opens with, upper-cased, or null when it opens with none — the one
+     * reading that decides both whether a heading is a {@link Kind#CATEGORY} and which category it is.
+     */
+    static String categoryOf(String heading) {
+        Matcher code = CATEGORY_CODE.matcher(heading.strip().toUpperCase(Locale.ROOT));
+        if (!code.find()) {
+            return null;
+        }
+        String category = code.group(1);
+        return OwaspReview.TOP_TEN.containsKey(category) ? category : null;
     }
 
     /**

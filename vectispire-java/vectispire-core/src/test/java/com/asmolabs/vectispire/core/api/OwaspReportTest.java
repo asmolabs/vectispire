@@ -70,6 +70,9 @@ class OwaspReportTest extends ApiTestBase {
     @Autowired
     private com.asmolabs.vectispire.core.compliance.OwaspReportService reports;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.compliance.OwaspCoverageService coverage;
+
     private AiReviewService models;
     private OwaspReviewService service;
     private com.asmolabs.vectispire.core.targets.RepositoryView repository;
@@ -81,8 +84,8 @@ class OwaspReportTest extends ApiTestBase {
         Mockito.when(models.selectedModel()).thenReturn("gemma4:12b-it-qat");
         Mockito.when(models.timeout()).thenReturn(java.time.Duration.ofSeconds(300));
         service = new OwaspReviewService(
-                models, results, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), catalog, transactions,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                models, results, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), catalog, coverage,
+                transactions, Clock.fixed(NOW, ZoneOffset.UTC));
 
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");
@@ -94,6 +97,40 @@ class OwaspReportTest extends ApiTestBase {
     @Nested
     @DisplayName("when it can be built")
     class Built {
+
+        @Test
+        @DisplayName("each finding goes with the category the grid places it in, a rule's declaration included, and the grid with them")
+        void theCategoriesAreTheGrids() {
+            long scanId = seedScan("1.17.6");
+            seedIssue(scanId);
+            IssueEntity injection = new IssueEntity();
+            injection.setRepoId(repository.id());
+            injection.setFingerprint("fp-java.sqli");
+            injection.setType(FindingType.SAST.wireName());
+            injection.setIdentifier("java.sqli");
+            injection.setSeverity(Severity.HIGH.wireName());
+            injection.setState(IssueState.OPEN.wireName());
+            injection.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
+            // What the Semgrep rule declares in its metadata, carried on the issue.
+            injection.setOwaspCategory("A03");
+            injection.setFilePath("src/main/java/Dao.java");
+            injection.setFirstSeenAt(NOW);
+            injection.setLastSeenAt(NOW);
+            injection.setLastSeenScanId(scanId);
+            injection.setTimesSeen(1);
+            issues.save(injection);
+            Mockito.when(models.reviewCode(Mockito.anyString(), Mockito.anyString())).thenReturn("## A03");
+
+            service.run(repository);
+
+            ArgumentCaptor<String> digest = ArgumentCaptor.forClass(String.class);
+            Mockito.verify(models).reviewCode(digest.capture(), Mockito.anyString());
+            assertThat(digest.getValue()).contains("vulnerability | A06 | high | CVE-2026-1234");
+            assertThat(digest.getValue()).contains("sast | A03 | high | java.sqli");
+            // The repository's grid, as the compliance screen reads it for this repository alone.
+            assertThat(digest.getValue()).contains("A06 Vulnerable and Outdated Components | findings");
+            assertThat(digest.getValue()).contains("A01 Broken Access Control | not_covered");
+        }
 
         @Test
         @DisplayName("sends the backlog as data and stores what the model answered")
@@ -115,6 +152,11 @@ class OwaspReportTest extends ApiTestBase {
             Mockito.verify(models).reviewCode(digest.capture(), Mockito.anyString());
             assertThat(digest.getValue()).contains("CVE-2026-1234");
             assertThat(digest.getValue()).contains("Project version: 1.17.6");
+            // What the report's links may point at, recorded with the request: recomputed later it would
+            // be today's backlog, which the model was never shown.
+            assertThat(com.asmolabs.vectispire.core.compliance.internal.EvidenceIdentifiers.read(
+                            results.findById(stored.getId()).orElseThrow().getEvidenceIdentifiers()))
+                    .contains(List.of("CVE-2026-1234"));
         }
 
         @Test

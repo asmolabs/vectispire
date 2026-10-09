@@ -24,6 +24,13 @@ public interface AiReviewResultRepository extends JpaRepository<AiReviewResultEn
              order by r.createdAt desc, r.id desc""")
     List<AiReviewResultEntity> latestForRepository(@Param("repoId") long repoId, Limit limit);
 
+    /**
+     * Whether some review is under way and still awaited: in this status, its deadline after {@code now}.
+     * A running row past its deadline is one a stopped process left behind, and waiting for it would wait
+     * for nothing.
+     */
+    boolean existsByStatusAndDeadlineAtAfter(String status, java.time.Instant now);
+
     @Transactional
     void deleteByScanIdIn(java.util.Collection<Long> scanIds);
 

@@ -1032,6 +1032,9 @@
       },
       "Block" : {
         "properties" : {
+          "category" : {
+            "type" : "string"
+          },
           "headers" : {
             "items" : {
               "type" : "string"
@@ -5455,6 +5458,20 @@
         "required" : [ "isKev", "timesSeen" ],
         "type" : "object"
       },
+      "IssueLink" : {
+        "properties" : {
+          "count" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "issueId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "count" ],
+        "type" : "object"
+      },
       "IssuePage" : {
         "properties" : {
           "items" : {
@@ -7890,6 +7907,13 @@
             },
             "type" : "array"
           },
+          "categoryFindings" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
           "content" : {
             "type" : "string"
           },
@@ -7906,6 +7930,12 @@
           },
           "inputs" : {
             "type" : "string"
+          },
+          "issueLinks" : {
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/IssueLink"
+            },
+            "type" : "object"
           },
           "model" : {
             "type" : "string"

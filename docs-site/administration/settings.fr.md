@@ -115,12 +115,21 @@ GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton. Couvert sous [Tickets](
 
 ## Revue de code par IA
 
-Désactivée par défaut. Un modèle de langage relit le code source avec une invite d'« architecte
-sécurité », en complément léger de Grype, gitleaks et checkov — et non en remplacement d'aucun
-d'eux. Une fois activée, elle s'exécute sur les scans de dépôt, et son résultat narratif ainsi que
-ses constats normalisés apparaissent dans le détail du scan. Ses constats sont marqués comme venant
-d'un modèle et exclus de la barrière par défaut : le code relu est écrit par qui est audité, et peut
-chercher à orienter le modèle.
+Désactivée par défaut. **Aujourd'hui, l'interrupteur active une seule chose : le [rapport OWASP
+rédigé par un modèle](../guide/risk-analysis.md#le-rapport-owasp-redige-par-un-modele)**, demandé depuis
+la page OWASP ou, avec `ai_review_owasp_after_scan`, après chaque scan de dépôt. Le modèle reçoit les
+constats ouverts du dépôt — identifiants, composants, chemins, descriptions — et non le code source du
+dépôt, même si une description peut en citer une ligne.
+
+**Aucun scan ne fait relire le code par un modèle.** L'invite d'« architecte sécurité », la lecture de
+sa réponse en constats et le type de constat qui les porterait existent, mais aucune étape de scan ne
+les appelle : un scan avec cet interrupteur examine exactement ce qu'il examine sans, et aucun constat
+ne vient d'un modèle. Ce paragraphe disait le contraire jusqu'à la 0.11.0. Quand cette revue sera
+branchée, ses constats seront marqués comme venant d'un modèle et exclus de la barrière par défaut — le
+code qu'elle lit est écrit par qui est audité, et peut chercher à l'orienter.
+
+Ce que les avertissements sur le fournisseur disent du code vaut pour ce qui est envoyé aujourd'hui, les
+constats, et pour le code source le jour où la revue de code existera.
 
 **Le fournisseur décide où va le code** (`ai_review_provider`) :
 
@@ -140,6 +149,13 @@ le réglage **Allow a public model endpoint** (`ai_review_allow_remote_url`, dé
 L'activer enregistre, côté serveur, le compte qui a accepté le risque et la date
 (`ai_review_risk_acknowledged_by` / `_at`, et le journal d'audit) ; le désactiver les efface.
 `ai_review_timeout_seconds` (300 par défaut) borne l'attente.
+
+**Le rapport OWASP après chaque scan** (`ai_review_owasp_after_scan`, désactivé par défaut, sans effet
+tant que la revue par modèle l'est). Activé, un scan de dépôt qui se termine demande au modèle le
+[rapport OWASP](../guide/risk-analysis.md#le-rapport-owasp-redige-par-un-modele) de ce dépôt — ses
+constats ouverts, jamais son code source — un rapport à la fois, à côté des scans et sans jamais en
+retenir un. Comptez un appel au modèle de quelques minutes par dépôt analysé : c'est pourquoi il est
+désactivé.
 
 ### Avec Ollama
 

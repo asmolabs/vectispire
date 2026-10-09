@@ -9,7 +9,7 @@ What follows is what 0.11.0 will contain, against 0.10.0.
 
 Each point is written out in full below; this is what to do before the new image starts.
 
-- **Back up the database.** Migrations V65 to V82 run at startup and have no way back: going back to
+- **Back up the database.** Migrations V65 to V84 run at startup and have no way back: going back to
   0.10.0 means restoring that backup and the previous image digest
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
 - **Tell the teams their grades will drop.** The score formula counts mediums, lows and every further
@@ -174,6 +174,17 @@ never scanned. It now fails, closed, as the overview always said it should
 
 - **The OWASP report is in the menu's *Security* section**, after *Attack paths*, no longer under
   *Compliance & evidence*: it reads the findings, as the Security screens do. Same page, same access.
+- **The OWASP report carries what its screen links with** (`GET` and `POST
+  /api/v1/repositories/{id}/owasp-review`). A `CATEGORY` block gains `category`, the Top 10:2021 code its
+  heading names (`A01`…`A10`; `null` on every other block). `categoryFindings` gives all ten codes, a zero
+  included, each with the number of the repository's open issues of unsettled triage placed in the
+  category — the `total` of `GET /api/v1/issues?repository_id=…&owasp_category=…&unsettled=true` for the
+  same caller, now, not at the reviewed scan. `issueLinks` maps each identifier of a finding the model was
+  shown to the repository's open issues carrying exactly that identifier now (`issueId` when there is
+  one, `null` when there are several; `count`); an identifier no open issue carries is left out, and one
+  the report's prose cites without the model having been shown it is never there. A report written
+  before this release recorded no identifier set and reads `issueLinks: null`. Migration V84 adds
+  `t_ai_review_result.evidence_identifiers`.
 - **A checklist rule has a sixth kind, `component_present`, and a measurement a new reason,
   `inventory_absent`.** `kind` on the rules route and in `boundRule`, `ruleKind` on a measurement, may read
   `component_present`; its `components` carry a `purlPrefix` and no `versions`. A `component_versions`
@@ -265,6 +276,23 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### New
 
+- **The OWASP report links to the findings it describes.** Under each category heading, *View the N
+  findings* opens the repository's open, unsettled findings in that category — the same list the grid's
+  count opens — or says there are none. The identifiers the model was shown (CVEs, rule ids, packages)
+  link to their issue, or to a search when several issues carry one; an identifier the prose cites
+  without the model having been shown it stays text.
+- **The OWASP report can be written after each repository scan**
+  ([OWASP report](../guide/risk-analysis.md#the-owasp-report-written-by-a-model)). With **Write the OWASP
+  report after each repository scan** (`ai_review_owasp_after_scan`, off by default) and model review on,
+  a repository scan that completes asks the model for that repository's report, built from that scan —
+  never a failed scan, never a container image. The request is queued with the scan's results and
+  written beside the scans, never holding one up: one report at a time per instance, and none started
+  while any report is being written, by another instance or from the button, since a local model answers
+  one request at a time. A repository whose report is being written is not asked again, and scans of one
+  repository arriving while its report waits are folded into one, from the newest. A failure is recorded
+  on the report as for a report asked by hand, and the scan stays completed. The audit log records each
+  one as `AI_REVIEW_REQUESTED` with no user. Off, nothing changes. A request held by an instance that
+  stops before starting it is lost; the next scan asks again.
 - **A checklist line answers "library X is used" and "the versions of family Y in use", and a range of
   versions** ([Components](../administration/checklist-templates.md#components-presence-versions-and-ranges)).
   A `component_present` rule passes when a package matching its prefix is in the newest analysed SBOM,
@@ -608,6 +636,20 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### Fixed
 
+- **A repository without an OWASP report says so.** The card showed *No findings categorized under
+  this section*, which reads as a report that found nothing; and any failure to read the report, a 500
+  included, was shown as no report at all. Only a 404 now means "no report yet"; anything else is an
+  error.
+- **The OWASP report files each finding where the OWASP grid does.** The model chose the categories
+  itself, and put committed secrets under A02 while the grid on the same screen counts them in A07. It
+  is now sent each finding's category as the grid places it — by type, or by the category a static
+  analysis rule declares — told never to move one, and given the findings the grid places nowhere apart,
+  under *Not placed by the scanners*, rather than in a category of its choosing. It is also given the
+  grid's state of each category, and no longer told that a category with no finding is one no scanner
+  looked at: the grid's *nothing found* says a scanner did. The PDF's "How to read this" says the same,
+  and says which of the two ways a report was written: one written before this release was placed by the
+  model. The `inputs` of a report (`GET /api/v1/repositories/{id}/owasp-review`) gain an
+  `owasp_category` column, second, and the repository's coverage above the table.
 - **Refreshing a project's checklist, or opening a link to it, no longer answers 404.** The server handed
   the interface paths of one and two segments only; `/projects/{id}/checklist` and
   `/solutions/{id}/compliance` have three, and answered "Nothing is served at this path" unless reached by

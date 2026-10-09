@@ -25,6 +25,9 @@ public final class IssueRows {
 
     private IssueRows() {}
 
+    /** An issue's identifier and the issue — what a link from a cited identifier to the backlog needs. */
+    public record Identified(Long id, String identifier) {}
+
     /** Which target an issue belongs to, and nothing else — for the readers that only group. */
     public record Attribution(Long repoId, Long containerId) {}
 

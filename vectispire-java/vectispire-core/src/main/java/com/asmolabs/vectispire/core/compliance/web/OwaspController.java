@@ -7,10 +7,12 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.compliance.AiReviewResultView;
+import com.asmolabs.vectispire.core.compliance.OwaspReport;
 import com.asmolabs.vectispire.core.compliance.OwaspReportService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -61,7 +63,16 @@ public class OwaspController {
      *     from
      * @param blocks the same answer parsed once, for a client that must place text into elements
      *     rather than interpret markup. Model prose derived from findings written by the audited
-     *     repository is not something to hand a browser as HTML
+     *     repository is not something to hand a browser as HTML. A {@code CATEGORY} block carries the
+     *     code it names in {@code category}, which is the key of {@code categoryFindings}
+     * @param categoryFindings {@code A01}…{@code A10}, all ten, each with the count of the repository's
+     *     open, unsettled issues the backlog lists for {@code repository_id}, {@code owasp_category} and
+     *     {@code unsettled=true} — the length of the list the link opens, as the caller sees it, now
+     * @param issueLinks the identifiers of the findings the model was shown that open issues of the
+     *     repository still carry, each with the issue when exactly one does and how many do; null for a
+     *     report written before the shown identifiers were recorded. <b>Only the shown ones</b>: an
+     *     identifier the prose cites and the evidence does not hold — invented by the model, or carried in
+     *     by a finding's description from the audited code — is never a link
      */
     public record Report(
             Long id,
@@ -72,7 +83,9 @@ public class OwaspController {
             String error,
             Long scanId,
             String inputs,
-            Instant createdAt) {}
+            Instant createdAt,
+            Map<String, Long> categoryFindings,
+            Map<String, OwaspReport.IssueLink> issueLinks) {}
 
     @GetMapping
     public Report latest(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
@@ -114,7 +127,8 @@ public class OwaspController {
                 .body(document);
     }
 
-    private static Report reportOf(AiReviewResultView result) {
+    private static Report reportOf(OwaspReport report) {
+        AiReviewResultView result = report.review();
         return new Report(
                 result.id(),
                 result.status(),
@@ -124,6 +138,8 @@ public class OwaspController {
                 result.error(),
                 result.scanId(),
                 result.inputs(),
-                result.createdAt());
+                result.createdAt(),
+                report.categoryFindings(),
+                report.issueLinks());
     }
 }

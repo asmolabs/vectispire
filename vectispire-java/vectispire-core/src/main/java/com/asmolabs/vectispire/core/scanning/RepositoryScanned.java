@@ -1,9 +1,11 @@
 package com.asmolabs.vectispire.core.scanning;
 
 /**
- * A port {@code scanning} declares for a module above it that reacts to a repository's completed scan —
+ * A port {@code scanning} declares for the modules above it that react to a repository's completed scan —
  * the checklists, whose measured lines the scan may now answer (decision 0032, amendment "the scans
- * answer the lines they measure").
+ * answer the lines they measure"), and the OWASP report an operator asked to have written after each
+ * scan ({@code compliance}). Every implementation is told, in no promised order: none of them reads
+ * what another queues.
  *
  * <p><b>Called inside the scan's transaction, and only to queue.</b> The dispatcher calls it as the
  * completed result of a repository's scan is written, whichever executor ran it, so that what reacts
@@ -14,6 +16,10 @@ package com.asmolabs.vectispire.core.scanning;
  */
 public interface RepositoryScanned {
 
-    /** A scan of this repository completed; called in its transaction, before it commits. */
-    void scanned(long repositoryId);
+    /**
+     * A scan of this repository completed; called in its transaction, before it commits.
+     *
+     * @param scanId the scan that completed — what a reaction built from it names as its source
+     */
+    void scanned(long repositoryId, long scanId);
 }

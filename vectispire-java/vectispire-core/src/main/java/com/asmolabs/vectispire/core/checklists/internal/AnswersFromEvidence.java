@@ -34,7 +34,7 @@ public class AnswersFromEvidence implements RepositoryScanned, RepositoryReporte
     }
 
     @Override
-    public void scanned(long repositoryId) {
+    public void scanned(long repositoryId, long scanId) {
         queue(repositoryId);
     }
 

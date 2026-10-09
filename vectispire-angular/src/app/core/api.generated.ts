@@ -4854,6 +4854,7 @@ export interface components {
             transitiveUsages: number;
         };
         Block: {
+            category?: string;
             headers?: string[];
             /** @enum {string} */
             kind?: "HEADING" | "CATEGORY" | "PARAGRAPH" | "BULLET" | "NUMBERED" | "BLOCKQUOTE" | "TABLE";
@@ -6504,6 +6505,12 @@ export interface components {
             triagedBy?: string;
             type?: string;
         };
+        IssueLink: {
+            /** Format: int64 */
+            count: number;
+            /** Format: int64 */
+            issueId?: number;
+        };
         IssuePage: {
             items?: components["schemas"]["BacklogEntry"][];
             /** Format: int32 */
@@ -7415,6 +7422,9 @@ export interface components {
         };
         Report: {
             blocks?: components["schemas"]["Block"][];
+            categoryFindings?: {
+                [key: string]: number;
+            };
             content?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -7422,6 +7432,9 @@ export interface components {
             /** Format: int64 */
             id?: number;
             inputs?: string;
+            issueLinks?: {
+                [key: string]: components["schemas"]["IssueLink"];
+            };
             model?: string;
             /** Format: int64 */
             scanId?: number;

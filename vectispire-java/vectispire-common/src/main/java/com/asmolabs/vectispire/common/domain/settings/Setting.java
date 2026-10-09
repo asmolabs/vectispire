@@ -278,6 +278,20 @@ public enum Setting {
                     + "being an input controlled by a third party.",
             "false"),
 
+    // **Off by default, and inert while model review is.** A report per completed scan costs minutes of
+    // a GPU each, and nobody reads most of them; an operator who wants the latest report waiting for them
+    // turns this on knowing that.
+    AI_REVIEW_OWASP_AFTER_SCAN("ai_review_owasp_after_scan", SettingType.BOOLEAN, Section.MODEL_REVIEW,
+            "Write the OWASP report after each repository scan",
+            "When a repository's scan completes, Vectispire asks the model for that repository's OWASP report, "
+                    + "as the button on its page does — what is sent is the same: the open findings, never the "
+                    + "source. Only while model review is on; never for a failed scan or a container image. One "
+                    + "report at a time, beside the scans and never holding them up: a repository whose report is "
+                    + "still being written is not asked again, and scans arriving while one waits are folded into "
+                    + "it. A failure is recorded on the report, as for a report asked by hand, and the scan stays "
+                    + "completed.",
+            "false"),
+
     AI_REVIEW_PROVIDER("ai_review_provider", SettingType.TEXT, Section.MODEL_REVIEW,
             "Provider",
             "**`ollama` keeps the code on a machine you run. `openai` sends it to OpenAI.** That is the whole "
@@ -611,7 +625,8 @@ public enum Setting {
                     RETENTION_MAX_AGE_DAYS, EVIDENCE_RETENTION_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
                     SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,
                     NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_PROJECT,
-                    TICKET_USER, TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_PROVIDER,
+                    TICKET_USER, TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_OWASP_AFTER_SCAN,
+                    AI_REVIEW_PROVIDER,
                     AI_REVIEW_MODEL, AI_REVIEW_TIMEOUT_SECONDS, AI_REVIEW_RISK_ACKNOWLEDGED_BY,
                     AI_REVIEW_RISK_ACKNOWLEDGED_AT, COMPLIANCE_FRESHNESS_DAYS, ISMS_SCOPE_STATEMENT,
                     ISMS_SCOPE_ASSETS, SLA_CRITICAL_DAYS, SLA_HIGH_DAYS, SLA_MEDIUM_DAYS, SLA_LOW_DAYS -> false;

@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
@@ -13,7 +14,7 @@ import { OwaspApi } from '../../core/api/owasp.api';
 import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
-import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
+import type { MonitoredRepository, OwaspBlock, OwaspReport } from '../../core/api.models';
 
 /**
  * The OWASP Top 10 posture report, written by the configured model.
@@ -34,6 +35,18 @@ import { messageOf } from '@/app/core/api-error';
 import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
 import { OwaspScope, readScope, sameScope, scopeParams } from '@/app/shared/owasp-scope';
 import { OwaspWeekly } from './owasp-weekly';
+import { issueLinker, LinkedText, Segment } from './report-links';
+
+/** A block as the card renders it: its prose cut into text and links, and its category's count. */
+export interface RenderedBlock {
+    block: OwaspBlock;
+    text: Segment[];
+    rows: Segment[][][];
+    /** The category's current open, unsettled issues; `null` where the block names no category. */
+    findings: number | null;
+    /** The backlog those findings are, as `/issues` reads it. */
+    findingsParams: Params | null;
+}
 
 @Component({
     selector: 'app-owasp',
@@ -48,6 +61,7 @@ import { OwaspWeekly } from './owasp-weekly';
         OwaspGridComponent,
         OwaspScopePicker,
         OwaspWeekly,
+        LinkedText,
         RouterLink,
         TranslatePipe
     ],
@@ -96,6 +110,36 @@ export class Owasp {
 
     readonly repositories = signal<MonitoredRepository[]>([]);
     readonly report = signal<OwaspReport | null>(null);
+    /**
+     * The repository the report shown describes, set with it: `selected` is a plain field that has
+     * already moved when the picker changes, and a link built from it would open another
+     * repository's backlog under this report.
+     */
+    private readonly reportRepository = signal<number | null>(null);
+    /** No report has been written for the selected repository — a state, told apart from a failed read. */
+    readonly noReport = signal(false);
+
+    readonly blocks = computed<RenderedBlock[]>(() => {
+        const report = this.report();
+        if (!report) return [];
+        const repositoryId = this.reportRepository();
+        const link = issueLinker(report.issueLinks, repositoryId);
+        return report.blocks.map((block) => {
+            const findings = block.category ? (report.categoryFindings?.[block.category] ?? null) : null;
+            return {
+                block,
+                text: link(block.text),
+                rows: (block.rows ?? []).map((row) => row.map((cell) => link(cell))),
+                findings,
+                // The grid's shape (`OwaspGridComponent.openParams`), narrowed to this repository:
+                // the count is the `total` of exactly this list, so the link and the figure agree.
+                findingsParams:
+                    findings !== null && repositoryId !== null
+                        ? { repository_id: repositoryId, owasp_category: block.category, unsettled: 'true' }
+                        : null
+            };
+        });
+    });
     readonly running = signal(false);
     readonly error = signal<string | null>(null);
 
@@ -108,16 +152,31 @@ export class Owasp {
 
     loadLatest(): void {
         this.report.set(null);
+        this.noReport.set(false);
         this.error.set(null);
-        if (this.selected === null) {
+        const id = this.selected;
+        if (id === null) {
             this.reportRequest.cancel();
             return;
         }
-        this.reportRequest.run(this.owaspApi.owaspReport(this.selected), {
-            next: (report) => this.report.set(report),
-            // A 404 here means "none yet", which is a state and not a failure.
-            error: () => this.report.set(null)
+        this.reportRequest.run(this.owaspApi.owaspReport(id), {
+            next: (report) => this.show(report, id),
+            error: (response: unknown) => {
+                // A 404 means "none yet", which is a state and not a failure. Anything else is a
+                // failure: read as "none yet", a 500 invited the reader to run a report that exists.
+                if (response instanceof HttpErrorResponse && response.status === 404) {
+                    this.noReport.set(true);
+                } else {
+                    this.error.set(messageOf(response, this.i18n.t('owasp.load_failed')));
+                }
+            }
         });
+    }
+
+    private show(report: OwaspReport, repositoryId: number): void {
+        this.reportRepository.set(repositoryId);
+        this.report.set(report);
+        this.noReport.set(false);
     }
 
     downloadPdf(): void {
@@ -135,15 +194,16 @@ export class Owasp {
     }
 
     run(): void {
-        if (this.selected === null) {
+        const id = this.selected;
+        if (id === null) {
             return;
         }
         this.running.set(true);
         this.error.set(null);
 
-        this.owaspApi.runOwaspReport(this.selected).subscribe({
+        this.owaspApi.runOwaspReport(id).subscribe({
             next: (report) => {
-                this.report.set(report);
+                this.show(report, id);
                 this.running.set(false);
             },
             error: (response) => {

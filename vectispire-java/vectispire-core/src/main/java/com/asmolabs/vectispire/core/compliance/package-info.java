@@ -11,7 +11,10 @@
  * model reviews ({@code ai}), the documents ({@code exports}), the verdicts ({@code gate}), the
  * components ({@code inventory}), the backlog ({@code issues} and {@code issues::queries}), the
  * figures ({@code posture}), the rule sets ({@code rules}), the scans ({@code scanning} and {@code
- * scanning::queries}) and the targets. Nothing uses it but {@code platform}.
+ * scanning::queries}) and the targets. Nothing uses it but {@code platform}. It is told of a
+ * repository's completed scan through {@code scanning.RepositoryScanned}, a port {@code scanning}
+ * declares and {@code compliance.internal} implements — the OWASP report an operator asked to have
+ * written after each scan — which is a use of {@code scanning}, already listed, and not a new line.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code Visibilities},
  * which every controller needs. Only its {@code web} may name them — the layer rule keeps a

@@ -109,11 +109,21 @@ GitLab, GitHub, Jira or ServiceNow: URL, project, token. Covered under
 
 ## AI code review
 
-Off by default. A language model reviews source code with a "security architect" prompt, as a
-lightweight complement to Grype, gitleaks and checkov — not a replacement for any of them. When
-enabled it runs on repository scans, and its narrative result and normalised findings appear in
-the scan detail. Its findings are tagged as coming from a model and excluded from the gate by
-default: the reviewed code is written by whoever is being audited, and can try to steer the model.
+Off by default. **Today the switch turns on one thing: the [OWASP report written by a
+model](../guide/risk-analysis.md#the-owasp-report-written-by-a-model)**, asked from the OWASP page or,
+with `ai_review_owasp_after_scan`, after each repository scan. The model is sent the repository's open
+findings — identifiers, components, paths, descriptions — not the repository's source, though a
+description can quote a line of it.
+
+**No scan reviews the code with a model.** The "security architect" prompt, the reading of its answer
+into findings and the finding type that would carry them exist, but no scan step calls them: a scan
+with this switch on examines exactly what it examines with it off, and no finding comes from a model.
+This paragraph said otherwise until 0.11.0. When that review is wired, its findings will be tagged as
+coming from a model and excluded from the gate by default — the code it reads is written by whoever is
+being audited, and can try to steer it.
+
+What the provider warnings below say about the code applies to what is sent today, the findings, and
+to the source the day the code review exists.
 
 **The provider decides where the code goes** (`ai_review_provider`):
 
@@ -131,6 +141,12 @@ a destination outside your network — OpenAI's API, or a public Ollama — need
 endpoint** (`ai_review_allow_remote_url`, off by default). Turning it on records, server-side, the
 account that accepted the risk and when (`ai_review_risk_acknowledged_by` / `_at`, and the audit
 log); turning it off clears them. `ai_review_timeout_seconds` (default 300) bounds the wait.
+
+**The OWASP report after each scan** (`ai_review_owasp_after_scan`, off by default, inert while model
+review is off). On, a repository scan that completes asks the model for that repository's
+[OWASP report](../guide/risk-analysis.md#the-owasp-report-written-by-a-model) — its open findings,
+never its source — one report at a time, beside the scans and never holding one up. Expect a model
+call of a few minutes per scanned repository, which is why it is off.
 
 ### With Ollama
 

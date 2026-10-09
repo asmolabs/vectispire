@@ -1355,8 +1355,16 @@ export type OwaspBlock = Refine<
         text: string;
         headers?: string[] | null;
         rows?: string[][] | null;
+        /** `A01`..`A10` on a `CATEGORY` block, `null` on every other — and on a heading the server could not place. */
+        category?: string | null;
     }
 >;
+
+/**
+ * An identifier the model was shown, resolved against the repository's issues: the one issue it
+ * names, or `null` and how many when several carry it.
+ */
+export type OwaspIssueLink = Refine<Schema<'IssueLink'>, { issueId?: number | null }>;
 
 export type OwaspReport = Refine<
     Schema<'Report'>,
@@ -1381,6 +1389,13 @@ export type OwaspReport = Refine<
          */
         inputs: string | null;
         createdAt: string;
+        /**
+         * Always the ten categories, counted now and not when the report was written: the open issues
+         * with unsettled triage — the `total` of `/issues?owasp_category=…&unsettled=true`.
+         */
+        categoryFindings?: Record<string, number> | null;
+        /** `null` on a report written before identifiers were recorded: no links, not an error. */
+        issueLinks?: Record<string, OwaspIssueLink> | null;
     }
 >;
 

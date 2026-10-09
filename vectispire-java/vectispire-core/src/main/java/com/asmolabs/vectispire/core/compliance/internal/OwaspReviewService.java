@@ -4,8 +4,11 @@ import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
+import com.asmolabs.vectispire.core.compliance.OwaspCoverageService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
@@ -16,7 +19,9 @@ import com.asmolabs.vectispire.core.targets.RepositoryView;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +33,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Producing the OWASP report, and recording that it was produced.
  *
- * <p><b>On demand, never on a scan.</b> A model call takes tens of seconds, costs a GPU and
- * answers slightly differently each time; hanging it off every scan would make the queue
- * unpredictable and fill the table with reports nobody read. It is a button, and the report says
- * which scan it was built from.
+ * <p><b>On demand, and after a scan only where an operator asked for it.</b> A model call takes
+ * minutes on a local model, costs a GPU and answers slightly differently each time; hanging it off
+ * every scan by default would fill the table with reports nobody read. It is a button, and — with
+ * {@code ai_review_owasp_after_scan} on — a repository's completed scan asks for it too, one report
+ * at a time, beside the scan and never inside it ({@link OwaspReportsAfterScans}). Either way the
+ * report says which scan it was built from.
  *
  * <p><b>The failure is stored, not thrown away.</b> A row is written whether the model answers
  * or not: "the report could not be produced, here is why, at this time" is what an operator
@@ -66,6 +73,7 @@ public class OwaspReviewService {
     private final AiReviewResultRepository results;
     private final IssueCatalog issues;
     private final ScanCatalog scans;
+    private final OwaspCoverageService coverage;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
@@ -74,12 +82,14 @@ public class OwaspReviewService {
             AiReviewResultRepository results,
             IssueCatalog issues,
             ScanCatalog scans,
+            OwaspCoverageService coverage,
             TransactionTemplate transactions,
             Clock clock) {
         this.models = models;
         this.results = results;
         this.issues = issues;
         this.scans = scans;
+        this.coverage = coverage;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -117,13 +127,58 @@ public class OwaspReviewService {
      * transaction. The boundaries are {@link TransactionTemplate}s, opened and closed by this method.
      */
     public AiReviewResultEntity run(RepositoryView repository) {
+        return review(repository, () -> scans.history(repository.id(), null, 1).stream()
+                .findFirst()
+                .orElseThrow(() -> new ReviewRefusedException(
+                        "This repository has never been scanned. There is nothing to report on yet.")));
+    }
+
+    /**
+     * Builds the report from one scan of the repository — the one whose completion asked for it.
+     *
+     * <p>The scan is named rather than read as the latest: a scan queued after the one that completed is
+     * the latest and has found nothing yet, and a report built from it would date itself to a scan that
+     * did not run.
+     *
+     * @throws ReviewRefusedException when model review is off, or the scan is no longer the repository's
+     *     — purged by retention between its completion and this run
+     */
+    public AiReviewResultEntity runAfterScan(RepositoryView repository, long scanId) {
+        return review(repository, () -> scans.scan(scanId)
+                .filter(scan -> Long.valueOf(repository.id()).equals(scan.repoId()))
+                .orElseThrow(() -> new ReviewRefusedException(
+                        "Scan " + scanId + " of this repository no longer exists. There is nothing to report on.")));
+    }
+
+    /**
+     * Whether a review of this repository is under way: its latest is running, and not yet past the
+     * deadline by which whoever asked would have settled it.
+     */
+    @Transactional(readOnly = true)
+    public boolean isRunning(long repositoryId) {
+        return latest(repositoryId)
+                .filter(row -> AiReviewStatus.RUNNING.wireName().equals(row.getStatus()))
+                .filter(row -> !AiReviewStatus.isAbandoned(row.getStatus(), row.getDeadlineAt(), clock.instant()))
+                .isPresent();
+    }
+
+    /**
+     * Whether any review of any repository is under way, by this instance or another, asked for by a person
+     * or by a scan — running, and not yet past its deadline.
+     */
+    @Transactional(readOnly = true)
+    public boolean anyRunning() {
+        return results.existsByStatusAndDeadlineAtAfter(AiReviewStatus.RUNNING.wireName(), clock.instant());
+    }
+
+    private AiReviewResultEntity review(RepositoryView repository, java.util.function.Supplier<ScanView> scanOf) {
         if (!models.isEnabled()) {
             throw new ReviewRefusedException(
                     "Model review is switched off. Turn it on under Settings → Model review.");
         }
 
         Duration timeout = models.timeout();
-        AiReviewResultEntity requested = transactions.execute(status -> request(repository, timeout));
+        AiReviewResultEntity requested = transactions.execute(status -> request(repository, scanOf.get(), timeout));
 
         String response = null;
         String error = null;
@@ -155,20 +210,17 @@ public class OwaspReviewService {
     }
 
     /** The first transaction: what the model will be shown, recorded as a review under way. */
-    private AiReviewResultEntity request(RepositoryView repository, Duration timeout) {
-        ScanView scan = scans.history(repository.id(), null, 1).stream()
-                .findFirst()
-                .orElseThrow(() -> new ReviewRefusedException(
-                        "This repository has never been scanned. There is nothing to report on yet."));
-
+    private AiReviewResultEntity request(RepositoryView repository, ScanView scan, Duration timeout) {
         List<IssueView> open = issues.ofRepositoryInState(repository.id(), IssueState.OPEN.wireName());
+        List<OwaspReview.Evidence> evidence = open.stream().map(OwaspReviewService::evidenceOf).toList();
         String digest = OwaspReview.digest(
                 new OwaspReview.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
                         repository.branch(),
                         scan.version(),
-                        open.size()),
-                open.stream().map(OwaspReviewService::evidenceOf).toList(),
+                        open.size(),
+                        coverageOf(repository)),
+                evidence,
                 MAX_EVIDENCE);
 
         Instant now = clock.instant();
@@ -181,6 +233,10 @@ public class OwaspReviewService {
         // The prompt is the instruction; this is what the model was shown, and the two answer
         // different questions about a document somebody may have to defend.
         result.setInputs(digest);
+        // The same findings in a form the report's links read, from the same list and limit as the
+        // digest: what the links may point at is what the model was shown, never what its prose names.
+        result.setEvidenceIdentifiers(
+                EvidenceIdentifiers.write(OwaspReview.identifiersShown(evidence, MAX_EVIDENCE)));
         result.setCreatedAt(now);
         result.setStatus(AiReviewStatus.RUNNING.wireName());
         result.setDeadlineAt(now.plus(timeout).plus(SETTLING_MARGIN));
@@ -210,6 +266,17 @@ public class OwaspReviewService {
         return row == null ? result : results.save(result);
     }
 
+    /**
+     * The repository's OWASP grid, one state per category — the grid the compliance screen shows for this
+     * repository alone, so the report's "nothing here" says the same as the screen beside it.
+     */
+    private Map<String, OwaspCoverage.State> coverageOf(RepositoryView repository) {
+        Map<String, OwaspCoverage.State> states = new LinkedHashMap<>();
+        coverage.ofTarget(new ScanTarget.Repository(repository.id()), coverage.reading())
+                .forEach(line -> states.put(line.id(), line.state()));
+        return states;
+    }
+
     private static OwaspReview.Evidence evidenceOf(IssueView issue) {
         String component = issue.packageName() == null
                 ? null
@@ -224,7 +291,9 @@ public class OwaspReviewService {
                 component,
                 issue.filePath(),
                 issue.triageStatus(),
-                issue.description());
+                issue.description(),
+                // The rule's declaration as the issue carries it; the digest places it as the grid does.
+                issue.owaspCategory());
     }
 
     /** The column is 500, and a stack-trace message routinely exceeds it. */

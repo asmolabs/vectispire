@@ -28,6 +28,44 @@ class OwaspMarkdownTest {
     }
 
     @Test
+    @DisplayName("a category heading carries the code it names, in whichever spelling the model chose")
+    void aCategoryCarriesItsCode() {
+        // The code is what the screen links a section to the backlog with: the count beside "A03" is
+        // the list of A03's issues, so a code read wrongly attaches a figure to somebody else's prose.
+        List<Block> blocks = OwaspMarkdown.parse(String.join("\n\n",
+                "## A03 — Injection",
+                "### a10:2021 – Server-Side Request Forgery",
+                "## **A06** Vulnerable and Outdated Components",
+                "## A01",
+                "## Executive summary"));
+
+        assertThat(blocks).extracting(Block::category).containsExactly("A03", "A10", "A06", "A01", null);
+        assertThat(blocks).extracting(Block::kind)
+                .containsExactly(Kind.CATEGORY, Kind.CATEGORY, Kind.CATEGORY, Kind.CATEGORY, Kind.HEADING);
+    }
+
+    @Test
+    @DisplayName("a heading whose code is not one of the ten is an ordinary heading, with no category")
+    void anUnreadableCodeIsNoCategory() {
+        // The prefix test this replaced read A100 as A10 and A011 as A01; A00 and A11 are no category of
+        // the 2021 edition; a code further into the heading is a heading that mentions one.
+        List<Block> blocks = OwaspMarkdown.parse(String.join("\n\n",
+                "## A100 findings", "## A011", "## A00 — nothing", "## A11 — Next edition", "## About A03"));
+
+        assertThat(blocks).extracting(Block::kind).containsOnly(Kind.HEADING);
+        assertThat(blocks).extracting(Block::category).containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("no block but a category carries a code, a table naming one included")
+    void onlyCategoriesCarryACode() {
+        List<Block> blocks = OwaspMarkdown.parse(
+                "A03 is the risk here.\n\n- A06 too\n\n| Category |\n|---|\n| A01 |");
+
+        assertThat(blocks).extracting(Block::category).containsOnlyNulls();
+    }
+
+    @Test
     @DisplayName("hard-wrapped prose becomes one paragraph, not one per line")
     void linesJoinIntoParagraphs() {
         // A model wraps at seventy or ninety columns. Treated as one paragraph per line, the PDF

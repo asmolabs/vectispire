@@ -260,6 +260,185 @@ describe('the OWASP report screen', () => {
 class Nowhere {}
 
 /**
+ * The report's way into the backlog: each category heading opens the list it counts, and each
+ * identifier the model was shown opens its issue. Asserted on the `href`s, through the DOM — a link
+ * is only as right as the URL a reader lands on.
+ */
+describe('the OWASP report, linked to the backlog', () => {
+    let fixture: ComponentFixture<Owasp>;
+    let http: HttpTestingController;
+    const page = () => fixture.nativeElement as HTMLElement;
+
+    const ALL_TEN = Object.fromEntries(
+        ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10'].map((id) => [id, 0])
+    );
+
+    function report(overrides: Record<string, unknown>) {
+        return asSchema('Report', {
+            id: 7,
+            status: 'completed',
+            model: 'gemma4:e4b',
+            content: 'x',
+            blocks: [
+                { kind: 'CATEGORY', level: 2, marker: null, text: 'A03 — Injection', category: 'A03' },
+                { kind: 'PARAGRAPH', level: 0, marker: null, text: 'CVE-2026-1 and CVE-2026-1000.', category: null }
+            ],
+            error: null,
+            scanId: 34,
+            inputs: null,
+            createdAt: '2026-10-01T09:00:00Z',
+            categoryFindings: { ...ALL_TEN, A03: 4 },
+            issueLinks: { 'CVE-2026-1': { issueId: 81, count: 1 } },
+            ...overrides
+        });
+    }
+
+    beforeEach(async () => {
+        silenceAnchorNavigation();
+        await TestBed.configureTestingModule({
+            imports: [Owasp],
+            providers: [
+                provideHttpClient(withXhr()),
+                provideHttpClientTesting(),
+                provideRouter([
+                    { path: 'issues', component: Nowhere },
+                    { path: 'issues/:id', component: Nowhere }
+                ])
+            ]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Owasp);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne('/api/v1/repositories').flush([]);
+        // The grid above asks for its own data; this describe is about the report card.
+        for (const request of http.match(() => true)) request.flush({ lines: [], covered: 0, withFindings: 0 });
+        fixture.detectChanges();
+    });
+
+    function load(answer: object, status = 200): void {
+        fixture.componentInstance.selected = 5;
+        fixture.componentInstance.loadLatest();
+        const request = http.expectOne({ method: 'GET', url: '/api/v1/repositories/5/owasp-review' });
+        if (status === 200) request.flush(answer);
+        else request.flush(answer, { status, statusText: 'Error' });
+        fixture.detectChanges();
+    }
+
+    const hrefOf = (anchor: Element) => new URL((anchor as HTMLAnchorElement).href);
+
+    it('opens, under a category, the repository backlog that category counts', () => {
+        load(report({}));
+        const link = page().querySelector('[data-testid="category-findings"]')!;
+        expect(link.textContent.trim()).toBe('View the 4 findings');
+        const target = hrefOf(link);
+        expect(target.pathname).toBe('/issues');
+        // The grid's shape, narrowed to the repository: its `total` is the figure on the link.
+        expect(Object.fromEntries(target.searchParams)).toEqual({
+            repository_id: '5',
+            owasp_category: 'A03',
+            unsettled: 'true'
+        });
+    });
+
+    it('says one finding in the singular', () => {
+        load(report({ categoryFindings: { ...ALL_TEN, A03: 1 } }));
+        expect(page().querySelector('[data-testid="category-findings"]')!.textContent.trim()).toBe(
+            'View the 1 finding'
+        );
+    });
+
+    it('links no empty list: a category without findings says so in words', () => {
+        load(report({ categoryFindings: ALL_TEN }));
+        expect(page().querySelector('[data-testid="category-findings"]')).toBeNull();
+        expect(page().querySelector('[data-testid="category-findings-none"]')!.textContent.trim()).toBe(
+            'No open finding in this category.'
+        );
+    });
+
+    it('adds nothing under a heading the server placed in no category', () => {
+        load(
+            report({
+                blocks: [{ kind: 'CATEGORY', level: 2, marker: null, text: 'Summary', category: null }]
+            })
+        );
+        expect(page().querySelector('[data-testid="category-findings"]')).toBeNull();
+        expect(page().querySelector('[data-testid="category-findings-none"]')).toBeNull();
+    });
+
+    it('links an identifier the model was shown to its issue, and only that one', () => {
+        load(report({}));
+        const links = page().querySelectorAll('[data-testid="report-issue-link"]');
+        expect(links).toHaveLength(1);
+        expect(links[0].textContent).toBe('CVE-2026-1');
+        expect(hrefOf(links[0]).pathname).toBe('/issues/81');
+        // The longer identifier beside it stays text, and the paragraph reads as it was written.
+        expect(page().textContent).toContain('CVE-2026-1 and CVE-2026-1000.');
+    });
+
+    it('links identifiers in bullets, numbered items, quotes and table cells too', () => {
+        load(
+            report({
+                blocks: [
+                    { kind: 'BULLET', level: 0, marker: null, text: 'b CVE-2026-1' },
+                    { kind: 'NUMBERED', level: 0, marker: '1', text: 'n CVE-2026-1' },
+                    { kind: 'BLOCKQUOTE', level: 0, marker: null, text: 'q CVE-2026-1' },
+                    {
+                        kind: 'TABLE',
+                        level: 0,
+                        marker: null,
+                        text: '',
+                        headers: ['Id', 'Note'],
+                        rows: [['CVE-2026-7', 'see CVE-2026-1']]
+                    }
+                ],
+                issueLinks: { 'CVE-2026-1': { issueId: 81, count: 1 }, 'CVE-2026-7': { issueId: null, count: 3 } }
+            })
+        );
+        const links = [...page().querySelectorAll('[data-testid="report-issue-link"]')];
+        expect(links.map((link) => link.textContent)).toEqual([
+            'CVE-2026-1',
+            'CVE-2026-1',
+            'CVE-2026-1',
+            'CVE-2026-7',
+            'CVE-2026-1'
+        ]);
+        const several = hrefOf(links[3]);
+        expect(several.pathname).toBe('/issues');
+        expect(Object.fromEntries(several.searchParams)).toEqual({ repository_id: '5', search: 'CVE-2026-7' });
+    });
+
+    it('renders a report written before links were recorded as text, without an error', () => {
+        load(report({ issueLinks: null }));
+        expect(page().querySelectorAll('[data-testid="report-issue-link"]')).toHaveLength(0);
+        expect(page().textContent).toContain('CVE-2026-1 and CVE-2026-1000.');
+        expect(page().querySelector('p-message[severity="error"]')).toBeNull();
+        // The category count is read now, not stored with the report: an old report still has it.
+        expect(page().querySelector('[data-testid="category-findings"]')).not.toBeNull();
+    });
+
+    it('tells a repository with no report yet apart from a report with no findings', () => {
+        load({ detail: 'No review yet.' }, 404);
+        expect(page().querySelector('[data-testid="no-report"]')!.textContent.trim()).toBe(
+            'No report has been written for this repository yet. Run the analysis to produce one.'
+        );
+        expect(page().textContent).not.toContain('No findings categorized under this section.');
+        expect(fixture.componentInstance.error()).toBeNull();
+    });
+
+    it('says a failed read failed, rather than that no report exists', () => {
+        load({ detail: 'Database unavailable.' }, 500);
+        expect(page().querySelector('[data-testid="no-report"]')).toBeNull();
+        expect(fixture.componentInstance.error()).toBe('Database unavailable.');
+        expect(page().textContent).toContain('Database unavailable.');
+
+        // Without a sentence from the server, the screen's own.
+        load({}, 503);
+        expect(fixture.componentInstance.error()).toBe('The latest report could not be loaded.');
+    });
+});
+
+/**
  * The current grid's scope, through a real router and the DOM: the scope lives in the URL, the grid
  * is asked for it, and everything that leaves the grid — a count, the other view — carries it.
  */

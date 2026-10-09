@@ -124,6 +124,43 @@ s'affichent sous la carte de chaleur.
 *Imprimer / PDF* imprime la vue sans les menus, par le « enregistrer en PDF » du navigateur. L'adresse
 porte la fenêtre, le périmètre et la semaine sélectionnée : un lien reproduit la vue.
 
+### Le rapport OWASP rédigé par un modèle
+
+*Sécurité* → *OWASP Top 10:2021*, un dépôt choisi, **Lancer l'analyse IA** demande au modèle configuré ([Réglages](../administration/settings.md#revue-de-code-par-ia))
+le rapport de posture d'un dépôt au regard du Top 10:2021, à partir de son dernier scan. **Le modèle reçoit
+les constats ouverts du dépôt, jamais son code source** : type, catégorie, sévérité, identifiant,
+composant, emplacement, triage et description, trois cents au plus, le reste annoncé comme laissé de
+côté — et la grille OWASP du dépôt. Le rapport enregistre le modèle, le scan dont il est tiré et ce qui
+lui a été envoyé ; c'est une prose écrite par un modèle, pas une preuve, et rien de ce qu'il dit ne
+devient un ticket ni n'atteint une barrière.
+
+- **Les catégories sont celles de Vectispire, pas celles du modèle.** Chaque constat part avec la
+  catégorie où la grille ci-dessus le place — contrôles d'infrastructure en A05, dépendances vulnérables
+  et composants hors support en A06, secrets commités en A07, un constat d'analyse statique là où sa règle
+  le déclare — et le modèle a pour consigne de regrouper les constats sous celle-ci et de n'en déplacer
+  aucun. Les constats que la grille ne place nulle part sont listés à part, sous *Not placed by the
+  scanners*, plutôt que de recevoir une catégorie. Un rapport rédigé avant cette évolution laissait le
+  modèle choisir, et pouvait contredire la grille — des secrets sous A02, par exemple ; son PDF dit que
+  le modèle les a rangés.
+- **Une catégorie vide dit pourquoi elle l'est.** Le modèle reçoit l'état de chaque catégorie dans la
+  grille — constats, rien trouvé, non mesuré, aucun scanner ici — et la section *Not evidenced* le
+  reprend. Aucun des trois états vides n'est un certificat de bonne santé : un scanner qui n'a rien
+  trouvé n'a regardé que la part de la catégorie qu'il sait voir.
+- **Après chaque scan, si vous le demandez.** Avec **Write the OWASP report after each repository scan**
+  (`ai_review_owasp_after_scan`, désactivé par défaut) et la revue par modèle activée, un scan de dépôt
+  qui se termine demande le rapport — tiré de ce scan, jamais d'un scan en échec, jamais pour une image
+  de conteneur. Il est rédigé à côté des scans sans jamais en retenir un, **un à la fois** : un modèle
+  local répond à une demande à la fois, donc aucun rapport ne commence tant qu'un autre est en cours, sur
+  aucune instance du plan de contrôle ni depuis le bouton. Un dépôt dont le rapport est en cours n'est pas
+  redemandé, et plusieurs scans d'un même dépôt qui attendent le modèle donnent un seul rapport, à partir
+  du plus récent. Un rapport en échec dit pourquoi sur la page, comme un rapport demandé à la main, et le
+  scan reste terminé. Le journal d'audit enregistre chacun comme `AI_REVIEW_REQUESTED`, sans utilisateur
+  — personne ne l'a demandé. Une demande en attente sur une instance qui s'arrête est perdue ; le scan
+  suivant la redemande.
+
+Chacun lit le rapport avec sa propre visibilité : la route refuse un dépôt que vous ne voyez pas, et les
+comptes et liens à côté du rapport sont comptés comme votre backlog les compte.
+
 ## Bien s'en servir
 
 Aucune de ces vues ne produit de nouveaux constats. Elles reclassent ceux que vous avez selon

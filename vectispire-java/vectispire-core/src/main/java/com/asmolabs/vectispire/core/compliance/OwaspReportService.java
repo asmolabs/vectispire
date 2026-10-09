@@ -2,12 +2,14 @@ package com.asmolabs.vectispire.core.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
+import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.compliance.internal.OwaspReportLinks;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReportPdf;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
@@ -26,7 +28,8 @@ import org.springframework.stereotype.Service;
  * <p>{@link OwaspReviewService} writes the report; this class decides who may reach it and what
  * surrounds it — the visibility refusal, the audit entry for a run, the cover page of the PDF.
  * Every entry point takes the caller's visibility, so a repository they were not given reads as
- * one that does not exist, on all three.
+ * one that does not exist, on all three — and the figures and links beside a report are counted with
+ * the same visibility, so they never describe an issue the backlog would hide ({@link OwaspReportLinks}).
  */
 @Service
 public class OwaspReportService {
@@ -34,6 +37,7 @@ public class OwaspReportService {
     private static final String NO_REPORT = "No OWASP report has been produced for this target.";
 
     private final OwaspReviewService reviews;
+    private final OwaspReportLinks links;
     private final TargetCatalog targets;
     private final ScanCatalog scans;
     private final IssueCatalog issues;
@@ -43,6 +47,7 @@ public class OwaspReportService {
 
     public OwaspReportService(
             OwaspReviewService reviews,
+            OwaspReportLinks links,
             TargetCatalog targets,
             ScanCatalog scans,
             IssueCatalog issues,
@@ -50,6 +55,7 @@ public class OwaspReportService {
             BrandingProperties branding,
             Clock clock) {
         this.reviews = reviews;
+        this.links = links;
         this.targets = targets;
         this.scans = scans;
         this.issues = issues;
@@ -59,10 +65,11 @@ public class OwaspReportService {
     }
 
     /** @throws NotFoundException for a hidden or absent repository, or one never reviewed */
-    public AiReviewResultView latest(long repositoryId, Visibility allowed) {
+    public OwaspReport latest(long repositoryId, Visibility allowed) {
         visible(repositoryId, allowed);
-        return reviews.latest(repositoryId).map(row -> AiReviewResultView.of(row, clock.instant()))
+        AiReviewResultView review = reviews.latest(repositoryId).map(row -> AiReviewResultView.of(row, clock.instant()))
                 .orElseThrow(() -> new NotFoundException(NO_REPORT));
+        return linked(repositoryId, review, allowed);
     }
 
     /**
@@ -70,7 +77,7 @@ public class OwaspReportService {
      *
      * @param actor who asked, for the audit trail
      */
-    public AiReviewResultView run(
+    public OwaspReport run(
             long repositoryId, Visibility allowed, String actor, String ipAddress, String userAgent) {
 
         RepositoryView repository = visible(repositoryId, allowed);
@@ -87,7 +94,7 @@ public class OwaspReportService {
                 ipAddress,
                 userAgent));
 
-        return AiReviewResultView.of(result, clock.instant());
+        return linked(repositoryId, AiReviewResultView.of(result, clock.instant()), allowed);
     }
 
     /**
@@ -125,8 +132,17 @@ public class OwaspReportService {
                         scan == null ? null : scan.createdAt(),
                         result.createdAt(),
                         issues.countByStateAndRepository(IssueState.OPEN.wireName(), repositoryId),
-                        branding.name()),
+                        branding.name(),
+                        OwaspReview.placedByRule(result.inputs())),
                 result.response());
+    }
+
+    /** The review with the backlog's figures and the cited issues, as {@code allowed} sees them now. */
+    private OwaspReport linked(long repositoryId, AiReviewResultView review, Visibility allowed) {
+        return new OwaspReport(
+                review,
+                links.categoryFindings(repositoryId, allowed),
+                links.issueLinks(repositoryId, review.evidenceIdentifiers(), allowed));
     }
 
     private RepositoryView visible(long repositoryId, Visibility allowed) {

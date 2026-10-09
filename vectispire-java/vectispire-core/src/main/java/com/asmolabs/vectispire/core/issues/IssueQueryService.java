@@ -187,6 +187,28 @@ public class IssueQueryService {
     public IssuePage page(BacklogQuery query, Visibility allowed) {
         int size = Math.clamp(query.limit(), 1, MAX_PAGE_SIZE);
         int from = Math.max(query.offset(), 0);
+
+        var page = issues.findAll(
+                IssueSpecifications.of(filtersOf(query, allowed)),
+                PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
+
+        return new IssuePage(named(page.getContent()), page.getTotalElements(), size, from);
+    }
+
+    /**
+     * How many issues {@link #page} would list for the query — its {@code total}, without the page.
+     *
+     * <p><b>For a figure that links to the list</b>, which must announce the length of the list it opens:
+     * the OWASP report's per-category counts are this over the query their link carries. The criteria are
+     * built by the same method as the page's, so the two cannot be two definitions of one set; the limit
+     * and the offset ask nothing of a count.
+     */
+    public long count(BacklogQuery query, Visibility allowed) {
+        return issues.count(IssueSpecifications.of(filtersOf(query, allowed)));
+    }
+
+    /** The query as the criteria the page and its count both apply, the visibility among them. */
+    private IssueFilters filtersOf(BacklogQuery query, Visibility allowed) {
         IssueFilters.Lifetime lifetime = lifetime(query);
 
         IssueFilters filters = new IssueFilters(
@@ -214,12 +236,7 @@ public class IssueQueryService {
         if (query.solutionId() != null) {
             filters = filters.within(solutions.targetsOfSolution(query.solutionId()));
         }
-
-        var page = issues.findAll(
-                IssueSpecifications.of(filters),
-                PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
-
-        return new IssuePage(named(page.getContent()), page.getTotalElements(), size, from);
+        return filters;
     }
 
     /**

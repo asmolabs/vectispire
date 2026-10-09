@@ -41,6 +41,27 @@ class OwaspReportPdfTest {
         assertThat(text).contains("gemma4:26b");
         assertThat(text).contains("scan #32");
         assertThat(text).contains("A language model grouped those findings");
+        // The sentence the OWASP grid contradicts — a category can be examined and come back clean.
+        assertThat(text.replaceAll("\\s+", " ")).doesNotContain("means no scanner here looked for it");
+        assertThat(text.replaceAll("\\s+", " ")).contains("found nothing open");
+    }
+
+    @Test
+    @DisplayName("says the categories are the grid's only for a report that was handed them")
+    void thePlacementIsStatedAsRecorded() throws Exception {
+        OwaspReportPdf.Subject placed = new OwaspReportPdf.Subject(
+                SUBJECT.targetName(), SUBJECT.branch(), SUBJECT.projectVersion(), SUBJECT.model(), SUBJECT.scanId(),
+                SUBJECT.scanAt(), SUBJECT.generatedAt(), SUBJECT.openIssues(), SUBJECT.brandName(), true);
+
+        String now = textOf(OwaspReportPdf.render(placed, "## A07 — Identification and Authentication Failures"))
+                .replaceAll("\\s+", " ");
+        String before = textOf(OwaspReportPdf.render(SUBJECT, "## A02 — Cryptographic Failures"))
+                .replaceAll("\\s+", " ");
+
+        assertThat(now).contains("Vectispire's own rules place it in");
+        assertThat(now).doesNotContain("grouped those findings under the OWASP categories");
+        // A report the model placed itself must not be presented as placed by rule.
+        assertThat(before).doesNotContain("Vectispire's own rules place it in");
     }
 
     @Test
