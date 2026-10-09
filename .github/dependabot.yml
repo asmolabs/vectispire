@@ -102,6 +102,9 @@ updates:
         update-types: [version-update:semver-major, version-update:semver-minor]
       - dependency-name: vitest
         update-types: [version-update:semver-major]
+      # The coverage provider refuses a Vitest of another version, so its major is vitest's.
+      - dependency-name: "@vitest/*"
+        update-types: [version-update:semver-major]
       - dependency-name: happy-dom
         update-types: [version-update:semver-major]
     groups:

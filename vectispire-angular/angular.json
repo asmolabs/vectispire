@@ -94,7 +94,15 @@
                     "options": {
                         "tsConfig": "tsconfig.spec.json",
                         "buildTarget": "::development",
-                        "runner": "vitest"
+                        "runner": "vitest",
+                        "coverage": true,
+                        "coverageReporters": ["text-summary", "html"],
+                        "coverageThresholds": {
+                            "statements": 76,
+                            "branches": 69,
+                            "functions": 65,
+                            "lines": 78
+                        }
                     }
                 }
             }

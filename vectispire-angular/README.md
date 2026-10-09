@@ -82,6 +82,16 @@ whichever package is installed. jsdom was held at 26 because jsdom 30 renamed a 
 unchanged, in less time. Keep it at 20.8.9 or later: earlier versions carry published
 advisories, one of them a VM escape.
 
+**`@vitest/coverage-v8`, at Vitest's own version.** `ng test` measures coverage on every run
+and fails below the floors in `angular.json` — statements 76 %, branches 69 %, functions 65 %,
+lines 78 %, set about three points under what the suite measured when they were introduced
+(79.5, 72.0, 68.2, 81.2). Close enough that a screen landing without its specs turns the
+build red, far enough that a rounding does not. On the `test` target rather than in a CI flag,
+because a threshold only one pipeline passes is a preference, not a gate. The provider refuses
+a Vitest of another version, so the two move together; raise a floor when the figure has
+risen, never lower one to make a change pass. The HTML report lands in
+`coverage/vectispire/index.html`. Dependencies MIT or BSD-3-Clause; development only.
+
 **`mysql2`, exact-pinned, for the browser suite alone.** The Playwright suite runs the control
 plane on MySQL (decision 0034), and two helpers in `e2e/support/fixture.ts` write to that
 database directly — resetting the login throttle and seeding one finding — with the control
