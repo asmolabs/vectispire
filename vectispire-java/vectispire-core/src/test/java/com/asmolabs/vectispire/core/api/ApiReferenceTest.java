@@ -21,10 +21,11 @@ import org.junit.jupiter.api.Test;
  *
  * <h2>Why this and not the other direction</h2>
  *
- * <p>The reference is <b>curated</b> — forty-eight routes out of roughly two hundred — and
- * deliberately so: it is what somebody reads before writing a client, not an inventory. Asserting
- * that every route appears would turn it into one, and the answer to a failing test would be to
- * paste a row nobody wrote for a reader.
+ * <p>The reference is <b>curated</b> — a fraction of the routes the contract carries, and no count is
+ * written here because both numbers move with every release — and deliberately so: it is what
+ * somebody reads before writing a client, not an inventory. Asserting that every route appears
+ * would turn it into one, and the answer to a failing test would be to paste a row nobody wrote
+ * for a reader.
  *
  * <p>The other direction has no such excuse. A row naming a route that no longer answers is worse
  * than a missing row: the reader writes the call, gets a 404, and has no way to tell whether they

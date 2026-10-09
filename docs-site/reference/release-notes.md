@@ -1,6 +1,9 @@
 # Release notes
 
-## Next release (after 0.10.0)
+## 0.11.0 — in preparation
+
+The release candidate `v0.11.0-rc.1` was tagged on 2026-10-06; 0.11.0 itself is not released yet.
+What follows is what 0.11.0 will contain, against 0.10.0.
 
 ### Before you upgrade
 

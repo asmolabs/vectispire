@@ -184,7 +184,7 @@ variables:
 # Votre propre job de tests ; ce qui compte est qu'il garde les deux rapports en artefacts.
 unit-tests:
   stage: test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.12-eclipse-temurin-21@sha256:c3c9d3ac4ce8431a3995c0318b8d390f448e693dd4fabc16e9b68d2e1f3d7b46
   script:
     - mvn -B verify          # avec le goal `report` de jacoco-maven-plugin lié au build
   artifacts:
@@ -196,7 +196,7 @@ unit-tests:
 # gèrent les BOM du parent, que le scanner lit UNKNOWN, et les bibliothèques tirées transitivement.
 build-sbom:
   stage: test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.12-eclipse-temurin-21@sha256:c3c9d3ac4ce8431a3995c0318b8d390f448e693dd4fabc16e9b68d2e1f3d7b46
   script:
     - mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom -DoutputFormat=json
   artifacts:

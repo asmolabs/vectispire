@@ -104,7 +104,7 @@ Covered under [Notifications](../integrations/notifications.md).
 
 ## Tracker
 
-GitLab or Jira: URL, project, token. Covered under
+GitLab, GitHub, Jira or ServiceNow: URL, project, token. Covered under
 [Tracker tickets](../integrations/ticketing.md).
 
 ## AI code review

@@ -16,8 +16,9 @@ stays intact — which is the point of deactivating rather than deleting one.
 ## Roles
 
 Roles decide what a person may **do**; teams decide what they may **see**. The two are independent
-by design: granting a role does not widen someone's scope, except for the three roles that
-explicitly carry a global one.
+by design: granting a role does not widen someone's scope, except for the four roles that
+explicitly carry a global one — Auditor, CISO / Security Lead,
+Administrator and Superuser.
 
 | Role | What it can do |
 |---|---|

@@ -1,6 +1,9 @@
 # Notes de version
 
-## Prochaine version (après 0.10.0)
+## 0.11.0 — en préparation
+
+La version candidate `v0.11.0-rc.1` a été étiquetée le 6 octobre 2026 ; la 0.11.0 elle-même n'est pas
+encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 0.10.0.
 
 ### Avant de mettre à niveau
 

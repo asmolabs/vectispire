@@ -82,11 +82,14 @@ public record EncryptionProperties(
                 previousKeysFile.isPresent(),
                 "VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS",
                 "VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE");
+        // **The names an operator sets, which relaxed binding derives from the properties.** These
+        // messages said VECTISPIRE_VAULT_TOKEN — a variable that binds to nothing, so following the
+        // message's own advice ("unset it") pointed at a name nobody could have set.
         refuseBoth(
                 isSupplied(vaultToken),
                 vaultTokenFile.isPresent(),
-                "VECTISPIRE_VAULT_TOKEN",
-                "VECTISPIRE_VAULT_TOKEN_FILE");
+                "VECTISPIRE_ENCRYPTION_VAULT_TOKEN",
+                "VECTISPIRE_ENCRYPTION_VAULT_TOKEN_FILE");
 
         Optional<String> resolvedKey =
                 keyFile.map(path -> SecretFile.read(path, "ENCRYPTION_KEY_FILE")).or(() -> key);
@@ -95,7 +98,7 @@ public record EncryptionProperties(
                 .map(EncryptionProperties::splitKeys)
                 .orElse(previousKeys);
         Optional<String> resolvedVaultToken = vaultTokenFile
-                .map(path -> SecretFile.read(path, "VECTISPIRE_VAULT_TOKEN_FILE"))
+                .map(path -> SecretFile.read(path, "VECTISPIRE_ENCRYPTION_VAULT_TOKEN_FILE"))
                 .or(() -> vaultToken);
 
         return new EncryptionProperties(

@@ -6,17 +6,19 @@ This document covers everything needed to run Vectispire locally: prerequisites,
 
 | Requirement | Why |
 |---|---|
-| **Node ≥ 24** | The workspace targets the current LTS. |
-| **Docker**, running and reachable | Vectispire runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers through the Docker socket. It is also what starts PostgreSQL in development and in the integration tests. |
-| **PostgreSQL or MySQL 8** | Both are supported and exercised by the integration campaign. SQLite is not, and is no longer in the build at all ([ADR 0034](../architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). In development, a container is enough. |
+| **JDK 25** | The Gradle toolchain of `vectispire-java/` asks for 25; only needed to build or run from source. |
+| **Node 24 (LTS)** | Pinned by `.nvmrc`. Angular 22 refuses Node 25. |
+| **Docker**, running and reachable | Vectispire runs Syft, Grype, gitleaks, checkov and Semgrep as ephemeral containers through a Docker daemon — in the shipped composition through a `docker-socket-proxy`, never the socket itself. It is also what starts MySQL in development and for the test suites. |
+| **MySQL 8** (default) **or PostgreSQL** | Both are supported and exercised by the integration campaign; MySQL is what `VECTISPIRE_DB_URL` points at when unset and what `docker-compose.yml` ships. SQLite is not supported, and is no longer in the build at all ([ADR 0034](../architecture/en/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). In development, a container is enough. |
 | **Git** | To clone this repository, and used by Vectispire itself to clone what it scans. |
 
 ## 2. Install
 
 ```bash
 git clone <this-repo-url>
-cd Vectispire
-npm install
+cd vectispire
+npm ci                                  # the interface; respects the lockfile
+cd vectispire-java && ./gradlew build   # the control plane: compile, unit, architecture and HTTP suites (needs Docker)
 ```
 
 `npm` covers the interface alone. The control plane is a Gradle build in `vectispire-java/` and
@@ -28,11 +30,11 @@ Most runtime settings — enrichment, end-of-life, retention, notifications, lic
 tracker, model review — live in the database and are edited from the **Settings** page once
 the application runs. A setting appears there only once a service actually reads it.
 
-Three environment variables matter before the first run:
+The environment variables that matter before the first run:
 
 | Variable | Default |
 |---|---|
-| `VECTISPIRE_DB_URL` | `jdbc:postgresql://localhost:5432/vectispire` — a **JDBC** URL, e.g. `jdbc:mysql://localhost:3306/vectispire` |
+| `VECTISPIRE_DB_URL` | `jdbc:mysql://localhost:3306/vectispire` — a **JDBC** URL; for PostgreSQL, `jdbc:postgresql://localhost:5432/vectispire` |
 | `VECTISPIRE_DB_USER` / `VECTISPIRE_DB_PASSWORD` | `vectispire` / empty |
 | `ENCRYPTION_KEY` | *none* — saving a secret is refused until it is set. In production prefer `ENCRYPTION_KEY_FILE` |
 | `ENCRYPTION_KEY_FILE` | *none* — a path to a file holding the key instead, which is what a Docker or Kubernetes secret mounts. Keeps the value out of `/proc/<pid>/environ`, `docker inspect` and an orchestrator's logs. Setting it *and* `ENCRYPTION_KEY` is refused; a path that does not resolve stops the application rather than starting with no key |
@@ -89,7 +91,7 @@ table is empty:
 
 ```bash
 VECTISPIRE_BOOTSTRAP_USERNAME=admin
-VECTISPIRE_BOOTSTRAP_PASSWORD=<at least 8 characters>
+VECTISPIRE_BOOTSTRAP_PASSWORD=<at least 12 characters>
 ```
 
 
@@ -103,17 +105,18 @@ npm --workspace @vectispire/frontend start                                      
 
 The first start creates a SUPERUSER from `VECTISPIRE_BOOTSTRAP_USERNAME` and
 `VECTISPIRE_BOOTSTRAP_PASSWORD` when the user table is empty. Once an account exists, both
-variables are ignored.
+variables are ignored. Open `http://localhost:4280`, sign in with that account and change its
+password.
 
 ### 5.1 Docker Compose Deployment (All-in-One)
 
-You can launch the complete Vectispire stack (PostgreSQL + Control Plane + Optional Remote Agent) in a single command:
+You can launch the complete Vectispire stack (MySQL + Control Plane + Optional Remote Agent) in a single command:
 
 ```bash
 # 1. Copy and adjust environment variables
 cp .env.example .env
 
-# 2. Launch PostgreSQL + Vectispire Control Plane on http://localhost:3180
+# 2. Launch MySQL + Vectispire Control Plane on http://localhost:3180
 docker compose up -d
 
 # 3. Optional: Launch with a dedicated remote agent
@@ -129,7 +132,7 @@ npm run docker:build:agent    # or docker build -f Dockerfile.agent -t vectispir
 
 ## 6. Optional: AI code review (Ollama)
 
-An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans; its narrative result and normalized findings (severity/title/file) show up in the scan detail dialog. See `AiReviewService`'s docstring and [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) §4bis for how it's wired in.
+An additional, disabled-by-default option: a local LLM, run via [Ollama](https://ollama.com), that reviews source code with a "security architect" prompt as a lightweight complement to Grype/gitleaks/checkov — not a replacement. When enabled, it runs automatically on repository scans; its narrative result and normalized findings (severity/title/file) show up in the scan detail dialog. See `AiReviewService`'s docstring and §4 of [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) for how it's wired in.
 
 Ollama can be run either natively or in Docker — Vectispire talks to it over plain HTTP either way (`ai_review_ollama_url`, default `http://localhost:11434`), and the choice is purely about where/how Ollama itself runs. There is deliberately no setting for it: where Ollama runs changes nothing about how Vectispire calls it.
 
@@ -140,7 +143,7 @@ ollama pull gemma4:12b-it-qat   # ~7.2GB, ~9-10GB RAM/VRAM — recommended defau
 ollama pull gemma4:e4b-it-qat   # ~6.1GB, lighter/faster, lower review quality
 ```
 
-**Docker** — simpler to reproduce across machines, but on **Apple Silicon Macs, Docker Desktop has no GPU/Metal passthrough**, so the container runs CPU-only and inference is noticeably slower than the native app. On Linux with an NVIDIA GPU (+ nvidia-container-toolkit), GPU acceleration is still possible in the container. A ready-made compose file is provided at the repository root:
+**Docker** — simpler to reproduce across machines, but on **Apple Silicon Macs, Docker Desktop has no GPU/Metal passthrough**, so the container runs CPU-only and inference is noticeably slower than the native app. On Linux with an NVIDIA GPU (+ nvidia-container-toolkit), GPU acceleration is still possible in the container.
 
 ```bash
 docker run -d --name vectispire-ollama -p 127.0.0.1:11434:11434 -v ollama:/root/.ollama ollama/ollama
@@ -154,7 +157,12 @@ delete yours.
 
 (Add `--gpus all` for NVIDIA passthrough on Linux.)
 
-Then, from Vectispire's **Settings** page, under "Revue de code par IA": toggle the feature on, set the Ollama URL (default `http://localhost:11434`, unchanged whether Ollama runs natively or via the provided compose file since the container publishes the same port to the host), and pick a model from the dropdown — the list is read live from Ollama's own `/api/tags` endpoint (whatever you've actually pulled shows up there), not a hardcoded list. If Ollama isn't reachable yet, the dropdown falls back to showing the two models above as suggestions rather than being empty.
+Then, from Vectispire's **Settings → AI** tab, in the **AI Review** card: switch the review on, set the Ollama URL (default `http://localhost:11434`, unchanged whether Ollama runs natively or in the container above, since the container publishes the same port on the host's loopback), and name the model. **Test the connection** says whether Ollama answers at that URL and whether the model is among the ones it holds — read live from Ollama's own `/api/tags`, so what you have actually pulled is what counts.
+
+**The configuration is in the database, not in the environment.** This section once described three
+`VECTISPIRE_AI_REVIEW_*` variables that exist nowhere in the code: setting them did nothing. The real
+settings are `ai_review_enabled`, `ai_review_ollama_url` and `ai_review_model`, set from the
+interface — so a change is audited and needs no restart.
 
 ## 7. Running the tests
 
@@ -171,8 +179,9 @@ a run without Docker fails loudly rather than reporting green having verified no
 
 Each release carries the jar and its SBOM, the CI gate script `vectispire-gate.sh` and — from the
 release after 0.10.0 on — the CLI `vectispire-cli.sh` ([CI/CD integration](CI_CD_INTEGRATION.md#-getting-the-cli)),
-each with a Sigstore bundle verified the same way, and two signed container images. Verify before running anything: a security tool you took on trust is a
-contradiction.
+each with a Sigstore bundle verified the same way, and signed container images — two up to 0.10.0,
+three from the release after it (see below). Verify before running anything: a security tool you took
+on trust is a contradiction.
 
 ```bash
 cosign verify-blob \
@@ -210,12 +219,17 @@ cosign verify-blob \
 
 ### Running it from the published images
 
-A release also publishes two container images, so nothing has to be compiled to run this:
+A release also publishes its container images, so nothing has to be compiled to run this — the
+control plane and the agent:
 
 ```bash
 docker pull ghcr.io/asmolabs/vectispire:0.10.0
 docker pull ghcr.io/asmolabs/vectispire-agent:0.10.0
 ```
+
+From the release after 0.10.0 on, a third is published beside them,
+`ghcr.io/asmolabs/vectispire-report-demo` — the demonstration [report plugin](../../docs-site/administration/report-plugins.md),
+signed, attested and verified the same way. 0.10.0 does not carry it.
 
 **Verify them before running them, and verify by digest.** A tag is a mutable pointer — signing
 `:0.10.0` says nothing about what `:0.10.0` resolves to next week, which is the same reason every
@@ -271,7 +285,7 @@ rewrite before you read it.
 
 A signature says *which workflow* produced a file. Each release after v0.9.0 also carries a
 [SLSA build provenance](https://slsa.dev/spec/v1.0/provenance) attestation, for the jar and for
-both images, that says *how*: the repository, the **commit** the tag pointed at when the release
+each image, that says *how*: the repository, the **commit** the tag pointed at when the release
 ran, the workflow and the runner. A tag can be moved after the fact; the commit recorded in the
 provenance cannot, and it is the one to check out if you want to read or rebuild the source that
 shipped.
@@ -293,7 +307,8 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<digest> \
 The image is named **by digest** — the one printed in the release notes, or the one
 `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 returns — for the same reason the signature is. The agent image verifies the same way under
-`ghcr.io/asmolabs/vectispire-agent`.
+`ghcr.io/asmolabs/vectispire-agent`, and the demonstration report plugin's under
+`ghcr.io/asmolabs/vectispire-report-demo`.
 
 `--repo` alone is the command GitHub documents, and it is not enough on its own: it accepts an
 attestation made by *any* workflow of the repository, on any branch. `--signer-workflow` narrows
@@ -307,12 +322,12 @@ supports.
 
 ## 9. Troubleshooting
 
-- **`docker.errors.DockerException` / permission denied on the Docker socket**: with the shipped composition this should not happen — no Vectispire container mounts the socket, a `docker-socket-proxy` does, and `DOCKER_HOST` points at it. Running outside compose, straight against a daemon, the user does need access to `/var/run/docker.sock` (Linux/macOS with Docker Desktop); on Linux, add it to the `docker` group.
+- **Every step of a scan fails with a Docker client error** — `Connection refused`, or `Permission denied` on `/var/run/docker.sock` — and the scan ends *failed*, its detail listing each step with that reason: the control plane cannot reach a daemon. With the shipped composition this should not happen — no Vectispire container mounts the socket, a `docker-socket-proxy` does, and `DOCKER_HOST` points at it. Running outside compose, straight against a daemon, the user does need access to `/var/run/docker.sock` (Linux/macOS with Docker Desktop); on Linux, add it to the `docker` group.
 - **First scan is slow**: the `docker` backend pulls `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` and `semgrep/semgrep` images on demand the first time each is used — subsequent scans reuse the cached images.
-- **"Identifiants incorrects ou compte inactif" on login**: either the credentials are wrong, or the account's `is_active` flag is `false` — check via `/users` (needs an existing admin) or query the `user` table directly.
-- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **Clés SSH** page marks the rows that still depend on the old one.
-- **An SSH key shows "Illisible" after upgrading**: no configured key reads it, most likely because it predates any `ENCRYPTION_KEY` and was encrypted with the default that used to ship in this repository. That default has been removed. Its private half is public, so replace the key pair at your git provider rather than trying to recover it; save the new one from the *SSH keys* page once `ENCRYPTION_KEY` is set. The [August 2026 incident note](../analysis/en/2026-08-06_credential_exposure_incident.en.md) says how that default came to be public.
-- **AI review model dropdown only shows the two suggestions**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` if containerized) and that the URL/port match, then click "Rafraîchir la liste" on the Settings page.
+- **"Invalid credentials." on login**: either the credentials are wrong, or the account is deactivated — check on the **Users** page (needs an existing administrator) or query the `t_user` table directly.
+- **Changed `ENCRYPTION_KEY` and now SSH key decryption fails**: list the previous key in `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` (comma-separated). Existing values then decrypt again, and move to the new key as they are re-saved — the **SSH keys** page marks the rows that still depend on the old one.
+- **An SSH key shows "Unreadable" after upgrading**: no configured key reads it, most likely because it predates any `ENCRYPTION_KEY` and was encrypted with the default that used to ship in this repository. That default has been removed. Its private half is public, so replace the key pair at your git provider rather than trying to recover it; save the new one from the *SSH keys* page once `ENCRYPTION_KEY` is set. The [August 2026 incident note](../analysis/en/2026-08-06_credential_exposure_incident.en.md) says how that default came to be public.
+- **"Test the connection" reports no answer from Ollama**: Ollama isn't reachable at the configured URL — check it's running (`ollama list` if native, `docker ps` if containerized) and that the URL and port match, then test again from **Settings → AI**. When it answers but says the model is not available, pull that model or correct its name.
 - **AI review works but feels slow**: expected if Ollama is running in Docker on an Apple Silicon Mac (no GPU/Metal passthrough — CPU-only inference). Switch to a native install for GPU acceleration, or use the lighter `gemma4:e4b-it-qat` model.
 
 ## 10. REST API Documentation & Swagger UI

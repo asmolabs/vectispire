@@ -1,6 +1,6 @@
 # CI/CD Integration & Vectispire CLI Guide (`vectispire-cli`)
 
-This guide explains how to integrate **Vectispire** into your continuous integration pipelines (GitLab CI, GitHub Actions, Bitbucket Pipelines, Jenkins) to enforce **blocking Security Quality Gates**, trigger scans on every commit, and download compliance artifacts (SBOM, SARIF).
+This guide explains how to integrate **Vectispire** into your continuous integration pipelines (GitLab CI, GitHub Actions, Bitbucket Pipelines, Jenkins) to enforce **blocking Security Quality Gates**, trigger scans on every commit, download a scan's SBOM, and send the build's own reports (coverage, test results, the build's SBOM). SARIF is not a CLI command: it is the export route `GET /api/v1/targets/repository/{id}/issues.sarif` (`container` for an image), called with a key holding the `export` scope.
 
 ---
 
@@ -75,6 +75,11 @@ than running a script nobody checked.
 
 ## 🛠️ Pipeline Snippets
 
+Every image and action below is pinned — an image by tag **and** digest, an action by commit SHA with
+its version beside it — for the reason the CLI is: a job that pulls `:latest` or `@v4` runs whatever
+those names point at on the day it runs. Move a pin deliberately, with
+`docker buildx imagetools inspect <image>:<tag>` for an image.
+
 ### 1. 🦊 GitLab CI (`.gitlab-ci.yml`)
 
 ```yaml
@@ -84,7 +89,7 @@ stages:
 
 vectispire-security-gate:
   stage: security-gate
-  image: alpine:latest
+  image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
@@ -114,7 +119,7 @@ key:
 ```yaml
 vectispire-build-sbom:
   stage: test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.12-eclipse-temurin-21@sha256:c3c9d3ac4ce8431a3995c0318b8d390f448e693dd4fabc16e9b68d2e1f3d7b46
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
@@ -155,7 +160,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Trigger Scan & Enforce Security Gate
         env:
@@ -178,7 +183,7 @@ jobs:
 ### 3. 🪣 Bitbucket Pipelines (`bitbucket-pipelines.yml`)
 
 ```yaml
-image: alpine:latest
+image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 pipelines:
   default:
@@ -229,7 +234,7 @@ pipeline {
 
 ## 📦 Building the CLI Image
 
-No CLI image is published: the release builds the control plane and the agent, nothing else. [`Dockerfile.cli`](../../Dockerfile.cli) builds one — Alpine with `curl` and `jq`, running as a non-root user, `vectispire-cli` as its entrypoint — to push to your own registry:
+No CLI image is published: the release builds the control plane, the agent and the demonstration report plugin, nothing else. [`Dockerfile.cli`](../../Dockerfile.cli) builds one — Alpine with `curl` and `jq`, running as a non-root user, `vectispire-cli` as its entrypoint — to push to your own registry:
 
 ```bash
 docker build -f Dockerfile.cli -t <your-registry>/vectispire-cli:<tag> .

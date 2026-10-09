@@ -9,10 +9,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 
 /**
  * Supplying the encryption secrets as files rather than as environment variables.
@@ -90,6 +95,30 @@ class EncryptionKeyFileTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ENCRYPTION_KEY")
                 .hasMessageContaining("ENCRYPTION_KEY_FILE");
+    }
+
+    @Test
+    @DisplayName("the Vault token refusal names the variables that actually bind, set from the environment")
+    void theVaultTokenRefusalNamesVariablesThatBind() throws IOException {
+        Path file = write("vault-token", "s.from-a-file");
+
+        // **Bound the way a deployment binds it, from environment variables**, because the names in the
+        // message are advice: "unset X". They said VECTISPIRE_VAULT_TOKEN, which relaxed binding maps to
+        // `vectispire.vault.token` — nothing — so the advice named a variable nobody could have set.
+        StandardEnvironment environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(new SystemEnvironmentPropertySource("test", Map.of(
+                "VECTISPIRE_ENCRYPTION_VAULT_TOKEN", "s.from-a-variable",
+                "VECTISPIRE_ENCRYPTION_VAULT_TOKEN_FILE", file.toString())));
+        ConfigurationPropertySources.attach(environment);
+        EncryptionProperties bound = Binder.get(environment)
+                .bind("vectispire.encryption", EncryptionProperties.class)
+                .orElseThrow(() -> new AssertionError("nothing bound under vectispire.encryption"));
+
+        assertThat(bound.vaultToken()).contains("s.from-a-variable");
+        assertThat(bound.vaultTokenFile()).contains(file.toString());
+        assertThatThrownBy(bound::resolved)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("VECTISPIRE_ENCRYPTION_VAULT_TOKEN and VECTISPIRE_ENCRYPTION_VAULT_TOKEN_FILE");
     }
 
     @Test

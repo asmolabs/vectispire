@@ -25,47 +25,32 @@ flowchart TB
         Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams, compliance,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 
-    subgraph api["api/ — contrôleurs, DTO, gardes"]
-        Routes["Contrôleurs<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, agents-admin, teams, rule-sets, owasp,<br/>sbom, remediation"]
+    subgraph agent["vectispire-agent — aucune base sur son classpath"]
+        AG["AgentRunner · AgentProtocol"]
     end
 
-    subgraph services["services/ — orchestration, transactions"]
-        Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
-        Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
-        Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService · CycloneDxGeneratorService"]
-        Remed["SbomDiffService · SecurityDebtService"]
-        Enrich["EnrichmentService · EolService · LicenseService"]
-        Ai["AiReviewService"]
-        Notify["NotificationService · OutboxService"]
-        Ticket["TicketService · TicketSweepService"]
-        Ops["SchedulerService · LeaderElectionService<br/>RetentionService · MaintenanceService"]
-        Auth["AuthService · PasswordService · SessionCleanupService<br/>ApiKeyAuthService · AuditLogService · SettingsService<br/>EncryptionService · BootstrapService · VisibilityService"]
+    subgraph core["vectispire-core — un module vertical par domaine, core/‹module›/"]
+        Web["web/ — contrôleurs<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, teams, rule-sets, owasp,<br/>sbom, remediation"]
+        Svc["racine du module + internal/ — services, transactions<br/>scanning : ScanDispatcher · ScanWorker · ScanIngestor · SchedulerService · LeaderElection · RetentionService<br/>issues : IssueSyncService · IssueTriageService · VexIngestorService<br/>compliance, exports : ComplianceService · EvidenceVaultService · CsafGeneratorService · CycloneDxGeneratorService<br/>inventory, posture : SbomDiffService · SecurityDebtService<br/>threatintel : EnrichmentService · EndOfLifeService · ThreatIntelFeedService<br/>ai · notifications · outbox · tickets : AiReviewService · NotificationService · OutboxService · TicketService<br/>maintenance : MaintenanceJobs<br/>access · audit · settings · crypto : AuthService · ApiKeyAuthService · VisibilityService · BootstrapService<br/>AuditLogService · SettingsService · EncryptionService"]
+        Per["persistence/ — entités et repositories, aucune règle métier<br/>ScanRepository · IssueRepository · GitRepositoryRepository · ContainerRepository<br/>AuditLogRepository · SessionRepository · TeamRepository · …"]
+        Mig["migrations Flyway<br/>db/migration/common · db/migration/{vendor}"]
     end
 
-    subgraph repos["repositories/ — accès aux données, aucune règle métier"]
-        R["ScanRepository · IssueRepository · TargetRepository<br/>AuditLogRepository · SessionRepository · TeamRepository"]
+    subgraph common["vectispire-common — partagé par le plan de contrôle et l'agent"]
+        D["common/domain/ — pur, ne dépend de rien<br/>fingerprint · gate · chaîne d'audit · exports · csaf · cyclonedx · triage<br/>compliance · url-guard · crypto (PasswordHasher) · retention · scheduling · …"]
+        S["common/scanning/ — lance des conteneurs, aucune base<br/>ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · checkov · semgrep"]
     end
 
-    subgraph persistence["persistence/ — entités, dialectes, types du pilote"]
-        Ent["33 entités JPA · migrations Flyway"]
-    end
-
-    subgraph domain["domain/ — pur, ne dépend de rien"]
-        D["fingerprint · gate · chaîne d'audit · exports · csaf · cyclonedx · triage<br/>compliance · url-guard · crypto · retention · scheduling · …"]
-    end
-
-    subgraph scanning["scanning/ — lance des conteneurs, aucune base"]
-        S["ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · checkov · semgrep"]
-    end
-
-    Pages -->|"/api en HTTP"| Routes
-    Routes --> services
-    services --> repos
-    repos --> persistence
-    services --> scanning
-    services --> domain
-    repos --> domain
-    scanning --> domain
+    Pages -->|"/api en HTTP"| Web
+    AG -->|"/api/v1/agent en HTTP"| Web
+    Web --> Svc
+    Svc --> Per
+    Per --> Mig
+    Svc --> S
+    Svc --> D
+    Per --> D
+    S --> D
+    AG --> S
 ```
 
 **L'injection de dépendances est celle de Spring**, par constructeur. Chaque collaborateur dont une
@@ -73,10 +58,20 @@ classe a besoin est un paramètre sans lequel elle ne peut pas être construite,
 qui rend les campagnes unitaires possibles : un test passe un bouchon là où le conteneur passe un
 bean, et rien n'a à être intercepté.
 
-**Le découpage en couches est imposé, pas documenté.**
+**Le découpage en couches est imposé, pas documenté.** Les paquets par couche — `api/`,
+`services/`, `repositories/`, `persistence/` — ont disparu : chaque domaine est un module,
+`core/<module>/` avec `web/`, `internal/` et `persistence/` en dessous, et `core/config/` est le seul
+paquet hors module ([décisions 0028](../architecture/fr/decisions/0028-vertical-modules.md) et
+[0029](../architecture/fr/decisions/0029-core-domains-become-modules.md) ;
+[01 — vue d'ensemble](../architecture/fr/01-overview.md)).
 [`ArchitectureTest`](../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java)
-lit le graphe d'imports avec ArchUnit et fait échouer la campagne quand une couche importe
-au-dessus d'elle, ou qu'une classe de `domain` importe un framework.
+lit le graphe d'imports avec ArchUnit et fait échouer la campagne quand une couche importe, à
+l'intérieur d'un module, au-dessus d'elle, quand un service porte une API de requête, ou qu'une classe
+de `domain` importe un framework ;
+[`ModularityTest`](../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ModularityTest.java)
+la fait échouer par Spring Modulith sur un cycle entre modules, une incursion dans les internes d'un
+autre module, ou une dépendance que le `package-info` d'un module ne liste pas
+([décision 0030](../architecture/fr/decisions/0030-modulith-verifies-the-module-boundaries.md)).
 
 **L'isolation de l'agent est plus forte que ce test.** `vectispire-agent` ne dépend pas de
 `vectispire-core`, donc aucun pilote JDBC n'est sur son classpath de compilation et la violation
@@ -101,29 +96,32 @@ et le reste : Hibernate ne doit jamais altérer le schéma à l'exécution.
 
 **Le moteur est choisi par `VECTISPIRE_DB_URL` et rien d'autre** — Hibernate et Flyway le lisent
 tous deux depuis l'URL JDBC, il n'existe donc aucun réglage de dialecte séparé à tenir en phase
-avec elle. MySQL est le défaut, le moteur que livre `docker-compose.yml`. Les quatre
+avec elle. MySQL est le défaut, le moteur que livre `docker-compose.yml` ; PostgreSQL est l'autre. Les deux
 passent l'intégralité de la campagne d'intégration
-([décision 0009](../architecture/fr/decisions/0009-four-engines.md), [décision 0013](../architecture/fr/decisions/0013-flyway-multi-dialect-migrations.md)).
+([décision 0014](../architecture/fr/decisions/0014-two-engines-and-a-test-fixture.md), qui a remplacé la
+[décision 0009](../architecture/fr/decisions/0009-four-engines.md) ; [décision 0013](../architecture/fr/decisions/0013-flyway-multi-dialect-migrations.md)).
 [`SchemaParityIntegrationTest`](../../vectispire-java/vectispire-core/src/integrationTest/java/com/asmolabs/vectispire/core/persistence/SchemaParityIntegrationTest.java)
 demande sur chaque moteur si les entités et le schéma s'accordent.
 
 ### Le modèle des analyses et des anomalies
 
+Toutes les tables portent le préfixe `t_`, dans le diagramme comme dans les migrations.
+
 ```mermaid
 erDiagram
-    REPOSITORY ||--o{ SCAN : "est analysé par"
-    CONTAINER  ||--o{ SCAN : "est analysé par"
-    SCAN       ||--o{ FINDING : "produit"
-    SCAN       ||--o{ ISSUE : "ouvre (first_seen)"
-    SCAN       ||--o{ AI_REVIEW_RESULT : "porte"
-    SCAN       }o--o| AGENT : "réclamé par"
-    ISSUE      }o--|| REPOSITORY : "concerne"
-    ISSUE      }o--|| CONTAINER : "concerne"
-    REPOSITORY ||--o| SSH_KEY : "clone avec"
-    REPOSITORY ||--o| GATE_POLICY : "évalué par"
-    CONTAINER  ||--o| GATE_POLICY : "évalué par"
+    t_repository ||--o{ t_scan : "est analysé par"
+    t_container  ||--o{ t_scan : "est analysé par"
+    t_scan       ||--o{ t_finding : "produit"
+    t_scan       ||--o{ t_issue : "ouvre (first_seen)"
+    t_scan       ||--o{ t_ai_review_result : "porte"
+    t_scan       }o--o| t_agent : "réclamé par"
+    t_issue      }o--|| t_repository : "concerne"
+    t_issue      }o--|| t_container : "concerne"
+    t_repository ||--o| t_ssh_key : "clone avec"
+    t_repository ||--o| t_gate_policy : "évalué par"
+    t_container  ||--o| t_gate_policy : "évalué par"
 
-    REPOSITORY {
+    t_repository {
         int id PK
         string url
         string name
@@ -136,7 +134,7 @@ erDiagram
         string required_agent_label
         datetime last_scheduled_scan_at
     }
-    CONTAINER {
+    t_container {
         int id PK
         string image
         string platform
@@ -146,11 +144,11 @@ erDiagram
         string required_agent_label
         datetime last_scheduled_scan_at
     }
-    SCAN {
+    t_scan {
         int id PK
         int repo_id FK
         int container_id FK
-        string status "queued|scanning|completed|failed"
+        string status "pending|scanning|completed|failed"
         string branch
         json sbom "purgé par la rétention"
         json cves "purgé par la rétention"
@@ -164,7 +162,7 @@ erDiagram
         text error
         datetime created_at
     }
-    FINDING {
+    t_finding {
         int id PK
         int scan_id FK
         string type "vulnerability|secret|iac|license|eol|sast|quality|ai_review"
@@ -184,7 +182,7 @@ erDiagram
         text description
         string source
     }
-    ISSUE {
+    t_issue {
         int id PK
         string fingerprint UK "unique par cible"
         int repo_id FK
@@ -203,7 +201,7 @@ erDiagram
         string ticket_url
         string reachability "dormante : rien ne l'écrit, toujours UNKNOWN"
     }
-    AI_REVIEW_RESULT {
+    t_ai_review_result {
         int id PK
         int scan_id FK
         string model
@@ -211,7 +209,7 @@ erDiagram
         text content
         text error
     }
-    GATE_POLICY {
+    t_gate_policy {
         int id PK
         string target_kind "global|repository|container"
         int target_id
@@ -225,7 +223,7 @@ erDiagram
         string note
         string created_by
     }
-    AGENT {
+    t_agent {
         uuid id PK
         string name
         string kind "embedded|remote"
@@ -248,22 +246,22 @@ Hors du modèle principal, et chacune porteuse :
 
 | Table | Ce qu'elle contient | Pourquoi elle existe |
 |---|---|---|
-| `user` | comptes, mot de passe **Argon2id**, rôle, `must_change_password` | — |
-| `session` | le **SHA-256** du jeton comme clé primaire — jamais le jeton, `created_at`, `last_seen_at`, `expires_at`, IP, agent utilisateur | une session **révocable** : un jeton qu'on ne peut pas invalider, et personne ne peut plus être déconnecté. Stocker le jeton lui-même ferait de chaque dump de cette table un jeu de sessions vivantes |
-| `team_webhook` | le canal de notification d'une équipe | sa propre table plutôt qu'une colonne sur `team` : une URL de webhook est une capacité porteuse qui n'a rien à faire dans chaque requête sur les équipes — et `addColumn` sur `team` détruisait les clés étrangères des tables d'accès sur la fixture SQLite d'alors |
-| `team` / `team_member` / `team_target` | les équipes, qui en fait partie, ce qu'elles possèdent | visibilité restreinte, rendue administrable : un compte voit l'union de ce que possèdent ses équipes et de ce qui lui a été assigné directement. La table par compte demeure pour l'exception qu'une équipe ne peut pas exprimer |
-| `login_attempt` | `counter_key`, `occurred_at` | anti-bourrage compté par utilisateur **et** par client ; un seul axe se contourne |
-| `api_key` | empreinte **Argon2id**, préfixe d'affichage, portées, restriction de cible, expiration | le secret brut est renvoyé une fois et jamais stocké. Le préfixe est ce qui rend ici une empreinte à coût mémoire abordable : il réduit la recherche à quelques lignes avant hachage |
-| `ssh_key` | chiffré AES-GCM lié à sa ligne par les données associées | sans ce lien, le chiffré de la clé A recopié dans la ligne B se déchiffre parfaitement |
-| `setting` | clé/valeur, dont les quatre fenêtres de remédiation | le catalogue `Setting` décide de ce qui est exposé. Une échéance est un réglage et non une colonne : c'est une politique qu'une organisation écrit, et la stocker par anomalie figerait chacune sur la politique en vigueur le jour de sa découverte |
-| `audit_log` | empreinte de l'entrée, empreinte précédente, IP, agent utilisateur | chaînée : rend détectable une modification **sélective** |
-| `outbox_message` | charge utile, `status`, `attempts`, `next_attempt_at`, `team_id` (nul = le webhook global) | écrite dans la transaction qui produit le résultat, de sorte qu'un plantage avant le POST ne perd rien |
-| `processed_message` | `message_id`, `agent_id` | **créée par `V1` et jamais écrite** : plus rien ne la mappe. Le compte rendu répété d'un agent est refusé par le scan lui-même — le résultat n'est enregistré que tant que le scan est `scanning` et loué à cet agent (`ScanQueue.holdForWrite`), et l'enregistrer met fin aux deux, si bien qu'une seconde copie n'écrit rien et que `times_seen` ne bouge pas. La table reste parce que `V1` n'est jamais modifiée |
-| `leader_lease` | `name`, `holder`, `expires_at` | une seule instance porte le tic périodique ; une table plutôt qu'un verrou consultatif parce qu'elle est **observable** |
+| `t_user` | comptes, mot de passe **Argon2id**, rôle, `must_change_password` | — |
+| `t_session` | le **SHA-256** du jeton comme clé primaire — jamais le jeton, `created_at`, `last_seen_at`, `expires_at`, IP, agent utilisateur | une session **révocable** : un jeton qu'on ne peut pas invalider, et personne ne peut plus être déconnecté. Stocker le jeton lui-même ferait de chaque dump de cette table un jeu de sessions vivantes |
+| `t_team_webhook` | le canal de notification d'une équipe | sa propre table plutôt qu'une colonne sur `t_team` : une URL de webhook est une capacité porteuse qui n'a rien à faire dans chaque requête sur les équipes — et `addColumn` sur `t_team` détruisait les clés étrangères des tables d'accès sur la fixture SQLite d'alors |
+| `t_team` / `t_team_member` / `t_team_target` | les équipes, qui en fait partie, ce qu'elles possèdent | visibilité restreinte, rendue administrable : un compte voit l'union de ce que possèdent ses équipes et de ce qui lui a été assigné directement. La table par compte demeure pour l'exception qu'une équipe ne peut pas exprimer |
+| `t_login_attempt` | `counter_key`, `occurred_at` | anti-bourrage compté par utilisateur **et** par client ; un seul axe se contourne |
+| `t_api_key` | empreinte **Argon2id**, préfixe d'affichage, portées, restriction de cible, expiration | le secret brut est renvoyé une fois et jamais stocké. Le préfixe est ce qui rend ici une empreinte à coût mémoire abordable : il réduit la recherche à quelques lignes avant hachage |
+| `t_ssh_key` | chiffré AES-GCM lié à sa ligne par les données associées | sans ce lien, le chiffré de la clé A recopié dans la ligne B se déchiffre parfaitement |
+| `t_setting` | clé/valeur, dont les quatre fenêtres de remédiation | le catalogue `Setting` décide de ce qui est exposé. Une échéance est un réglage et non une colonne : c'est une politique qu'une organisation écrit, et la stocker par anomalie figerait chacune sur la politique en vigueur le jour de sa découverte |
+| `t_audit_log` | empreinte de l'entrée, empreinte précédente, IP, agent utilisateur | chaînée : rend détectable une modification **sélective** |
+| `t_outbox_message` | charge utile, `status`, `attempts`, `next_attempt_at`, `team_id` (nul = le webhook global) | écrite dans la transaction qui produit le résultat, de sorte qu'un plantage avant le POST ne perd rien |
+| `t_processed_message` | `message_id`, `agent_id` | **créée par `V1` et jamais écrite** : plus rien ne la mappe. Le compte rendu répété d'un agent est refusé par le scan lui-même — le résultat n'est enregistré que tant que le scan est `scanning` et loué à cet agent (`ScanQueue.holdForWrite`), et l'enregistrer met fin aux deux, si bien qu'une seconde copie n'écrit rien et que `times_seen` ne bouge pas. La table reste parce que `V1` n'est jamais modifiée |
+| `t_leader_lease` | `name`, `holder`, `expires_at` | une seule instance porte le tic périodique ; une table plutôt qu'un verrou consultatif parce qu'elle est **observable** |
 
 ## 3. Pipeline d'analyse
 
-Déclencher n'exécute pas. Un déclenchement insère une ligne `queued` et rend la main ; une boucle
+Déclencher n'exécute pas. Un déclenchement insère une ligne `pending` et rend la main ; une boucle
 de travail la réclame et l'exécute. C'est ce qui permet à un agent distant, ou à une seconde
 instance, de prendre le travail
 ([décision 0002](../architecture/fr/decisions/0002-the-database-carries-the-queue.md)).
@@ -272,37 +270,37 @@ instance, de prendre le travail
 sequenceDiagram
     participant T as Déclencheur<br/>(ordonnanceur, UI, API)
     participant Q as table scan
-    participant W as ScanWorkerService
+    participant W as ScanWorker
     participant R as ScanRunner
-    participant I as ScanIngestorService
+    participant I as ScanIngestor
     participant S as IssueSyncService
     participant DB as Base de données
 
-    T->>Q: INSERT scan(status="queued")
+    T->>Q: INSERT t_scan(status="pending")
     T-->>T: rend la main immédiatement
     W->>Q: réclame (mise à jour conditionnelle + bail)
     W->>R: run(task)
     R->>R: clone (depth 1) ou export de l'image
     R->>R: syft → grype → gitleaks → checkov → semgrep
-    R-->>W: ScanArtifacts (null = n'a pas tourné)
+    R-->>W: ScanArtifacts (Optional vide = n'a pas tourné)
     W->>I: ingestion
-    I->>DB: INSERT findings, UPDATE scan(summary)
+    I->>DB: INSERT t_finding, UPDATE t_scan(summary)
     I->>S: synchronisation depuis l'analyse
     S->>S: empreinte, réconciliation, ouverture / résolution
     S->>DB: ligne d'outbox, dans la même transaction
-    Note over W,DB: Un scanner en échec inscrit un échec sur l'analyse<br/>et laisse son artefact nul. L'analyse s'achève quand même.
+    Note over W,DB: Un scanner en échec inscrit un échec sur l'analyse<br/>et laisse son artefact vide. L'analyse s'achève quand même —<br/>sauf si toutes les étapes sont vides et l'une a échoué : rien n'a alors été examiné, et elle échoue.
 ```
 
 Les points que le diagramme ne montre pas :
 
-- **`null` n'est pas `[]`.** Dans `ScanArtifacts`, `[]` est l'affirmation positive *« l'étape a
-  tourné et n'a rien trouvé »*, qui **résout** les anomalies de ce type ; `null` signifie qu'elle
-  n'a pas tourné, et le backlog est laissé intact. Un portage qui normaliserait les nuls en listes
-  vides résoudrait silencieusement des centaines d'anomalies de sécurité sans la moindre erreur
+- **Absent n'est pas `[]`.** Chaque champ de `ScanArtifacts` est un `Optional`. Un `[]` présent est
+  l'affirmation positive *« l'étape a tourné et n'a rien trouvé »*, qui **résout** les anomalies de ce
+  type ; un `Optional` vide signifie qu'elle n'a pas tourné, et le backlog est laissé intact. Un
+  portage qui changerait un résultat absent en liste vide résoudrait silencieusement des centaines d'anomalies de sécurité sans la moindre erreur
   ([décision 0007](../architecture/fr/decisions/0007-none-is-not-an-empty-list.md)).
 - **L'échec ne se lit pas seulement dans le code de sortie.** Une exécution Semgrep où la plupart
   des fichiers ont expiré sort en 0 avec une liste courte. `errors[]` et `paths.scanned` sont
-  inspectés, et au-delà de 25 % d'erreurs le résultat est `null`.
+  inspectés, et au-delà de 25 % d'erreurs le résultat est absent.
 - **Semgrep produit deux types d'anomalies en une passe.** Le `metadata.category` de chaque règle
   tranche : `security` devient une anomalie `sast`, soumise à la gate comme n'importe quelle
   vulnérabilité ; tout le reste devient `quality`, qu'aucune politique ne peut faire entrer dans un
@@ -320,7 +318,7 @@ Les points que le diagramme ne montre pas :
   qui fusionne aussi le `VECTISPIRE_SEMGREP_RULES_DIR` de l'exploitant.
 - **Secrets, IaC et SAST ne tournent jamais sur une image de conteneur.** Ils cherchent dans du
   code source ; les déclarer analysés résoudrait silencieusement tout l'historique de cette cible
-  pour ces types. Ils restent `null`.
+  pour ces types. Ils restent absents.
 
 ## 4. Les scanners
 
@@ -382,37 +380,40 @@ Trois choses le concernant sont des décisions de sécurité, pas des fonctionna
   obéir. C'est une atténuation, et la raison pour laquelle son verdict ne bloque rien.
 
 La liste des modèles est lue en direct depuis le `GET /api/tags` d'Ollama, de sorte que ce que
-l'exploitant a réellement tiré est ce qui devient sélectionnable ; un repli à deux entrées est
-affiché comme *suggestion* quand Ollama est injoignable, jamais comme installé. L'analyse est
+l'exploitant a réellement tiré est ce qui compte : **Tester la connexion**, dans l'onglet IA des
+paramètres, dit si le point d'accès répond et si le modèle configuré fait partie de ceux qu'il
+détient. Là où une liste est montrée, un repli à deux entrées tient lieu de *suggestion* quand Ollama
+est injoignable, jamais de modèle installé. L'analyse est
 défensive — une réponse qui ne se parse pas donne une liste vide et ne lève jamais.
 
 ## 5. Référence des services et des repositories
 
 | Service | Responsabilité |
 |---|---|
-| `ScanDispatcherService` | Réclame les analyses de façon transactionnelle et remet les tâches aux agents ; porte la décision sur les identifiants (`credentialsMode`) et le scellement. |
-| `ScanWorkerService` | Le worker intégré : réclame, exécute, ingère. |
-| `ScanIngestorService` | Normalise les artefacts en lignes `Finding` et met l'analyse à jour. Connaît la base ; ne lance aucun conteneur. |
+| `ScanDispatcher` | Réclame les analyses de façon transactionnelle et remet les tâches aux agents ; porte la décision sur les identifiants (`credentialsMode`) et le scellement. |
+| `ScanWorker` | Le worker intégré : réclame, exécute, ingère. |
+| `ScanIngestor` | Normalise les artefacts en lignes `Finding` et met l'analyse à jour. Connaît la base ; ne lance aucun conteneur. |
 | `IssueSyncService` | Réconcilie les constats avec les anomalies d'une analyse à l'autre : empreinte, `times_seen`, ouverture/résolution. Écrit la ligne d'outbox dans la même transaction. |
 | `IssueTriageService` | Applique une décision de triage validée, et fait expirer celles qui ont dépassé leur date de revue. |
 | `EnrichmentService` | Scores EPSS et statut KEV, tous deux lus dans les flux stockés — un scan n'interroge aucun tiers. Avant la première synchronisation d'un flux, il ne pose rien : inconnu, jamais zéro. |
 | `ThreatIntelFeedService` | Le catalogue CISA KEV : récupéré hors de toute transaction (`KevCatalogSource`, `VECTISPIRE_KEV_URL`), refusé s'il n'est pas complet ou s'il est plus ancien que celui en usage, stocké — les nouvelles entrées 500 par instruction — puis appliqué aux constats ouverts 500 à la fois, chaque page dans sa propre transaction sous le verrou de la ligne de synchronisation, de sorte que `CRITICAL_KEV_DETECTED` n'est émis qu'une fois pour un constat nouvellement listé, quel que soit le nombre de synchronisations en cours. Toutes les six heures via `KevCatalogueSyncTask`, une seule instance élue par une mise à jour conditionnelle ; audité sous `THREAT_INTEL_SYNCED`, échec compris. |
 | `EpssFeed` | Le fichier EPSS quotidien du FIRST : téléchargé hors de toute transaction (`EpssFileSource`, `VECTISPIRE_EPSS_URL`, une redirection vers la même origine), lu en flux par `EpssFile` — refusé s'il n'est pas complet (somme de contrôle gzip, au moins 100 000 lignes et neuf dixièmes du fichier en usage, scores dans [0, 1], 128 Mio décompressés au plus) ou s'il est plus ancien que celui en usage — écrit sous une nouvelle génération de `t_epss_score` par transactions de 5 000 lignes, basculé par une seule mise à jour conditionnelle, puis appliqué aux constats ouverts page par page ; la génération remplacée est conservée jusqu'à l'application du fichier suivant — un lecteur qui a lu la ligne de synchronisation juste avant la bascule retrouve ses lignes — et celle d'avant est supprimée par lots. Un bail sur la ligne de synchronisation garantit une seule synchronisation à la fois. Quotidien via `EpssScoresSyncTask` ; chaque tentative auditée sous `THREAT_INTEL_SYNCED`. |
-| `EolService` · `LicenseService` | Correspondance de fin de vie, et liste de licences interdites sur les données SBOM déjà collectées. |
+| `EndOfLifeService` · `LicenseService` | Correspondance de fin de vie, et liste de licences interdites sur les données SBOM déjà collectées. |
 | `AiReviewService` | Voir §4. |
 | `NotificationService` · `OutboxService` | Choisit ce qui mérite un message, et relaie l'outbox avec un backoff plafonné. |
 | `TicketService` · `TicketSweepService` | Ouvre un ticket de suivi par anomalie qui ferait échouer une construction, sous la même politique de gate — pas de second seuil. |
-| `SchedulerService` | Le tic périodique : analyses dues, rétention, expiration de triage, outbox, balayage des tickets. |
-| `LeaderElectionService` | Le bail qui fait qu'exactement une instance exécute ce tic. |
-| `RetentionService` · `MaintenanceService` | Purge des charges utiles brutes, et entretien périodique. |
-| `AuthService` · `PasswordService` · `SessionCleanupService` | Connexion, bridage, hachage, expiration des sessions. |
+| `SchedulerService` | La réanalyse périodique : met en file les cibles dues, par intervalle ou par cron. |
+| `LeaderElection` | Le bail qui rend la part périodique d'un tic — répartir les cibles dues, la purge, l'expiration des triages, le relais de l'outbox — unique dans la flotte ; chaque instance continue de réclamer du travail pour son propre worker. |
+| `RetentionService` · `MaintenanceJobs` | Purge des charges utiles brutes ; et les tours d'entretien périodiques, chacun exécutant les `MaintenanceTask` que chaque module apporte à sa cadence. |
+| `AuthService` · `PasswordHasher` · `SessionCleanupService` | Connexion, bridage, hachage (Argon2id, `PasswordHasher` dans `common/domain/crypto`), expiration des sessions. |
 | `ApiKeyAuthService` | Vérification des clés, portées, restriction de cible, expiration. |
 | `AuditLogService` | Entrées d'audit chaînées. L'enregistrement ne lève jamais : un échec de journalisation ne doit pas casser l'action auditée. |
 | `EncryptionService` | AES-GCM au repos, avec le contexte lié à la ligne, et rotation multi-clés. |
 | `SettingsService` · `BootstrapService` | Réglages clé/valeur, et création du compte au premier démarrage. |
 
 Un repository par entité lue pour elle-même, dans le `persistence` de son module et nommé
-d'après l'entité — `ScanRepository`, `IssueRepository`, `AuditLogRepository`, `SessionRepository`… —
+d'après l'entité — `ScanRepository`, `IssueRepository`, `GitRepositoryRepository`, `ContainerRepository`,
+`AuditLogRepository`, `SessionRepository`… —
 chacun une fine enveloppe autour des requêtes dont ses appelants ont réellement besoin. Il n'y a pas de repository
 de base générique. Un service n'écrit aucun SQL, et un repository ne porte aucune règle métier ;
 `ArchitectureTest` impose les deux.

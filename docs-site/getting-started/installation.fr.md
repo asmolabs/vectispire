@@ -8,10 +8,10 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
 
 | Prérequis | Pourquoi |
 |---|---|
-| **Docker**, démarré et joignable | Chaque scanner s'exécute comme un conteneur éphémère à travers le socket Docker. Ce n'est pas facultatif : il y a un seul moteur de scan, et c'est Docker. |
-| **PostgreSQL** ou **MySQL 8** | Les deux sont supportés et exercés par la campagne d'intégration. Le moteur est lu depuis l'URL JDBC ; il n'y a pas de réglage de dialecte séparé. |
+| **Docker**, démarré et joignable | Chaque scanner s'exécute comme un conteneur éphémère que Vectispire demande à un démon Docker de démarrer — à travers un proxy de socket dans la composition, voir ci-dessous. Ce n'est pas facultatif : il y a un seul moteur de scan, et c'est Docker. |
+| **MySQL 8** (défaut) ou **PostgreSQL** | Les deux sont supportés et exercés par la campagne d'intégration ; MySQL est le défaut et le moteur que livre la composition. Le moteur est lu depuis l'URL JDBC ; il n'y a pas de réglage de dialecte séparé. |
 | **Git** | Vectispire clone ce qu'il analyse. |
-| **Node ≥ 24**, **JDK 25** | Uniquement si vous construisez depuis les sources plutôt que d'exécuter les images publiées. |
+| **Node 24 (LTS)**, **JDK 25** | Uniquement si vous construisez depuis les sources plutôt que d'exécuter les images publiées. Node est épinglé par `.nvmrc` ; Angular 22 refuse Node 25. |
 
 !!! warning "Accès à un démon Docker"
     Vectispire exécute ses scanners en conteneurs, il lui faut donc joindre un démon — mais
@@ -131,13 +131,13 @@ parce qu'elles sont nécessaires pour atteindre cet écran.
 ### La base de données
 
 ```bash
-VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
+VECTISPIRE_DB_URL=jdbc:mysql://localhost:3306/vectispire
 VECTISPIRE_DB_USER=vectispire
 VECTISPIRE_DB_PASSWORD=…
 ```
 
-Pour MySQL, pointez la même variable dessus — `jdbc:mysql://localhost:3306/vectispire` — et ne
-changez rien d'autre. Un réglage du serveur compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
+Cette URL est aussi la valeur par défaut. Pour PostgreSQL, pointez la même variable dessus —
+`jdbc:postgresql://localhost:5432/vectispire` — et ne changez rien d'autre. Un réglage du serveur MySQL compte si vous utilisez des [plugins de rapport](../administration/report-plugins.fr.md)
 sur de grands projets : au `max_allowed_packet` par défaut (64 Mio), l'export d'un rapport est gardé jusqu'à
 environ 32 Mio, et `--max-allowed-packet=160M` rétablit toute la borne de 64 Mio.
 
@@ -169,7 +169,7 @@ SUPERUSER est créé quand la table des utilisateurs est vide :
 
 ```bash
 VECTISPIRE_BOOTSTRAP_USERNAME=admin
-VECTISPIRE_BOOTSTRAP_PASSWORD=<au moins 8 caractères>
+VECTISPIRE_BOOTSTRAP_PASSWORD=<au moins 12 caractères>
 ```
 
 Dès qu'un compte existe, les deux variables sont ignorées. Changez ce mot de passe à la
@@ -187,16 +187,16 @@ des valeurs par défaut :
 
 - Le plan de contrôle publie le port `3180` sur **toutes les interfaces** de son hôte. C'est
   délibéré — il faut bien atteindre l'interface — mais cela signifie qu'un hôte doté d'une
-  adresse publique sert Vectispire à Internet dès qu'il démarre. La base de données, elle, est
-  publiée en loopback seulement ; la différence est volontaire et visible dans
-  `docker-compose.yml`.
+  adresse publique sert Vectispire à Internet dès qu'il démarre. La base de données, elle, ne
+  publie aucun port — pas même en loopback, que les autres conteneurs de l'hôte joindraient encore ;
+  la différence est volontaire et visible dans `docker-compose.yml`.
 - Un utilisateur connecté capable d'enregistrer un dépôt peut faire cloner au plan de contrôle
   une URL qu'il a choisie. C'est le produit qui fonctionne comme prévu, et c'est aussi pourquoi
   *qui peut se connecter* est la frontière qui compte le plus.
 
 Si l'hôte est joignable depuis l'extérieur de votre réseau, mettez-le derrière quelque chose —
 un VPN, un proxy qui authentifie, ou une règle de pare-feu — avant toute autre chose. Si vous
-terminez TLS devant lui, nommez le proxy dans `vectispire.security.trusted-proxies` ; laissée
+terminez TLS devant lui, nommez le proxy dans `VECTISPIRE_TRUSTED_PROXIES` (`vectispire.security.trusted-proxies`) ; laissée
 vide, la limitation de débit compte l'adresse du proxy plutôt que celle de l'appelant, et cesse
 de protéger qui que ce soit.
 
@@ -444,7 +444,7 @@ vulnérabilités — environ 3 Go. `agents.dind.imageCache` garde les images sur
 ```bash
 git clone https://github.com/asmolabs/vectispire.git
 cd vectispire
-npm install
+npm ci
 
 cd vectispire-java && ./gradlew :vectispire-core:bootRun --args='--server.port=3180'
 npm --workspace @vectispire/frontend start    # interface sur :4280, /api relayé vers :3180
@@ -518,7 +518,7 @@ dépendances que n'importe qui peut réécrire avant que vous ne la lisiez.
 
 Une signature dit *quel workflow* a produit un fichier. Chaque release postérieure à v0.9.0 porte
 aussi une attestation de [provenance de construction SLSA](https://slsa.dev/spec/v1.0/provenance),
-pour le jar et pour les deux images, qui dit *comment* : le dépôt, le **commit** vers lequel
+pour le jar et pour chaque image, qui dit *comment* : le dépôt, le **commit** vers lequel
 pointait le tag au moment de la release, le workflow et l'exécuteur. Un tag peut être déplacé
 après coup ; le commit consigné dans la provenance ne le peut pas, et c'est lui qu'il faut
 extraire pour lire ou reconstruire le code qui a été livré.
@@ -540,7 +540,9 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<empreinte> \
 L'image est désignée **par empreinte** — celle qu'indiquent les notes de release, ou celle que
 renvoie `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 — pour la même raison que la signature. L'image de l'agent se vérifie de la même façon sous
-`ghcr.io/asmolabs/vectispire-agent`.
+`ghcr.io/asmolabs/vectispire-agent`. À partir de la version qui suit la 0.10.0, une troisième image
+est publiée, `ghcr.io/asmolabs/vectispire-report-demo` — le [plugin de rapport](../administration/report-plugins.fr.md)
+de démonstration, que la composition ne tire pas — et elle se vérifie de la même façon sous son propre nom.
 
 `--repo` seul est la commande que GitHub documente, et elle ne suffit pas : elle accepte une
 attestation produite par *n'importe quel* workflow du dépôt, sur n'importe quelle branche.

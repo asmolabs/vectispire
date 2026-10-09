@@ -73,5 +73,6 @@ writes. Mid-rotation, that reads exactly like success.
   current parameters on the account's next sign-in.
 - **A backup taken before the rotation** still needs the key that was current when it was taken.
   A snapshot and the key that opens it are two artefacts: keep them apart, and keep the old key
-  for as long as any backup you would still restore was written under it. There is no backup
-  runbook yet, which is a gap and not an omission from this page.
+  for as long as any backup you would still restore was written under it.
+  [Backup and restore](BACKUP_AND_RESTORE.md) says how the two are taken, kept and restored
+  together.

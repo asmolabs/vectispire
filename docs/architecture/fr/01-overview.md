@@ -123,12 +123,12 @@ sequenceDiagram
     participant I as ScanIngestor
     participant S as Backlog (issues)
 
-    D->>Q: insère une ligne "queued"
+    D->>Q: insère une ligne "pending"
     Note over Q: retourne immédiatement
     R->>Q: verrouille le scan (bail + propriétaire)
     R->>R: clone / résout l'image
     R->>R: SBOM, vulnérabilités, secrets, IaC, SAST
-    R-->>I: ScanArtifacts (null = n'a pas tourné)
+    R-->>I: ScanArtifacts (Optional vide = n'a pas tourné)
     I->>I: normalise dans ObservedFinding
     I->>S: remet l'observation (ScanIngestor.Backlog)
     S->>S: calcule l'empreinte, réconcilie, ouvre / résout

@@ -51,14 +51,28 @@
   `vectispire_`) avec périmètres de droits (scopes) et date d'expiration.
 
 ### 2.2 Contrôle d'Accès basé sur les Rôles (RBAC) & Double Validation
-L'application applique un contrôle strict sur tous les endpoints REST via Spring Security :
-- `ROLE_ADMIN` / `ROLE_SUPERUSER` / `ROLE_CISO` : Gestion de la configuration système, des
-  utilisateurs, des clés SSH et basculement de la **Double Validation (Four-Eyes Approval)**
-  (`triage_four_eyes_required`).
-- **Double Validation Optionnelle** : Configurable dynamiquement via l'UI par un Admin ou CISO (`PUT
-  /api/v1/settings`). Lorsqu'elle est activée, toute décision VEX de type `NOT_AFFECTED` ou `FIXED`
-  émise par un utilisateur non-CISO/Admin passe en état `PENDING_APPROVAL`. Lorsqu'elle est
-  désactivée, tout utilisateur autorisé peut triager directement.
+L'autorisation a deux moitiés, et une route a besoin des deux.
+
+**Ce que le rôle de l'appelant peut faire** est une annotation composée posée sur chaque route —
+`@RequiresAdministrator`, `@RequiresSecurityLead`, `@RequiresGovernanceRead`, `@RequiresPlatformGovernor`,
+`@RequiresWriteAccount`, `@RequiresAccount` — chacune un `@PreAuthorize` de Spring Security sur une
+expression de rôles (`hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')`, etc.) qui correspond à un drapeau de
+l'énumération `Role` ; le tableau ci-dessous donne les rôles de chaque marqueur. Aucune route n'écrit
+sa propre liste de rôles.
+
+**De quel parc parle la réponse** est la seconde moitié, et le marqueur n'en dit rien :
+`@RequiresAccount` prouve que l'appelant est connecté, pas que le dépôt qu'il nomme est le sien. Une
+route qui nomme une cible résout une `Visibility` — `VisibilityService.of(user, credentialRestriction)`,
+l'accès du compte croisé avec celui de l'identifiant présenté — et la passe à la requête, ou refuse par
+`Visibilities.requireVisible(...)`, qui répond **404, jamais 403**, pour qu'un refus ne confirme pas
+que la cible existe. `AuthorizationCoverageTest` attrape la route qui l'oublie.
+
+- **Administrateurs** (SUPERUSER, ADMIN) : comptes, équipes, clés, agents, clés SSH.
+- **Double Validation Optionnelle** (`triage_four_eyes_required`) : une règle de la plateforme, donc
+  celle du seul **Super-administrateur** — `@RequiresPlatformGovernor`, et le réglage fait partie de
+  ceux que `Setting.governsSecurity()` réserve. Activée, une décision VEX qui clôt une anomalie
+  (`NOT_AFFECTED` ou `FIXED`) émise par un compte qui ne peut pas approuver passe en état
+  `PENDING_APPROVAL`. Désactivée, les utilisateurs autorisés qualifient directement.
 - **Identités Distinctes Imposées** : L'approbateur est comparé au demandeur enregistré sur
   l'événement `PENDING_APPROVAL`, et non au seul rôle d'approbation. Un compte qui demande une
   dérogation ne peut pas l'approuver, même après avoir obtenu le rôle — quatre yeux signifie deux
@@ -66,10 +80,10 @@ L'application applique un contrôle strict sur tous les endpoints REST via Sprin
 - **Audit des Modifications** : Tout changement de l'option de double validation est immédiatement
   consigné dans le journal d'audit chaîné par empreintes SHA-256 (`t_audit_log`) avec l'identifiant de l'opérateur
   (`SETTING_UPDATED`).
-- `ROLE_USER` / `ROLE_SECURITY_CHAMPION` : Consultation du posture dashboard et qualification des
+- **USER / SECURITY_CHAMPION** : Consultation du posture dashboard et qualification des
   vulnérabilités. Le référent sécurité peut approuver un triage, mais dans le seul périmètre que sa
   visibilité lui donne — il n'a pas de portée globale.
-- `ROLE_AUDITOR` (2026-09-02) : **lit la gouvernance et n'en écrit rien.** Portée globale, aucune
+- **AUDITOR** (2026-09-02) : **lit la gouvernance et n'en écrit rien.** Portée globale, aucune
   approbation, aucune écriture nulle part. Le rôle existe parce que jusqu'à cette date la lecture
   du journal d'audit, des preuves de conformité, de la politique de barrière et de la destination
   SIEM demandait le même marqueur que leur écriture : le seul compte capable d'inspecter la posture

@@ -8,10 +8,10 @@ install needs neither the agent nor any agent configuration.
 
 | Requirement | Why |
 |---|---|
-| **Docker**, running and reachable | Every scanner runs as an ephemeral container through the Docker socket. This is not optional: there is one scan backend and it is Docker. |
-| **PostgreSQL** or **MySQL 8** | Both are supported and exercised by the integration campaign. The engine is read from the JDBC URL; there is no separate dialect setting. |
+| **Docker**, running and reachable | Every scanner runs as an ephemeral container that Vectispire asks a Docker daemon to start — through a socket proxy in the composition, see below. This is not optional: there is one scan backend and it is Docker. |
+| **MySQL 8** (default) or **PostgreSQL** | Both are supported and exercised by the integration campaign; MySQL is the default and the engine the composition ships. The engine is read from the JDBC URL; there is no separate dialect setting. |
 | **Git** | Vectispire clones what it scans. |
-| **Node ≥ 24**, **JDK 25** | Only if you build from source rather than running the published images. |
+| **Node 24 (LTS)**, **JDK 25** | Only if you build from source rather than running the published images. Node is pinned by `.nvmrc`; Angular 22 refuses Node 25. |
 
 !!! warning "Access to a Docker daemon"
     Vectispire runs its scanners as containers, so it needs to reach a daemon — but **it does
@@ -128,13 +128,13 @@ reach that screen at all.
 ### The database
 
 ```bash
-VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
+VECTISPIRE_DB_URL=jdbc:mysql://localhost:3306/vectispire
 VECTISPIRE_DB_USER=vectispire
 VECTISPIRE_DB_PASSWORD=…
 ```
 
-For MySQL, point the same variable at it — `jdbc:mysql://localhost:3306/vectispire` — and
-change nothing else. One server setting matters if you use [report plugins](../administration/report-plugins.md)
+That URL is also the default. For PostgreSQL, point the same variable at it —
+`jdbc:postgresql://localhost:5432/vectispire` — and change nothing else. One MySQL server setting matters if you use [report plugins](../administration/report-plugins.md)
 on large projects: at the default `max_allowed_packet` (64 MiB) a report's export is kept up to about
 32 MiB, and `--max-allowed-packet=160M` restores the whole 64 MiB bound.
 
@@ -166,7 +166,7 @@ the SUPERUSER is created when the user table is empty:
 
 ```bash
 VECTISPIRE_BOOTSTRAP_USERNAME=admin
-VECTISPIRE_BOOTSTRAP_PASSWORD=<at least 8 characters>
+VECTISPIRE_BOOTSTRAP_PASSWORD=<at least 12 characters>
 ```
 
 Once any account exists, both variables are ignored. Change that password at first login.
@@ -183,16 +183,16 @@ inferred from the defaults:
 
 - The control plane publishes port `3180` on **every interface** of its host. That is
   deliberate — you have to reach the interface — but it means a host with a public address
-  serves Vectispire to the internet the moment it starts. The database, by contrast, is
-  published on loopback only; the difference is intentional and visible in
-  `docker-compose.yml`.
+  serves Vectispire to the internet the moment it starts. The database, by contrast, publishes
+  no port at all — not even on loopback, which other containers on the host would still reach;
+  the difference is intentional and visible in `docker-compose.yml`.
 - A signed-in user who can register a repository can make the control plane clone a URL they
   chose. That is the product working as intended, and it is also why *who can sign in* is the
   boundary that matters most.
 
 If the host is reachable from outside your network, put it behind something — a VPN, an
 identity-aware proxy, or a firewall rule — before anything else. If you terminate TLS in front
-of it, name the proxy in `vectispire.security.trusted-proxies`; left empty, the rate limiter
+of it, name the proxy in `VECTISPIRE_TRUSTED_PROXIES` (`vectispire.security.trusted-proxies`); left empty, the rate limiter
 counts the proxy's address rather than the caller's and stops protecting anyone.
 
 ### Two settings that change with the size of the install
@@ -430,7 +430,7 @@ Each restart of the pod downloads the scanner images and the vulnerability datab
 ```bash
 git clone https://github.com/asmolabs/vectispire.git
 cd vectispire
-npm install
+npm ci
 
 cd vectispire-java && ./gradlew :vectispire-core:bootRun --args='--server.port=3180'
 npm --workspace @vectispire/frontend start    # UI on :4280, proxies /api to :3180
@@ -502,7 +502,7 @@ rewrite before you read it.
 
 A signature says *which workflow* produced a file. Each release after v0.9.0 also carries a
 [SLSA build provenance](https://slsa.dev/spec/v1.0/provenance) attestation, for the jar and for
-both images, that says *how*: the repository, the **commit** the tag pointed at when the release
+each image, that says *how*: the repository, the **commit** the tag pointed at when the release
 ran, the workflow and the runner. A tag can be moved after the fact; the commit recorded in the
 provenance cannot, and it is the one to check out if you want to read or rebuild the source that
 shipped.
@@ -524,7 +524,9 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<digest> \
 The image is named **by digest** — the one printed in the release notes, or the one
 `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 returns — for the same reason the signature is. The agent image verifies the same way under
-`ghcr.io/asmolabs/vectispire-agent`.
+`ghcr.io/asmolabs/vectispire-agent`. From the release after 0.10.0 on, a third image is published,
+`ghcr.io/asmolabs/vectispire-report-demo` — the demonstration [report plugin](../administration/report-plugins.md),
+which the composition does not pull — and it verifies the same way under its own name.
 
 `--repo` alone is the command GitHub documents, and it is not enough on its own: it accepts an
 attestation made by *any* workflow of the repository, on any branch. `--signer-workflow` narrows

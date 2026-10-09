@@ -19,7 +19,10 @@ propre — et aucune requête à l'intérieur du produit ne peut s'en apercevoir
 
 « Votre périmètre nomme quarante actifs, cette instance en détient trente et un » est la phrase par
 laquelle un audit commence. Elle ne se dérive pas : le nombre déclaré est recopié de votre document
-de périmètre dans **Réglages → Périmètre certifié**, à côté de l'énoncé du périmètre lui-même.
+de périmètre dans les réglages — **Administration → Paramètres & SLA**, carte *Rétention & Purge des
+données*, champ *Assets the certified scope covers* (son libellé n'est pas encore traduit) — à côté
+de *Certified scope*, l'énoncé du périmètre lui-même. L'entrée **Périmètre certifié** de
+*Conformité & preuves* dans la navigation est cet écran, qui les lit.
 
 L'énoncé est conservé pour qu'un bundle de preuves porte le périmètre qu'il décrit. Une archive
 dont le lecteur doit apprendre ailleurs sur quoi elle portait est une demi-archive.

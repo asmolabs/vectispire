@@ -140,14 +140,14 @@ flowchart TB
 
 ---
 
-## 5. Recommandations Implémentées & Prochaines Évolutions
+## 5. Synthèse des Améliorations Réalisées
 
 1. **Verrouillage Automatique des Dépendances au Commit** :
-   - ✅ *Réalisé* : Mise en place du hook Git `.githooks/pre-commit` régénérant automatiquement les write-locks Gradle et le `package-lock.json`.
-2. **Supervision Temps Réel de la File d'Analyse** :
-   - ✅ *Réalisé* : Tableau de bord KPI et suivi direct des scans en cours et en attente sur `/agents`.
-3. **Priorisation par Exploitabilité (FIRST.org EPSS & CISA KEV)** :
-   - ✅ *Réalisé* : Modèle de calcul croisant CVSS, EPSS (probabilité & percentile 30j) et catalogue CISA KEV sur l'écran `/epss`. Il n'a pas de terme d'atteignabilité : il n'y a pas d'analyse de graphe d'appels, et le multiplicateur et la clause du palier supérieur qui lisaient la colonne toujours `UNKNOWN` ont été retirés, avec la carte et la colonne d'atteignabilité de l'écran.
-4. **Persistance Sécurisée de Session (Production)** :
-   - 🔄 *Évolution future* : Support optionnel de cookies de session `HttpOnly; SameSite=Strict` pour les déploiements requérant une persistance au rafraîchissement complet F5.
+   - ✅ *Réalisé* : le hook Git `.githooks/pre-commit` recalcule automatiquement les write-locks Gradle et les fichiers de verrouillage npm à chaque commit.
+2. **Centre Temps Réel des Agents & de la File d'Analyse** :
+   - ✅ *Réalisé* : cartes KPI en direct, chronomètres des analyses en cours et alertes de routabilité de la file sur `/agents`.
+3. **Export des Preuves de Conformité** :
+   - ✅ *Réalisé* : rapport PDF et paquet de preuves ZIP accompagné d'un manifeste signé.
+4. **Priorisation par Exploitabilité (FIRST.org EPSS & CISA KEV)** :
+   - ✅ *Réalisé* : matrice de risque croisant CVSS, EPSS (probabilité d'exploitation à 30 jours & percentile) et statut CISA KEV sur l'écran `/epss`. Il n'a pas de terme d'atteignabilité : il n'y a pas d'analyse de graphe d'appels, et le multiplicateur et la clause du palier supérieur qui lisaient la colonne toujours `UNKNOWN` ont été retirés, avec la carte et la colonne d'atteignabilité de l'écran.
 

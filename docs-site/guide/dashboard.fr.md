@@ -1,14 +1,27 @@
 # Tableau de bord
 
-La navigation est groupée en deux, et cette séparation est une affirmation sur ce que chaque
-moitié peut faire à une construction.
+Le tableau de bord est la première entrée de la navigation, qui est groupée selon ce qu'on vient y
+faire :
 
-**Sécurité** porte le verdict de barrière par cible, le backlog des issues, les dépôts et les
-conteneurs. Tout ce qui est ici peut faire échouer une construction.
+- **Tableau de bord** — cette page.
+- **Configuration** — les dépôts, les solutions et projets, et les images de conteneur.
+- **Sécurité** — la vue d'ensemble de la posture de sécurité, les vulnérabilités, le plan de
+  remédiation et ses délais, l'historique, l'inventaire et les vues qui classent ou cartographient
+  le backlog (EPSS, rayon d'impact, licences, surface et chemins d'attaque, OWASP Top 10:2021).
+- **Conformité & preuves** — la matrice de conformité, le registre des exceptions et, pour les rôles
+  qui lisent la gouvernance, ce que demande un évaluateur : la déclaration d'applicabilité, le
+  périmètre certifié, le registre des verdicts, l'attestation.
+- **Opérations** — les notifications, et pour les administrateurs les clés SSH et les jetons HTTPS.
+- **Administration** — ce que le rôle permet : politiques, règles, plugins, journal d'audit, clés,
+  agents, comptes, paramètres.
 
-**Qualité** classe le backlog de qualité du code par règle, par fichier et par dépôt, et dit
-clairement que rien de tout cela ne peut faire échouer une construction. Voir
-[Qualité du code](quality.md).
+Ce qu'un menu montre dépend du rôle ; une page qu'il n'offre pas à un compte est une page que le
+serveur lui refuserait.
+
+Le backlog de qualité du code n'a pas d'entrée de menu : il s'ouvre depuis cette page, par le compte
+**Qualité** à côté du backlog par gravité, marqué *ne bloque jamais*. Il classe les constats de
+qualité par règle, par fichier et par dépôt, et rien de tout cela ne peut faire échouer une
+construction — voir [Qualité du code](quality.md).
 
 ![Le tableau de bord : l'encours et les mouvements quotidiens sur deux graphiques empilés, les cibles en échec nommées en dessous.](../assets/screens/fr/dashboard.png)
 

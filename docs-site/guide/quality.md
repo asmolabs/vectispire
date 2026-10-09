@@ -14,7 +14,10 @@ backlog is there to be read and worked through, not to block a release.
 
 ![The quality view: the banner saying these findings never fail a build, and the backlog ranked by rule, file and repository.](../assets/screens/en/code-quality.png)
 
-## The Quality section
+## The quality view
+
+Opened from the **Quality** count on the [dashboard](dashboard.md), at `/quality`; it has no menu
+entry of its own.
 
 Ranked three ways, because the useful question differs by who is asking:
 

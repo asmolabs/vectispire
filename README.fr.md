@@ -118,7 +118,7 @@ consignent les erreurs de ce projet.
     porte d'heure ([guide](docs-site/guide/attestation.fr.md)).
 - **Comparaison de SBOM** entre deux analyses, **estimation de l'effort de remédiation** et les
   montées de version qui ferment le plus d'issues à la fois.
-- **Tickets** GitLab et Jira, **notifications** webhook signé, Teams et e-mail, **rapport
+- **Tickets** GitLab, GitHub, Jira et ServiceNow, **notifications** webhook signé, Teams et e-mail, **rapport
   hebdomadaire** de posture, **réanalyse périodique**, **SSO** OpenID Connect optionnel.
 
 Le détail de chaque fonctionnalité, et ce qu'elle refuse de faire, est dans le

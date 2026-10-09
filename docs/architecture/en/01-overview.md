@@ -119,12 +119,12 @@ sequenceDiagram
     participant I as ScanIngestor
     participant S as Backlog (issues)
 
-    D->>Q: inserts a "queued" row
+    D->>Q: inserts a "pending" row
     Note over Q: returns immediately
     R->>Q: claims (lease + owner)
     R->>R: clone / resolve the image
     R->>R: SBOM, vulnerabilities, secrets, IaC, SAST
-    R-->>I: ScanArtifacts (null = did not run)
+    R-->>I: ScanArtifacts (empty Optional = did not run)
     I->>I: normalizes into ObservedFinding
     I->>S: hands the observation over (ScanIngestor.Backlog)
     S->>S: fingerprints, reconciles, opens / resolves

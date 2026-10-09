@@ -18,7 +18,8 @@ historique reste intact — ce qui est tout l'intérêt de désactiver plutôt q
 
 Les rôles décident de ce qu'une personne peut **faire** ; les équipes décident de ce qu'elle peut
 **voir**. Les deux sont indépendants, et c'est voulu : donner un rôle n'élargit pas le périmètre,
-sauf pour les trois rôles qui portent explicitement une portée globale.
+sauf pour les quatre rôles qui portent explicitement une portée globale — Auditeur, CISO,
+Administrateur et Super-administrateur.
 
 | Rôle | Ce qu'il peut faire |
 |---|---|

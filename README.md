@@ -61,13 +61,12 @@ the whole estate from.*
 - **License compliance**: evaluates a configurable license blocklist against data already present in the SBOM.
 - **End-of-life detection** (endoflife.date): flags platforms and runtimes whose security support has ended — the container's own distribution first of all. A whole class of risk with no CVE attached: nothing will be fixed for the *next* vulnerability, whatever it turns out to be. Coverage is deliberately scoped to products (languages, runtimes, frameworks, distributions), not every library.
 - **IaC scanning** (checkov): detects Terraform/Kubernetes misconfigurations in repositories.
-- **Security and Quality sections.** The navigation is grouped: *Sécurité* holds an
-  overview that shows the gate verdict per target alongside the issue backlog, repositories and
-  containers. *Qualité* ranks the code-quality backlog by rule, file and repository, and
-  says plainly that none of it can fail a build. The overview also names the two states
-  no other screen did: a target never scanned, and one whose last scan failed. Both fail the
-  gate, on the screen and for a pipeline — their empty or stale backlog would otherwise pass
-  every policy.
+- **Security posture overview** (`/security`): the gate verdict per target beside its standing
+  backlog by severity and when it was last scanned. It also names the two states no other screen
+  did: a target never scanned, and one whose last scan failed. Both fail the gate, on the screen
+  and for a pipeline — their empty or stale backlog would otherwise pass every policy. The
+  code-quality backlog (`/quality`, opened from the dashboard) ranks quality findings by rule,
+  file and repository, and says plainly that none of it can fail a build.
 - **Source-code analysis** (Semgrep, off by default): reads the code itself — a
   concatenated SQL query, a command handed to a shell, an unverified TLS certificate —
   which no other scanner here sees. Produces two kinds of finding: *security* ones, gated
@@ -83,7 +82,7 @@ the whole estate from.*
 - **Bulk triage**: one CVE across forty repositories is one judgement about one context, not forty — and deciding it forty times is how a backlog stops being triaged at all. Narrow the list, select, decide once. All or nothing in one transaction, with each issue still recording its own transition in the triage history, because a bulk decision that changed forty rows silently would be indistinguishable from forty rows edited by hand.
 - **Periodic rescanning**: each target carries a scan interval *or* a cron expression, honoured by a built-in scheduler — the point being that new vulnerabilities appear in code that hasn't changed. The expression wins when both are set: an interval drifts a few minutes each run, so a scan configured for the quiet hours eventually runs in the middle of the day. A target with neither is rescanned on the installation's default interval — weekly unless changed, each target at a moment of its own in the week — and one that must never be rescanned is set to *manual only*.
 - **HTTP API and CI policy gate**: trigger scans, read issues, and ask "should this build fail?". The verdict names the policy it applied, and a `policy` object in the request can only *tighten* what applies, never loosen it — the rules used to arrive in the request body, which meant each project decided its own bar. The policy applied is a **stored, versioned** one — global, or overridden per target — written on *Administration → Gate policies*; where none is stored, the built-in default applies, and the screen shows it beside what is stored so that "not set" and "set to the same thing" do not look alike. Authenticated with the API keys the UI issues, and callable without writing the request by hand: [`ci/vectispire-gate.sh`](ci/vectispire-gate.sh), a GitHub composite action and a GitLab template.
-- **Tracker tickets** (GitLab, Jira): opens one ticket per problem that would fail a build, using the same policy — one threshold, defined once. The reference is kept on the issue, so a tracker outage is retried and never duplicated.
+- **Tracker tickets** (GitLab, GitHub, Jira, ServiceNow): opens one ticket per problem that would fail a build, using the same policy — one threshold, defined once. The reference is kept on the issue, so a tracker outage is retried and never duplicated.
 - **Notifications**: a webhook, a **Microsoft Teams** card and an **e-mail** fire when a scan makes something appear or reappear — not on every scan, which is what keeps the channel readable. The three are independent rather than exclusive: a team wants the card in its channel *and* the mail on a distribution list. Each destination gets its own outbox row, so a mail server being down does not make Teams receive the message twice on the retry. Teams is reached through a Power Automate **workflow** — the Office 365 connector it replaces was retired — and Vectispire posts an Adaptive Card, so nothing has to be mapped in the designer. The message is written to an **outbox in the same transaction as the scan's results** and delivered by the scheduler with capped exponential backoff, so a crash between the commit and the POST no longer loses it silently and a briefly unreachable endpoint is retried instead of logged once. Webhook messages can be **signed** (HMAC-SHA256 over the timestamp and the exact body, in `X-Vectispire-Signature`) so a receiver can tell a message Vectispire sent from one sent by whoever learned the URL — worth it for a script, a bus or your own gateway, which can check it; Slack and Teams accept whatever arrives. Empty secret means unsigned, which is what an existing deployment stays.
 - **Exports**: **SARIF 2.1.0** for GitHub code scanning / GitLab / Azure DevOps — which is what gets a finding out of the dashboard and onto the pull request that introduced it — plus the triage decisions as OpenVEX, CSAF 2.0 and CycloneDX VEX, issues as CSV, the SBOM as the cataloguer produced it, and two documents written for a person rather than a tool: a target's **posture** and its **detection-and-triage history**, both as PDF.
 - **Detection and triage history**: per repository, every scan with the project version it read, the issues that scan observed, and every triage decision taken on them — from which status to which, by whom, with which justification, and against which version. For the reader who has to be convinced after the fact and was not there. Exportable as PDF and CSV. An issue nobody triaged is printed saying so: silence would let it pass for a decision that was merely not written down.
@@ -396,7 +395,7 @@ Three things are *not* runtime settings, because they have to exist before the a
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | To rotate `ENCRYPTION_KEY` | Comma-separated older keys, tried for **decryption only**. Values move to the current key as they are re-saved, and the SSH keys page marks the rows that still depend on an older one — so the variable can be dropped once none remain. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | Instead of the above | A file holding them, comma- or newline-separated. It exists for the same reason as `ENCRYPTION_KEY_FILE` and not for symmetry: an old key still decrypts live rows, and a rotation is the moment two keys exist at once — so without it, moving the current key to a file would mean putting the previous one back into the environment to finish the job. Same refusals. |
 | `VECTISPIRE_BOOTSTRAP_USERNAME` | First run only | Username of the initial SUPERUSER, created at startup when the `user` table is empty. |
-| `VECTISPIRE_BOOTSTRAP_PASSWORD` | First run only | Its password (8 characters minimum). |
+| `VECTISPIRE_BOOTSTRAP_PASSWORD` | First run only | Its password (12 characters minimum, the rule every password is held to: a shorter one creates no account, and the log says why). |
 
 Operational tuning (all optional, shown with their defaults):
 
@@ -418,12 +417,15 @@ Operational tuning (all optional, shown with their defaults):
 | `VECTISPIRE_SESSION_LIFETIME` / `VECTISPIRE_SESSION_IDLE` | `12h` / `60m` | Absolute and idle session lifetimes. The absolute one bounds a stolen token's usefulness and no activity extends it; the idle one protects an unlocked screen. |
 | `VECTISPIRE_VEX_AUTHOR` / `VECTISPIRE_VERSION` | `Vectispire` / the build's version | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. Leave `VECTISPIRE_VERSION` unset: every document (SARIF, CSAF, CycloneDX, in-toto) then states the version the jar was built as. Set it only for a rebuild shipped under a version of its own. |
 
-**The scanner images are not configurable, and that is deliberate.** The five digests are
-constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/scanners/ScannerImages.java):
+**The scanner images are pinned by digest, and an override replaces the pin, not the review.** The
+five digests are constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/scanners/ScannerImages.java):
 they execute on the scanning host and read input nobody controls, so they *are* Vectispire's
-supply chain — whoever controls `anchore/syft:latest` controls what runs there. Moving one is a
-commit that goes through review, not an environment variable somebody sets on a server. Update
-deliberately with `docker buildx imagetools inspect <image>:latest`.
+supply chain — whoever controls `anchore/syft:latest` controls what runs there. Moving a pin is a
+commit that goes through review; update deliberately with `docker buildx imagetools inspect <image>:latest`.
+An estate that must pull from an internal registry sets `VECTISPIRE_IMAGE_SYFT`, `_GRYPE`, `_GITLEAKS`,
+`_CHECKOV` or `_SEMGREP` — on the control plane and on each agent — and blank keeps the pinned digest.
+Whoever sets one takes on what the digest was protecting, so name a digest there too, never a tag
+([configuration reference](docs-site/reference/configuration.md#scanners)).
 
 A remote agent reads a different set: `VECTISPIRE_URL` and `VECTISPIRE_AGENT_TOKEN` (both required),
 plus `VECTISPIRE_AGENT_WAIT` (`30s`), `VECTISPIRE_AGENT_RETRY` (`10s`) and `VECTISPIRE_AGENT_HEARTBEAT`

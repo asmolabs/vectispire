@@ -63,8 +63,20 @@ services:
     # before its isolation between networks applies, so the database answered on its container
     # address to the agent, to Keycloak, and to every container anyone starts — measured, from a
     # fresh container on the agent's network. For a SQL session, `docker compose exec db mysql`.
+
+    # **The password through an option file, never on a command line.** `-p"$(cat …)"` put the root
+    # password in mysqladmin's arguments every ten seconds, and a process's arguments are what `ps`
+    # shows to every user of the container — and of the host. `printf` is a shell builtin, so the
+    # secret is never an argument of anything; the file is readable by its owner alone and removed
+    # whatever the ping answers. The same pattern as the backup in docs/en/BACKUP_AND_RESTORE.md.
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$(cat /run/secrets/mysql_root_password)\""]
+      test:
+        - CMD-SHELL
+        - |-
+          umask 077; cnf=$$(mktemp) || exit 1
+          printf '[client]\nuser=root\npassword="%s"\n' "$$(cat /run/secrets/mysql_root_password)" > "$$cnf"
+          mysqladmin --defaults-extra-file="$$cnf" ping -h localhost --silent; status=$$?
+          rm -f "$$cnf"; exit $$status
       interval: 10s
       timeout: 5s
       retries: 5

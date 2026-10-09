@@ -47,23 +47,37 @@
   configurable permission scopes and expiration dates.
 
 ### 2.2 Role-Based Access Control (RBAC) & Double Validation
-Strict endpoint authorization via Spring Security:
-- `ROLE_ADMIN` / `ROLE_SUPERUSER` / `ROLE_CISO`: System configuration, user management, SSH keys,
-  and toggling **Double Validation (Four-Eyes Approval)** (`triage_four_eyes_required`).
-- **Optional Double Validation**: Dynamically configurable via UI by Admins or CISOs (`PUT
-  /api/v1/settings`). When enabled, any VEX triage decision (`NOT_AFFECTED` or `FIXED`) submitted by
-  a non-CISO/Admin user enters `PENDING_APPROVAL` status. When disabled, authorized users can
-  directly triage issues.
+Authorization has two halves, and a route needs both.
+
+**What the caller's role may do** is a composed annotation on every route — `@RequiresAdministrator`,
+`@RequiresSecurityLead`, `@RequiresGovernanceRead`, `@RequiresPlatformGovernor`, `@RequiresWriteAccount`,
+`@RequiresAccount` — each a Spring Security `@PreAuthorize` over a role expression
+(`hasAnyRole('SUPERUSER', 'ADMIN', 'CISO')` and so on) that matches one flag of the `Role` enum; the
+table below gives each marker's roles. A route spells out no role list of its own.
+
+**Whose estate the answer describes** is the second half, and the marker says nothing about it:
+`@RequiresAccount` proves the caller is signed in, not that the repository it names is theirs. A route
+naming a target resolves a `Visibility` — `VisibilityService.of(user, credentialRestriction)`, the
+account's grant intersected with the credential's — and passes it to the query, or refuses through
+`Visibilities.requireVisible(...)`, which answers **404, never 403**, so a refusal cannot confirm that
+the target exists. `AuthorizationCoverageTest` catches a route that forgets.
+
+- **Administrators** (SUPERUSER, ADMIN): accounts, teams, keys, agents, SSH keys.
+- **Optional Double Validation** (`triage_four_eyes_required`): a rule of the platform, so the
+  **Superuser's** alone — `@RequiresPlatformGovernor`, and the setting is one `Setting.governsSecurity()`
+  reserves. When enabled, a VEX triage decision that settles an issue (`NOT_AFFECTED` or `FIXED`)
+  submitted by an account that may not approve enters `PENDING_APPROVAL`. When disabled, authorized
+  users triage directly.
 - **Distinct Identities Enforced**: The approver is checked against the requester recorded on the
   `PENDING_APPROVAL` event, not merely against the approver role. An account that requests an
   exemption cannot approve it, even after being granted the role — four eyes means two people, and a
   role gate alone lets one person hold both halves.
 - **Audit Logging**: Any toggle change to double validation is immediately recorded in the SHA-256
   hash-chained audit log (`t_audit_log`) with operator identity (`SETTING_UPDATED`).
-- `ROLE_USER` / `ROLE_SECURITY_CHAMPION`: Posture dashboard inspection and vulnerability triage. A
+- **USER / SECURITY_CHAMPION**: Posture dashboard inspection and vulnerability triage. A
   security champion may approve a triage, but only within the scope its visibility grants — it has
   no global reach.
-- `ROLE_AUDITOR` (2026-09-02): **reads governance and writes none of it.** Global scope, no
+- **AUDITOR** (2026-09-02): **reads governance and writes none of it.** Global scope, no
   approval, no write anywhere. The role exists because until that date, reading the audit log, the
   compliance evidence, the gate policy and the SIEM destination required the same marker as writing
   them: the only account that could inspect the posture was one that could rewrite it. Whoever

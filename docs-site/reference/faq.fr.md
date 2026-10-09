@@ -18,7 +18,7 @@ détient `ENCRYPTION_KEY`. Faites tourner un agent distant et posez
 téléchargées à la demande la première fois que chacune sert. Les scans suivants réutilisent le
 cache.
 
-**Puis-je utiliser SQLite ?** Non. PostgreSQL et MySQL 8 sont les moteurs supportés. SQLite a
+**Puis-je utiliser SQLite ?** Non. MySQL 8 — le défaut, le moteur que livre la composition — et PostgreSQL sont les moteurs supportés. SQLite a
 servi de fixture aux suites de tests jusqu'à leur passage sur MySQL ; il ne fait plus du tout
 partie de la construction, et une URL `jdbc:sqlite:` arrête le démarrage : aucun pilote n'est livré
 pour elle.

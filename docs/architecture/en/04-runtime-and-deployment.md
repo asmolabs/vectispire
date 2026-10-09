@@ -167,8 +167,11 @@ deletion.
 
 ## The images
 
-Two are published, and the `Dockerfile` route is the one that ships: it can `chown` the audit
-mirror's directory, where Jib can only set a mode. Jib builds the same two on every push because
-it needs no daemon and is fast; the `Dockerfile` build runs nightly. Both carry `LICENSE` and
-`NOTICE`, and the nightly job asserts the jar is where the image says it is — the defect that made
+Three are published — the control plane, the agent and, from the release after 0.10.0 on, the
+demonstration report plugin; 0.10.0 published the first two. **The release ships Jib's images**:
+`release.yml` runs `jibBuildTar`, as every push's `images` job does, because Jib needs no daemon and
+is fast. The `Dockerfile`s are the second route, the one that can `chown` the audit mirror's
+directory where Jib can only set a mode; the `dockerfiles` job builds them on a push that changes
+what only they read, and the nightly does every night. Every image carries `LICENSE` and `NOTICE`,
+and the nightly job asserts the jar is where the `Dockerfile` image says it is — the defect that made
 the job necessary was a `COPY` of a file the build never produced.

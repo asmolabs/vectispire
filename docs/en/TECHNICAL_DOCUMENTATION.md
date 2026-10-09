@@ -24,57 +24,51 @@ flowchart TB
         Pages["Pages<br/>dashboard, security, quality, repositories, issues,<br/>containers, scans, ssh-keys, api-keys, agents,<br/>settings, users, audit-log, teams, compliance,<br/>gate-policies, rule-sets, history, inventory, owasp"]
     end
 
-    subgraph api["api/ — controllers, DTOs, guards"]
-        Routes["Controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, agents-admin, teams, rule-sets, owasp,<br/>sbom, remediation"]
+    subgraph agent["vectispire-agent — no database on its classpath"]
+        AG["AgentRunner · AgentProtocol"]
     end
 
-    subgraph services["services/ — orchestration, transactions"]
-        Scan["ScanDispatcherService / ScanWorkerService<br/>ScanIngestorService"]
-        Issue["IssueSyncService / IssueTriageService / VexIngestorService"]
-        Comp["ComplianceService · EvidenceVaultService · CsafGeneratorService · CycloneDxGeneratorService"]
-        Remed["SbomDiffService · SecurityDebtService"]
-        Enrich["EnrichmentService · EolService · LicenseService"]
-        Ai["AiReviewService"]
-        Notify["NotificationService · OutboxService"]
-        Ticket["TicketService · TicketSweepService"]
-        Ops["SchedulerService · LeaderElectionService<br/>RetentionService · MaintenanceService"]
-        Auth["AuthService · PasswordService · SessionCleanupService<br/>ApiKeyAuthService · AuditLogService · SettingsService<br/>EncryptionService · BootstrapService · VisibilityService"]
+    subgraph core["vectispire-core — one vertical module per domain, core/‹module›/"]
+        Web["web/ — controllers<br/>auth, scans, issues, gate, exports, quality,<br/>repositories, containers, dashboard, settings,<br/>users, ssh-keys, api-keys, audit-log, compliance,<br/>csaf, cyclonedx, vex, agents, teams, rule-sets, owasp,<br/>sbom, remediation"]
+        Svc["module root + internal/ — services, transactions<br/>scanning: ScanDispatcher · ScanWorker · ScanIngestor · SchedulerService · LeaderElection · RetentionService<br/>issues: IssueSyncService · IssueTriageService · VexIngestorService<br/>compliance, exports: ComplianceService · EvidenceVaultService · CsafGeneratorService · CycloneDxGeneratorService<br/>inventory, posture: SbomDiffService · SecurityDebtService<br/>threatintel: EnrichmentService · EndOfLifeService · ThreatIntelFeedService<br/>ai · notifications · outbox · tickets: AiReviewService · NotificationService · OutboxService · TicketService<br/>maintenance: MaintenanceJobs<br/>access · audit · settings · crypto: AuthService · ApiKeyAuthService · VisibilityService · BootstrapService<br/>AuditLogService · SettingsService · EncryptionService"]
+        Per["persistence/ — entities and repositories, no business rule<br/>ScanRepository · IssueRepository · GitRepositoryRepository · ContainerRepository<br/>AuditLogRepository · SessionRepository · TeamRepository · …"]
+        Mig["Flyway migrations<br/>db/migration/common · db/migration/{vendor}"]
     end
 
-    subgraph repos["repositories/ — data access, no business rules"]
-        R["ScanRepository · IssueRepository · TargetRepository<br/>AuditLogRepository · SessionRepository · TeamRepository"]
+    subgraph common["vectispire-common — shared by the control plane and the agent"]
+        D["common/domain/ — pure, depends on nothing<br/>fingerprint · gate · audit chain · exports · csaf · cyclonedx · triage<br/>compliance · url-guard · crypto (PasswordHasher) · retention · scheduling · …"]
+        S["common/scanning/ — runs containers, no database<br/>ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · checkov · semgrep"]
     end
 
-    subgraph persistence["persistence/ — entities, dialects, driver types"]
-        Ent["33 JPA entities · Flyway migrations"]
-    end
-
-    subgraph domain["domain/ — pure, depends on nothing"]
-        D["fingerprint · gate · audit chain · exports · csaf · cyclonedx · triage<br/>compliance · url-guard · crypto · retention · scheduling · …"]
-    end
-
-    subgraph scanning["scanning/ — runs containers, no database"]
-        S["ScanRunner · ContainerRunner<br/>syft · grype · gitleaks · checkov · semgrep"]
-    end
-
-    Pages -->|"/api over HTTP"| Routes
-    Routes --> services
-    services --> repos
-    repos --> persistence
-    services --> scanning
-    services --> domain
-    repos --> domain
-    scanning --> domain
+    Pages -->|"/api over HTTP"| Web
+    AG -->|"/api/v1/agent over HTTP"| Web
+    Web --> Svc
+    Svc --> Per
+    Per --> Mig
+    Svc --> S
+    Svc --> D
+    Per --> D
+    S --> D
+    AG --> S
 ```
 
 **Dependency injection is Spring's**, by constructor. Every collaborator a class needs is a
 parameter it cannot be built without, which is also what makes the unit suites possible: a
 test hands a stub where the container hands a bean, and nothing has to be intercepted.
 
-**The layering is enforced, not documented.**
+**The layering is enforced, not documented.** The packages by layer — `api/`, `services/`,
+`repositories/`, `persistence/` — are gone: every domain is a module, `core/<module>/` with `web/`,
+`internal/` and `persistence/` beneath it, and `core/config/` is the one package outside a module
+([decisions 0028](../architecture/en/decisions/0028-vertical-modules.md) and
+[0029](../architecture/en/decisions/0029-core-domains-become-modules.md);
+[01 — overview](../architecture/en/01-overview.md#modules-and-the-layers-inside-them)).
 [`ArchitectureTest`](../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java)
-reads the import graph with ArchUnit and fails the suite when a layer imports from above
-itself, or when a `domain` class imports a framework.
+reads the import graph with ArchUnit and fails the suite when a layer inside a module imports from
+above itself, when a service holds a query API, or when a `domain` class imports a framework;
+[`ModularityTest`](../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ModularityTest.java)
+has Spring Modulith fail it on a cycle between modules, a reach into another module's internals, or a
+dependency a module's `package-info` does not list
+([decision 0030](../architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)).
 
 **The agent's isolation is stronger than that test.** `vectispire-agent` does not depend on
 `vectispire-core`, so no JDBC driver is on its compile classpath and the violation fails to
@@ -99,28 +93,31 @@ and stays that way: Hibernate must never alter the schema at runtime.
 
 **The engine is chosen by `VECTISPIRE_DB_URL` and nothing else** — Hibernate and Flyway both read
 it from the JDBC URL, so there is no separate dialect setting to keep in step with it. MySQL is
-the default, the engine `docker-compose.yml` ships. All four pass the whole integration campaign
-([decision 0009](../architecture/en/decisions/0009-four-engines.md), [decision 0013](../architecture/en/decisions/0013-flyway-multi-dialect-migrations.md)).
+the default, the engine `docker-compose.yml` ships; PostgreSQL is the other. Both pass the whole integration campaign
+([decision 0014](../architecture/en/decisions/0014-two-engines-and-a-test-fixture.md), which superseded
+[decision 0009](../architecture/en/decisions/0009-four-engines.md); [decision 0013](../architecture/en/decisions/0013-flyway-multi-dialect-migrations.md)).
 [`SchemaParityIntegrationTest`](../../vectispire-java/vectispire-core/src/integrationTest/java/com/asmolabs/vectispire/core/persistence/SchemaParityIntegrationTest.java)
 asks on each engine whether the entities and schema agree.
 
 ### The scan and issue model
 
+Every table carries the `t_` prefix, in the diagram as in the migrations.
+
 ```mermaid
 erDiagram
-    REPOSITORY ||--o{ SCAN : "is scanned by"
-    CONTAINER  ||--o{ SCAN : "is scanned by"
-    SCAN       ||--o{ FINDING : "produces"
-    SCAN       ||--o{ ISSUE : "opens (first_seen)"
-    SCAN       ||--o{ AI_REVIEW_RESULT : "carries"
-    SCAN       }o--o| AGENT : "claimed by"
-    ISSUE      }o--|| REPOSITORY : "concerns"
-    ISSUE      }o--|| CONTAINER : "concerns"
-    REPOSITORY ||--o| SSH_KEY : "clones with"
-    REPOSITORY ||--o| GATE_POLICY : "evaluated by"
-    CONTAINER  ||--o| GATE_POLICY : "evaluated by"
+    t_repository ||--o{ t_scan : "is scanned by"
+    t_container  ||--o{ t_scan : "is scanned by"
+    t_scan       ||--o{ t_finding : "produces"
+    t_scan       ||--o{ t_issue : "opens (first_seen)"
+    t_scan       ||--o{ t_ai_review_result : "carries"
+    t_scan       }o--o| t_agent : "claimed by"
+    t_issue      }o--|| t_repository : "concerns"
+    t_issue      }o--|| t_container : "concerns"
+    t_repository ||--o| t_ssh_key : "clones with"
+    t_repository ||--o| t_gate_policy : "evaluated by"
+    t_container  ||--o| t_gate_policy : "evaluated by"
 
-    REPOSITORY {
+    t_repository {
         int id PK
         string url
         string name
@@ -133,7 +130,7 @@ erDiagram
         string required_agent_label
         datetime last_scheduled_scan_at
     }
-    CONTAINER {
+    t_container {
         int id PK
         string image
         string platform
@@ -143,11 +140,11 @@ erDiagram
         string required_agent_label
         datetime last_scheduled_scan_at
     }
-    SCAN {
+    t_scan {
         int id PK
         int repo_id FK
         int container_id FK
-        string status "queued|scanning|completed|failed"
+        string status "pending|scanning|completed|failed"
         string branch
         json sbom "purged by retention"
         json cves "purged by retention"
@@ -161,7 +158,7 @@ erDiagram
         text error
         datetime created_at
     }
-    FINDING {
+    t_finding {
         int id PK
         int scan_id FK
         string type "vulnerability|secret|iac|license|eol|sast|quality|ai_review"
@@ -181,7 +178,7 @@ erDiagram
         text description
         string source
     }
-    ISSUE {
+    t_issue {
         int id PK
         string fingerprint UK "unique per target"
         int repo_id FK
@@ -200,7 +197,7 @@ erDiagram
         string ticket_url
         string reachability "dormant: nothing writes it, always UNKNOWN"
     }
-    AI_REVIEW_RESULT {
+    t_ai_review_result {
         int id PK
         int scan_id FK
         string model
@@ -208,7 +205,7 @@ erDiagram
         text content
         text error
     }
-    GATE_POLICY {
+    t_gate_policy {
         int id PK
         string target_kind "global|repository|container"
         int target_id
@@ -222,7 +219,7 @@ erDiagram
         string note
         string created_by
     }
-    AGENT {
+    t_agent {
         uuid id PK
         string name
         string kind "embedded|remote"
@@ -245,22 +242,22 @@ Outside the main model, and each one load-bearing:
 
 | Table | What it holds | Why it exists |
 |---|---|---|
-| `user` | accounts, **Argon2id** password, role, `must_change_password` | — |
-| `session` | the token's **SHA-256** as primary key — never the token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: a token that cannot be invalidated, so nobody could be logged out. Storing the token itself would make every dump of this table a set of live sessions |
-| `team_webhook` | one team's notification channel | its own table rather than a column on `team`: a webhook URL is a bearer capability that has no business being carried by every query over teams — and `addColumn` on `team` destroyed the access tables' foreign keys on the SQLite fixture of the time |
-| `team` / `team_member` / `team_target` | teams, who is in them, what they own | restricted visibility, made administrable: an account sees the union of what its teams own and what was assigned to it directly. The per-account table stays for the exception a team cannot express |
-| `login_attempt` | `counter_key`, `occurred_at` | anti-stuffing counted per user **and** per client; one axis alone is defeatable |
-| `api_key` | **Argon2id** hash, prefix for display, scopes, target restriction, expiry | the raw secret is returned once and never stored. The prefix is what makes a memory-hard hash affordable here: it narrows the lookup to a handful of rows before hashing |
-| `ssh_key` | AES-GCM ciphertext bound to its row by associated data | without the binding, key A's ciphertext copied into row B decrypts cleanly |
-| `setting` | key/value, including the four remediation windows | the `Setting` catalog decides what is exposed. A deadline is a setting and not a column: it is a policy an organisation writes, and storing it per issue would freeze each one at the policy in force the day it was found |
-| `audit_log` | entry hash, previous hash, IP, user agent | chained: makes **selective** editing detectable |
-| `outbox_message` | payload, `status`, `attempts`, `next_attempt_at`, `team_id` (null = the global webhook) | written in the transaction that produces the result, so a crash before the POST loses nothing |
-| `processed_message` | `message_id`, `agent_id` | **created by `V1` and never written**: nothing maps it any more. An agent's repeated report is refused by the scan itself — the result is recorded only while the scan is still `scanning` and leased to that agent (`ScanQueue.holdForWrite`), and recording it ends both, so a second copy writes nothing and `times_seen` does not move. The table stays because `V1` is never edited |
-| `leader_lease` | `name`, `holder`, `expires_at` | one instance holds the periodic tick; a table rather than an advisory lock because it is **observable** |
+| `t_user` | accounts, **Argon2id** password, role, `must_change_password` | — |
+| `t_session` | the token's **SHA-256** as primary key — never the token, `created_at`, `last_seen_at`, `expires_at`, IP, user agent | a **revocable** session: a token that cannot be invalidated, so nobody could be logged out. Storing the token itself would make every dump of this table a set of live sessions |
+| `t_team_webhook` | one team's notification channel | its own table rather than a column on `t_team`: a webhook URL is a bearer capability that has no business being carried by every query over teams — and `addColumn` on `t_team` destroyed the access tables' foreign keys on the SQLite fixture of the time |
+| `t_team` / `t_team_member` / `t_team_target` | teams, who is in them, what they own | restricted visibility, made administrable: an account sees the union of what its teams own and what was assigned to it directly. The per-account table stays for the exception a team cannot express |
+| `t_login_attempt` | `counter_key`, `occurred_at` | anti-stuffing counted per user **and** per client; one axis alone is defeatable |
+| `t_api_key` | **Argon2id** hash, prefix for display, scopes, target restriction, expiry | the raw secret is returned once and never stored. The prefix is what makes a memory-hard hash affordable here: it narrows the lookup to a handful of rows before hashing |
+| `t_ssh_key` | AES-GCM ciphertext bound to its row by associated data | without the binding, key A's ciphertext copied into row B decrypts cleanly |
+| `t_setting` | key/value, including the four remediation windows | the `Setting` catalog decides what is exposed. A deadline is a setting and not a column: it is a policy an organisation writes, and storing it per issue would freeze each one at the policy in force the day it was found |
+| `t_audit_log` | entry hash, previous hash, IP, user agent | chained: makes **selective** editing detectable |
+| `t_outbox_message` | payload, `status`, `attempts`, `next_attempt_at`, `team_id` (null = the global webhook) | written in the transaction that produces the result, so a crash before the POST loses nothing |
+| `t_processed_message` | `message_id`, `agent_id` | **created by `V1` and never written**: nothing maps it any more. An agent's repeated report is refused by the scan itself — the result is recorded only while the scan is still `scanning` and leased to that agent (`ScanQueue.holdForWrite`), and recording it ends both, so a second copy writes nothing and `times_seen` does not move. The table stays because `V1` is never edited |
+| `t_leader_lease` | `name`, `holder`, `expires_at` | one instance holds the periodic tick; a table rather than an advisory lock because it is **observable** |
 
 ## 3. Scan pipeline
 
-Triggering does not execute. A trigger inserts a `queued` row and returns; a worker loop
+Triggering does not execute. A trigger inserts a `pending` row and returns; a worker loop
 claims and runs it. That is what lets a remote agent, or a second instance, take the work
 ([decision 0002](../architecture/en/decisions/0002-the-database-carries-the-queue.md)).
 
@@ -268,37 +265,38 @@ claims and runs it. That is what lets a remote agent, or a second instance, take
 sequenceDiagram
     participant T as Trigger<br/>(scheduler, UI, API)
     participant Q as scan table
-    participant W as ScanWorkerService
+    participant W as ScanWorker
     participant R as ScanRunner
-    participant I as ScanIngestorService
+    participant I as ScanIngestor
     participant S as IssueSyncService
     participant DB as Database
 
-    T->>Q: INSERT scan(status="queued")
+    T->>Q: INSERT t_scan(status="pending")
     T-->>T: returns immediately
     W->>Q: claim (conditional update + lease)
     W->>R: run(task)
     R->>R: clone (depth 1) or export the image
     R->>R: syft → grype → gitleaks → checkov → semgrep
-    R-->>W: ScanArtifacts (null = did not run)
+    R-->>W: ScanArtifacts (empty Optional = did not run)
     W->>I: ingest
-    I->>DB: INSERT findings, UPDATE scan(summary)
+    I->>DB: INSERT t_finding, UPDATE t_scan(summary)
     I->>S: sync from scan
     S->>S: fingerprint, reconcile, open / resolve
     S->>DB: outbox row, in the same transaction
-    Note over W,DB: A scanner that fails records a failure on the scan<br/>and leaves its artifact null. The scan still completes.
+    Note over W,DB: A scanner that fails records a failure on the scan<br/>and leaves its artifact empty. The scan still completes —<br/>unless every step is empty and one failed: then nothing was examined, and it fails.
 ```
 
 Points that are not obvious from the diagram:
 
-- **`null` is not `[]`.** In `ScanArtifacts`, `[]` is the positive claim *"the step ran and
-  found nothing"*, which **resolves** that type's issues; `null` means it did not run, and
-  the backlog is left alone. A port that normalized nulls into empty lists would silently
-  resolve hundreds of security issues with no error anywhere
+- **Absent is not `[]`.** Every field of `ScanArtifacts` is an `Optional`. A present `[]` is the
+  positive claim *"the step ran and found nothing"*, which **resolves** that type's issues; an
+  empty `Optional` means it did not run, and the backlog is left alone. A port that turned an
+  absent result into an empty list would silently resolve hundreds of security issues with no
+  error anywhere
   ([decision 0007](../architecture/en/decisions/0007-none-is-not-an-empty-list.md)).
 - **Failure does not only show in the exit code.** A Semgrep run where most files timed out
   exits 0 with a short list. `errors[]` and `paths.scanned` are inspected, and past a 25%
-  error ratio the result is `null`.
+  error ratio the result is absent.
 - **Semgrep produces two finding types from one pass.** Each rule's `metadata.category`
   decides: `security` becomes a `sast` finding, gated like any vulnerability; anything else
   becomes `quality`, which no policy can let into a verdict
@@ -315,7 +313,7 @@ Points that are not obvious from the diagram:
   merges the operator's `VECTISPIRE_SEMGREP_RULES_DIR`.
 - **Secrets, IaC and SAST never run on a container image.** They look in source code;
   declaring them scanned would silently resolve that target's whole history for those
-  types. They stay `null`.
+  types. They stay absent.
 
 ## 4. The scanners
 
@@ -375,37 +373,39 @@ Three things about it are security decisions, not features:
   mitigation, and the reason its verdict blocks nothing.
 
 The model list is read live from Ollama's `GET /api/tags`, so what the operator has actually
-pulled is what becomes selectable; a two-entry fallback is shown as a *suggestion* when
-Ollama is unreachable, never as installed. Parsing is defensive — a response that does not
+pulled is what counts: **Test the connection**, on the settings' AI tab, says whether the endpoint
+answers and whether the configured model is among those it holds. Where a list is shown, a
+two-entry fallback stands in as a *suggestion* when Ollama is unreachable, never as installed. Parsing is defensive — a response that does not
 parse yields an empty list and never raises.
 
 ## 5. Service and repository reference
 
 | Service | Responsibility |
 |---|---|
-| `ScanDispatcherService` | Claims scans transactionally and hands tasks to agents; holds the credentials decision (`credentialsMode`) and the sealing. |
-| `ScanWorkerService` | The built-in worker: claims, runs, ingests. |
-| `ScanIngestorService` | Normalizes artifacts into `Finding` rows and updates the scan. Knows the database; runs no container. |
+| `ScanDispatcher` | Claims scans transactionally and hands tasks to agents; holds the credentials decision (`credentialsMode`) and the sealing. |
+| `ScanWorker` | The built-in worker: claims, runs, ingests. |
+| `ScanIngestor` | Normalizes artifacts into `Finding` rows and updates the scan. Knows the database; runs no container. |
 | `IssueSyncService` | Reconciles findings against issues across scans: fingerprint, `times_seen`, open/resolve. Writes the outbox row in the same transaction. |
 | `IssueTriageService` | Applies a validated triage decision, and expires the ones past their review date. |
 | `EnrichmentService` | EPSS scores and KEV status, both read from the stored feeds — a scan asks no third party. Before a feed's first synchronisation it sets nothing: unknown, never zero. |
 | `ThreatIntelFeedService` | The CISA KEV catalogue: fetched outside any transaction (`KevCatalogSource`, `VECTISPIRE_KEV_URL`), refused unless whole and not older than the one in use, stored — new entries 500 to a statement — and applied to the open issues 500 at a time, each page its own transaction under the sync row's lock, so that `CRITICAL_KEV_DETECTED` is raised once for a newly listed one however many synchronisations run. Every six hours through `KevCatalogueSyncTask`, one instance elected by a conditional update; audited as `THREAT_INTEL_SYNCED`, a failure included. |
 | `EpssFeed` | FIRST's daily EPSS file: downloaded outside any transaction (`EpssFileSource`, `VECTISPIRE_EPSS_URL`, one same-origin redirect), read as a stream by `EpssFile` — refused unless whole (gzip checksum, at least 100,000 rows and nine tenths of the file in use, scores in [0, 1], 128 MiB inflated at most) and not older than the one in use — written under a new generation of `t_epss_score` in 5,000-row transactions, switched to in one conditional update, then applied to the open issues a page at a time; the generation it replaced is kept until the next file is applied — a reader that read the sync row just before the switch still finds its rows — and the one before it is deleted in batches. A lease on the sync row keeps one synchronisation at a time. Daily through `EpssScoresSyncTask`; each attempt audited under `THREAT_INTEL_SYNCED`. |
-| `EolService` · `LicenseService` | End-of-life matching, and the license blocklist over SBOM data already collected. |
+| `EndOfLifeService` · `LicenseService` | End-of-life matching, and the license blocklist over SBOM data already collected. |
 | `AiReviewService` | See §4. |
 | `NotificationService` · `OutboxService` | Selects what deserves a message, and relays the outbox with capped backoff. |
 | `TicketService` · `TicketSweepService` | Opens one tracker ticket per issue that would fail a build, under the same gate policy — no second threshold. |
-| `SchedulerService` | The periodic tick: due scans, retention, triage expiry, outbox, ticket sweep. |
-| `LeaderElectionService` | The lease that makes exactly one instance run that tick. |
-| `RetentionService` · `MaintenanceService` | Purge of raw payloads, and periodic housekeeping. |
-| `AuthService` · `PasswordService` · `SessionCleanupService` | Login, throttling, hashing, session expiry. |
+| `SchedulerService` | The periodic rescan: queues the targets that are due, by interval or cron. |
+| `LeaderElection` | The lease that makes the per-period part of a tick — dispatching due targets, the purge, triage expiry, the outbox relay — single-owner across the fleet; every instance still claims work for its own worker. |
+| `RetentionService` · `MaintenanceJobs` | Purge of raw payloads; and the periodic housekeeping turns, each running the `MaintenanceTask`s each module contributes at its cadence. |
+| `AuthService` · `PasswordHasher` · `SessionCleanupService` | Login, throttling, hashing (Argon2id, `PasswordHasher` in `common/domain/crypto`), session expiry. |
 | `ApiKeyAuthService` | Key verification, scopes, target restriction, expiry. |
 | `AuditLogService` | Chained audit entries. Recording never raises: a logging failure must not break the action being audited. |
 | `EncryptionService` | AES-GCM at rest, with the context bound to the row, and multi-key rotation. |
 | `SettingsService` · `BootstrapService` | Key/value settings, and first-run account creation. |
 
 One repository per entity that is read on its own, in its module's `persistence` and named
-after the entity — `ScanRepository`, `IssueRepository`, `AuditLogRepository`, `SessionRepository`… —
+after the entity — `ScanRepository`, `IssueRepository`, `GitRepositoryRepository`, `ContainerRepository`,
+`AuditLogRepository`, `SessionRepository`… —
 each a thin wrapper around the queries its callers actually need. There is no generic base repository.
 A service writes no SQL, and a repository holds no business rule;
 `ArchitectureTest` enforces both.

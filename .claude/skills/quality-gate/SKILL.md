@@ -125,6 +125,14 @@ every refusal. Every one of those read correctly. `docs-consistency` runs `ci/gi
 the template pins, and editing `scripts/vectispire-cli.sh` the `CLI_SCRIPT_SHA256` the interface's
 CI/CD snippets pin (`repositories.ts`) — both are release assets, run by consumers only at that digest.
 
+**Running the shipped composition to test a change** (a healthcheck, a service's command): a project
+name does **not** isolate it. `docker-compose.yml` gives its volumes and networks fixed `name:`s, so
+`docker compose -p anything up db` attaches to the operator's real `vectispire_mysql_data` — on
+2026-10-09 a second mysqld started on a developer's live database volume for ten seconds before
+anyone noticed. Bring a service up only through an override that replaces every named volume with a
+throwaway one (and `down -v` after), or read `docker volume ls` first and refuse if the names
+exist.
+
 ## 7. Mutation check — for every test added
 
 Break the code the test pins (remove the guard, flip the condition), run the test, confirm it

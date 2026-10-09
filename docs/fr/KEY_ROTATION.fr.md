@@ -79,5 +79,5 @@ qu'ailleurs : un déploiement sans clé continue de tout lire et ne refuse que l
 - **Une sauvegarde prise avant la rotation** a toujours besoin de la clé qui était courante au
   moment où elle a été prise. Un instantané et la clé qui l'ouvre sont deux artefacts : gardez-les
   séparés, et gardez l'ancienne clé aussi longtemps qu'une sauvegarde que vous restaureriez encore
-  a été écrite sous elle. Il n'existe pas encore de runbook de sauvegarde — c'est une lacune, pas
-  un oubli de cette page.
+  a été écrite sous elle. [Sauvegarde et restauration](BACKUP_AND_RESTORE.fr.md) dit comment les
+  deux se prennent, se gardent et se restaurent ensemble.

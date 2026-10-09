@@ -1,53 +1,50 @@
 # Guide de Démarrage Rapide — Vectispire
 
-Ce guide décrit l'installation, la configuration et le lancement de Vectispire en local ou en production.
-
----
+Ce document couvre tout ce qu'il faut pour faire tourner Vectispire en local : prérequis, installation, configuration de l'environnement et démarrage de l'application. Pour les fonctionnalités, voir [`README.fr.md`](../../README.fr.md) ; pour l'architecture et le schéma de base de données, voir [`TECHNICAL_DOCUMENTATION.fr.md`](TECHNICAL_DOCUMENTATION.fr.md).
 
 ## 1. Prérequis
 
-- **Java** : JDK 25 (ou compatible JDK 21+ avec Gradle).
-- **Node.js** : Node LTS 24 (Angular 22 refuse Node 25).
-- **Docker** : Nécessaire pour l'exécution des conteneurs d'analyse (Syft, Grype, Semgrep, Gitleaks).
-- **Base de données** : MySQL (défaut) ou PostgreSQL. SQLite n'est pas pris en charge et ne fait plus partie de la construction — voir les [décisions 0014](../architecture/fr/decisions/0014-two-engines-and-a-test-fixture.md) et [0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md).
+| Prérequis | Pourquoi |
+|---|---|
+| **JDK 25** | La chaîne d'outils Gradle de `vectispire-java/` demande la 25 ; nécessaire seulement pour construire ou lancer depuis les sources. |
+| **Node 24 (LTS)** | Épinglé par `.nvmrc`. Angular 22 refuse Node 25. |
+| **Docker**, démarré et joignable | Vectispire exécute Syft, Grype, gitleaks, checkov et Semgrep comme conteneurs éphémères à travers un démon Docker — dans la composition livrée, à travers un `docker-socket-proxy`, jamais la socket elle-même. C'est aussi ce qui démarre MySQL en développement et pour les campagnes de tests. |
+| **MySQL 8** (défaut) **ou PostgreSQL** | Les deux sont pris en charge et exercés par la campagne d'intégration ; MySQL est ce vers quoi pointe `VECTISPIRE_DB_URL` quand elle n'est pas définie, et ce que livre `docker-compose.yml`. SQLite n'est pas pris en charge et ne fait plus partie de la construction ([ADR 0034](../architecture/fr/decisions/0034-mysql-replaces-the-sqlite-fixture.md)). En développement, un conteneur suffit. |
+| **Git** | Pour cloner ce dépôt, et utilisé par Vectispire lui-même pour cloner ce qu'il analyse. |
 
----
-
-## 2. Installation des dépendances
-
-```bash
-# Dépendances frontend
-npm ci
-
-# Compilation backend et vérification
-cd vectispire-java && ./gradlew build
-```
-
----
-
-## 3. Configuration des Variables d'Environnement
-
-Créez un fichier `.env` ou exportez les variables suivantes :
+## 2. Installation
 
 ```bash
-# Clé de chiffrement AES-256 (32 octets encodés en base64)
-export ENCRYPTION_KEY=$(openssl rand -base64 32)
-
-# Base de données (MySQL par défaut ; l'URL choisit le moteur)
-export VECTISPIRE_DB_URL=jdbc:postgresql://localhost:5432/vectispire
-export VECTISPIRE_DB_USER=vectispire
-export VECTISPIRE_DB_PASSWORD=secret
-
-# Identifiants de démarrage (SUPERUSER initial)
-export VECTISPIRE_BOOTSTRAP_USERNAME=admin
-export VECTISPIRE_BOOTSTRAP_PASSWORD=SuperSecretPassword123!
-
-# Personnalisation de marque (White-labeling dans le header, rapports & exports)
-export VECTISPIRE_BRAND_NAME=Vectispire
-export VECTISPIRE_GITLAB_URL=https://github.com/asmolabs/vectispire
+git clone <url-de-ce-depot>
+cd vectispire
+npm ci                                  # l'interface ; respecte le fichier de verrouillage
+cd vectispire-java && ./gradlew build   # le plan de contrôle : compilation, campagnes unitaires, d'architecture et HTTP (Docker requis)
 ```
 
----
+`npm` ne couvre que l'interface. Le plan de contrôle est une construction Gradle dans
+`vectispire-java/` et ne partage avec elle que le contrat HTTP.
+
+## 3. Configuration
+
+La plupart des réglages d'exécution — enrichissement, fin de vie, rétention, notifications,
+licences, tracker, revue par modèle — sont en base et se modifient depuis la page **Paramètres**
+une fois l'application lancée. Un réglage n'y apparaît qu'à partir du moment où un service le lit
+réellement.
+
+Les variables d'environnement qui comptent avant le premier démarrage :
+
+| Variable | Défaut |
+|---|---|
+| `VECTISPIRE_DB_URL` | `jdbc:mysql://localhost:3306/vectispire` — une URL **JDBC** ; pour PostgreSQL, `jdbc:postgresql://localhost:5432/vectispire` |
+| `VECTISPIRE_DB_USER` / `VECTISPIRE_DB_PASSWORD` | `vectispire` / vide |
+| `ENCRYPTION_KEY` | *aucune* — l'enregistrement d'un secret est refusé tant qu'elle n'est pas définie. En production, préférez `ENCRYPTION_KEY_FILE` |
+| `ENCRYPTION_KEY_FILE` | *aucune* — le chemin d'un fichier contenant la clé à la place, ce que monte un secret Docker ou Kubernetes. Tient la valeur hors de `/proc/<pid>/environ`, de `docker inspect` et des journaux d'un orchestrateur. La définir *en même temps que* `ENCRYPTION_KEY` est refusé ; un chemin qui ne se résout pas arrête l'application plutôt que de la démarrer sans clé |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | *aucune* — d'anciennes clés séparées par des virgules, essayées pour le déchiffrement seulement |
+| `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | *aucune* — la même liste depuis un fichier, séparée par des virgules ou des retours à la ligne, pour qu'une rotation n'ait pas à remettre l'ancienne clé dans l'environnement |
+| `VECTISPIRE_PASSWORD_LOGIN` | `true`. `false` délègue entièrement l'authentification au fournisseur d'identité — le second facteur est alors celui du royaume. Ignorée, bruyamment, quand aucun `VECTISPIRE_OIDC_ISSUER` n'est défini : elle ne laisserait aucun moyen d'entrer |
+| `VECTISPIRE_AUDIT_MIRROR` | *aucune* — un chemin où chaque entrée d'audit est ajoutée comme une ligne JSON, hors de la base qu'elle surveille. Désactivé, le journal n'a qu'un exemplaire, et l'écran de vérification le dit |
+| `VECTISPIRE_BRAND_NAME` | `Vectispire` — nom de l'entreprise ou de l'instance affiché dans l'en-tête, les rapports (PDF) et les exports (SARIF, VEX, CSAF) |
+| `VECTISPIRE_GITLAB_URL` | `https://github.com/asmolabs/vectispire` — URL du dépôt amont affichée à côté de la mention « Powered by Vectispire » du pied de page. Le nom de la variable précède le passage à GitHub et est conservé parce qu'il fait partie de la réponse publique de personnalisation |
 
 ## 4. Base de données
 
@@ -94,25 +91,42 @@ table des utilisateurs est vide :
 
 ```bash
 VECTISPIRE_BOOTSTRAP_USERNAME=admin
-VECTISPIRE_BOOTSTRAP_PASSWORD=<au moins 8 caractères>
+VECTISPIRE_BOOTSTRAP_PASSWORD=<au moins 12 caractères>
 ```
 
----
-
-## 5. Lancement de l'Application
+## 5. Lancement de l'application
 
 ```bash
-# Lancement de l'API Backend (Port 3180 pour le proxy Angular de développement)
-cd vectispire-java && ./gradlew :vectispire-core:bootRun --args='--server.port=3180'
-
-# Lancement de l'Interface Angular (Port 4280)
-npm --workspace @vectispire/frontend start
+# Flyway met le schéma à jour au démarrage ; rien à lancer à la main.
+cd vectispire-java && ./gradlew :vectispire-core:bootRun --args='--server.port=3180'   # API sur http://localhost:3180 (pour le proxy de développement Angular)
+npm --workspace @vectispire/frontend start                                         # interface sur http://localhost:4280 (redirige /api vers 3180)
 ```
 
-Accédez ensuite à l'interface sur `http://localhost:4280` (le proxy redirige `/api` vers `http://localhost:3180`).
-Connectez-vous avec l'utilisateur `admin` et changez le mot de passe initial.
+Le premier démarrage crée un SUPERUSER depuis `VECTISPIRE_BOOTSTRAP_USERNAME` et
+`VECTISPIRE_BOOTSTRAP_PASSWORD` quand la table des utilisateurs est vide. Dès qu'un compte existe,
+les deux variables sont ignorées. Ouvrez `http://localhost:4280`, connectez-vous avec ce compte et
+changez son mot de passe.
 
----
+### 5.1 Déploiement avec Docker Compose (tout-en-un)
+
+La pile complète (MySQL + plan de contrôle + agent distant optionnel) se lance en une commande :
+
+```bash
+# 1. Copier et ajuster les variables d'environnement
+cp .env.example .env
+
+# 2. Lancer MySQL + le plan de contrôle Vectispire sur http://localhost:3180
+docker compose up -d
+
+# 3. Optionnel : lancer avec un agent distant dédié
+docker compose --profile with-agent up -d
+```
+
+**Construire les images de conteneur :**
+```bash
+npm run docker:build          # ou docker build -t vectispire:latest .
+npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t vectispire-agent:latest .
+```
 
 ## 6. Optionnel : revue de code par IA (Ollama)
 
@@ -141,46 +155,14 @@ des modèles, en tirer de nouveaux et supprimer les vôtres.
 
 (Ajouter `--gpus all` pour le passage NVIDIA sous Linux.)
 
-Ensuite, depuis la page **Réglages** de Vectispire, section « Revue de code par IA » : activez la fonctionnalité, renseignez l'URL d'Ollama (par défaut `http://localhost:11434`, inchangée qu'Ollama tourne en natif ou en conteneur puisque celui-ci publie le même port sur l'hôte), et choisissez un modèle dans la liste — celle-ci est lue en direct depuis le `/api/tags` d'Ollama (ce que vous avez réellement tiré y apparaît), et non codée en dur. Si Ollama n'est pas encore joignable, la liste se rabat sur les deux modèles ci-dessus présentés comme suggestions plutôt que de rester vide.
+Ensuite, depuis l'onglet **Paramètres → IA** de Vectispire, dans la carte **Revue IA** : activez la revue, renseignez l'URL d'Ollama (par défaut `http://localhost:11434`, inchangée qu'Ollama tourne en natif ou dans le conteneur ci-dessus, puisque celui-ci publie le même port sur la boucle locale de l'hôte), et nommez le modèle. **Tester la connexion** dit si Ollama répond à cette URL et si le modèle fait partie de ceux qu'il détient — lus en direct depuis le `/api/tags` d'Ollama, de sorte que ce que vous avez réellement tiré est ce qui compte.
 
 **La configuration est en base, pas dans l'environnement.** Cette section a longtemps décrit trois
-variables `VECTISPIRE_AI_REVIEW_*` qui n'existent nulle part dans le code : les suivre ne faisait
+variables `VECTISPIRE_AI_REVIEW_*` qui n'existent nulle part dans le code : les définir ne faisait
 rien. Les réglages réels sont `ai_review_enabled`, `ai_review_ollama_url` et `ai_review_model`,
 posés depuis l'interface — de sorte qu'un changement est audité et n'exige pas un redémarrage.
 
----
-
-## 7. Déploiement Conteneurisé avec Docker & Docker Compose
-
-> **Note de structure.** La version anglaise traite ce sujet en sous-section 5.1 plutôt qu'en
-> section propre ; les deux documents couvrent le même contenu, la numérotation seule diffère à
-> partir d'ici. Consigné pour qu'un écart de plan ne se lise pas comme une dérive de traduction.
-
-Pour exécuter la suite complète (Base PostgreSQL + Control Plane Vectispire + Agent optionnel) en une seule commande :
-
-```bash
-# Copier et ajuster les variables d'environnement
-cp .env.example .env
-
-# Lancer la stack (PostgreSQL + Vectispire Control Plane sur http://localhost:3180)
-docker compose up -d
-
-# Lancer avec un agent distant déporté (profile with-agent)
-docker compose --profile with-agent up -d
-```
-
-**Construction des images Docker personnalisées :**
-```bash
-# Image Control Plane (Backend + Frontend intégré)
-npm run docker:build          # ou docker build -t vectispire:latest .
-
-# Image Agent distant déporté
-npm run docker:build:agent    # ou docker build -f Dockerfile.agent -t vectispire-agent:latest .
-```
-
----
-
-## 8. Exécuter les tests
+## 7. Exécuter les tests
 
 ```bash
 cd vectispire-java && ./gradlew build              # campagnes unitaires, d'architecture et HTTP
@@ -191,13 +173,12 @@ Les campagnes d'intégration démarrent leur propre base et **ne s'esquivent pas
 manque : une exécution sans Docker échoue bruyamment plutôt que de rendre un vert n'ayant rien
 vérifié.
 
-
-## 9. Vérifier une release
+## 8. Vérifier une release
 
 Chaque release porte le jar et son SBOM, le script de barrière CI `vectispire-gate.sh` et — à
 partir de la version qui suit la 0.10.0 — la CLI `vectispire-cli.sh` ([Intégration CI/CD](CI_CD_INTEGRATION.fr.md#-obtenir-la-cli)),
-chacun avec un paquet Sigstore vérifié de la même façon, et deux images de conteneur signées.
-Vérifiez avant de lancer quoi que ce soit — un outil de sécurité pris sur parole est une
+chacun avec un paquet Sigstore vérifié de la même façon, et des images de conteneur signées — deux
+jusqu'à la 0.10.0, trois à partir de la version qui la suit (voir plus bas). Vérifiez avant de lancer quoi que ce soit — un outil de sécurité pris sur parole est une
 contradiction.
 
 ```bash
@@ -236,13 +217,17 @@ cosign verify-blob \
 
 ### Exécuter depuis les images publiées
 
-Une release publie aussi deux images de conteneur, de sorte que rien n'a besoin d'être compilé
-pour exécuter ce logiciel :
+Une release publie aussi ses images de conteneur, de sorte que rien n'a besoin d'être compilé
+pour exécuter ce logiciel — le plan de contrôle et l'agent :
 
 ```bash
 docker pull ghcr.io/asmolabs/vectispire:0.10.0
 docker pull ghcr.io/asmolabs/vectispire-agent:0.10.0
 ```
+
+À partir de la version qui suit la 0.10.0, une troisième est publiée à côté,
+`ghcr.io/asmolabs/vectispire-report-demo` — le [plugin de rapport](../../docs-site/administration/report-plugins.fr.md)
+de démonstration, signé, attesté et vérifié de la même façon. La 0.10.0 ne la porte pas.
 
 **Vérifiez-les avant de les exécuter, et vérifiez par empreinte.** Un tag est un pointeur mutable :
 signer `:0.10.0` ne dit rien de ce vers quoi `:0.10.0` pointera la semaine prochaine — c'est la
@@ -300,7 +285,7 @@ dépendances que n'importe qui peut réécrire avant que vous ne la lisiez.
 
 Une signature dit *quel workflow* a produit un fichier. Chaque release postérieure à v0.9.0 porte
 aussi une attestation de [provenance de construction SLSA](https://slsa.dev/spec/v1.0/provenance),
-pour le jar et pour les deux images, qui dit *comment* : le dépôt, le **commit** vers lequel
+pour le jar et pour chaque image, qui dit *comment* : le dépôt, le **commit** vers lequel
 pointait le tag au moment de la release, le workflow et l'exécuteur. Un tag peut être déplacé
 après coup ; le commit consigné dans la provenance ne le peut pas, et c'est lui qu'il faut
 extraire pour lire ou reconstruire le code qui a été livré.
@@ -322,7 +307,8 @@ gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<empreinte> \
 L'image est désignée **par empreinte** — celle qu'indiquent les notes de release, ou celle que
 renvoie `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
 — pour la même raison que la signature. L'image de l'agent se vérifie de la même façon sous
-`ghcr.io/asmolabs/vectispire-agent`.
+`ghcr.io/asmolabs/vectispire-agent`, et celle du plugin de rapport de démonstration sous
+`ghcr.io/asmolabs/vectispire-report-demo`.
 
 `--repo` seul est la commande que GitHub documente, et elle ne suffit pas : elle accepte une
 attestation produite par *n'importe quel* workflow du dépôt, sur n'importe quelle branche.
@@ -335,17 +321,17 @@ La provenance s'ajoute à la signature et ne la remplace pas : v0.9.0 et les rel
 précédée ont une signature et pas de provenance, et les commandes `cosign` ci-dessus restent le contrôle
 que toutes les releases permettent.
 
-## 10. Dépannage
+## 9. Dépannage
 
-- **`docker.errors.DockerException` / permission refusée sur la socket Docker** : avec la composition livrée, cela ne devrait pas arriver — aucun conteneur Vectispire ne monte le socket, un `docker-socket-proxy` s'en charge, et `DOCKER_HOST` pointe dessus. Hors compose, directement contre un démon, l'utilisateur a bien besoin d'un accès à `/var/run/docker.sock` (sous Linux/macOS avec Docker Desktop) ; sous Linux, ajoutez-le au groupe `docker`.
+- **Chaque étape d'une analyse échoue sur une erreur du client Docker** — `Connection refused`, ou `Permission denied` sur `/var/run/docker.sock` — et l'analyse se termine *en échec*, son détail listant chaque étape avec cette raison : le plan de contrôle ne joint aucun démon. Avec la composition livrée, cela ne devrait pas arriver — aucun conteneur Vectispire ne monte le socket, un `docker-socket-proxy` s'en charge, et `DOCKER_HOST` pointe dessus. Hors compose, directement contre un démon, l'utilisateur a bien besoin d'un accès à `/var/run/docker.sock` (sous Linux/macOS avec Docker Desktop) ; sous Linux, ajoutez-le au groupe `docker`.
 - **La première analyse est lente** : le backend `docker` tire les images `anchore/syft`, `anchore/grype`, `zricethezav/gitleaks`, `bridgecrew/checkov` et `semgrep/semgrep` à la demande la première fois que chacune sert — les analyses suivantes réutilisent les images en cache.
-- **« Identifiants incorrects ou compte inactif » à la connexion** : soit les identifiants sont faux, soit le drapeau `is_active` du compte est à `false` — vérifiez via `/users` (nécessite un administrateur existant) ou interrogez directement la table `user`.
+- **« Identifiants invalides. » à la connexion** : soit les identifiants sont faux, soit le compte est désactivé — vérifiez sur la page **Utilisateurs** (nécessite un administrateur existant) ou interrogez directement la table `t_user`.
 - **`ENCRYPTION_KEY` a changé et le déchiffrement des clés SSH échoue** : listez l'ancienne clé dans `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` (séparées par des virgules). Les valeurs existantes se déchiffrent alors de nouveau, et passent à la nouvelle clé à mesure qu'elles sont ré-enregistrées — la page **Clés SSH** marque les lignes qui dépendent encore de l'ancienne.
 - **Une clé SSH affiche « Illisible » après une mise à niveau** : aucune clé configurée ne la lit, très probablement parce qu'elle est antérieure à toute `ENCRYPTION_KEY` et a été chiffrée avec la valeur par défaut qui était livrée dans ce dépôt. Cette valeur par défaut a été retirée. Sa moitié privée est publique : remplacez la paire de clés chez votre fournisseur git plutôt que d'essayer de la récupérer ; enregistrez la nouvelle depuis la page *Clés SSH* une fois `ENCRYPTION_KEY` définie. La [note d'incident d'août 2026](../analysis/fr/2026-08-06_incident_exposition_identifiants.fr.md) dit comment cette valeur par défaut est devenue publique.
-- **La liste déroulante des modèles de revue IA n'affiche que les deux suggestions** : Ollama n'est pas joignable à l'URL configurée — vérifiez qu'il tourne (`ollama list` en natif, `docker ps` en conteneur) et que l'URL et le port correspondent, puis cliquez sur « Rafraîchir la liste » sur la page Réglages.
+- **« Tester la connexion » ne reçoit aucune réponse d'Ollama** : Ollama n'est pas joignable à l'URL configurée — vérifiez qu'il tourne (`ollama list` en natif, `docker ps` en conteneur) et que l'URL et le port correspondent, puis testez de nouveau depuis **Paramètres → IA**. S'il répond mais dit que le modèle n'est pas disponible, tirez ce modèle ou corrigez son nom.
 - **La revue IA fonctionne mais paraît lente** : attendu si Ollama tourne dans Docker sur un Mac Apple Silicon (pas de passage GPU/Metal — inférence sur CPU seul). Passez à une installation native pour l'accélération GPU, ou utilisez le modèle plus léger `gemma4:e4b-it-qat`.
 
-## 11. Documentation des APIs REST
+## 10. Documentation des APIs REST
 
 - **Référence REST** : Consultez la [Documentation de référence des APIs REST](api/rest_api_reference.md) pour les schémas d'authentification — un jeton de session opaque, une clé d'agent ou une clé d'API d'intégration, chacun en `Authorization: Bearer`, avec `X-API-Key` accepté pour une clé —, une sélection commentée des routes et des exemples `curl`. Le contrat complet est le document OpenAPI, [`vectispire-angular/openapi.json`](../../vectispire-angular/openapi.json).
 - **Swagger UI en Mode Développement** :
@@ -358,7 +344,7 @@ que toutes les releases permettent.
 
 ---
 
-## 12. Guides d'Intégration
+## 11. Guides d'intégration
 
 - [Intégration CI/CD & Outil CLI (`vectispire-cli`)](CI_CD_INTEGRATION.fr.md) — Blocage des builds par Quality Gate (GitLab CI, GitHub Actions, Bitbucket, Jenkins).
 - [Ticketing Bidirectionnel](TICKETING_INTEGRATION.fr.md) — Synchronisation automatique des issues avec Jira, GitLab, GitHub et ServiceNow.

@@ -1,13 +1,25 @@
 # Dashboard
 
-The navigation is grouped in two, and the split is a statement about what each half can do
-to a build.
+The dashboard is the first entry of the navigation, which is grouped by what a reader comes to do:
 
-**Security** holds the gate verdict per target, the issue backlog, repositories and
-containers. Anything here can fail a build.
+- **Dashboard** — this page.
+- **Configuration** — the repositories, solutions and projects, and the container images.
+- **Security** — the security posture overview, the issues, the remediation plan and its delays,
+  the history, the inventory and the views that rank or map the backlog (EPSS, blast radius,
+  licences, attack surface and paths, OWASP Top 10:2021).
+- **Compliance & evidence** — the compliance matrix, the exceptions register and, for the roles that
+  read governance, what an assessor asks for: the statement of applicability, the certified scope,
+  the gate verdicts, the attestation.
+- **Operations** — notifications, and for administrators the SSH keys and HTTPS tokens.
+- **Administration** — what the role allows: policies, rule sets, plugins, the audit log, keys,
+  agents, accounts, settings.
 
-**Quality** ranks the code-quality backlog by rule, file and repository, and says plainly
-that none of it can fail a build. See [Code quality](quality.md).
+What a menu shows depends on the role; a page it does not offer to an account is a page the server
+would refuse it.
+
+The code-quality backlog has no menu entry: it is opened from this page, by the **Quality** count
+beside the backlog by severity, marked *never blocks*. It ranks quality findings by rule, file and
+repository, and none of it can fail a build — see [Code quality](quality.md).
 
 ![The dashboard: the backlog and the daily movements on two stacked charts, the failing targets named beneath them.](../assets/screens/en/dashboard.png)
 

@@ -1,6 +1,6 @@
 # Guide d'Intégration CI/CD & Outil CLI Vectispire (`vectispire-cli`)
 
-Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'intégration continue (GitLab CI, GitHub Actions, Bitbucket, Jenkins) pour appliquer des **Quality Gates de sécurité bloquantes**, déclencher des analyses automatiques à chaque commit/Merge Request et exporter les artefacts de conformité (SBOM, SARIF).
+Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'intégration continue (GitLab CI, GitHub Actions, Bitbucket, Jenkins) pour appliquer des **Quality Gates de sécurité bloquantes**, déclencher des analyses automatiques à chaque commit/Merge Request, télécharger le SBOM d'une analyse et envoyer les rapports du build lui-même (couverture, résultats de tests, SBOM du build). SARIF n'est pas une commande de la CLI : c'est la route d'export `GET /api/v1/targets/repository/{id}/issues.sarif` (`container` pour une image), appelée avec une clé portant la portée `export`.
 
 ---
 
@@ -67,7 +67,7 @@ sha256sum vectispire-cli.sh    # macOS : shasum -a 256 vectispire-cli.sh
 ```
 
 L'identité nomme le fichier de workflow et le tag — remplacez le tag aux deux endroits — et l'émetteur
-dit qu'elle vient du service de jetons de GitHub ; [Démarrage §9](GETTING_STARTED.fr.md#9-vérifier-une-release)
+dit qu'elle vient du service de jetons de GitHub ; [Démarrage §8](GETTING_STARTED.fr.md#8-vérifier-une-release)
 dit ce que chaque option épingle. Ensuite, l'empreinte épingle le fichier à chaque exécution :
 `sha256sum -c` fait échouer le job sur tout autre contenu, si bien qu'un pipeline qui passe à un autre
 tag sans changer l'empreinte s'arrête au lieu d'exécuter un script que personne n'a vérifié.
@@ -75,6 +75,11 @@ tag sans changer l'empreinte s'arrête au lieu d'exécuter un script que personn
 ---
 
 ## 🛠️ Snippets d'Intégration par Plateforme
+
+Chaque image et chaque action ci-dessous est épinglée — une image par tag **et** empreinte, une action
+par SHA de commit avec sa version en regard — pour la raison même qui vaut pour la CLI : un job qui tire
+`:latest` ou `@v4` exécute ce vers quoi ces noms pointent le jour où il tourne. Déplacez une épingle
+délibérément, avec `docker buildx imagetools inspect <image>:<tag>` pour une image.
 
 ### 1. 🦊 GitLab CI (`.gitlab-ci.yml`)
 
@@ -85,7 +90,7 @@ stages:
 
 vectispire-security-gate:
   stage: security-gate
-  image: alpine:latest
+  image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
@@ -115,7 +120,7 @@ source livrant `sbom`, jamais la clé de la barrière :
 ```yaml
 vectispire-build-sbom:
   stage: test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.12-eclipse-temurin-21@sha256:c3c9d3ac4ce8431a3995c0318b8d390f448e693dd4fabc16e9b68d2e1f3d7b46
   variables:
     VECTISPIRE_URL: "https://vectispire.example.com"
     VECTISPIRE_REPO_ID: "1"
@@ -156,7 +161,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Trigger Scan & Enforce Security Gate
         env:
@@ -179,7 +184,7 @@ jobs:
 ### 3. 🪣 Bitbucket Pipelines (`bitbucket-pipelines.yml`)
 
 ```yaml
-image: alpine:latest
+image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 pipelines:
   default:
@@ -230,14 +235,13 @@ pipeline {
 
 ## 📦 Construire l'Image de la CLI
 
-Aucune image de la CLI n'est publiée : la release construit le plan de contrôle et l'agent, rien d'autre. [`Dockerfile.cli`](../../Dockerfile.cli) en construit une — Alpine avec `curl` et `jq`, sous un utilisateur non root, `vectispire-cli` comme point d'entrée — à pousser dans votre propre registre :
+Aucune image de la CLI n'est publiée : la release construit le plan de contrôle, l'agent et le plugin de rapport de démonstration, rien d'autre. [`Dockerfile.cli`](../../Dockerfile.cli) en construit une — Alpine avec `curl` et `jq`, sous un utilisateur non root, `vectispire-cli` comme point d'entrée — à pousser dans votre propre registre :
 
 ```bash
 docker build -f Dockerfile.cli -t <your-registry>/vectispire-cli:<tag> .
 ```
 
 ```yaml
-# Exemple GitLab CI avec image dédiée
 vectispire-gate:
   image:
     name: <your-registry>/vectispire-cli:<tag>

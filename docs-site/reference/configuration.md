@@ -8,11 +8,19 @@ the application starts, because it is needed to reach that screen.
 
 | Variable | Default |
 |---|---|
-| `VECTISPIRE_DB_URL` | `jdbc:postgresql://localhost:5432/vectispire` — a **JDBC** URL. MySQL: `jdbc:mysql://localhost:3306/vectispire` |
+| `VECTISPIRE_DB_URL` | `jdbc:mysql://localhost:3306/vectispire` — a **JDBC** URL; MySQL is the default engine, the one `docker-compose.yml` ships. PostgreSQL: `jdbc:postgresql://localhost:5432/vectispire` |
 | `VECTISPIRE_DB_USER` | `vectispire` |
 | `VECTISPIRE_DB_PASSWORD` | empty |
 
 The engine is read from the URL. There is no separate dialect setting.
+
+## Server and network
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_PORT` | `3180` | The HTTP port. The API, the interface and the agent protocol share it. |
+| `VECTISPIRE_TRUSTED_PROXIES` | *none* | Addresses or CIDR ranges, comma-separated, whose `X-Forwarded-For` is believed. Empty means nothing is in front: the header is ignored and the peer's address is what the rate limiters and the audit log record. Behind a load balancer or an ingress, name it — otherwise every request arrives from it and the whole estate shares one rate-limit bucket. |
+| `VECTISPIRE_PUBLIC_URL` | *none* | The base URL people reach this instance at. Named in a SARIF export's information URI and in a VEX document's identifier, so a document handed to somebody else says where it came from, and used for the links of e-mail notifications and project exports. |
 
 ## Encryption
 
@@ -20,7 +28,7 @@ The engine is read from the URL. There is no separate dialect setting.
 |---|---|
 | `ENCRYPTION_KEY` | Saving any secret is refused until this or the file form is set. |
 | `ENCRYPTION_KEY_FILE` | A path to a file holding the key. **Prefer this in production.** Setting both is refused; an unresolvable path stops the application. |
-| `VECTISPIRE_SIGNING_KEY` | The ECDSA P-256 private key (PEM, PKCS#8) that signs evidence bundles, VEX, CSAF, CycloneDX and in-toto envelopes; its public half is published at `/api/v1/crypto/public-key.pub`. Unset, a key is generated on first use and stored encrypted under `ENCRYPTION_KEY`, so it survives restarts — and nothing can be signed without `ENCRYPTION_KEY`. **Set it when more than one instance runs**, so they all sign with one key. A stored key that no configured `ENCRYPTION_KEY` can decrypt is refused, never replaced: replacing it would make every document already signed unverifiable. The shipped compose hands it over as the file `/run/secrets/vectispire.signing.key`, never as environment, and needs the variable declared in `.env` even when empty. |
+| `VECTISPIRE_SIGNING_KEY` | The ECDSA P-256 private key (PEM, PKCS#8) that signs evidence bundles, VEX, CSAF, CycloneDX and in-toto envelopes; its public half is published at `/api/v1/crypto/public-key.pub`. Unset, a key is generated on first use and stored encrypted under `ENCRYPTION_KEY`, so it survives restarts — and nothing can be signed without `ENCRYPTION_KEY`. **On 0.10.0 that first use fails**: an installation without this key answers 500 on its first evidence bundle, because the key was created inside a read-only transaction (fixed in the release after 0.10.0, see the [release notes](release-notes.md)). On 0.10.0, set it. **Set it when more than one instance runs**, so they all sign with one key. A stored key that no configured `ENCRYPTION_KEY` can decrypt is refused, never replaced: replacing it would make every document already signed unverifiable. The shipped compose hands it over as the file `/run/secrets/vectispire.signing.key`, never as environment, and needs the variable declared in `.env` even when empty. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | Comma-separated older keys, tried **for decryption only**. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | The same list from a file, comma- or newline-separated. |
 
@@ -45,7 +53,7 @@ holds can still be read, with an error in the log, until the secrets are saved a
 | Variable | Notes |
 |---|---|
 | `VECTISPIRE_BOOTSTRAP_USERNAME` | Used only when the user table is empty. |
-| `VECTISPIRE_BOOTSTRAP_PASSWORD` | At least 8 characters. |
+| `VECTISPIRE_BOOTSTRAP_PASSWORD` | At least 12 characters. |
 
 Once any account exists, both are ignored.
 
@@ -59,6 +67,10 @@ Once any account exists, both are ignored.
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuses a single sign-on whose token states no second factor. A federated sign-in skips the local TOTP: the provider owns the second factor. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | The RFC 8176 `amr` values that count as a second factor. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *none* | `acr` levels that count as one, when the provider signals MFA that way. |
+| `VECTISPIRE_SESSION_LIFETIME` | `12h` | A session ends this long after it began, however active it has been — what bounds a stolen token's usefulness; no activity extends it. |
+| `VECTISPIRE_SESSION_IDLE` | `60m` | A session ends after this long without a request — what protects an unlocked screen. |
+| `VECTISPIRE_BEARER_FAILURES_PER_WINDOW` | `60` | Refused bearer tokens — sessions, agent and integration keys, the SCIM token — counted together per address; past it, the address is refused for the rest of the window and the audit log records it. Only failures count, so an agent polling with a valid key spends nothing. Generous on purpose: these tokens are long and random, and most of the control's value is the audit entry, not the refusal. |
+| `VECTISPIRE_BEARER_FAILURE_WINDOW` | `PT5M` | The window of the setting above, as an ISO-8601 duration. |
 | `VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE` | `600` | Requests per minute per [integration API key](../administration/api-keys.md); beyond it, `429` with `Retry-After`. Sessions and agents are not counted. |
 | `VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW` | `300` | Deliveries per window and per address accepted on the inbound [tracker webhook](../integrations/ticketing.md#inbound-webhook); beyond it, `429` with `Retry-After`. Raise it if a tracker behind a shared egress makes bulk transitions larger than that. |
 | `VECTISPIRE_WEBHOOK_REQUEST_WINDOW` | `PT1M` | The window of the setting above, as an ISO-8601 duration. |
@@ -83,6 +95,9 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — the result carries the SBOM |
 | `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | every `POST /api/v1/auth/…` — a login, a one-time code or a session exchange is a few hundred bytes |
 | `VECTISPIRE_MAX_BODY_SARIF_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/sarif-imports` — an internal tool's SARIF report for one repository; see [Plugins and SARIF imports](../administration/plugins.md) |
+| `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` | `16MB` | `POST /api/v1/repositories/{id}/coverage-imports` — a JaCoCo or Cobertura report for a large repository is a few megabytes; only the totals are kept |
+| `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/test-report-imports` — a JUnit document, or a zip of them, whose failures carry stack traces; the zip is bounded again once inflated |
+| `VECTISPIRE_MAX_BODY_CHECKLIST_TEMPLATE_IMPORT` | `10MB` | `POST /api/v1/checklist-templates/{slug}/versions` — an organisation's checklist workbook, read whole and bounded again once inflated |
 | `VECTISPIRE_MAX_BODY_SBOM_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/build-sbom-imports` — a build's CycloneDX SBOM, a few megabytes for a large multi-module build; read again up to 50,000 components — see [Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom) |
 
 ## Cloning
@@ -90,6 +105,7 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 | Variable | Default | Notes |
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local ones, which are always refused. Checked when a URL is entered and again before each scan. |
+| `VECTISPIRE_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh`. Set `false` wherever the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have it cloned with an identity nobody attached to it. `false` in the shipped `docker-compose.yml`, which mounts no `~/.ssh`. |
 
 A clone over SSH with a deploy key checks the forge's host key against `<home>/.ssh/known_hosts` of
 the executor: recorded at the first contact, refused when it changes, only matched against when the
@@ -107,6 +123,26 @@ host directory mounted at the **same absolute path**, or every scanner receives 
 |---|---|---|
 | `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` only. The host directory mounted into the control plane at the same path, prepared for its user (1000:1000, 0700) by the `work-dir` service, and set as `-Djava.io.tmpdir` through `JDK_JAVA_OPTIONS`. Holds each running scan's clone and the matcher's database (some 3 GB), and under `home/` the process's home (`-Duser.home`), where the SSH host keys are recorded — the image's own home, `HOME=/home/vectispire`, is in the container's layer and does not outlive it. Outside the composition, do the same by hand. |
 | `VECTISPIRE_AGENT_WORK_DIR` | `/var/lib/vectispire/agent-work` | `docker-compose.yml`, `with-agent` profile: the same for the agent, a directory of its own. |
+
+## Scanners
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_IMAGE_SYFT`, `VECTISPIRE_IMAGE_GRYPE`, `VECTISPIRE_IMAGE_GITLEAKS`, `VECTISPIRE_IMAGE_CHECKOV`, `VECTISPIRE_IMAGE_SEMGREP` | *the pinned digest* | The image each scanner runs from, one by one. Blank keeps the digest Vectispire ships with — the reviewed one, in `ScannerImages`. Set them to pull from an internal registry, as an air-gapped estate must. Whoever overrides one takes on what the digest was protecting: a tag pulls whatever was pushed under it that morning, into a container that reads code nobody controls — **name a digest**, `registry.corp.example/anchore/syft@sha256:…`. Read by the control plane's built-in worker and, with the same names, by each agent. |
+| `VECTISPIRE_IMAGE_SCAN_PLATFORM` | *none* | The platform pulled for a container image scan, e.g. `linux/amd64`. Empty lets the daemon pick its own architecture, so an arm64 machine would audit a variant nobody deploys. |
+
+## Built-in worker and periodic jobs
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself: queued scans wait for a remote agent, and report plugins have no executor. |
+| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Scans this instance's built-in worker runs at once. Not an agent's: see below. |
+| `VECTISPIRE_WORKER_LABELS` | *none* | Labels the built-in worker answers to. Empty on purpose: it then takes only work that requires no label. |
+| `VECTISPIRE_WORKER_INTERVAL` | `15s` | How often the built-in worker looks for work. |
+| `VECTISPIRE_SCHEDULER_INTERVAL` | `60s` | How often targets due for a periodic scan are looked for. |
+| `VECTISPIRE_MAINTENANCE_INTERVAL` | `1h` | How often the maintenance tick runs — retention, expiring triage decisions, the ticket sweep, the threat-intelligence feeds and the rest of the housekeeping; each task keeps its own cadence within it (the KEV catalogue every six hours, EPSS daily). |
+
+The outbox's interval, `VECTISPIRE_RELAY_INTERVAL`, is under [SIEM export](#siem-export).
 
 ## Vulnerability database
 
@@ -170,8 +206,19 @@ Three things around it are the deployment's:
 |---|---|
 | `VECTISPIRE_BRAND_NAME` | `Vectispire` — header, PDF reports, and SARIF / VEX / CSAF exports |
 | `VECTISPIRE_GITLAB_URL` | `https://github.com/asmolabs/vectispire` — the source URL shown beside the "Powered by Vectispire" footer. The name is a leftover from when the project was hosted on GitLab; the setting is forge-agnostic and its default is not a GitLab URL. |
+| `VECTISPIRE_VEX_AUTHOR` | the brand name | The author a VEX document states. |
+| `VECTISPIRE_VERSION` | *the build's own version* | The tool version exported documents state — SARIF, CSAF, CycloneDX, in-toto. Leave it unset: a version other than the artefact's makes the two unreconcilable where an assessor reads them. Set it only for a rebuild shipped under a version of its own. |
+
+`VECTISPIRE_BRANDING_NAME` and `VECTISPIRE_INSTANCE_NAME`, earlier spellings of `VECTISPIRE_BRAND_NAME`,
+are still read, in that order, when it is unset.
 
 ## API documentation
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_API_DOCS_ENABLED` | `false` | Serves the OpenAPI document, `/v3/api-docs`. |
+| `VECTISPIRE_SWAGGER_UI_ENABLED` | `false` | Serves Swagger UI, `/swagger-ui.html`, which reads that document. |
+| `VECTISPIRE_ANONYMOUS_API_DOCS` | `false` | Who may read them once served: closed by default, so a signed-in session is needed. `true` suits a public demonstration, or a deployment behind a gateway that already authenticates — a complete endpoint catalogue is the reconnaissance this product reports on other people's estates. |
 
 Swagger UI is **disabled by default in production**. Enable it in development:
 
@@ -194,6 +241,10 @@ Then `http://localhost:3180/swagger-ui.html`.
 |---|---|
 | `VECTISPIRE_URL` | The control plane the agent polls. |
 | `VECTISPIRE_AGENT_TOKEN` | An API key with the `agent` scope, shown once at creation. |
+| `VECTISPIRE_AGENT_WAIT` | How long one poll waits for work, `30s` by default; the server holds the request, so a queued scan leaves within the second. |
+| `VECTISPIRE_AGENT_RETRY` | How long the agent waits before polling again after a failed poll, `10s`. |
+| `VECTISPIRE_AGENT_HEARTBEAT` | How often a running scan's lease is renewed, `60s` — well under the lease, so one missed beat does not expire a scan that is progressing. |
+| `VECTISPIRE_IMAGE_SYFT` … `VECTISPIRE_IMAGE_SEMGREP` | The scanner images on this agent, as for the control plane [above](#scanners). An agent on a closed network is where they usually point at an internal registry. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | The internal registry plugin images are pulled from on this agent — host relocated, path and digest kept. Blank pulls each from its own registry, which an agent on a closed network cannot reach: the plugin is then absent from the scan and its issues stay as they were. |
 | `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | On by default: this agent runs no plugin whose manifest declares no signer, unless the governor waived the requirement for that plugin — the task carries the waiver. `false` runs every unsigned plugin on this agent's host. A declared signer is verified before the pull either way. |

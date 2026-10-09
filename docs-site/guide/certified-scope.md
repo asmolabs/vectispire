@@ -17,8 +17,10 @@ query inside the product can notice it. That is the gap this screen is for.
 ## The number at the top is about what is missing
 
 "Your scope names forty assets, this instance holds thirty-one" is the sentence an audit begins
-with. It cannot be derived: the declared count is copied from your scope document into
-**Settings → Certified scope**, alongside the scope statement itself.
+with. It cannot be derived: the declared count is copied from your scope document into the
+settings — **Administration → Settings & SLAs**, card *Retention & Purge*, field *Assets the certified
+scope covers* — beside *Certified scope*, the scope statement itself. The **Certified scope** entry
+under *Compliance & evidence* in the navigation is this screen, which reads them.
 
 The scope statement is stored so that an evidence bundle carries the scope it describes. An
 archive whose reader has to be told separately what it was about is half an archive.

@@ -111,7 +111,7 @@ Couvert sous [Notifications](../integrations/notifications.md).
 
 ## Tracker
 
-GitLab ou Jira : URL, projet, jeton. Couvert sous [Tickets](../integrations/ticketing.md).
+GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton. Couvert sous [Tickets](../integrations/ticketing.md).
 
 ## Revue de code par IA
 

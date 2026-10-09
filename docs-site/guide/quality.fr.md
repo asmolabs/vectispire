@@ -15,7 +15,10 @@ pas pour bloquer une livraison.
 
 ![La vue Qualité : le bandeau qui dit que ces constats ne font jamais échouer une construction, et le backlog classé par règle, par fichier et par dépôt.](../assets/screens/fr/code-quality.png)
 
-## La section Qualité
+## La vue Qualité
+
+Elle s'ouvre depuis le compte **Qualité** du [tableau de bord](dashboard.md), à `/quality` ; elle n'a
+pas d'entrée de menu propre.
 
 Classée de trois façons, parce que la question utile diffère selon qui la pose :
 
