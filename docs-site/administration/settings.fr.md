@@ -113,7 +113,7 @@ Couvert sous [Notifications](../integrations/notifications.md).
 
 GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton. Couvert sous [Tickets](../integrations/ticketing.md).
 
-## Revue de code par IA
+## Revue par IA
 
 Désactivée par défaut. **Aujourd'hui, l'interrupteur active une seule chose : le [rapport OWASP
 rédigé par un modèle](../guide/risk-analysis.md#le-rapport-owasp-redige-par-un-modele)**, demandé depuis

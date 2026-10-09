@@ -15,9 +15,9 @@ import java.util.Optional;
  * <h2>It reads findings, not source code</h2>
  *
  * <p><b>The input is what Vectispire already knows about the target — never the repository's
- * source.</b> The code review this sits beside is explicit about the risk it accepts: its
- * endpoint "receives the scanned repository's source code", and a well-formed public URL is
- * exactly what an exfiltration channel looks like. A report about posture does not need the
+ * source.</b> The code review this sits beside — which no scan calls yet — would hand the
+ * endpoint the scanned repository's source, and a well-formed public URL is exactly what an
+ * exfiltration channel looks like. A report about posture does not need the
  * code: it needs the findings, their severities, their locations and what has been decided
  * about them. Sending a few hundred lines of metadata instead of a repository is not a
  * mitigation detail, it is the difference between an operator being able to turn this on and

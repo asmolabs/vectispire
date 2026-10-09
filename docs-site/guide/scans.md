@@ -29,13 +29,14 @@ machine, and when:
   end-of-life catalogue — made before the scan's results are written, never while they are;
 - **a Semgrep rule-set plugin** runs without a network unless its manifest declares the exception,
   with a justification recorded in the audit log ([Plugins](../administration/plugins.md));
-- **the AI code review**, off by default, sends source code to the model endpoint configured — a
-  machine you run, or, once a public endpoint has been explicitly allowed, a third party such as
-  OpenAI ([Settings](../administration/settings.md#ai-code-review)).
+- **the AI review**, off by default, sends a repository's open findings — identifiers, components,
+  paths, descriptions, never its source — to the model endpoint configured when its OWASP report is
+  written: a machine you run, or, once a public endpoint has been explicitly allowed, a third party
+  such as OpenAI ([Settings](../administration/settings.md#ai-review)). No scan sends code to a model.
 
 EPSS scores and KEV status are read from FIRST's daily file and CISA's catalogue, which the control
-plane synchronises whole, so no third party learns which CVE a repository carries. With the AI review
-off or kept on your network, no scanned source leaves it.
+plane synchronises whole, so no third party learns which CVE a repository carries. No scanned source
+leaves your network, and with the AI review off or kept on it, no finding does either.
 
 ## Reading a scan
 

@@ -107,7 +107,7 @@ Covered under [Notifications](../integrations/notifications.md).
 GitLab, GitHub, Jira or ServiceNow: URL, project, token. Covered under
 [Tracker tickets](../integrations/ticketing.md).
 
-## AI code review
+## AI review
 
 Off by default. **Today the switch turns on one thing: the [OWASP report written by a
 model](../guide/risk-analysis.md#the-owasp-report-written-by-a-model)**, asked from the OWASP page or,

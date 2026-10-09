@@ -2196,8 +2196,8 @@
     "governor_only": "Cette règle ne peut être changée que par un super-administrateur.",
     "keys": {
       "ai_review_enabled": {
-        "label": "Activer la revue IA",
-        "help": "Évalue le contexte et la sévérité réelle des failles. Le code analysé part vers le fournisseur choisi ci-dessous : local avec Ollama, chez un tiers avec une API publique."
+        "label": "Faire rédiger le rapport OWASP par un modèle",
+        "help": "Aujourd'hui, cet interrupteur active une seule chose : le rapport OWASP rédigé par le modèle configuré ci-dessous, demandé depuis la page OWASP ou, avec le réglage suivant, après chaque scan de dépôt. Le modèle reçoit les constats ouverts du dépôt — identifiants, composants, chemins, descriptions — et non son code source, même si une description peut en citer une ligne. Le rapport est un document : rien n'y devient un constat, rien n'atteint une barrière. Aucun scan ne fait relire le code par un modèle : cette revue n'est pas branchée, et un scan examine exactement la même chose avec ou sans cet interrupteur."
       },
       "ai_review_model": {
         "label": "Modèle LLM pour la revue",
@@ -2209,7 +2209,7 @@
       },
       "ai_review_openai_url": {
         "label": "URL de l'API compatible OpenAI",
-        "help": "Racine de l'API, sans /chat/completions. Celle d'OpenAI envoie le code chez OpenAI ; pointée sur vLLM, LM Studio ou une passerelle interne, rien ne sort."
+        "help": "Racine de l'API, sans /chat/completions. Celle d'OpenAI envoie ce qui est transmis chez OpenAI ; pointée sur vLLM, LM Studio ou une passerelle interne, rien ne sort."
       },
       "ai_review_prompt_context": {
         "label": "Consignes et contexte d'évaluation pour l'IA",
@@ -2217,7 +2217,7 @@
       },
       "ai_review_provider": {
         "label": "Fournisseur",
-        "help": "« Ollama » garde le code sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
+        "help": "« Ollama » garde ce qui est transmis — aujourd'hui les constats ouverts, le jour où la revue de code sera branchée le code source — sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
       },
       "checklist_auto_answer": {
         "label": "Répondre automatiquement aux lignes mesurées des checklists",
@@ -2389,15 +2389,15 @@
     "error_load": "Impossible de charger les paramètres.",
     "risk_confirm_header": "Accepter le risque de fuite de données",
     "risk_confirm_send": "Activer ce réglage autorise Vectispire à envoyer",
-    "risk_confirm_what": "le code source de chaque dépôt analysé",
+    "risk_confirm_what": "les constats ouverts de chaque dépôt analysé",
     "risk_confirm_to": "à",
-    "risk_confirm_including": "— y compris les dépôts privés, et tous les secrets qui y sont encore commités.",
-    "risk_confirm_third_party": "Le destinataire applique sa propre durée de conservation, sa propre juridiction et sa propre politique d'entraînement à ce qu'il reçoit. Vérifiez votre contrat avec lui, et vérifiez que le code que vous analysez vous appartient au point de pouvoir l'envoyer.",
+    "risk_confirm_including": "— y compris les dépôts privés, une description pouvant citer une ligne commitée. Une fois la revue de code branchée, ce sera leur code source, et tous les secrets qui y sont encore commités.",
+    "risk_confirm_third_party": "Le destinataire applique sa propre durée de conservation, sa propre juridiction et sa propre politique d'entraînement à ce qu'il reçoit. Vérifiez votre contrat avec lui, et vérifiez que ce que vous analysez vous appartient au point de pouvoir l'envoyer.",
     "risk_confirm_recorded": "Le nom de votre compte et la date du jour sont enregistrés en regard de cette décision, et affichés sur cet écran jusqu'à ce que quelqu'un la révoque. L'action est inscrite au journal d'audit, qui n'est jamais purgé.",
     "risk_confirm_accept": "J'accepte le risque",
-    "risk_banner_title": "Risque de fuite de données — le code source de chaque dépôt analysé quitte votre parc.",
-    "risk_banner_sends": "Cette configuration envoie le code analysé à",
-    "risk_banner_detail": ", un hôte extérieur à votre réseau, dans le corps de chaque requête. Cela comprend les dépôts privés, et tous les secrets qui y sont encore commités. Ce tiers applique sa propre durée de conservation, sa propre juridiction et sa propre politique d'entraînement à ce qu'il reçoit — vérifiez votre contrat avec lui, et vérifiez que le code que vous analysez vous appartient au point de pouvoir l'envoyer. Faites pointer l'URL vers un point d'accès de votre propre réseau, ou retirez l'acceptation ci-dessous, et plus rien ne sort.",
+    "risk_banner_title": "Risque de fuite de données — les constats de chaque dépôt analysé quittent votre parc.",
+    "risk_banner_sends": "Cette configuration envoie les constats ouverts des dépôts — identifiants, composants, chemins, descriptions — à",
+    "risk_banner_detail": ", un hôte extérieur à votre réseau, dans le corps de chaque requête. Cela comprend les dépôts privés, et une description peut citer une ligne commitée ; le jour où la revue de code sera branchée, ce sera leur code source, et tous les secrets qui y sont encore commités. Ce tiers applique sa propre durée de conservation, sa propre juridiction et sa propre politique d'entraînement à ce qu'il reçoit — vérifiez votre contrat avec lui, et vérifiez que ce que vous analysez vous appartient au point de pouvoir l'envoyer. Faites pointer l'URL vers un point d'accès de votre propre réseau, ou retirez l'acceptation ci-dessous, et plus rien ne sort.",
     "risk_accepted_by": "Risque de fuite de données accepté par",
     "risk_accepted_on": "le {{date}} UTC",
     "risk_accepted_note": "— enregistré à l'ouverture du point d'accès public. Le refermer efface cette mention.",

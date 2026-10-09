@@ -270,12 +270,18 @@ public enum Setting {
             "On by default. Clear it for a deployment that only uses a hosted tracker.",
             "true"),
 
+    // **What the switch does today, and only that.** It was labelled "Review the code with a local model",
+    // with a help describing the findings such a review would produce; nothing calls the code review
+    // (`AiReviewService.reviewCode`), so an operator turning it on believed every scan had a second
+    // reader. What it turns on is the report below, and the label says so.
     AI_REVIEW_ENABLED("ai_review_enabled", SettingType.BOOLEAN, Section.MODEL_REVIEW,
-            "Review the code with a local model",
-            "A light complement to the scanners, not a SAST engine: a single prompt, with no guaranteed "
-                    + "reproducibility. Its findings are tagged as coming from a model and excluded from the gate "
-                    + "by default — that is the structural mitigation against prompt injection, the analyzed code "
-                    + "being an input controlled by a third party.",
+            "Let a model write the OWASP report",
+            "Today this switch turns on one thing: the OWASP report written by the model configured below, asked "
+                    + "from the OWASP page or, with the next setting, after each repository scan. The model is sent the "
+                    + "repository's open findings — identifiers, components, paths, descriptions — not its source, "
+                    + "though a description can quote a line of it. The report is a document: nothing in it becomes "
+                    + "an issue, and nothing in it reaches a gate. **No scan reviews the code with a model**: that "
+                    + "review is not wired, and a scan examines exactly the same with this on as with it off.",
             "false"),
 
     // **Off by default, and inert while model review is.** A report per completed scan costs minutes of
@@ -294,19 +300,22 @@ public enum Setting {
 
     AI_REVIEW_PROVIDER("ai_review_provider", SettingType.TEXT, Section.MODEL_REVIEW,
             "Provider",
-            "**`ollama` keeps the code on a machine you run. `openai` sends it to OpenAI.** That is the whole "
-                    + "difference, and it is not a performance one: with `openai`, the source of every scanned "
-                    + "repository — including private ones, and whatever secrets are still committed in them — "
-                    + "leaves your estate in the body of an HTTPS request to a third party, who applies their own "
-                    + "retention and their own jurisdiction to it. Check what your contract with them says about "
-                    + "training and retention before turning this on, and check whether the code you scan is "
-                    + "yours to send. Requires an API key, and the acknowledgement below.",
+            "**`ollama` keeps what is sent on a machine you run. `openai` sends it to OpenAI.** That is the "
+                    + "whole difference, and it is not a performance one: with `openai`, the open findings of every "
+                    + "repository whose report is written — identifiers, components, file paths and descriptions, of "
+                    + "private repositories too, a description able to quote a committed line — leave your estate in "
+                    + "the body of an HTTPS request to a third party, who applies their own retention and their own "
+                    + "jurisdiction to it; the day the code review is wired, the source of every scanned repository "
+                    + "will, and whatever secrets are still committed in it. Check what your contract with them says "
+                    + "about training and retention before turning this on, and check whether what you scan is yours "
+                    + "to send. Requires an API key, and the acknowledgement below.",
             AiProvider.OLLAMA.wireName()),
 
     AI_REVIEW_OLLAMA_URL("ai_review_ollama_url", SettingType.TEXT, Section.MODEL_REVIEW,
             "Ollama service URL",
-            "**This endpoint receives the scanned repository's source code.** The risk is therefore not that it "
-                    + "points inward, but outward: a well-formed public URL is exactly what an exfiltration "
+            "**This endpoint receives the open findings of every repository whose report is written** — "
+                    + "identifiers, components, paths, descriptions — and will receive its source code the day the "
+                    + "code review is wired. The risk is therefore not that it points inward, but outward: a well-formed public URL is exactly what an exfiltration "
                     + "channel looks like. A public destination is refused unless explicitly acknowledged below.",
             AiReview.DEFAULT_OLLAMA_URL, Sensitivity.SECRET),
 
@@ -315,7 +324,7 @@ public enum Setting {
             "The API root, without `/chat/completions` — it is appended. **Public and local are both allowed, "
                     + "and the same rule decides which**: this URL goes through the outbound guard exactly like "
                     + "the Ollama one, so a public destination is refused until the acknowledgement below is on. "
-                    + "Left at OpenAI's own address, the code goes to OpenAI. Pointed at vLLM, LM Studio, "
+                    + "Left at OpenAI's own address, what is sent goes to OpenAI. Pointed at vLLM, LM Studio, "
                     + "llama.cpp or an internal gateway — anything speaking the same wire protocol — it never "
                     + "leaves, and no acknowledgement is needed.",
             AiReview.DEFAULT_OPENAI_URL),
@@ -344,7 +353,8 @@ public enum Setting {
     AI_REVIEW_ALLOW_REMOTE("ai_review_allow_remote_url", SettingType.BOOLEAN, Section.MODEL_REVIEW,
             "Allow a public model endpoint",
             "Off by default, and it is the most consequential setting on this screen: turning it on allows "
-                    + "**the source code of every scanned repository to be sent to a host outside your estate** — "
+                    + "**the findings of every scanned repository — and, once the code review is wired, its source "
+                    + "code — to be sent to a host outside your estate** — "
                     + "OpenAI's API, or any other public address entered above. Leave it off and both providers "
                     + "are held to a destination on your own network. It governs the URL, not the provider: a "
                     + "local OpenAI-compatible endpoint needs nothing acknowledged.",

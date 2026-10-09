@@ -33,13 +33,16 @@ quitte la machine, et quand :
   pendant ;
 - **un plugin de jeu de règles Semgrep** s'exécute sans réseau, sauf si son manifeste déclare
   l'exception, avec une justification consignée au journal d'audit ([Plugins](../administration/plugins.md)) ;
-- **la revue de code par IA**, désactivée par défaut, envoie le code source au point d'accès de modèle
-  configuré — une machine que vous exploitez ou, une fois un point d'accès public explicitement
-  autorisé, un tiers comme OpenAI ([Réglages](../administration/settings.md#revue-de-code-par-ia)).
+- **la revue par IA**, désactivée par défaut, envoie les constats ouverts d'un dépôt — identifiants,
+  composants, chemins, descriptions, jamais son code source — au point d'accès de modèle configuré
+  quand son rapport OWASP est rédigé : une machine que vous exploitez ou, une fois un point d'accès
+  public explicitement autorisé, un tiers comme OpenAI ([Réglages](../administration/settings.md#revue-par-ia)).
+  Aucun scan n'envoie de code à un modèle.
 
 Les scores EPSS et le statut KEV sont lus dans le fichier quotidien du FIRST et le catalogue de la
 CISA, que le plan de contrôle synchronise en entier, si bien qu'aucun tiers n'apprend quelles CVE
-porte un dépôt. Revue par IA désactivée ou gardée sur votre réseau, aucun code analysé n'en sort.
+porte un dépôt. Aucun code analysé ne quitte votre réseau et, revue par IA désactivée ou gardée sur celui-ci, aucun
+constat non plus.
 
 ## Lire un scan
 

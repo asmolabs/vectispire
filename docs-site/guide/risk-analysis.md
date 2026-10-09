@@ -114,7 +114,7 @@ the window, the scope and the selected week, so a link reproduces the view.
 
 ### The OWASP report written by a model
 
-*Security* → *OWASP Top 10:2021*, a repository picked, **Run the analysis** asks the configured model ([Settings](../administration/settings.md#ai-code-review))
+*Security* → *OWASP Top 10:2021*, a repository picked, **Run the analysis** asks the configured model ([Settings](../administration/settings.md#ai-review))
 for one repository's posture report against the Top 10:2021, from its latest scan. **The model is sent the
 repository's open findings, never its source**: type, category, severity, identifier, component, location,
 triage and description, three hundred at most, the rest stated as left out — and the repository's OWASP
