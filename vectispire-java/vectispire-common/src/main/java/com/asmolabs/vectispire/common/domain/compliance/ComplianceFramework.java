@@ -57,29 +57,34 @@ public enum ComplianceFramework {
                             "Credentials, private keys, and API tokens must be strictly protected and never leaked in code.",
                             ComplianceControl.Category.SECRETS_MANAGEMENT))),
 
+    // The control codes follow the article numbering of the 2022 proposal (Art. 10 obligations,
+    // Art. 11 reporting); Regulation (EU) 2024/2847 as adopted moved them to Art. 13, Annex I Part II
+    // and Art. 14. The codes are identifiers stored with every declaration and assessment, so they
+    // stay; the titles below cite the adopted text, and they are what a reader is shown.
     EU_CRA(
             "Cyber Resilience Act (EU CRA)",
             "EU Cyber Resilience Act — Mandatory Cybersecurity Requirements for Digital Products",
             List.of(
                     new ComplianceControl(
                             "CRA-ART11-NOTIF",
-                            "Actively Exploited Vulnerabilities (CISA KEV)",
+                            "Actively Exploited Vulnerabilities — Art. 14(1) (CISA KEV)",
                             "Open critical, CISA KEV-listed and overdue vulnerabilities are counted: the starting point "
-                                    + "of an Article 11 notification. The notification itself is neither made nor tracked here.",
+                                    + "of an Article 14 notification, applicable since 11 September 2026. The notification "
+                                    + "itself is neither made nor tracked here.",
                             ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
                     new ComplianceControl(
                             "CRA-ART10-SBOM",
-                            "Machine-Readable SBOM Delivery",
+                            "Machine-Readable SBOM — Annex I, Part II (1)",
                             "All distributed software and container images must provide an active, machine-readable SBOM.",
                             ComplianceControl.Category.SUPPLY_CHAIN),
                     new ComplianceControl(
                             "CRA-ART10-LIFECYCLE",
-                            "Security Support & End-of-Life Tracking",
+                            "Third-Party Components & Support Period — Art. 13(5), 13(8)",
                             "Third-party packages and base images must be monitored for active security support and end-of-life status.",
                             ComplianceControl.Category.SUPPLY_CHAIN),
                     new ComplianceControl(
                             "CRA-ART10-VULN",
-                            "Continuous Vulnerability Handling & Security Updates",
+                            "Vulnerability Handling & Security Updates — Annex I, Part II (2); Art. 13(8)",
                             "Zero unmitigated critical vulnerabilities and automated security patch availability.",
                             ComplianceControl.Category.VULNERABILITY_MANAGEMENT))),
 

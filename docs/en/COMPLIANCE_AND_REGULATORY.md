@@ -89,21 +89,28 @@ verdict.
 | **PCI-DSS** | `PCI-REQ-6.4` | Public Vulnerability Remediation | `VULNERABILITY_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-6.5` | Protection against Software Flaws & Secrets | `SECRETS_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-10.2` | Audit Log Implementation | `AUDIT_AND_LOGGING` |
-| **EU CRA** | `CRA-ART11-NOTIF` | Actively Exploited Vulnerabilities (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
-| **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM Delivery | `SUPPLY_CHAIN` |
-| **EU CRA** | `CRA-ART10-LIFECYCLE` | Security Support & End-of-Life Tracking | `SUPPLY_CHAIN` |
-| **EU CRA** | `CRA-ART10-VULN` | Continuous Vulnerability Handling & Security Updates | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART11-NOTIF` | Actively Exploited Vulnerabilities — Art. 14(1) (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART10-SBOM` | Machine-Readable SBOM — Annex I, Part II (1) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-LIFECYCLE` | Third-Party Components & Support Period — Art. 13(5), 13(8) | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-VULN` | Vulnerability Handling & Security Updates — Annex I, Part II (2); Art. 13(8) | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.8` | Preventing Unauthorized Changes & Malicious Code | `SECURE_CODING` |
 | **SOC 2** | `SOC2-CC7.1` | Vulnerability Assessment & Threat Detection | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.6` | Logical Access & Secrets Management | `SECRETS_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC7.2` | Security Incident Monitoring & Audit Logging | `AUDIT_AND_LOGGING` |
+
+**The CRA codes predate the adopted text.** `CRA-ART10-…` and `CRA-ART11-…` follow the article
+numbering of the 2022 proposal. Regulation (EU) 2024/2847 as adopted places the manufacturer's
+obligations in Article 13, vulnerability handling in Annex I Part II, and the reporting of actively
+exploited vulnerabilities in Article 14 — applicable since 11 September 2026, the rest of the
+Regulation from 11 December 2027. The codes are identifiers stored with every declaration and
+assessment, so they are kept; the titles cite the adopted text, and the titles are what counts.
 
 **A control is scored by its category, and only by it.** The title says which requirement of the
 framework the control relates to; the score comes from the category's formula in §3, the same for
 every control of that category. Two consequences worth reading literally:
 
 - `CRA-ART11-NOTIF` is a vulnerability-management score — open critical, CISA KEV-listed, overdue
-  and high-severity vulnerabilities. Those are what an Article 11 notification would start from;
+  and high-severity vulnerabilities. Those are what an Article 14 notification would start from;
   the notification itself is neither made nor tracked by Vectispire, and EPSS does not enter the
   score.
 - `CRA-ART10-LIFECYCLE`, like `CRA-ART10-SBOM`, `NIS2-ART21-SUPPLY` and `DORA-ART11-THIRD`, is the

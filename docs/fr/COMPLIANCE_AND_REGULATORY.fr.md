@@ -88,10 +88,10 @@ sans serveur, et que la même entrée donne le même verdict.
 | **PCI-DSS** | `PCI-REQ-6.4` | Remédiation des vulnérabilités publiques | `VULNERABILITY_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-6.5` | Protection contre les failles logicielles & secrets | `SECRETS_MANAGEMENT` |
 | **PCI-DSS** | `PCI-REQ-10.2` | Mise en œuvre des journaux d'audit | `AUDIT_AND_LOGGING` |
-| **EU CRA** | `CRA-ART11-NOTIF` | Vulnérabilités activement exploitées (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
-| **EU CRA** | `CRA-ART10-SBOM` | Fourniture d'un SBOM lisible par machine | `SUPPLY_CHAIN` |
-| **EU CRA** | `CRA-ART10-LIFECYCLE` | Traçabilité du support de sécurité et dates d'obsolescence (EOL) | `SUPPLY_CHAIN` |
-| **EU CRA** | `CRA-ART10-VULN` | Remédiation continue et gestion des correctifs de sécurité | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART11-NOTIF` | Vulnérabilités activement exploitées — art. 14, §1 (CISA KEV) | `VULNERABILITY_MANAGEMENT` |
+| **EU CRA** | `CRA-ART10-SBOM` | SBOM lisible par machine — annexe I, partie II, point 1 | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-LIFECYCLE` | Composants tiers et période de support — art. 13, §5 et §8 | `SUPPLY_CHAIN` |
+| **EU CRA** | `CRA-ART10-VULN` | Traitement des vulnérabilités et mises à jour de sécurité — annexe I, partie II, point 2 ; art. 13, §8 | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.8` | Prévention des modifications non autorisées & Code malveillant | `SECURE_CODING` |
 | **SOC 2** | `SOC2-CC7.1` | Évaluation des vulnérabilités & Détection des menaces | `VULNERABILITY_MANAGEMENT` |
 | **SOC 2** | `SOC2-CC6.6` | Sécurité des accès logiques & Gestion des secrets | `SECRETS_MANAGEMENT` |
@@ -101,9 +101,18 @@ sans serveur, et que la même entrée donne le même verdict.
 référentiel le contrôle se rapporte ; le score vient de la formule de sa catégorie au §3, la même pour
 tous les contrôles de cette catégorie. Deux conséquences à lire littéralement :
 
+**Les codes CRA précèdent le texte adopté.** `CRA-ART10-…` et `CRA-ART11-…` suivent la numérotation
+de la proposition de 2022. Le règlement (UE) 2024/2847 tel qu'adopté place les obligations du
+fabricant à l'article 13, le traitement des vulnérabilités à l'annexe I, partie II, et le signalement
+des vulnérabilités activement exploitées à l'article 14 — applicable depuis le 11 septembre 2026, le
+reste du règlement à partir du 11 décembre 2027. Les codes sont des identifiants conservés avec
+chaque déclaration et chaque évaluation : ils restent ; les titres citent le texte adopté, et ce sont
+eux qui font foi.
+
+
 - `CRA-ART11-NOTIF` est un score de gestion des vulnérabilités — vulnérabilités critiques ouvertes,
   inscrites au catalogue CISA KEV, en retard et de sévérité élevée. C'est ce dont partirait une
-  notification au titre de l'article 11 ; la notification elle-même n'est ni faite ni suivie par
+  notification au titre de l'article 14 ; la notification elle-même n'est ni faite ni suivie par
   Vectispire, et l'EPSS n'entre pas dans le score.
 - `CRA-ART10-LIFECYCLE`, comme `CRA-ART10-SBOM`, `NIS2-ART21-SUPPLY` et `DORA-ART11-THIRD`, est la
   part des cibles qui portent un SBOM. Les constats de fin de support sont rapportés ailleurs (le

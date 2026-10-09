@@ -36,7 +36,9 @@ cibles dotées d'un SBOM), secrets, développement sécurisé, infrastructure as
 barrière, piste d'audit — si bien que son titre nomme l'exigence à laquelle il se rapporte, non tout
 ce qu'elle demande. `CRA-ART11-NOTIF`, par exemple, note les vulnérabilités critiques ouvertes,
 inscrites au catalogue CISA KEV ou en retard dont partirait une notification au titre de l'article
-11 ; il ne fait ni ne suit la notification. Les formules sont dans la
+14 ; il ne fait ni ne suit la notification. Les codes CRA gardent la numérotation de la proposition de 2022 ; les titres citent le règlement
+(UE) 2024/2847 tel qu'adopté, dont l'obligation de signalement de l'article 14 s'applique depuis le
+11 septembre 2026. Les formules sont dans la
 [référence de conformité](https://github.com/asmolabs/vectispire/blob/main/docs/fr/COMPLIANCE_AND_REGULATORY.fr.md).
 La même posture donne le même verdict : un résultat peut être reproduit.
 
