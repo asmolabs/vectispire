@@ -168,6 +168,13 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   `AKIA…` fixture did). Mark the line with a trailing `// gitleaks:allow` comment, which gitleaks
   honours, and say in the comment beside it that the value is invented; a fingerprint in
   `.gitleaksignore` can only be written after the commit exists, which costs a red pipeline first.
+- **Documentation trips `secrets` too.** A table of control codes beside numbers
+  (`NIS2-ART21-CRYPTO` … `| 60 |`) reads as a `generic-api-key` to gitleaks, and the job went red
+  on 2026-10-09 for two pushes before anyone looked. Before pushing a docs change of that shape,
+  run gitleaks on a clone (`git clone -q . /tmp/gl && docker run --rm -v /tmp/gl:/repo -w /repo
+  --entrypoint sh <the image ci.yml pins> -c 'git config --global --add safe.directory /repo;
+  gitleaks detect --source=. --config .gitleaks.toml'` — a worktree's `.git` is a file, so mounting
+  the worktree itself scans nothing), and pin a false positive in `.gitleaksignore` with its reason.
 - **Public repository: no customer or employer names.** Fixtures, comments and examples use
   neutral names (`org.example`, invented project names); a customer-specific plugin or template
   lives in a private repository and registry, never here.

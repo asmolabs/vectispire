@@ -98,3 +98,8 @@ a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.fr.m
 a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.fr.md:curl-auth-user:456
 a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:curl-auth-user:439
 a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:curl-auth-user:444
+
+# The platform-caps table of the compliance reference cites control codes (`NIS2-ART21-CRYPTO`,
+# `ISO-A.5.15`, …) beside a number: generic-api-key reads the code as a key. No credential.
+82795a5e063f488ce9f4a368e4a4a3a93b70f3dd:docs/en/COMPLIANCE_AND_REGULATORY.md:generic-api-key:231
+82795a5e063f488ce9f4a368e4a4a3a93b70f3dd:docs/fr/COMPLIANCE_AND_REGULATORY.fr.md:generic-api-key:231
