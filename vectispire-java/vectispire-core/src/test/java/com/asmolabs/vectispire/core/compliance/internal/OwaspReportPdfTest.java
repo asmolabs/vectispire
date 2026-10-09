@@ -33,7 +33,7 @@ class OwaspReportPdfTest {
     void theProvenanceIsInTheDocument() throws Exception {
         String text = textOf(OwaspReportPdf.render(SUBJECT, "## A03 — Injection\nA finding."));
 
-        assertThat(text).contains("OWASP Top 10");
+        assertThat(text).contains("OWASP Top 10:2021");
         assertThat(text).contains("Arm Libs Spring");
         assertThat(text).contains("version 1.17.6");
         // Which model, from which scan: a reader who cannot see these has no way to judge the

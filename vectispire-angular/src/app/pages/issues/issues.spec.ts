@@ -934,7 +934,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
     it('names a lone any filter as the Top 10, not as a category called any', async () => {
         await open('/issues?owasp_category=any', 2);
         expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
-            'Issues placed in an OWASP Top 10 category'
+            'Issues placed in an OWASP Top 10:2021 category'
         );
     });
 

@@ -82,7 +82,7 @@ public final class OwaspReportPdf {
             cover(cursor, subject);
             body(cursor, markdown);
             String brand = subject.brandName() == null || subject.brandName().isBlank() ? "Vectispire" : subject.brandName();
-            cursor.close(brand + " — OWASP report — " + subject.targetName());
+            cursor.close(brand + " — OWASP Top 10:2021 report — " + subject.targetName());
 
             document.save(bytes);
             return bytes.toByteArray();
@@ -92,7 +92,7 @@ public final class OwaspReportPdf {
     }
 
     private static void cover(ReportCursor cursor, Subject subject) {
-        cursor.text("OWASP Top 10 — posture report", ReportCursor.HELVETICA_BOLD_16, INK);
+        cursor.text("OWASP Top 10:2021 — posture report", ReportCursor.HELVETICA_BOLD_16, INK);
         cursor.rule(ACCENT);
         cursor.gap();
 

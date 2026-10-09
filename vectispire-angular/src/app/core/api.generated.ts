@@ -2116,7 +2116,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * OWASP Top 10 coverage
+         * OWASP Top 10:2021 coverage
          * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.
          */
         get: operations["grid"];
@@ -2136,7 +2136,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * OWASP Top 10 coverage, week by week
+         * OWASP Top 10:2021 coverage, week by week
          * @description One entry per ISO week (Monday 00:00 UTC to the next, excluded), oldest first, ten categories each. from and to are ISO dates read as the Monday of their week; the default is the last 12 weeks to the current one, a to after the current week is read as the current week, and more than 52 weeks, a from after to, or both project_id and solution_id answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404. Figures cover the targets the caller sees, within the scope. A week the weekly record captured carries the recorded state, combined over the targets as the grid combines them: a category any target measured counts every target's findings — a never-scanned target's included — and reads FINDINGS when they sum above zero, else NO_FINDING; NOT_COVERED if every target reads it; else NOT_MEASURED, counting nothing. open is unsettled, as the grid counts them at the week's last capture, and settled apart. A week before the record is reconstructed: state and settled are null, never computed now for then, and open counts every issue placed in the category that was first seen before the week's end, not resolved before it and not inside an earlier resolution a reopening recorded, whatever its triage — the triage of a past date is not known. opened and resolved are counted from the issues' dates on every week — resolved includes an earlier resolution a reopening recorded — placed as the grid places them, without the grid's measurement switches. Known limit: a reopening before this release recorded nothing, so such an issue keeps only its latest resolution and counts as open in the weeks between an earlier resolution and that reopening. reopened counts the issues placed in the category that a reopening recorded in the triage history brought back during the week; it is null on a week that began before reopenings were recorded (the migration's application, a day's margin aside), where zero would claim what nobody saw, and reopenedRecordedFrom names the first week that has it.
          */
         get: operations["weeklyCoverage"];

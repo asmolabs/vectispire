@@ -63,8 +63,9 @@ public enum ComplianceFramework {
             List.of(
                     new ComplianceControl(
                             "CRA-ART11-NOTIF",
-                            "ENISA / CSIRT 24h Exploited Vulnerability Notification",
-                            "Actively exploited vulnerabilities (CISA KEV / EPSS > 0.5) must be identified for mandatory 24h reporting.",
+                            "Actively Exploited Vulnerabilities (CISA KEV)",
+                            "Open critical, CISA KEV-listed and overdue vulnerabilities are counted: the starting point "
+                                    + "of an Article 11 notification. The notification itself is neither made nor tracked here.",
                             ComplianceControl.Category.VULNERABILITY_MANAGEMENT),
                     new ComplianceControl(
                             "CRA-ART10-SBOM",
@@ -104,7 +105,7 @@ public enum ComplianceFramework {
                     new ComplianceControl(
                             "DORA-ART16-INCIDENT",
                             "Audit Trail & Evidence Retention",
-                            "Security scans, findings, and triage decisions must maintain an immutable audit trail.",
+                            "Security scans, findings, and triage decisions must maintain a tamper-evident audit trail.",
                             ComplianceControl.Category.AUDIT_AND_LOGGING))),
 
     PCI_DSS(
@@ -133,7 +134,7 @@ public enum ComplianceFramework {
                             ComplianceControl.Category.AUDIT_AND_LOGGING))),
 
     SOC_2(
-            "SOC 2 Type II",
+            "SOC 2",
             "AICPA Trust Services Criteria — Security, Availability & Confidentiality",
             List.of(
                     new ComplianceControl(
@@ -154,7 +155,7 @@ public enum ComplianceFramework {
                     new ComplianceControl(
                             "SOC2-CC7.2",
                             "Security Incident Monitoring & Audit Logging",
-                            "Immutable audit trail with cryptographic verification must monitor all system access and configuration changes.",
+                            "A tamper-evident audit trail, verified by its hash chain, must record sign-ins, decisions and configuration changes.",
                             ComplianceControl.Category.AUDIT_AND_LOGGING)));
 
     private final String title;

@@ -24,7 +24,7 @@ test.describe('the weekly OWASP view', () => {
     test('a count clicked opens the filtered backlog, with its banner and the same count', async ({ page }) => {
         await signIn(page);
         // Inside the application, never `page.goto`: the session lives in memory (see `goTo`).
-        await page.getByRole('link', { name: 'OWASP report' }).first().click();
+        await page.getByRole('link', { name: 'OWASP Top 10:2021' }).first().click();
         await expect(page).toHaveURL(/\/owasp(\?|$)/, { timeout: 15_000 });
         await page.getByTestId('view-weekly').click();
         await expect(page).toHaveURL(/\/owasp\?view=weekly/);

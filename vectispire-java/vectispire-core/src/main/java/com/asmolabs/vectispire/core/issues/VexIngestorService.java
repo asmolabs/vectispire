@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Ingests upstream vendor VEX documents (OpenVEX, OASIS CSAF 2.0, and CycloneDX VEX)
+ * Ingests upstream vendor VEX documents (OpenVEX and CycloneDX VEX; CSAF is exported, not read)
  * and cascades automated suppressions across matching codebase issues.
  *
  * <p><b>A document this cannot read says so.</b> It used to try each format in turn behind

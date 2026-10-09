@@ -49,7 +49,7 @@ import org.springframework.web.server.ResponseStatusException;
  * freshness window removed from the compliance matrix and the banner removed from the quality
  * screen, in the one place an auditor looks first.
  */
-@Tag(name = "OWASP coverage", description = "The Top 10 by rule, with what this deployment cannot see")
+@Tag(name = "OWASP coverage", description = "The OWASP Top 10:2021 by rule, with what this deployment cannot see")
 @RestController
 @RequestMapping("/api/v1/owasp/coverage")
 @RequiresAccount
@@ -120,7 +120,7 @@ public class OwaspCoverageController {
      * The grid, over the reader's estate or one project or solution of it. The scope's rules, the
      * refusals included, are the weekly route's — one resolver serves both.
      */
-    @Operation(summary = "OWASP Top 10 coverage", description = "Each category's state — findings, nothing found, "
+    @Operation(summary = "OWASP Top 10:2021 coverage", description = "Each category's state — findings, nothing found, "
             + "unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, "
             + "whether anything was scanned, the code findings by category — to the scope's targets the caller sees; "
             + "both answer 400. A project or a solution that does not exist and one the caller sees nothing of both "
@@ -157,7 +157,7 @@ public class OwaspCoverageController {
      * integration key, as for the grid — the record of an estate's coverage over a year is a screen's,
      * and a pipeline that needs the current state has the gate.
      */
-    @Operation(summary = "OWASP Top 10 coverage, week by week", description = "One entry per ISO week (Monday 00:00 UTC "
+    @Operation(summary = "OWASP Top 10:2021 coverage, week by week", description = "One entry per ISO week (Monday 00:00 UTC "
             + "to the next, excluded), oldest first, ten categories each. from and to are ISO dates read as the Monday "
             + "of their week; the default is the last " + OwaspWeeklyHistoryService.DEFAULT_WEEKS + " weeks to the "
             + "current one, a to after the current week is read as the current week, and more than "
@@ -219,7 +219,7 @@ public class OwaspCoverageController {
         if (!OwaspCoverage.CATEGORIES.containsKey(category)) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    category + " is not a category of the OWASP Top 10 2021.");
+                    category + " is not a category of the OWASP Top 10:2021.");
         }
 
         return declarations.declare(
