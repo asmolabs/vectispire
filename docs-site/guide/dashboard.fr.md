@@ -23,7 +23,7 @@ Le backlog de qualité du code n'a pas d'entrée de menu : il s'ouvre depuis cet
 qualité par règle, par fichier et par dépôt, et rien de tout cela ne peut faire échouer une
 construction — voir [Qualité du code](quality.md).
 
-![Le tableau de bord : l'encours et les mouvements quotidiens sur deux graphiques empilés, les cibles en échec nommées en dessous.](../assets/screens/fr/dashboard.png)
+![Le tableau de bord : les chiffres de posture, l'encours et les mouvements quotidiens sur deux graphiques empilés à côté du délai de résolution et de la vélocité de remédiation, et la dette de sécurité estimée en dessous.](../assets/screens/fr/dashboard.png)
 
 ## La vue d'ensemble Sécurité
 

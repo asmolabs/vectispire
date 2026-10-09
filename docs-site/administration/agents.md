@@ -291,4 +291,4 @@ every fifteen seconds. Two minutes without any of them and it reads as offline. 
 **never announced** has not reached the control plane at all: check the URL, the token, and that
 outbound HTTPS is allowed.
 
-![The registered agents: the built-in one on local keys, a remote agent sealed and attesting its results, and a third delegated in the clear, unsigned and silent since 12:41.](../assets/screens/en/agents.png)
+![The registered agents: the built-in one on local keys, a remote agent sealed and attesting its results, and a third delegated in the clear, unsigned and silent since 10:41.](../assets/screens/en/agents.png)

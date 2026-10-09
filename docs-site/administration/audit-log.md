@@ -7,7 +7,7 @@ A hash-chained, tamper-evident record of what was done and by whom: each entry c
     anywhere. Before that role existed, opening the audit log to somebody meant also granting them
     the power to rewrite the policy they had come to check.
 
-![The audit log: three entries, each carrying the hash of the one before it.](../assets/screens/en/audit-log.png)
+![The audit log: the chain verified intact, the entries that predate chaining counted apart, above three entries.](../assets/screens/en/audit-log.png)
 
 ## Why a chain
 

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { asSchema } from '../src/app/core/testing/contract';
+import openapi from '../openapi.json';
+import { asSchema, asSchemaList } from '../src/app/core/testing/contract';
 
 /**
  * The documentation's screenshots, produced rather than taken.
@@ -59,17 +60,103 @@ const SESSION = {
 };
 
 /** A JSON response for a route, without repeating the envelope each time. */
+/**
+ * A JSON response for a route, checked against what the control plane publishes for that route.
+ *
+ * <p><b>Every stub, not only the ones somebody remembered to wrap.</b> `asSchema` existed and was
+ * used for one floor; the fixtures beside it went on describing a server that had moved. The attack
+ * path graph was captured with an empty "exploitable critical paths" tile and a risk score reading
+ * "/ 100", because its stub predates `criticalExploitablePaths`, `riskScore` and `totalPaths` and
+ * still spelt `isCriticalPath` as `isCritical`; the statement of applicability showed a framework
+ * button with no name, its `title` never sent; the issue list read "seen undefined×". Nothing threw,
+ * and every one of them was a fixture written from memory.
+ *
+ * <p>So the schema is looked up from the request itself — its method and path, matched against
+ * `openapi.json` — rather than named at each call, which is the step that was forgotten. A problem
+ * is collected, not thrown: an exception inside a route handler leaves the request pending and
+ * surfaces as a timeout somewhere else, while `shoot` can refuse the capture and say why.
+ */
 async function stub(page: Page, pattern: string, body: unknown): Promise<void> {
-    await page.route(pattern, (route) =>
-        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) }));
+    await page.route(pattern, (route) => {
+        contractProblems.push(...againstContract(route.request().method(), new URL(route.request().url()).pathname, body));
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
 }
+
+interface PublishedSchema { $ref?: string; type?: string; items?: PublishedSchema }
+type Operations = Record<string, { responses?: Record<string, { content?: Record<string, { schema?: PublishedSchema }> }> }>;
+const PUBLISHED = (openapi as unknown as { paths: Record<string, Operations> }).paths;
+
+/** What the stub's body gets wrong about the route it answers; empty when nothing. */
+function againstContract(method: string, path: string, body: unknown): string[] {
+    // A literal segment before a template: `/rule-sets/coverage` is not `/rule-sets/{id}`.
+    const route = Object.keys(PUBLISHED)
+        .sort((a, b) => (a.match(/\{/g) ?? []).length - (b.match(/\{/g) ?? []).length)
+        .find((template) => new RegExp(`^${template.replace(/\{[^}]+\}/g, '[^/]+')}$`).test(path));
+    const content = route ? PUBLISHED[route][method.toLowerCase()]?.responses?.['200']?.content : undefined;
+    if (!content) return [`${method} ${path}: the document publishes no such route, so nothing can check its stub`];
+    const schema = Object.values(content)[0]?.schema;
+    const name = (ref?: string) => ref?.split('/').pop() as Parameters<typeof asSchema>[0];
+    try {
+        if (schema?.$ref) asSchema(name(schema.$ref), body);
+        else if (schema?.type === 'array' && schema.items?.$ref) asSchemaList(name(schema.items.$ref), body as unknown[]);
+        return [];
+    } catch (problem) {
+        return [`${method} ${path}: ${(problem as Error).message.split('\n\n')[0]}`];
+    }
+}
+
+/** What the stubs answered against the contract during the current case. */
+const contractProblems: string[] = [];
+
+/**
+ * What the catch-all answered during the current case, by path.
+ *
+ * <p>Module state rather than a fixture: `stubEverything` is the only writer, `beforeEach` resets
+ * it, and the cases run one at a time (`workers: 1`), so one array is one case.
+ */
+const fellThrough: string[] = [];
+
+/**
+ * The requests the catch-all may answer, because its answer is the true one for the capture.
+ *
+ * <p><b>Anything else a screen asks for has to be stubbed by name.</b> The dashboard was captured
+ * for weeks reading "undefined person-days" and "undefined% (undefined resolved / undefined
+ * opened)": it asks for the remediation debt, the posture analytics and the portfolio, nobody had
+ * stubbed them, and `{}` rendered as words. The audit log's capture showed "undefined entries are
+ * missing from this database" in red, on the page that exists to prove the log intact, because
+ * `/audit-log/verify` fell through the same way. Neither threw, so the page-error guard below saw
+ * nothing; an interpolated `undefined` renders as an empty string as often as a word, which is why
+ * a text check alone would not be enough either.
+ *
+ * <p>Each entry is a request a screen makes for a form or a dialog the capture never opens, where
+ * an empty answer reads exactly as "none". Adding one is a claim about what the picture shows; a
+ * request missing from this list fails the capture and names itself.
+ */
+const FLOOR_IS_THE_ANSWER: readonly RegExp[] = [
+    // Target pickers in a filter or a form: the screen's own data is stubbed by the case.
+    /^\/api\/v1\/(repositories|containers)$/,
+    // The repository form's credentials.
+    /^\/api\/v1\/(ssh-keys|git-tokens)$/,
+    // A form's defaults (the schedule's default interval, the visibility setting of the grant
+    // dialog): read only once a form opens.
+    /^\/api\/v1\/settings$/,
+    // The access dialogs of the users and teams screens: the targets, the solution tree and the
+    // accounts a grant or a membership can name.
+    /^\/api\/v1\/(api-keys\/targets|solutions|users)$/,
+    // The advisor is offered only when a model is configured; `{}` is "not configured", which is
+    // what the captures should show, since no model runs behind them.
+    /^\/api\/v1\/ai-advisor\/status$/
+];
 
 /**
  * Everything the shell asks for before any screen does, and a floor under the rest.
  *
  * <p>The catch-all matters more than it looks: a screen that fires one request nobody anticipated
  * would otherwise hang on a pending promise and be captured half-rendered. Answering `[]` or `{}`
- * by shape keeps it whole, and the per-screen stubs below override it.
+ * by shape keeps it whole, and the per-screen stubs below override it. It is a floor and not an
+ * answer: what it serves is recorded, and `shoot` refuses a capture that relied on it for anything
+ * outside {@link FLOOR_IS_THE_ANSWER}.
  */
 async function stubEverything(page: Page): Promise<void> {
     // **The catch-all goes first, and that order is the whole trick.** Playwright matches the most
@@ -77,6 +164,7 @@ async function stubEverything(page: Page): Promise<void> {
     // below it and serve `{}` to screens that need data.
     await page.route('**/api/v1/**', (route) => {
         const url = route.request().url();
+        fellThrough.push(new URL(url).pathname);
         // **A collection answered as an object breaks the page before it renders.** `ssh-keys` was
         // missing from this list, so the repositories screen — which loads them for its form —
         // received `{}`, and the table never appeared while the heading did. The fixture was not
@@ -99,7 +187,7 @@ async function stubEverything(page: Page): Promise<void> {
         asSchema('DashboardOverview', {
             posture: {
                 totalCount: 14,
-                failingCount: 3,
+                failingCount: 4,
                 kevCount: 2,
                 overdueCount: 5,
                 neverScannedCount: 1,
@@ -118,7 +206,40 @@ async function stubEverything(page: Page): Promise<void> {
         '**/api/v1/dashboard/trends*',
         asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 })
     );
-    await stub(page, '**/api/v1/auth/methods', { password: true, oidc: false });
+    // The three other panels of the same page, which every capture also lands on. An estate with
+    // nothing measured: zeros and nulls the contract allows, not `{}`, which the debt card printed
+    // as "undefined person-days" and the velocity line as "undefined% (undefined resolved …)".
+    await stub(
+        page,
+        '**/api/v1/remediation/debt*',
+        asSchema('SecurityDebtReport', {
+            totalOpenIssues: 0, criticalIssues: 0, highIssues: 0, mediumIssues: 0, lowIssues: 0,
+            totalEstimatedHours: 0, totalEstimatedPersonDays: 0,
+            vulnerabilitiesDebtHours: 0, secretsDebtHours: 0, sastDebtHours: 0,
+            iacDebtHours: 0, licenseDebtHours: 0, eolDebtHours: 0, topHighImpactFixes: []
+        })
+    );
+    await stub(
+        page,
+        '**/api/v1/dashboard/posture-analytics*',
+        asSchema('PostureTrendAnalytics', {
+            windowDays: 90, overallMttrDays: null, mttrBySeverity: {},
+            totalOpenedInWindow: 0, totalResolvedInWindow: 0, netResolutionRatePercentage: 0,
+            dailySeries: [], targetScoreboard: []
+        })
+    );
+    await stub(
+        page,
+        '**/api/v1/scorecards/global',
+        asSchema('PortfolioScorecard', {
+            totalTargets: 0, observedTargets: 0, grades: [], weakestTarget: null,
+            openCriticalCount: 0, openHighCount: 0, openKevCount: 0, overdueCount: 0,
+            licenseViolationCount: 0, riskPoints: 0
+        })
+    );
+    // Password only: `configured` is whether an identity provider is wired at all, and none is.
+    await stub(page, '**/api/v1/auth/methods',
+               { configured: false, label: null, password: true, brandName: null, gitlabUrl: null });
     await stub(page, '**/api/v1/auth/me', SESSION.user);
     await page.route('**/api/v1/auth/login', (route) =>
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESSION) }));
@@ -183,6 +304,33 @@ async function openScreen(page: Page, path: string): Promise<void> {
  */
 async function shoot(page: Page, name: string, locale: string): Promise<void> {
     await expect(page.locator('.p-datatable-mask')).toHaveCount(0, { timeout: 15_000 });
+
+    expect(contractProblems, 'stubs that disagree with the published contract').toEqual([]);
+
+    // **Nothing the capture shows came from the floor.** See `FLOOR_IS_THE_ANSWER`: a request
+    // answered by the catch-all and not listed there is data the screen renders from `{}`.
+    const unstubbed = [...new Set(fellThrough)].filter((path) => !FLOOR_IS_THE_ANSWER.some((ok) => ok.test(path)));
+    expect(unstubbed, 'requests the screen made that only the catch-all answered — stub them').toEqual([]);
+
+    // **And nothing on the page reads as a value that was never sent.** The check above sees the
+    // requests; this one sees a field missing from a stub that does exist, which renders the same
+    // words. Whole words only, so "undefinedness" or a name containing "nan" do not trip it; the
+    // rendered text (`innerText`, which includes what is scrolled out of view) and the attributes a
+    // reader or a screen reader is given, since an accessible name built from `undefined` is as
+    // wrong as a visible one.
+    const leaks = await page.evaluate(() => {
+        const unsent = /\b(undefined|NaN)\b|\[object Object\]/;
+        const found = document.body.innerText.split('\n').filter((line) => unsent.test(line));
+        for (const element of Array.from(document.body.querySelectorAll('[aria-label], [title], [alt], [placeholder]'))) {
+            for (const attribute of ['aria-label', 'title', 'alt', 'placeholder']) {
+                const value = element.getAttribute(attribute);
+                if (value && unsent.test(value)) found.push(`${attribute}="${value}"`);
+            }
+        }
+        return found;
+    });
+    expect(leaks, 'text rendered from a value the stub never sent').toEqual([]);
+
     await page.addStyleTag({
         content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
     });
@@ -198,6 +346,68 @@ async function shoot(page: Page, name: string, locale: string): Promise<void> {
  */
 const edition = (name: string) => (name === 'screens-fr' ? 'fr' : 'en');
 
+/**
+ * The chain's verification, as the audit log and the attestation both show it.
+ *
+ * <p>One value for both screens, since they describe one log. `unverifiable` counts entries written
+ * before chaining existed: history, not tampering, which is why the chain still reads intact.
+ */
+const AUDIT_CHAIN = {
+    intact: true, broken: null, total: 1284, verified: 1240, unverifiable: 44,
+    mirrored: true, missingFromMirror: 0, missingFromTable: 0
+};
+
+/**
+ * The rule coverage of the estate these captures describe: rules for Java and Python, none for the
+ * TypeScript it also holds. Every screen that carries the coverage banner is given the same answer,
+ * so the banner is either on all of them or on none — the code quality capture shows it, so the
+ * security overview and the repositories show it too.
+ */
+const RULE_COVERAGE = {
+    state: 'PARTIAL', ruleFiles: 12,
+    languagesWithRules: ['java', 'python'],
+    ecosystemsInEstate: ['java', 'python', 'typescript'],
+    uncovered: ['typescript']
+};
+
+/**
+ * The upgrade the remediation plan leads with, and the dashboard's high-impact fix: the same action
+ * on both captures. Log4Shell is helios-portal's, as on the issues, EPSS and attack path captures.
+ */
+const LOG4J_UPGRADE = {
+    packageName: 'log4j-core', currentVersion: '2.14.1', recommendedVersion: '2.17.1',
+    cveCountResolved: 12, criticalCveCount: 4, highCveCount: 8,
+    estimatedHours: 1.3, leverageScore: 9.2,
+    affectedCves: ['CVE-2021-44228'], affectedTargetNames: ['helios-portal']
+};
+
+/**
+ * The estate's security debt, as the dashboard and the remediation plan both show it. 412 open by
+ * the overview's severities (4, 12, 31, 365); the hours by family add up to the total, and the
+ * person-days are the total over eight hours, rounded to one place as `SecurityDebtService` rounds
+ * them. Secrets carry nearly all of it — the plan's "four hundred findings no upgrade closes".
+ */
+const SECURITY_DEBT = {
+    totalOpenIssues: 412, criticalIssues: 4, highIssues: 12, mediumIssues: 31, lowIssues: 365,
+    totalEstimatedHours: 812.3, totalEstimatedPersonDays: 101.5,
+    vulnerabilitiesDebtHours: 12.3, secretsDebtHours: 798, sastDebtHours: 0,
+    iacDebtHours: 2, licenseDebtHours: 0, eolDebtHours: 0
+};
+
+/**
+ * The violations a target nobody examined fails with — `PolicyGate`'s `observation` rule, worded as
+ * `Observation.refusal` words it. No issue, package or severity: the refusal is about the absence of
+ * an examination, not about a finding.
+ */
+const NEVER_EXAMINED = {
+    rule: 'observation', issueId: null, identifier: null, severity: null, package: null, fixVersions: null,
+    reason: 'no scan of this target has completed — it was never examined, and an empty backlog is not a clean one'
+};
+const LAST_SCAN_FAILED = {
+    ...NEVER_EXAMINED,
+    reason: 'the last scan of this target failed — its backlog is not an observation of the code as it is'
+};
+
 test.describe('documentation screenshots', () => {
     // **A screen that throws can still be photographed, and was.** Sign-in lands on `/dashboard`,
     // and while the catch-all answered it `{}` every test logged `TypeError … 'failingCount'` from a
@@ -212,6 +422,8 @@ test.describe('documentation screenshots', () => {
     let pageErrors: string[] = [];
     test.beforeEach(({ page }) => {
         pageErrors = [];
+        fellThrough.length = 0;
+        contractProblems.length = 0;
         page.on('pageerror', (error) => pageErrors.push(error.message));
         page.on('console', (message) => {
             if (message.type() === 'error') pageErrors.push(message.text());
@@ -272,23 +484,37 @@ test.describe('documentation screenshots', () => {
         test('statement of applicability', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
-            const line = (id: string, divergence: string) => ({
-                control: { id, name: id, framework: 'ISO_27001' },
+            // The controls' names and the framework's title are the catalogue's
+            // (`ComplianceFramework.ISO_27001`): the screen prints them, and a fixture that sent
+            // neither photographed a framework button with nothing on it but its finding count.
+            const line = (id: string, name: string, requirement: string, category: string,
+                          measured: string, divergence: string) => ({
+                control: { id, name, requirement, category },
                 declaration: {
                     framework: 'ISO_27001', controlId: id, applicability: 'APPLICABLE',
                     justification: 'In scope.', implementation: 'IMPLEMENTED',
-                    evidenceSource: 'VECTISPIRE', externalReference: null,
-                    owner: 'n.faure', approver: 'c.moreau',
+                    evidenceSource: 'VECTISPIRE', externalEvidence: null,
+                    owner: 'n.faure', decidedBy: 'c.moreau',
                     decidedAt: '2026-01-05T00:00:00Z', reviewedAt: '2026-06-05T00:00:00Z',
-                    nextReviewAt: '2027-06-05T00:00:00Z'
+                    reviewDueAt: '2027-06-05T00:00:00Z'
                 },
-                measured: 'NON_COMPLIANT', divergence, reviewOverdue: false
+                measured, divergence, reviewOverdue: false
             });
             await stub(page, '**/api/v1/compliance/soa', [{
-                framework: 'ISO_27001', total: 2, declared: 2, findings: 1, reviewsOverdue: 0,
-                complete: true,
-                lines: [line('ISO-A.5.15', 'CONSISTENT'), line('ISO-A.8.8', 'CONTRADICTED')]
+                framework: 'ISO_27001', title: 'ISO/IEC 27001:2022',
+                total: 2, declared: 2, findings: 1, reviewsOverdue: 0, complete: true,
+                lines: [
+                    line('ISO-A.5.15', 'Access Control & Secrets Protection',
+                         'Credentials, private keys, and API tokens must be strictly protected and never leaked in code.',
+                         'SECRETS_MANAGEMENT', 'COMPLIANT', 'CONSISTENT'),
+                    line('ISO-A.8.8', 'Management of Technical Vulnerabilities',
+                         'Information about technical vulnerabilities must be obtained in a timely manner and evaluated.',
+                         'VULNERABILITY_MANAGEMENT', 'NON_COMPLIANT', 'CONTRADICTED')
+                ]
             }]);
+            // `reviewsOverdue: 0` above, so the list of lapsed reviews is empty — said, not left to
+            // the catch-all's `{}`.
+            await stub(page, '**/api/v1/compliance/soa/reviews/overdue', []);
             await enterApp(page, locale);
             await openScreen(page, '/soa');
 
@@ -299,18 +525,8 @@ test.describe('documentation screenshots', () => {
         test('remediation plan', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
-            await stub(page, '**/api/v1/remediation/high-impact-fixes*', [{
-                packageName: 'log4j-core', currentVersion: '2.14.1', recommendedVersion: '2.17.1',
-                cveCountResolved: 12, criticalCveCount: 4, highCveCount: 8,
-                estimatedHours: 1.3, leverageScore: 9.2,
-                affectedCves: ['CVE-2021-44228'], affectedTargetNames: ['common-libs']
-            }]);
-            await stub(page, '**/api/v1/remediation/debt*', {
-                totalOpenIssues: 412, criticalIssues: 4, highIssues: 8, mediumIssues: 0, lowIssues: 400,
-                totalEstimatedHours: 812.3, totalEstimatedPersonDays: 101.5,
-                vulnerabilitiesDebtHours: 12.3, secretsDebtHours: 798, sastDebtHours: 0,
-                iacDebtHours: 2, licenseDebtHours: 0, eolDebtHours: 0, topHighImpactFixes: []
-            });
+            await stub(page, '**/api/v1/remediation/high-impact-fixes*', [LOG4J_UPGRADE]);
+            await stub(page, '**/api/v1/remediation/debt*', { ...SECURITY_DEBT, topHighImpactFixes: [] });
             // The disproportion this screen exists to explain: one action, and four hundred
             // findings no upgrade closes.
             await stub(page, '**/api/v1/remediation/coverage*', {
@@ -409,7 +625,8 @@ test.describe('documentation screenshots', () => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             await stub(page, '**/api/v1/repositories*', [
-                { id: 5, name: 'helios-portal', url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main' }
+                { id: 5, name: 'helios-portal', url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
+                  openIssues: 214, scanManualOnly: false }
             ]);
             // The history the two pickers read. It replaced two number fields asking for internal
             // identifiers, so a capture showing dates is the whole point of the change.
@@ -430,6 +647,10 @@ test.describe('documentation screenshots', () => {
             await page.getByRole('button').filter({ hasText: /SBOM|diff|comparaison/i }).first().click();
             await page.locator('#diff-target').click();
             await page.getByRole('option').filter({ hasText: 'helios-portal' }).first().click();
+            // **The picker has to be closed before the shot, not closing.** Its panel leaves on an
+            // animation that `shoot` then switches off, which froze it open over the compare
+            // button: both editions were captured with the target list still unfolded.
+            await expect(page.getByRole('option')).toHaveCount(0, { timeout: 15_000 });
 
             // The two most recent are preselected, so the screen answers "since last time" before
             // anybody clicks. A capture of two empty pickers would be a capture of the old defect.
@@ -440,39 +661,110 @@ test.describe('documentation screenshots', () => {
         test('dashboard', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
-            await stub(page, '**/api/v1/dashboard', {
-                posture: { totalCount: 14, failingCount: 3, kevCount: 2, overdueCount: 5,
+            // **Every panel of the page, from one estate.** Fourteen targets, thirteen of them
+            // scanned; 412 open findings, 4 critical, 12 high, 31 medium, 365 low; two exploited;
+            // five past their deadline. The debt, the portfolio and the scoreboard below restate
+            // those figures rather than invent their own — a dashboard whose cards disagree with
+            // each other is a capture of a defect, whatever each card says on its own.
+            await stub(page, '**/api/v1/dashboard', asSchema('DashboardOverview', {
+                posture: { totalCount: 14, failingCount: 4, kevCount: 2, overdueCount: 5,
                            neverScannedCount: 1, lastScanFailedCount: 1 },
                 backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
+                qualityTotal: 1432,
                 failing: [
-                    { kind: 'repository', targetId: 5, name: 'helios-portal', violations: [] },
-                    { kind: 'container', targetId: 3, name: 'registry.example/api:1.4', violations: [] }
+                    { kind: 'repository', targetId: 5, name: 'helios-portal', observed: true, violations: [] },
+                    { kind: 'container', targetId: 3, name: 'registry.example/api:1.4', observed: true, violations: [] },
+                    // Failing because nobody examined them — the never-scanned and the last-failed
+                    // tiles above — and tagged so, never as a severity.
+                    { kind: 'repository', targetId: 6, name: 'basalt-libs', observed: false,
+                      violations: [LAST_SCAN_FAILED] },
+                    { kind: 'repository', targetId: 7, name: 'billing-legacy', observed: false,
+                      violations: [NEVER_EXAMINED] }
                 ],
                 recentScans: [
                     { id: 34, status: 'completed', targetKind: 'repository', targetName: 'helios-portal',
-                      repoId: 5, containerId: null, error: null, createdAt: '2026-09-17T21:04:00Z' },
+                      repoId: 5, containerId: null, error: null, createdAt: '2026-09-17T21:04:00Z',
+                      findingsCount: 7 },
                     { id: 33, status: 'failed', targetKind: 'repository', targetName: 'basalt-libs',
-                      repoId: 6, containerId: null, error: 'clone refused', createdAt: '2026-09-17T03:10:00Z' }
+                      repoId: 6, containerId: null, error: 'clone refused', createdAt: '2026-09-17T03:10:00Z',
+                      findingsCount: 0 }
                 ]
-            });
+            }));
             // Two charts rather than two axes: the backlog and the daily movements differ by two
             // orders of magnitude, so the capture has to show both curves readable.
-            await stub(page, '**/api/v1/dashboard/trends*', {
-                points: [
-                    { day: '2026-09-12', open: 402, opened: 9, resolved: 2 },
-                    { day: '2026-09-13', open: 405, opened: 5, resolved: 2 },
-                    { day: '2026-09-14', open: 399, opened: 1, resolved: 7 },
-                    { day: '2026-09-15', open: 404, opened: 8, resolved: 3 },
-                    { day: '2026-09-16', open: 410, opened: 9, resolved: 3 },
-                    { day: '2026-09-17', open: 412, opened: 6, resolved: 4 }
+            const days = [
+                { day: '2026-09-12', open: 402, opened: 9, resolved: 2 },
+                { day: '2026-09-13', open: 405, opened: 5, resolved: 2 },
+                { day: '2026-09-14', open: 399, opened: 1, resolved: 7 },
+                { day: '2026-09-15', open: 404, opened: 8, resolved: 3 },
+                { day: '2026-09-16', open: 410, opened: 9, resolved: 3 },
+                { day: '2026-09-17', open: 412, opened: 6, resolved: 4 }
+            ];
+            await stub(page, '**/api/v1/dashboard/trends*', asSchema('Trends', {
+                points: days, mean_days_to_resolve: 11.4, resolved_in_window: 21
+            }));
+            // **The panel that read "undefined% (undefined resolved / undefined opened)".** The same
+            // six days: 38 opened, 21 resolved, so the velocity is 21 / 38 = 55.3 %, rounded to one
+            // place as `PostureTrendAnalytics` rounds it, and the overall time to fix is the
+            // trend's mean. Below 80 %, which the screen colours amber: a backlog still growing.
+            await stub(page, '**/api/v1/dashboard/posture-analytics*', asSchema('PostureTrendAnalytics', {
+                windowDays: 90,
+                overallMttrDays: 11.4,
+                mttrBySeverity: { CRITICAL: 3.2, HIGH: 6.8, MEDIUM: 12.5, LOW: 19.0 },
+                totalOpenedInWindow: 38,
+                totalResolvedInWindow: 21,
+                netResolutionRatePercentage: 55.3,
+                dailySeries: days.map((point) => ({
+                    date: point.day, openBacklog: point.open, newlyDiscovered: point.opened,
+                    newlyResolved: point.resolved, rollingMttrDays: null
+                })),
+                // Ordered weakest first, as the server ranks it; the never-scanned target has no
+                // grade and no score rather than a measured zero.
+                targetScoreboard: [
+                    { targetId: 5, targetName: 'helios-portal', targetKind: 'repository',
+                      maturityGrade: 'F', securityScore: 18, riskPoints: 412.5,
+                      openCritical: 3, openHigh: 7, openMedium: 18, openLow: 186,
+                      totalResolved: 12, targetMttrDays: 9.6 },
+                    { targetId: 3, targetName: 'registry.example/api', targetKind: 'container',
+                      maturityGrade: 'D', securityScore: 44, riskPoints: 151.0,
+                      openCritical: 1, openHigh: 3, openMedium: 8, openLow: 46,
+                      totalResolved: 6, targetMttrDays: 14.2 },
+                    { targetId: 6, targetName: 'basalt-libs', targetKind: 'repository',
+                      maturityGrade: 'B', securityScore: 81, riskPoints: 38.5,
+                      openCritical: 0, openHigh: 2, openMedium: 5, openLow: 30,
+                      totalResolved: 3, targetMttrDays: 12.9 },
+                    { targetId: 7, targetName: 'billing-legacy', targetKind: 'repository',
+                      maturityGrade: 'NO_DATA', securityScore: null, riskPoints: null,
+                      openCritical: 0, openHigh: 0, openMedium: 0, openLow: 0,
+                      totalResolved: 0, targetMttrDays: null }
+                ]
+            }));
+            // **The card that read "undefined person-days".** The remediation plan's debt, since it
+            // is the same estate: 412 findings by the overview's severities, the hours by family
+            // adding up to the total, the person-days that total over eight hours as
+            // `SecurityDebtService` rounds it, and the plan's one upgrade as the high-impact fix.
+            await stub(page, '**/api/v1/remediation/debt*',
+                       asSchema('SecurityDebtReport', { ...SECURITY_DEBT, topHighImpactFixes: [LOG4J_UPGRADE] }));
+            // Fourteen targets by grade, `NO_DATA` the one never scanned; the open counts are the
+            // overview's, and the weakest is the scoreboard's first row.
+            await stub(page, '**/api/v1/scorecards/global', asSchema('PortfolioScorecard', {
+                totalTargets: 14, observedTargets: 13,
+                grades: [
+                    { grade: 'A_PLUS', targets: 1 }, { grade: 'A', targets: 3 }, { grade: 'B', targets: 4 },
+                    { grade: 'C', targets: 2 }, { grade: 'D', targets: 2 }, { grade: 'F', targets: 1 },
+                    { grade: 'NO_DATA', targets: 1 }
                 ],
-                mean_days_to_resolve: 11.4,
-                resolved_in_window: 21
-            });
+                weakestTarget: { targetId: 5, targetKind: 'repository', targetName: 'helios-portal',
+                                 grade: 'F', score: 18, riskPoints: 412.5 },
+                openCriticalCount: 4, openHighCount: 12, openKevCount: 2, overdueCount: 5,
+                licenseViolationCount: 3, riskPoints: 734.5
+            }));
             await enterApp(page, locale);
             await openScreen(page, '/dashboard');
 
             await expect(page.getByText('helios-portal').first()).toBeVisible({ timeout: 15_000 });
+            // The velocity line, by its figures: the same in both editions.
+            await expect(page.getByText(/55\.3\s?%/).first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'dashboard', locale);
         });
 
@@ -480,20 +772,23 @@ test.describe('documentation screenshots', () => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             const issue = (id: number, identifier: string, severity: string, pkg: string,
-                           version: string, target: string) => ({
-                id, targetKind: 'repository', type: 'vulnerability', state: 'open',
+                           version: string, target: string, isKev: boolean, timesSeen: number,
+                           where: { repoId: number } | { containerId: number }) => ({
+                id, targetKind: 'repoId' in where ? 'repository' : 'container',
+                type: 'vulnerability', state: 'open', isKev, timesSeen,
                 firstSeenAt: '2026-08-21T07:57:53Z', lastSeenAt: '2026-09-17T21:04:00Z',
-                triageStatus: 'under_review', repoId: 5, containerId: null, targetName: target,
+                triageStatus: 'under_review', repoId: null, containerId: null, ...where, targetName: target,
                 identifier, severity, packageName: pkg, packageVersion: version,
                 purl: `pkg:maven/${pkg}@${version}`, filePath: null, line: null
             });
             await stub(page, '**/api/v1/issues*', {
                 items: [
-                    issue(41, 'CVE-2021-44228', 'critical', 'log4j-core', '2.14.1', 'helios-portal'),
-                    issue(42, 'CVE-2024-1086', 'high', 'linux-libc-dev', '6.1.0', 'registry.example/api:1.4'),
-                    issue(43, 'CVE-2023-44487', 'medium', 'netty-codec-http2', '4.1.94', 'basalt-libs')
+                    // Log4Shell is in the KEV catalogue, as on the EPSS capture; the other two are not.
+                    issue(41, 'CVE-2021-44228', 'critical', 'log4j-core', '2.14.1', 'helios-portal', true, 14, { repoId: 5 }),
+                    issue(42, 'CVE-2024-1086', 'high', 'linux-libc-dev', '6.1.0', 'registry.example/api:1.4', false, 6, { containerId: 3 }),
+                    issue(43, 'CVE-2023-44487', 'medium', 'netty-codec-http2', '4.1.94', 'basalt-libs', false, 9, { repoId: 6 })
                 ],
-                total: 412, limit: 25, offset: 0
+                total: 412, limit: 50, offset: 0
             });
             await enterApp(page, locale);
             await openScreen(page, '/issues');
@@ -509,12 +804,15 @@ test.describe('documentation screenshots', () => {
             await stubEverything(page);
             await stub(page, '**/api/v1/repositories*', [
                 { id: 5, url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
-                  displayName: 'helios-portal', name: 'helios-portal', subPath: null }
+                  displayName: 'helios-portal', name: 'helios-portal', subPath: null,
+                  openIssues: 214, scanManualOnly: false }
             ]);
             // Node notes and the scenario are tokens since this week: the graph and its narrative
             // are written by the screen, so the two editions differ throughout.
             const graph = {
+                // One chain, critical and reachable from outside: the tiles above the graph count it.
                 targetId: 5, targetName: 'helios-portal',
+                totalPaths: 1, criticalExploitablePaths: 1, riskScore: 92,
                 nodes: [
                     { id: 'ingress', label: 'Internet Ingress (0.0.0.0/0)', type: 'INTERNET_INGRESS',
                       severity: 'INFO', isExploitable: true, note: 'PUBLIC_INGRESS', metadata: {} },
@@ -527,9 +825,9 @@ test.describe('documentation screenshots', () => {
                       severity: 'CRITICAL', isExploitable: true, note: 'SENSITIVE_DATA_STORE', metadata: {} }
                 ],
                 edges: [
-                    { id: 'e1', source: 'ingress', target: 'ep-1', label: 'REACHES', isCritical: true },
-                    { id: 'e2', source: 'ep-1', target: 'vuln-1', label: 'INVOKES', isCritical: true },
-                    { id: 'e3', source: 'vuln-1', target: 'db', label: 'EXFILTRATES_DATA', isCritical: true }
+                    { id: 'e1', source: 'ingress', target: 'ep-1', label: 'REACHES', isCriticalPath: true },
+                    { id: 'e2', source: 'ep-1', target: 'vuln-1', label: 'INVOKES', isCriticalPath: true },
+                    { id: 'e3', source: 'vuln-1', target: 'db', label: 'EXFILTRATES_DATA', isCriticalPath: true }
                 ],
                 attackPaths: [{
                     id: 'path-rce-exfil', scenario: 'UNAUTH_RCE_CHAIN',
@@ -558,18 +856,19 @@ test.describe('documentation screenshots', () => {
             await stub(page, '**/api/v1/repositories*', [
                 { id: 5, url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
                   displayName: 'helios-portal', name: 'helios-portal', subPath: null,
-                  openIssues: 214, tier: 'TIER_1', scanIntervalMinutes: 1440, scanCron: null, scanManualOnly: false,
+                  openIssues: 214, tier: 'TIER_1_MISSION_CRITICAL', scanIntervalMinutes: 1440, scanCron: null, scanManualOnly: false,
                   schedule: { mode: 'interval', intervalMinutes: 1440 },
                   sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-17T21:00:00Z',
                   lastScan: { id: 34, status: 'completed', createdAt: '2026-09-17T21:04:00Z', error: null } },
                 { id: 6, url: 'ssh://git@example.invalid/basalt-libs.git', branch: 'master',
                   displayName: 'basalt-libs', name: 'basalt-libs', subPath: null,
-                  openIssues: 37, tier: 'TIER_3', scanIntervalMinutes: null, scanCron: '0 3 * * *', scanManualOnly: false,
+                  openIssues: 37, tier: 'TIER_3_INTERNAL', scanIntervalMinutes: null, scanCron: '0 3 * * *', scanManualOnly: false,
                   schedule: { mode: 'cron', intervalMinutes: null },
                   sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-16T03:00:00Z',
                   lastScan: { id: 30, status: 'failed', createdAt: '2026-09-16T03:11:00Z',
                               error: 'clone refused' } }
             ]);
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
             await enterApp(page, locale);
             await openScreen(page, '/repositories');
 
@@ -621,12 +920,7 @@ test.describe('documentation screenshots', () => {
             // taken over a covered estate would hide it: a quality backlog is only as complete as
             // the languages somebody wrote rules for, and TypeScript having none is exactly the
             // thing a reader should learn here rather than discover later.
-            await stub(page, '**/api/v1/rule-sets/coverage', {
-                state: 'PARTIAL', ruleFiles: 12,
-                languagesWithRules: ['java', 'python'],
-                ecosystemsInEstate: ['java', 'python', 'typescript'],
-                uncovered: ['typescript']
-            });
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
             // The three tallies are deliberately top-heavy. "Eight rules account for most of the
             // debt" is the framing this page exists for, and a flat distribution would illustrate
             // the opposite of its argument.
@@ -651,7 +945,7 @@ test.describe('documentation screenshots', () => {
                 ]
             });
             await stub(page, '**/api/v1/dashboard', {
-                posture: { totalCount: 14, failingCount: 3, kevCount: 2, overdueCount: 5,
+                posture: { totalCount: 14, failingCount: 4, kevCount: 2, overdueCount: 5,
                            neverScannedCount: 1, lastScanFailedCount: 1 },
                 backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
                 qualityTotal: 1432, failing: [], recentScans: []
@@ -685,20 +979,20 @@ test.describe('documentation screenshots', () => {
                     { kind: 'global', target_id: null, target_name: null, version: 4,
                       fail_on_severity: 'high', fail_on_kev: true, fixable_only: true,
                       include_triaged: false, include_ai_review: false,
-                      fail_on_uncovered_languages: false,
+                      fail_on_uncovered_languages: false, include_plugins: false,
                       note: 'criticals in transitive dependencies were failing every build and teams had started bypassing the gate',
                       created_by: 'c.moreau', created_at: '2026-08-02T09:12:00Z' },
                     { kind: 'repository', target_id: 5, target_name: 'helios-portal', version: 2,
                       fail_on_severity: 'medium', fail_on_kev: true, fixable_only: false,
                       include_triaged: false, include_ai_review: false,
-                      fail_on_uncovered_languages: false,
+                      fail_on_uncovered_languages: false, include_plugins: false,
                       note: 'Tier 1 payment path, held above the estate bar for the quarter',
                       created_by: 'c.moreau', created_at: '2026-09-04T16:40:00Z' }
                 ],
                 built_in: { kind: 'built-in', target_id: null, target_name: null, version: 0,
                             fail_on_severity: 'high', fail_on_kev: true, fixable_only: false,
                             include_triaged: false, include_ai_review: false,
-                            fail_on_uncovered_languages: false, note: null,
+                            fail_on_uncovered_languages: false, include_plugins: false, note: null,
                             created_by: null, created_at: null }
             });
             await enterApp(page, locale);
@@ -712,7 +1006,10 @@ test.describe('documentation screenshots', () => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             // The two cases no other screen names: a target never scanned, and one whose last scan
-            // failed. Both are green everywhere else, which is the point of this page.
+            // failed. **Both fail**, with an `observation` violation and nothing else: their backlog
+            // is empty or stale, and the gate refuses a target nobody examined rather than passing
+            // it on an empty list (`Observation.refusal`). They were captured "Passing" until the
+            // gate stopped failing open — beside a banner saying the gate refuses them.
             //
             // **Shaped as `SecurityOverviewView` writes it, which the first version was not.**
             // That fixture sent `NEVER_SCANNED` and invented `FRESH` and `STALE`; the server
@@ -723,7 +1020,7 @@ test.describe('documentation screenshots', () => {
             // the server evaluates a policy against an empty backlog rather than skipping it —
             // and the row that received it rendered as a line of blanks.
             await stub(page, '**/api/v1/security/overview*', {
-                totalCount: 4, failingCount: 1, kevCount: 1,
+                totalCount: 4, failingCount: 3, kevCount: 1,
                 neverScannedCount: 1, lastScanFailedCount: 1,
                 targets: [
                     { targetId: 5, kind: 'repository', name: 'helios-portal', observed: true,
@@ -733,19 +1030,22 @@ test.describe('documentation screenshots', () => {
                       verdict: { passed: false, evaluated: 412, violations: [],
                                  countsBySeverity: { CRITICAL: 1, HIGH: 3 } } },
                     { targetId: 6, kind: 'repository', name: 'basalt-libs', observed: false,
-                      passed: true, lastScanAt: '2026-09-16T03:11:00Z', lastScanId: 30,
+                      passed: false, lastScanAt: '2026-09-16T03:11:00Z', lastScanId: 30,
                       observation: 'last_scan_failed',
                       policy: { source: 'built-in', version: null },
-                      verdict: { passed: true, evaluated: 37, violations: [], countsBySeverity: {} } },
-                    // Passing on nothing at all: the empty backlog that satisfies every policy,
-                    // which is the whole reason the observation column exists.
+                      verdict: { passed: false, evaluated: 37, violations: [LAST_SCAN_FAILED],
+                                 countsBySeverity: {} } },
+                    // An empty backlog, which would satisfy every policy: the whole reason the
+                    // observation column exists, and the reason the gate no longer reads it alone.
                     { targetId: 7, kind: 'repository', name: 'billing-legacy', observed: false,
-                      passed: true, lastScanAt: null, lastScanId: null,
+                      passed: false, lastScanAt: null, lastScanId: null,
                       observation: 'never_scanned',
                       policy: { source: 'built-in', version: null },
-                      verdict: { passed: true, evaluated: 0, violations: [], countsBySeverity: {} } }
+                      verdict: { passed: false, evaluated: 0, violations: [NEVER_EXAMINED],
+                                 countsBySeverity: {} } }
                 ]
             });
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
             await enterApp(page, locale);
             await openScreen(page, '/security');
 
@@ -758,19 +1058,33 @@ test.describe('documentation screenshots', () => {
             await stubEverything(page);
             // A refusal is the only proof a control runs: "everything passes" does not tell a clean
             // estate from a gate that never blocked anything.
+            //
+            // **`passed` and `refused` count this page, not the register** (`VerdictRegister`):
+            // the fixture used to claim 128 and 6 above two rows, and the screen — which computes
+            // its rate from the rows — printed "6 refusals" beside a 50 % rate. And `target_kind` is
+            // `REPOSITORY` or `CONTAINER`, as `GateController` writes it: the lowercase spelling
+            // matched neither, and every repository was captured as an image.
+            //
+            // The never-scanned target is refused on zero examined issues, its one violation the
+            // `observation` rule; the clean image passes on zero, which the footnote calls out.
+            const verdict = (id: string, kind: string, targetId: number, passed: boolean, evaluated: number,
+                             violations: number, counts: Record<string, number>, decidedAt: string) => ({
+                id: `0195f3a1-8a2b-7c4d-9e1f-${id}`, target_kind: kind, target_id: targetId,
+                passed, evaluated, violations, fail_on_severity: 'high',
+                policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
+                counts_by_severity: counts, decided_at: decidedAt, decided_by: 'ci'
+            });
             await stub(page, '**/api/v1/gate/verdicts*', {
-                passed: 128, refused: 6, next_cursor: null,
+                passed: 2, refused: 3, next_cursor: null,
                 verdicts: [
-                    { id: '0195f3a1-8a2b-7c4d-9e1f-2a3b4c5d6e7f', target_kind: 'repository', target_id: 5,
-                      passed: false, evaluated: 412, violations: 4, fail_on_severity: 'high',
-                      policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
-                      counts_by_severity: { CRITICAL: 1, HIGH: 3 },
-                      decided_at: '2026-09-17T21:05:00Z', decided_by: 'ci' },
-                    { id: '0195f3a1-8a2b-7c4d-9e1f-2a3b4c5d6e80', target_kind: 'repository', target_id: 6,
-                      passed: true, evaluated: 37, violations: 0, fail_on_severity: 'high',
-                      policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
-                      counts_by_severity: {},
-                      decided_at: '2026-09-16T03:12:00Z', decided_by: 'ci' }
+                    verdict('2a3b4c5d6e81', 'CONTAINER', 4, true, 0, 0, {}, '2026-09-18T04:04:00Z'),
+                    verdict('2a3b4c5d6e7f', 'REPOSITORY', 5, false, 412, 4, { CRITICAL: 1, HIGH: 3 },
+                            '2026-09-17T21:05:00Z'),
+                    verdict('2a3b4c5d6e82', 'CONTAINER', 3, false, 58, 2, { CRITICAL: 1, HIGH: 1 },
+                            '2026-09-17T18:07:00Z'),
+                    verdict('2a3b4c5d6e83', 'REPOSITORY', 7, false, 0, 1, {}, '2026-09-17T09:30:00Z'),
+                    // Before its last scan failed on the 16th: after it, the gate refuses it too.
+                    verdict('2a3b4c5d6e80', 'REPOSITORY', 6, true, 37, 0, {}, '2026-09-15T03:12:00Z')
                 ]
             });
             await enterApp(page, locale);
@@ -805,6 +1119,13 @@ test.describe('documentation screenshots', () => {
                       entryHash: '1a05…77c3', previousHash: null }
                 ]
             });
+            // **The verification leads the page, and it fell through to the catch-all.** `{}` has
+            // no `intact`, so the screen took the broken branch and printed "undefined entries are
+            // missing from this database" in red — on the capture meant to show a log that proves
+            // itself intact.
+            await stub(page, '**/api/v1/audit-log/verify', AUDIT_CHAIN);
+            await stub(page, '**/api/v1/audit-log/operation-types',
+                       ['GATE_EVALUATED', 'SETTING_CHANGED', 'TRIAGE_DECIDED']);
             await enterApp(page, locale);
             await openScreen(page, '/audit-log');
 
@@ -856,15 +1177,23 @@ test.describe('documentation screenshots', () => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             // The chain leads because it is the only claim on that page which demonstrates itself.
-            // `unverifiable` counts entries written before chaining existed: history, not tampering.
-            await stub(page, '**/api/v1/audit-log/verify', {
-                intact: true, broken: null, total: 1284, verified: 1240, unverifiable: 44,
-                mirrored: true, missingFromMirror: 0, missingFromTable: 0
-            });
+            await stub(page, '**/api/v1/audit-log/verify', AUDIT_CHAIN);
             await stub(page, '**/api/v1/compliance/summary*', {
-                totalMonitoredTargets: 14, observedTargets: 13, freshTargets: 11,
-                passingGateTargets: 11, overdueCount: 5, dueSoonCount: 2,
-                mttr: null, evaluations: [], targets: []
+                totalMonitoredTargets: 14, observedTargets: 12, freshTargets: 11,
+                passingGateTargets: 10, overdueCount: 5, dueSoonCount: 2,
+                mttr: null, targets: [],
+                // **The six frameworks, which the capture showed as "compliance could not be
+                // read".** `evaluations: []` is what the screen receives when nothing could be
+                // evaluated, and it says so — an error state photographed as the page's normal
+                // look. ISO 27001 at 71 is the compliance progress capture's last month.
+                evaluations: [
+                    { framework: 'NIS_2', overallStatus: 'PARTIAL', scorePercentage: 68, controls: [] },
+                    { framework: 'ISO_27001', overallStatus: 'PARTIAL', scorePercentage: 71, controls: [] },
+                    { framework: 'EU_CRA', overallStatus: 'PARTIAL', scorePercentage: 62, controls: [] },
+                    { framework: 'DORA', overallStatus: 'PARTIAL', scorePercentage: 74, controls: [] },
+                    { framework: 'PCI_DSS', overallStatus: 'NON_COMPLIANT', scorePercentage: 45, controls: [] },
+                    { framework: 'SOC_2', overallStatus: 'PARTIAL', scorePercentage: 77, controls: [] }
+                ]
             });
             await enterApp(page, locale);
             await openScreen(page, '/attestation');
@@ -990,6 +1319,9 @@ test.describe('documentation screenshots', () => {
                 ]
             });
             await stub(page, '**/api/v1/admin/agents/non-routables', [{ label: 'airgap', queued: 1 }]);
+            // No scan waits for credentials an agent keeps: the unroutable notice above is this
+            // page's one warning, and a second would bury it.
+            await stub(page, '**/api/v1/admin/agents/credentialed-backlog', { scans: 0, labels: [], keptAgents: [] });
             // **`kind` and `credentialsMode` are lowercase wire names, not the enum constants.**
             // `AgentKind` and `CredentialsMode` both derive theirs with `name().toLowerCase()`, and
             // the template compares against the literal `'delegated'` — so `DELEGATED` here would
@@ -1037,12 +1369,7 @@ test.describe('documentation screenshots', () => {
         test('rule sets', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
-            await stub(page, '**/api/v1/rule-sets/coverage', {
-                state: 'PARTIAL', ruleFiles: 12,
-                languagesWithRules: ['java', 'python'],
-                ecosystemsInEstate: ['java', 'python', 'typescript'],
-                uncovered: ['typescript']
-            });
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
             // An active set and a stored one, because the screen's two states only mean something
             // beside each other — and because the button this capture clicks exists on the stored
             // row alone.

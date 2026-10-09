@@ -7,7 +7,7 @@ Un registre chaîné par empreintes, où toute altération se voit, de ce qui a 
     nulle part. Avant que ce rôle existe, ouvrir le journal d'audit à quelqu'un revenait à lui
     donner aussi le droit de réécrire la politique qu'il venait vérifier.
 
-![Le journal d'audit : trois entrées, chacune portant l'empreinte de la précédente.](../assets/screens/fr/audit-log.png)
+![Le journal d'audit : la chaîne vérifiée intacte, les entrées antérieures au chaînage comptées à part, au-dessus de trois entrées.](../assets/screens/fr/audit-log.png)
 
 ## Pourquoi une chaîne
 

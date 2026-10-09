@@ -21,7 +21,7 @@ The code-quality backlog has no menu entry: it is opened from this page, by the 
 beside the backlog by severity, marked *never blocks*. It ranks quality findings by rule, file and
 repository, and none of it can fail a build — see [Code quality](quality.md).
 
-![The dashboard: the backlog and the daily movements on two stacked charts, the failing targets named beneath them.](../assets/screens/en/dashboard.png)
+![The dashboard: the posture figures, the backlog and the daily movements on two stacked charts beside the time to resolve and the remediation velocity, and the estimated security debt beneath them.](../assets/screens/en/dashboard.png)
 
 ## The security overview
 

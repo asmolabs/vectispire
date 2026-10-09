@@ -167,6 +167,14 @@ const RECONCILIATIONS = [
 ]; // Reconciliation
 const MEASUREMENT_PURPOSES = ['read', 'answer', 'submission', 'sign_off']; // MeasurementPurpose
 const EVIDENCE_SOURCES = ['scan', 'sarif_import', 'coverage_import', 'test_report_import', 'forge_review']; // MeasurementFacts.Source
+/**
+ * A target's criticality — `AssetTier.name()`. The screenshot fixture sent `TIER_1` and `TIER_3`,
+ * which the server has never written, and both repositories were captured as tier 2: the screen
+ * falls back on it, as `AssetTier.parse` does.
+ */
+const ASSET_TIERS = ['TIER_1_MISSION_CRITICAL', 'TIER_2_BUSINESS_OPERATIONAL', 'TIER_3_INTERNAL']; // AssetTier
+/** A verdict's target, as `GateController.view` spells it — upper case, unlike everywhere else. */
+const VERDICT_TARGET_KINDS = ['REPOSITORY', 'CONTAINER']; // GateController.RegisteredVerdict
 /** A repository's status in a measurement: examined, not applicable, or the reason it has no data. */
 const LOOK_STATUSES = ['examined', 'not_applicable', ...NO_DATA_REASONS]; // Measurement.RepositoryEvidence
 
@@ -211,7 +219,10 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     MeasuredLineView: { answer: CHECKLIST_ANSWERS, reconciliation: RECONCILIATIONS },
     ChecklistMeasurementsView: { status: CHECKLIST_STATUSES },
     RepositoryLook: { status: LOOK_STATUSES, source: EVIDENCE_SOURCES },
-    MeasuredFigure: { severity: [...ISSUE_SEVERITIES] }
+    MeasuredFigure: { severity: [...ISSUE_SEVERITIES] },
+    RepositorySummary: { tier: ASSET_TIERS },
+    ContainerSummary: { tier: ASSET_TIERS },
+    RegisteredVerdict: { target_kind: VERDICT_TARGET_KINDS }
 };
 
 function check(schemaName: string, value: unknown, path: string): string[] {

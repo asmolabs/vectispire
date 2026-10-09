@@ -72,15 +72,30 @@ export default defineConfig({
     //
     // The viewport is fixed and a little narrow on purpose: a 1920-wide capture of a table is
     // unreadable once the documentation scales it into a column of text.
+    //
+    // **The time zone is fixed too, to the one CI runs in.** The clock is frozen, but every
+    // timestamp is rendered in the browser's zone: captures taken on a machine in Brussels showed
+    // every time two hours later than the same run in the Playwright image, so regenerating them
+    // anywhere else rewrote every image that shows a time.
     {
       name: 'screens-en',
       testMatch: /(^|\/)screens\.spec\.ts$/,
-      use: { ...devices['Desktop Chrome'], locale: 'en-US', viewport: { width: 1280, height: 860 } }
+      use: {
+        ...devices['Desktop Chrome'],
+        locale: 'en-US',
+        timezoneId: 'UTC',
+        viewport: { width: 1280, height: 860 }
+      }
     },
     {
       name: 'screens-fr',
       testMatch: /(^|\/)screens\.spec\.ts$/,
-      use: { ...devices['Desktop Chrome'], locale: 'fr-FR', viewport: { width: 1280, height: 860 } }
+      use: {
+        ...devices['Desktop Chrome'],
+        locale: 'fr-FR',
+        timezoneId: 'UTC',
+        viewport: { width: 1280, height: 860 }
+      }
     }
   ],
   webServer: {
