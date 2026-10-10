@@ -238,6 +238,32 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.verdicts[0].target_id").value(mine));
     }
 
+    @Test
+    @DisplayName("the register's cursor never names a verdict the reader cannot see (the audit of 10 October 2026)")
+    void theRegisterCursorStaysWithinTheReader() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine-" + System.nanoTime() + ".git");
+        long theirs = repository("https://example.invalid/theirs-" + System.nanoTime() + ".git");
+        String reader = assignedReader(mine);
+
+        // Theirs is the newest. Read unfiltered, a page of one held their verdict: shown nothing, the
+        // reader was handed a cursor carrying its instant and id, page after empty page.
+        askTheGate(mine, asAdmin());
+        askTheGate(theirs, asAdmin());
+
+        String first = mvc.perform(authenticated(get("/api/v1/gate/verdicts").param("limit", "1"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(1))
+                .andExpect(jsonPath("$.verdicts[0].target_id").value(mine))
+                .andReturn().getResponse().getContentAsString();
+        String cursor = json.readTree(first).path("next_cursor").asText();
+
+        mvc.perform(authenticated(get("/api/v1/gate/verdicts").param("limit", "1").param("cursor", cursor), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verdicts.length()").value(0))
+                .andExpect(jsonPath("$.next_cursor").doesNotExist());
+    }
+
     private void askTheGate(long repositoryId, String token) throws Exception {
         mvc.perform(authenticated(
                         post("/api/v1/gate")

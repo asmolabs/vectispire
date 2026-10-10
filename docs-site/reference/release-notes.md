@@ -688,6 +688,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Three authorization gaps closed.** A key restricted to a repository could export the project whose
+  only repository it was, though such a key never sees a project whole; it is now answered as absent there,
+  as on its checklists. An administrator could revoke a platform governor's API key,
+  which only a governor may administer; it is refused. And the gate verdict register's cursor named the last
+  row read, visible to the reader or not, so a restricted reader paging one row at a time read the timing of
+  every verdict in the estate; a restricted reader's pages are now read within its targets.
 - **A tracker's refusal is no longer proposed as `not_affected`.** A ticket closed as *Won't Fix*,
   *Declined*, *Rejected*, *Risk Accepted* or *Withdrawn* was queued as `not_affected` with
   `inline_mitigations_already_exist` — a mitigation the tracker never mentioned, which the signed

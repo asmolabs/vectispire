@@ -744,6 +744,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Trois écarts d'autorisation fermés.** Une clé limitée à un dépôt pouvait exporter le projet dont ce
+  dépôt était le seul, alors qu'une telle clé ne voit jamais un projet entier ; elle y est désormais traitée
+  comme absente, comme sur ses checklists. Un administrateur pouvait révoquer la
+  clé d'API d'un gouverneur de la plateforme, que seul un gouverneur administre ; c'est refusé. Et le curseur
+  du registre des verdicts de la barrière nommait la dernière ligne lue, visible du lecteur ou non : un
+  lecteur restreint qui lisait une ligne à la fois connaissait l'heure de chaque verdict du parc ; ses pages
+  sont désormais lues dans ses cibles.
 - **Le refus d'un traqueur n'est plus proposé comme `not_affected`.** Un ticket fermé comme *Won't Fix*,
   *Declined*, *Rejected*, *Risk Accepted* ou *Withdrawn* était mis en file comme `not_affected` avec
   `inline_mitigations_already_exist` — une atténuation dont le traqueur n'avait jamais parlé, et que les

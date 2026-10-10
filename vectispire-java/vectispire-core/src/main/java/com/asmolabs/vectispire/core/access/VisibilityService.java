@@ -90,11 +90,19 @@ public class VisibilityService {
      * @param grantedProjects empty when the visibility is everything (there is nothing to add),
      *     and empty when the credential carries a restriction: a key narrowed to one repository
      *     reveals no project through its account's grants
+     * @param narrowedByCredential the credential carries a restriction of its own — a key narrowed to a
+     *     target. Such a credential never sees a project <b>whole</b>, even one whose every repository it
+     *     permits: it was issued for a target, not for what the project adds to it (checklists, the export)
      */
-    public record Allowance(Visibility visibility, Set<Long> grantedProjects) {
+    public record Allowance(Visibility visibility, Set<Long> grantedProjects, boolean narrowedByCredential) {
 
         public Allowance {
             grantedProjects = Set.copyOf(grantedProjects);
+        }
+
+        /** An account's allowance, with no credential narrowing it. */
+        public Allowance(Visibility visibility, Set<Long> grantedProjects) {
+            this(visibility, grantedProjects, false);
         }
     }
 
@@ -103,9 +111,8 @@ public class VisibilityService {
     public Allowance allowance(UserView user, Visibility restriction) {
         Allowance account = resolve(user);
         Visibility visibility = account.visibility().and(restriction);
-        return new Allowance(
-                visibility,
-                restriction instanceof Visibility.Everything ? account.grantedProjects() : Set.of());
+        boolean narrowed = !(restriction instanceof Visibility.Everything);
+        return new Allowance(visibility, narrowed ? Set.of() : account.grantedProjects(), narrowed);
     }
 
     public VisibilityMode mode() {

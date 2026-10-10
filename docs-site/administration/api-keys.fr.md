@@ -39,7 +39,9 @@ montre les clés dont un pipeline a besoin, une par job.
 
 Une clé peut être limitée à un dépôt ou à un conteneur. Elle ne voit alors que cette cible, dans ce
 que son compte voit : une restriction rétrécit, elle n'élargit jamais. Une cible qui n'existe pas, ou
-que le compte ne voit pas, est refusée à l'émission.
+que le compte ne voit pas, est refusée à l'émission. **Une clé limitée à un dépôt ne voit jamais son
+projet entier**, même quand ce dépôt est le seul du projet : l'export du projet et ses checklists
+lui répondent comme à un absent.
 
 ## Affichée une seule fois
 
@@ -90,6 +92,9 @@ Trois gestes révoquent des clés d'eux-mêmes :
   visibilité de son compte. Chaque clé révoquée ainsi est une entrée d'audit à part, sous
   l'identifiant de la clé, et un événement de révocation pour le SIEM ; l'entrée de la suppression
   dit combien de droits et de clés sont partis avec la cible.
+
+**La clé d'un gouverneur de la plateforme n'est révoquée que par un gouverneur**, comme son compte
+n'est administré que par un gouverneur : un administrateur est refusé, et la clé reste.
 
 Émettre une clé ne redemande pas le mot de passe. Seul un administrateur en émet, chaque émission
 figure au journal d'audit et part vers le SIEM, et un compte qui se connecte par authentification

@@ -130,6 +130,13 @@ public final class RowVisibility {
      */
     public static boolean seesWholeProject(
             long projectId, Collection<Long> repositoryIds, VisibilityService.Allowance allowance) {
+        // **A key narrowed to a repository is not a key to its project**, even when that repository is
+        // the project's only one: "all its repositories permitted" was true of it, and it exported the
+        // project — checklist answers and all — contrary to what the export route states (the audit of
+        // 10 October 2026). A restriction names a target; the project is something else.
+        if (allowance.narrowedByCredential()) {
+            return false;
+        }
         return switch (allowance.visibility()) {
             case Visibility.Everything ignored -> true;
             case Visibility.Only only -> allowance.grantedProjects().contains(projectId)

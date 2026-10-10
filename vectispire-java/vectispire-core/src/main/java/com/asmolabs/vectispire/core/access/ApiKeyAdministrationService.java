@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
@@ -202,8 +204,25 @@ public class ApiKeyAdministrationService {
         });
     }
 
-    public void revoke(UUID id, RequestActor actor) {
+    /**
+     * @param actingAccountId the account revoking: only a platform governor revokes a governor's key
+     */
+    public void revoke(UUID id, Long actingAccountId, RequestActor actor) {
         ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NotFoundException("Key not found."));
+
+        // **A governor's key is administered by a governor**, as its account is: an administrator
+        // could not reset a governor's password, and could still revoke the key the governor's
+        // pipeline signs in with — a denial of the role that lifts the rules the others act under,
+        // one request away (the audit of 10 October 2026).
+        if (key.getOwnerUserId() != null) {
+            Optional<Role> owner = users.findById(key.getOwnerUserId()).flatMap(user -> Role.of(user.getRole()));
+            Optional<Role> acting = actingAccountId == null
+                    ? Optional.empty()
+                    : users.findById(actingAccountId).flatMap(user -> Role.of(user.getRole()));
+            AccountRules.refuseGovernorAdministration(acting, owner, Optional.empty()).ifPresent(refusal -> {
+                throw new InvalidInputException(refusal);
+            });
+        }
 
         // Revoking deletes the row: a "disabled" key that a scan could re-enable by accident
         // would be worse than an absent one. The audit trail keeps the record.

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.gate.persistence;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,10 +40,9 @@ public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, 
      * <p>The id is a UUID and says nothing about time. It does not have to: what a cursor needs is
      * a <em>total</em> order, not a meaningful one.
      *
-     * <p>No visibility clause, as everywhere in this file. What that costs here is worth naming:
-     * a page can come back empty while the register still has rows the caller may see, so the
-     * caller must decide "is there more" from what was <em>read</em> and never from what survived
-     * {@code permits}.
+     * <p>No visibility clause: this one and {@link #firstPage} serve a reader who sees everything. A
+     * restricted reader is read through {@link #firstPageWithin} and {@link #pageAfterWithin}, which carry
+     * one — the cursor is taken from the last row read, and must never name a row the reader cannot see.
      */
     @Query("""
             select v from GateVerdictEntity v
@@ -65,6 +65,34 @@ public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, 
                 or (v.decidedAt = :decidedAt and v.id < :id)
              order by v.decidedAt desc, v.id desc""")
     List<GateVerdictEntity> pageAfter(
+            @Param("decidedAt") Instant decidedAt, @Param("id") java.util.UUID id, Limit limit);
+
+    /**
+     * {@link #firstPage}, within the targets a restricted reader may see.
+     *
+     * <p><b>The visibility clause the two above do not carry, and why this register needs it.</b> Read
+     * unfiltered, a page's cursor named the last row read — its instant and its id — whether or not the
+     * reader could see it. A reader restricted to one repository paging with a limit of one walked the
+     * whole register's timing that way: every CI gate decision of the estate, page by empty page (the
+     * audit of 10 October 2026). Filtered here, every row read is one the reader may see, and so is
+     * every cursor. Neither list is ever empty: the caller passes an id no row has instead.
+     */
+    @Query("""
+            select v from GateVerdictEntity v
+             where v.repoId in :repoIds or v.containerId in :containerIds
+             order by v.decidedAt desc, v.id desc""")
+    List<GateVerdictEntity> firstPageWithin(
+            @Param("repoIds") Collection<Long> repoIds, @Param("containerIds") Collection<Long> containerIds,
+            Limit limit);
+
+    /** {@link #pageAfter}, within the targets a restricted reader may see; see {@link #firstPageWithin}. */
+    @Query("""
+            select v from GateVerdictEntity v
+             where (v.repoId in :repoIds or v.containerId in :containerIds)
+               and (v.decidedAt < :decidedAt or (v.decidedAt = :decidedAt and v.id < :id))
+             order by v.decidedAt desc, v.id desc""")
+    List<GateVerdictEntity> pageAfterWithin(
+            @Param("repoIds") Collection<Long> repoIds, @Param("containerIds") Collection<Long> containerIds,
             @Param("decidedAt") Instant decidedAt, @Param("id") java.util.UUID id, Limit limit);
 
     /** One target's verdicts, newest first — what a repository's own page shows. */

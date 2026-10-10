@@ -38,7 +38,9 @@ shows the keys a pipeline needs, one per job.
 
 A key can be restricted to one repository or one container. It then sees only that target, within
 what its account sees: a restriction narrows, it never widens. A target that does not exist, or that
-the account cannot see, is refused at issuance.
+the account cannot see, is refused at issuance. **A key restricted to a repository never sees its
+project whole**, even when that repository is the project's only one: the project export and its
+checklists answer it as absent.
 
 ## Shown once
 
@@ -86,6 +88,9 @@ Three gestures revoke keys on their own:
   goes, never only its restriction: a key without one would act with its account's whole
   visibility. Each key revoked this way is its own audit entry, under the key's id, and a revocation
   event for the SIEM; the deletion's entry says how many grants and keys went with the target.
+
+**A platform governor's key is revoked by a governor only**, as its account is administered by a
+governor only: an administrator is refused, and the key stays.
 
 Issuing a key does not ask for the password again. Only an administrator issues one, each issuance
 is in the audit log and forwarded to the SIEM, and an account signing in through single sign-on

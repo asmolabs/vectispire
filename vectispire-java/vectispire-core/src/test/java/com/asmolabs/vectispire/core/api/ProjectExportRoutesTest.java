@@ -456,6 +456,30 @@ class ProjectExportRoutesTest extends ApiTestBase {
             assertNotFound(mvc.perform(authenticated(get(route()), key(Map.of("name", "narrowed",
                     "scopes", List.of("export"), "target_kind", "repository", "target_id", api)))));
         }
+
+        @Test
+        @DisplayName("nor does a key narrowed to the only repository of a project (the audit of 10 October 2026)")
+        void theOnlyRepositoryIsNotTheProject() throws Exception {
+            long solution = idOf(mvc.perform(authenticated(post("/api/v1/solutions"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("name", "Ledger " + System.nanoTime()))))
+                    .andExpect(status().isCreated()));
+            long alone = idOf(mvc.perform(authenticated(post("/api/v1/solutions/" + solution + "/projects"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("name", "Ledger"))))
+                    .andExpect(status().isCreated()));
+            long only = repository("https://example.invalid/ledger-" + System.nanoTime() + ".git");
+            mvc.perform(authenticated(put("/api/v1/projects/" + alone + "/repositories/" + only), asAdmin()))
+                    .andExpect(status().isNoContent());
+
+            // Every repository of the project is permitted to it, and that is all it was given: one target,
+            // not the project's checklist answers and compliance state that the export carries too.
+            assertNotFound(mvc.perform(authenticated(get("/api/v1/projects/" + alone + "/export"), key(Map.of(
+                    "name", "narrowed-to-the-only-one", "scopes", List.of("export"),
+                    "target_kind", "repository", "target_id", only)))));
+            mvc.perform(authenticated(get("/api/v1/projects/" + alone + "/export"),
+                            key(Map.of("name", "unrestricted", "scopes", List.of("export")))))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Nested

@@ -86,10 +86,10 @@ public class GateRegisterService {
         // record promises that an unusable cursor reads as "from the beginning"; letting
         // `UUID.fromString` throw here would make it a 400 on a value the client did not compose —
         // it sent back what the server had given it.
-        List<GateVerdictEntity> read = RegisterCursor.parse(cursor)
-                .flatMap(from -> uuid(from.id()).map(id -> verdicts.pageAfter(from.at(), id, Limit.of(capped))))
-                .orElseGet(() -> verdicts.firstPage(Limit.of(capped)));
+        List<GateVerdictEntity> read = read(allowed, RegisterCursor.parse(cursor)
+                .flatMap(from -> uuid(from.id()).map(id -> new RegisterCursor(from.at(), id.toString()))), capped);
 
+        // Already within what the reader sees; kept as the second lock it was before the query had one.
         List<GateVerdictEntity> visible = read.stream()
                 .filter(row -> allowed.permits(targetOf(row)))
                 .toList();
@@ -100,6 +100,33 @@ public class GateRegisterService {
                 visible.stream().filter(row -> !row.isPassed()).count(),
                 nextCursor(read, capped));
     }
+
+    /**
+     * The rows of a page: the whole register for a reader who sees everything, and only the targets a
+     * restricted reader may see otherwise — so that the cursor, taken from the last row read, never names
+     * a verdict the reader could not have been shown.
+     */
+    private List<GateVerdictEntity> read(Visibility allowed, Optional<RegisterCursor> after, int limit) {
+        if (allowed instanceof Visibility.Everything) {
+            return after.map(from -> verdicts.pageAfter(from.at(), UUID.fromString(from.id()), Limit.of(limit)))
+                    .orElseGet(() -> verdicts.firstPage(Limit.of(limit)));
+        }
+        Visibility.Only only = (Visibility.Only) allowed;
+        List<Long> repoIds = new java.util.ArrayList<>(List.of(NO_TARGET));
+        List<Long> containerIds = new java.util.ArrayList<>(List.of(NO_TARGET));
+        for (ScanTarget target : only.targets()) {
+            switch (target) {
+                case ScanTarget.Repository repository -> repoIds.add(repository.id());
+                case ScanTarget.Container container -> containerIds.add(container.id());
+            }
+        }
+        return after.map(from -> verdicts.pageAfterWithin(
+                        repoIds, containerIds, from.at(), UUID.fromString(from.id()), Limit.of(limit)))
+                .orElseGet(() -> verdicts.firstPageWithin(repoIds, containerIds, Limit.of(limit)));
+    }
+
+    /** An identifier no target has, so that neither list is ever empty: `in ()` is not valid everywhere. */
+    private static final long NO_TARGET = -1L;
 
     private static Optional<UUID> uuid(String value) {
         try {

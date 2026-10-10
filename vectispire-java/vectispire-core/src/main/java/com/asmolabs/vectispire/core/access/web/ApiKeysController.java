@@ -95,7 +95,7 @@ public class ApiKeysController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        administration.revoke(id, RequestActors.of(principal, request));
+        administration.revoke(id, principal.requireUser().id(), RequestActors.of(principal, request));
     }
 
     /** The targets a key can be restricted to, so the screen offers names rather than numbers. */
