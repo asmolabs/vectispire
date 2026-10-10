@@ -641,6 +641,22 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### Fixed
 
+- **Changing your own password revokes the API keys you issued**, as an administrator's reset already
+  did: the other sessions closed, but a key minted by whoever knew the old password kept acting for the
+  account. The answer carries `revokedApiKeys`, and each key revoked is its own audit entry. A pipeline
+  key owned by an administrator who changes their password stops working: issue a new one.
+- **The SCIM directory no longer binds an existing privileged account, or one with a local second
+  factor, to an identity-provider subject.** It could not grant those roles, but it could bind an
+  account that already held one, and the next sign-on skipped that account's password and second
+  factor ([single sign-on](../administration/sso.md)).
+- **An account the SCIM directory creates is no longer held on the change-password screen.** It was
+  given a random password and told to change it, which its federated sessions could not do.
+- **A successful sign-in no longer erases its address's failures.** Only the account's and the name's
+  counters start again, so signing in to one's own account between attempts no longer resets the
+  per-address ceiling.
+- **The single sign-on hand-off is no longer a session.** The cookie lived sixty seconds, the row
+  behind it a session's hour, and its value worked as a bearer token until it was exchanged. It is now
+  stored apart, exchanged only, and expires with the cookie.
 - **An HTTPS token sealed for an agent is bound to its host and user name, and a deployment key to
   being one.** The token was sealed alone while its host travelled beside it, so the envelope stayed
   valid whatever host it was paired with; the agent now opens it only under the host and user name it

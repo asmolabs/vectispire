@@ -9,7 +9,9 @@ import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,6 +88,29 @@ public class AccountAdminService {
                 .map(key -> new TargetGrants.RevokedKey(key.getId(), key.getName()))
                 .toList();
         keys.revokeOwnedBy(saved.getId());
+        return owned;
+    }
+
+    /**
+     * Changes one's own password, closes the account's other sessions and revokes the integration
+     * keys it issued — together or not at all.
+     *
+     * <p>The keys go for the reason the reset gives ({@link #saveRevokingEverything}): one changes a
+     * password because one believes it known, and a key minted by whoever knew it acts for the
+     * account whatever its password becomes. The sessions closed, the key kept reading and exporting.
+     *
+     * @param keepSession the hash of the session making the change, which survives — or none
+     * @return the keys revoked, for one audit entry each
+     */
+    @Transactional
+    public List<TargetGrants.RevokedKey> changeOwnPassword(
+            long userId, String passwordHash, Instant at, Optional<String> keepSession) {
+        users.changePassword(userId, passwordHash, at);
+        keepSession.ifPresent(kept -> sessions.deleteByUserIdExcept(userId, kept));
+        List<TargetGrants.RevokedKey> owned = keys.findByOwnerUserId(userId).stream()
+                .map(key -> new TargetGrants.RevokedKey(key.getId(), key.getName()))
+                .toList();
+        keys.revokeOwnedBy(userId);
         return owned;
     }
 

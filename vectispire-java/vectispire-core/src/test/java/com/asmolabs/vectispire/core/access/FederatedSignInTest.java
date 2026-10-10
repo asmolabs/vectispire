@@ -60,7 +60,9 @@ class FederatedSignInTest extends VectispireContextTest {
     /** The service as the context builds it, but with the parts a case needs to replace. */
     private AuthenticationFlowService flowsWith(AuthService auth, FederatedSecondFactorPolicy secondFactors) {
         return new AuthenticationFlowService(
-                Optional.empty(), methods, auth, auditLog, totp, users, sessions, challenges, identities,
+                Optional.empty(), methods, auth, auditLog, totp, users, sessions,
+                org.mockito.Mockito.mock(com.asmolabs.vectispire.core.access.internal.AccountAdminService.class),
+                challenges, identities,
                 secondFactors, transactions, clock);
     }
 
@@ -106,7 +108,7 @@ class FederatedSignInTest extends VectispireContextTest {
         team("red");
         AuthService failing = mock(AuthService.class);
         doThrow(new IllegalStateException("the insert was refused"))
-                .when(failing).openFederatedSession(any(), any(), any());
+                .when(failing).openHandoff(any(), any(), any());
 
         assertThatThrownBy(() -> flowsWith(failing, mfa(false))
                         .completeFederatedSignIn(alice(List.of("otp"), List.of("red")), "probe", "198.51.100.7"))

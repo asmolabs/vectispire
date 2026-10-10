@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
@@ -128,14 +129,20 @@ class AuthDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("a success clears the counters, so five mistypes then the right password is not an attack")
+    @DisplayName("a success clears the account's and the name's counters, and keeps the address's failures")
     void successClearsWhatCameBefore() {
         auth.login(request("alice", "wrong"));
         auth.login(request("alice", "wrong"));
 
         assertThat(auth.login(request("alice", PASSWORD)).outcome())
                 .isInstanceOf(AuthService.Outcome.Success.class);
-        assertThat(attempts.findAll()).isEmpty();
+        // Five mistypes then the right password is not an attack on the account. The address keeps
+        // its two failures — a sign-in to one's own account used to erase what the same address had
+        // tried against others — and the success itself left no row: it is not a failure.
+        assertThat(attempts.findAll())
+                .extracting(LoginAttemptEntity::getCounterKey)
+                .hasSize(2)
+                .allSatisfy(key -> assertThat(key).startsWith("login:client:"));
     }
 
     @Test

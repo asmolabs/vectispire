@@ -304,7 +304,9 @@ public class AuthController {
             case AuthenticationFlowService.PasswordChange.CurrentPasswordWrong ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect.");
             case AuthenticationFlowService.PasswordChange.Throttled throttled -> throw throttled(throttled.retryAfter());
-            case AuthenticationFlowService.PasswordChange.Changed ignored -> Map.of("mustChangePassword", false);
+            // The count, so the screen can say which pipelines are about to answer 401.
+            case AuthenticationFlowService.PasswordChange.Changed changed ->
+                Map.of("mustChangePassword", false, "revokedApiKeys", changed.revokedApiKeys());
         };
     }
 

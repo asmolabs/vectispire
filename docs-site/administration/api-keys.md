@@ -71,12 +71,16 @@ Revoke a key when the pipeline that used it is retired, when someone who could r
 leaves, or when you are not sure. Revocation is immediate, and every use is in the
 [audit log](audit-log.md).
 
-Two gestures revoke keys on their own:
+Three gestures revoke keys on their own:
 
 - **An administrator resetting an account's password revokes every key that account issued**, as it
   closes its sessions. A reset is what one does to shut out somebody who had the account; a key
   they minted meanwhile would otherwise keep acting for it. The audit entry of the reset says how
   many keys went. Issue new ones afterwards.
+- **Changing your own password revokes every key you issued**, for the same reason: one changes a
+  password because one believes it known, and a key minted with it acts for you whatever the password
+  becomes. The other sessions close too; the answer says how many keys went (`revokedApiKeys`), and
+  each is its own audit entry. Issue new ones for your pipelines afterwards.
 - **Deleting a repository or a container revokes the keys restricted to it**, with the grants that
   name it — a key never outlives its target, even through a restore that renumbers. The key itself
   goes, never only its restriction: a key without one would act with its account's whole

@@ -693,6 +693,24 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 ### Corrigé
 
+- **Changer son propre mot de passe révoque les clés d'API qu'on a émises**, comme le faisait déjà la
+  réinitialisation par un administrateur : les autres sessions se fermaient, mais une clé émise par
+  qui connaissait l'ancien mot de passe continuait d'agir pour le compte. La réponse porte
+  `revokedApiKeys`, et chaque clé révoquée est une entrée d'audit à part. La clé de pipeline d'un
+  administrateur qui change son mot de passe cesse de fonctionner : émettez-en une nouvelle.
+- **L'annuaire SCIM ne lie plus un compte privilégié existant, ni un compte à second facteur local, à un
+  sujet du fournisseur d'identité.** Il ne pouvait pas accorder ces rôles, mais il pouvait lier un
+  compte qui en détenait déjà un, et la connexion suivante sautait le mot de passe et le second facteur
+  de ce compte ([authentification unique](../administration/sso.fr.md)).
+- **Un compte créé par l'annuaire SCIM n'est plus retenu sur l'écran de changement de mot de passe.**
+  Il recevait un mot de passe aléatoire à changer, ce que ses sessions fédérées ne pouvaient pas faire.
+- **Une connexion réussie n'efface plus les échecs de son adresse.** Seuls les compteurs du compte et du
+  nom repartent à zéro : se connecter à son propre compte entre deux essais ne remet plus à zéro le
+  plafond par adresse.
+- **Le passage de relais de l'authentification unique n'est plus une session.** Le cookie vivait
+  soixante secondes, la ligne derrière lui l'heure d'une session, et sa valeur servait de jeton
+  porteur tant qu'elle n'était pas échangée. Il est désormais rangé à part, seulement échangeable, et
+  expire avec le cookie.
 - **Un jeton HTTPS scellé pour un agent est lié à son hôte et à son nom d'utilisateur, et une clé de
   déploiement à sa nature.** Le jeton était scellé seul, son hôte voyageant à côté : l'enveloppe restait
   valable quel que soit l'hôte associé. L'agent ne l'ouvre plus que sous l'hôte et le nom d'utilisateur

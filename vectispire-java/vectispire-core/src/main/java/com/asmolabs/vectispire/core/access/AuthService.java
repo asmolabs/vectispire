@@ -299,7 +299,17 @@ public class AuthService {
                             request.username()));
         }
 
-        ceilings.keySet().forEach(attempts::deleteByCounterKey);
+        // **A success clears what it proves, and the address is not among it.** Every counter of
+        // the attempt used to be emptied, the address's included: one sign-in to one's own account
+        // every nineteen tries wiped the address's record of the other nineteen, and the ceiling
+        // meant to slow one password tried across many names slowed nothing. The account and the
+        // name typed start again — five mistypes then the right password is not an attack on
+        // them — and the address keeps its failures; this attempt's own row is taken back, since a
+        // success is not a failure.
+        release(throttle);
+        ceilings.keySet().stream()
+                .filter(key -> !key.equals(clientKey))
+                .forEach(attempts::deleteByCounterKey);
 
         UserEntity found = user.orElseThrow();
         rehashIfStale(found, request.password());
@@ -398,6 +408,28 @@ public class AuthService {
     }
 
     /**
+     * The hand-off a single sign-on left, if it is still waiting — see {@link Sessions#handoffHashOf}.
+     *
+     * <p>Its lifetime is the cookie's, enforced here: a cookie the browser kept, or a value copied
+     * out of a log, is worth nothing after it.
+     */
+    @Transactional
+    public Optional<SessionView> resolveHandoff(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        Optional<SessionEntity> found = sessions.findById(Sessions.handoffHashOf(token));
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        if (found.get().getCreatedAt().plus(Sessions.HANDOFF_LIFETIME).isBefore(clock.instant())) {
+            sessions.deleteById(found.get().getTokenHash());
+            return Optional.empty();
+        }
+        return Optional.of(SessionView.of(found.get()));
+    }
+
+    /**
      * Trades a session for a fresh one of the same account, once.
      *
      * <p>The single sign-on hand-off: the cookie the provider's redirect left carries a session
@@ -444,9 +476,25 @@ public class AuthService {
         return openSession(user, new LoginRequest(user.getUsername(), null, userAgent, ipAddress), clock.instant());
     }
 
+    /**
+     * The hand-off of a single sign-on: a row the redirect's cookie names, exchanged once for a
+     * session by {@link #exchangeOnce} and usable for nothing else — stored under
+     * {@link Sessions#handoffHashOf}, which the bearer route never computes, and expiring with the
+     * cookie.
+     */
     @Transactional
-    public IssuedSession openFederatedSession(UserView user, String userAgent, String ipAddress) {
-        return openSession(user.id(), new LoginRequest(user.username(), null, userAgent, ipAddress), clock.instant());
+    public IssuedSession openHandoff(UserView user, String userAgent, String ipAddress) {
+        Instant now = clock.instant();
+        Sessions.IssuedToken minted = Sessions.issue();
+        SessionEntity session = new SessionEntity();
+        session.setTokenHash(Sessions.handoffHashOf(minted.token()));
+        session.setUserId(user.id());
+        session.setCreatedAt(now);
+        session.setLastSeenAt(now);
+        session.setExpiresAt(now.plus(Sessions.HANDOFF_LIFETIME));
+        session.setUserAgent(clip(userAgent));
+        session.setIpAddress(ipAddress);
+        return new IssuedSession(SessionView.of(sessions.save(session)), minted.token());
     }
 
     private IssuedSession openSession(UserEntity user, LoginRequest request, Instant now) {

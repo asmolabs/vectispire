@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
@@ -61,7 +62,8 @@ import tools.jackson.databind.JsonNode;
  *   <li>the directory grants only the roles scoped to what they are given — USER and
  *       SECURITY_CHAMPION — see {@link #grantable};
  *   <li>an absent role leaves the account's role as it is;
- *   <li>{@code externalId} is set once and never rebound;
+ *   <li>{@code externalId} is set once and never rebound, and an existing account that holds a
+ *       privileged role or a local second factor is not bound at all — see {@link #bindOnce};
  *   <li>a role change closes the account's sessions, as a deactivation does.
  * </ul>
  *
@@ -83,6 +85,7 @@ public class ScimProvisioningService {
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
     private final Clock clock;
+    private final boolean linkPrivileged;
 
     public ScimProvisioningService(
             UserRepository users,
@@ -91,7 +94,8 @@ public class ScimProvisioningService {
             AuthService auth,
             AuditLogService audit,
             TransactionTemplate transactions,
-            Clock clock) {
+            Clock clock,
+            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged) {
         this.users = users;
         this.teams = teams;
         this.members = members;
@@ -99,6 +103,7 @@ public class ScimProvisioningService {
         this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
+        this.linkPrivileged = linkPrivileged;
     }
 
     /** An account as the directory describes it, already read out of the SCIM document. */
@@ -174,8 +179,11 @@ public class ScimProvisioningService {
         user.setKeycloakId(bounded(attributes.externalId(), "externalId"));
         user.setIsActive(attributes.active() == null || attributes.active());
         user.setRole(grantable(attributes.role(), Role.USER.name()));
+        // A password nobody knows, so the account has none to sign in with; it signs in through the
+        // provider. Not "must change": that flag held every federated session of a provisioned
+        // account on the change-password screen, which asks for a current password nobody had.
         user.setPassword(PasswordHasher.hash(UUID.randomUUID().toString()));
-        user.setMustChangePassword(true);
+        user.setMustChangePassword(false);
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -208,7 +216,7 @@ public class ScimProvisioningService {
         user.setDisplayName(bounded(attributes.displayName(), "displayName"));
         user.setEmail(bounded(attributes.email(), "emails"));
         if (attributes.externalId() != null) {
-            bindOnce(user, bounded(attributes.externalId(), "externalId"));
+            bindOnce(user, bounded(attributes.externalId(), "externalId"), linkPrivileged);
         }
         user.setIsActive(nowActive);
         user.setRole(role);
@@ -385,11 +393,30 @@ public class ScimProvisioningService {
      *
      * <p>Rebinding it is how an account is taken over: the next OIDC sign-in with the new subject
      * lands on it. A directory that renames its own identifiers re-creates the account instead.
+     *
+     * <p><b>And a first binding is a takeover too, of an account that holds something.</b> The token
+     * could not <em>grant</em> a CISO, an auditor or a champion ({@link #grantable}), but it could bind
+     * an existing one, still unbound, to a subject of its choosing — and the next sign-in landed on
+     * that account with neither its password nor its local second factor. The same rule as a claim's
+     * ({@code ExternalIdentityService}): a privileged account, or one with a local second factor, is
+     * not bound from outside unless the operator allows privileged linking; an administrator binds it
+     * in Vectispire. A binding the account already has is not a binding, and passes.
      */
-    private static void bindOnce(UserEntity user, String externalId) {
+    private static void bindOnce(UserEntity user, String externalId, boolean linkPrivileged) {
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(externalId)) {
             throw new InvalidInputException("externalId is immutable once set: this account is already "
                     + "bound to another identity-provider subject.");
+        }
+        if (user.getKeycloakId() == null) {
+            boolean privileged = Role.of(user.getRole()).map(ExternalIdentityService::privileged).orElse(true);
+            if (Boolean.TRUE.equals(user.getMfaEnabled())) {
+                throw new InvalidInputException("This account has a local second factor, so the directory "
+                        + "does not bind it to an identity-provider subject; an administrator does, in Vectispire.");
+            }
+            if (privileged && !linkPrivileged) {
+                throw new InvalidInputException("This account holds a privileged role, so the directory does "
+                        + "not bind it to an identity-provider subject; an administrator does, in Vectispire.");
+            }
         }
         user.setKeycloakId(externalId);
     }

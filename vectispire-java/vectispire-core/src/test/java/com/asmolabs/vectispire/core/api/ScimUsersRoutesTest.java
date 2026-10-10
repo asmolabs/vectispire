@@ -172,6 +172,53 @@ class ScimUsersRoutesTest extends ApiTestBase {
         assertThat(users.findById(id).orElseThrow().getKeycloakId()).isEqualTo("subject-1");
     }
 
+    /**
+     * The audit of 10 October 2026: the token could not grant a CISO, but it could bind an existing,
+     * unbound one to a subject of its choosing, and the next sign-in landed on that account with
+     * neither its password nor its second factor.
+     */
+    @Test
+    @DisplayName("an existing privileged account is not bound to a subject by the directory")
+    void aPrivilegedAccountIsNotBound() throws Exception {
+        tokenFor("scim-ciso-unbound", Role.CISO, false);
+        long id = users.findByUsername("scim-ciso-unbound").orElseThrow().getId();
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-ciso-unbound", "externalId", "attacker-subject"))))
+                .andExpect(status().isBadRequest());
+
+        assertThat(users.findById(id).orElseThrow().getKeycloakId()).isNull();
+    }
+
+    @Test
+    @DisplayName("an existing account with a local second factor is not bound to a subject by the directory")
+    void aSecondFactorAccountIsNotBound() throws Exception {
+        tokenFor("scim-totp-unbound", Role.USER, false);
+        var account = users.findByUsername("scim-totp-unbound").orElseThrow();
+        account.setMfaEnabled(true);
+        users.save(account);
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + account.getId()), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-totp-unbound", "externalId", "attacker-subject"))))
+                .andExpect(status().isBadRequest());
+
+        assertThat(users.findById(account.getId()).orElseThrow().getKeycloakId()).isNull();
+    }
+
+    /** Provisioned accounts sign in through the provider, with a password nobody holds. */
+    @Test
+    @DisplayName("an account the directory creates is not held on the change-password screen")
+    void aProvisionedAccountNeedsNoPasswordChange() throws Exception {
+        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-provisioned", "externalId", "subject-provisioned"))))
+                .andExpect(status().isCreated());
+
+        assertThat(users.findByUsername("scim-provisioned").orElseThrow().getMustChangePassword()).isFalse();
+    }
+
     @Test
     @DisplayName("a role change from the directory closes the account's sessions")
     void aRoleChangeRevokes() throws Exception {

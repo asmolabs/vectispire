@@ -73,9 +73,33 @@ class AuthServiceTest {
                     .isEqualTo(NOW.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
         });
         assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_SUCCESS);
-        // A success clears both counters: five mistypes then the right password is not an attack.
+        // A success clears the account's and the name's counters: five mistypes then the right
+        // password is not an attack on them.
         verify(attempts).deleteByCounterKey(LoginThrottle.accountKey(1L));
-        verify(attempts).deleteByCounterKey(LoginThrottle.clientKey("10.0.0.1"));
+        verify(attempts).deleteByCounterKey(LoginThrottle.userKey("alice"));
+    }
+
+    /**
+     * The audit of 10 October 2026: a success erased the address's counter too, so one sign-in to
+     * one's own account every nineteen tries reset the ceiling meant to slow one password tried
+     * across many names.
+     */
+    @Test
+    @DisplayName("a success keeps the address's failures, and takes back only its own attempt")
+    void aSuccessKeepsTheAddressCounter() {
+        // Rows with ids, as the database writes them: the success takes back exactly those.
+        when(attempts.save(any())).thenAnswer(call -> {
+            LoginAttemptEntity row = call.getArgument(0);
+            row.setId(java.util.UUID.randomUUID());
+            recorded.add(row);
+            return row;
+        });
+
+        service.login(request("alice", PASSWORD));
+
+        verify(attempts, never()).deleteByCounterKey(LoginThrottle.clientKey("10.0.0.1"));
+        // Its own rows go: a success is not a failure, and must not spend the address's budget.
+        verify(attempts).deleteByIdIn(org.mockito.ArgumentMatchers.anyCollection());
     }
 
     @Test

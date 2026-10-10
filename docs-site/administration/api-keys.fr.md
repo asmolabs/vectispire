@@ -73,12 +73,17 @@ Révoquez une clé quand le pipeline qui l'utilisait est retiré, quand quelqu'u
 lire s'en va, ou quand vous n'êtes pas sûr. La révocation est immédiate, et chaque usage figure
 dans le [journal d'audit](audit-log.md).
 
-Deux gestes révoquent des clés d'eux-mêmes :
+Trois gestes révoquent des clés d'eux-mêmes :
 
 - **Un administrateur qui réinitialise le mot de passe d'un compte révoque toutes les clés que ce
   compte a émises**, comme il ferme ses sessions. Une réinitialisation sert à exclure quelqu'un qui
   détenait le compte ; une clé émise entre-temps continuerait sinon d'agir pour lui. L'entrée d'audit
   de la réinitialisation dit combien de clés sont parties. Émettez-en de nouvelles ensuite.
+- **Changer son propre mot de passe révoque toutes les clés qu'on a émises**, pour la même raison : on
+  change un mot de passe parce qu'on le croit connu, et une clé émise avec lui agit pour vous quel que
+  soit le nouveau. Les autres sessions se ferment aussi ; la réponse dit combien de clés sont parties
+  (`revokedApiKeys`), et chacune est une entrée d'audit à part. Émettez-en de nouvelles pour vos
+  pipelines ensuite.
 - **Supprimer un dépôt ou un conteneur révoque les clés restreintes à cette cible**, avec les droits
   qui la nomment — une clé ne survit jamais à sa cible, même à une restauration qui renumérote. C'est
   la clé qui part, jamais sa seule restriction : une clé sans restriction agirait avec toute la

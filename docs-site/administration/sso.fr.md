@@ -85,6 +85,15 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
 - **Un remplacement sans `roles` laisse le rôle tel quel** — il ne rétrograde plus en Utilisateur.
 - **`externalId` n'est lié qu'une fois.** Le changer sur un compte qui en a déjà un répond `400` :
   un nouveau sujet, c'est un nouveau compte.
+- **Un compte existant qui détient un rôle privilégié ou un second facteur local n'est pas lié par
+  l'annuaire.** Poser `externalId` sur un RSSI, un auditeur, un champion sécurité — tout rôle sauf
+  Utilisateur — ou sur un compte doté de son propre TOTP, tant qu'il n'en a pas, répond `400` : le
+  lier laisserait une connexion choisie par l'annuaire sauter le mot de passe et le second facteur de
+  ce compte. Un administrateur lie un tel compte dans Vectispire ;
+  `vectispire.oidc.link-privileged-accounts`, le réglage qui laisse une revendication lier un compte
+  privilégié, le permet aussi à l'annuaire — jamais pour un compte à second facteur local.
+- **Un compte créé par l'annuaire se connecte par le fournisseur.** Il reçoit un mot de passe que
+  personne ne connaît et n'est pas invité à le changer.
 - **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
 
 ## Le second facteur relève du fournisseur

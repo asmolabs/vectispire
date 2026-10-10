@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.core.access.internal.AccountAdminService;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.access.persistence.MfaChallengeEntity;
 import com.asmolabs.vectispire.core.access.persistence.MfaChallengeRepository;
@@ -71,6 +72,7 @@ public class AuthenticationFlowService {
     private final TotpService totp;
     private final UserRepository users;
     private final SessionRepository sessions;
+    private final AccountAdminService accounts;
     private final MfaChallengeRepository mfaChallenges;
     private final ExternalIdentityService identities;
     private final FederatedSecondFactorPolicy secondFactors;
@@ -85,6 +87,7 @@ public class AuthenticationFlowService {
             TotpService totp,
             UserRepository users,
             SessionRepository sessions,
+            AccountAdminService accounts,
             MfaChallengeRepository mfaChallenges,
             ExternalIdentityService identities,
             FederatedSecondFactorPolicy secondFactors,
@@ -97,6 +100,7 @@ public class AuthenticationFlowService {
         this.totp = totp;
         this.users = users;
         this.sessions = sessions;
+        this.accounts = accounts;
         this.mfaChallenges = mfaChallenges;
         this.identities = identities;
         this.secondFactors = secondFactors;
@@ -384,7 +388,7 @@ public class AuthenticationFlowService {
                 if (identity.groups() != null && !identity.groups().isEmpty()) {
                     identities.syncGroups(user, identity.groups());
                 }
-                return new FederatedSignIn.SignedIn(auth.openFederatedSession(user, userAgent, ipAddress), user);
+                return new FederatedSignIn.SignedIn(auth.openHandoff(user, userAgent, ipAddress), user);
             });
 
             audit.record(new AuditLogService.Record(
@@ -428,7 +432,7 @@ public class AuthenticationFlowService {
      * new one issued, so a second presentation finds nothing.
      */
     public Handoff exchange(String token) {
-        Optional<SessionView> session = auth.resolve("Bearer " + token);
+        Optional<SessionView> session = auth.resolveHandoff(token);
         if (session.isEmpty()) {
             return new Handoff.Expired();
         }
@@ -469,7 +473,8 @@ public class AuthenticationFlowService {
 
     /** What changing one's own password came to. */
     public sealed interface PasswordChange {
-        record Changed() implements PasswordChange {}
+        /** @param revokedApiKeys how many of the account's integration keys went with the old password */
+        record Changed(int revokedApiKeys) implements PasswordChange {}
 
         /** The proof of identity failed — not a malformed field, which is refused by exception. */
         record CurrentPasswordWrong() implements PasswordChange {}
@@ -489,6 +494,11 @@ public class AuthenticationFlowService {
      * when one believes it compromised: leaving sessions alive elsewhere would empty the gesture
      * of its meaning. The current session survives, or the screen would bounce back to the login
      * page immediately after succeeding.
+     *
+     * <p><b>And the integration keys the account issued are revoked</b>, as an administrator's reset
+     * revokes them: a key minted by whoever held the password acts for the account whatever the
+     * password becomes, so closing the sessions alone left the intruder reading and exporting
+     * through it. Each revocation is audited under the key's id.
      *
      * <p>The hash is read here, from the account's row, rather than carried in by the caller: the
      * principal holds a {@link UserView}, which has no password to compare against — deliberately.
@@ -543,16 +553,30 @@ public class AuthenticationFlowService {
             throw new InvalidInputException("The new password is the same as the old one.");
         }
 
-        users.changePassword(user.getId(), PasswordHasher.hash(newPassword), clock.instant());
-        currentSession.ifPresent(session -> sessions.deleteByUserIdExcept(user.getId(), session.tokenHash()));
+        List<TargetGrants.RevokedKey> revoked = accounts.changeOwnPassword(
+                user.getId(),
+                PasswordHasher.hash(newPassword),
+                clock.instant(),
+                currentSession.map(SessionView::tokenHash));
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.PASSWORD_CHANGED,
                 String.valueOf(user.getId()),
-                "Password changed by " + user.getUsername(),
+                "Password changed by " + user.getUsername()
+                        + (revoked.isEmpty() ? "" : "; " + revoked.size() + " API key" + (revoked.size() == 1 ? "" : "s") + " revoked"),
                 user.getUsername(),
                 ipAddress,
                 userAgent));
-        return new PasswordChange.Changed();
+        for (TargetGrants.RevokedKey key : revoked) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.API_KEY_DELETED,
+                    key.id().toString(),
+                    "API key revoked with its account's password change: " + key.name()
+                            + " (account " + user.getUsername() + ")",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent));
+        }
+        return new PasswordChange.Changed(revoked.size());
     }
 }

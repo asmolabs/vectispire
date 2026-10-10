@@ -102,6 +102,21 @@ public final class Sessions {
         return Digests.sha256Hex(presented);
     }
 
+    /** How long a single sign-on hand-off may wait to be exchanged — the cookie's own lifetime. */
+    public static final Duration HANDOFF_LIFETIME = Duration.ofSeconds(60);
+
+    /**
+     * The stored form of a single sign-on hand-off token, which is not a session's.
+     *
+     * <p><b>Under its own prefix, so the bearer route cannot find it.</b> The hand-off was a session
+     * row like any other: the cookie lived sixty seconds, the row lived the session's hour, and the
+     * cookie's value presented as {@code Authorization: Bearer} opened the whole API for that hour
+     * without ever being exchanged. Hashed apart, it resolves only where it is exchanged.
+     */
+    public static String handoffHashOf(String presented) {
+        return Digests.sha256Hex("handoff:" + presented);
+    }
+
     public static State stateOf(Instant createdAt, Instant lastSeenAt, Instant now, Policy policy) {
         if (!now.isBefore(createdAt.plus(policy.absoluteLifetime()))) {
             return State.EXPIRED;

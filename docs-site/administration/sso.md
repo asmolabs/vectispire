@@ -80,6 +80,14 @@ the provider's configuration, so what it may do is deliberately bounded:
 - **A replacement without `roles` leaves the role as it is** — it no longer demotes to User.
 - **`externalId` is bound once.** Changing it on an account that already has one answers `400`: a
   new subject means a new account.
+- **An existing account that holds a privileged role or a local second factor is not bound by the
+  directory.** Setting `externalId` on a CISO, an auditor, a security champion — any role but User —
+  or on an account with its own TOTP, while it has none, answers `400`: binding it would let a sign-on
+  of the directory's choosing skip that account's password and second factor. An administrator links
+  such an account in Vectispire; `vectispire.oidc.link-privileged-accounts`, the setting that lets a
+  claim link a privileged account, lets the directory too — never one with a local second factor.
+- **An account the directory creates signs in through the provider.** It gets a password nobody
+  knows and is not asked to change it.
 - **A role change closes the account's sessions**, as a deactivation does.
 
 ## The second factor belongs to the provider
