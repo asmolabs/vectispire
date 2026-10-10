@@ -302,6 +302,13 @@ any address: a fresh rate-limit bucket on every request, an audit entry naming s
 policy only holds on a CNI that enforces NetworkPolicy. `trustedProxiesWithoutNetworkPolicy` renders the
 chart anyway, for a range holding the controller alone.
 
+**Behind a load balancer, keep the client's address up to the controller.** `trustedProxies` makes the
+application believe what the controller writes in `X-Forwarded-For`, which is only what the controller
+saw. With its Service on `externalTrafficPolicy: Cluster`, the default, a node translates the source on
+the way in and the controller sees a node's address: every client then shares that node's rate-limit
+bucket, and every audit entry names a node. Set `externalTrafficPolicy: Local` on the controller's
+Service, or the PROXY protocol between the load balancer and the controller.
+
 **Two replicas** are possible but not the default. They need:
 
 - cookie affinity (`ingress.stickySessions`): single sign-on keeps its state in the session of the
@@ -397,16 +404,18 @@ own container reaches that daemon, and through it the node. Give these pods:
   if that namespace's owner has set its level to `privileged` — for every pod in it.
   `kubectl get namespace <your namespace> --show-labels` tells you; `restricted` or `baseline` means a
   Docker host;
-- **their own nodes**: `agents.nodeSelector`, and `agents.tolerations` matching a taint only they
-  tolerate. Whatever you set, the chart keeps the control plane off an agent's node with a required
-  anti-affinity: the control plane holds `ENCRYPTION_KEY`. On a single node it stays Pending rather
-  than share one;
+- **their own nodes**: `agents.nodeSelector` (or a required node affinity), and `agents.tolerations`
+  matching a taint only they tolerate. The chart refuses to render without both
+  (`agents.acknowledgeSharedNodes` overrides). Whatever you set, it keeps the control plane off the node
+  of **every** agent — of any release, in any namespace — with a required anti-affinity: the control plane
+  holds `ENCRYPTION_KEY`. On a single node it stays Pending rather than share one;
 - **the NetworkPolicy**: on by default. It denies all ingress. List in
   `agents.networkPolicy.excludeCidrs` what an escaped scanner must not reach: the cluster's pod,
   service **and node** ranges (the kubelets, and the API server's real address), and the database's
   subnet when it is outside them, as a managed MySQL usually is. Egress then reaches the outside world
   and the Ingress. The chart refuses an empty list (`agents.networkPolicy.acknowledgeClusterReachable`
-  overrides), and excludes `169.254.0.0/16` — the cloud metadata endpoint — whatever it says;
+  overrides), and excludes `169.254.0.0/16` — the cloud metadata endpoint — and the metadata addresses
+  outside it (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) whatever it says;
 - **a pinned signing key** (`agents.signingKey.secretName`), which the chart requires: without one the
   control plane accepts the agent's results unattested.
 

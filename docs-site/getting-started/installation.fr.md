@@ -314,6 +314,14 @@ au nom de quelqu'un d'autre. La politique ne tient qu'avec un CNI qui applique l
 `trustedProxiesWithoutNetworkPolicy` rend la chart malgré tout, pour une plage qui ne contient que le
 contrôleur.
 
+**Derrière un répartiteur de charge, gardez l'adresse du client jusqu'au contrôleur.** `trustedProxies`
+fait croire à l'application ce que le contrôleur écrit dans `X-Forwarded-For`, c'est-à-dire seulement ce
+que le contrôleur a vu. Avec son Service en `externalTrafficPolicy: Cluster`, la valeur par défaut, un
+nœud traduit la source à l'entrée et le contrôleur voit l'adresse d'un nœud : tous les clients partagent
+alors le compteur de débit de ce nœud, et chaque entrée d'audit nomme un nœud. Posez
+`externalTrafficPolicy: Local` sur le Service du contrôleur, ou le protocole PROXY entre le répartiteur et
+le contrôleur.
+
 **Deux réplicas** sont possibles, mais pas par défaut. Ils demandent :
 
 - l'affinité par cookie (`ingress.stickySessions`) : l'authentification unique garde son état dans la
@@ -409,9 +417,11 @@ de son propre conteneur atteint ce démon, et par lui le nœud. Donnez à ces po
   si le propriétaire de ce namespace l'a mis au niveau `privileged` — pour tous les pods qu'il contient.
   `kubectl get namespace <votre namespace> --show-labels` vous le dit ; `restricted` ou `baseline`
   signifie un hôte Docker ;
-- **leurs propres nœuds** : `agents.nodeSelector`, et `agents.tolerations` accordé à une taint qu'eux
-  seuls tolèrent. Quoi que vous posiez, la chart tient le control plane à l'écart du nœud d'un agent par
-  une anti-affinité obligatoire : le control plane détient `ENCRYPTION_KEY`. Sur un seul nœud, il reste
+- **leurs propres nœuds** : `agents.nodeSelector` (ou une affinité de nœud obligatoire), et
+  `agents.tolerations` accordé à une taint qu'eux seuls tolèrent. La chart refuse de se rendre sans les
+  deux (`agents.acknowledgeSharedNodes` passe outre). Quoi que vous posiez, elle tient le control plane à
+  l'écart du nœud de **tout** agent — de n'importe quelle release, dans n'importe quel namespace — par une
+  anti-affinité obligatoire : le control plane détient `ENCRYPTION_KEY`. Sur un seul nœud, il reste
   Pending plutôt que de le partager ;
 - **la NetworkPolicy** : active par défaut. Elle refuse toute entrée. Listez dans
   `agents.networkPolicy.excludeCidrs` ce qu'un scanner échappé ne doit pas atteindre : les plages de
@@ -419,7 +429,8 @@ de son propre conteneur atteint ce démon, et par lui le nœud. Donnez à ces po
   le sous-réseau de la base s'il est en dehors, comme l'est d'ordinaire un MySQL managé. La sortie
   n'atteint alors que le monde extérieur et l'Ingress. La chart refuse une liste vide
   (`agents.networkPolicy.acknowledgeClusterReachable` passe outre), et exclut `169.254.0.0/16` — le
-  point de métadonnées du cloud — quoi qu'elle contienne ;
+  point de métadonnées du cloud — ainsi que les adresses de métadonnées hors de cette plage
+  (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`), quoi qu'elle contienne ;
 - **une clé de signature épinglée** (`agents.signingKey.secretName`), que la chart exige : sans elle le
   control plane accepte les résultats de l'agent sans attestation.
 

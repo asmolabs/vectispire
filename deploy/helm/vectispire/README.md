@@ -61,9 +61,10 @@ The chart refuses to render without these. Each refusal names its reason.
   somebody else. `trustedProxiesWithoutNetworkPolicy` renders it anyway, for a range holding the
   controller alone. The policy is enforced only by a CNI that enforces NetworkPolicy.
 - `ingress.tls.secretName`, unless `ingress.allowPlainHttp` is set
-- with agents: `agents.controlPlaneUrl`, `agents.token.secretName`, `agents.signingKey.secretName`
-  (without a pinned key the agent's results are accepted unattested) and
-  `agents.networkPolicy.excludeCidrs` (below)
+- with agents: `agents.controlPlaneUrl`, over `https://` (the agent sends its key on every poll),
+  `agents.token.secretName`, `agents.signingKey.secretName` (without a pinned key the agent's results are
+  accepted unattested), `agents.networkPolicy.excludeCidrs`, and `agents.nodeSelector` with
+  `agents.tolerations` (below)
 
 See `values.example.yaml` for a complete installation.
 
@@ -88,6 +89,12 @@ words:
 - a body size of at least 256 MB (agent results);
 - TLS.
 
+**Keep the client's address up to the controller.** `trustedProxies` believes the controller's
+`X-Forwarded-For`, which is only what the controller saw: behind a load balancer, with the controller's
+Service on `externalTrafficPolicy: Cluster` (the default), a node translates the source and every client
+shares one node's address — one rate-limit bucket, audit entries naming a node. Set
+`externalTrafficPolicy: Local`, or the PROXY protocol.
+
 With `replicaCount: 2`:
 
 - set `ingress.stickySessions`: single sign-on keeps its state in the servlet session;
@@ -111,14 +118,17 @@ Docker daemon of its own:
     `agents.createNamespace: false`), the chart creates nothing, and the pod is admitted only if that
     namespace's level is `privileged` — which also lets any other pod there run privileged. Check with
     `kubectl get namespace <ns> --show-labels`; a `restricted` or `baseline` level refuses it;
-  - nodes of their own: `agents.nodeSelector` and `agents.tolerations`, matching a tainted node pool.
-    Whatever you set, the chart gives the control plane a required anti-affinity to the agents' pods:
-    it holds `ENCRYPTION_KEY`, and never shares a node with a daemon that is root on it. On a single
-    node the control plane stays Pending rather than share it;
+  - nodes of their own: `agents.nodeSelector` (or a required node affinity) and `agents.tolerations`,
+    matching a tainted node pool. Without both the chart refuses to render
+    (`agents.acknowledgeSharedNodes` overrides). Whatever you set, the chart gives the control plane a
+    required anti-affinity to every agent pod — any release, any namespace, by the `vectispire.dev/dind`
+    label: it holds `ENCRYPTION_KEY`, and never shares a node with a daemon that is root on it. On a
+    single node the control plane stays Pending rather than share it;
   - the NetworkPolicy, with what an escaped scanner must not reach in `agents.networkPolicy.excludeCidrs`
     — the cluster's pod, service **and node** ranges, and the database's subnet when it is outside them.
     Empty, the chart refuses to render (`agents.networkPolicy.acknowledgeClusterReachable` overrides).
-    `169.254.0.0/16`, the cloud metadata endpoint's range, is excluded whatever the list says.
+    `169.254.0.0/16`, the cloud metadata endpoint's range, and the metadata addresses outside it
+    (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) are excluded whatever the list says.
 
   Where privileged pods are forbidden, use a Docker host outside the cluster.
 - `agents.dind.variant: rootless` — `docker:dind-rootless`. **It does not scan with this release's
@@ -144,3 +154,10 @@ helm template vs deploy/helm/vectispire -f deploy/helm/vectispire/ci/dind-privil
 CI renders the four value sets under `ci/`: no agents, privileged DinD, rootless DinD, and a single
 namespace with the agents beside the control plane. It checks that the first and the last render nothing
 outside the release's namespace.
+
+## At a release
+
+`appVersion` and both images' `tag` and `digest` move together, once the release has pushed its images
+(`docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<tag>`). CI fails a chart whose pinned tags
+are not its `appVersion`; nothing can check the digests before the images exist, so this is a step of the
+release, after the tag.

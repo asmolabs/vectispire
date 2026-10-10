@@ -291,3 +291,22 @@ local daemon will ask for again. Decided so: see answer 1 below.
      never chosen by accident.
 3. **The chart is written** (`deploy/helm/vectispire/`), with §1–§7 as its defaults.
 
+
+## Amended on 2026-10-10: the chart refuses shared nodes and plain HTTP
+
+The security review of 10 October 2026 found three places where the chart still left isolation to advice:
+
+- **A privileged agent could land on any node.** `agents.nodeSelector` and `agents.tolerations` were
+  documented and optional, so the default rendering put a daemon that is root on its node beside whatever
+  else the cluster runs. The chart now refuses to render agents without a node selector (or a required node
+  affinity) **and** a toleration; `agents.acknowledgeSharedNodes` renders them anyway, said in the values.
+- **The control plane's anti-affinity named its own release.** More agents are more releases, often apart
+  from the control plane's, and none of theirs was kept off its node. The term now matches the
+  `vectispire.dev/dind` label every agent pod carries, under an empty `namespaceSelector`, and is rendered
+  whether or not the release has agents of its own.
+- **`agents.controlPlaneUrl` could be `http://`.** The agent sends its key on every poll and receives
+  credentials sealed for it; the chart refuses anything but `https://`, with no acknowledgement.
+
+The agents' egress also excludes the metadata addresses outside link-local that the control plane's guard
+refuses (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`). CI renders each refusal, the anti-affinity in
+the shape without agents, and that the pinned image tags are the chart's `appVersion`.

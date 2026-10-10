@@ -366,17 +366,39 @@ jobs:
           refused -f ci/no-agents-values.yaml --set networkPolicy.enabled=false
           refused -f ci/dind-privileged-values.yaml --set agents.signingKey.secretName=
           refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.excludeCidrs=null
+          # A privileged daemon on nodes of its own, and the agent's key never over plain HTTP.
+          refused -f ci/dind-privileged-values.yaml --set agents.nodeSelector=null
+          refused -f ci/dind-privileged-values.yaml --set agents.tolerations=null
+          refused -f ci/dind-privileged-values.yaml --set agents.controlPlaneUrl=http://vectispire.example.org
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
           helm template vs . -n vectispire -f ci/dind-privileged-values.yaml \
             --set agents.networkPolicy.excludeCidrs=null \
             --set agents.networkPolicy.acknowledgeClusterReachable=true > rendered.yaml
-          grep -q -- '- 169.254.0.0/16' rendered.yaml ||
-            { echo "::error::link-local is not excluded from the agents' egress"; exit 1; }
+          for cidr in 169.254.0.0/16 100.100.100.200/32 192.0.0.192/32 168.63.129.16/32; do
+            grep -q -- "- $cidr" rendered.yaml ||
+              { echo "::error::$cidr, a cloud metadata address, is not excluded from the agents' egress"; exit 1; }
+          done
+          # Kept off every agent's node, of any release in any namespace — the recommended shape, without
+          # agents of its own, included: its agents are another release's.
+          for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml; do
+            helm template vs . -n vectispire -f "$values" > rendered.yaml
+            grep -A6 'podAntiAffinity' rendered.yaml | grep -q 'key: vectispire.dev/dind' &&
+              grep -A8 'podAntiAffinity' rendered.yaml | grep -q 'namespaceSelector: {}' ||
+              { echo "::error::$values: the control plane may share a node with a privileged agent"; exit 1; }
+          done
+      # **The images the chart pins are the release the chart says it is.** A chart whose appVersion moved
+      # and whose digests did not deploys the previous release under the new one's name.
+      - name: the pinned images are the chart's appVersion
+        working-directory: deploy/helm/vectispire
+        run: |
+          app=$(sed -n 's/^appVersion: "\(.*\)"$/\1/p' Chart.yaml)
           helm template vs . -n vectispire -f ci/dind-privileged-values.yaml > rendered.yaml
-          grep -q 'podAntiAffinity' rendered.yaml ||
-            { echo "::error::the control plane may share a node with a privileged agent"; exit 1; }
+          for image in vectispire vectispire-agent; do
+            grep -q "image: ghcr.io/asmolabs/$image:$app@sha256:" rendered.yaml ||
+              { echo "::error::ghcr.io/asmolabs/$image is not pinned at appVersion $app"; exit 1; }
+          done
 
   jvm:
     runs-on: ubuntu-24.04

@@ -153,7 +153,7 @@ probes:
 
 nodeSelector: {}
 tolerations: []
-# With agents in the cluster, the chart adds a required anti-affinity to the agents' pods to whatever is
+# The chart adds a required anti-affinity to every agent pod, of any release in any namespace, to whatever is
 # here: their daemon is privileged — root on its node — and this pod holds the encryption key. On a
 # single node the control plane then stays Pending rather than share it.
 affinity: {}
@@ -198,7 +198,8 @@ agents:
     digest: "sha256:121ec47d0db949946b55ec034b72fdaff909470c92353efda434bbbbb428d72e"
     pullPolicy: IfNotPresent
 
-  # **Required.** The control plane as the agent reaches it — through the Ingress, over HTTPS.
+  # **Required, and https://.** The control plane as the agent reaches it — through the Ingress. The agent
+  # sends its key on every poll and receives credentials sealed for it; the chart refuses http://.
   controlPlaneUrl: ""
   # The agent's API key (scope `agent`) and the private half of its pinned signing key — both required.
   # Without a pinned key the control plane accepts the agent's results unattested, and whoever holds the
@@ -269,6 +270,9 @@ agents:
     # Without a cache, the emptyDir's ceiling.
     dataSizeLimit: 50Gi
 
+  # **Required: nodes of their own.** A node selector (or a required node affinity) and the toleration of a
+  # taint only these pods tolerate — selected onto their pool, and nothing else scheduled there. Without
+  # both the chart refuses to render; `acknowledgeSharedNodes` renders it on shared nodes anyway.
   nodeSelector: {}
   #  vectispire.dev/agents: "true"
   tolerations: []
@@ -276,6 +280,7 @@ agents:
   #    operator: Exists
   #    effect: NoSchedule
   affinity: {}
+  acknowledgeSharedNodes: false
 
   networkPolicy:
     # Nothing reaches an agent: deny every ingress. Egress to DNS, and to everything outside the
@@ -284,7 +289,8 @@ agents:
     # escaped scanner cannot reach: the cluster's pod and service ranges, **the nodes' range** (the
     # kubelets, and the API server's real address once kube-proxy has translated it), and **the
     # database's subnet** when it sits outside them, as a managed MySQL usually does.
-    # 169.254.0.0/16 — link-local, the cloud metadata endpoint — is always excluded.
+    # 169.254.0.0/16 — link-local, the cloud metadata endpoint — is always excluded, and so are the metadata
+    # addresses outside it (100.100.100.200, 192.0.0.192, 168.63.129.16).
     enabled: true
     # **Required with agents.** Empty, the chart refuses to render: egress to 0.0.0.0/0 with nothing
     # excluded is the whole cluster. `acknowledgeClusterReachable` renders it anyway.

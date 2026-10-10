@@ -307,3 +307,24 @@ installation sans démon local. Tranché ainsi : voir la réponse 1 ci-dessous.
      l'agent saura faire correspondre les propriétaires, et jamais choisie par mégarde.
 3. **La chart est écrite** (`deploy/helm/vectispire/`), avec §1–§7 pour défauts.
 
+
+## Amendé le 2026-10-10 : la chart refuse les nœuds partagés et le HTTP en clair
+
+La revue de sécurité du 10 octobre 2026 a relevé trois endroits où la chart laissait encore l'isolation au
+conseil :
+
+- **Un agent privilégié pouvait atterrir sur n'importe quel nœud.** `agents.nodeSelector` et
+  `agents.tolerations` étaient documentés mais facultatifs : le rendu par défaut plaçait un démon root sur
+  son nœud à côté de tout ce que fait tourner le cluster. La chart refuse désormais de rendre des agents
+  sans sélecteur de nœud (ou affinité de nœud obligatoire) **et** sans tolérance ;
+  `agents.acknowledgeSharedNodes` les rend malgré tout, en le disant dans les valeurs.
+- **L'anti-affinité du control plane nommait sa propre release.** Plus d'agents, ce sont plus de releases,
+  souvent séparées de celle du control plane, et aucun de leurs pods n'était tenu à l'écart de son nœud. Le
+  terme vise désormais le label `vectispire.dev/dind` que porte tout pod d'agent, sous un
+  `namespaceSelector` vide, et il est rendu que la release ait ou non ses propres agents.
+- **`agents.controlPlaneUrl` pouvait être en `http://`.** L'agent envoie sa clé à chaque interrogation et
+  reçoit des secrets scellés pour lui ; la chart refuse tout autre schéma que `https://`, sans acquittement.
+
+La sortie des agents exclut aussi les adresses de métadonnées hors du lien local que refuse la garde du
+control plane (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`). La CI rend chaque refus, l'anti-affinité
+dans la forme sans agents, et vérifie que les tags d'image épinglés sont l'`appVersion` de la chart.

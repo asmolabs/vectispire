@@ -325,10 +325,12 @@ never scanned. It now fails, closed, as the overview always said it should
     the release's namespace (`agents.namespace: ""`, `agents.createNamespace: false`); their privileged
     pod is then admitted only if that namespace's Pod Security level allows it.
   - **What it refuses to render.** `trustedProxies` without `networkPolicy.enabled`, since any pod could
-    otherwise call the pod directly and name any client address; agents without a pinned signing key, or
-    with nothing in `agents.networkPolicy.excludeCidrs`. Each has an explicit acknowledgement where a
-    deployment needs it. It also keeps the control plane off an agent's node with a required
-    anti-affinity, and excludes `169.254.0.0/16` from the agents' egress whatever the list says.
+    otherwise call the pod directly and name any client address; agents without a pinned signing key,
+    with nothing in `agents.networkPolicy.excludeCidrs`, without a node selector and a toleration of
+    their own, or with a `controlPlaneUrl` that is not `https://`. Each has an explicit acknowledgement
+    where a deployment needs it, but HTTPS. It also keeps the control plane off the node of every agent,
+    of any release in any namespace, with a required anti-affinity, and excludes the cloud metadata
+    addresses — `169.254.0.0/16` and those outside it — from the agents' egress whatever the list says.
   - **Checked in CI** for each of these shapes, and that the single-namespace ones render nothing
     outside their namespace.
 - **A checklist line can measure change reviews — *every merge request is approved by a peer before

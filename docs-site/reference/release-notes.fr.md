@@ -353,10 +353,12 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
     Security de ce namespace le permet.
   - **Ce qu'elle refuse de rendre.** `trustedProxies` sans `networkPolicy.enabled`, puisque n'importe
     quel pod pourrait sinon appeler le pod en direct et annoncer n'importe quelle adresse de client ; des
-    agents sans clé de signature épinglée, ou sans rien dans `agents.networkPolicy.excludeCidrs`. Chacun a
-    un acquittement explicite là où un déploiement en a besoin. Elle tient aussi le control plane à
-    l'écart du nœud d'un agent par une anti-affinité obligatoire, et exclut `169.254.0.0/16` de la sortie
-    des agents quoi que dise la liste.
+    agents sans clé de signature épinglée, sans rien dans `agents.networkPolicy.excludeCidrs`, sans
+    sélecteur de nœud et tolérance à eux, ou avec un `controlPlaneUrl` qui n'est pas en `https://`. Chacun
+    a un acquittement explicite là où un déploiement en a besoin, sauf HTTPS. Elle tient aussi le control
+    plane à l'écart du nœud de tout agent, de n'importe quelle release dans n'importe quel namespace, par
+    une anti-affinité obligatoire, et exclut de la sortie des agents les adresses de métadonnées du cloud
+    — `169.254.0.0/16` et celles hors de cette plage — quoi que dise la liste.
   - **Vérifiée en CI** pour chacune de ces formes, et que celles d'un seul namespace ne produisent rien
     hors de leur namespace.
 - **Une ligne de checklist peut mesurer la revue des changements — *toute merge request est approuvée par

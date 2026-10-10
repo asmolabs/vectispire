@@ -71,6 +71,13 @@ in a pod's log.
 {{- if not .Values.agents.controlPlaneUrl -}}
 {{- fail "agents.controlPlaneUrl is required: the control plane as the agent reaches it, through the Ingress over HTTPS." -}}
 {{- end -}}
+{{- if not (hasPrefix "https://" (lower .Values.agents.controlPlaneUrl)) -}}
+{{- fail "agents.controlPlaneUrl must be https://: the agent sends its key on every poll, and receives deployment keys and forge tokens sealed for it." -}}
+{{- end -}}
+{{- $nodeAffinity := dig "nodeAffinity" "requiredDuringSchedulingIgnoredDuringExecution" dict (.Values.agents.affinity | default dict) -}}
+{{- if and (not .Values.agents.acknowledgeSharedNodes) (or (not (or .Values.agents.nodeSelector $nodeAffinity)) (not .Values.agents.tolerations)) -}}
+{{- fail "agents.nodeSelector (or a required agents.affinity.nodeAffinity) and agents.tolerations are required: the agent's Docker daemon runs privileged, root on its node, so it gets nodes of its own — selected, and tainted so that nothing else lands there. Set agents.acknowledgeSharedNodes to render it on shared nodes anyway." -}}
+{{- end -}}
 {{- if not .Values.agents.token.secretName -}}
 {{- fail "agents.token.secretName is required: the agent's API key, scope agent." -}}
 {{- end -}}
@@ -91,21 +98,25 @@ in a pod's log.
 
 
 {{/*
-The control plane's affinity: the operator's, plus — with agents in the cluster — a required anti-affinity
-to the agents' pods. Their docker:dind is privileged, root on its node, and this pod holds ENCRYPTION_KEY,
-which decrypts every deployment key and forge token (decisions 0003, 0038). Kept apart in both directions:
-the scheduler honours a running pod's required anti-affinity for pods arriving after it.
+The control plane's affinity: the operator's, plus a required anti-affinity to every agent pod. Their
+docker:dind is privileged, root on its node, and this pod holds ENCRYPTION_KEY, which decrypts every
+deployment key and forge token (decisions 0003, 0038). Kept apart in both directions: the scheduler honours
+a running pod's required anti-affinity for pods arriving after it.
+
+**Any agent, in any namespace, of any release** — matched on the `vectispire.dev/dind` label every agent pod
+carries, under an empty namespaceSelector. More agents are more releases, often installed apart from the
+control plane's, and a term naming this release and its agent namespace kept the control plane off its own
+agents' nodes and none of the others' (the audit of 10 October 2026). Always rendered: a release without
+agents is the one whose agents live in another.
 */}}
 {{- define "vectispire.controlPlaneAffinity" -}}
 {{- $affinity := deepCopy (.Values.affinity | default dict) -}}
-{{- if .Values.agents.enabled -}}
 {{- $anti := get $affinity "podAntiAffinity" | default dict -}}
 {{- $required := get $anti "requiredDuringSchedulingIgnoredDuringExecution" | default list -}}
-{{- $agents := dict "app.kubernetes.io/name" .Chart.Name "app.kubernetes.io/instance" .Release.Name "app.kubernetes.io/component" "agent" -}}
-{{- $term := dict "labelSelector" (dict "matchLabels" $agents) "namespaces" (list (include "vectispire.agentNamespace" .)) "topologyKey" "kubernetes.io/hostname" -}}
+{{- $agents := dict "matchExpressions" (list (dict "key" "vectispire.dev/dind" "operator" "Exists")) -}}
+{{- $term := dict "labelSelector" $agents "namespaceSelector" dict "topologyKey" "kubernetes.io/hostname" -}}
 {{- $_ := set $anti "requiredDuringSchedulingIgnoredDuringExecution" (append $required $term) -}}
 {{- $_ := set $affinity "podAntiAffinity" $anti -}}
-{{- end -}}
 {{- if $affinity -}}
 {{- toYaml $affinity -}}
 {{- end -}}

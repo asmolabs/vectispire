@@ -23,6 +23,10 @@ agents:
     secretName: vectispire-agent
   nodeSelector:
     vectispire.dev/agents: "true"
+  tolerations:
+    - key: vectispire.dev/agents
+      operator: Exists
+      effect: NoSchedule
   networkPolicy:
     excludeCidrs:
       - 10.244.0.0/16

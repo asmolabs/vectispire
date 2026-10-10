@@ -23,12 +23,14 @@ spec:
           protocol: TCP
     # The scanners' traffic leaves through this pod too — the daemon's bridge is behind the pod's
     # address — so this is what an escaped scanner can reach. The cluster's own ranges belong in
-    # excludeCidrs; link-local is excluded whatever they say, the cloud metadata endpoint with it.
+    # excludeCidrs; the cloud metadata addresses are excluded whatever they say — link-local, and those
+    # outside it that the control plane's guard refuses too: Alibaba's, Oracle's legacy one, Azure's
+    # WireServer. IPv6 egress is not allowed at all, AWS's fd00:ec2::254 with it.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
-              {{- toYaml (concat (.Values.agents.networkPolicy.excludeCidrs | default list) (list "169.254.0.0/16") | uniq) | nindent 14 }}
+              {{- toYaml (concat (.Values.agents.networkPolicy.excludeCidrs | default list) (list "169.254.0.0/16" "100.100.100.200/32" "192.0.0.192/32" "168.63.129.16/32") | uniq) | nindent 14 }}
     {{- with .Values.agents.networkPolicy.allowTo }}
     - to:
         {{- toYaml . | nindent 8 }}
