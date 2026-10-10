@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
+import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
@@ -103,7 +104,9 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String client = proxies.clientAddress(request);
+        // The budget is the client's /64 in IPv6; the audit entry names the address itself.
+        String address = proxies.clientAddress(request);
+        String client = ClientBuckets.of(address);
         Bucket bucket = buckets.get(client);
 
         // **Read without creating.** A bucket appears the first time an address fails, so an
@@ -116,7 +119,7 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            countFailure(client, request);
+            countFailure(client, address, request);
         }
     }
 
@@ -127,7 +130,7 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
      * identical rows into a log that is never purged, and the one entry that mattered would be
      * buried in its own alarm.
      */
-    private void countFailure(String client, HttpServletRequest request) {
+    private void countFailure(String client, String address, HttpServletRequest request) {
         Bucket bucket = buckets.computeIfAbsent(client, key -> newBucket());
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
 
@@ -138,7 +141,7 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
                     capacity + " bearer tokens refused from this address within " + window
                             + ". Further credentialed requests from it are answered 429 until the window refills.",
                     null,
-                    client,
+                    address,
                     request.getHeader(HttpHeaders.USER_AGENT),
                     // ACCESS_DENIED is also every ordinary 403; this one is the ceiling.
                     SecurityEventType.BEARER_TOKEN_THROTTLED));

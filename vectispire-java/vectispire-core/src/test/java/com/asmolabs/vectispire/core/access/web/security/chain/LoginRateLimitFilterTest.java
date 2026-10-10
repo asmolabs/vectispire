@@ -66,6 +66,26 @@ class LoginRateLimitFilterTest {
     }
 
     @Test
+    @DisplayName("an IPv6 client rotating addresses within its /64 spends one bucket (the audit of 10 October 2026)")
+    void oneSlash64IsOneBucket() throws Exception {
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getMethod()).thenReturn("POST");
+
+        for (int i = 1; i <= 10; i++) {
+            when(request.getRemoteAddr()).thenReturn("2001:db8:7:9::" + Integer.toHexString(i));
+            filter.doFilterInternal(request, response, chain);
+        }
+        reset(chain);
+
+        // A fresh address of the same /64: the same client, already out of tokens.
+        when(request.getRemoteAddr()).thenReturn("2001:db8:7:9:dead:beef:0:1");
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
     @DisplayName("burst exceeding 10 requests from the same IP is blocked with HTTP 429 and Retry-After headers")
     void burstExceedingCapacityIsBlocked() throws Exception {
         when(request.getRequestURI()).thenReturn("/api/v1/auth/login");

@@ -744,6 +744,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Deux contournements des compteurs de connexion fermés.** Un nom que la collation de la base confond
+  avec celui d'un compte — `jeßica` pour `jessica`, `æ` pour `ae` — comptait sur un compteur à lui, si bien
+  que le verrouillage distinguait un compte existant d'un compte absent ; le nom est désormais replié comme
+  MySQL le compare, vérifié contre la collation du serveur lui-même. Et un appelant IPv6 avait un nouveau
+  compteur pour chaque adresse de son /64, que son hôte choisit à volonté ; les plafonds de connexion, de
+  jetons porteurs et du webhook comptent désormais un appelant IPv6 par son /64, et le journal d'audit garde
+  l'adresse complète.
 - **Trois écarts d'autorisation fermés.** Une clé limitée à un dépôt pouvait exporter le projet dont ce
   dépôt était le seul, alors qu'une telle clé ne voit jamais un projet entier ; elle y est désormais traitée
   comme absente, comme sur ses checklists. Un administrateur pouvait révoquer la

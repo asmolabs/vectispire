@@ -688,6 +688,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Two ways around the sign-in counters closed.** A name the database's collation equates with an
+  account's — `jeßica` for `jessica`, `æ` for `ae` — counted against a counter of its own, so the lockout
+  told an existing account from an absent one; the name is now folded as MySQL compares it, checked against
+  the server's own collation. And an IPv6 caller had a fresh bucket for every address of its /64, which its
+  host picks at will; the sign-in, bearer-token and webhook ceilings now count an IPv6 caller by its /64,
+  while the audit log keeps the full address.
 - **Three authorization gaps closed.** A key restricted to a repository could export the project whose
   only repository it was, though such a key never sees a project whole; it is now answered as absent there,
   as on its checklists. An administrator could revoke a platform governor's API key,

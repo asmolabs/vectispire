@@ -114,8 +114,27 @@ public final class LoginThrottle {
      */
     public static String userKey(String username) {
         String folded = Normalizer.normalize(username.trim(), Normalizer.Form.NFKD).replaceAll("\\p{M}", "");
-        return "login:user:" + folded.toLowerCase(Locale.ROOT);
+        // Upper then lower: `ß` and `ẞ` become `ss`, which lower-casing alone leaves as they are.
+        String lower = folded.toUpperCase(Locale.ROOT).toLowerCase(Locale.ROOT);
+        StringBuilder key = new StringBuilder(lower.length());
+        lower.codePoints().forEach(c -> key.append(COLLATION_LETTERS.getOrDefault(c, Character.toString(c))));
+        return "login:user:" + key;
     }
+
+    /**
+     * The letters MySQL's {@code utf8mb4_0900_ai_ci} equates with others, which a compatibility
+     * decomposition does not take apart.
+     *
+     * <p><b>Measured on the server, not recalled.</b> The fold above left them alone, and the
+     * collation did not: {@code jeßica} opened {@code jessica} while counting against a counter of its
+     * own, so five failures as {@code jessica} and one more as {@code jeßica} answered 429 when the
+     * account existed and 401 when it did not — the oracle this key exists to close (the audit of 10
+     * October 2026). {@code CollationFoldDatabaseTest} asks the server about each of them, so the
+     * list cannot drift from the collation the installation actually runs.
+     */
+    static final java.util.Map<Integer, String> COLLATION_LETTERS = java.util.Map.of(
+            (int) 'æ', "ae", (int) 'œ', "oe", (int) 'ø', "o", (int) 'ł', "l", (int) 'đ', "d",
+            (int) 'ð', "d", (int) 'ħ', "h", (int) 'ŀ', "l", (int) '·', "");
 
     /**
      * The key for an account that exists, which is the one that counts.
@@ -133,8 +152,11 @@ public final class LoginThrottle {
         return "login:mfa:" + accountId;
     }
 
-    /** Namespaced apart from {@link #userKey}, so a client id cannot borrow a user's budget. */
+    /**
+     * Namespaced apart from {@link #userKey}, so a client id cannot borrow a user's budget. An IPv6
+     * client counts on its /64, see {@link ClientBuckets}.
+     */
     public static String clientKey(String clientId) {
-        return "login:client:" + clientId;
+        return "login:client:" + ClientBuckets.of(clientId);
     }
 }

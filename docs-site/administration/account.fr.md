@@ -62,7 +62,10 @@ le mot de passe peut l'épuiser — si cela vous arrive sans que ce soit vous, c
 Les échecs de mot de passe sont comptés par compte, quelle que soit l'orthographe du nom qui l'a
 ouvert, et par adresse de l'appelant telle que le serveur la résout à travers les
 proxys de confiance (`VECTISPIRE_TRUSTED_PROXIES`, voir l'[installation](../getting-started/installation.fr.md)) ; un `client_id` envoyé par le client n'est
-plus lu. Une connexion réussie remet à zéro le compteur du compte et celui du nom, pas celui de
+plus lu. Un appelant IPv6 compte pour son /64 : un hôte y choisit ses adresses à volonté. Le nom est
+replié comme la base le compare — casse, accents, et les lettres que MySQL tient pour d'autres (`ß` et
+`ss`, `æ` et `ae`…) — si bien qu'aucune orthographe d'un compte n'a son propre compteur. Une connexion
+réussie remet à zéro le compteur du compte et celui du nom, pas celui de
 l'adresse : se connecter à son propre compte n'efface pas les échecs que la même adresse a accumulés
 contre d'autres.
 

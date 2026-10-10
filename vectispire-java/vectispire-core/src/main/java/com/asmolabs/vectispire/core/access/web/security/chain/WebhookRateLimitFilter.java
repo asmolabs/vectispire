@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
+import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
 import com.asmolabs.vectispire.core.access.RateWindows;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import io.github.bucket4j.Bandwidth;
@@ -93,7 +94,7 @@ public class WebhookRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String address = proxies.clientAddress(request);
+        String address = ClientBuckets.of(proxies.clientAddress(request));
         Bucket bucket = buckets.computeIfAbsent(address, ignored -> newBucket());
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (!probe.isConsumed()) {

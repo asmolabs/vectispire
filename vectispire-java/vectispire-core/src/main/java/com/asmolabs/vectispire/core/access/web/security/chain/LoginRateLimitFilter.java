@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
+import com.asmolabs.vectispire.common.domain.auth.ClientBuckets;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -148,7 +149,7 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         if (isLimited(request)) {
-            String clientIp = proxies.clientAddress(request);
+            String clientIp = ClientBuckets.of(proxies.clientAddress(request));
             Bucket bucket = buckets.computeIfAbsent(clientIp, k -> createNewBucket());
 
             ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);

@@ -60,7 +60,10 @@ password can spend it — so if this happens to you and it was not you, change y
 
 Password failures are counted per account, whatever spelling of the username opened it, and per
 caller address as the server resolves it through the trusted proxies (`VECTISPIRE_TRUSTED_PROXIES`, see [installation](../getting-started/installation.md));
-a `client_id` sent by the client is no longer read. A successful sign-in clears the account's count
+a `client_id` sent by the client is no longer read. An IPv6 caller counts as its /64: a host picks its
+addresses within it at will. The name is folded as the database compares it — case, accents, and the
+letters MySQL equates with others (`ß` and `ss`, `æ` and `ae`…) — so no spelling of an account gets a
+counter of its own. A successful sign-in clears the account's count
 and the name's, not the address's: signing in to one's own account does not erase the failures the
 same address made against others.
 
