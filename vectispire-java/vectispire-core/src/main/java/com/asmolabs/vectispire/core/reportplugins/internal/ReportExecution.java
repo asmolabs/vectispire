@@ -24,6 +24,7 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.reportplugins.ProjectExportService;
 import com.asmolabs.vectispire.core.reportplugins.ProjectExportTooLargeException;
 import com.asmolabs.vectispire.core.reportplugins.ReportExecutor;
+import com.asmolabs.vectispire.core.reportplugins.ReportRunTargets;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentEntity;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepository;
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportEntity;
@@ -395,6 +396,7 @@ public class ReportExecution {
                     export == null ? null : ProjectExportSchema.VERSION,
                     export == null ? null : export.sha256(),
                     export == null ? null : (long) export.json().length,
+                    export == null ? null : ReportRunTargets.record(export.targets()),
                     exitCode, outputSize, outputSha256, productVersion.get(),
                     finalMediaType, finalSigningKeyId, finalPacked == null ? null : finalPacked.sha256());
             if (ended != 1) {

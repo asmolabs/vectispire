@@ -8,6 +8,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * One report run (decision 0035 §2): requested for a project, claimed by the control plane's executor, and what
@@ -95,6 +97,11 @@ public class ReportRunEntity {
 
     @Column(name = "export_size")
     private Long exportSize;
+
+    /** {@code ReportRunTargets}' text: what the export carried; null on a run from before V87 (decision 0042). */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "export_targets")
+    private String exportTargets;
 
     @Column(name = "exit_code")
     private Integer exitCode;
@@ -325,6 +332,19 @@ public class ReportRunEntity {
 
     public void setExportSize(Long exportSize) {
         this.exportSize = exportSize;
+    }
+
+    /**
+     * Not on the run's view: the runs are read under the project's rule alone, and the list would name, by id, a
+     * target the reader is not shown (decision 0042 §4).
+     */
+    @JsonIgnore
+    public String getExportTargets() {
+        return exportTargets;
+    }
+
+    public void setExportTargets(String exportTargets) {
+        this.exportTargets = exportTargets;
     }
 
     public Integer getExitCode() {

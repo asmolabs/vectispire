@@ -981,6 +981,14 @@ Rejeté : **une seconde clé pour la sortie des plugins.** Elle garderait une si
 destinataire pourrait prendre pour celle de la plateforme, avec une clé de plus à publier, à renouveler et à
 expliquer ; la provenance dit déjà tout ce que disait le `.sig`, et davantage.
 
+## Amendé le 2026-10-10 : un document est lu par qui voit ce qu'il contient
+
+Le « quiconque peut lire l'exécution » du §4 lisait le projet tel qu'il est au téléchargement, non tel que
+l'export l'a vu : une cible retirée du projet depuis laissait ses constats dans le document pour des lecteurs à
+qui elle n'avait jamais été montrée. L'exécution enregistre désormais les cibles que son export a contenues, et le
+téléchargement comme la route de statut exigent aussi que l'appelant voie chacune d'elles —
+[décision 0042](0042-a-report-document-is-read-by-who-sees-what-it-carried.md).
+
 ## Mise en œuvre, en lots
 
 | Lot | Contenu | Taille |

@@ -79,7 +79,8 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
                    r.manifestDigest = :manifestDigest, r.imageDigest = :imageDigest,
                    r.signerIdentity = :signerIdentity, r.signerIssuer = :signerIssuer,
                    r.signerKeySha256 = :signerKeySha256, r.exportSchemaVersion = :exportSchemaVersion,
-                   r.exportSha256 = :exportSha256, r.exportSize = :exportSize, r.exitCode = :exitCode,
+                   r.exportSha256 = :exportSha256, r.exportSize = :exportSize, r.exportTargets = :exportTargets,
+                   r.exitCode = :exitCode,
                    r.outputSize = :outputSize, r.outputSha256 = :outputSha256, r.productVersion = :productVersion,
                    r.outputMediaType = :outputMediaType, r.signingKeyId = :signingKeyId,
                    r.packageSha256 = :packageSha256
@@ -102,6 +103,7 @@ public interface ReportRunRepository extends JpaRepository<ReportRunEntity, Long
             @Param("exportSchemaVersion") String exportSchemaVersion,
             @Param("exportSha256") String exportSha256,
             @Param("exportSize") Long exportSize,
+            @Param("exportTargets") String exportTargets,
             @Param("exitCode") Integer exitCode,
             @Param("outputSize") Long outputSize,
             @Param("outputSha256") String outputSha256,

@@ -38,6 +38,8 @@ import com.asmolabs.vectispire.core.reportplugins.persistence.ReportDocumentRepo
 import com.asmolabs.vectispire.core.reportplugins.persistence.ReportExportRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -142,6 +144,9 @@ class ReportRunsRoutesTest extends ApiTestBase {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private GitRepositoryRepository repositories;
 
     private String governor;
     private long project;
@@ -697,6 +702,83 @@ class ReportRunsRoutesTest extends ApiTestBase {
 
             assertThat(entries(AuditOperation.REPORT_DOWNLOADED)).as("only the one download that was served")
                     .hasSize(1);
+        }
+
+        /**
+         * A document is evidence of a moment; the project moves after it. Served to whoever sees the project whole
+         * at the download, it handed a repository's findings to a reader the repository was never shown, once the
+         * repository had left the project (decision 0042).
+         */
+        @Test
+        @DisplayName("a target taken out of the project since: the document is absent to a reader who does not see it")
+        void aTargetLeftTheProject() throws Exception {
+            long kept = repository("kept");
+            long dropped = repository("dropped");
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            assertThat(jdbc.queryForObject("select export_targets from t_report_run where id = ?", String.class, runId))
+                    .isEqualTo("repo:" + kept + " repo:" + dropped);
+            String packageSha256 = run(runId).at("/packageSha256").asText();
+
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+            try {
+                String granted = projectReader();
+                download(granted, project, runId).andExpect(status().isOk());
+
+                mvc.perform(authenticated(delete("/api/v1/projects/" + project + "/repositories/" + dropped), asAdmin()))
+                        .andExpect(status().isNoContent());
+                assertThat(detailOf(download(granted, project, runId).andExpect(status().isNotFound()).andReturn()))
+                        .as("the run's own 404: the reader still sees the project whole, as it is now")
+                        .isEqualTo("Report run " + runId + " not found.");
+                assertThat(body(mvc.perform(authenticated(get("/api/v1/report-documents/" + packageSha256), granted))
+                        .andExpect(status().isOk())).at("/standing").asText()).isEqualTo("unknown");
+
+                download(asAdmin(), project, runId).andExpect(status().isOk());
+            } finally {
+                settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.EVERYONE.wireName());
+            }
+        }
+
+        @Test
+        @DisplayName("a run from before its targets were recorded is read by whoever sees everything, and nobody else")
+        void notRecordedIsNotEmpty() throws Exception {
+            repository("only");
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            jdbc.update("update t_report_run set export_targets = null where id = ?", runId);
+
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+            try {
+                assertThat(detailOf(download(projectReader(), project, runId).andExpect(status().isNotFound())
+                        .andReturn())).isEqualTo("Report run " + runId + " not found.");
+                download(asAdmin(), project, runId).andExpect(status().isOk());
+            } finally {
+                settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.EVERYONE.wireName());
+            }
+        }
+
+        /** A repository filed in the project. */
+        private long repository(String name) throws Exception {
+            RepositoryEntity entity = new RepositoryEntity();
+            entity.setUrl("https://example.invalid/" + name + "-" + System.nanoTime() + ".git");
+            entity.setName(name);
+            entity.setBranch("main");
+            long id = repositories.save(entity).getId();
+            mvc.perform(authenticated(put("/api/v1/projects/" + project + "/repositories/" + id), asAdmin()))
+                    .andExpect(status().isNoContent());
+            return id;
+        }
+
+        /** A reader holding the project as such: its targets are what it sees, whichever they are now. */
+        private String projectReader() throws Exception {
+            String username = "granted-" + System.nanoTime();
+            String token = tokenFor(username, Role.USER, false);
+            long userId = users.findByUsername(username).orElseThrow().getId();
+            mvc.perform(authenticated(put("/api/v1/users/" + userId + "/targets"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(List.of(Map.of("kind", "project", "id", project)))))
+                    .andExpect(status().isOk());
+            return token;
         }
 
         @Test

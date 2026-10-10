@@ -203,7 +203,7 @@ class ReportRunQueueIntegrationTest {
     private int finish(long id, String owner) {
         return runs.finish(id, RUNNING, owner, "produced", null, null, AT.plusSeconds(120), "Checkout", AT.plusSeconds(100),
                 "d".repeat(64), "sha256:" + "a".repeat(64), "i".repeat(500), "https://issuer.example", null, "1.0",
-                "e".repeat(64), 12L, 0, 34L, "f".repeat(64), "0.9.0", "m".repeat(120), "k".repeat(64), "p".repeat(64));
+                "e".repeat(64), 12L, "repo:1 container:2", 0, 34L, "f".repeat(64), "0.9.0", "m".repeat(120), "k".repeat(64), "p".repeat(64));
     }
 
     @Test

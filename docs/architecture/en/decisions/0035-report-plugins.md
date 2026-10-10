@@ -897,6 +897,13 @@ Rejected: **a second key for plugin output.** It would keep a raw signature a re
 platform's, with a key to publish, rotate and explain; the provenance already says everything the `.sig`
 said, and more.
 
+## Amended on 2026-10-10: a document is read by who sees what it carried
+
+§4's "whoever may read the run" read the project as it is at the download, not as the export saw it: a target
+taken out of the project since left its findings in the document for readers it was never shown to. The run now
+records the targets its export carried, and the download and the status route also require the caller to see
+each of them — [decision 0042](0042-a-report-document-is-read-by-who-sees-what-it-carried.md).
+
 ## Implementation, in lots
 
 | Lot | Content | Size |

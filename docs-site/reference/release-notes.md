@@ -688,6 +688,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **A report document is read by who sees what it carried.** A document was served to whoever saw the project
+  whole at the download, so a repository taken out of the project after the run left its findings readable by
+  somebody it was never shown to. A run now records the targets its export carried, and the download and the
+  document status route also require the caller to see each of them
+  ([decision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
+  Documents produced before this release recorded none and are read only by somebody who sees everything.
 - **Two ways around the sign-in counters closed.** A name the database's collation equates with an
   account's — `jeßica` for `jessica`, `æ` for `ae` — counted against a counter of its own, so the lockout
   told an existing account from an absent one; the name is now folded as MySQL compares it, checked against

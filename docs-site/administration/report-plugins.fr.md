@@ -216,7 +216,12 @@ en pièce jointe, `X-Content-Type-Options: nosniff`, sous `Content-Security-Poli
 
 `GET /api/v1/projects/{id}/reports/{runId}/document` télécharge le **paquet** d'une exécution produite, un zip
 nommé `report-<exécution>-<plugin>.zip`, pour quiconque voit le projet entier — ceux qui peuvent lire
-l'exécution. Journalisé `REPORT_DOWNLOADED`. Il contient deux fichiers :
+l'exécution — **et chacune des cibles que son export a contenues**. L'exécution les enregistre à sa fin : un dépôt
+retiré du projet depuis garde ses constats dans le document, si bien qu'un lecteur qui ne le voit pas reçoit la
+réponse d'une exécution qui n'existe pas
+([décision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
+Un document produit avant 0.11.0 n'en a enregistré aucune, et n'est lu que par qui voit tout.
+Journalisé `REPORT_DOWNLOADED`. Il contient deux fichiers :
 
 | Fichier | Ce que c'est |
 |---|---|
@@ -303,9 +308,9 @@ curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" \
 | `unknown` | Rien de ce que vous pouvez voir n'a cette empreinte. |
 
 **Qui reçoit une réponse.** Tout compte connecté — pas de clé d'intégration —, au sujet des documents des
-projets qu'il voit en entier, images comprises : ceux qui peuvent lire les exécutions. **Un document d'un projet
-que vous ne voyez pas en entier, d'un projet supprimé, et une empreinte jamais produite ici répondent tous
-`unknown`, dans les mêmes mots** : une réponse distincte pour « existe, mais pas pour vous » dirait à
+projets qu'il voit en entier, images comprises, et dont il voit chaque cible enregistrée : ceux qui peuvent les
+télécharger. **Un document d'un projet que vous ne voyez pas en entier, d'une cible que vous ne voyez pas, d'un
+projet supprimé, et une empreinte jamais produite ici répondent tous `unknown`, dans les mêmes mots** : une réponse distincte pour « existe, mais pas pour vous » dirait à
 quiconque en détient une copie de quel projet il vient. Un détenteur sans ce droit demande à quelqu'un qui l'a.
 
 `productions` liste les exécutions qui l'ont produit, de la plus récente à la plus ancienne : une pour un

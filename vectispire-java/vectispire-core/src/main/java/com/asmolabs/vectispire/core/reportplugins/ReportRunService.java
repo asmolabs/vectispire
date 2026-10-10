@@ -206,12 +206,16 @@ public class ReportRunService {
      * the response and the run say that the installation no longer stands by it (0035 §4).
      *
      * @throws NotFoundException "Project not found." for a project absent, hidden or seen only in part; then the
-     *     run's 404, a run that produced no document, or a document purged past the evidence window
+     *     run's 404 — for a run absent and for one whose export carried a target the caller does not see, alike —,
+     *     a run that produced no document, or a document purged past the evidence window
      */
     public ReportDocumentDownload document(long projectId, long runId, VisibilityService.Allowance allowance,
             RequestActor actor) {
         ReportPluginService.requireWholeProject(projects, projectId, allowance);
+        // The run's 404 too for a reader who does not see every target its export carried: the project may have
+        // dropped one since, and its findings are in the document (decision 0042).
         ReportRunEntity run = runs.findByIdAndProjectId(runId, projectId)
+                .filter(found -> ReportRunTargets.seenBy(found.getExportTargets(), allowance))
                 .orElseThrow(() -> new NotFoundException("Report run " + runId + " not found."));
         ReportRunState state = ReportRunState.ofStored(run.getState());
         if (state != ReportRunState.PRODUCED) {

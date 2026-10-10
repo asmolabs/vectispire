@@ -240,7 +240,8 @@ public class ProjectExportService {
             ProjectExportBounds bounds) {
         Built built = reading.execute(status -> build(projectId, requester, allowance, locale, bounds));
         return new RunExport(built.projectName(), built.json(), Digests.sha256Hex(built.json()), built.issueCount(),
-                built.componentCount(), built.about().id(), built.about().generatedAt(), built.about().requester());
+                built.componentCount(), built.about().id(), built.about().generatedAt(), built.about().requester(),
+                built.targets());
     }
 
     /**
@@ -249,9 +250,16 @@ public class ProjectExportService {
      * @param exportId the export's own identifier, as {@code export.id} states it
      * @param requester the requester as the export names them — by display name, never an e-mail address — which
      *     the package's provenance repeats
+     * @param targets every target the export was built over, which the run records so that its document is read
+     *     by those who see them, not by whoever sees the project later (decision 0042)
      */
     public record RunExport(String projectName, byte[] json, String sha256, int issueCount, int componentCount,
-            String exportId, Instant generatedAt, ProjectExport.Person requester) {}
+            String exportId, Instant generatedAt, ProjectExport.Person requester, List<ScanTarget> targets) {
+
+        public RunExport {
+            targets = List.copyOf(targets);
+        }
+    }
 
     /** The requester's locale as a run keeps it: {@link #locale}, or nothing past a BCP 47 tag's usual length. */
     static String runLocale(String acceptLanguage) {
@@ -260,8 +268,8 @@ public class ProjectExportService {
     }
 
     /** The export's bytes and what the audit entry says of them. */
-    private record Built(
-            String projectName, byte[] json, int issueCount, int componentCount, ProjectExport.About about) {}
+    private record Built(String projectName, byte[] json, int issueCount, int componentCount,
+            ProjectExport.About about, List<ScanTarget> targets) {}
 
     private Built build(long projectId, UserView requester, VisibilityService.Allowance allowance, String locale,
             ProjectExportBounds bounds) {
@@ -342,7 +350,10 @@ public class ProjectExportService {
             }
             throw new IllegalStateException("A project export could not be written.", failed);
         }
-        return new Built(whole.name(), buffer.toByteArray(), unresolved.size(), merged.components().size(), about);
+        // `filed`, the project's every target: the scope was refused above unless the caller saw them all, so the
+        // export was built over exactly these.
+        return new Built(whole.name(), buffer.toByteArray(), unresolved.size(), merged.components().size(), about,
+                filed);
     }
 
     /**

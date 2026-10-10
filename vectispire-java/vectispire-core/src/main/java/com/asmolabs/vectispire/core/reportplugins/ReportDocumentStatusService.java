@@ -86,6 +86,8 @@ public class ReportDocumentStatusService {
         Map<Long, Boolean> seenWhole = new HashMap<>();
         List<ReportRunEntity> visible = produced.stream()
                 .filter(run -> seenWhole.computeIfAbsent(run.getProjectId(), id -> seesWhole(id, allowance)))
+                // The download's second rule, so that this route does not vouch for a document that one refuses.
+                .filter(run -> ReportRunTargets.seenBy(run.getExportTargets(), allowance))
                 .toList();
         if (visible.isEmpty()) {
             return new ReportDocumentStatusView(digest, ReportDocumentStanding.UNKNOWN, List.of());

@@ -205,7 +205,11 @@ the file is served: always as an attachment, `X-Content-Type-Options: nosniff`, 
 ## The document, and how to verify it
 
 `GET /api/v1/projects/{id}/reports/{runId}/document` downloads a produced run's **package**, a zip named
-`report-<run>-<plugin>.zip`, to anybody who sees the whole project — the people who may read the run.
+`report-<run>-<plugin>.zip`, to anybody who sees the whole project — the people who may read the run — **and
+every target its export carried**. The run records them when it ends: a repository taken out of the project since
+keeps its findings in the document, so a reader who does not see it is answered as for a run that does not exist
+([decision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
+A document produced before 0.11.0 recorded none, and is read only by somebody who sees everything.
 Audited `REPORT_DOWNLOADED`. It holds two files:
 
 | File | What it is |
@@ -290,8 +294,9 @@ curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" \
 | `unknown` | Nothing you may see has that digest. |
 
 **Who is answered.** Any signed-in account — no integration key —, about the documents of the projects it sees
-whole, images included: the people who may read the runs. **A document of a project you do not see whole, of a
-deleted project, and a digest never produced here all answer `unknown`, in the same words**: a different answer
+whole, images included, and whose every recorded target it sees — the people who may download them. **A document
+of a project you do not see whole, of a target you do not see, of a deleted project, and a digest never produced
+here all answer `unknown`, in the same words**: a different answer
 for "exists, but not yours" would tell anybody holding a copy which project it came from. A holder without that
 grant asks somebody who has it.
 

@@ -744,6 +744,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Un document de rapport est lu par qui voit ce qu'il contient.** Un document était servi à quiconque voyait
+  le projet entier au moment du téléchargement : un dépôt retiré du projet après l'exécution laissait ses
+  constats lisibles par quelqu'un à qui il n'avait jamais été montré. Une exécution enregistre désormais les
+  cibles que son export a contenues, et le téléchargement comme la route de statut d'un document exigent aussi
+  que l'appelant voie chacune d'elles
+  ([décision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
+  Les documents produits avant cette version n'en ont enregistré aucune et ne sont lus que par qui voit tout.
 - **Deux contournements des compteurs de connexion fermés.** Un nom que la collation de la base confond
   avec celui d'un compte — `jeßica` pour `jessica`, `æ` pour `ae` — comptait sur un compteur à lui, si bien
   que le verrouillage distinguait un compte existant d'un compte absent ; le nom est désormais replié comme
