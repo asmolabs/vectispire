@@ -31,13 +31,16 @@ import org.bouncycastle.crypto.signers.Ed25519Signer;
  *
  * <h2>What is signed</h2>
  *
- * <p>{@code sha256("vectispire:agent-sealing-key:v1" ‖ agentId ‖ generation ‖ sha256(key))},
+ * <p>{@code sha256("vectispire:agent-sealing-key:v2" ‖ agentId ‖ generation ‖ sha256(key))},
  * separated by {@link Digests#SEPARATOR}, and each part is there for a reason:
  *
  * <ul>
  *   <li><b>Its own context string</b>, distinct from the result's. The same Ed25519 key signs both,
  *       and without it a result signature could be presented as a key announcement or the reverse:
  *       the two messages are then digests of different prefixes, and one cannot stand for the other.
+ *       Its version is the envelope format the agent opens: {@code v2} vouches that it opens only
+ *       envelopes bound to what they carry ({@link SealedEnvelope.Context}). An agent signing
+ *       {@code v1} opened envelopes bound to nothing, and is handed no credential.
  *   <li><b>The agent's id</b>, so an announcement made for one agent cannot be replayed onto
  *       another that an operator configured with the same signing key.
  *   <li><b>The generation</b> — the time the pair was made, in epoch milliseconds — so an old
@@ -52,7 +55,10 @@ import org.bouncycastle.crypto.signers.Ed25519Signer;
 public final class SealingKeyAttestation {
 
     /** Separates this signature from the result attestation made with the same key. */
-    private static final byte[] CONTEXT = "vectispire:agent-sealing-key:v1".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] CONTEXT = "vectispire:agent-sealing-key:v2".getBytes(StandardCharsets.UTF_8);
+
+    /** What an agent from before bound envelopes signed: recognised to name it, never accepted. */
+    private static final byte[] PREVIOUS_CONTEXT = "vectispire:agent-sealing-key:v1".getBytes(StandardCharsets.UTF_8);
 
     private static final int SEED_LENGTH_BYTES = Ed25519PrivateKeyParameters.KEY_SIZE;
     private static final int PUBLIC_LENGTH_BYTES = Ed25519PublicKeyParameters.KEY_SIZE;
@@ -71,7 +77,7 @@ public final class SealingKeyAttestation {
         byte[] seed = ResultAttestation.decode(base64PrivateKey, SEED_LENGTH_BYTES)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "The configured result-signing key is not 32 bytes of base64."));
-        byte[] message = message(agentId, generation, sealingPublicKey)
+        byte[] message = message(CONTEXT, agentId, generation, sealingPublicKey)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Only a usable X25519 key, a known agent and a positive generation can be signed."));
 
@@ -87,9 +93,31 @@ public final class SealingKeyAttestation {
      */
     public static boolean verify(
             String base64PublicKey, UUID agentId, long generation, String sealingPublicKey, String base64Signature) {
+        return verify(CONTEXT, base64PublicKey, agentId, generation, sealingPublicKey, base64Signature);
+    }
+
+    /**
+     * Whether a refused announcement was signed by an agent from before bound envelopes.
+     *
+     * <p>Asked only once {@link #verify} has refused, and only to name the cause in the refusal: an
+     * agent that has not been updated is not somebody forging an announcement, and the operator's
+     * fix is a deployment. It is never a reason to accept.
+     */
+    public static boolean signedByAPreviousAgent(
+            String base64PublicKey, UUID agentId, long generation, String sealingPublicKey, String base64Signature) {
+        return verify(PREVIOUS_CONTEXT, base64PublicKey, agentId, generation, sealingPublicKey, base64Signature);
+    }
+
+    private static boolean verify(
+            byte[] context,
+            String base64PublicKey,
+            UUID agentId,
+            long generation,
+            String sealingPublicKey,
+            String base64Signature) {
         Optional<byte[]> key = ResultAttestation.decode(base64PublicKey, PUBLIC_LENGTH_BYTES);
         Optional<byte[]> signature = ResultAttestation.decode(base64Signature, SIGNATURE_LENGTH_BYTES);
-        Optional<byte[]> message = message(agentId, generation, sealingPublicKey);
+        Optional<byte[]> message = message(context, agentId, generation, sealingPublicKey);
         if (key.isEmpty() || signature.isEmpty() || message.isEmpty()) {
             return false;
         }
@@ -106,13 +134,13 @@ public final class SealingKeyAttestation {
     }
 
     /** Empty when there is nothing a signature could honestly cover. */
-    private static Optional<byte[]> message(UUID agentId, long generation, String sealingPublicKey) {
+    private static Optional<byte[]> message(byte[] context, UUID agentId, long generation, String sealingPublicKey) {
         if (agentId == null || generation <= 0 || !SealedEnvelope.isUsablePublicKey(sealingPublicKey)) {
             return Optional.empty();
         }
         byte[] separator = {(byte) Digests.SEPARATOR};
         return Optional.of(Digests.sha256(
-                CONTEXT,
+                context,
                 separator,
                 // The canonical, lower-case spelling: both sides hold a UUID, not the string they
                 // were handed, so an upper-case id on the wire cannot make them sign different bytes.

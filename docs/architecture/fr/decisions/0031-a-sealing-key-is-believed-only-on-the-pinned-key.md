@@ -134,3 +134,48 @@ agents plus anciens, les agents `local` compris.
 [0003](0003-long-polling-for-agents.md) disait qu'une clé est scellée « vers la clé publique que
 l'agent a annoncée à l'enrôlement ». Elle n'est plus scellée que pour une clé dont la clé de signature
 épinglée de l'agent s'est portée garante.
+
+## Amendement — 2026-10-10 : l'enveloppe est liée à ce qu'elle transporte
+
+**Ce que cette décision affirmait et ne tenait pas.** « Le scellement sort un proxy qui termine TLS de
+la frontière de confiance » n'était assuré que dans un sens : la clé que l'agent annonce. Dans l'autre,
+un jeton HTTPS était scellé seul, son hôte et son nom d'utilisateur voyageant à côté, en clair (la
+décision [0022](0022-https-clone-tokens-are-bound-to-a-host.md) lie le clone à *cet* hôte). Le proxy
+que cette décision exclut pouvait réécrire l'hôte et l'URL de clone, laisser l'enveloppe intacte, et
+recevoir le jeton de l'agent qui l'ouvrait. L'enveloppe d'une clé de déploiement déplacée dans le champ
+du jeton partait de la même façon, comme mot de passe. Un clone redirigé ne révèle pas une clé SSH ; il
+révèle un jeton.
+
+**Décision.**
+
+1. **Chaque enveloppe est scellée sous un contexte**, authentifié par GCM avec la clé de l'émetteur :
+   `deployment-key`, ou `https-token` avec l'hôte et le nom d'utilisateur, chacun préfixé de sa
+   longueur. L'agent n'ouvre un jeton que sous l'hôte et le nom d'utilisateur avec lesquels il est
+   arrivé, ceux-là mêmes auxquels le clone le lie : un hôte réécrit laisse une enveloppe qui ne s'ouvre
+   pas. Le format devient `sealed:v2:` (info HKDF `…:v2`), et une enveloppe `sealed:v1:` est refusée en
+   le nommant — « un plan de contrôle plus ancien que cet agent ».
+2. **L'agent se porte garant du format dans son annonce signée.** Le contexte de l'attestation devient
+   `vectispire:agent-sealing-key:v2`. Un agent antérieur signe `…:v1` ; le plan de contrôle le refuse
+   comme toute annonce qui ne se vérifie pas (403, `AGENT_SEALING_KEY_REFUSED`), et ne vérifie
+   l'énoncé v1 que pour nommer la cause dans l'entrée d'audit — *older than this control plane … Update
+   the agent* —, jamais pour l'accepter.
+3. **V86 oublie toutes les clés de scellement acceptées jusqu'ici**, comme V40 : aucune ne garantissait
+   le nouveau format, et en garder une scellerait pour un agent incapable d'ouvrir ce qu'on lui envoie.
+   Un agent à jour annonce de nouveau à son démarrage.
+
+**Compatibilité.** Le contrat d'agent reste `1`, pour la raison donnée plus haut : un agent plus ancien
+se voit refuser un secret explicitement, et tout le reste de son comportement est inchangé.
+
+| Agent | Plan de contrôle | Résultat |
+|---|---|---|
+| 0.11.0 | 0.11.0 | secrets scellés sous leur contexte |
+| plus ancien | 0.11.0 | `hello`, scans d'images et `local` fonctionnent ; sa clé de scellement est refusée en le nommant, secrets délégués retenus (412) |
+| 0.11.0 | plus ancien | son annonce v2 ne s'y vérifie pas ; secrets délégués retenus ; s'il en recevait un scellé en v1, l'agent le refuserait en le nommant |
+
+**Rejeté.** *Relever le contrat d'agent* refuse d'emblée le `hello` des agents plus anciens, scans
+d'images et agents `local` compris, pour une propriété dont seuls les secrets délégués ont besoin.
+*Vérifier l'hôte à côté de l'enveloppe*, c'est le contrôle qui manquait ; une liaison à l'intérieur de
+l'authentification ne peut pas être oubliée par un appelant. *Signer chaque tâche avec une clé du plan
+de contrôle épinglée sur l'agent* authentifierait toute l'affectation et serait la réponse la plus
+forte, mais c'est une seconde clé à provisionner par installation ; elle reste ouverte pour le jour où
+une tâche transportera un autre secret.

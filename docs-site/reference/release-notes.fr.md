@@ -9,7 +9,7 @@ encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 
 
 Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la nouvelle image démarre.
 
-- **Sauvegardez la base.** Les migrations V65 à V84 s'exécutent au démarrage et n'ont pas de retour
+- **Sauvegardez la base.** Les migrations V65 à V86 s'exécutent au démarrage et n'ont pas de retour
   arrière : revenir à 0.10.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
   ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
 - **Prévenez les équipes que leurs notes vont baisser.** La formule du score compte les moyennes, les
@@ -30,6 +30,10 @@ Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la no
   interrogez la barrière ; repérez avant la mise à niveau, dans la vue d'ensemble Sécurité, les cibles
   marquées jamais analysées ou dernier scan échoué : chacun de leurs pipelines passera au rouge (*La
   barrière refuse une cible que personne n'a examinée*, plus bas).
+- **Mettez à jour chaque agent `delegated` avec le plan de contrôle.** Les secrets sont désormais
+  scellés liés à ce qu'ils transportent, et un agent antérieur à la 0.11.0 n'en reçoit aucun : sa clé de
+  scellement est refusée, et ses scans de dépôts portant une clé ou un jeton attendent un exécutant
+  capable de les mener ([agents](../administration/agents.fr.md#before-delegating-credentials-pin-the-signing-key)).
 
 ### Changements visibles d'une intégration
 
@@ -689,6 +693,12 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 ### Corrigé
 
+- **Un jeton HTTPS scellé pour un agent est lié à son hôte et à son nom d'utilisateur, et une clé de
+  déploiement à sa nature.** Le jeton était scellé seul, son hôte voyageant à côté : l'enveloppe restait
+  valable quel que soit l'hôte associé. L'agent ne l'ouvre plus que sous l'hôte et le nom d'utilisateur
+  pour lesquels elle a été scellée, et refuse le scan sinon. Le format d'enveloppe est `sealed:v2:` et
+  l'agent s'en porte garant dans l'annonce signée de sa clé de scellement ; la migration V86 oublie les
+  clés de scellement acceptées auparavant, que chaque agent à jour annonce de nouveau à son démarrage.
 - **Un dépôt sans rapport OWASP le dit.** La carte affichait *Aucun constat classé dans cette
   section*, qui se lit comme un rapport n'ayant rien trouvé ; et tout échec de lecture, une 500 comprise,
   s'affichait comme une absence de rapport. Seule une 404 veut désormais dire « pas encore de rapport » ;

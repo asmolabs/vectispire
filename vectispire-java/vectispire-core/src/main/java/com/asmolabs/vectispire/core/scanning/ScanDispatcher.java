@@ -306,16 +306,22 @@ public class ScanDispatcher {
                     queue.requeueRefunded(scan.getId(), agent.id().toString());
                     throw withheld(agent);
                 }
-                // The token is sealed exactly as the key is (decision 0022); its host and user
-                // name are not secrets and travel in the clear, so the agent can enforce the
-                // binding before opening anything. Each is sealed on its own: the screens refuse a
-                // repository with both, but a row that has both must not see one leave in the clear.
+                // The token is sealed exactly as the key is (decision 0022). Its host and user name
+                // are not secrets and travel in the clear, but **sealed under them**: they used to
+                // travel beside the envelope only, and a TLS-terminating proxy rewrote the host,
+                // left the envelope alone, and received the token. Bound, a rewritten host no
+                // longer opens it. Each is sealed on its own: the screens refuse a repository with
+                // both, but a row that has both must not see one leave in the clear.
                 if (privateKey != null) {
-                    task = withPrivateKey(task, envelopes.seal(sealingKey, privateKey));
+                    task = withPrivateKey(task, envelopes.seal(
+                            sealingKey, privateKey, SealedEnvelope.Context.deploymentKey()));
                 }
                 if (https != null) {
                     task = withHttps(task, new ScanTask.Target.HttpsCredential(
-                            https.host(), https.username(), envelopes.seal(sealingKey, https.token())));
+                            https.host(),
+                            https.username(),
+                            envelopes.seal(sealingKey, https.token(),
+                                    SealedEnvelope.Context.httpsToken(https.host(), https.username()))));
                 }
                 recordCredentialSent(agent, scan, "sealed for the agent's verified sealing key");
             }

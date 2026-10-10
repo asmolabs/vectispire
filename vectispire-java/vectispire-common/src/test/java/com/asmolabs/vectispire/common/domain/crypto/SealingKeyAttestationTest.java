@@ -39,9 +39,38 @@ class SealingKeyAttestationTest {
     @Test
     @DisplayName("the signature covers exactly context ‖ agent id ‖ generation ‖ sha256(key bytes)")
     void theExactBytes() throws Exception {
+        String independent = signedIndependently("vectispire:agent-sealing-key:v2");
+
+        assertThat(SealingKeyAttestation.verify(signing.publicKey(), AGENT, GENERATION, sealing, independent)).isTrue();
+        // Ed25519 is deterministic: the class signs the same bytes, not merely bytes that verify.
+        assertThat(SealingKeyAttestation.sign(signing.privateKey(), AGENT, GENERATION, sealing)).isEqualTo(independent);
+    }
+
+    /**
+     * An agent from before envelopes were bound to what they carry signed the v1 statement. It is
+     * refused — its envelopes opened under any host — and recognised, so the refusal names an
+     * update rather than a forgery.
+     */
+    @Test
+    @DisplayName("an announcement signed as v1 is refused, and recognised as an older agent's")
+    void aPreviousAgentsAnnouncementIsRefusedAndRecognised() throws Exception {
+        String previous = signedIndependently("vectispire:agent-sealing-key:v1");
+
+        assertThat(SealingKeyAttestation.verify(signing.publicKey(), AGENT, GENERATION, sealing, previous)).isFalse();
+        assertThat(SealingKeyAttestation.signedByAPreviousAgent(signing.publicKey(), AGENT, GENERATION, sealing, previous))
+                .isTrue();
+
+        // And a current one is not mistaken for it.
+        String current = SealingKeyAttestation.sign(signing.privateKey(), AGENT, GENERATION, sealing);
+        assertThat(SealingKeyAttestation.signedByAPreviousAgent(signing.publicKey(), AGENT, GENERATION, sealing, current))
+                .isFalse();
+    }
+
+    /** The statement rebuilt from outside the class, with the JDK's SHA-256 and BouncyCastle's signer. */
+    private String signedIndependently(String context) throws Exception {
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
         ByteArrayOutputStream message = new ByteArrayOutputStream();
-        message.writeBytes("vectispire:agent-sealing-key:v1".getBytes(StandardCharsets.UTF_8));
+        message.writeBytes(context.getBytes(StandardCharsets.UTF_8));
         message.write(0);
         message.writeBytes("7f3c2a10-4b5d-4e6f-8a9b-0c1d2e3f4a5b".getBytes(StandardCharsets.UTF_8));
         message.write(0);
@@ -53,11 +82,7 @@ class SealingKeyAttestationTest {
         Ed25519Signer signer = new Ed25519Signer();
         signer.init(true, new Ed25519PrivateKeyParameters(Base64.getDecoder().decode(signing.privateKey()), 0));
         signer.update(digest, 0, digest.length);
-        String independent = Base64.getEncoder().encodeToString(signer.generateSignature());
-
-        assertThat(SealingKeyAttestation.verify(signing.publicKey(), AGENT, GENERATION, sealing, independent)).isTrue();
-        // Ed25519 is deterministic: the class signs the same bytes, not merely bytes that verify.
-        assertThat(SealingKeyAttestation.sign(signing.privateKey(), AGENT, GENERATION, sealing)).isEqualTo(independent);
+        return Base64.getEncoder().encodeToString(signer.generateSignature());
     }
 
     @Test

@@ -270,9 +270,16 @@ public class AgentProtocolService {
         }
 
         if (!SealingKeyAttestation.verify(pinned, agent.id(), generation, key, announcement.signature())) {
+            // Still a refusal, and still audited — but named. An agent from before envelopes were
+            // bound to what they carry signs the previous statement; the operator's fix is to
+            // update it, not to look for whoever forged an announcement.
+            String cause = SealingKeyAttestation.signedByAPreviousAgent(
+                            pinned, agent.id(), generation, key, announcement.signature())
+                    ? "it was signed by an agent older than this control plane, which opens envelopes bound to "
+                            + "nothing. Update the agent."
+                    : "its signature does not verify against the pinned signing key.";
             recordSealingKey(AuditOperation.AGENT_SEALING_KEY_REFUSED, agent, origin,
-                    "Sealing key refused for agent \"" + agent.name() + "\": its signature does not verify against "
-                            + "the pinned signing key. No credential is sealed for it.");
+                    "Sealing key refused for agent \"" + agent.name() + "\": " + cause + " No credential is sealed for it.");
             return new SealingKey.NotVerified();
         }
 

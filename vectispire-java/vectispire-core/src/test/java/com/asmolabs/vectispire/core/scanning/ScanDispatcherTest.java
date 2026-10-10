@@ -170,7 +170,7 @@ class ScanDispatcherTest {
 
         String delivered = repositoryTarget(task).privateKey();
         assertThat(SealedEnvelope.isSealed(delivered)).isTrue();
-        assertThat(envelopes.open(recipient, delivered)).contains(PRIVATE_KEY);
+        assertThat(envelopes.open(recipient, delivered, SealedEnvelope.Context.deploymentKey())).contains(PRIVATE_KEY);
     }
 
     /**
@@ -284,8 +284,8 @@ class ScanDispatcherTest {
         ScanTask.Target.Repository target = repositoryTarget(
                 dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey())).orElseThrow().task());
 
-        assertThat(envelopes.open(recipient, target.privateKey())).contains(PRIVATE_KEY);
-        assertThat(envelopes.open(recipient, target.https().token())).contains("glpat-secret");
+        assertThat(envelopes.open(recipient, target.privateKey(), SealedEnvelope.Context.deploymentKey())).contains(PRIVATE_KEY);
+        assertThat(envelopes.open(recipient, target.https().token(), SealedEnvelope.Context.httpsToken(target.https().host(), target.https().username()))).contains("glpat-secret");
     }
 
     @Test
@@ -640,7 +640,11 @@ class ScanDispatcherTest {
         ScanTask.Target.HttpsCredential https = repositoryTarget(task).https();
         assertThat(https.host()).isEqualTo("gitlab.example.com");
         assertThat(SealedEnvelope.isSealed(https.token())).isTrue();
-        assertThat(envelopes.open(recipient, https.token())).contains("glpat-secret");
+        assertThat(envelopes.open(recipient, https.token(), SealedEnvelope.Context.httpsToken(https.host(), https.username()))).contains("glpat-secret");
+        // Sealed under its host: the same envelope beside another host opens to nothing, which is
+        // what keeps a proxy that rewrites the host from receiving the token.
+        assertThat(envelopes.open(recipient, https.token(), SealedEnvelope.Context.httpsToken("attacker.example", https.username())))
+                .isEmpty();
     }
 
     @Test
@@ -855,12 +859,12 @@ class ScanDispatcherTest {
         ScanTask.Target.Repository target = repositoryTarget(delivered);
         ScanTask.Target.Repository expected = repositoryTarget(clear);
         if (expected.privateKey() != null) {
-            assertThat(envelopes.open(recipient, target.privateKey())).contains(PRIVATE_KEY);
+            assertThat(envelopes.open(recipient, target.privateKey(), SealedEnvelope.Context.deploymentKey())).contains(PRIVATE_KEY);
         } else {
             assertThat(target.privateKey()).isNull();
         }
         if (expected.https() != null) {
-            assertThat(envelopes.open(recipient, target.https().token())).contains("glpat-secret");
+            assertThat(envelopes.open(recipient, target.https().token(), SealedEnvelope.Context.httpsToken(target.https().host(), target.https().username()))).contains("glpat-secret");
         } else {
             assertThat(target.https()).isNull();
         }

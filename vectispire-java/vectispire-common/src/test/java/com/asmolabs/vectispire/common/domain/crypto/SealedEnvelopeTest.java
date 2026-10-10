@@ -34,15 +34,17 @@ class SealedEnvelopeTest {
 
     private final SealedEnvelope envelopes = new SealedEnvelope();
 
+    private static final SealedEnvelope.Context KEY = SealedEnvelope.Context.deploymentKey();
+
     @Test
     void sealsAndOpensForTheIntendedRecipient() {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
 
         String testSecret = "test-envelope-secret-payload";
-        String sealed = envelopes.seal(agent.publicKey(), testSecret);
+        String sealed = envelopes.seal(agent.publicKey(), testSecret, KEY);
 
         assertThat(sealed).startsWith(SealedEnvelope.PREFIX);
-        assertThat(envelopes.open(agent, sealed)).contains(testSecret);
+        assertThat(envelopes.open(agent, sealed, KEY)).contains(testSecret);
     }
 
     @Test
@@ -50,9 +52,9 @@ class SealedEnvelopeTest {
         SealedEnvelope.KeyPair intended = envelopes.generateKeyPair();
         SealedEnvelope.KeyPair eavesdropper = envelopes.generateKeyPair();
 
-        String sealed = envelopes.seal(intended.publicKey(), "deployment key");
+        String sealed = envelopes.seal(intended.publicKey(), "deployment key", KEY);
 
-        assertThat(envelopes.open(eavesdropper, sealed)).isEmpty();
+        assertThat(envelopes.open(eavesdropper, sealed, KEY)).isEmpty();
     }
 
     @Test
@@ -61,24 +63,24 @@ class SealedEnvelopeTest {
 
         // One ephemeral pair per envelope: identical plaintexts must not produce identical
         // ciphertexts, or the traffic tells an observer which repositories share a key.
-        assertThat(envelopes.seal(agent.publicKey(), "same")).isNotEqualTo(envelopes.seal(agent.publicKey(), "same"));
+        assertThat(envelopes.seal(agent.publicKey(), "same", KEY)).isNotEqualTo(envelopes.seal(agent.publicKey(), "same", KEY));
     }
 
     @Test
     void refusesAnEnvelopeWhoseCiphertextWasAltered() {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
-        String sealed = envelopes.seal(agent.publicKey(), "deployment key");
+        String sealed = envelopes.seal(agent.publicKey(), "deployment key", KEY);
 
         byte[] payload = Base64.getDecoder().decode(sealed.substring(SealedEnvelope.PREFIX.length()));
         payload[payload.length - 1] ^= 0x01;
 
-        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + Base64.getEncoder().encodeToString(payload))).isEmpty();
+        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + Base64.getEncoder().encodeToString(payload), KEY)).isEmpty();
     }
 
     @Test
     void refusesAnEnvelopeWhoseEphemeralKeyWasReplaced() {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
-        String sealed = envelopes.seal(agent.publicKey(), "deployment key");
+        String sealed = envelopes.seal(agent.publicKey(), "deployment key", KEY);
 
         byte[] payload = Base64.getDecoder().decode(sealed.substring(SealedEnvelope.PREFIX.length()));
         byte[] otherEphemeral = Base64.getDecoder().decode(envelopes.generateKeyPair().publicKey());
@@ -94,7 +96,7 @@ class SealedEnvelopeTest {
         // assertion and a useless assertion about the AAD, which is exactly the shape an audit
         // found on 30 August: mutate the AAD away and only the pinned golden vector objected —
         // and it objected to the *format* changing, not to the binding being gone.
-        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + Base64.getEncoder().encodeToString(payload))).isEmpty();
+        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + Base64.getEncoder().encodeToString(payload), KEY)).isEmpty();
     }
 
     /**
@@ -117,7 +119,7 @@ class SealedEnvelopeTest {
     @Test
     void bindsTheEphemeralKeyIntoTheTagAndNotMerelyIntoTheSessionKey() throws Exception {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
-        String sealed = envelopes.seal(agent.publicKey(), "deployment key");
+        String sealed = envelopes.seal(agent.publicKey(), "deployment key", KEY);
 
         byte[] payload = Base64.getDecoder().decode(sealed.substring(SealedEnvelope.PREFIX.length()));
 
@@ -145,13 +147,22 @@ class SealedEnvelopeTest {
         hkdf.init(new HKDFParameters(
                 shared,
                 sha256.digest(),
-                "vectispire:sealed-envelope:v1".getBytes(StandardCharsets.UTF_8)));
+                "vectispire:sealed-envelope:v2".getBytes(StandardCharsets.UTF_8)));
         byte[] sessionKey = new byte[32];
         hkdf.generateBytes(sessionKey, 0, sessionKey.length);
 
-        // With the ephemeral key as associated data, the tag verifies and the secret comes back.
-        assertThat(new String(decrypt(sessionKey, nonce, body, ephemeralPublic), StandardCharsets.UTF_8))
+        // The associated data is the ephemeral key, then the context — restated, not borrowed.
+        byte[] associated = org.bouncycastle.util.Arrays.concatenate(
+                ephemeralPublic, "deployment-key".getBytes(StandardCharsets.UTF_8));
+
+        // With both as associated data, the tag verifies and the secret comes back.
+        assertThat(new String(decrypt(sessionKey, nonce, body, associated), StandardCharsets.UTF_8))
                 .isEqualTo("deployment key");
+
+        // The ephemeral key alone — the v1 construction — no longer verifies: the context is in
+        // the tag, not beside it.
+        assertThatThrownBy(() -> decrypt(sessionKey, nonce, body, ephemeralPublic))
+                .isInstanceOf(InvalidCipherTextException.class);
 
         // Same key, same nonce, same bytes — only the associated data removed. If the AAD is not
         // in the tag this succeeds too, and the protection the class documents does not exist.
@@ -159,7 +170,9 @@ class SealedEnvelopeTest {
                 .isInstanceOf(InvalidCipherTextException.class);
 
         // And it is bound to *this* key, not merely to some non-empty value.
-        byte[] otherEphemeral = Base64.getDecoder().decode(envelopes.generateKeyPair().publicKey());
+        byte[] otherEphemeral = org.bouncycastle.util.Arrays.concatenate(
+                Base64.getDecoder().decode(envelopes.generateKeyPair().publicKey()),
+                "deployment-key".getBytes(StandardCharsets.UTF_8));
         assertThatThrownBy(() -> decrypt(sessionKey, nonce, body, otherEphemeral))
                 .isInstanceOf(InvalidCipherTextException.class);
     }
@@ -175,21 +188,65 @@ class SealedEnvelopeTest {
         return java.util.Arrays.copyOf(out, written);
     }
 
+    /**
+     * A token opens only under the host and user name it was sealed for.
+     *
+     * <p>The audit of 10 October 2026: the host travelled in the clear beside an envelope that did
+     * not name it, so a TLS-terminating proxy rewrote the host and the agent sent it the token.
+     */
+    @Test
+    void aTokenOpensOnlyForTheHostAndUserItWasSealedFor() {
+        SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
+        String sealed = envelopes.seal(agent.publicKey(), "glpat-not-real",
+                SealedEnvelope.Context.httpsToken("gitlab.example", "ci"));
+
+        assertThat(envelopes.open(agent, sealed, SealedEnvelope.Context.httpsToken("gitlab.example", "ci")))
+                .contains("glpat-not-real");
+        assertThat(envelopes.open(agent, sealed, SealedEnvelope.Context.httpsToken("attacker.example", "ci")))
+                .isEmpty();
+        assertThat(envelopes.open(agent, sealed, SealedEnvelope.Context.httpsToken("gitlab.example", "other")))
+                .isEmpty();
+        assertThat(envelopes.open(agent, sealed, SealedEnvelope.Context.httpsToken("gitlab.example", null)))
+                .isEmpty();
+    }
+
+    /**
+     * A deployment key's envelope moved into the token's field does not open there — where it would
+     * be sent to a server as a password.
+     */
+    @Test
+    void aDeploymentKeyDoesNotOpenAsAToken() {
+        SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
+        String sealed = envelopes.seal(agent.publicKey(), "deployment key", KEY);
+
+        assertThat(envelopes.open(agent, sealed, SealedEnvelope.Context.httpsToken("gitlab.example", null)))
+                .isEmpty();
+    }
+
+    /** Lengths first: a host and a user name cannot be cut differently into the same context. */
+    @Test
+    void theContextCannotBeCutDifferently() {
+        assertThat(SealedEnvelope.Context.httpsToken("a;1:b", null))
+                .isNotEqualTo(SealedEnvelope.Context.httpsToken("a", "b"));
+        assertThat(SealedEnvelope.Context.httpsToken("gitlab.example", ""))
+                .isNotEqualTo(SealedEnvelope.Context.httpsToken("gitlab.example", null));
+    }
+
     @Test
     void treatsAnythingUnprefixedAsNotSealed() {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
 
         assertThat(SealedEnvelope.isSealed(null)).isFalse();
         assertThat(SealedEnvelope.isSealed("unsealed-plain-test-content")).isFalse();
-        assertThat(envelopes.open(agent, "unsealed-plain-test-content")).isEmpty();
+        assertThat(envelopes.open(agent, "unsealed-plain-test-content", KEY)).isEmpty();
     }
 
     @Test
     void refusesTruncatedAndUndecodablePayloads() {
         SealedEnvelope.KeyPair agent = envelopes.generateKeyPair();
 
-        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + "!!not base64!!")).isEmpty();
-        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + Base64.getEncoder().encodeToString(new byte[8]))).isEmpty();
+        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + "!!not base64!!", KEY)).isEmpty();
+        assertThat(envelopes.open(agent, SealedEnvelope.PREFIX + Base64.getEncoder().encodeToString(new byte[8]), KEY)).isEmpty();
     }
 
     @Test
@@ -207,7 +264,7 @@ class SealedEnvelopeTest {
     @Test
     void refusesToSealForAKeyItCannotUse() {
         // Refusing beats returning the secret in the clear "because sealing failed".
-        assertThatThrownBy(() -> envelopes.seal(rsaPublicKey(), "deployment key"))
+        assertThatThrownBy(() -> envelopes.seal(rsaPublicKey(), "deployment key", KEY))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("X25519");
     }
@@ -227,34 +284,24 @@ class SealedEnvelopeTest {
     }
 
     /**
-     * One envelope from 26 August 2026, opened by a recipient key that never changes.
+     * One envelope from 10 October 2026, opened by a recipient key that never changes.
      *
      * <p><b>Every other test here seals before it opens, and that hides the failure that matters
      * for this class.</b> A remote agent publishes its sealing key and the control plane seals to
      * it; the two are separate deployments and they are not upgraded together. So the question a
      * round trip cannot ask is whether a control plane built today still speaks to an agent built
-     * before it — a changed HKDF info string, a different nonce length, a new {@code sealed:v1:}
-     * prefix, and the handshake stops working in the field while every test stays green.
-     *
-     * <p>Unlike {@code SecretCipher}'s vector, nothing stored becomes unreadable: what breaks is a
-     * live protocol between versions. That is why this arrives second, and why it is still worth
-     * having — a protocol break discovered by an operator is discovered at the worst moment.
+     * before it — a changed HKDF info string, a different nonce length, a new prefix, a context
+     * spelled differently, and the handshake stops working in the field while every test stays
+     * green. A change that has to break it moves {@code AgentContract.VERSION} and this vector
+     * together, as v2 did.
      *
      * <p>The recipient's private scalar says what it is in its own bytes:
      * {@code kat-envelope-recipient-key-32byt}.
      */
     @Test
     void anEnvelopeSealedByAnEarlierBuildStillOpens() {
-        SealedEnvelope envelopes = new SealedEnvelope();
-        X25519PrivateKeyParameters recipient = new X25519PrivateKeyParameters(
-                "kat-envelope-recipient-key-32byt".getBytes(java.nio.charset.StandardCharsets.UTF_8), 0);
-        SealedEnvelope.KeyPair keyPair = new SealedEnvelope.KeyPair(
-                "MCowBQYDK2VuAyEAXLnFpdiovM3OsClUD9dvTwANjDGuYcfrpUyYSzNjuEU=", recipient);
-
-        String sealedOn20260826 = "sealed:v1:MCowBQYDK2VuAyEAbncNOCviu61zaY2RNZTM0JDn5RIXih70OvIL7rj5lX5"
-                + "+BjJpVq6SAeNMd1aqXW+6kzFUWtHWaxIpjbhVwiueZ5f1ltFp3745AF81hokYGYQ67eHAM8m1XV7E7JEh";
-
-        assertThat(envelopes.open(keyPair, sealedOn20260826)).contains("agent-registration-token-not-real");
+        assertThat(new SealedEnvelope().open(katRecipient(), SEALED_ON_20261010, KAT_CONTEXT))
+                .contains("agent-registration-token-not-real");
     }
 
     /**
@@ -266,12 +313,42 @@ class SealedEnvelopeTest {
     @Test
     void thatEnvelopeDoesNotOpenForAnotherRecipient() {
         SealedEnvelope envelopes = new SealedEnvelope();
-        SealedEnvelope.KeyPair stranger = envelopes.generateKeyPair();
 
+        assertThat(envelopes.open(envelopes.generateKeyPair(), SEALED_ON_20261010, KAT_CONTEXT)).isEmpty();
+    }
+
+    /** And under another host — the binding the vector carries, pinned in the format. */
+    @Test
+    void thatEnvelopeDoesNotOpenForAnotherHost() {
+        assertThat(new SealedEnvelope().open(katRecipient(), SEALED_ON_20261010,
+                SealedEnvelope.Context.httpsToken("attacker.example", "ci"))).isEmpty();
+    }
+
+    /**
+     * A v1 envelope, from 26 August 2026, is no longer opened, and is recognised as such.
+     *
+     * <p>It bound nothing but the sender's key. Opening it would keep the hole v2 closes for as
+     * long as one older control plane is left; recognising it lets the agent name the cause.
+     */
+    @Test
+    void aVersionOneEnvelopeIsRecognisedAndNotOpened() {
         String sealedOn20260826 = "sealed:v1:MCowBQYDK2VuAyEAbncNOCviu61zaY2RNZTM0JDn5RIXih70OvIL7rj5lX5"
                 + "+BjJpVq6SAeNMd1aqXW+6kzFUWtHWaxIpjbhVwiueZ5f1ltFp3745AF81hokYGYQ67eHAM8m1XV7E7JEh";
 
-        assertThat(envelopes.open(stranger, sealedOn20260826)).isEmpty();
+        assertThat(SealedEnvelope.isPreviousFormat(sealedOn20260826)).isTrue();
+        assertThat(SealedEnvelope.isSealed(sealedOn20260826)).isFalse();
+        assertThat(new SealedEnvelope().open(katRecipient(), sealedOn20260826, KEY)).isEmpty();
     }
 
+    private static final SealedEnvelope.Context KAT_CONTEXT = SealedEnvelope.Context.httpsToken("gitlab.example", "ci");
+
+    private static final String SEALED_ON_20261010 = "sealed:v2:MCowBQYDK2VuAyEA4gRVJUhmz5WYWzA7cZRKxrrnmzj8vPkKXT3"
+            + "hMY/0Agnn4QCPEfJTIYKzjcVtv7AyyrWLlx5SLJbV8ohIfGl36vQvk5L9Blj/lkePraPSpdNCJtHEuDpP6ac6Ic/t";
+
+    private static SealedEnvelope.KeyPair katRecipient() {
+        return new SealedEnvelope.KeyPair(
+                "MCowBQYDK2VuAyEAXLnFpdiovM3OsClUD9dvTwANjDGuYcfrpUyYSzNjuEU=",
+                new X25519PrivateKeyParameters(
+                        "kat-envelope-recipient-key-32byt".getBytes(StandardCharsets.UTF_8), 0));
+    }
 }

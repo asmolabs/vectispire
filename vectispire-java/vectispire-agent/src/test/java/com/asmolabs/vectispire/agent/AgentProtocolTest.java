@@ -107,7 +107,7 @@ class AgentProtocolTest {
     @Test
     @DisplayName("a sealed deployment key is opened before the task is handed on")
     void sealedKeysAreOpened() throws Exception {
-        String sealed = envelopes.seal(keyPair.publicKey(), PRIVATE_KEY);
+        String sealed = envelopes.seal(keyPair.publicKey(), PRIVATE_KEY, SealedEnvelope.Context.deploymentKey());
         answers(200, JSON.writeValueAsString(assignedWith(sealed)));
 
         ScanTask task = protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task();
@@ -120,7 +120,7 @@ class AgentProtocolTest {
     void anUnopenableEnvelopeFailsLoudly() throws Exception {
         // Sealed for somebody else. Handing the string on would write it to a file and give it to
         // git, and the failure would look like a repository or a permission problem.
-        String sealed = envelopes.seal(envelopes.generateKeyPair().publicKey(), PRIVATE_KEY);
+        String sealed = envelopes.seal(envelopes.generateKeyPair().publicKey(), PRIVATE_KEY, SealedEnvelope.Context.deploymentKey());
         answers(200, JSON.writeValueAsString(assignedWith(sealed)));
 
         assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
@@ -228,7 +228,7 @@ class AgentProtocolTest {
         answers(200, "{\"scanId\":7,\"attempt\":2,\"task\":" + JSON.writeValueAsString(assignedWith(null).task()) + "}");
         assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().attempt()).isEqualTo(2);
 
-        String sealed = envelopes.seal(envelopes.generateKeyPair().publicKey(), PRIVATE_KEY);
+        String sealed = envelopes.seal(envelopes.generateKeyPair().publicKey(), PRIVATE_KEY, SealedEnvelope.Context.deploymentKey());
         answers(200, "{\"scanId\":8,\"attempt\":1,\"task\":" + JSON.writeValueAsString(assignedWith(sealed).task()) + "}");
         assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
                 .isInstanceOfSatisfying(AgentProtocol.UnusableTaskException.class, unusable -> {
@@ -350,11 +350,55 @@ class AgentProtocolTest {
     @Test
     @DisplayName("a sealed HTTPS token is opened before the task is handed on")
     void aSealedTokenIsOpened() throws Exception {
-        answers(200, JSON.writeValueAsString(assignedWithToken(envelopes.seal(keyPair.publicKey(), "glpat-secret"))));
+        answers(200, JSON.writeValueAsString(assignedWithToken(envelopes.seal(keyPair.publicKey(), "glpat-secret", SealedEnvelope.Context.httpsToken("gitlab.example.com", null)))));
 
         ScanTask task = protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task();
 
         assertThat(((ScanTask.Target.Repository) task.target()).https().token()).isEqualTo("glpat-secret");
+    }
+
+    /**
+     * The audit of 10 October 2026: a TLS-terminating proxy rewrote the host the token travels
+     * with, left the envelope alone, and the agent opened it and cloned from the proxy's server
+     * with the forge's token.
+     */
+    @Test
+    @DisplayName("a token whose host was rewritten on the way is refused, never opened for the new host")
+    void aTokenWhoseHostWasRewrittenIsRefused() throws Exception {
+        String sealed = envelopes.seal(keyPair.publicKey(), "glpat-secret",
+                SealedEnvelope.Context.httpsToken("gitlab.example.com", null));
+        answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(
+                7L,
+                new ScanTask(
+                        new ScanTask.Target.Repository("https://attacker.example/t/s.git", "main", "", null,
+                                new ScanTask.Target.HttpsCredential("attacker.example", null, sealed)),
+                        null,
+                        java.util.Set.of()))));
+
+        assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("HTTPS token could not be opened");
+    }
+
+    @Test
+    @DisplayName("a deployment key's envelope moved into the token's field is refused, not sent as a password")
+    void aDeploymentKeyMovedIntoTheTokenIsRefused() throws Exception {
+        answers(200, JSON.writeValueAsString(assignedWithToken(
+                envelopes.seal(keyPair.publicKey(), PRIVATE_KEY, SealedEnvelope.Context.deploymentKey()))));
+
+        assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("HTTPS token could not be opened");
+    }
+
+    @Test
+    @DisplayName("a credential sealed by an older control plane is refused with that cause")
+    void aPreviousFormatIsRefusedWithItsCause() throws Exception {
+        answers(200, JSON.writeValueAsString(assignedWithToken("sealed:v1:QUJDREVGRw==")));
+
+        assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("older than this agent");
     }
 
     @Test
@@ -390,8 +434,8 @@ class AgentProtocolTest {
         var token = new ScanTask.Target.HttpsCredential("gitlab.example.com", "ci", "glpat-secret");
         ScanTask clear = everyField(PRIVATE_KEY, token);
         ScanTask sealed = everyField(
-                envelopes.seal(keyPair.publicKey(), PRIVATE_KEY),
-                new ScanTask.Target.HttpsCredential(token.host(), token.username(), envelopes.seal(keyPair.publicKey(), token.token())));
+                envelopes.seal(keyPair.publicKey(), PRIVATE_KEY, SealedEnvelope.Context.deploymentKey()),
+                new ScanTask.Target.HttpsCredential(token.host(), token.username(), envelopes.seal(keyPair.publicKey(), token.token(), SealedEnvelope.Context.httpsToken(token.host(), token.username()))));
         answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(7L, sealed)));
 
         // The whole record, not the plugins alone: a field added to the task later is dropped by a
@@ -403,14 +447,14 @@ class AgentProtocolTest {
     @Test
     @DisplayName("a task with only one sealed credential keeps its plugins too")
     void unsealingOneCredentialKeepsThePlugins() throws Exception {
-        ScanTask keyOnly = everyField(envelopes.seal(keyPair.publicKey(), PRIVATE_KEY), null);
+        ScanTask keyOnly = everyField(envelopes.seal(keyPair.publicKey(), PRIVATE_KEY, SealedEnvelope.Context.deploymentKey()), null);
         answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(7L, keyOnly)));
         assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task())
                 .isEqualTo(everyField(PRIVATE_KEY, null));
 
         var token = new ScanTask.Target.HttpsCredential("gitlab.example.com", null, "glpat-secret");
         ScanTask tokenOnly = everyField(null, new ScanTask.Target.HttpsCredential(
-                token.host(), token.username(), envelopes.seal(keyPair.publicKey(), token.token())));
+                token.host(), token.username(), envelopes.seal(keyPair.publicKey(), token.token(), SealedEnvelope.Context.httpsToken(token.host(), token.username()))));
         answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(7L, tokenOnly)));
         assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task())
                 .isEqualTo(everyField(null, token));

@@ -373,11 +373,17 @@ public class AgentProtocol {
         if (!(assigned.task().target() instanceof ScanTask.Target.Repository repository)) {
             return assigned;
         }
-        String key = open(repository.privateKey(), "deployment key");
+        String key = open(repository.privateKey(), "deployment key", SealedEnvelope.Context.deploymentKey());
+        // Opened under the host and user name it arrived with, which are the ones the clone binds
+        // it to: a proxy that rewrote either gets an envelope that no longer opens, not a token
+        // sent to its server.
         ScanTask.Target.HttpsCredential https = repository.https() == null
                 ? null
                 : new ScanTask.Target.HttpsCredential(
-                        repository.https().host(), repository.https().username(), open(repository.https().token(), "HTTPS token"));
+                        repository.https().host(),
+                        repository.https().username(),
+                        open(repository.https().token(), "HTTPS token", SealedEnvelope.Context.httpsToken(
+                                repository.https().host(), repository.https().username())));
         if (java.util.Objects.equals(key, repository.privateKey()) && https == repository.https()) {
             return assigned;
         }
@@ -401,9 +407,14 @@ public class AgentProtocol {
      * <p><b>An envelope nobody opens is refused too</b>: it is a string that looks like a secret, and
      * the failure would surface as a repository or permission problem.
      */
-    private String open(String value, String what) {
+    private String open(String value, String what, SealedEnvelope.Context context) {
         if (value == null || value.isBlank()) {
             return value;
+        }
+        if (SealedEnvelope.isPreviousFormat(value)) {
+            throw new IllegalStateException(
+                    "A " + what + " arrived sealed in the format of a control plane older than this agent, "
+                            + "which does not bind it to its destination. Refusing it: update the control plane.");
         }
         if (!SealedEnvelope.isSealed(value)) {
             if (keyPair.isPresent()) {
@@ -418,10 +429,10 @@ public class AgentProtocol {
                     "A sealed " + what + " arrived although this agent announced none: the control plane sealed for "
                             + "somebody else.");
         }
-        return envelopes.open(keyPair.get(), value)
+        return envelopes.open(keyPair.get(), value, context)
                 .orElseThrow(() -> new IllegalStateException(
                         "The sealed " + what + " could not be opened: it is not addressed to this process, or it "
-                                + "was altered on the way."));
+                                + "or what it is bound to was altered on the way."));
     }
 
     /**

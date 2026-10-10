@@ -9,7 +9,7 @@ What follows is what 0.11.0 will contain, against 0.10.0.
 
 Each point is written out in full below; this is what to do before the new image starts.
 
-- **Back up the database.** Migrations V65 to V84 run at startup and have no way back: going back to
+- **Back up the database.** Migrations V65 to V86 run at startup and have no way back: going back to
   0.10.0 means restoring that backup and the previous image digest
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
 - **Tell the teams their grades will drop.** The score formula counts mediums, lows and every further
@@ -28,6 +28,11 @@ Each point is written out in full below; this is what to do before the new image
   scan failed. Scan first and wait for the scan to complete, then gate; look on the Security overview for
   targets marked never scanned or last scan failed before the upgrade, since each of their pipelines turns
   red (*The gate refuses a target nobody examined*, below).
+
+- **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
+  they carry, and an agent older than 0.11.0 is handed none: its sealing key is refused, and its scans of
+  repositories carrying a key or a token wait for an executor that can run them
+  ([agents](../administration/agents.md#before-delegating-credentials-pin-the-signing-key)).
 
 ### Changes an integration can see
 
@@ -636,6 +641,12 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### Fixed
 
+- **An HTTPS token sealed for an agent is bound to its host and user name, and a deployment key to
+  being one.** The token was sealed alone while its host travelled beside it, so the envelope stayed
+  valid whatever host it was paired with; the agent now opens it only under the host and user name it
+  was sealed for, and refuses the scan otherwise. The envelope format is `sealed:v2:` and an agent
+  vouches for it in its signed sealing-key announcement; migration V86 forgets the sealing keys
+  accepted before, which every current agent announces again at its next start.
 - **A repository without an OWASP report says so.** The card showed *No findings categorized under
   this section*, which reads as a report that found nothing; and any failure to read the report, a 500
   included, was shown as no report at all. Only a 404 now means "no report yet"; anything else is an

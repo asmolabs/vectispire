@@ -185,6 +185,14 @@ signing key**, and the control plane accepts only a sealing key whose signature 
 key an administrator pinned ([decision 0031](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)).
 **Sealing takes a TLS-terminating proxy out of the trust boundary, given a pinned signing key.**
 
+**A credential opens only for what it was sealed for.** A deployment key is sealed as a deployment
+key; an HTTPS token is sealed for the host and the user name it travels with, and the agent opens it
+under those, then sends it to that host alone. A host changed on the way leaves an envelope that no
+longer opens, and the scan fails rather than handing the token to another server. An agent older
+than 0.11.0 opens envelopes bound to nothing: its signed announcement is refused, the audit entry
+says *older than this control plane … Update the agent*, and it is handed no credential, so
+**update every `delegated` agent with the control plane**.
+
 So, for each `delegated` agent:
 
 1. Pin a signing key on its row (the lock icon on `/agents`), and set the private half shown once as

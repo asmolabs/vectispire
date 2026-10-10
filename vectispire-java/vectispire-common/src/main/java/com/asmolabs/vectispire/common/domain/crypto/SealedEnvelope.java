@@ -50,14 +50,22 @@ import org.bouncycastle.util.Arrays;
  * <p><b>The sender's public key is covered by the authentication.</b> It travels as
  * associated data, so an envelope whose ephemeral key was swapped fails to open rather than
  * opening into something else.
+ *
+ * <p><b>And so is what the secret is for.</b> Each envelope is sealed under a context — a
+ * deployment key, or a token <em>for one host and one user name</em> — and opens only under the
+ * same one. In v1 the token was sealed alone while its host travelled beside it in the clear: the
+ * proxy this class excludes rewrote the host and the clone URL, left the envelope untouched, and
+ * the agent opened it and sent the token to the proxy's choice of server. A deployment key's
+ * envelope moved into the token's field went the same way, as a password. The binding lives in
+ * the authentication rather than in a check beside it, so the agent cannot forget to make it.
  */
 public final class SealedEnvelope {
 
     /** An envelope's prefix. Its presence is what tells the agent it has to unseal. */
-    public static final String PREFIX = "sealed:v1:";
+    public static final String PREFIX = "sealed:v2:";
 
     /** Separates this derivation from any other built on the same exchange. */
-    private static final byte[] HKDF_INFO = "vectispire:sealed-envelope:v1".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] HKDF_INFO = "vectispire:sealed-envelope:v2".getBytes(StandardCharsets.UTF_8);
 
     private static final int SESSION_KEY_LENGTH_BYTES = 32;
     private static final int NONCE_LENGTH_BYTES = 12;
@@ -101,8 +109,11 @@ public final class SealedEnvelope {
      * secret back in the clear "because sealing failed" would cancel the entire protection at
      * the one moment it matters. Callers that want to decide beforehand ask
      * {@link #isUsablePublicKey} first.
+     *
+     * @param context what the secret is for — see {@link Context}; {@link #open} asks for the
+     *     same one
      */
-    public String seal(String recipientPublicKey, String plainText) {
+    public String seal(String recipientPublicKey, String plainText, Context context) {
         X25519PublicKeyParameters recipient = parsePublicKey(recipientPublicKey)
                 .orElseThrow(() -> new IllegalArgumentException("The recipient's sealing key is not a usable X25519 public key."));
 
@@ -119,7 +130,7 @@ public final class SealedEnvelope {
 
         byte[] plain = plainText.getBytes(StandardCharsets.UTF_8);
         byte[] output = new byte[plain.length + TAG_LENGTH_BYTES];
-        GCMModeCipher cipher = newCipher(sessionKey, nonce, ephemeralPublic, true);
+        GCMModeCipher cipher = newCipher(sessionKey, nonce, associatedData(ephemeralPublic, context), true);
         try {
             int written = cipher.processBytes(plain, 0, plain.length, output, 0);
             cipher.doFinal(output, written);
@@ -137,9 +148,10 @@ public final class SealedEnvelope {
      * <p>Empty for anything that is not exactly the expected envelope — wrong recipient,
      * altered content, unknown format. Never an exception: the only useful conclusion for the
      * caller is "I did not receive the key", and the three causes are indistinguishable on
-     * purpose. Telling them apart tells whoever is probing which of the three they got right.
+     * purpose. Telling them apart tells whoever is probing which of the three they got right. A
+     * context other than the one it was sealed under is a fourth, and reads the same.
      */
-    public Optional<String> open(KeyPair keyPair, String envelope) {
+    public Optional<String> open(KeyPair keyPair, String envelope, Context context) {
         if (!isSealed(envelope)) {
             return Optional.empty();
         }
@@ -173,7 +185,7 @@ public final class SealedEnvelope {
                 ephemeralPublic,
                 Base64.getDecoder().decode(keyPair.publicKey()));
 
-        GCMModeCipher cipher = newCipher(sessionKey, nonce, ephemeralPublic, false);
+        GCMModeCipher cipher = newCipher(sessionKey, nonce, associatedData(ephemeralPublic, context), false);
         byte[] output = new byte[cipher.getOutputSize(body.length)];
         try {
             int written = cipher.processBytes(body, 0, body.length, output, 0);
@@ -182,6 +194,49 @@ public final class SealedEnvelope {
         } catch (InvalidCipherTextException tagDidNotVerify) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * What a sealed secret is for, authenticated with it.
+     *
+     * <p>Lengths before values, so that no host and user name can be cut differently into the
+     * same bytes.
+     */
+    public record Context(String value) {
+
+        public Context {
+            if (value == null || value.isEmpty()) {
+                throw new IllegalArgumentException("A sealed secret needs a context.");
+            }
+        }
+
+        /** A repository's SSH deployment key. */
+        public static Context deploymentKey() {
+            return new Context("deployment-key");
+        }
+
+        /**
+         * An HTTPS token, for this host and this user name only.
+         *
+         * @param username {@code null} when the forge wants none, which is not the empty name
+         */
+        public static Context httpsToken(String host, String username) {
+            return new Context("https-token:" + lengthPrefixed(host) + lengthPrefixed(username));
+        }
+
+        private static String lengthPrefixed(String part) {
+            return part == null ? "-;" : part.length() + ":" + part + ";";
+        }
+    }
+
+    /**
+     * An envelope in the format before contexts, which this build no longer opens.
+     *
+     * <p>Recognised only to name the cause: a control plane older than this agent. Reading it as
+     * "unsealed" would blame a proxy for an upgrade.
+     */
+    public static boolean isPreviousFormat(String value) {
+        return value != null && value.startsWith("sealed:v1:");
     }
 
     /** Is this value a sealed envelope rather than a secret in the clear? */
@@ -246,6 +301,14 @@ public final class SealedEnvelope {
         byte[] sessionKey = new byte[SESSION_KEY_LENGTH_BYTES];
         generator.generateBytes(sessionKey, 0, sessionKey.length);
         return sessionKey;
+    }
+
+    /**
+     * The sender's key, then the context. The key has a fixed length, so the boundary between the
+     * two cannot move.
+     */
+    private static byte[] associatedData(byte[] ephemeralPublic, Context context) {
+        return Arrays.concatenate(ephemeralPublic, context.value().getBytes(StandardCharsets.UTF_8));
     }
 
     private static GCMModeCipher newCipher(byte[] sessionKey, byte[] nonce, byte[] associatedData, boolean forEncryption) {

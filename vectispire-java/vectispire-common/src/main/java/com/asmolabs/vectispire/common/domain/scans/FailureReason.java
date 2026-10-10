@@ -39,7 +39,7 @@ public final class FailureReason {
 
     private static final Pattern USER_INFO = Pattern.compile("(?i)\\b([a-z][a-z0-9+.-]*://)([^\\s/@]+)@");
 
-    private static final Pattern SEALED = Pattern.compile("sealed:v1:[A-Za-z0-9+/=]+");
+    private static final Pattern SEALED = Pattern.compile("sealed:v[0-9]+:[A-Za-z0-9+/=]+");
 
     private static final Pattern BEARER = Pattern.compile("(?i)\\b(bearer\\s+)[A-Za-z0-9._~+/=-]+");
 
@@ -64,7 +64,7 @@ public final class FailureReason {
             text = without(text, secret);
         }
         text = PEM_BLOCK.matcher(text).replaceAll("[private key removed]");
-        text = SEALED.matcher(text).replaceAll("sealed:v1:" + MASK);
+        text = SEALED.matcher(text).replaceAll("sealed:" + MASK);
         text = BEARER.matcher(text).replaceAll("$1" + MASK);
         text = ASSIGNMENT.matcher(text).replaceAll("$1$2" + MASK);
         text = maskUserInfo(text);

@@ -198,6 +198,14 @@ contre la clé qu'un administrateur a épinglée ([décision 0031](https://githu
 **Le scellement sort un proxy qui termine TLS de la frontière de confiance, pourvu qu'une clé de
 signature soit épinglée.**
 
+**Un secret ne s'ouvre que pour ce pour quoi il a été scellé.** Une clé de déploiement est scellée
+comme clé de déploiement ; un jeton HTTPS est scellé pour l'hôte et le nom d'utilisateur avec
+lesquels il voyage, l'agent l'ouvre sous ceux-là, puis ne l'envoie qu'à cet hôte. Un hôte modifié en
+chemin laisse une enveloppe qui ne s'ouvre plus : le scan échoue plutôt que de remettre le jeton à un
+autre serveur. Un agent antérieur à la 0.11.0 ouvre des enveloppes liées à rien : son annonce signée
+est refusée, l'entrée d'audit indique *older than this control plane … Update the agent*, et il ne
+reçoit aucun secret. **Mettez donc à jour chaque agent `delegated` avec le plan de contrôle.**
+
 Donc, pour chaque agent `delegated` :
 
 1. Épinglez une clé de signature sur sa ligne (l'icône de cadenas sur `/agents`), et posez la

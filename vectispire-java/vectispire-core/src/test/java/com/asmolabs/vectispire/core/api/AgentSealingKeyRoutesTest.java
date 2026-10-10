@@ -193,6 +193,47 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
         assertThat(queuedSiemTypes()).contains("AGENT_SEALING_KEY_REFUSED");
     }
 
+    /**
+     * An agent from before envelopes were bound to what they carry: refused like any unverified
+     * announcement, but the audit entry names an update, not a forgery.
+     */
+    @Test
+    @DisplayName("an older agent's announcement is refused, and the refusal says to update it")
+    void anOlderAgentsAnnouncementIsRefusedByName() throws Exception {
+        Enrolled agent = delegatedAgent(true);
+        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+
+        announce(agent, pair.publicKey(), 1_000L, signedAsVersionOne(agent, 1_000L, pair.publicKey()))
+                .andExpect(status().isForbidden());
+
+        assertThat(row(agent).getSealingPublicKey()).isNull();
+        assertThat(auditEntries.findAll().stream()
+                        .filter(entry -> AuditOperation.AGENT_SEALING_KEY_REFUSED.wireName().equals(entry.getOperationType()))
+                        .map(entry -> entry.getDescription()))
+                .singleElement()
+                .asString()
+                .contains("older than this control plane")
+                .contains("Update the agent");
+    }
+
+    /** What an agent built before 0.11.0 signed: the v1 statement, restated here. */
+    private static String signedAsVersionOne(Enrolled agent, long generation, String sealingKey) {
+        byte[] separator = {0};
+        byte[] message = com.asmolabs.vectispire.common.domain.crypto.Digests.sha256(
+                "vectispire:agent-sealing-key:v1".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                separator,
+                agent.id().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                separator,
+                Long.toString(generation).getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                separator,
+                com.asmolabs.vectispire.common.domain.crypto.Digests.sha256(java.util.Base64.getDecoder().decode(sealingKey)));
+        var signer = new org.bouncycastle.crypto.signers.Ed25519Signer();
+        signer.init(true, new org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(
+                java.util.Base64.getDecoder().decode(agent.signingKey()), 0));
+        signer.update(message, 0, message.length);
+        return java.util.Base64.getEncoder().encodeToString(signer.generateSignature());
+    }
+
     @Test
     @DisplayName("an announcement signed for another agent sharing the same signing key is refused")
     void anotherAgentsAnnouncementIsRefused() throws Exception {
@@ -308,8 +349,8 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
         String delivered = task.at("/task/target/privateKey").asText();
         assertThat(SealedEnvelope.isSealed(delivered)).isTrue();
         assertThat(delivered).doesNotContain("zq7-deploy-secret");
-        assertThat(envelopes.open(genuine, delivered)).contains(DEPLOY_KEY);
-        assertThat(envelopes.open(proxys, delivered)).isEmpty();
+        assertThat(envelopes.open(genuine, delivered, SealedEnvelope.Context.deploymentKey())).contains(DEPLOY_KEY);
+        assertThat(envelopes.open(proxys, delivered, SealedEnvelope.Context.deploymentKey())).isEmpty();
         assertThat(auditEntries.findAll())
                 .anyMatch(entry -> AuditOperation.AGENT_CREDENTIAL_SENT.wireName().equals(entry.getOperationType())
                         && entry.getDescription().contains("verified sealing key"));

@@ -125,3 +125,46 @@ behaviour is unchanged. Bumping it would refuse older agents' `hello` outright, 
 
 [0003](0003-long-polling-for-agents.md) said a key is sealed "to the public key the agent announced
 at enrolment". It is now sealed only to a key the agent's pinned signing key vouched for.
+
+## Amendment — 2026-10-10: the envelope is bound to what it carries
+
+**What this decision claimed and did not hold.** "Sealing takes a TLS-terminating proxy out of the
+trust boundary" was secured in one direction only — the key the agent announces. In the other, an
+HTTPS token was sealed alone while its host and user name travelled beside it in the clear (decision
+[0022](0022-https-clone-tokens-are-bound-to-a-host.md) binds the clone to *that* host). The proxy
+this decision excludes could rewrite the host and the clone URL, leave the envelope untouched, and
+receive the token from the agent that opened it. A deployment key's envelope moved into the token's
+field went the same way, as a password. An SSH key is not disclosed by a redirected clone; a token is.
+
+**Decision.**
+
+1. **Every envelope is sealed under a context**, authenticated by GCM with the sender's key:
+   `deployment-key`, or `https-token` with the host and the user name, each length-prefixed. The agent
+   opens a token only under the host and user name it arrived with, which are the ones the clone binds
+   it to: a rewritten host leaves an envelope that does not open. The format becomes `sealed:v2:`
+   (HKDF info `…:v2`), and a `sealed:v1:` envelope is refused by name — "a control plane older than
+   this agent".
+2. **The agent vouches for the format in its signed announcement.** The attestation's context becomes
+   `vectispire:agent-sealing-key:v2`. An agent from before signs `…:v1`; the control plane refuses it
+   like any announcement that does not verify (403, `AGENT_SEALING_KEY_REFUSED`), and checks the v1
+   statement only to name the cause in the audit entry — *older than this control plane … Update the
+   agent* — never to accept it.
+3. **V86 forgets every sealing key accepted so far**, as V40 did: none vouched for the new format, and
+   keeping one would seal for an agent that cannot open what it is sent. A current agent announces again
+   at its next start.
+
+**Compatibility.** The agent contract stays `1`, for the reason given above: an older agent is refused
+a credential explicitly and every other behaviour is unchanged.
+
+| Agent | Control plane | Outcome |
+|---|---|---|
+| 0.11.0 | 0.11.0 | credentials sealed under their context |
+| older | 0.11.0 | `hello`, image scans and `local` work; its sealing key is refused by name, delegated credentials withheld (412) |
+| 0.11.0 | older | its v2 announcement does not verify there; delegated credentials withheld; were one sealed in v1, the agent refuses it by name |
+
+**Rejected.** *Bumping the agent contract* refuses older agents' `hello` outright, image scans and
+`local` agents included, for a property only delegated credentials need. *Checking the host beside the
+envelope* is the check that was missing; a binding inside the authentication cannot be forgotten by a
+caller. *Signing every task with a control-plane key pinned on the agent* would authenticate the whole
+assignment and is the stronger answer, but it is a second key to provision per installation; it stays
+open for the day a task carries another secret.
