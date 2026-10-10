@@ -18,8 +18,8 @@ correctifs successifs garde un historique et une décision.
 **État** — `open` ou `resolved`. Écrit **uniquement par le pipeline**, à partir de ce que les
 scanners ont observé à la dernière exécution.
 
-**Statut de triage** — le vocabulaire VEX : *affecté*, *non affecté*, *corrigé*, *en cours
-d'examen*. Écrit **uniquement par une personne**.
+**Statut de triage** — le vocabulaire VEX : *affecté*, *non affecté*, *ne sera pas
+corrigé* (un risque accepté), *corrigé*, *en cours d'examen*. Écrit **uniquement par une personne**.
 
 Tenir l'état et le triage à part est délibéré. Si supprimer un constat le marquait résolu,
 « résolu » cesserait de vouloir dire quoi que ce soit, et personne ne pourrait distinguer un

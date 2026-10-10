@@ -89,8 +89,7 @@ L'arbre des solutions est lisible par tout compte, et ne montre que ce que ce co
   attributions de son compte, aucune autre cible dans « sans projet ».
 
 Chaque projet, chaque solution et le groupe « sans projet » portent leurs **constats ouverts par
-sévérité**, comptés sur les dépôts et les images que le lecteur peut voir et sans le triage réglé (non affecté,
-corrigé), comme tout autre chiffre de risque.
+sévérité**, comptés sur les dépôts et les images que le lecteur peut voir et sans le triage réglé (non affecté, ne sera pas corrigé, corrigé), comme tout autre chiffre de risque.
 
 ## Supprimer
 

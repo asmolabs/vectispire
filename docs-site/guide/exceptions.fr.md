@@ -8,6 +8,21 @@ vert veut dire deux choses opposées selon celle des deux qui l'a produit.
 
 ![Le registre des exceptions : les compteurs « périmées » et « jamais revues » au-dessus du registre, avec une acceptation périmée détaillée.](../assets/screens/fr/exceptions.png)
 
+## Ce qui compte comme une exception
+
+Deux décisions, qui disent des choses opposées du produit :
+
+- **Ne sera pas corrigé — risque accepté** — la vulnérabilité s'applique et l'équipe a décidé de ne
+  pas la corriger. Elle porte toujours une date de réexamen, et les documents VEX continuent de dire
+  que le produit est exposé.
+- **Non affecté** — jugée ne pas s'appliquer, avec une justification VEX.
+
+Les deux comptent comme **accordées** une fois réglées ; une demande qui attend encore un
+approbateur sous la [double validation](../administration/four-eyes.md) est comptée à part, en
+attente d'approbation. Une acceptation s'enregistrait autrefois comme *non
+affecté* — avec une justification qui ne pouvait pas être vraie d'un produit exposé — faute d'un autre
+statut sous lequel l'inscrire ([Accepter un risque](issues.md#accepting-a-risk)).
+
 ## Les deux chiffres qui portent l'écran
 
 Ce ne sont pas les acceptations en vigueur.

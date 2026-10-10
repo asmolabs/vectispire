@@ -86,6 +86,11 @@
                                     } @else {
                                         <p-tag severity="secondary" [value]="'exceptions.state.granted' | translate" />
                                     }
+                                    @if (entry.decision !== 'pending_approval') {
+                                        <div class="text-muted-color text-xs mt-1" data-testid="exception-decision">
+                                            {{ decisionLabel(entry) }}
+                                        </div>
+                                    }
                                 </td>
                                 <td class="py-3 pr-4">
                                     <div>{{ entry.justification ?? '—' }}</div>

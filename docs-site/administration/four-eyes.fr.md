@@ -14,6 +14,14 @@ dans les documents CycloneDX, OpenVEX et CSAF signés remis aux clients. Ce cont
 l'affirmation la plus forte que ce produit sache publier sur une vulnérabilité ne soit pas le clic
 d'une seule personne.
 
+Il couvre les trois statuts qui **règlent** une issue — qui la sortent du chemin de la barrière :
+`not_affected`, `will_not_fix` (*Ne sera pas corrigé — risque accepté*) et `fixed`. Un risque accepté
+n'affirme pas que le produit est sûr — les documents continuent de dire qu'il est exposé, sans
+correction prévue —, mais il cesse de faire échouer les builds jusqu'à sa date de réexamen : c'est une
+décision du même poids qu'une levée ([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)). Sous la règle, la demande de quelqu'un qui
+ne peut pas approuver est mise en file en `pending_approval`, compte toujours à la barrière, et se lit
+*en cours d'investigation* dans tous les formats VEX jusqu'à ce qu'elle soit accordée.
+
 ## Qui approuve, et qui ne peut pas
 
 L'approbation appartient aux rôles qui répondent du parc. Le **gouverneur de la plateforme** — le
@@ -72,7 +80,12 @@ d'elle-même — quoi que dise le traqueur. La route ne peut pas porter de sessi
 rien tant qu'aucun secret de webhook n'est configuré ; une fois qu'il l'est, ce qui y entre part
 encore en approbation — le secret prouve que le traqueur a envoyé l'appel, pas que quelqu'un a
 regardé la vulnérabilité — et l'entrée d'audit inscrit l'intégration comme auteur, le nom revendiqué
-restant à côté comme une donnée rapportée.
+restant à côté comme une donnée rapportée. Le refus d'un traqueur (*Won't Fix*, le *not planned*
+de GitHub…) arrive comme une demande de `will_not_fix`, un faux positif explicite comme une demande
+de `not_affected` ; l'approbateur choisit le statut et la date de réexamen. Et une issue qu'une
+personne a déjà réglée ne bouge pas du tout sur un ticket : la parole du traqueur est inscrite, et
+signalée comme `VECTI-SEC-037` quand elle contredit la décision
+([Tickets](../integrations/ticketing.md#inbound-webhook)).
 
 ## À lire aussi
 

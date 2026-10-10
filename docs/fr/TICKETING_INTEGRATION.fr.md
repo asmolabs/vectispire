@@ -16,8 +16,11 @@ Vectispire propose un moteur de synchronisation bidirectionnelle transparent ent
    * **ServiceNow est fermé par `sys_id`.** La référence gardée est le numéro d'incident que les gens lisent (`INC0012345`), mais la Table API ne désigne un enregistrement que par son `sys_id` : Vectispire interroge donc d'abord `/api/now/table/incident?sysparm_query=number=…&sysparm_fields=sys_id`, puis envoie un `PATCH` sur cet enregistrement — le compte a besoin du droit de lecture sur `incident` en plus de l'écriture. Une référence qui est déjà un `sys_id` est utilisée telle quelle. Les issues GitLab sont fermées par `PUT`, celles de GitHub par `PATCH` ; jusqu'à cette correction chaque fermeture partait en `POST`, que ni GitLab ni ServiceNow ne routent, et échouait.
 
 3. **Synchronisation du Statut & Décisions de Triage (Webhooks Entrants)** :
-   * Si un lead tech ou un développeur met à jour le ticket dans Jira, GitLab, GitHub ou ServiceNow avec une résolution telle que *Faux Positif*, *Won't Fix*, *Refusé* ou *Risque Accepté*, Vectispire intercepte l'événement via un webhook entrant.
-   * La décision est **mise en file pour approbation par une seconde personne**, pas appliquée : l'issue passe en `pending_approval` avec le statut proposé **`not_affected`** et sa justification OpenVEX / CSAF, et les documents exportés la montrent en cours de revue jusqu'à ce que quelqu'un l'approuve. Un gestionnaire de tickets n'est pas une personne, ni authentifié comme telle, et `not_affected` part tel quel dans les documents CycloneDX, OpenVEX et CSAF signés. L'événement est tracé dans le journal d'audit chaîné par empreintes sous l'opération `TICKET_SYNCED`.
+   * Si un lead tech ou un développeur ferme le ticket dans Jira, GitLab, GitHub ou ServiceNow avec une résolution que Vectispire sait lire, Vectispire intercepte l'événement via un webhook entrant et le lit comme l'une de deux affirmations différentes :
+     * **Un refus** — *Won't Fix*, *Declined*, *Rejected*, *Risk Accepted*, *Withdrawn*, ou le `not_planned` de GitHub — dit que l'équipe ne corrigera pas. Il est proposé comme **`will_not_fix`** (*Ne sera pas corrigé — risque accepté*), **sans** justification VEX et avec une date de réexamen proposée à quatre-vingt-dix jours ; la personne qui l'accorde pose la sienne. Un refus ne dit rien de l'exposition du produit : il ne devient donc jamais `not_affected`. Jusqu'à la 0.11.0, il le devenait, avec la justification `inline_mitigations_already_exist` — une atténuation que personne n'avait construite, et que les documents signés auraient portée une fois la demande approuvée ([décision 0041](../architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)).
+     * **Un faux positif explicite** — *False Positive*, *Cannot Reproduce*, *Not an Issue*, ou les mots « false positive » dans une issue GitHub ou GitLab — est une affirmation sur l'exposition, et lui seul est proposé comme **`not_affected`**, avec la justification `vulnerable_code_not_in_execute_path`.
+   * Dans les deux cas, la décision est **mise en file pour approbation par une seconde personne**, pas appliquée : l'issue passe en `pending_approval`, et les documents exportés la montrent en cours d'investigation jusqu'à ce que quelqu'un l'approuve. Un gestionnaire de tickets n'est pas une personne, ni authentifié comme telle, et ce qui est accordé part tel quel dans les documents CycloneDX, OpenVEX et CSAF signés. L'événement est tracé dans le journal d'audit chaîné par empreintes sous l'opération `TICKET_SYNCED`.
+   * **Une décision qu'une personne a réglée ne bouge pas sur un ticket.** Sur une issue déjà `not_affected`, `will_not_fix` ou `fixed`, la parole du traqueur est inscrite au journal d'audit et rien ne change. Quand elle contredit le statut réglé — un *Won't Fix* sur une issue déclarée non affectée, par exemple —, l'entrée est `TRIAGE_CONTRADICTED_BY_TRACKER`, signalée au SIEM comme `VECTI-SEC-037` : l'un des deux se trompe, et seule une personne peut dire lequel.
 
 ---
 
@@ -38,20 +41,22 @@ Dans les paramètres de votre gestionnaire de tickets, ajoutez un Webhook pointa
 ### 1. 🏷️ Jira Software (Atlassian)
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/jira`
 * **Événements** : `Issue -> updated`
-* **Comportement** : Si la résolution est marquée comme *"Won't Fix"*, *"False Positive"* ou *"Declined"*, Vectispire met en file une décision `not_affected` pour approbation.
+* **Comportement** : Une résolution *"Won't Fix"*, *"Declined"* ou *"Rejected"* met en file une demande `will_not_fix` pour approbation ; *"False Positive"* ou *"Cannot Reproduce"*, une demande `not_affected`.
 
 ### 2. 🦊 GitLab Issues
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/gitlab`
 * **Événements** : `Issues Events`
-* **Comportement** : Lorsque l'issue est fermée ou commentée avec mention *"false positive"* ou *"wontfix"*, une décision `not_affected` est mise en file pour approbation dans Vectispire.
+* **Comportement** : Une issue dont le titre ou la description dit *« false positive »* met en file une demande `not_affected` pour approbation ; une issue fermée avec *« wontfix »* ou *« won't fix »* dans son titre, une demande `will_not_fix`.
 
 ### 3. 🐙 GitHub Issues
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/github`
 * **Événements** : `Issues` (action `closed` / `labeled`)
+* **Comportement** : Une issue fermée comme *not planned* (`state_reason: not_planned`) met en file une demande `will_not_fix` pour approbation — c'est la seule façon qu'a GitHub de fermer sans avoir terminé, et elle ne dit rien de l'atteignabilité. Seuls les mots *« false positive »* dans le corps de l'issue mettent en file une demande `not_affected`.
 
 ### 4. 🏢 ServiceNow (Table API / Business Rules)
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/servicenow`
 * **Événements** : Incident State Change (Close Code: *"Won't Fix"*, *"Solved"*, *"False Positive"*)
+* **Comportement** : Un code de clôture *"Won't Fix"*, *"Risk Accepted"* ou *"Withdrawn"* met en file une demande `will_not_fix` pour approbation ; *"False Positive"* ou *"Not an Issue"*, une demande `not_affected`.
 
 ---
 

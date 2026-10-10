@@ -215,6 +215,15 @@ public enum SecurityEventType {
     FORGE_CONNECTION_REFUSED("VECTI-SEC-036", "Forge connection refused: blocked destination, write scope, or a "
             + "credential presented to another host", 5, Outcome.FAILURE),
 
+    /**
+     * A tracker closed a ticket in words that contradict a triage decision a person settled — "won't fix" on
+     * an issue cleared as not affected, "false positive" on an accepted risk (decision 0041). The webhook
+     * moves nothing a person settled, so without this the disagreement would sit in the audit log unread:
+     * either the tracker or the decision is wrong, and a security lead has to know which.
+     */
+    TRACKER_CONTRADICTS_TRIAGE("VECTI-SEC-037", "A tracker contradicts a settled triage decision", 4,
+            Outcome.DETECTED),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -343,6 +352,7 @@ public enum SecurityEventType {
             case PROJECT_EXPORTED -> Optional.of(PROJECT_EXPORTED);
             case REPORT_REFUSED -> Optional.of(REPORT_PLUGIN_REFUSED);
             case FORGE_CONNECTION_REFUSED -> Optional.of(FORGE_CONNECTION_REFUSED);
+            case TRIAGE_CONTRADICTED_BY_TRACKER -> Optional.of(TRACKER_CONTRADICTS_TRIAGE);
             case REPORT_PLUGIN_REGISTERED, REPORT_PLUGIN_UPDATED, REPORT_PLUGIN_APPROVED, REPORT_PLUGIN_ENABLED_CHANGED,
                     REPORT_PLUGIN_ACTIVATED, REPORT_PLUGIN_DEACTIVATED, REPORT_PLUGIN_WITHDRAWN ->
                     Optional.of(REPORT_PLUGIN_CHANGED);

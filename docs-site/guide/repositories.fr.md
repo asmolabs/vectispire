@@ -227,7 +227,7 @@ celle de la [décision 0036](https://github.com/asmolabs/vectispire/blob/main/do
 depuis la 0.11.0.
 
 **Ce qui compte.** Les problèmes ouverts de ce dépôt seulement. Les problèmes résolus sont
-écartés, ainsi que ceux triés **non affecté** ou **corrigé** — les deux décisions qui empêchent
+écartés, ainsi que ceux triés **non affecté**, **ne sera pas corrigé** ou **corrigé** — les trois décisions qui empêchent
 déjà un problème de faire échouer la barrière. Un problème dont l'exclusion est **en attente
 d'approbation** compte toujours : une demande n'est pas une décision. Un statut de triage que
 Vectispire ne reconnaît pas compte aussi, plutôt que d'être lu comme réglé.

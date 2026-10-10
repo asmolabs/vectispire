@@ -34,6 +34,7 @@ describe('roles and triage statuses in words', () => {
     it('names a triage status, the older ones included, and one it does not know as sent', () => {
         expect(triageStatusLabel(i18n, 'pending_approval')).toBe(english.issues.triage_status.pending_approval);
         expect(triageStatusLabel(i18n, 'false_positive')).toBe(english.issues.triage_status.false_positive);
+        expect(triageStatusLabel(i18n, 'will_not_fix')).toBe(english.issues.triage_status.will_not_fix);
         expect(triageStatusLabel(i18n, 'deferred')).toBe('deferred');
     });
 });

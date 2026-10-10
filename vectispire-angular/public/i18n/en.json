@@ -386,6 +386,7 @@
       "ticket_linked": "Ticket linked",
       "ticket_closed": "Ticket closed",
       "ticket_synced": "Ticket synchronised",
+      "triage_contradicted_by_tracker": "Tracker contradicts a settled triage",
       "gate_policy_updated": "Gate policy changed",
       "control_declared": "Control declared",
       "certified_scope_changed": "Certified scope changed",
@@ -1357,6 +1358,7 @@
       "pending_approval": "Pending approval",
       "affected": "Affected",
       "not_affected": "Not affected",
+      "will_not_fix": "Will not fix — risk accepted",
       "fixed": "Fixed",
       "accepted": "Risk accepted",
       "false_positive": "False positive"
@@ -1426,6 +1428,7 @@
     "justification_hint": "Required by the VEX standard: without it the exported statement would carry no information.",
     "comment": "Comment",
     "expires_hint": "A decision is a statement about a context, and contexts change. Leave empty to schedule no review.",
+    "will_not_fix_hint": "Accepting a risk needs a review date, from 1 to 3650 days. It carries no VEX justification, and exports as affected, not as fixed.",
     "sightings_title": "Seen by",
     "sightings_subtitle": "— which scan, on which version of the project",
     "sightings_empty": "No sighting recorded.",

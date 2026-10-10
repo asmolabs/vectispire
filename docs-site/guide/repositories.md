@@ -214,7 +214,7 @@ when asked for, from the repository's backlog as it stands — nothing is stored
 since 0.11.0.
 
 **What counts.** Open issues of that repository only. Resolved issues are left out, and so are
-issues triaged **not affected** or **fixed** — the two decisions that already stop an issue
+issues triaged **not affected**, **will not fix** or **fixed** — the three decisions that already stop an issue
 failing the gate. An issue whose dismissal is **awaiting approval** still counts: a request is
 not a decision. A triage status Vectispire does not recognise counts too, rather than being
 read as settled.

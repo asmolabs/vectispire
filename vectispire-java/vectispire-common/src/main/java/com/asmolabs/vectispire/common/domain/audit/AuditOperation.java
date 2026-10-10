@@ -63,6 +63,8 @@ public enum AuditOperation {
 
     TICKET_CLOSED,
     TICKET_SYNCED,
+    /** A tracker closed a ticket in words that contradict a decision a person settled; nothing moved (0041). */
+    TRIAGE_CONTRADICTED_BY_TRACKER,
     GATE_POLICY_UPDATED,
 
     /**

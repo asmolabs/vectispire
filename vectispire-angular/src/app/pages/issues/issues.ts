@@ -27,6 +27,9 @@ import { SEVERITIES, SEVERITY_KEYS } from '@/app/shared/checklist-rules';
 import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
 import { ANY_CATEGORY, isoDay, mondayOf, owaspCategory } from '@/app/shared/owasp-weekly';
 
+/** The longest review delay the server accepts, in days — ten years. */
+const MAX_REVIEW_DAYS = 3650;
+
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 
 /**
@@ -419,6 +422,7 @@ export class Issues {
             { label: this.i18n.t('issues.triage_status.pending_approval'), value: 'pending_approval' },
             { label: this.i18n.t('issues.triage_status.affected'), value: 'affected' },
             { label: this.i18n.t('issues.triage_status.not_affected'), value: 'not_affected' },
+            { label: this.i18n.t('issues.triage_status.will_not_fix'), value: 'will_not_fix' },
             { label: this.i18n.t('issues.triage_status.fixed'), value: 'fixed' }
         ];
     });
@@ -697,10 +701,16 @@ export class Issues {
         return dueInDays <= 7;
     }
 
+    /**
+     * `will_not_fix` is amber, never green: it settles the gate, but the product is still exposed —
+     * the team knows and has dated a review (decision 0041). Green would paint an accepted risk as
+     * the same good news as a fix; grey would read as "not looked at yet", which is the one thing
+     * it is not.
+     */
     triageColour(status: string): 'success' | 'danger' | 'warn' | 'secondary' {
         if (status === 'not_affected' || status === 'fixed') return 'success';
         if (status === 'affected') return 'danger';
-        if (status === 'pending_approval') return 'warn';
+        if (status === 'pending_approval' || status === 'will_not_fix') return 'warn';
         return 'secondary';
     }
 
@@ -750,8 +760,28 @@ export class Issues {
             : this.i18n.t('issues.triage_header_single');
     }
 
+    /**
+     * A risk accepted is the one decision that cannot go without a review date, and the one that
+     * cannot carry a VEX justification: each of the five says why the product is *not* exposed,
+     * and this decision says it is (decision 0041). The server refuses both; the dialog says so.
+     */
+    acceptsRisk(): boolean {
+        return this.triageStatus === 'will_not_fix';
+    }
+
+    /** The dialog's status, and what a risk accepted takes away: a justification left from a
+     *  `not_affected` chosen a moment earlier would otherwise ride along, hidden, and be refused. */
+    chooseTriageStatus(status: string): void {
+        this.triageStatus = status;
+        if (status === 'will_not_fix') this.triageJustification = null;
+    }
+
     /** Preventing the submission beats explaining a refusal afterwards. */
     canSubmitTriage(): boolean {
+        if (this.acceptsRisk()) {
+            const days = this.triageExpiresInDays;
+            return days !== null && Number.isInteger(days) && days >= 1 && days <= MAX_REVIEW_DAYS;
+        }
         return (
             (this.triageStatus !== 'not_affected' && this.triageStatus !== 'pending_approval') ||
             !!this.triageJustification
@@ -777,7 +807,8 @@ export class Issues {
     private triageBody(): TriageRequest {
         return {
             status: this.triageStatus,
-            justification: this.triageJustification,
+            // Null whatever the field holds: the server refuses a justification on a risk accepted.
+            justification: this.acceptsRisk() ? null : this.triageJustification,
             comment: this.triageComment || null,
             expires_in_days: this.triageExpiresInDays || null
         };

@@ -63,4 +63,31 @@ class CsafExportTest {
         assertThat(v2.cve()).isEqualTo("CVE-2022-22965");
         assertThat(v2.productStatus().knownAffected()).isNotEmpty();
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("an accepted risk is known affected with no fix planned; a request awaiting approval is under investigation")
+    void acceptedRiskAndPendingRequest() {
+        java.time.Instant now = java.time.Instant.parse("2026-10-10T12:00:00Z");
+        ExportableIssue accepted = ExportableIssue.builder()
+                .id(1).fingerprint("a").type(com.asmolabs.vectispire.common.domain.issues.FindingType.VULNERABILITY)
+                .identifier("CVE-2026-0001").severity(com.asmolabs.vectispire.common.domain.issues.Severity.HIGH)
+                .purl("pkg:maven/org.example/a@1.0").triageStatus(TriageStatus.WILL_NOT_FIX)
+                .triageComment("Isolated behind the gateway.").build();
+        ExportableIssue pending = ExportableIssue.builder()
+                .id(2).fingerprint("b").type(com.asmolabs.vectispire.common.domain.issues.FindingType.VULNERABILITY)
+                .identifier("CVE-2026-0002").severity(com.asmolabs.vectispire.common.domain.issues.Severity.HIGH)
+                .purl("pkg:maven/org.example/b@1.0").triageStatus(TriageStatus.PENDING_APPROVAL)
+                .triageJustification("component_not_present").build();
+
+        CsafDocument doc = CsafExport.build(java.util.List.of(accepted, pending),
+                new CsafExport.Options("my-target", "Security Team", "1.0.0", "https://example.com", now));
+
+        CsafDocument.CsafVulnerability first = doc.vulnerabilities().get(0);
+        assertThat(first.productStatus().knownAffected()).isNotEmpty();
+        assertThat(first.productStatus().knownNotAffected()).isNull();
+        assertThat(first.remediations()).extracting(CsafDocument.Remediation::category).contains("no_fix_planned");
+        // It had no case in the switch: the product sat in no status list at all.
+        assertThat(doc.vulnerabilities().get(1).productStatus().underInvestigation()).isNotEmpty();
+        assertThat(doc.vulnerabilities().get(1).productStatus().knownNotAffected()).isNull();
+    }
 }

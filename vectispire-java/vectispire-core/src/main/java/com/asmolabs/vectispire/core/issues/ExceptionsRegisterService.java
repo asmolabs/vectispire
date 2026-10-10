@@ -42,9 +42,16 @@ public class ExceptionsRegisterService {
     /** The origin {@code IssueTriageService} writes for a periodic review. */
     private static final String REVIEW = TriageOrigin.REVIEW.wireName();
 
-    /** The decisions that are exceptions: granted, and awaiting a second pair of eyes. */
-    private static final List<String> DECISIONS =
-            List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.PENDING_APPROVAL.wireName());
+    /**
+     * The decisions that are exceptions: granted — a clearance or an accepted risk (decision 0041) — and
+     * awaiting a second pair of eyes.
+     */
+    private static final List<String> DECISIONS = List.of(TriageStatus.NOT_AFFECTED.wireName(),
+            TriageStatus.WILL_NOT_FIX.wireName(), TriageStatus.PENDING_APPROVAL.wireName());
+
+    /** What {@code granted} counts: both settled exceptions. */
+    private static final List<String> GRANTED =
+            List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.WILL_NOT_FIX.wireName());
 
     private final TriageEventRepository events;
     private final IssueRepository issues;
@@ -151,7 +158,7 @@ public class ExceptionsRegisterService {
         return new Register(
                 entries,
                 entries.stream()
-                        .filter(entry -> TriageStatus.NOT_AFFECTED.wireName().equals(entry.decision()))
+                        .filter(entry -> GRANTED.contains(entry.decision()))
                         .count(),
                 entries.stream()
                         .filter(entry -> TriageStatus.PENDING_APPROVAL.wireName().equals(entry.decision()))

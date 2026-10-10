@@ -81,6 +81,33 @@ class ExportsTest {
         }
 
         @Test
+        @DisplayName("an accepted risk is affected, with will-not-fix said in the action statement (decision 0041)")
+        void anAcceptedRiskIsAffected() {
+            OpenVexDocument document = OpenVexExport.build(
+                    List.of(vulnerability()
+                            .triageStatus(TriageStatus.WILL_NOT_FIX)
+                            .triageComment("Isolated behind the gateway.")
+                            .build()),
+                    options());
+
+            assertThat(document.statements()).singleElement().satisfies(s -> {
+                assertThat(s.status().serialized()).isEqualTo("affected");
+                assertThat(s.justification()).isNull();
+                assertThat(s.actionStatement()).startsWith("Will not fix").contains("Isolated behind the gateway.");
+            });
+        }
+
+        @Test
+        @DisplayName("a not_affected nobody justified is under investigation, not a clearance (decision 0041)")
+        void anUnjustifiedClearanceIsUnderInvestigation() {
+            OpenVexDocument document = OpenVexExport.build(
+                    List.of(vulnerability().triageStatus(TriageStatus.NOT_AFFECTED).build()), options());
+
+            assertThat(document.statements()).singleElement()
+                    .satisfies(s -> assertThat(s.status().serialized()).isEqualTo("under_investigation"));
+        }
+
+        @Test
         @DisplayName("not_affected carries its justification; affected carries an action statement")
         void freeTextGoesToTheRightField() {
             OpenVexDocument notAffected = OpenVexExport.build(

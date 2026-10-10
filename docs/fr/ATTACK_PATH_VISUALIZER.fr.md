@@ -34,7 +34,7 @@ Pour chaque dépôt que l'appelant peut voir :
 5. **Les secrets** trouvés dans le dépôt, dix au plus, reliés depuis la première vulnérabilité ou, à
    défaut, depuis le nœud d'entrée.
 
-Un constat trié *non affecté* ou *corrigé* est écarté. Les listes de nœuds sont coupées à dix pour
+Un constat trié *non affecté*, *ne sera pas corrigé* ou *corrigé* est écarté. Les listes de nœuds sont coupées à dix pour
 rester lisibles ; les comptes et le score ci-dessous sont calculés avant la coupe.
 
 **« Exploitable » veut dire une seule chose ici :** un nœud de vulnérabilité est marqué exploitable

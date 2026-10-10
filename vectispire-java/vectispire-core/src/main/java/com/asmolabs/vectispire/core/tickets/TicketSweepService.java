@@ -97,7 +97,8 @@ public class TicketSweepService {
     private int openActionableTickets(int limit) {
         List<IssueView> candidates = issues.actionableWithoutTicket(
                 IssueState.OPEN.wireName(),
-                List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.FIXED.wireName()),
+                // Every settled decision, an accepted risk's included: none of them is work to ticket.
+                TriageStatus.settledWireNames(),
                 limit);
         if (candidates.isEmpty()) {
             return 0;

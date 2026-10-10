@@ -12,6 +12,14 @@ A triage decision is not a note. `not_affected` with a justification travels, un
 signed CycloneDX, OpenVEX and CSAF documents handed to customers. The control exists so that the
 strongest claim this product can publish about a vulnerability is not one person's click.
 
+It covers the three statuses that **settle** an issue — take it out of the gate's way: `not_affected`,
+`will_not_fix` (*Will not fix — risk accepted*) and `fixed`. An accepted risk does not claim the
+product is safe — the documents keep saying it is exposed, with no fix planned — but it stops failing
+builds until its review date, which is a decision of the same weight as a clearance
+([decision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md)). Under the rule, a request by somebody who may not approve is queued as
+`pending_approval`, still counts against the gate, and reads *under investigation* in every VEX
+format until it is granted.
+
 ## Who approves, and who cannot
 
 Approving is held by the roles that answer for the estate. The **platform governor** — the
@@ -67,7 +75,12 @@ A ticket webhook can report a triage decision, and that decision never settles o
 whatever the tracker says. The route cannot hold a session, so it accepts nothing until a webhook
 secret is configured; once it is, what arrives through it still goes to approval — the secret proves
 the tracker sent the call, not that anybody looked at the vulnerability — and the audit entry
-records the integration as the author with any claimed name kept beside it as reported data.
+records the integration as the author with any claimed name kept beside it as reported data. A
+tracker's refusal (*Won't Fix*, GitHub's *not planned*…) arrives as a request for `will_not_fix`, an
+explicit false positive as one for `not_affected`; the approver chooses the status and the review
+date. And an issue a person already settled is not moved by a ticket at all: the tracker's word is
+recorded, and signalled as `VECTI-SEC-037` when it contradicts the decision
+([Tracker tickets](../integrations/ticketing.md#inbound-webhook)).
 
 ## Related
 

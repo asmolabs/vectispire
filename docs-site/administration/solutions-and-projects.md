@@ -87,8 +87,7 @@ The solutions tree is readable by every account, and shows only what that accoun
   its account's grants, no other target in "no project".
 
 Each project, each solution and the "no project" group carries its **open issues by severity**,
-counted over the repositories and images the reader may see and leaving out settled triage (not affected,
-fixed), like every other figure of risk.
+counted over the repositories and images the reader may see and leaving out settled triage (not affected, will not fix, fixed), like every other figure of risk.
 
 ## Deleting
 

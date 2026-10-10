@@ -37,6 +37,12 @@ public class TicketingWebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketingWebhookService.class);
 
+    /**
+     * The review date proposed with a tracker's refusal: an accepted risk carries one, and a tracker states
+     * none. A proposal only — the request waits for a person, who grants it with the date they choose.
+     */
+    static final java.time.Period PROPOSED_ACCEPTANCE_REVIEW = java.time.Period.ofDays(90);
+
     private final IssueCatalog issues;
     private final IssueTriageService triageService;
     private final AuditLogService audit;
@@ -173,10 +179,16 @@ public class TicketingWebhookService {
         String actionTaken;
 
         if (event.isRefusedOrFalsePositive()) {
-            TriageStatus status = TriageStatus.NOT_AFFECTED;
+            // **What the tracker said, in the triage's words** (decision 0041). A refusal — "won't fix",
+            // declined, rejected, risk accepted, withdrawn, GitHub's `not_planned` — is an accepted
+            // exposure: `will_not_fix`, with no VEX justification. It used to be queued as `not_affected`
+            // with "inline mitigations already exist", a statement about the product the tracker never
+            // made, which the signed documents would have carried once approved. Only an explicit false
+            // positive is a claim about exposure, and only it is queued as `not_affected`.
+            TriageStatus status = event.isFalsePositive() ? TriageStatus.NOT_AFFECTED : TriageStatus.WILL_NOT_FIX;
             VexJustification justification = event.isFalsePositive()
                     ? VexJustification.VULNERABLE_CODE_NOT_IN_EXECUTE_PATH
-                    : VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
+                    : null;
 
             // **The author is the integration, and the claimed name goes down into the comment.**
             // It used to come from the payload: on an anonymous route, that let the caller choose
@@ -195,6 +207,25 @@ public class TicketingWebhookService {
                     : "Status updated from " + provider.name() + " ticket " + event.ticketRef())
                     + claimed, Triage.MAX_COMMENT_LENGTH);
 
+            // **A person's settled decision is not moved by a payload.** The tracker's word is recorded
+            // beside it; where it disagrees, the security lead is told (`VECTI-SEC-037`), since one of
+            // the two is wrong and only a person can say which.
+            Optional<TriageStatus> settled = TriageStatus.fromWireName(issue.triageStatus())
+                    .filter(TriageStatus::isSettled);
+            if (settled.isPresent()) {
+                boolean agrees = settled.get() == status;
+                actionTaken = (agrees ? "Tracker agrees with the settled decision " : "Tracker says " + status.wireName()
+                        + ", the issue stays " ) + settled.get().wireName() + "; nothing changed";
+                audit.record(new AuditLogService.Record(
+                        agrees ? AuditOperation.TICKET_SYNCED : AuditOperation.TRIAGE_CONTRADICTED_BY_TRACKER,
+                        String.valueOf(issue.id()),
+                        provider.name() + " ticket " + event.ticketRef() + ": " + actionTaken + " — " + comment,
+                        author,
+                        origin.ipAddress(),
+                        origin.userAgent()));
+                return new Outcome.Synced(issue.id(), event.ticketRef(), actionTaken);
+            }
+
             // **`false`, and that is the whole fix.** This boolean was `true`: a tracker's
             // decision settled on the spot, bypassing four-eyes. On a route that requires no
             // authentication as long as no secret is configured — the default — that meant an
@@ -209,10 +240,11 @@ public class TicketingWebhookService {
             // human, nor authenticated.
             //
             // **Nothing breaks.** `queueIfNotApprover` converts the decision into
-            // `PENDING_APPROVAL` without consulting the four-eyes setting, and `pending_approval`
-            // renders as "under review" in the documents, never as "not affected".
-            // Synchronisation therefore goes on recording what the tracker says; it only stops
-            // publishing it in a human's place.
+            // `PENDING_APPROVAL` without consulting the four-eyes setting — `will_not_fix` settles,
+            // so it is queued like a dismissal — and `pending_approval` renders as "under
+            // investigation" in the documents. Synchronisation therefore goes on recording what the
+            // tracker says; it only stops publishing it in a human's place. An accepted risk needs a
+            // review date: the tracker gives none, so one is proposed, and whoever grants it sets theirs.
             IssueView triaged = triageService.triageView(
                     issue.id(),
                     new Triage.Request(
@@ -220,11 +252,11 @@ public class TicketingWebhookService {
                             author,
                             justification,
                             comment,
-                            null),
+                            status == TriageStatus.WILL_NOT_FIX ? PROPOSED_ACCEPTANCE_REVIEW : null),
                     false);
 
-            actionTaken = "Queued as " + triaged.triageStatus() + " (" + justification.wireName()
-                    + ") from " + author;
+            actionTaken = "Queued as " + triaged.triageStatus() + " (" + status.wireName()
+                    + (justification == null ? "" : ", " + justification.wireName()) + ") from " + author;
 
             audit.record(new AuditLogService.Record(
                     AuditOperation.TICKET_SYNCED,
@@ -281,7 +313,9 @@ public class TicketingWebhookService {
                 String author = root.path("sender").path("login").asText("");
                 String body = issueNode.path("body").asText("");
 
-                boolean isFp = stateReason.equalsIgnoreCase("not_planned") || body.toLowerCase(Locale.ROOT).contains("false positive");
+                // `not_planned` is GitHub's only way to close without completing: it says nothing of
+                // reachability, so it is a refusal. Only the words "false positive" make one.
+                boolean isFp = body.toLowerCase(Locale.ROOT).contains("false positive");
                 boolean isWontFix = isFp || stateReason.equalsIgnoreCase("not_planned");
 
                 return new ExtractedTicketEvent(number, state, stateReason, body, author, isWontFix, isFp);

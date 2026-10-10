@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Exceptions } from './exceptions';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish } from '@/app/core/testing/english';
 
 /**
  * The exceptions register, and the review that did not exist.
@@ -149,6 +150,30 @@ describe('le registre des exceptions', () => {
         // would give a total that grows as one reads, which is the total of nothing.
         expect(component.loaded()).toHaveLength(2);
         expect(component.granted()).toBe(2);
+    });
+
+    it('counts a risk accepted as granted, and names which of the two it is', () => {
+        // `not_affected` and `will_not_fix` are both exemptions in force, and opposite claims about
+        // the product (decision 0041): the figure counts both, the row says which one it holds.
+        useEnglish();
+        const component = fixture.componentInstance;
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
+            ...REGISTER,
+            entries: [
+                REGISTER.entries[0],
+                { ...REGISTER.entries[0], issue_id: 43, decision: 'will_not_fix', justification: null },
+                { ...REGISTER.entries[0], issue_id: 44, decision: 'pending_approval' }
+            ]
+        });
+        fixture.detectChanges();
+
+        expect(component.granted()).toBe(2);
+        expect(component.awaiting()).toBe(1);
+        const labels = [...fixture.nativeElement.querySelectorAll('[data-testid="exception-decision"]')].map(
+            (cell: Element) => cell.textContent?.trim()
+        );
+        expect(labels).toEqual(['Not affected', 'Will not fix — risk accepted']);
     });
 
     it('counts the never-reviewed as a figure apart from the lapsed', () => {

@@ -32,7 +32,7 @@ For each repository the caller may see:
 5. **Secrets** found in the repository, at most ten, linked from the first vulnerability or, with
    none, from the ingress node.
 
-A finding triaged *not affected* or *fixed* is left out. The node lists are cut at ten for
+A finding triaged *not affected*, *will not fix* or *fixed* is left out. The node lists are cut at ten for
 legibility; the counts and the score below are computed before the cut.
 
 **"Exploitable" means one thing here:** a vulnerability node is flagged exploitable when the

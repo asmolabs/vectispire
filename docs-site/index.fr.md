@@ -58,7 +58,7 @@ correctifs successifs garde un historique et une décision, au lieu de trois.
 
 **L'état n'est pas le triage.** `state` (ouvert / résolu) n'est écrit que par le pipeline, à
 partir de ce que les scanners observent. `triage_status` (le vocabulaire VEX : affecté, non
-affecté, corrigé, en cours d'examen) n'est écrit que par une personne. Les deux sont tenus
+affecté, ne sera pas corrigé, corrigé, en cours d'examen) n'est écrit que par une personne. Les deux sont tenus
 strictement à part, parce qu'un constat supprimé et un constat réellement corrigé ne doivent
 pas se ressembler.
 

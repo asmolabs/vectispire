@@ -18,8 +18,8 @@ one history and one decision.
 **State** — `open` or `resolved`. Written **only by the pipeline**, from what the scanners
 observed on the last run.
 
-**Triage status** — the VEX vocabulary: *affected*, *not affected*, *fixed*, *under
-review*. Written **only by a person**.
+**Triage status** — the VEX vocabulary: *affected*, *not affected*, *will not fix*
+(a risk accepted), *fixed*, *under review*. Written **only by a person**.
 
 Keeping state and triage apart is deliberate. If suppressing a finding marked it resolved,
 "resolved" would stop meaning anything, and nobody could tell a problem that was fixed from

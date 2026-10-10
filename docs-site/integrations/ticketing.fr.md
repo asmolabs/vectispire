@@ -50,15 +50,30 @@ numéro d'incident que les gens lisent (`INC0012345`) : le numéro est donc d'ab
 table des incidents, et le compte ServiceNow a besoin du droit de **lecture** sur `incident` en plus
 de l'écriture.
 
-Si elle ne va pas être corrigée, c'est une [décision de triage](../guide/issues.md), avec une
-justification et de préférence une date de réexamen.
+Si elle ne va pas être corrigée, c'est une [décision de triage](../guide/issues.md) : **ne sera
+pas corrigé — risque accepté**, avec une date de réexamen et sans justification VEX, puisque le
+produit reste exposé.
 
 ## Le webhook entrant {#inbound-webhook}
 
 Un tracker peut aussi rappeler Vectispire, sur `POST /api/v1/tickets/webhook/{provider}` —
 `gitlab`, `github`, `jira` ou `servicenow`. Quand un ticket que Vectispire connaît par sa
-référence est fermé comme faux positif ou comme non corrigé, l'appel **propose** une décision
-`not_affected` sur l'issue ; toute autre mise à jour est seulement tracée dans le journal d'audit.
+référence est fermé comme non corrigé ou comme faux positif, l'appel **propose** une décision sur
+l'issue ; toute autre mise à jour est seulement tracée dans le journal d'audit. Les deux fermetures
+sont deux affirmations différentes, et elles sont proposées sous deux statuts différents
+([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)) :
+
+| Le ticket est fermé comme | Statut proposé | Justification |
+|---|---|---|
+| un refus — Jira *Won't Fix*, *Declined*, *Rejected* ; ServiceNow *Won't Fix*, *Risk Accepted*, *Withdrawn* ; GitHub *not planned* (`state_reason: not_planned`) ; GitLab fermé avec *wontfix* ou *won't fix* dans son titre | `will_not_fix` | aucune, et une date de réexamen proposée à quatre-vingt-dix jours |
+| un faux positif explicite — Jira *False Positive*, *Cannot Reproduce* ; ServiceNow *False Positive*, *Not an Issue* ; les mots *false positive* dans le corps d'une issue GitHub ou dans le titre ou la description d'une issue GitLab | `not_affected` | `vulnerable_code_not_in_execute_path` |
+
+**Un refus n'est jamais proposé comme `not_affected`.** Il dit que l'équipe ne corrigera pas la
+vulnérabilité, pas que le produit en est à l'abri ; avant la 0.11.0, il était proposé comme
+`not_affected` avec `inline_mitigations_already_exist`, une atténuation dont le tracker n'avait
+jamais parlé et que les documents signés auraient portée une fois la demande approuvée. Le *not
+planned* de GitHub est sa seule façon de fermer sans avoir terminé, et ne dit rien de
+l'atteignabilité : c'est un refus, et non plus un faux positif.
 
 **Il est refusé tant qu'aucun secret n'est posé.** La route est la seule ouverte sans compte — le
 tracker ne porte pas de session —, le secret est donc toute son authentification. Tant que
@@ -81,10 +96,21 @@ jours ; le même corps reçu de nouveau dans cette fenêtre — un rejeu, ou la 
 lui-même — reçoit `200` *« Delivery already processed »* et ne change rien.
 
 **Une décision est mise en file, jamais appliquée.** L'issue passe en `pending_approval` avec le
-statut proposé et sa justification, et reste *en cours de revue* dans les documents VEX exportés
-jusqu'à ce qu'une seconde personne l'approuve sous le [principe des quatre yeux](../administration/four-eyes.md).
+statut proposé et sa justification, et reste *en cours d'investigation* dans les documents VEX
+exportés jusqu'à ce qu'une seconde personne l'approuve sous le [principe des quatre yeux](../administration/four-eyes.md).
+L'approbateur choisit le statut et, pour un risque accepté, la date de réexamen : la demande ne
+garde pas le statut que le tracker demandait, c'est donc dans le commentaire et l'historique qu'il
+se lit.
 L'auteur enregistré est l'intégration (`GITLAB_webhook`, …) ; le nom que rapporte le tracker va
 dans le commentaire, comme donnée rapportée et non comme identité.
+
+**Une décision qu'une personne a réglée ne bouge pas sur un ticket.** Sur une issue déjà
+`not_affected`, `will_not_fix` ou `fixed`, la parole du tracker est inscrite au journal d'audit et
+rien ne change. Quand elle contredit le statut réglé — un *Won't Fix* sur une issue déclarée non
+affectée, un faux positif sur un risque accepté —, l'entrée est `TRIAGE_CONTRADICTED_BY_TRACKER`,
+signalée au SIEM comme [`VECTI-SEC-037`](siem.md#catalogue-des-evenements) : l'un des deux se
+trompe, et seule une personne peut dire lequel. Un tracker qui est d'accord est audité, pas
+signalé.
 
 Les livraisons sont limitées par adresse d'appelant (`VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW`, voir
 [Configuration](../reference/configuration.md)).

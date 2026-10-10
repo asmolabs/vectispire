@@ -386,6 +386,7 @@
       "ticket_linked": "Ticket lié",
       "ticket_closed": "Ticket fermé",
       "ticket_synced": "Ticket synchronisé",
+      "triage_contradicted_by_tracker": "Traqueur en désaccord avec un triage réglé",
       "gate_policy_updated": "Politique de barrière modifiée",
       "control_declared": "Mesure déclarée",
       "certified_scope_changed": "Périmètre certifié modifié",
@@ -1357,6 +1358,7 @@
       "pending_approval": "En attente d'approbation",
       "affected": "Affecté",
       "not_affected": "Non affecté",
+      "will_not_fix": "Ne sera pas corrigé — risque accepté",
       "fixed": "Corrigé",
       "accepted": "Risque accepté",
       "false_positive": "Faux positif"
@@ -1426,6 +1428,7 @@
     "justification_hint": "Exigée par le standard VEX : sans elle, la déclaration exportée ne porterait aucune information.",
     "comment": "Commentaire",
     "expires_hint": "Une décision porte sur un contexte, et les contextes changent. Laissez vide pour ne programmer aucun réexamen.",
+    "will_not_fix_hint": "Accepter un risque demande une date de réexamen, de 1 à 3650 jours. Il ne porte aucune justification VEX, et s'exporte comme affecté, non comme corrigé.",
     "sightings_title": "Vu par",
     "sightings_subtitle": "— quel scan, sur quelle version du projet",
     "sightings_empty": "Aucune détection enregistrée.",

@@ -13,6 +13,10 @@ import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/core/api.models';
 import { SeverityLabelPipe } from '@/app/shared/severity';
+import { triageStatusLabel } from '@/app/shared/triage-status';
+
+/** The decisions that are an exemption in force once granted. */
+const GRANTED_DECISIONS: readonly string[] = ['not_affected', 'will_not_fix'];
 
 /**
  * What somebody decided not to fix, and on what conditions.
@@ -64,7 +68,14 @@ export class Exceptions {
      */
     readonly loaded = signal<ExceptionEntry[]>([]);
 
-    readonly granted = computed(() => this.loaded().filter((entry) => entry.decision === 'not_affected').length);
+    /**
+     * Both settled exemptions: an argument that the product is not exposed, and a risk accepted —
+     * exposed, known, dated (decision 0041). Counting only the first made every acceptance vanish
+     * from the figure the assessor reads first, while its row stood in the table below.
+     */
+    readonly granted = computed(
+        () => this.loaded().filter((entry) => GRANTED_DECISIONS.includes(entry.decision)).length
+    );
     readonly awaiting = computed(() => this.loaded().filter((entry) => entry.decision === 'pending_approval').length);
     readonly lapsed = computed(() => this.loaded().filter((entry) => entry.lapsed).length);
     readonly neverReviewed = computed(() => this.loaded().filter((entry) => entry.last_reviewed_at === null).length);
@@ -184,6 +195,15 @@ export class Exceptions {
                     this.busy.set(false);
                 }
             });
+    }
+
+    /**
+     * What was granted, in words. "Granted" alone read the same for "not affected" and for "will
+     * not fix", which are opposite claims about the product: one says it is not exposed, the
+     * other that it is and the team knows.
+     */
+    decisionLabel(entry: ExceptionEntry): string {
+        return triageStatusLabel(this.i18n, entry.decision);
     }
 
     severityOf(entry: ExceptionEntry): 'danger' | 'warn' | 'info' | 'secondary' {

@@ -38,12 +38,32 @@ class TriageTest {
         @DisplayName("the other statuses need no justification")
         void otherStatusesAreFree() {
             for (TriageStatus status : TriageStatus.values()) {
-                if (status == TriageStatus.NOT_AFFECTED || status == TriageStatus.PENDING_APPROVAL) {
+                if (status == TriageStatus.NOT_AFFECTED || status == TriageStatus.PENDING_APPROVAL
+                        || status == TriageStatus.WILL_NOT_FIX) {
                     continue;
                 }
                 assertThat(Triage.decide(new Triage.Request(status, "alice", null, null, null), NOW).status())
                         .isEqualTo(status);
             }
+        }
+
+        @Test
+        @DisplayName("an accepted risk carries a review date and no VEX justification (decision 0041)")
+        void anAcceptedRiskHasADateAndNoJustification() {
+            assertThatThrownBy(() -> Triage.decide(new Triage.Request(TriageStatus.WILL_NOT_FIX, "alice", null, null,
+                    null), NOW))
+                    .isInstanceOf(InvalidTriageException.class)
+                    .hasMessageContaining("review date");
+            assertThatThrownBy(() -> Triage.decide(new Triage.Request(TriageStatus.WILL_NOT_FIX, "alice",
+                    VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST, null, java.time.Period.ofDays(90)), NOW))
+                    .isInstanceOf(InvalidTriageException.class)
+                    .hasMessageContaining("no VEX justification");
+
+            Triage.Decision granted = Triage.decide(new Triage.Request(TriageStatus.WILL_NOT_FIX, "alice", null,
+                    "upstream abandoned, isolated behind the gateway", java.time.Period.ofDays(90)), NOW);
+            assertThat(granted.status()).isEqualTo(TriageStatus.WILL_NOT_FIX);
+            assertThat(granted.expiresAt()).isPresent();
+            assertThat(TriageStatus.WILL_NOT_FIX.isSettled()).isTrue();
         }
 
         @Test
@@ -164,7 +184,7 @@ class TriageTest {
 
             assertThat(TriageStatus.fromWireName("pending_approval")).contains(TriageStatus.PENDING_APPROVAL);
             assertThat(TriageStatus.PENDING_APPROVAL.isSettled()).isFalse();
-            assertThat(TriageStatus.settledWireNames()).containsExactlyInAnyOrder("not_affected", "fixed");
+            assertThat(TriageStatus.settledWireNames()).containsExactlyInAnyOrder("not_affected", "will_not_fix", "fixed");
         }
     }
 }

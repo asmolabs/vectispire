@@ -990,3 +990,130 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         expect(page().querySelector('[data-testid="weekly-banner"]')).toBeNull();
     });
 });
+
+/**
+ * A risk accepted (`will_not_fix`, decision 0041).
+ *
+ * It is the one decision that has to carry a review date and must not carry a VEX justification:
+ * each of the five says the product is *not* exposed, and this one says it is. The server refuses
+ * both mistakes; what is asserted here is that the dialog cannot make them — a justification left
+ * from a `not_affected` chosen a moment earlier would otherwise ride along hidden and be refused.
+ */
+describe('accepting a risk', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    const ROW = asSchema('BacklogEntry', {
+        id: 7,
+        targetKind: 'repository',
+        type: 'vulnerability',
+        identifier: 'CVE-2026-7',
+        severity: 'high',
+        state: 'open',
+        firstSeenAt: '2026-03-03T08:00:00Z',
+        lastSeenAt: '2026-08-21T05:03:00Z',
+        timesSeen: 1,
+        triageStatus: 'under_review',
+        isKev: false
+    });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        TestBed.inject(SessionStore).user.set({
+            id: 1,
+            username: 'x',
+            role: 'CISO',
+            mustChangePassword: false
+        } as never);
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(
+                request.request.url.endsWith('/issues') ? { items: [ROW], total: 1, limit: 50, offset: 0 } : []
+            );
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('offers it in the one list, in words, and never in the colour of good news', () => {
+        const component = fixture.componentInstance;
+        const option = component.triageOptions().find((one) => one.value === 'will_not_fix');
+        expect(option?.label).toBe('Will not fix — risk accepted');
+        expect(component.triageLabel('will_not_fix')).toBe('Will not fix — risk accepted');
+        // Settled for the gate, still exposed: amber, not the green of `fixed`.
+        expect(component.triageColour('will_not_fix')).toBe('warn');
+    });
+
+    it('cannot be submitted without a review delay the server accepts', () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[0]);
+        component.chooseTriageStatus('will_not_fix');
+
+        for (const days of [null, 0, 3651, 1.5]) {
+            component.triageExpiresInDays = days;
+            expect(component.canSubmitTriage()).toBe(false);
+        }
+        component.submitTriage();
+        http.expectNone('/api/v1/issues/7/triage');
+
+        component.triageExpiresInDays = 90;
+        expect(component.canSubmitTriage()).toBe(true);
+    });
+
+    it('clears a justification chosen before, and never sends one', () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[0]);
+        component.chooseTriageStatus('not_affected');
+        component.triageJustification = 'inline_mitigations_already_exist';
+
+        component.chooseTriageStatus('will_not_fix');
+        expect(component.triageJustification).toBeNull();
+
+        // Even a value written behind the field's back stays home.
+        component.triageJustification = 'inline_mitigations_already_exist';
+        component.triageExpiresInDays = 90;
+        component.submitTriage();
+
+        const body = http.expectOne('/api/v1/issues/7/triage').request.body;
+        expect(body.status).toBe('will_not_fix');
+        expect(body.justification).toBeNull();
+        expect(body.expires_in_days).toBe(90);
+    });
+
+    it('shows no justification field, and says the delay is required, in the dialog', async () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[0]);
+        component.chooseTriageStatus('will_not_fix');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const delay = document.body.querySelector<HTMLInputElement>('#triage-expires');
+        expect(delay).not.toBeNull();
+        expect(delay!.required).toBe(true);
+        expect(document.body.querySelector('#triage-justification')).toBeNull();
+        expect(document.body.querySelector('#triage-expires-hint')?.textContent).toContain(
+            'Accepting a risk needs a review date'
+        );
+    });
+
+    it('keeps the justification and an optional delay for an argument that the product is not exposed', async () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[0]);
+        component.chooseTriageStatus('not_affected');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(document.body.querySelector('#triage-justification')).not.toBeNull();
+        expect(document.body.querySelector<HTMLInputElement>('#triage-expires')!.required).toBe(false);
+        expect(document.body.querySelector('#triage-expires-hint')?.textContent).toContain('Leave empty');
+    });
+});

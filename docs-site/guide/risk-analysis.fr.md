@@ -35,7 +35,7 @@ CVE que portent vos dépôts ne sont jamais envoyées à un tiers. Avant la prem
 aucune CVE n'a de score, et le classement n'en montre aucun plutôt qu'un zéro mesuré.
 
 Le classement porte sur les vulnérabilités ouvertes dont le triage n'est pas réglé : une
-vulnérabilité triée **non affecté** ou **corrigé** en sort, comme elle sort de la barrière et du
+vulnérabilité triée **non affecté**, **ne sera pas corrigé** ou **corrigé** en sort, comme elle sort de la barrière et du
 scorecard. Une exclusion encore en attente d'approbation reste classée — une demande n'est pas une
 décision.
 
@@ -58,7 +58,7 @@ qu'elle soit. Rien n'établit que la route appelle le code vulnérable, que l'ap
 depuis Internet, ni même qu'elle ait une base de données.
 
 Servez-vous-en pour voir quels dépôts portent à la fois une porte ouverte et une faille critique, puis
-confirmez un chemin à la main. Un constat trié **non affecté** ou **corrigé** est écarté. Le détail est
+confirmez un chemin à la main. Un constat trié **non affecté**, **ne sera pas corrigé** ou **corrigé** est écarté. Le détail est
 dans la [référence des chemins d'attaque](https://github.com/asmolabs/vectispire/blob/main/docs/fr/ATTACK_PATH_VISUALIZER.fr.md).
 
 ## Rayon d'impact

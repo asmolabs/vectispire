@@ -22,7 +22,8 @@ import java.util.TreeMap;
  *   <li><b>Triaged issues are suppressions, not omissions.</b> Removing them makes the
  *       platform report them as new on the next upload, undoing the triage work; a
  *       suppression instead carries its justification, so the reviewer sees <em>why</em> it is
- *       set aside. {@code NOT_AFFECTED} and {@code FIXED} are suppressed; {@code AFFECTED} is
+ *       set aside. {@code NOT_AFFECTED}, {@code WILL_NOT_FIX} and {@code FIXED} are suppressed — an
+ *       accepted risk stops failing the build as the gate stops failing it; {@code AFFECTED} is
  *       not — deciding an issue is real has to stay visible.
  *   <li><b>Resolved issues are excluded.</b> They are gone, and SARIF describes the current
  *       state of the branch being built.

@@ -20,7 +20,7 @@ statut KEV, et son historique de triage.
 | | Écrit par | Valeurs |
 |---|---|---|
 | **État** | le pipeline, depuis ce que les scanners ont observé | `open`, `resolved` |
-| **Statut de triage** | une personne | `affected`, `not affected`, `fixed`, `under review` |
+| **Statut de triage** | une personne | `under review`, `affected`, `not affected`, `will not fix`, `fixed` — et `pending approval` tant qu'une décision attend une seconde personne |
 
 Ils ne s'écrivent jamais l'un l'autre. Supprimer une issue ne la résout pas, et un scan qui
 résout une issue n'efface pas ce que quelqu'un a décidé à son sujet.
@@ -31,6 +31,25 @@ Ouvrez une issue et consignez une décision dans le vocabulaire VEX, avec une
 **justification** et éventuellement un **commentaire**. La justification est la partie qui doit
 vous survivre : « non atteignable dans notre configuration », « non livré en production »,
 « code vendu que nous n'exécutons pas ».
+
+`not affected`, `will not fix` et `fixed` **règlent** l'issue : elle cesse de faire échouer la
+barrière et sort des chiffres du backlog. Sous la [double validation](../administration/four-eyes.md),
+quelqu'un qui ne peut pas approuver ne fait que les demander — l'issue attend en `pending approval`,
+toujours comptée, jusqu'à ce qu'un approbateur l'accorde.
+
+### Accepter un risque {#accepting-a-risk}
+
+**Ne sera pas corrigé — risque accepté** sert pour une vulnérabilité qui s'applique bel et bien et
+que l'équipe a décidé de ne pas corriger. Ce n'est pas *non affecté* : chaque justification VEX dit
+pourquoi un produit n'est **pas** exposé, et aucune n'est vraie ici. La décision ne porte donc
+**aucune justification** — le serveur en refuse une — et **exige une date de réexamen** : une
+acceptation sans date est celle que personne ne regarde plus. Les documents VEX exportés continuent de
+dire que le produit est affecté, sans correction prévue ([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)), et l'acceptation figure
+au [registre des exceptions](exceptions.md).
+
+Avant la 0.11.0, une acceptation n'avait pas de statut à elle et s'enregistrait comme *non affecté*,
+avec une justification choisie dans une liste où aucune ne s'appliquait ; le *Won't Fix* d'un
+traqueur en devenait une aussi.
 
 ### Dates de réexamen {#review-dates}
 
@@ -82,7 +101,8 @@ différence.
   que l'arborescence ne vous montre pas est nommé par le numéro du lien, au-dessus de la liste vide
   ordinaire. Chaque filtre de cette page est gardé dans l'adresse : une liste filtrée se met en favori
   ou s'envoie, et **Précédent** revient à la page d'où elle a été ouverte.
-- **Masquer le triage réglé** — écarte ce qui a été jugé non affecté ou marqué corrigé. C'est la
+- **Masquer le triage réglé** — écarte ce qui a été jugé non affecté, accepté comme ne sera pas
+  corrigé ou marqué corrigé. C'est la
   règle selon laquelle comptent les chiffres par gravité du tableau de bord, et les liens depuis ces
   chiffres l'activent.
 

@@ -64,6 +64,20 @@ public final class Triage {
             throw new InvalidTriageException(
                     "A justification is required for this triage status (VEX requirement).");
         }
+        // **An accepted risk is not an argument about the product, and it does not last.** A VEX
+        // justification says why a product is *not* exposed; on a decision that says it is, any
+        // one of the five would be a false statement signed into the documents (decision 0041).
+        // And an acceptance without a date is the one that is never looked at again.
+        if (request.status() == TriageStatus.WILL_NOT_FIX) {
+            if (request.justification() != null) {
+                throw new InvalidTriageException(
+                        "A risk accepted carries no VEX justification: it is not an argument that the product is "
+                                + "not affected.");
+            }
+            if (request.expiresIn() == null) {
+                throw new InvalidTriageException("A risk accepted needs a review date.");
+            }
+        }
         // The comment lands in two `text` columns, the issue's and the history's. Past the ceiling
         // the database refused the write, as a 500, and the decision was lost with it.
         if (request.comment() != null && request.comment().length() > MAX_COMMENT_LENGTH) {

@@ -57,6 +57,7 @@ class SecurityEventTypeTest {
         expected.put("FORGE_CONNECTION_CHANGED", "VECTI-SEC-034");
         expected.put("FORGE_IMPORT_APPLIED", "VECTI-SEC-035");
         expected.put("FORGE_CONNECTION_REFUSED", "VECTI-SEC-036");
+        expected.put("TRACKER_CONTRADICTS_TRIAGE", "VECTI-SEC-037");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
@@ -165,6 +166,8 @@ class SecurityEventTypeTest {
         // through the form shows itself (decision 0037 §2).
         assertThat(SecurityEventType.signalledBy(AuditOperation.FORGE_CONNECTION_REFUSED))
                 .contains(SecurityEventType.FORGE_CONNECTION_REFUSED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.TRIAGE_CONTRADICTED_BY_TRACKER))
+                .contains(SecurityEventType.TRACKER_CONTRADICTS_TRIAGE);
         // A pipeline's upload is as frequent as its builds: the entry, not an event.
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_IMPORT_REFUSED))

@@ -355,6 +355,26 @@ d'audit consigne l'import. Le rôle de gouverneur de la plateforme ne peut pas i
 - **CycloneDX 1.5 avec VEX lié au BOM** : `GET /api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json`,
   `GET /api/v1/cyclonedx/projects/{projectId}/cyclonedx-vex.json`, `GET /api/v1/cyclonedx/aggregate.json`.
 
+Chaque format, par scan, par projet et agrégé, lit le triage d'un problème par une seule table
+(`VexDisposition`, [décision 0041](../architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)),
+si bien que le même problème fait la même déclaration dans chaque document signé :
+
+| Triage | CycloneDX `analysis` | OpenVEX | CSAF `product_status` |
+|---|---|---|---|
+| `under_review`, `pending_approval` | `in_triage` | `under_investigation` | `under_investigation` |
+| `affected` | `exploitable` | `affected` | `known_affected` |
+| `will_not_fix` | `exploitable`, réponse `will_not_fix` | `affected`, `action_statement` « Will not fix: … » | `known_affected`, remédiation `no_fix_planned` |
+| `not_affected` avec une justification | `not_affected` + son écriture CycloneDX | `not_affected` + la justification | `known_not_affected` + la justification comme flag |
+| `not_affected` sans justification (lignes anciennes ou importées) | `in_triage` | `under_investigation` | `under_investigation` |
+| `fixed`, ou le problème résolu | `resolved` | `fixed` | `fixed` |
+
+**Un risque accepté s'exporte comme une exposition**, sans correction prévue : aucune des
+justifications VEX n'est vraie d'un produit exposé, et un client lit une déclaration VEX comme la parole du
+fournisseur sur son produit. **Une justification n'est jamais inventée** : une ligne
+`not_affected` sans justification n'est l'affirmation de personne et part comme en cours
+d'investigation. CycloneDX reçoit son propre vocabulaire de justification (`code_not_present`,
+`code_not_reachable`, `requires_environment`, `protected_by_mitigating_control`).
+
 ---
 
 ## 7. Approbation des dérogations à quatre yeux
@@ -368,8 +388,8 @@ activé (le défaut) :
    - Habilité à valider et approuver les dérogations techniques (`canApproveTriage = true`).
 
 2. **Statut `PENDING_APPROVAL` (En attente d'approbation)** :
-   - Toute demande d'exemption (`not_affected` / `accepted_risk`) initiée par un développeur (`USER`) bascule automatiquement en `PENDING_APPROVAL`.
-   - **Tant que la demande n'est pas approuvée, la Gate de déploiement CI/CD reste bloquante** (`isSettled() == false`).
+      - Toute demande d'un statut qui règle le problème — `not_affected` (une levée), `will_not_fix` (un risque accepté, qui exige une date de réexamen et ne porte aucune justification VEX) ou `fixed` — formulée par quelqu'un qui ne peut pas approuver bascule automatiquement en `PENDING_APPROVAL`. De même pour toute décision venue du webhook d'un traqueur, quel que soit le réglage : un traqueur n'est pas un approbateur.
+   - **Tant que la demande n'est pas approuvée, la Gate de déploiement CI/CD reste bloquante** (`isSettled() == false`), et les documents VEX déclarent le problème en cours d'investigation.
 
 3. **Demandeur ≠ Approbateur** :
    - L'approbation est refusée lorsque le compte approbateur est celui enregistré comme ayant demandé la dérogation. Sans cela le contrôle est une barrière de rôle et non un contrôle à quatre yeux, et un évaluateur lisant littéralement DORA art. 9 ou NIS 2 art. 21 a raison de le rejeter.

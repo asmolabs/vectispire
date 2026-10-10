@@ -3,11 +3,18 @@ import { keyFor } from '../core/i18n/literal-keys';
 
 /**
  * The triage statuses the bundle names. The document types `triageStatus` as a plain string; the
- * five the server writes today are `TRIAGE_STATUSES` in `core/testing/contract.ts`, and `accepted`
+ * six the server writes today are `TRIAGE_STATUSES` in `core/testing/contract.ts`, and `accepted`
  * and `false_positive` are older decisions still found in the history.
  */
 export type TriageStatus =
-    'under_review' | 'pending_approval' | 'affected' | 'not_affected' | 'fixed' | 'accepted' | 'false_positive';
+    | 'under_review'
+    | 'pending_approval'
+    | 'affected'
+    | 'not_affected'
+    | 'will_not_fix'
+    | 'fixed'
+    | 'accepted'
+    | 'false_positive';
 
 /**
  * A triage status in words, **written once with literal keys** (decision 0019). The issue page and
@@ -19,6 +26,7 @@ export const TRIAGE_STATUS_KEYS = {
     pending_approval: 'issues.triage_status.pending_approval',
     affected: 'issues.triage_status.affected',
     not_affected: 'issues.triage_status.not_affected',
+    will_not_fix: 'issues.triage_status.will_not_fix',
     fixed: 'issues.triage_status.fixed',
     accepted: 'issues.triage_status.accepted',
     false_positive: 'issues.triage_status.false_positive'

@@ -259,7 +259,7 @@ jusqu'à ce que chaque dépôt du projet soit analysé à nouveau — aucune ana
 enregistré les langages de ses règles — et un *oui* automatique que Vectispire y avait donné est
 retiré à la mesure suivante.
 
-Les chiffres du passif excluent le **triage réglé** des deux côtés — *non affecté*, *corrigé* — et
+Les chiffres du passif excluent le **triage réglé** des deux côtés — *non affecté*, *ne sera pas corrigé*, *corrigé* — et
 comptent tout autre statut, y compris un statut que cette version ne connaît pas.
 
 **La réponse à côté de la mesure :**

@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.exports;
 
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.vex.VexDisposition;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleScope;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
@@ -347,28 +349,33 @@ public class CycloneDxGeneratorService {
         // Triage clears a component; reachability does not — same reason as the CSAF and OpenVEX
         // generators. The column was handed over here and read nowhere below; nothing computes it
         // now, and a real analysis returning would still only raise concern, never remove it.
-        boolean notAffected = "not_affected".equalsIgnoreCase(triageStatus);
-        boolean fixed = "resolved".equalsIgnoreCase(state) || "fixed".equalsIgnoreCase(triageStatus);
-        boolean underReview = "under_review".equalsIgnoreCase(triageStatus)
-                || "pending_approval".equalsIgnoreCase(triageStatus);
+        //
+        // The reading is `VexDisposition`'s, shared with the other two formats (decision 0041). It
+        // ended two claims made here alone: a `not_affected` answered `will_not_fix` — nothing to fix
+        // in a product that is not affected — and a missing justification was filled in with one.
+        VexDisposition disposition = VexDisposition.of(
+                triageStatus, triageJustification, IssueState.RESOLVED.wireName().equalsIgnoreCase(state));
 
         String cdxState;
         String justification = null;
         List<String> responses = new ArrayList<>();
 
-        if (notAffected) {
-            cdxState = "not_affected";
-            justification = triageJustification != null && !triageJustification.isBlank()
-                    ? triageJustification.toLowerCase(Locale.ROOT).replace(" ", "_")
-                    : "vulnerable_code_not_in_execute_path";
-            responses.add("will_not_fix");
-        } else if (fixed) {
-            cdxState = "resolved";
-            responses.add("update");
-        } else if (underReview) {
-            cdxState = "in_triage";
-        } else {
-            cdxState = "exploitable";
+        switch (disposition.kind()) {
+            case NOT_AFFECTED -> {
+                cdxState = "not_affected";
+                justification = VexDisposition.cycloneDxJustification(disposition.justification().orElseThrow());
+            }
+            case FIXED -> {
+                cdxState = "resolved";
+                responses.add("update");
+            }
+            case WILL_NOT_FIX -> {
+                cdxState = "exploitable";
+                responses.add("will_not_fix");
+            }
+            case AFFECTED -> cdxState = "exploitable";
+            case UNDER_INVESTIGATION -> cdxState = "in_triage";
+            default -> throw new IllegalStateException("Unmapped VEX disposition " + disposition.kind());
         }
 
         return new Analysis(

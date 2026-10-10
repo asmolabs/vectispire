@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.common.domain.exports;
 
-import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.vex.VexDisposition;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -97,17 +97,29 @@ public final class CsafExport {
             List<String> underInvestigation = new ArrayList<>();
             List<CsafDocument.Flag> flags = new ArrayList<>();
 
-            TriageStatus status = issue.triageStatus() != null ? issue.triageStatus() : (issue.resolved() ? TriageStatus.FIXED : TriageStatus.UNDER_REVIEW);
+            // The reading the other formats make (decision 0041). This switch had no case for
+            // `pending_approval`: such a product appeared in no status list at all.
+            VexDisposition disposition = VexDisposition.of(
+                    issue.triageStatus(), issue.triageJustification(), issue.resolved());
+            List<CsafDocument.Remediation> noFix = new ArrayList<>();
 
-            switch (status) {
+            switch (disposition.kind()) {
                 case AFFECTED -> knownAffected.add(pid);
+                case WILL_NOT_FIX -> {
+                    knownAffected.add(pid);
+                    noFix.add(new CsafDocument.Remediation("no_fix_planned", "Will not fix: the risk was accepted"
+                            + (issue.triageComment() == null || issue.triageComment().isBlank()
+                                    ? "." : " — " + issue.triageComment()), List.of(pid)));
+                }
                 case NOT_AFFECTED -> {
                     knownNotAffected.add(pid);
-                    String flagLabel = mapJustificationToFlag(issue.triageJustification());
-                    flags.add(new CsafDocument.Flag(flagLabel, List.of(pid), now.toString()));
+                    // CSAF's flag labels are the OpenVEX justifications, word for word: the recorded one,
+                    // never one inferred from its spelling or supplied when absent.
+                    flags.add(new CsafDocument.Flag(disposition.justification().orElseThrow().wireName(),
+                            List.of(pid), now.toString()));
                 }
                 case FIXED -> fixed.add(pid);
-                case UNDER_REVIEW -> underInvestigation.add(pid);
+                case UNDER_INVESTIGATION -> underInvestigation.add(pid);
             }
 
             CsafDocument.ProductStatus productStatus = new CsafDocument.ProductStatus(
@@ -124,7 +136,7 @@ public final class CsafExport {
                 notes.add(new CsafDocument.Note("details", "Triage Justification Comment", issue.triageComment()));
             }
 
-            List<CsafDocument.Remediation> remediations = new ArrayList<>();
+            List<CsafDocument.Remediation> remediations = new ArrayList<>(noFix);
             if (issue.fixVersions() != null && !issue.fixVersions().isBlank()) {
                 remediations.add(new CsafDocument.Remediation("vendor_fix", "Upgrade to: " + issue.fixVersions(), List.of(pid)));
             }
@@ -146,22 +158,5 @@ public final class CsafExport {
         }
 
         return new CsafDocument(document, productTree, vulnerabilities);
-    }
-
-    private static String mapJustificationToFlag(String justification) {
-        if (justification == null) {
-            return "vulnerable_code_cannot_be_controlled_by_adversary";
-        }
-        String clean = justification.toLowerCase(Locale.ROOT);
-        if (clean.contains("not_present") || clean.contains("not present") || clean.contains("absent")) {
-            return "component_not_present";
-        }
-        if (clean.contains("mitigation") || clean.contains("inline")) {
-            return "inline_mitigations_already_exist";
-        }
-        if (clean.contains("not_reachable") || clean.contains("unreachable") || clean.contains("cannot_be_controlled")) {
-            return "vulnerable_code_cannot_be_controlled_by_adversary";
-        }
-        return "vulnerable_code_not_in_execute_path";
     }
 }

@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.exports;
 
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.vex.VexDisposition;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
@@ -88,10 +90,14 @@ public class CsafGeneratorService {
             // by a substring search that did not match, and this line published that as
             // `known_not_affected` in a document nobody approved. Nothing writes it any more; a
             // real analysis returning would still not clear a product here.
-            boolean notAffected = "not_affected".equalsIgnoreCase(issue.triageStatus());
-            boolean fixed = "resolved".equalsIgnoreCase(issue.state()) || "fixed".equalsIgnoreCase(issue.triageStatus());
-            boolean underInvestigation = "under_review".equalsIgnoreCase(issue.triageStatus())
-                    || "pending_approval".equalsIgnoreCase(issue.triageStatus());
+            // The reading the other two formats make (decision 0041): `VexDisposition`.
+            VexDisposition disposition = VexDisposition.of(
+                    issue.triageStatus(), issue.triageJustification(),
+                    IssueState.RESOLVED.wireName().equalsIgnoreCase(issue.state()));
+            boolean notAffected = disposition.kind() == VexDisposition.Kind.NOT_AFFECTED;
+            boolean fixed = disposition.kind() == VexDisposition.Kind.FIXED;
+            boolean underInvestigation = disposition.kind() == VexDisposition.Kind.UNDER_INVESTIGATION;
+            boolean willNotFix = disposition.kind() == VexDisposition.Kind.WILL_NOT_FIX;
 
             List<String> notAffectedList = notAffected ? List.of(productId) : List.of();
             List<String> affectedList = (!notAffected && !fixed && !underInvestigation) ? List.of(productId) : List.of();
@@ -112,8 +118,18 @@ public class CsafGeneratorService {
                     issue.description() != null ? issue.description() : "Identified vulnerable component.",
                     affectedList));
 
-            List<CsafDocument.Note> notes = notAffected && issue.triageJustification() != null
-                    ? List.of(new CsafDocument.Note("description", "VEX Justification", issue.triageJustification()))
+            List<CsafDocument.Note> notes = notAffected
+                    ? List.of(new CsafDocument.Note("description", "VEX Justification",
+                            disposition.justification().orElseThrow().wireName()))
+                    : List.of();
+            // Known affected, with no fix planned: CSAF's own words for an accepted risk.
+            List<CsafDocument.Remediation> remediations = willNotFix
+                    ? List.of(new CsafDocument.Remediation("no_fix_planned", willNotFixDetails(issue.triageComment()),
+                            List.of(productId)))
+                    : List.of();
+            List<CsafDocument.Flag> flags = notAffected
+                    ? List.of(new CsafDocument.Flag(disposition.justification().orElseThrow().wireName(),
+                            List.of(productId), null))
                     : List.of();
 
             vulnerabilities.add(new CsafDocument.CsafVulnerability(
@@ -122,8 +138,8 @@ public class CsafGeneratorService {
                     notes.isEmpty() ? null : notes,
                     productStatus,
                     threats.isEmpty() ? null : threats,
-                    null,
-                    null,
+                    flags.isEmpty() ? null : flags,
+                    remediations.isEmpty() ? null : remediations,
                     null));
         }
 
@@ -132,6 +148,12 @@ public class CsafGeneratorService {
                 metadata("Vectispire Aggregate Security Advisory", "VECTISPIRE-AGGREGATE-CSAF", now),
                 new CsafDocument.ProductTree(new ArrayList<>(productMap.values())),
                 vulnerabilities);
+    }
+
+    /** What a CSAF consumer reads beside "no fix planned": the decision's own words when it has some. */
+    private static String willNotFixDetails(String comment) {
+        return "Will not fix: the risk was accepted"
+                + (comment == null || comment.isBlank() ? "." : " — " + comment);
     }
 
     private CsafDocument buildCsafForScan(ScanView scan) {

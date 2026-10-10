@@ -246,7 +246,7 @@ After an upgrade to this version, every line on these scopes reads `languages_un
 repository of the project is scanned again — no earlier scan recorded the languages of its rules —
 and an automatic *yes* Vectispire gave there is withdrawn at the next measurement.
 
-The backlog's figures leave **settled triage** out of both sides — *not affected*, *fixed* — and count
+The backlog's figures leave **settled triage** out of both sides — *not affected*, *will not fix*, *fixed* — and count
 any other status, one this version does not know included.
 
 **The answer beside the measurement:**

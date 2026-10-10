@@ -33,6 +33,14 @@ Each point is written out in full below; this is what to do before the new image
   they carry, and an agent older than 0.11.0 is handed none: its sealing key is refused, and its scans of
   repositories carrying a key or a token wait for an executor that can run them
   ([agents](../administration/agents.md#before-delegating-credentials-pin-the-signing-key)).
+- **Read the approval queue for requests a tracker's refusal put there.** Until 0.11.0 a ticket closed
+  as *Won't Fix*, *Declined*, *Rejected*, *Risk Accepted*, *Withdrawn* or GitHub's *not planned* was
+  queued as `not_affected` with `inline_mitigations_already_exist`, and those requests stay as they are.
+  List the issues in `pending_approval` that a webhook queued — `select id, triaged_by, triage_comment from
+  t_issue where triage_status = 'pending_approval' and triaged_by like '%_webhook'` — and turn down those
+  that came from a refusal: decide them as *Will not fix — risk accepted*, with a review date, if that is
+  what they are. Nothing converts them for you: only a person can tell a refusal from a false positive in the
+  comment (*Will not fix — risk accepted*, below).
 
 ### Changes an integration can see
 
@@ -174,6 +182,43 @@ never scanned. It now fails, closed, as the overview always said it should
   ones and do not move.
 - **The gate script, the GitHub action and the GitLab template are unchanged**: they already exit 1 on
   `passed: false`, and print the violation's reason.
+
+#### Will not fix — risk accepted (0.11.0)
+
+**A fifth triage status, `will_not_fix`: the vulnerability applies, and the team decided not to fix it.**
+An accepted risk had no status of its own and was recorded as `not_affected`, with a justification picked
+from a list in which none is true of an exposed product — and signed into the VEX documents as such
+([decision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md), [accepting a risk](../guide/issues.md#accepting-a-risk)).
+
+- **`POST /api/v1/issues/{id}/triage` and `POST /api/v1/issues/triage` accept `will_not_fix`.** It
+  **requires** `expires_in_days` (1–3650), its review date, and **refuses** a `justification` (400): every
+  VEX justification says why a product is not exposed. It settles like `not_affected` and `fixed` — it
+  stops failing the gate and leaves the risk figures — so it goes through four-eyes like them, and lapses
+  back to `under_review` at its review date. `GET /api/v1/issues?triage_status=will_not_fix` filters by
+  it. A client switching on `triageStatus` meets a new value.
+- **It is an exception.** `GET /api/v1/exceptions` lists it, counts it in `granted`, and it is reviewed
+  — confirmed, extended or revoked — like a clearance.
+- **The VEX documents say the product is exposed.** CycloneDX `exploitable` with the response
+  `will_not_fix`, OpenVEX `affected` with the action statement "Will not fix: …", CSAF `known_affected`
+  with a `no_fix_planned` remediation. SARIF marks it suppressed, as the other settled statuses.
+- **Every VEX format now reads a triage through one table**
+  ([how a triage reads in VEX](../guide/exports.md#how-a-triage-reads-in-vex)): `pending_approval` is
+  *under investigation* everywhere, a `not_affected` without a justification is *under investigation*
+  rather than given one, a resolved issue is `fixed`, and CycloneDX justifications are spelled in
+  CycloneDX's vocabulary (`code_not_present`, `code_not_reachable`, `requires_environment`,
+  `protected_by_mitigating_control`). A consumer comparing documents before and after the upgrade sees
+  statements change on issues nobody touched: those are the fixes below.
+- **The ticket webhook proposes `will_not_fix` for a refusal** — Jira *Won't Fix*, *Declined*,
+  *Rejected*; ServiceNow *Won't Fix*, *Risk Accepted*, *Withdrawn*; GitHub *not planned*; GitLab
+  *wontfix* — with no justification and a proposed review date ninety days out, which the approver
+  replaces with theirs. Only an explicit false positive is still proposed as `not_affected`
+  ([the inbound webhook](../integrations/ticketing.md#inbound-webhook)).
+- **A webhook no longer moves an issue a person settled** (`not_affected`, `will_not_fix`, `fixed`). The
+  tracker's word is recorded in the audit log; when it contradicts the decision, the entry is
+  `TRIAGE_CONTRADICTED_BY_TRACKER`, sent to the SIEM as `VECTI-SEC-037`
+  ([catalogue](../integrations/siem.md#event-catalogue)).
+- **The four-eyes setting's description** now names the three statuses it covers: `NOT_AFFECTED`,
+  `WILL_NOT_FIX` or `FIXED`.
 
 #### Other changes
 
@@ -643,6 +688,25 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### Fixed
 
+- **A tracker's refusal is no longer proposed as `not_affected`.** A ticket closed as *Won't Fix*,
+  *Declined*, *Rejected*, *Risk Accepted* or *Withdrawn* was queued as `not_affected` with
+  `inline_mitigations_already_exist` — a mitigation the tracker never mentioned, which the signed
+  documents would have carried once approved. It is now a request for `will_not_fix`.
+- **GitHub's *not planned* is no longer read as a false positive.** It was queued as `not_affected` with
+  `vulnerable_code_not_in_execute_path`, although it is GitHub's only way to close without completing
+  and says nothing about reachability. It is a refusal now.
+- **The OpenVEX aggregate no longer reads statuses that never existed.** It looked for `false_positive`
+  and `accepted_risk`: every approved `not_affected` left it as `affected`, and an issue under review or
+  awaiting approval as `affected` too, where CycloneDX said `in_triage` and CSAF `under_investigation`.
+- **The per-target CSAF export no longer drops an issue awaiting approval.** `pending_approval` had no
+  case, so such a product appeared in no status list at all; it is `under_investigation`.
+- **No VEX document invents a justification any more.** A `not_affected` row without one — older or
+  imported — was given `vulnerable_code_not_in_execute_path` by CycloneDX and
+  `vulnerable_code_cannot_be_controlled_by_adversary` by CSAF, guessed from the spelling of whatever was
+  there. It is now stated as under investigation: nobody made that claim.
+- **CycloneDX justifications are in CycloneDX's vocabulary.** It received OpenVEX's labels, which its
+  schema does not accept, and answered `will_not_fix` on every `not_affected` — nothing to fix in a
+  product that is not affected.
 - **The outbound guard refuses more of what no setting should reach.** The cloud metadata addresses that
   are not link-local — Alibaba's `100.100.100.200`, AWS's IPv6 `fd00:ec2::254`, Oracle's legacy
   `192.0.0.192`, Azure's WireServer `168.63.129.16` — and the unspecified address (`0.0.0.0`, `::`), which

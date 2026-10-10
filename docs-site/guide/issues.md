@@ -19,7 +19,7 @@ status, and its triage history.
 | | Written by | Values |
 |---|---|---|
 | **State** | the pipeline, from what scanners observed | `open`, `resolved` |
-| **Triage status** | a person | `affected`, `not affected`, `fixed`, `under review` |
+| **Triage status** | a person | `under review`, `affected`, `not affected`, `will not fix`, `fixed` — and `pending approval` while a decision waits for a second person |
 
 They never write to each other. Suppressing an issue does not resolve it, and a scan
 resolving an issue does not erase what somebody decided about it.
@@ -30,6 +30,22 @@ Open an issue and record a decision in the VEX vocabulary, with a **justificatio
 optionally a **comment**. The justification is the part that has to survive you: "not
 reachable in our configuration", "not shipped in production", "vendored code we do not
 execute".
+
+`not affected`, `will not fix` and `fixed` **settle** the issue: it stops failing the gate and leaves
+the backlog's figures. Under [four-eyes](../administration/four-eyes.md), somebody who may not approve
+only requests them — the issue waits in `pending approval`, still counted, until an approver grants it.
+
+### Accepting a risk
+
+**Will not fix — risk accepted** is for a vulnerability that does apply and that the team has decided
+not to fix. It is not *not affected*: every VEX justification says why a product is **not** exposed,
+and none of them is true here. So the decision carries **no justification** — the server refuses one —
+and **requires a review date**: an acceptance without a date is the one nobody looks at again. The
+exported VEX documents keep saying the product is affected, with no fix planned
+([decision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md)), and the acceptance appears in the [exceptions register](exceptions.md).
+
+Before 0.11.0 an acceptance had no status of its own and was recorded as *not affected* with a
+justification picked from a list in which none applied; a tracker's *Won't Fix* became one too.
 
 ### Review dates
 
@@ -79,7 +95,8 @@ the record has to be able to tell the difference.
   is named by the number in the link, over the ordinary empty list. Every filter on this page is kept
   in the address, so a filtered list can be bookmarked or sent, and **Back** returns to the page it
   was opened from.
-- **Hide settled triage** — leaves out what was argued not affected or marked fixed. It is the
+- **Hide settled triage** — leaves out what was argued not affected, accepted as will not fix or
+  marked fixed. It is the
   clause the dashboard's per-severity figures count by, and the links from those figures set it.
 
 ## Ordering that works

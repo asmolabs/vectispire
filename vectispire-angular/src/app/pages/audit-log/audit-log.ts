@@ -36,6 +36,7 @@ const OPERATION_KEYS: Record<string, string> = {
     TICKET_LINKED: 'audit_log.operations.ticket_linked',
     TICKET_CLOSED: 'audit_log.operations.ticket_closed',
     TICKET_SYNCED: 'audit_log.operations.ticket_synced',
+    TRIAGE_CONTRADICTED_BY_TRACKER: 'audit_log.operations.triage_contradicted_by_tracker',
     GATE_POLICY_UPDATED: 'audit_log.operations.gate_policy_updated',
     CONTROL_DECLARED: 'audit_log.operations.control_declared',
     CERTIFIED_SCOPE_CHANGED: 'audit_log.operations.certified_scope_changed',

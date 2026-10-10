@@ -18,6 +18,32 @@ why.
 Hand it to whoever consumes your SBOM. Without it they re-derive your entire backlog from
 your dependency list and arrive at conclusions you already investigated and dismissed.
 
+## How a triage reads in VEX
+
+OpenVEX, CSAF and CycloneDX VEX — per scan, per project and for the whole estate — all read an
+issue's triage through the same table, so the same issue says the same thing in every signed
+document ([decision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md)):
+
+| Triage | CycloneDX `analysis` | OpenVEX | CSAF `product_status` |
+|---|---|---|---|
+| under review, pending approval | `in_triage` | `under_investigation` | `under_investigation` |
+| affected | `exploitable` | `affected` | `known_affected` |
+| will not fix — risk accepted | `exploitable`, response `will_not_fix` | `affected`, action statement "Will not fix: …" | `known_affected`, remediation `no_fix_planned` |
+| not affected, with a justification | `not_affected` and its CycloneDX justification | `not_affected` and the justification | `known_not_affected` and the justification as a flag |
+| not affected, without a justification | `in_triage` | `under_investigation` | `under_investigation` |
+| fixed, or the issue resolved | `resolved` | `fixed` | `fixed` |
+
+- **An accepted risk is exported as exposure.** The customer is owed the answer *affected, no fix
+  planned* — not a clearance nobody argued.
+- **A justification is never invented.** A *not affected* recorded without one — older or imported
+  rows — leaves as under investigation: nobody made that claim. CycloneDX gets its own vocabulary
+  (`code_not_present`, `code_not_reachable`, `requires_environment`, `protected_by_mitigating_control`),
+  which its schema accepts where OpenVEX's labels are not.
+- **A request awaiting approval is under investigation everywhere**, until somebody grants it.
+
+In SARIF, the three settled statuses — not affected, will not fix, fixed — are marked suppressed, so
+a code-scanning view stops showing what was decided.
+
 ## CSV
 
 Issues as a flat file, for the analysis somebody wants to run in their own tool.

@@ -1,9 +1,10 @@
 package com.asmolabs.vectispire.common.domain.exports;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
-import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
+import com.asmolabs.vectispire.common.domain.vex.VexDisposition;
+import com.asmolabs.vectispire.common.domain.vex.VexStatus;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,16 +63,25 @@ public final class OpenVexExport {
     }
 
     private static OpenVexStatement statement(ExportableIssue issue, Options options) {
-        VexStatus status = statusOf(issue);
+        // The reading CycloneDX and CSAF make of the same triage (decision 0041), spelled in OpenVEX.
+        VexDisposition disposition = VexDisposition.of(
+                issue.triageStatus(), issue.triageJustification(), issue.resolved());
+        String comment = blankToNull(issue.triageComment());
 
-        // The specification requires a justification for `not_affected`, and the triage
-        // service guarantees one exists before the status can be set.
-        VexJustification justification = status == VexStatus.NOT_AFFECTED
-                ? VexJustification.fromWireName(issue.triageJustification()).orElse(null)
-                : null;
-        String impact = status == VexStatus.NOT_AFFECTED ? blankToNull(issue.triageComment()) : null;
-        // For `affected`, the same free text belongs to the action statement instead.
-        String action = status == VexStatus.AFFECTED ? blankToNull(issue.triageComment()) : null;
+        VexStatus status = switch (disposition.kind()) {
+            case NOT_AFFECTED -> VexStatus.NOT_AFFECTED;
+            case AFFECTED, WILL_NOT_FIX -> VexStatus.AFFECTED;
+            case FIXED -> VexStatus.FIXED;
+            case UNDER_INVESTIGATION -> VexStatus.UNDER_INVESTIGATION;
+        };
+        String impact = status == VexStatus.NOT_AFFECTED ? comment : null;
+        // For `affected` the free text is the action statement; for an accepted risk, the action is
+        // saying so, which OpenVEX has no status of its own for.
+        String action = switch (disposition.kind()) {
+            case WILL_NOT_FIX -> "Will not fix: the risk was accepted" + (comment == null ? "." : " — " + comment);
+            case AFFECTED -> comment;
+            default -> null;
+        };
 
         OpenVexStatement.Product product = issue.purl() == null || issue.purl().isBlank()
                 ? new OpenVexStatement.Product(options.productId(), null)
@@ -80,33 +90,12 @@ public final class OpenVexExport {
         return new OpenVexStatement(
                 Map.of("name", issue.identifier()),
                 List.of(product),
-                statusOfVex(status),
-                justification,
+                status,
+                disposition.justification().orElse(null),
                 impact,
                 action,
                 null,
                 issue.triagedAt() != null ? issue.triagedAt() : issue.lastSeenAt());
-    }
-
-    /**
-     * The export's status enumeration, mapped onto the document's.
-     *
-     * <p>Two enumerations of one vocabulary remain here, and deliberately: this one answers "what
-     * does a triage status become in a VEX document", which is a question about Vectispire, while
-     * the other is the document's own field. They are kept apart until the mapping itself moves.
-     */
-    private static com.asmolabs.vectispire.common.domain.vex.VexStatus statusOfVex(VexStatus status) {
-        return com.asmolabs.vectispire.common.domain.vex.VexStatus.valueOf(status.name());
-    }
-
-    private static VexStatus statusOf(ExportableIssue issue) {
-        // An issue that is resolved and was never triaged is factually fixed: the scanner
-        // stopped seeing it. Saying "under investigation" about something that is gone would be
-        // misleading in a document written to answer exactly that question.
-        if (issue.resolved() && VexStatus.of(issue.triageStatus()) == VexStatus.UNDER_INVESTIGATION) {
-            return VexStatus.FIXED;
-        }
-        return VexStatus.of(issue.triageStatus());
     }
 
     private static String blankToNull(String value) {

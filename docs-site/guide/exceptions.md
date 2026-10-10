@@ -8,6 +8,19 @@ opposite things depending on which of the two produced it.
 
 ![The exceptions register: the lapsed and never-reviewed counters above the register itself, with one lapsed acceptance shown in full.](../assets/screens/en/exceptions.png)
 
+## What counts as an exception
+
+Two decisions, which say opposite things about the product:
+
+- **Will not fix — risk accepted** — the vulnerability applies and the team decided not to fix it. It
+  always carries a review date, and the VEX documents keep saying the product is exposed.
+- **Not affected** — argued not to apply, with a VEX justification.
+
+Both are counted as **granted** once settled; a request still waiting for an approver under
+[four-eyes](../administration/four-eyes.md) is counted apart, as awaiting approval. An acceptance used to be recorded as *not affected* — with a justification
+that could not be true of an exposed product — because there was no other status to record it under
+([Accepting a risk](issues.md#accepting-a-risk)).
+
 ## The two numbers that carry the screen
 
 They are not the acceptances in force.

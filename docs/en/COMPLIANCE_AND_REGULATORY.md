@@ -346,6 +346,26 @@ import.
 - **CycloneDX 1.5 with BOM-linked VEX**: `GET /api/v1/cyclonedx/scans/{scanId}/cyclonedx-vex.json`,
   `GET /api/v1/cyclonedx/projects/{projectId}/cyclonedx-vex.json`, `GET /api/v1/cyclonedx/aggregate.json`.
 
+Every format, per scan, per project and aggregate, reads an issue's triage through one table
+(`VexDisposition`, [decision 0041](../architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md)),
+so the same issue makes the same statement in every signed document:
+
+| Triage | CycloneDX `analysis` | OpenVEX | CSAF `product_status` |
+|---|---|---|---|
+| `under_review`, `pending_approval` | `in_triage` | `under_investigation` | `under_investigation` |
+| `affected` | `exploitable` | `affected` | `known_affected` |
+| `will_not_fix` | `exploitable`, response `will_not_fix` | `affected`, `action_statement` "Will not fix: …" | `known_affected`, remediation `no_fix_planned` |
+| `not_affected` with a justification | `not_affected` + its CycloneDX spelling | `not_affected` + the justification | `known_not_affected` + the justification as flag |
+| `not_affected` without one (older or imported rows) | `in_triage` | `under_investigation` | `under_investigation` |
+| `fixed`, or the issue resolved | `resolved` | `fixed` | `fixed` |
+
+**An accepted risk is exported as exposure**, with no fix planned: none of the VEX justifications is
+true of a product that is exposed, and a customer reads a VEX statement as the supplier's word
+about its product. **A justification is never invented**: a
+`not_affected` row without one is nobody's claim and leaves as under investigation. CycloneDX
+receives its own justification vocabulary (`code_not_present`, `code_not_reachable`,
+`requires_environment`, `protected_by_mitigating_control`).
+
 ---
 
 ## 7. Four-eyes approval of exemptions
@@ -358,8 +378,8 @@ workflow bears on — follow a four-eyes rule while `triage_four_eyes_required` 
    - Entitled to review and approve technical exemptions (`canApproveTriage = true`).
 
 2. **`PENDING_APPROVAL` status**:
-   - Any exemption request (`not_affected` / `accepted_risk`) raised by a developer (`USER`) moves automatically to `PENDING_APPROVAL`.
-   - **Until the request is approved, the CI/CD deployment gate keeps failing** (`isSettled() == false`).
+   - Any request for a settling status — `not_affected` (a clearance), `will_not_fix` (a risk accepted, which requires a review date and carries no VEX justification) or `fixed` — raised by somebody who may not approve moves automatically to `PENDING_APPROVAL`. So does every decision arriving from a tracker's webhook, whatever the setting: a tracker is not an approver.
+   - **Until the request is approved, the CI/CD deployment gate keeps failing** (`isSettled() == false`), and the VEX documents state the issue as under investigation.
 
 3. **Requester ≠ approver**:
    - The approval is refused when the approving account is the one recorded as having requested the exemption. Without this the control is a role gate rather than a four-eyes one, and an assessor reading DORA Art. 9 or NIS 2 Art. 21 literally is right to reject it.

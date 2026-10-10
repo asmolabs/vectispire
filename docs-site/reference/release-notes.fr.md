@@ -34,6 +34,15 @@ Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la no
   scellés liés à ce qu'ils transportent, et un agent antérieur à la 0.11.0 n'en reçoit aucun : sa clé de
   scellement est refusée, et ses scans de dépôts portant une clé ou un jeton attendent un exécutant
   capable de les mener ([agents](../administration/agents.fr.md#before-delegating-credentials-pin-the-signing-key)).
+- **Lisez la file d'approbation pour les demandes qu'un refus de traqueur y a placées.** Jusqu'à la
+  0.11.0, un ticket fermé comme *Won't Fix*, *Declined*, *Rejected*, *Risk Accepted*, *Withdrawn* ou *not
+  planned* chez GitHub était mis en file comme `not_affected` avec `inline_mitigations_already_exist`, et
+  ces demandes restent telles quelles. Listez les issues en `pending_approval` qu'un webhook a mises en
+  file — `select id, triaged_by, triage_comment from t_issue where triage_status = 'pending_approval' and
+  triaged_by like '%_webhook'` — et refusez celles qui viennent d'un refus : décidez-les comme *Ne sera
+  pas corrigé — risque accepté*, avec une date de réexamen, si c'est ce qu'elles sont. Rien ne les
+  convertit pour vous : seule une personne sait distinguer, dans le commentaire, un refus d'un faux
+  positif (*Ne sera pas corrigé — risque accepté*, plus bas).
 
 ### Changements visibles d'une intégration
 
@@ -185,6 +194,46 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
   chiffres de conformité écartaient déjà ces cibles des cibles conformes et ne bougent pas.
 - **Le script de barrière, l'action GitHub et le modèle GitLab ne changent pas** : ils sortent déjà en
   1 sur `passed: false` et affichent la raison de la violation.
+
+#### Ne sera pas corrigé — risque accepté (0.11.0)
+
+**Un cinquième statut de triage, `will_not_fix` : la vulnérabilité s'applique, et l'équipe a décidé de
+ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enregistrait comme
+`not_affected`, avec une justification choisie dans une liste où aucune n'est vraie d'un produit exposé
+— et signée comme telle dans les documents VEX ([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md),
+[accepter un risque](../guide/issues.fr.md#accepting-a-risk)).
+
+- **`POST /api/v1/issues/{id}/triage` et `POST /api/v1/issues/triage` acceptent `will_not_fix`.** Il
+  **exige** `expires_in_days` (1–3650), sa date de réexamen, et **refuse** une `justification` (400) :
+  chaque justification VEX dit pourquoi un produit n'est pas exposé. Il règle le problème comme
+  `not_affected` et `fixed` — il cesse de faire échouer la barrière et sort des chiffres de risque —, il
+  passe donc par la double validation comme eux, et revient à `under_review` à sa date de réexamen.
+  `GET /api/v1/issues?triage_status=will_not_fix` filtre dessus. Un client qui aiguille sur
+  `triageStatus` rencontre une nouvelle valeur.
+- **C'est une exception.** `GET /api/v1/exceptions` la liste, la compte dans `granted`, et elle se revoit
+  — confirmée, prolongée ou révoquée — comme une levée.
+- **Les documents VEX disent que le produit est exposé.** CycloneDX `exploitable` avec la réponse
+  `will_not_fix`, OpenVEX `affected` avec l'action statement « Will not fix: … », CSAF `known_affected`
+  avec une remédiation `no_fix_planned`. SARIF la marque supprimée, comme les autres statuts réglés.
+- **Chaque format VEX lit désormais un triage par une seule table**
+  ([comment un triage se lit en VEX](../guide/exports.fr.md#comment-un-triage-se-lit-en-vex)) :
+  `pending_approval` est *en cours d'investigation* partout, un `not_affected` sans justification est
+  *en cours d'investigation* au lieu d'en recevoir une, une issue résolue est `fixed`, et les
+  justifications CycloneDX s'écrivent dans le vocabulaire de CycloneDX (`code_not_present`,
+  `code_not_reachable`, `requires_environment`, `protected_by_mitigating_control`). Un consommateur qui
+  compare les documents d'avant et d'après la mise à niveau voit changer des déclarations sur des issues
+  que personne n'a touchées : ce sont les corrections plus bas.
+- **Le webhook de ticket propose `will_not_fix` pour un refus** — Jira *Won't Fix*, *Declined*,
+  *Rejected* ; ServiceNow *Won't Fix*, *Risk Accepted*, *Withdrawn* ; GitHub *not planned* ; GitLab
+  *wontfix* —, sans justification et avec une date de réexamen proposée à quatre-vingt-dix jours, que
+  l'approbateur remplace par la sienne. Seul un faux positif explicite est encore proposé comme
+  `not_affected` ([le webhook entrant](../integrations/ticketing.fr.md#inbound-webhook)).
+- **Un webhook ne bouge plus une issue qu'une personne a réglée** (`not_affected`, `will_not_fix`,
+  `fixed`). La parole du traqueur est inscrite au journal d'audit ; quand elle contredit la décision,
+  l'entrée est `TRIAGE_CONTRADICTED_BY_TRACKER`, signalée au SIEM comme `VECTI-SEC-037`
+  ([catalogue](../integrations/siem.fr.md#catalogue-des-evenements)).
+- **La description du réglage de double validation** nomme désormais les trois statuts qu'il couvre :
+  `NOT_AFFECTED`, `WILL_NOT_FIX` ou `FIXED`.
 
 #### Autres changements
 
@@ -694,6 +743,28 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
   sélectionnée sont dans l'adresse : un lien reproduit la vue.
 
 ### Corrigé
+
+- **Le refus d'un traqueur n'est plus proposé comme `not_affected`.** Un ticket fermé comme *Won't Fix*,
+  *Declined*, *Rejected*, *Risk Accepted* ou *Withdrawn* était mis en file comme `not_affected` avec
+  `inline_mitigations_already_exist` — une atténuation dont le traqueur n'avait jamais parlé, et que les
+  documents signés auraient portée une fois la demande approuvée. C'est désormais une demande de
+  `will_not_fix`.
+- **Le *not planned* de GitHub n'est plus lu comme un faux positif.** Il était mis en file comme
+  `not_affected` avec `vulnerable_code_not_in_execute_path`, alors que c'est la seule façon qu'a GitHub de
+  fermer sans avoir terminé, et qu'il ne dit rien de l'atteignabilité. C'est désormais un refus.
+- **L'agrégat OpenVEX ne lit plus des statuts qui n'ont jamais existé.** Il cherchait `false_positive` et
+  `accepted_risk` : chaque `not_affected` approuvé en sortait `affected`, et une issue en cours d'examen ou
+  en attente d'approbation aussi, là où CycloneDX disait `in_triage` et CSAF `under_investigation`.
+- **L'export CSAF par cible ne perd plus une issue en attente d'approbation.** `pending_approval` n'avait
+  pas de cas, si bien que le produit ne figurait dans aucune liste de statut ; il est
+  `under_investigation`.
+- **Aucun document VEX n'invente plus de justification.** Une ligne `not_affected` sans justification —
+  ancienne ou importée — recevait `vulnerable_code_not_in_execute_path` chez CycloneDX et
+  `vulnerable_code_cannot_be_controlled_by_adversary` chez CSAF, devinées d'après l'écriture de ce qui s'y
+  trouvait. Elle est désormais déclarée en cours d'investigation : personne n'a fait cette affirmation.
+- **Les justifications CycloneDX sont dans le vocabulaire de CycloneDX.** Il recevait les libellés
+  d'OpenVEX, que son schéma n'accepte pas, et répondait `will_not_fix` sur chaque `not_affected` — rien à
+  corriger dans un produit qui n'est pas affecté.
 
 - **La garde sortante refuse davantage de ce qu'aucun réglage ne doit atteindre.** Les adresses de
   métadonnées du cloud hors du lien local — `100.100.100.200` chez Alibaba, `fd00:ec2::254` en IPv6 chez

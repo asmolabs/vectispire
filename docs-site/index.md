@@ -55,7 +55,7 @@ history and one decision instead of three.
 
 **State is not triage.** `state` (open / resolved) is written only by the pipeline, from
 what the scanners observe. `triage_status` (the VEX vocabulary: affected, not affected,
-fixed, under review) is written only by a person. They are kept strictly apart, because a
+will not fix, fixed, under review) is written only by a person. They are kept strictly apart, because a
 suppressed finding and a genuinely fixed one must not look alike.
 
 [More on this →](guide/issues.md)

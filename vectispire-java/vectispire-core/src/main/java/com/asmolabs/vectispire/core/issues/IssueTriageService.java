@@ -277,7 +277,8 @@ public class IssueTriageService {
                 .orElseThrow(() -> new InvalidInputException("No such issue: " + issueId));
 
         TriageStatus current = TriageStatus.fromWireName(issue.getTriageStatus()).orElse(null);
-        if (current != TriageStatus.NOT_AFFECTED && current != TriageStatus.PENDING_APPROVAL) {
+        if (current != TriageStatus.NOT_AFFECTED && current != TriageStatus.WILL_NOT_FIX
+                && current != TriageStatus.PENDING_APPROVAL) {
             // Reviewing an issue nobody excepted would put a row in the register for something
             // that is not an exception, which is exactly the noise the register exists to avoid.
             throw new InvalidInputException(

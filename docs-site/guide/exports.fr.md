@@ -20,6 +20,34 @@ Remettez-le à quiconque consomme votre SBOM. Sans lui, cette personne re-dériv
 entier depuis votre liste de dépendances et arrive à des conclusions que vous aviez déjà
 instruites et écartées.
 
+## Comment un triage se lit en VEX
+
+OpenVEX, CSAF et CycloneDX VEX — par scan, par projet et pour tout le parc — lisent le triage d'une
+issue par la même table, si bien que la même issue dit la même chose dans chaque document signé
+([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)) :
+
+| Triage | CycloneDX `analysis` | OpenVEX | CSAF `product_status` |
+|---|---|---|---|
+| en cours d'examen, en attente d'approbation | `in_triage` | `under_investigation` | `under_investigation` |
+| affecté | `exploitable` | `affected` | `known_affected` |
+| ne sera pas corrigé — risque accepté | `exploitable`, réponse `will_not_fix` | `affected`, action statement « Will not fix: … » | `known_affected`, remédiation `no_fix_planned` |
+| non affecté, avec une justification | `not_affected` et sa justification CycloneDX | `not_affected` et la justification | `known_not_affected` et la justification comme flag |
+| non affecté, sans justification | `in_triage` | `under_investigation` | `under_investigation` |
+| corrigé, ou l'issue résolue | `resolved` | `fixed` | `fixed` |
+
+- **Un risque accepté s'exporte comme une exposition.** Le client a droit à la réponse *affecté,
+  aucune correction prévue* — pas à une levée que personne n'a argumentée.
+- **Une justification n'est jamais inventée.** Un *non affecté* enregistré sans justification —
+  lignes anciennes ou importées — part comme en cours d'investigation : personne n'a fait cette
+  affirmation. CycloneDX reçoit son propre vocabulaire (`code_not_present`, `code_not_reachable`,
+  `requires_environment`, `protected_by_mitigating_control`), que son schéma accepte là où il refuse
+  les libellés d'OpenVEX.
+- **Une demande en attente d'approbation est en cours d'investigation partout**, jusqu'à ce que
+  quelqu'un l'accorde.
+
+En SARIF, les trois statuts réglés — non affecté, ne sera pas corrigé, corrigé — sont marqués
+supprimés, si bien qu'une vue de code scanning cesse de montrer ce qui a été décidé.
+
 ## CSV
 
 Les issues en fichier plat, pour l'analyse que quelqu'un veut mener dans son propre outil.

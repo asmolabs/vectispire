@@ -30,8 +30,7 @@ which is what the ranking, the gate and the scorecards read. No scan asks FIRST 
 CVE your repositories carry is never sent to a third party. Before the first synchronisation no CVE
 has a score, and the ranking shows none rather than a measured zero.
 
-The ranking covers open vulnerabilities whose triage is not settled: one triaged **not affected**
-or **fixed** leaves it, as it leaves the gate and the scorecard. A dismissal still awaiting
+The ranking covers open vulnerabilities whose triage is not settled: one triaged **not affected**, **will not fix** or **fixed** leaves it, as it leaves the gate and the scorecard. A dismissal still awaiting
 approval stays ranked — a request is not a decision.
 
 The ranking weighs CVSS, EPSS and KEV, and nothing else: the four quadrants of the matrix are
@@ -52,7 +51,7 @@ route calls the vulnerable code, that the application is reachable from the Inte
 a database at all.
 
 Use it to see which repositories carry an open door and a critical flaw at the same time, then
-confirm a path by hand. A finding triaged **not affected** or **fixed** is left out. The details are
+confirm a path by hand. A finding triaged **not affected**, **will not fix** or **fixed** is left out. The details are
 in the [attack path reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/ATTACK_PATH_VISUALIZER.md).
 
 ## Blast radius

@@ -28,7 +28,7 @@ construction — voir [Qualité du code](quality.md).
 ## La vue d'ensemble Sécurité
 
 Par cible : le verdict de barrière, le backlog courant par gravité, et la date du dernier scan.
-Les chiffres par gravité écartent les constats triés non affecté ou corrigé, comme tout chiffre de
+Les chiffres par gravité écartent les constats triés non affecté, ne sera pas corrigé ou corrigé, comme tout chiffre de
 risque ; chacun ouvre la liste des constats avec le même filtre, pour que le compte et la liste
 concordent.
 Le verdict est calculé depuis que les politiques de barrière existent ; cet écran est l'endroit
@@ -79,7 +79,7 @@ première ligne à lire sur cette page.
 de sa pastille README, calculés par la même règle — vulnérabilités exploitées, critiques, hautes,
 moyennes et basses, et licences non autorisées, chacune pesée en points de risque — décrite dans
 [Comment la note du scorecard est calculée](repositories.md#comment-la-note-du-scorecard-est-calculee).
-Les problèmes triés **non affecté** ou **corrigé** sont écartés, comme sur le scorecard et à la
+Les problèmes triés **non affecté**, **ne sera pas corrigé** ou **corrigé** sont écartés, comme sur le scorecard et à la
 barrière ; un problème dont l'exclusion est en attente d'approbation compte toujours.
 
 **Les ex æquo sont départagés par les points de risque.** Chaque ligne les montre à côté du score ; de

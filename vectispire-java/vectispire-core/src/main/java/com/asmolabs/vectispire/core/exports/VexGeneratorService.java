@@ -1,7 +1,8 @@
 package com.asmolabs.vectispire.core.exports;
 
+import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.vex.VexDisposition;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
@@ -111,19 +112,30 @@ public class VexGeneratorService {
                 ? issue.purl()
                 : "pkg:generic/" + (issue.packageName() != null ? issue.packageName() : "unknown") + "@" + (issue.packageVersion() != null ? issue.packageVersion() : "latest");
 
-        if ("closed".equalsIgnoreCase(issue.state()) || "resolved".equalsIgnoreCase(issue.state())) {
-            return OpenVexStatement.fixed(cve, purl, "Remediated and verified resolved.");
-        }
-
-        if ("false_positive".equalsIgnoreCase(issue.triageStatus()) || "accepted_risk".equalsIgnoreCase(issue.triageStatus())) {
-            String justification = issue.triageJustification() != null ? issue.triageJustification() : "Accepted under documented security exception.";
-            return OpenVexStatement.notAffected(cve, purl, VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST, justification);
-        }
-
-        return OpenVexStatement.affected(
-                cve,
-                purl,
-                "Open issue awaiting remediation.");
+        // **The reading the other two formats make** (decision 0041). This one looked for
+        // `false_positive` and `accepted_risk`, statuses `TriageStatus` never had: every approved
+        // `not_affected` left here as `affected`, and an issue under review as `affected` too, while
+        // CycloneDX and CSAF said otherwise about the same product.
+        VexDisposition disposition = VexDisposition.of(
+                issue.triageStatus(), issue.triageJustification(),
+                IssueState.RESOLVED.wireName().equalsIgnoreCase(issue.state()));
+        String comment = issue.triageComment() != null && !issue.triageComment().isBlank() ? issue.triageComment() : null;
+        return switch (disposition.kind()) {
+            case FIXED -> OpenVexStatement.fixed(cve, purl, "Remediated and verified resolved.");
+            case NOT_AFFECTED -> OpenVexStatement.notAffected(cve, purl, disposition.justification().orElseThrow(), comment);
+            case WILL_NOT_FIX -> OpenVexStatement.affected(cve, purl,
+                    "Will not fix: the risk was accepted" + (comment == null ? "." : " — " + comment));
+            case AFFECTED -> OpenVexStatement.affected(cve, purl, "Open issue awaiting remediation.");
+            case UNDER_INVESTIGATION -> new OpenVexStatement(
+                    Map.of("name", cve),
+                    List.of(OpenVexStatement.Product.of(purl)),
+                    VexStatus.UNDER_INVESTIGATION,
+                    null,
+                    null,
+                    null,
+                    "Awaiting triage.",
+                    null);
+        };
     }
 
     /**

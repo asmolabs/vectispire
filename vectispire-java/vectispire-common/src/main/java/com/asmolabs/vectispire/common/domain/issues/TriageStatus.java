@@ -28,6 +28,18 @@ public enum TriageStatus {
     /** Argued not to apply. Settled: it stops failing builds. */
     NOT_AFFECTED(true),
 
+    /**
+     * Judged to apply, and the team decided not to fix it: a risk accepted (decision 0041).
+     *
+     * <p><b>Settled, and exported as exposure.</b> Once granted it stops failing builds, as an
+     * acceptance always did — but the VEX documents say {@code affected}, "will not fix", never
+     * {@code not_affected}. An acceptance used to be recorded as {@code not_affected} with a
+     * justification picked from a vocabulary in which none is true of an exposed product, and a
+     * tracker's "Won't Fix" became an inline mitigation nobody had built. It carries a review date
+     * and no VEX justification ({@link Triage#decide}).
+     */
+    WILL_NOT_FIX(true),
+
     /** Resolved. Settled. */
     FIXED(true);
 

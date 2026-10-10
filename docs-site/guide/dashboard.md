@@ -26,7 +26,7 @@ repository, and none of it can fail a build — see [Code quality](quality.md).
 ## The security overview
 
 Per target: the gate verdict, the standing backlog by severity, and when it was last
-scanned. The per-severity figures leave out findings triaged not affected or fixed, as every
+scanned. The per-severity figures leave out findings triaged not affected, will not fix or fixed, as every
 figure of risk does; each opens the findings list with the same filter, so the count and the list
 agree. The verdict has been computed since gate policies existed; this screen is where it
 is finally shown.
@@ -75,7 +75,7 @@ this page.
 its README badge, computed by the same rule — exploited vulnerabilities, criticals, highs, mediums and
 lows, and disallowed licences, each weighed in risk points — described in
 [How the scorecard grade is computed](repositories.md#how-the-scorecard-grade-is-computed). Issues
-triaged **not affected** or **fixed** are left out, as on the scorecard and at the gate; one whose
+triaged **not affected**, **will not fix** or **fixed** are left out, as on the scorecard and at the gate; one whose
 dismissal is awaiting approval still counts.
 
 **Ties are broken by the risk points.** Each row shows them beside the score; of two targets at the
