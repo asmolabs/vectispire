@@ -46,6 +46,10 @@ class TargetsTest {
             "https://[fe80::1]/org/project.git",
             "https://[::ffff:169.254.169.254]/org/project.git",
             "git@169.254.169.254:org/project.git",
+            // Metadata outside link-local: Alibaba's, inside carrier-grade NAT, and AWS's IPv6 one, inside
+            // unique local — both ranges a self-hosted forge may live in.
+            "https://100.100.100.200/latest/meta-data",
+            "https://[fd00:ec2::254]/latest/meta-data",
             // Read as one host by java.net.URI and as another by JGit, which performs the clone:
             // the checks decided on the first, the connection went to the second.
             "https://allowed.example#@other.example/repo.git",

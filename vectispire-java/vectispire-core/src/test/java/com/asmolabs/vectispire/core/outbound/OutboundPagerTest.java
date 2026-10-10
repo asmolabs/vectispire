@@ -155,6 +155,34 @@ class OutboundPagerTest {
     }
 
     @Test
+    @DisplayName("nor outside the API's path on the same origin — a neighbour behind the same name gets no token")
+    void anotherPathIsAnotherApplication() {
+        forge.route("/api/v4/projects", Reply.json("{\"page\":\"1\"}")
+                .with("Link", "</wiki/export?page=2>; rel=\"next\""));
+        forge.route("/wiki/export?page=2", Reply.json("{\"page\":\"2\"}"));
+
+        assertThatThrownBy(() -> walk(pager(), forge.baseUrl() + "/api/v4/projects", OutboundPager.NextPage.LINK))
+                .isInstanceOf(OutboundPager.CrossOriginPageException.class)
+                .hasMessageContaining("outside")
+                .hasMessageNotContaining("page=2");
+        assertThat(forge.seen).extracting(ForgeStub.Seen::path).containsExactly("/api/v4/projects");
+    }
+
+    @Test
+    @DisplayName("a path that climbs out of the API, written or encoded, and a prefix that is not a segment, are refused")
+    void climbingOutIsRefused() {
+        OutboundPager pager = pager();
+        String base = forge.baseUrl();
+
+        for (String url : List.of(base + "/api/v4/../../wiki", base + "/api/v4/%2e%2e/%2E%2E/wiki",
+                base + "/api/v4/projects/%2e%2e%2f%2e%2e%2fwiki", base + "/api/v40/projects", base + "/api")) {
+            assertThatThrownBy(() -> pager.get(url)).as(url).isInstanceOf(OutboundPager.CrossOriginPageException.class);
+        }
+        assertThat(forge.seen).isEmpty();
+        assertThat(pager.requests()).isZero();
+    }
+
+    @Test
     @DisplayName("GitLab's 429 with Retry-After is waited out inside the listing, and the page read")
     void retryAfterWaited() {
         forge.sequence("/api/v4/projects", Reply.status(429).with("Retry-After", "7")

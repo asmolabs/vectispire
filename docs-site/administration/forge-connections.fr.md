@@ -157,8 +157,10 @@ Un GitLab autogéré ou un GitHub Enterprise Server sur le réseau interne est l
   publique : une adresse qui se résout dans une plage privée ou locale est refusée **avant que rien ne
   soit envoyé**, et le refus est journalisé et signalé au SIEM (`VECTI-SEC-036`) — une URL de base
   pointée vers l'intérieur est l'allure qu'aurait une falsification de requête côté serveur par ce
-  formulaire. Avec, les adresses privées sont acceptées ; le lien local (le point de métadonnées du
-  cloud), la base de Vectispire et son démon Docker restent refusés quoi que vous cochiez. L'adresse est
+  formulaire. Avec, les adresses privées sont acceptées ; le lien local et les autres adresses de
+  métadonnées du cloud (`100.100.100.200`, `fd00:ec2::254`, `192.0.0.192`, `168.63.129.16`), l'adresse non
+  spécifiée (`0.0.0.0`, `::`), la base de Vectispire et son démon Docker — sur toute adresse de bouclage
+  quand ils écoutent sur cette machine — restent refusés quoi que vous cochiez. L'adresse est
   revérifiée à chaque requête, car un nom peut se résoudre ailleurs demain.
 - **Épinglez votre AC** (`caPem`) : collez l'AC qui a émis le certificat du serveur, en PEM. Ce doit être
   une AC (le certificat propre du serveur est refusé), valide aujourd'hui, et huit certificats au plus.
@@ -267,7 +269,9 @@ connexion : un dépôt disparu ou archivé reste, et une cible importée depuis 
 
 **La même porte que la sonde.** Chaque requête passe par la garde sortante — l'adresse revérifiée à chaque
 requête, privée seulement si vous avez déclaré le serveur interne — et par l'AC que vous avez épinglée. **La
-page suivante n'est suivie que sur le schéma, l'hôte et le port de la connexion** : une page pointant
+page suivante n'est suivie que sur le schéma, l'hôte et le port de la connexion, et sous le chemin de son
+API** (`/api/v4` sur GitLab, `/api/v3` sur Enterprise Server, pour qu'une application voisine servie sous le
+même nom ne voie jamais le jeton ; un `%2e` encodé dans le chemin est refusé) : une page pointant
 ailleurs fait échouer l'exécution avant que rien n'y soit envoyé, journalisé `FORGE_CONNECTION_REFUSED` et
 signalé `VECTI-SEC-036` ; de même pour une adresse que la garde refuse désormais. Le jeton est déchiffré
 pour l'exécution et ne quitte jamais le plan de contrôle — une découverte tourne sur le plan de contrôle, sur

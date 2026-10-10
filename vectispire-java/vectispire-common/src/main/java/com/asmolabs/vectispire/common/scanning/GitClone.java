@@ -252,7 +252,8 @@ public final class GitClone {
         if (LinkLocalHosts.resolvesToLinkLocal(host)) {
             throw new CloneFailureException(
                     Kind.URL_REFUSED,
-                    "Repository URL refused: its host resolves to a link-local address, where the instance metadata lives.",
+                    "Repository URL refused: its host resolves to a link-local or cloud metadata address, where the "
+                            + "instance metadata lives.",
                     "");
         }
 

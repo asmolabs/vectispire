@@ -28,6 +28,13 @@ import java.util.function.Function;
  * a URL elsewhere throws {@link CrossOriginPageException} with nothing sent. The credential headers are
  * attached here, after that comparison, and never handed to a request of the caller's own making.
  *
+ * <p><b>And under the API's path, not merely on its host.</b> A self-hosted GitLab is often one application
+ * among several behind a shared name ({@code https://tools.example.org/gitlab/api/v4}); an origin check alone let
+ * a {@code Link} to {@code https://tools.example.org/wiki/…} carry the token to the neighbour (the audit of 10
+ * October 2026). The path must equal the root the pager was opened with or continue it after a {@code /}, once
+ * dot segments are removed; an encoded dot ({@code %2e}) is refused rather than guessed at, since the server
+ * may decode it into a {@code ..} the comparison never saw.
+ *
  * <p><b>Rate limits are waited out, within a bound, never raced.</b> A 429, or a 403 carrying the limit's
  * headers ({@link RateLimit#limited}), is a wait: up to {@link Settings#maxWait} it is slept inside the run and
  * the request sent again; longer, it throws {@link RateLimitedException} naming when the limit lifts, and the
@@ -54,8 +61,8 @@ public final class OutboundPager {
     /**
      * What a pager is opened with.
      *
-     * @param origin any URL of the origin the pager may reach — the API's root; only its scheme, host and port
-     *     are read
+     * @param origin the API's root: its scheme, host and port are the origin the pager may reach, and its path
+     *     the prefix every URL it fetches must stay under
      * @param credential the headers that authenticate to that origin, attached to its requests and to no other
      * @param trust the CA the server must chain to, in place of the runtime's store; empty for that store
      * @param deadline after it, no request is sent and no wait begun
@@ -131,6 +138,7 @@ public final class OutboundPager {
     private final Clock clock;
     private final Sleeper sleeper;
     private final Origin origin;
+    private final String root;
     private int requests;
     private Duration waited = Duration.ZERO;
 
@@ -141,6 +149,8 @@ public final class OutboundPager {
         this.sleeper = sleeper;
         this.origin = Origin.of(settings.origin()).orElseThrow(() -> new IllegalStateException(
                 "A pager is opened for an absolute URL: " + settings.origin()));
+        this.root = pathOf(settings.origin()).map(path -> path.replaceAll("/+$", "")).orElseThrow(
+                () -> new IllegalStateException("A pager is opened for a plain path: " + settings.origin()));
     }
 
     /**
@@ -148,7 +158,8 @@ public final class OutboundPager {
      *
      * @param url absolute, of the pager's origin
      * @return the answer, whatever its status but a 5xx or a rate limit
-     * @throws CrossOriginPageException the URL is not of the pager's origin; nothing was sent
+     * @throws CrossOriginPageException the URL is not of the pager's origin, or not under its root; nothing was
+     *     sent
      * @throws RateLimitedException a rate limit asked for a wait longer than {@link Settings#maxWait}
      * @throws DeadlineReachedException the deadline passed, or a wait would cross it
      * @throws OutboundJson.OutboundFailureException the page failed {@value #RETRIES} retries over
@@ -249,6 +260,29 @@ public final class OutboundPager {
         if (target.isEmpty() || !target.get().equals(origin)) {
             throw new CrossOriginPageException(settings.label() + ": the forge pointed the next request at "
                     + describe(url) + ", which is not " + origin + "; nothing was sent there.");
+        }
+        Optional<String> path = pathOf(url);
+        if (path.isEmpty() || !(path.get().equals(root) || path.get().startsWith(root + "/"))) {
+            throw new CrossOriginPageException(settings.label() + ": the forge pointed the next request outside "
+                    + origin + (root.isEmpty() ? "/" : root) + "; nothing was sent there.");
+        }
+    }
+
+    /**
+     * The raw path with its dot segments removed, or empty when it cannot be compared: unreadable, or carrying
+     * an encoded dot that the server may decode into a segment this never removed.
+     */
+    private static Optional<String> pathOf(String url) {
+        try {
+            URI uri = new URI(url).normalize();
+            String path = uri.getRawPath();
+            if (path == null || path.toLowerCase(Locale.ROOT).contains("%2e") || path.equals("..")
+                    || path.startsWith("../") || path.contains("/../") || path.endsWith("/..")) {
+                return Optional.empty();
+            }
+            return Optional.of(path);
+        } catch (URISyntaxException unreadable) {
+            return Optional.empty();
         }
     }
 

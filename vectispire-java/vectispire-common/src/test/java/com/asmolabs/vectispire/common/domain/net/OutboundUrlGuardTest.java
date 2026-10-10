@@ -82,6 +82,60 @@ class OutboundUrlGuardTest {
     }
 
     @Nested
+    @DisplayName("addresses no policy accepts")
+    class NeverADestination {
+
+        @ParameterizedTest(name = "{0} is a cloud metadata address")
+        @ValueSource(strings = {
+            // Alibaba Cloud, inside carrier-grade NAT, which the internal policies accept.
+            "100.100.100.200",
+            "::ffff:100.100.100.200",
+            // AWS on an IPv6-only instance, inside unique local.
+            "fd00:ec2::254",
+            // Oracle Cloud's legacy endpoint, and Azure's WireServer — a public address.
+            "192.0.0.192",
+            "168.63.129.16"
+        })
+        void refusesMetadataOutsideLinkLocal(String address) {
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                assertThatThrownBy(() -> guardResolving(address).validate("http://host/", policy, "Setting"))
+                        .as("policy %s", policy)
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("metadata");
+            }
+        }
+
+        @ParameterizedTest(name = "{0} is the unspecified address")
+        @ValueSource(strings = {"0.0.0.0", "0.1.2.3", "::", "::ffff:0.0.0.0"})
+        void refusesTheUnspecifiedAddress(String address) {
+            // A connection to it reaches this machine on Linux: under an internal policy that walked past a
+            // reservation written `localhost`.
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                assertThatThrownBy(() -> guardResolving(address).validate("http://host/", policy, "Setting"))
+                        .as("policy %s", policy)
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("unspecified");
+            }
+        }
+
+        @ParameterizedTest(name = "{0}:3306 is the database reserved as localhost")
+        @ValueSource(strings = {"127.0.0.2", "127.255.0.1", "[::1]", "[::ffff:127.0.0.9]"})
+        void loopbackIsOneMachineForAReservation(String host) {
+            OutboundUrlGuard guard = new OutboundUrlGuard(
+                    hostname -> List.of(InetAddress.ofLiteral(hostname.equals("localhost") ? "127.0.0.1" : hostname)
+                            .getAddress()),
+                    ReservedEndpoints.ofDatasource("jdbc:mysql://localhost/vectispire"));
+
+            assertThatThrownBy(() -> guard.validate("http://" + host + ":3306/", OutboundPolicy.INTERNAL_ALLOWED,
+                            "Scan API"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("no setting may send requests to");
+            assertThat(guard.validate("http://" + host + ":11434/", OutboundPolicy.INTERNAL_ALLOWED, "Scan API"))
+                    .as("another port of the same machine").isEqualTo("http://" + host + ":11434/");
+        }
+    }
+
+    @Nested
     @DisplayName("a public destination is expected")
     class PublicOnly {
 

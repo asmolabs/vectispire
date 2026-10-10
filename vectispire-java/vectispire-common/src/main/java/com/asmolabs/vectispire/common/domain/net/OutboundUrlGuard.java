@@ -221,6 +221,14 @@ public final class OutboundUrlGuard {
             throw new UnsafeUrlException(label + ": the host resolves to a link-local address (" + text
                     + "), used by instance metadata services.");
         }
+        if (IpAddresses.isMetadata(address)) {
+            throw new UnsafeUrlException(label + ": the host resolves to " + text + ", a cloud provider's instance "
+                    + "metadata address.");
+        }
+        if (IpAddresses.isUnspecified(address)) {
+            throw new UnsafeUrlException(label + ": the host resolves to the unspecified address (" + text
+                    + "), which reaches this machine. Name the destination itself.");
+        }
 
         boolean global = IpAddresses.isGlobal(address);
         if (policy == OutboundPolicy.PUBLIC_ONLY && !global) {
@@ -237,6 +245,10 @@ public final class OutboundUrlGuard {
      * By name and by address: the name alone lets {@code 172.18.0.3:2375} through, and the address
      * alone misses a name that no longer resolves from here. The reserved host is resolved at each
      * check rather than once, because a container's address changes when it is recreated.
+     *
+     * <p>Loopback is one machine whatever address of it is written: a database reserved as
+     * {@code localhost} resolves to {@code 127.0.0.1}, and {@code 127.0.0.2} or {@code ::1} reach the
+     * same server on the same port.
      */
     private void refuseReserved(String hostname, int port, List<byte[]> addresses, String label) {
         for (ReservedEndpoint endpoint : reserved) {
@@ -246,7 +258,8 @@ public final class OutboundUrlGuard {
             boolean sameHost = endpoint.host().equalsIgnoreCase(hostname);
             if (!sameHost) {
                 List<byte[]> own = resolver.resolve(endpoint.host());
-                sameHost = addresses.stream().anyMatch(address -> own.stream().anyMatch(o -> Arrays.equals(o, address)));
+                sameHost = addresses.stream().anyMatch(address -> own.stream().anyMatch(o -> Arrays.equals(o, address)
+                        || IpAddresses.isLoopback(o) && IpAddresses.isLoopback(address)));
             }
             if (sameHost) {
                 throw new UnsafeUrlException(label + ": " + hostname + ":" + port + " is " + endpoint.what()

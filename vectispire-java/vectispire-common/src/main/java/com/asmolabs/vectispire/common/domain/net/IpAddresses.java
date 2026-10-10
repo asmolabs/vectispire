@@ -100,6 +100,64 @@ final class IpAddresses {
     }
 
     /**
+     * The metadata services that do not live in the link-local range, in IPv4 as in IPv6.
+     *
+     * <p>{@code 169.254.169.254} is the common address, not the only one: Alibaba Cloud answers on
+     * {@code 100.100.100.200} (inside carrier-grade NAT), AWS on {@code fd00:ec2::254} for IPv6-only
+     * instances (inside unique local), Oracle Cloud's legacy endpoint on {@code 192.0.0.192}, and Azure's
+     * WireServer, which hands an instance its extension settings, on {@code 168.63.129.16} — a public
+     * address. Each sits in a range the internal policies accept, so being private is no refusal there;
+     * these are refused by address under every policy, like link-local.
+     */
+    static boolean isMetadata(byte[] bytes) {
+        if (bytes.length == 16) {
+            Optional<byte[]> embedded = embeddedV4(bytes);
+            if (embedded.isPresent()) {
+                return isMetadataV4(embedded.get());
+            }
+            return Arrays.equals(bytes, AWS_METADATA_V6);
+        }
+        return isMetadataV4(bytes);
+    }
+
+    private static final byte[] AWS_METADATA_V6 = hex("fd000ec2000000000000000000000254");
+
+    private static boolean isMetadataV4(byte[] bytes) {
+        int value = (int) unsignedInt(bytes, 0);
+        return value == v4(100, 100, 100, 200) || value == v4(192, 0, 0, 192) || value == v4(168, 63, 129, 16);
+    }
+
+    /**
+     * {@code 0.0.0.0/8} and {@code ::}: no host, but a connection to them reaches this machine on Linux, as
+     * loopback would. Under a policy that accepts loopback that is merely another spelling; under every
+     * policy it walked past a reservation written {@code localhost}, which resolves to {@code 127.0.0.1}
+     * and never to {@code 0.0.0.0}. Nothing legitimate is addressed that way.
+     */
+    static boolean isUnspecified(byte[] bytes) {
+        if (bytes.length == 16) {
+            Optional<byte[]> embedded = embeddedV4(bytes);
+            return embedded.map(IpAddresses::isUnspecified).orElseGet(() -> allZero(bytes));
+        }
+        return octet(bytes, 0) == 0;
+    }
+
+    /** {@code 127.0.0.0/8} and {@code ::1}, however wrapped: one machine, whichever of its addresses is written. */
+    static boolean isLoopback(byte[] bytes) {
+        if (bytes.length == 16) {
+            Optional<byte[]> embedded = embeddedV4(bytes);
+            if (embedded.isPresent()) {
+                return isLoopback(embedded.get());
+            }
+            return allZero(Arrays.copyOf(bytes, 15)) && octet(bytes, 15) == 1;
+        }
+        return octet(bytes, 0) == 127;
+    }
+
+    private static int v4(int a, int b, int c, int d) {
+        return (a << 24) | (b << 16) | (c << 8) | d;
+    }
+
+    /**
      * Is the address routable on the public Internet?
      *
      * <p>Written out rather than delegated to {@link InetAddress}'s predicates, which between

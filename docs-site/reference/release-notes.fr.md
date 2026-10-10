@@ -693,6 +693,13 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 ### Corrigé
 
+- **La garde sortante refuse davantage de ce qu'aucun réglage ne doit atteindre.** Les adresses de
+  métadonnées du cloud hors du lien local — `100.100.100.200` chez Alibaba, `fd00:ec2::254` en IPv6 chez
+  AWS, l'ancienne `192.0.0.192` d'Oracle, le WireServer `168.63.129.16` d'Azure — et l'adresse non
+  spécifiée (`0.0.0.0`, `::`), qui atteint la machine locale, sont refusées sous toute politique, pour un
+  clone comme pour une requête. Une base ou un démon Docker réservés comme `localhost` le sont sur toute
+  adresse de bouclage. La page suivante d'un listage de forge doit rester sous le chemin de l'API de la
+  connexion, pas seulement sur son hôte ([connexions de forge](../administration/forge-connections.fr.md)).
 - **Le fichier d'un plugin de rapport n'est plus signé brut par la clé de la plateforme.** `v0.11.0-rc.1`
   mettait dans le paquet un `<output>.sig` détaché, fait avec la clé qui signe les VEX, les CSAF et l'export
   du projet : une image de plugin pouvait ainsi obtenir la signature de la plateforme sur n'importe quels

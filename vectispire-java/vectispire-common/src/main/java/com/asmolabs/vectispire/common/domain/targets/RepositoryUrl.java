@@ -35,7 +35,8 @@ public final class RepositoryUrl {
             Pattern.compile("^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):(?!//)([A-Za-z0-9._/-]+)$");
 
     private static final String LINK_LOCAL_REFUSED =
-            "The URL points at a link-local address, where the instance metadata lives. Clone from the forge's own address.";
+            "The URL points at a link-local or cloud metadata address, where the instance metadata lives. Clone from the "
+                    + "forge's own address.";
 
     /** Empty if the URL is acceptable, otherwise the message to show. */
     public static Optional<String> validate(String url) {

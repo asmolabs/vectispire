@@ -104,7 +104,7 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 
 | Variable | Default | Notes |
 |---|---|---|
-| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local ones, which are always refused. Checked when a URL is entered and again before each scan. |
+| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local and other cloud metadata addresses, which are always refused. Checked when a URL is entered and again before each scan. |
 | `VECTISPIRE_HOST_SSH` | `true` | A repository with no deployment key attached falls back to the scanning host's own `~/.ssh`. Set `false` wherever the people adding targets are not the people who own that key: the fallback is host-wide, so adding a URL is then enough to have it cloned with an identity nobody attached to it. `false` in the shipped `docker-compose.yml`, which mounts no `~/.ssh`. |
 
 A clone over SSH with a deploy key checks the forge's host key against `<home>/.ssh/known_hosts` of

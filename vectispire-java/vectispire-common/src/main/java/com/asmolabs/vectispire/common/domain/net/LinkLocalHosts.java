@@ -5,7 +5,8 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 
 /**
- * Whether a host is, or resolves to, the link-local range — where the instance metadata lives.
+ * Whether a host is, or resolves to, the link-local range or another cloud metadata address
+ * ({@link IpAddresses#isMetadata}) — where an instance's credentials are handed out.
  *
  * <p>For the one outbound path that does not go through {@link OutboundUrlGuard}: the clone,
  * which JGit performs itself. Private addresses stay allowed there, since a self-hosted forge on
@@ -17,9 +18,9 @@ public final class LinkLocalHosts {
 
     private LinkLocalHosts() {}
 
-    /** True when {@code host} is an address literal in the link-local range. */
+    /** True when {@code host} is an address literal in the link-local range, or a metadata address. */
     public static boolean isLinkLocalLiteral(String host) {
-        return IpAddresses.parseLiteral(unbracketed(host)).map(IpAddresses::isLinkLocal).orElse(false);
+        return IpAddresses.parseLiteral(unbracketed(host)).map(LinkLocalHosts::isMetadata).orElse(false);
     }
 
     /**
@@ -35,10 +36,14 @@ public final class LinkLocalHosts {
         }
         try {
             return Arrays.stream(InetAddress.getAllByName(unbracketed(host)))
-                    .anyMatch(address -> IpAddresses.isLinkLocal(address.getAddress()));
+                    .anyMatch(address -> isMetadata(address.getAddress()));
         } catch (UnknownHostException unresolved) {
             return false;
         }
+    }
+
+    private static boolean isMetadata(byte[] address) {
+        return IpAddresses.isLinkLocal(address) || IpAddresses.isMetadata(address);
     }
 
     private static String unbracketed(String host) {

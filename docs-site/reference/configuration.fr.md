@@ -105,7 +105,7 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 
 | Variable | Défaut | Notes |
 |---|---|---|
-| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
+| `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local et les autres adresses de métadonnées du cloud, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
 | `VECTISPIRE_HOST_SSH` | `true` | Un dépôt sans clé de déploiement attachée se rabat sur le `~/.ssh` de l'hôte qui analyse. Mettez `false` partout où les personnes qui ajoutent des cibles ne sont pas celles qui possèdent cette clé : le repli vaut pour tout l'hôte, si bien qu'ajouter une URL suffit alors à la faire cloner avec une identité que personne ne lui a attachée. `false` dans le `docker-compose.yml` livré, qui ne monte aucun `~/.ssh`. |
 
 Un clone SSH avec clé de déploiement vérifie la clé d'hôte de la forge contre

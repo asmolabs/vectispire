@@ -641,6 +641,13 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### Fixed
 
+- **The outbound guard refuses more of what no setting should reach.** The cloud metadata addresses that
+  are not link-local — Alibaba's `100.100.100.200`, AWS's IPv6 `fd00:ec2::254`, Oracle's legacy
+  `192.0.0.192`, Azure's WireServer `168.63.129.16` — and the unspecified address (`0.0.0.0`, `::`), which
+  reaches the local machine, are refused under every policy, for a clone as for a request. A database or
+  Docker daemon reserved as `localhost` is reserved on every loopback address. A forge listing's next page
+  must stay under the connection's API path, not merely on its host
+  ([forge connections](../administration/forge-connections.md)).
 - **A report plugin's file is no longer signed raw by the platform's key.** `v0.11.0-rc.1` put a detached
   `<output>.sig` in the package, made with the key that signs VEX, CSAF and the project export, so a plugin
   image could obtain the platform's signature on any bytes it wrote. The package now holds the file and

@@ -151,8 +151,10 @@ A self-managed GitLab or a GitHub Enterprise Server on the internal network is t
   an address resolving to a private or local range is refused **before anything is sent**, and the
   refusal is recorded and signalled to the SIEM (`VECTI-SEC-036`) — a base URL aimed inward is how a
   server-side request forgery through this form would look. With it, private addresses are accepted;
-  link-local addresses (the cloud metadata endpoint), Vectispire's database and its Docker daemon stay
-  refused whatever you tick. The address is checked again at every request, since a name may resolve
+  link-local addresses and the other cloud metadata addresses (`100.100.100.200`, `fd00:ec2::254`,
+  `192.0.0.192`, `168.63.129.16`), the unspecified address (`0.0.0.0`, `::`), Vectispire's database and
+  its Docker daemon — on any loopback address when they listen on this machine — stay refused whatever you
+  tick. The address is checked again at every request, since a name may resolve
   elsewhere tomorrow.
 - **Pin your CA** (`caPem`): paste the CA that issued the server's certificate, in PEM. It must be a CA
   (a server's own certificate is refused), currently valid, and at most eight certificates. It is
@@ -257,7 +259,9 @@ it keeps its history.
 
 **The same door as the probe.** Every request goes through the outbound guard — the address re-checked at
 each request, private only when you said the server is internal — and the CA you pinned. **The next page is
-followed only on the connection's own scheme, host and port**: a page pointing anywhere else fails the run
+followed only on the connection's own scheme, host and port, and under its API's path** (`/api/v4` on
+GitLab, `/api/v3` on Enterprise Server, so a neighbour served behind the same name never sees the token;
+an encoded `%2e` in the path is refused): a page pointing anywhere else fails the run
 before anything is sent there, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`; so is an
 address the guard now refuses. The token is decrypted for the run and never leaves the control plane — a
 discovery runs on the control plane, on every instance, whatever the built-in worker's switch, never on an
