@@ -20,6 +20,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -156,6 +157,33 @@ class BearerRateLimitFilterTest {
         filter.doFilterInternal(quiet, response, other);
 
         verify(other).doFilter(quiet, response);
+    }
+
+    /**
+     * An IPv6 client is handed a /64 and picks any address in it; a budget per address gave it
+     * 2^64 budgets. The audit entry still names the address that emptied the bucket — the /64 is
+     * the unit of counting, not what an investigator searches for.
+     */
+    @Test
+    @DisplayName("an IPv6 client rotating addresses within its /64 spends one allowance, and the audit names the address")
+    void oneSlash64IsOneAllowance() throws Exception {
+        for (int attempt = 1; attempt <= CAPACITY; attempt++) {
+            filter.doFilterInternal(credentialed("2001:db8:7:9::" + attempt), response, refusing());
+        }
+        ArgumentCaptor<AuditLogService.Record> entry = ArgumentCaptor.forClass(AuditLogService.Record.class);
+        verify(audit).record(entry.capture());
+        assertThat(entry.getValue().ipAddress()).isEqualTo("2001:db8:7:9::3");
+
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(credentialed("2001:db8:7:9:dead:beef:0:1"), response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+
+        FilterChain neighbour = refusing();
+        HttpServletRequest nextNetwork = credentialed("2001:db8:7:a::1");
+        filter.doFilterInternal(nextNetwork, response, neighbour);
+        verify(neighbour).doFilter(nextNetwork, response);
     }
 
     /**

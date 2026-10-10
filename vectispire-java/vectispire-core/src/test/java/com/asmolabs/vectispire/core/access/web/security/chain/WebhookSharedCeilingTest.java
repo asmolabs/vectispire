@@ -72,6 +72,21 @@ class WebhookSharedCeilingTest extends VectispireContextTest {
         assertThat(deliver(first, "198.51.100.18").getStatus()).isEqualTo(429);
     }
 
+    @Test
+    @DisplayName("an IPv6 tracker rotating addresses within its /64 meets one ceiling, and the next /64 has its own")
+    void oneSlash64IsOneAllowance() throws Exception {
+        WebhookRateLimitFilter first = instance();
+        WebhookRateLimitFilter second = instance();
+        for (int delivery = 1; delivery <= CEILING; delivery++) {
+            WebhookRateLimitFilter instance = delivery % 2 == 0 ? first : second;
+            assertThat(deliver(instance, "2001:db8:5:6::" + delivery).getStatus()).isEqualTo(200);
+        }
+
+        // Fresh to this instance's own buckets as an address, the same client as a /64.
+        assertThat(deliver(first, "2001:db8:5:6:dead:beef:0:1").getStatus()).isEqualTo(429);
+        assertThat(deliver(first, "2001:db8:5:7::1").getStatus()).isEqualTo(200);
+    }
+
     private WebhookRateLimitFilter instance() {
         // An hour rather than the shipped minute: a test crossing a window's boundary starts over.
         return new WebhookRateLimitFilter(proxies, windows, CEILING, Duration.ofHours(1));
