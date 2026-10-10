@@ -88,7 +88,7 @@ export class ReportPluginsApi {
         return this.http.post<ReportRun>(`/api/v1/projects/${projectId}/reports`, { pluginId });
     }
 
-    /** A produced run's package: the file, `<file>.sig` and `provenance.json`, as `application/zip`. */
+    /** A produced run's package: the file and `provenance.json`, as `application/zip`. */
     downloadReportPackage(projectId: number, runId: number): Observable<HttpResponse<Blob>> {
         return this.http.get(`/api/v1/projects/${projectId}/reports/${runId}/document`, {
             responseType: 'blob',

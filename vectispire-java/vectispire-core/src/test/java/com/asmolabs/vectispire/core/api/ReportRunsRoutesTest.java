@@ -560,7 +560,7 @@ class ReportRunsRoutesTest extends ApiTestBase {
         }
 
         @Test
-        @DisplayName("produced: the file, its signature by the published key, and the signed provenance of every recorded field")
+        @DisplayName("produced: the file, never signed raw, and the signed provenance of every recorded field")
         void package_() throws Exception {
             long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
             worker.drain();
@@ -576,15 +576,15 @@ class ReportRunsRoutesTest extends ApiTestBase {
 
             byte[] content = response.getContentAsByteArray();
             Map<String, byte[]> entries = unzip(content);
-            assertThat(entries.keySet()).containsExactly("summary.xlsx", "summary.xlsx.sig", "provenance.json");
+            // No summary.xlsx.sig: the key signs VEX and CSAF raw, so a raw signature over a plugin's bytes would
+            // vouch for a VEX document an image chose to write. The file is bound by the provenance's subject only.
+            assertThat(entries.keySet()).containsExactly("summary.xlsx", "provenance.json");
             assertThat(entries.get("summary.xlsx")).as("the plugin's file, byte for byte").isEqualTo(DOCUMENT);
 
             PublicKey key = publishedKey();
-            assertThat(CosignSigner.verify(DOCUMENT, new String(entries.get("summary.xlsx.sig"), StandardCharsets.US_ASCII),
-                    key)).as("the detached signature verifies against the published key").isTrue();
             DsseEnvelope envelope = json.readValue(entries.get("provenance.json"), DsseEnvelope.class);
             assertThat(envelope.payloadType()).isEqualTo("application/vnd.in-toto+json");
-            assertThat(CosignSigner.verifyDsse(envelope, key)).as("the provenance's envelope too").isTrue();
+            assertThat(CosignSigner.verifyDsse(envelope, key)).as("the provenance's envelope verifies against the published key").isTrue();
 
             JsonNode statement = json.readTree(Base64.getDecoder().decode(envelope.payload()));
             assertThat(statement.at("/_type").asText()).isEqualTo("https://in-toto.io/Statement/v1");

@@ -261,7 +261,8 @@ its digests stay as long as the audit log does.
 
 - `<output>` — the plugin's file, byte for byte;
 - `<output>.sig` — a detached signature by the signing key, verifiable with `cosign verify-blob --key`
-  against the published public key, like every other export;
+  against the published public key, like every other export (**removed on 2026-10-10**, see the amendment
+  of that date: the file is never signed raw);
 - `provenance.json` — an in-toto statement whose subject is the output's SHA-256, wrapped in a DSSE
   envelope signed by the same key (`SigningKeyService.wrapAndSignDsse`, as the evidence bundle's
   attestation).
@@ -871,6 +872,30 @@ What it does not change, deliberately: **with four-eyes off a registration still
 An installation of 0032 with a single approver has to be able to register a plugin, and the switch is
 signalled (`SECURITY_SETTING_CHANGED`) as every registry gesture is (`VECTI-SEC-031`). Lifting the rule is
 visible; acting under a rule one lifted alone is what this closes.
+
+## Amended on 2026-10-10: the file is never signed raw
+
+The security review of 10 October 2026 found that §3's `<output>.sig` handed an image the platform's
+signature on bytes it chose. The key is the one VEX, CSAF, the project export and the checklist package are
+signed with **raw**, for `cosign verify-blob --key`; a plugin that wrote a VEX document instead of a report
+received a detached signature that verified as one of Vectispire's own. The type check (R4) does not bound
+it: a text or a CSV is any UTF-8 a browser would not read as HTML. Four-eyes bounds who registers the image,
+not what a compromised or careless one writes.
+
+Decided:
+
+- **The package holds the file and `provenance.json`, nothing else.** The file is bound by the statement's
+  subject, which `cosign verify-blob-attestation --type` checks against it. Inside DSSE the key signs the
+  pre-authentication encoding of a typed statement the platform wrote, which no raw-signed document can be
+  taken for.
+- **`ReportPackage.Signer` offers DSSE only**, so that no caller can hand a plugin's bytes to the raw
+  signature again; the routes test and the container suite assert the two entries.
+- Packages `v0.11.0-rc.1` produced are not rewritten: their digest is on the run and in the audit log. The
+  release notes and the guide say not to rely on their `.sig`.
+
+Rejected: **a second key for plugin output.** It would keep a raw signature a recipient might take for the
+platform's, with a key to publish, rotate and explain; the provenance already says everything the `.sig`
+said, and more.
 
 ## Implementation, in lots
 

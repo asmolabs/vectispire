@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
@@ -234,17 +233,9 @@ class ReportPluginRendererIntegrationTest {
                         output.length),
                 new ReportProvenance.Producer("test", keyId),
                 ReportProvenance.CLAIM));
-        ReportPackage.Packed packed = ReportPackage.sign("probe.csv", output, provenance, new ReportPackage.Signer() {
-            @Override
-            public String sign(byte[] payload) {
-                return CosignSigner.sign(payload, key.getPrivate());
-            }
-
-            @Override
-            public DsseEnvelope dsse(String payloadType, byte[] payload) {
-                return CosignSigner.wrapAndSignDsse(payloadType, payload, key.getPrivate(), keyId);
-            }
-        }, JSON);
+        ReportPackage.Packed packed = ReportPackage.sign("probe.csv", output, provenance,
+                (payloadType, payload) -> CosignSigner.wrapAndSignDsse(payloadType, payload, key.getPrivate(), keyId),
+                JSON);
 
         Path unpacked = Files.createTempDirectory("report-package");
         try {
@@ -258,13 +249,15 @@ class ReportPluginRendererIntegrationTest {
             Files.write(unpacked.resolve("tampered.csv"), (new String(output, StandardCharsets.UTF_8) + "1\n")
                     .getBytes(StandardCharsets.UTF_8));
 
-            assertThat(cosign(unpacked, "verify-blob", "--signature=/package/probe.csv.sig", "/package/probe.csv"))
-                    .as("the detached signature, against the published key").isZero();
+            try (var files = Files.list(unpacked)) {
+                assertThat(files.map(path -> path.getFileName().toString()))
+                        .as("the file is never signed raw by the key VEX and CSAF are signed with")
+                        .containsExactlyInAnyOrder("probe.csv", "provenance.json", "vectispire-signing-key.pub",
+                                "tampered.csv");
+            }
             assertThat(cosign(unpacked, "verify-blob-attestation", "--type=" + ReportProvenance.PREDICATE_TYPE,
                     "--signature=/package/provenance.json", "/package/probe.csv"))
                     .as("the provenance's envelope, and its subject the file's digest").isZero();
-            assertThat(cosign(unpacked, "verify-blob", "--signature=/package/probe.csv.sig", "/package/tampered.csv"))
-                    .as("a byte added to the file").isNotZero();
             assertThat(cosign(unpacked, "verify-blob-attestation", "--type=" + ReportProvenance.PREDICATE_TYPE,
                     "--signature=/package/provenance.json", "/package/tampered.csv"))
                     .as("the statement names another file").isNotZero();

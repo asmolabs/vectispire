@@ -216,13 +216,19 @@ en pièce jointe, `X-Content-Type-Options: nosniff`, sous `Content-Security-Poli
 
 `GET /api/v1/projects/{id}/reports/{runId}/document` télécharge le **paquet** d'une exécution produite, un zip
 nommé `report-<exécution>-<plugin>.zip`, pour quiconque voit le projet entier — ceux qui peuvent lire
-l'exécution. Journalisé `REPORT_DOWNLOADED`. Il contient trois fichiers :
+l'exécution. Journalisé `REPORT_DOWNLOADED`. Il contient deux fichiers :
 
 | Fichier | Ce que c'est |
 |---|---|
 | `<output>` | Le fichier du plugin, octet pour octet — `summary.xlsx` pour le manifeste ci-dessus. |
-| `<output>.sig` | Sa signature détachée par la clé de la plateforme, celle qui signe chaque export Vectispire. |
-| `provenance.json` | Une déclaration [in-toto](https://in-toto.io/) dont le sujet est le SHA-256 du fichier, dans une enveloppe DSSE signée par la même clé. |
+| `provenance.json` | Une déclaration [in-toto](https://in-toto.io/) dont le sujet est le SHA-256 du fichier, dans une enveloppe DSSE signée par la clé de la plateforme, celle qui signe chaque export Vectispire. |
+
+**Le fichier lui-même n'est jamais signé.** La clé de la plateforme signe aussi, en brut, les documents VEX et
+CSAF et l'export du projet. Une signature détachée sur les octets d'un plugin ferait signer par la plateforme
+tout ce qu'une image choisit d'écrire, y compris un document qui se ferait passer pour un VEX de Vectispire.
+Le fichier n'est donc lié qu'au sujet de la provenance, une déclaration typée que la plateforme écrit
+elle-même. Un paquet produit par `v0.11.0-rc.1` contient encore un `<output>.sig` : ne vous y fiez pas, vérifiez
+la provenance.
 
 **La provenance indique** l'exécution (identifiant, et les instants de demande, de début, d'export et de fin),
 le projet (identifiant et nom), le demandeur (identifiant de compte et nom affiché — jamais une adresse
@@ -239,13 +245,11 @@ curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o report.zip \
   "$VECTISPIRE_URL/api/v1/projects/12/reports/34/document"
 curl -fsS -o vectispire-signing-key.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
 unzip report.zip
-cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
-  --signature summary.xlsx.sig summary.xlsx
 cosign verify-blob-attestation --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
   --type https://vectispire.dev/report-provenance/v1 --signature provenance.json summary.xlsx
 ```
 
-La seconde commande vérifie la signature de l'enveloppe **et** que le sujet de la déclaration est l'empreinte
+La dernière commande vérifie la signature de l'enveloppe **et** que le sujet de la déclaration est l'empreinte
 de ce fichier. `--insecure-ignore-tlog=true` dit seulement que la signature n'a jamais été publiée dans le
 journal de transparence public de Sigstore — Vectispire signe avec sa propre clé et ne publie rien ; c'est la
 clé qui est vérifiée. Pour lire la déclaration : `jq -r .payload provenance.json | base64 -d | jq .`

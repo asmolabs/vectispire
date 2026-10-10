@@ -206,13 +206,18 @@ the file is served: always as an attachment, `X-Content-Type-Options: nosniff`, 
 
 `GET /api/v1/projects/{id}/reports/{runId}/document` downloads a produced run's **package**, a zip named
 `report-<run>-<plugin>.zip`, to anybody who sees the whole project — the people who may read the run.
-Audited `REPORT_DOWNLOADED`. It holds three files:
+Audited `REPORT_DOWNLOADED`. It holds two files:
 
 | File | What it is |
 |---|---|
 | `<output>` | The plugin's file, byte for byte — `summary.xlsx` for the manifest above. |
-| `<output>.sig` | Its detached signature by the platform's key, the key every Vectispire export is signed with. |
-| `provenance.json` | An [in-toto](https://in-toto.io/) statement whose subject is the file's SHA-256, in a DSSE envelope signed by the same key. |
+| `provenance.json` | An [in-toto](https://in-toto.io/) statement whose subject is the file's SHA-256, in a DSSE envelope signed by the platform's key, the key every Vectispire export is signed with. |
+
+**The file itself is never signed.** The platform's key also signs VEX and CSAF documents and the project
+export, raw. A detached signature over a plugin's bytes would have the platform sign whatever an image chose
+to write, a document passing for one of Vectispire's VEX included. The file is therefore bound only by the
+provenance's subject, a typed statement the platform writes itself. A package produced by `v0.11.0-rc.1` still
+holds an `<output>.sig`: do not rely on it, verify the provenance.
 
 **The provenance states** the run (id and the instants requested, started, exported and finished), the
 project (id and name), the requester (account id and display name — never an e-mail address), the plugin
@@ -228,13 +233,11 @@ curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" -o report.zip \
   "$VECTISPIRE_URL/api/v1/projects/12/reports/34/document"
 curl -fsS -o vectispire-signing-key.pub "$VECTISPIRE_URL/api/v1/crypto/public-key.pub"
 unzip report.zip
-cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
-  --signature summary.xlsx.sig summary.xlsx
 cosign verify-blob-attestation --key vectispire-signing-key.pub --insecure-ignore-tlog=true \
   --type https://vectispire.dev/report-provenance/v1 --signature provenance.json summary.xlsx
 ```
 
-The second command checks the envelope's signature **and** that the statement's subject is this file's
+The last command checks the envelope's signature **and** that the statement's subject is this file's
 digest. `--insecure-ignore-tlog=true` says only that the signature was never published to Sigstore's public
 transparency log — Vectispire signs with its own key and publishes nothing; the key is what is checked. To
 read the statement: `jq -r .payload provenance.json | base64 -d | jq .`

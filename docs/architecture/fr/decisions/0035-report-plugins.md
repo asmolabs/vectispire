@@ -280,7 +280,8 @@ zip, comme celui de la 0032 :
 
 - `<output>` — le fichier du plugin, octet pour octet ;
 - `<output>.sig` — une signature détachée par la clé de signature, vérifiable par
-  `cosign verify-blob --key` contre la clé publique publiée, comme tout autre export ;
+  `cosign verify-blob --key` contre la clé publique publiée, comme tout autre export (**retiré le
+  2026-10-10**, voir l'amendement de cette date : le fichier n'est jamais signé brut) ;
 - `provenance.json` — une déclaration in-toto dont le sujet est le SHA-256 de la sortie, enveloppée dans
   une enveloppe DSSE signée par la même clé (`SigningKeyService.wrapAndSignDsse`, comme l'attestation du
   paquet de preuves).
@@ -953,6 +954,32 @@ Ce qui ne change pas, délibérément : **quatre yeux inactifs, un enregistremen
 aussitôt.** Une installation de 0032 avec un seul approbateur doit pouvoir enregistrer un plugin, et la
 bascule est signalée (`SECURITY_SETTING_CHANGED`) comme chaque geste sur le registre (`VECTI-SEC-031`).
 Lever la règle se voit ; agir seul sous une règle qu'on a levée seul, c'est ce que ceci ferme.
+
+## Amendé le 2026-10-10 : le fichier n'est jamais signé brut
+
+La revue de sécurité du 10 octobre 2026 a établi que le `<output>.sig` du §3 donnait à une image la
+signature de la plateforme sur des octets de son choix. La clé est celle qui signe **en brut** les VEX,
+les CSAF, l'export du projet et le paquet de checklist, pour `cosign verify-blob --key`. Un plugin qui
+écrivait un document VEX au lieu d'un rapport recevait une signature détachée qui se vérifiait comme une
+signature de Vectispire. La vérification de type (R4) ne l'empêche pas : un texte ou un CSV peut contenir
+n'importe quel UTF-8 qu'un navigateur ne lirait pas comme du HTML. Les quatre yeux bornent qui enregistre
+l'image, pas ce qu'une image compromise ou négligente écrit.
+
+Décidé :
+
+- **Le paquet contient le fichier et `provenance.json`, rien d'autre.** Le fichier est lié par le sujet de
+  la déclaration, que `cosign verify-blob-attestation --type` vérifie contre lui. Dans DSSE, la clé signe
+  l'encodage de pré-authentification d'une déclaration typée que la plateforme a écrite, qu'aucun document
+  signé brut ne peut imiter.
+- **`ReportPackage.Signer` n'offre plus que DSSE**, pour qu'aucun appelant ne puisse de nouveau confier les
+  octets d'un plugin à la signature brute ; le test des routes et la suite des conteneurs vérifient les deux
+  entrées.
+- Les paquets produits par `v0.11.0-rc.1` ne sont pas réécrits : leur empreinte figure sur l'exécution et
+  dans le journal d'audit. Les notes de version et le guide disent de ne pas se fier à leur `.sig`.
+
+Rejeté : **une seconde clé pour la sortie des plugins.** Elle garderait une signature brute qu'un
+destinataire pourrait prendre pour celle de la plateforme, avec une clé de plus à publier, à renouveler et à
+expliquer ; la provenance dit déjà tout ce que disait le `.sig`, et davantage.
 
 ## Mise en œuvre, en lots
 

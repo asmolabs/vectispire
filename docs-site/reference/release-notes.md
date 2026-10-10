@@ -516,13 +516,13 @@ never scanned. It now fails, closed, as the overview always said it should
   an OpenDocument package with its `mimetype` first and stored and no `Basic/` or `Scripts/`; a PDF from
   `%PDF-` to `%%EOF`; a CSV or a text in valid UTF-8, with no NUL and nothing a browser would read as HTML.
   A file that is not what it declared is **refused**, the new reason `output_refused`, discarded unsigned —
-  its SHA-256 kept on the run — and sent to the SIEM as `VECTI-SEC-033`. A file that passes is signed by the
-  platform's key and stored as a **package** with `provenance.json`, an in-toto statement in a DSSE envelope
-  naming the run, the project, the requester, the plugin, its manifest, image and verified signer, the
+  its SHA-256 kept on the run — and sent to the SIEM as `VECTI-SEC-033`. A file that passes is stored as a
+  **package** with `provenance.json`, an in-toto statement in a DSSE envelope signed by the platform's key —
+  the file itself is never signed raw — naming the run, the project, the requester, the plugin, its manifest, image and verified signer, the
   export's schema and SHA-256, the file's media type and SHA-256, the product version and the signing key.
   `GET /api/v1/projects/{id}/reports/{runId}/document` downloads it — always an attachment, `nosniff`, under
   `Content-Security-Policy: sandbox` — to anybody who sees the whole project, audited `REPORT_DOWNLOADED`;
-  `cosign verify-blob` and `cosign verify-blob-attestation` verify it against the instance's public key.
+  `cosign verify-blob-attestation` verifies it against the instance's public key.
   **The signature means provenance, not truth**: it says what the installation gave which image and what
   came back, not that the document renders the export faithfully — the kept export is how that is checked.
   Documents are purged with the exports by the evidence window, and with their project. On MySQL at its
@@ -641,6 +641,12 @@ never scanned. It now fails, closed, as the overview always said it should
 
 ### Fixed
 
+- **A report plugin's file is no longer signed raw by the platform's key.** `v0.11.0-rc.1` put a detached
+  `<output>.sig` in the package, made with the key that signs VEX, CSAF and the project export, so a plugin
+  image could obtain the platform's signature on any bytes it wrote. The package now holds the file and
+  `provenance.json` only, and the file is bound by the provenance's subject
+  ([how to verify](../administration/report-plugins.md#the-document-and-how-to-verify-it)). Packages a
+  release candidate produced keep their `.sig`: do not rely on it.
 - **Changing your own password revokes the API keys you issued**, as an administrator's reset already
   did: the other sessions closed, but a key minted by whoever knew the old password kept acting for the
   account. The answer carries `revokedApiKeys`, and each key revoked is its own audit entry. A pipeline

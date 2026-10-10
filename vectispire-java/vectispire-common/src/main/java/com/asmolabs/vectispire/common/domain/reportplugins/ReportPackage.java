@@ -5,7 +5,6 @@ import com.asmolabs.vectispire.common.domain.checklists.DocumentZip;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 
 /**
@@ -14,11 +13,16 @@ import java.util.LinkedHashMap;
  *
  * <ul>
  *   <li>{@code <output>} — the plugin's file, byte for byte;
- *   <li>{@code <output>.sig} — the platform key's detached signature over it, base64 as cosign writes one, for
- *       {@code cosign verify-blob --key};
- *   <li>{@value #PROVENANCE} — the DSSE envelope of the {@link ReportProvenance} statement, signed by the same
- *       key, for {@code cosign verify-blob-attestation --key --type} {@value ReportProvenance#PREDICATE_TYPE}.
+ *   <li>{@value #PROVENANCE} — the DSSE envelope of the {@link ReportProvenance} statement, whose subject is the
+ *       file's digest, for {@code cosign verify-blob-attestation --key --type} {@value
+ *       ReportProvenance#PREDICATE_TYPE}.
  * </ul>
+ *
+ * <p><b>The file itself is never signed.</b> The key is the one VEX, CSAF and the project export are signed with,
+ * raw, for {@code cosign verify-blob}; a detached signature over a plugin's bytes made the platform sign whatever
+ * an image chose to write, and an image that wrote a VEX document got it signed exactly as Vectispire signs its own
+ * (the audit of 10 October 2026). Inside DSSE the key signs the pre-authentication encoding of a typed statement
+ * the platform wrote, which no raw-signed document can be mistaken for.
  *
  * <p>The key is the caller's — the control plane's, which never leaves it — behind {@link Signer}; the assembly is
  * here so that the container suite verifies, with cosign, exactly what the control plane stores.
@@ -26,15 +30,15 @@ import java.util.LinkedHashMap;
 public final class ReportPackage {
 
     public static final String PROVENANCE = "provenance.json";
-    public static final String SIGNATURE_SUFFIX = ".sig";
 
     private ReportPackage() {}
 
-    /** The platform's key, as the package needs it: a detached signature, and a DSSE envelope. */
+    /**
+     * The platform's key, as the package needs it: a DSSE envelope and nothing else, so that no caller can hand it
+     * a plugin's bytes to sign raw.
+     */
+    @FunctionalInterface
     public interface Signer {
-
-        /** The base64 signature over {@code payload}, as cosign writes one. */
-        String sign(byte[] payload);
 
         /** {@code payload} wrapped and signed over DSSE's pre-authentication encoding. */
         DsseEnvelope dsse(String payloadType, byte[] payload);
@@ -44,7 +48,7 @@ public final class ReportPackage {
     public record Packed(byte[] content, String sha256) {}
 
     /**
-     * Signs {@code output} and its provenance, and packages the three.
+     * Signs {@code output}'s provenance, and packages the two.
      *
      * @param outputName the manifest's {@code output}, a bare file name ending with its type's extension
      * @param provenance the statement; its subject must be {@code output}'s digest
@@ -66,8 +70,6 @@ public final class ReportPackage {
         }
         LinkedHashMap<String, DocumentZip.Entry> parts = new LinkedHashMap<>();
         parts.put(outputName, DocumentZip.Entry.of(output));
-        parts.put(outputName + SIGNATURE_SUFFIX,
-                DocumentZip.Entry.of(signer.sign(output).getBytes(StandardCharsets.US_ASCII)));
         parts.put(PROVENANCE, DocumentZip.Entry.of(envelope));
         byte[] content = DocumentZip.of(parts);
         return new Packed(content, Digests.sha256Hex(content));

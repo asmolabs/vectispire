@@ -557,14 +557,14 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
   stocké, sans `Basic/` ni `Scripts/` ; un PDF de `%PDF-` à `%%EOF` ; un CSV ou un texte en UTF-8 valide,
   sans NUL ni rien qu'un navigateur lirait comme du HTML. Un fichier qui n'est pas ce qu'il déclarait est
   **refusé**, le nouveau motif `output_refused`, jeté sans signature — son SHA-256 gardé sur l'exécution —
-  et envoyé au SIEM comme `VECTI-SEC-033`. Un fichier qui passe est signé par la clé de la plateforme et
-  stocké comme un **paquet** avec `provenance.json`, une déclaration in-toto dans une enveloppe DSSE qui
-  nomme l'exécution, le projet, le demandeur, le plugin, son manifeste, son image et son signataire vérifié,
+  et envoyé au SIEM comme `VECTI-SEC-033`. Un fichier qui passe est stocké comme un **paquet** avec
+  `provenance.json`, une déclaration in-toto dans une enveloppe DSSE signée par la clé de la plateforme — le
+  fichier lui-même n'est jamais signé brut — qui nomme l'exécution, le projet, le demandeur, le plugin, son manifeste, son image et son signataire vérifié,
   le schéma et le SHA-256 de l'export, le type de média et le SHA-256 du fichier, la version du produit et
   la clé de signature. `GET /api/v1/projects/{id}/reports/{runId}/document` le télécharge — toujours en
   pièce jointe, `nosniff`, sous `Content-Security-Policy: sandbox` — pour quiconque voit le projet entier,
-  journalisé `REPORT_DOWNLOADED` ; `cosign verify-blob` et `cosign verify-blob-attestation` le vérifient
-  contre la clé publique de l'instance. **La signature atteste la provenance, pas la vérité** : elle dit ce
+  journalisé `REPORT_DOWNLOADED` ; `cosign verify-blob-attestation` le vérifie contre la clé publique de
+  l'instance. **La signature atteste la provenance, pas la vérité** : elle dit ce
   que l'installation a donné à quelle image et ce qui en est revenu, pas que le document rend fidèlement
   l'export — l'export conservé est ce qui permet de le vérifier. Les documents sont purgés avec les exports
   par la fenêtre des preuves, et avec leur projet. Sur MySQL à son `max_allowed_packet` par défaut, le fichier
@@ -693,6 +693,13 @@ l'a toujours dit ([la règle](../integrations/ci-gate.md#a-target-nobody-examine
 
 ### Corrigé
 
+- **Le fichier d'un plugin de rapport n'est plus signé brut par la clé de la plateforme.** `v0.11.0-rc.1`
+  mettait dans le paquet un `<output>.sig` détaché, fait avec la clé qui signe les VEX, les CSAF et l'export
+  du projet : une image de plugin pouvait ainsi obtenir la signature de la plateforme sur n'importe quels
+  octets qu'elle écrivait. Le paquet ne contient plus que le fichier et `provenance.json`, et le fichier est
+  lié par le sujet de la provenance
+  ([comment vérifier](../administration/report-plugins.fr.md#le-document-et-comment-le-verifier)). Les
+  paquets produits par une version candidate gardent leur `.sig` : ne vous y fiez pas.
 - **Changer son propre mot de passe révoque les clés d'API qu'on a émises**, comme le faisait déjà la
   réinitialisation par un administrateur : les autres sessions se fermaient, mais une clé émise par
   qui connaissait l'ancien mot de passe continuait d'agir pour le compte. La réponse porte
