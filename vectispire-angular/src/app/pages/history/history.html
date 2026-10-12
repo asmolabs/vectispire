@@ -119,9 +119,10 @@
                     }
                 </div>
                 <div class="text-sm text-muted-color mt-1">
-                    {{ scan.branch }} · {{ scan.findingsCount }} {{ 'history.findings' | translate }} ·
-                    {{ scan.newIssuesCount }} {{ 'history.new_issues' | translate }} · {{ scan.resolvedIssuesCount }}
-                    {{ 'history.resolved_issues' | translate }}
+                    {{ scan.branch }} ·
+                    {{ 'history.issues_count' | translate: { count: scan.findingsCount | localNumber: 0 } }} ·
+                    {{ 'history.new_count' | translate: { count: scan.newIssuesCount | localNumber: 0 } }} ·
+                    {{ 'history.resolved_count' | translate: { count: scan.resolvedIssuesCount | localNumber: 0 } }}
                 </div>
 
                 @if (scan.error) {

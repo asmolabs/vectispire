@@ -343,6 +343,35 @@ describe('the failing targets table', () => {
         }
     });
 
+    // A scan's count is of issues; the scan it links to lists occurrences, and under one word the two
+    // read as a figure the page contradicts.
+    it("heads the recent scans' count as issues, not findings", () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush({
+            ...failing('severity'),
+            recentScans: [
+                asSchema('RecentScan', {
+                    id: 34,
+                    repoId: 5,
+                    targetKind: 'repository',
+                    targetName: 'Recently Scanned',
+                    status: 'completed',
+                    findingsCount: 1234,
+                    createdAt: '2026-08-21T05:03:00Z'
+                })
+            ]
+        });
+        fixture.detectChanges();
+
+        const table = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('table')).find((each) =>
+            each.textContent.includes('Recently Scanned')
+        );
+        const headers = Array.from(table?.querySelectorAll('th') ?? []).map((th) => th.textContent.trim());
+        const cells = Array.from(table?.querySelectorAll('tbody td') ?? []).map((td) => td.textContent.trim());
+        expect(headers).toContain('Issues');
+        expect(headers).not.toContain('Findings');
+        expect(cells).toContain('1,234');
+    });
+
     it('tags anything else as a severity breach', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
         fixture.detectChanges();

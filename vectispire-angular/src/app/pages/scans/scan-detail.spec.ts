@@ -7,6 +7,7 @@ import { PLUGIN_REFUSAL_KEYS, ScanDetailPage } from './scan-detail';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * One scan's detail, against the shape the server actually sends.
@@ -210,6 +211,39 @@ describe('the scan detail', () => {
         expect(text).toContain('3');
         expect(text).toContain('2');
         expect(text).toContain('1');
+    });
+
+    /**
+     * **Issues and occurrences are two counts, and the card names both.** `findingsCount` is one per
+     * fingerprint, which carries no line; `findingsTotal` is one per place a tool reported. One rule
+     * hitting a file on fifteen lines is one issue and fifteen occurrences. Both were called
+     * "Findings", so "28" above a list of 56 rows read as data lost or duplicated. The figures differ
+     * here so that swapping them, or dropping one, fails.
+     */
+    it('counts issues in the card, with the occurrences the list holds beneath', async () => {
+        useEnglish();
+        await load({ ...DETAIL, scan: { ...DETAIL.scan, findingsCount: 28 }, findingsTotal: 1056 });
+
+        const page = fixture.nativeElement as HTMLElement;
+        const issues = page.querySelector('[data-testid="scan-issues-count"]');
+        const occurrences = page.querySelector('[data-testid="scan-occurrences-count"]');
+        expect(issues?.closest('p-card')?.textContent).toContain('Issues');
+        expect(issues?.textContent?.trim()).toBe('28');
+        expect(occurrences?.textContent?.trim()).toBe('1,056 occurrences');
+        expect(page.textContent).toContain('Occurrences in this scan');
+    });
+
+    // French says "0 occurrence": zero takes the singular there, which a test on `count === 1` gets wrong.
+    it('says it in French, with the French plural', async () => {
+        useFrench();
+        await load({ ...DETAIL, scan: { ...DETAIL.scan, findingsCount: 2 }, findingsTotal: 0, findings: [] });
+
+        const page = fixture.nativeElement as HTMLElement;
+        const issues = page.querySelector('[data-testid="scan-issues-count"]');
+        expect(issues?.closest('p-card')?.textContent).toContain('Issues');
+        expect(issues?.textContent?.trim()).toBe('2');
+        expect(page.querySelector('[data-testid="scan-occurrences-count"]')?.textContent?.trim()).toBe('0 occurrence');
+        expect(page.textContent).toContain('Occurrences dans ce scan');
     });
 
     it('reports a failure from the summary, not from the detail', async () => {

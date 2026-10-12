@@ -44,6 +44,14 @@ The scan detail shows what was found and, more usefully, what **changed**: issue
 new, issues that are now resolved. On a repository scanned nightly the standing total
 barely moves, and the delta is the entire news.
 
+**Issues and occurrences are two counts.** The card at the top counts **issues** — the problems
+this scan saw open, one per fingerprint, the same unit as the [issue list](issues.md) — and
+beneath it the **occurrences**: one per place a tool reported. The list further down holds the
+occurrences. A fingerprint carries no line number, so one rule hitting the same file on fifteen
+lines is one issue and fifteen occurrences, and a scan reading *28 issues · 56 occurrences* above
+a list of 56 rows has lost nothing and duplicated nothing. The history and the dashboard's recent
+scans show the issue count.
+
 The raw outputs are kept alongside the normalised findings — the SBOM as the cataloguer
 produced it, and the raw matcher output — for audit purposes. They are what you hand to
 somebody who wants to re-derive your conclusions rather than take them.

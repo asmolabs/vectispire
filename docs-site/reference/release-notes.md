@@ -692,6 +692,11 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **A scan's count names issues, and its list occurrences.** The scan detail headed with *Findings* a count of
+  issues — one per fingerprint, which carries no line — above a list of *findings* holding one row per place a
+  tool reported, so a scan read "28" above 56 rows. The card now says *Issues* with the occurrences beneath it
+  (*28 issues · 56 occurrences*), the list is *Occurrences in this scan*, and the history and the dashboard's
+  recent scans call the same figure issues. No figure changed ([scans](../guide/scans.md#reading-a-scan)).
 - **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
   default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
   `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies

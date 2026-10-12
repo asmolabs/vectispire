@@ -748,6 +748,12 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Le compte d'un scan nomme des issues, et sa liste des occurrences.** Le détail d'un scan titrait *Constats*
+  un nombre d'issues — une par empreinte, qui ne porte pas de ligne — au-dessus d'une liste de *constats* tenant
+  une ligne par endroit signalé par un outil : un scan affichait « 28 » au-dessus de 56 lignes. La carte dit
+  désormais *Issues*, avec les occurrences en dessous (*28 issues · 56 occurrences*), la liste s'intitule
+  *Occurrences dans ce scan*, et l'historique comme les dernières analyses de la vue d'ensemble appellent ce même
+  nombre des issues. Aucun nombre n'a changé ([scans](../guide/scans.md#lire-un-scan)).
 - **Les identifiants de l'agent et le Keycloak d'évaluation ne sont plus à portée de `docker inspect` ni
   d'une valeur par défaut publiée.** Le profil `with-agent` de la composition passait `VECTISPIRE_AGENT_TOKEN`
   et `VECTISPIRE_AGENT_SIGNING_KEY` dans l'environnement, que tout client du démon — les deux proxys de socket

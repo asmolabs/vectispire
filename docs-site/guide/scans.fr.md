@@ -50,6 +50,14 @@ Le détail d'un scan montre ce qui a été trouvé et, plus utile, ce qui a **ch
 nouvelles, les issues désormais résolues. Sur un dépôt analysé chaque nuit, le total courant
 bouge à peine, et le delta est toute la nouvelle.
 
+**Issues et occurrences sont deux comptes.** La carte du haut compte les **issues** — les problèmes
+que ce scan a vus ouverts, une par empreinte, la même unité que la [liste des constats](issues.md) —
+et en dessous les **occurrences** : une par endroit signalé par un outil. La liste plus bas contient
+les occurrences. Une empreinte ne porte pas de numéro de ligne : une même règle qui touche le même
+fichier sur quinze lignes fait une issue et quinze occurrences, et un scan qui affiche *28 issues ·
+56 occurrences* au-dessus d'une liste de 56 lignes n'a rien perdu ni rien dupliqué. L'historique et
+les dernières analyses de la vue d'ensemble montrent le nombre d'issues.
+
 Les sorties brutes sont conservées à côté des constats normalisés — le SBOM tel que le
 catalogueur l'a produit, et la sortie brute du moteur de rapprochement — à fin d'audit. C'est
 ce que vous remettez à quelqu'un qui veut re-dériver vos conclusions plutôt que les prendre

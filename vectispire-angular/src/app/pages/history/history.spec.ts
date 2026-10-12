@@ -110,6 +110,16 @@ describe('the history screen', () => {
         expect(fixture.nativeElement.textContent).toContain('Arm Libs Spring');
     });
 
+    // A scan's count is of issues, one per fingerprint; its occurrences are another figure, shown on
+    // the scan's own page. Called "findings" here, it disagreed with the list that page opens on.
+    it("names a scan's count as issues", () => {
+        load();
+        const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+        expect(text).toContain('25 issues');
+        expect(text).toContain('0 new');
+        expect(text).not.toContain('25 findings');
+    });
+
     it('says an untriaged backlog is untriaged, rather than showing a zero', () => {
         load();
         // A counter at zero cannot distinguish "nothing was triaged" from "the decisions predate

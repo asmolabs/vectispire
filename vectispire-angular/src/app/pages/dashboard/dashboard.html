@@ -606,7 +606,8 @@
                 <tr>
                     <th>{{ 'dashboard.target' | translate }}</th>
                     <th>{{ 'common.status' | translate }}</th>
-                    <th class="text-right">{{ 'dashboard.findings' | translate }}</th>
+                    <!-- The scan's issues, not its occurrences: the scan detail shows both, and says which. -->
+                    <th class="text-right">{{ 'dashboard.recent_scans_issues' | translate }}</th>
                 </tr>
             </ng-template>
             <ng-template #body let-scan>
@@ -623,7 +624,7 @@
                         </div>
                     </td>
                     <td><app-last-scan [scan]="scan" /></td>
-                    <td class="text-right">{{ scan.findingsCount ?? '—' }}</td>
+                    <td class="text-right">{{ (scan.findingsCount | localNumber: 0) ?? '—' }}</td>
                 </tr>
             </ng-template>
             <ng-template #emptymessage>

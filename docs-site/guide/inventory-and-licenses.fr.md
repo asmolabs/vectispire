@@ -52,7 +52,7 @@ visible comme telle, et non comme un nom que personne n'a reconnu.
 ![La comparaison de SBOM : la cible d'abord, puis ses propres scans proposés par date, les deux plus récents déjà sélectionnés.](../assets/screens/fr/sbom-comparison.png)
 
 **Dans l'interface, la cible vient d'abord.** Choisir un dépôt ou une image remplit deux listes
-avec les scans de cette cible — la date, la branche et le nombre de constats de chacun — et
+avec les scans de cette cible — la date, la branche et le nombre d'issues de chacun — et
 présélectionne les deux plus récents, qui sont la comparaison que presque tout le monde cherche :
 ce qui a changé depuis la dernière fois. L'autre question, entre la version livrée et la
 précédente, est à deux clics dans les mêmes listes.

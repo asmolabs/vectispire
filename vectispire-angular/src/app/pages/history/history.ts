@@ -57,6 +57,7 @@ type RankedIssue = HistoryIssue & { severityRank: number };
  * gets handed to an auditor is a file, not a URL into an application they cannot log into.
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LocalNumberPipe } from '../../core/i18n/local-number.pipe';
 import { SeverityLabelPipe } from '@/app/shared/severity';
 import { IssueStatePipe, ScanStatusPipe } from '@/app/shared/scan-status';
 
@@ -72,6 +73,7 @@ import { IssueStatePipe, ScanStatusPipe } from '@/app/shared/scan-status';
         ButtonModule,
         SelectModule,
         TranslatePipe,
+        LocalNumberPipe,
         SeverityLabelPipe,
         IssueStatePipe,
         ScanStatusPipe

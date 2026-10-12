@@ -50,7 +50,7 @@ as a name nobody recognised.
 ![The SBOM comparison: a target chosen first, then its own scans offered by date, with the two most recent already selected.](../assets/screens/en/sbom-comparison.png)
 
 **In the interface, the target comes first.** Choosing a repository or an image fills two
-pickers with that target's own scans — the date, the branch and how many findings each one
+pickers with that target's own scans — the date, the branch and how many issues each one
 carried — and preselects the two most recent, which is the comparison almost everybody wants:
 what changed since last time. The other question, between the version you shipped and the one
 before it, is two clicks away in the same pickers.

@@ -43,9 +43,21 @@
             <div class="text-muted-color text-sm">{{ 'scans.state' | translate }}</div>
             <div class="mt-2"><app-last-scan [scan]="detail.scan" /></div>
         </p-card>
+        <!--
+            **Issues above, occurrences beneath: two counts, never one word.** `findingsCount` is the
+            issues this scan saw open — one per fingerprint, which carries no line — while the list
+            below holds one row per place a tool reported. One rule hitting a file on fifteen lines is
+            one issue and fifteen occurrences; under one word, "28" above a list of 56 read as data
+            lost or duplicated.
+        -->
         <p-card>
-            <div class="text-muted-color text-sm">{{ 'scans.findings' | translate }}</div>
-            <div class="text-3xl font-semibold mt-1">{{ detail.scan.findingsCount }}</div>
+            <div class="text-muted-color text-sm">{{ 'scans.issues' | translate }}</div>
+            <div class="text-3xl font-semibold mt-1" data-testid="scan-issues-count">
+                {{ detail.scan.findingsCount | localNumber: 0 }}
+            </div>
+            <div class="text-sm text-muted-color mt-1" data-testid="scan-occurrences-count">
+                {{ 'scans.occurrences' | translate: { count: detail.findingsTotal | localNumber: 0 } }}
+            </div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.new_issues' | translate }}</div>
@@ -272,7 +284,11 @@
             <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
                 {{
                     'scans.findings_truncated'
-                        | translate: { total: detail.findingsTotal, shown: detail.findings.length }
+                        | translate
+                            : {
+                                  total: detail.findingsTotal | localNumber: 0,
+                                  shown: detail.findings.length | localNumber: 0
+                              }
                 }}
             </p-message>
         }
