@@ -2051,7 +2051,8 @@ export type ExceptionEntry = Refine<
     Schema<'ExceptionEntry'>,
     {
         issue_id: number;
-        target_kind: string;
+        /** `null`, with `target_id` and `target_name`, for an issue that names no target. */
+        target_kind: string | null;
         decision: string;
         identifier: string | null;
         severity: string | null;

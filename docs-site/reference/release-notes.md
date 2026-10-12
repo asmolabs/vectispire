@@ -753,6 +753,11 @@ from a list in which none is true of an exposed product — and signed into the 
   fetch: shown on the licence preview, or stored as a rule. A linked file is now left out, a linked licence
   leaves the catalogue without one and the fetch is refused, and no file is opened through a link
   ([rule sets](../administration/rule-sets.md)).
+- **The exceptions register no longer fails on an issue that names no target.** One excepted issue with
+  neither a repository nor a container answered the register with an error — the screen, the answer to
+  every review, and the evidence bundle that seals the register. The application creates no such issue,
+  but the schema allows one, written by hand or restored from elsewhere. It is now listed with no target to
+  a reader who sees the whole estate, and to no restricted reader.
 - **Two governance reads narrowed.** The exceptions register read every exception and filtered afterwards,
   and its cursor named the last row read, visible or not: a reader restricted to one repository paging one row
   at a time read the instant and issue id of every risk acceptance in the estate, as the gate verdict register

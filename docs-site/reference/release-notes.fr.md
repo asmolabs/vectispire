@@ -820,6 +820,11 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   par la récupération : montré dans l'aperçu de la licence, ou conservé comme règle. Un fichier lié est
   désormais écarté, une licence liée laisse le catalogue sans licence et la récupération est refusée, et aucun
   fichier n'est ouvert à travers un lien ([jeux de règles](../administration/rule-sets.fr.md)).
+- **Le registre des exceptions n'échoue plus sur une issue qui ne nomme aucune cible.** Une seule issue
+  exemptée sans dépôt ni conteneur faisait échouer le registre — l'écran, la réponse de chaque revue, et le
+  dossier de preuves qui scelle le registre. L'application ne crée aucune issue de ce genre, mais le schéma
+  l'admet, écrite à la main ou restaurée d'ailleurs. Elle est désormais listée sans cible pour un lecteur
+  qui voit tout le parc, et pour aucun lecteur restreint.
 - **Deux lectures de gouvernance restreintes.** Le registre des exceptions lisait toutes les exceptions et
   filtrait ensuite, et son curseur désignait la dernière ligne lue, visible ou non : un lecteur restreint à un
   dépôt, parcourant une ligne à la fois, lisait l'instant et l'identifiant de chaque acceptation de risque du

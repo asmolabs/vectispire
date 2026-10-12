@@ -71,6 +71,8 @@ public class ExceptionsRegisterService {
      * @param lastReviewedAt when somebody last revisited this exception and left it standing, or
      *     null when nobody has since it was granted. <b>Null is the interesting value</b>
      * @param lastReviewedBy who did
+     * @param targetKind {@code REPOSITORY} or {@code CONTAINER}; null, with {@code targetId} and
+     *     {@code targetName}, for an issue that names no target — listed to whole-estate readers only
      * @param requestedStatus on a request awaiting approval, the status it asks for — {@code not_affected},
      *     {@code will_not_fix} or {@code fixed}; null otherwise, and on a request queued before it was
      *     recorded. Without it a queued acceptance, a queued clearance and a queued fix read alike
@@ -245,9 +247,11 @@ public class ExceptionsRegisterService {
             Visibility allowed,
             Instant now) {
 
-        ScanTarget target = issue.getRepoId() != null
-                ? new ScanTarget.Repository(issue.getRepoId())
-                : new ScanTarget.Container(issue.getContainerId());
+        // The issue's own reading, which answers null for an issue with neither column. Built here as
+        // "a repository, else a container", it unboxed a null container id and one such row answered
+        // the whole register — the screen, every review's response, the evidence bundle — with a 500.
+        // A null target is listed for a reader of the whole estate and refused to a restricted one.
+        ScanTarget target = issue.target();
         if (!allowed.permits(target)) {
             return null;
         }
@@ -274,9 +278,18 @@ public class ExceptionsRegisterService {
                 issue.getId(),
                 issue.getIdentifier(),
                 issue.getSeverity(),
-                issue.getRepoId() != null ? "REPOSITORY" : "CONTAINER",
-                issue.getRepoId() != null ? issue.getRepoId() : issue.getContainerId(),
-                names.of(issue.getRepoId(), issue.getContainerId()),
+                switch (target) {
+                    case ScanTarget.Repository ignored -> "REPOSITORY";
+                    case ScanTarget.Container ignored -> "CONTAINER";
+                    case null -> null;
+                },
+                switch (target) {
+                    case ScanTarget.Repository repository -> repository.id();
+                    case ScanTarget.Container container -> container.id();
+                    case null -> null;
+                },
+                // Null rather than "deleted target": nothing was deleted, there was never a target.
+                target == null ? null : names.of(issue.getRepoId(), issue.getContainerId()),
                 issue.getTriageStatus(),
                 issue.getTriageRequestedStatus(),
                 issue.getTriageJustification(),
