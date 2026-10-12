@@ -113,7 +113,11 @@ of a push whose every other check had run green locally.
 A behaviour change updates `docs-site/` and `docs/{en,fr}/` **in both languages**. If `docs-site/` or
 `mkdocs.yml` changed, build the site strictly with the hash-pinned requirements
 (`pip install --require-hashes --no-deps -r ci/docs/requirements.txt`, Python 3.12+, `mkdocs build
---strict`).
+--strict`). `check-doc-links.py` does **not** replace it: it checks that a linked file exists, not that
+its `#anchor` does. On 2026-10-12 a shell redirection in inline code (`` `… </dev/null` ``) was read
+by Python-Markdown as a raw HTML tag and swallowed every heading after it on the page; the links
+checker was green, the strict build of the `docs` workflow failed on six vanished anchors. Write
+`< /dev/null`, or put such a command in a fenced block.
 
 **A script or template we ship for other people's pipelines** (`ci/`, `scripts/vectispire-cli.sh`)
 is run the way a consumer runs it, not read: against a stub server answering pass, fail, a `403`
