@@ -11872,7 +11872,7 @@
       "url" : "https://www.apache.org/licenses/LICENSE-2.0.html"
     },
     "title" : "Vectispire Control Plane REST API",
-    "version" : "0.11.0-rc.1"
+    "version" : "0.11.0-rc.2"
   },
   "openapi" : "3.1.0",
   "paths" : {
