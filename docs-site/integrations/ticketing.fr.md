@@ -46,7 +46,7 @@ Collez le certificat de cette CA, au format PEM (`-----BEGIN CERTIFICATE-----`),
 Tracker → CA du gestionnaire de tickets (PEM)** — la racine, et ses intermédiaires si votre serveur ne
 les envoie pas ; jusqu'à 8 certificats et 16 384 caractères. Pour l'obtenir, demandez le certificat de
 la CA émettrice à qui gère votre PKI, ou lisez la chaîne que présente le tracker —
-`openssl s_client -connect gitlab.example.internal:443 -showcerts </dev/null` — et gardez le
+`openssl s_client -connect gitlab.example.internal:443 -showcerts < /dev/null` — et gardez le
 certificat de la CA au sommet de la chaîne, **pas** celui du serveur (le premier affiché).
 
 - **Elle ne vaut que pour le tracker.** Chaque appel de l'intégration — ouvrir un ticket sur l'un des

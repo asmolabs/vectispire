@@ -44,7 +44,7 @@ Paste that CA's certificate, in PEM (`-----BEGIN CERTIFICATE-----`), into **Sett
 Tracker CA (PEM)** — the root, and its intermediates if your server does not send them; up to 8
 certificates and 16,384 characters. To get it, ask whoever runs your PKI for the issuing CA's
 certificate, or read the chain the tracker presents —
-`openssl s_client -connect gitlab.example.internal:443 -showcerts </dev/null` — and keep the
+`openssl s_client -connect gitlab.example.internal:443 -showcerts < /dev/null` — and keep the
 certificate of the CA at the top of it, **not** the server's own (the first one printed).
 
 - **It applies to the tracker only.** Every call the integration makes — opening a ticket on any
