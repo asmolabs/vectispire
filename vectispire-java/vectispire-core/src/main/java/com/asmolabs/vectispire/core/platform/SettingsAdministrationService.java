@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.TriageApprovers;
 import com.asmolabs.vectispire.core.access.UserView;
@@ -22,7 +24,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -41,10 +42,6 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class SettingsAdministrationService {
-
-    /** The sections whose contents are a rule, not a setting. */
-    private static final Set<Setting.Section> GOVERNANCE_SECTIONS =
-            Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE, Setting.Section.CHECKLISTS);
 
     /**
      * The longest credential one of the four secret routes accepts.
@@ -138,7 +135,7 @@ public class SettingsAdministrationService {
                             ? null
                             : stored.getOrDefault(setting.key(), setting.defaultValue()),
                     stored.containsKey(setting.key()),
-                    GOVERNANCE_SECTIONS.contains(setting.section()),
+                    setting.governorOnly(),
                     setting.administratorOnly()));
         }
         return entries;
@@ -179,16 +176,18 @@ public class SettingsAdministrationService {
             // the service settles everyone's decision when the setting is off — but breaking the
             // conjunction. The one role that can lift the rule is the one that cannot act under
             // it. The third, `checklist_auto_answer`, decides whether Vectispire writes answers in a
-            // document people sign: whoever answers or signs off checklists does not decide it.
-            if (GOVERNANCE_SECTIONS.contains(setting.section()) && !governsPlatform(writer)) {
+            // document people sign: whoever answers or signs off checklists does not decide it. The
+            // evidence window is the fourth — see Setting#governorOnly.
+            if (setting.governorOnly() && !governsPlatform(writer)) {
                 throw new AccessDeniedException(
                         setting.label() + " decides a rule rather than a setting: only a platform "
                                 + "governor may change it, because it is the one role that cannot "
                                 + "act under it.");
             }
             // **A credential's destination moves only in the hands of whoever may set the credential**,
-            // and the reach of the SIEM export only in an administrator's. Only on a change: a screen that saves every field it shows sends these back unchanged,
-            // and refusing that would lock a CISO out of the rest of the section.
+            // and the reach of the SIEM export and of the notification channels only in an
+            // administrator's. Only on a change: a screen that saves every field it shows sends these
+            // back unchanged, and refusing that would lock a CISO out of the rest of the section.
             if (setting.administratorOnly()
                     && !value.equals(settings.get(setting))
                     && !administrative(writer)) {
@@ -259,6 +258,23 @@ public class SettingsAdministrationService {
                 : pending.getOrDefault(Setting.AI_REVIEW_OLLAMA_URL, aiReview.ollamaUrl());
         if (urlAfter.isBlank()) {
             urlAfter = providerAfter == AiProvider.OPENAI ? AiReview.DEFAULT_OPENAI_URL : AiReview.DEFAULT_OLLAMA_URL;
+        }
+
+        // **A GitHub repository is two names, checked against the state this save will produce.** It
+        // goes into the path of every call made with the tracker token, and was pasted there as typed.
+        // Only on a change, like the administrator-only settings above, so a screen sending back what
+        // is stored is not refused for it; a value stored before this check is refused at the send.
+        String providerNow = settings.get(Setting.TICKET_PROVIDER);
+        String projectNow = settings.get(Setting.TICKET_PROJECT);
+        String providerAfterSave = pending.getOrDefault(Setting.TICKET_PROVIDER, providerNow);
+        String projectAfterSave = pending.getOrDefault(Setting.TICKET_PROJECT, projectNow);
+        if (TicketProvider.fromWireName(providerAfterSave).orElse(TicketProvider.NONE) == TicketProvider.GITHUB
+                && !projectAfterSave.isBlank()
+                && (!providerAfterSave.equals(providerNow) || !projectAfterSave.equals(projectNow))
+                && Tickets.githubRepositoryPath(projectAfterSave).isEmpty()) {
+            throw new InvalidInputException(Setting.TICKET_PROJECT.label() + " — a GitHub repository is "
+                    + "\"owner/repository\": letters, digits and hyphens for the owner, letters, digits, dots, "
+                    + "underscores and hyphens for the repository, and nothing after it.");
         }
 
         // **A save that takes the acknowledgement away is never refused.** The check below asks

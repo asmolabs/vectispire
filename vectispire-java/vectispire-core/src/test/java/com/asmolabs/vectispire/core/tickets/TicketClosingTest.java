@@ -195,4 +195,17 @@ class TicketClosingTest {
         assertThat(service.closeTicket("SEC-7", "clean scan")).isFalse();
         assertThat(seen).noneMatch(request -> request.startsWith("POST"));
     }
+
+    @Test
+    @DisplayName("a GitHub project that is more than a repository steers no request")
+    void aGithubProjectCannotSteerThePath() {
+        // Stored before the save checked it, or written straight into the table: pasted into
+        // /repos/<project>/issues, it made the close an edit of an issue of the writer's choosing.
+        when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.GITHUB.wireName());
+        when(settings.get(Setting.TICKET_PROJECT)).thenReturn("team/service/issues/12/comments#");
+
+        assertThat(service.closeTicket("#42", "clean scan")).isFalse();
+        assertThat(seen).isEmpty();
+    }
 }
+

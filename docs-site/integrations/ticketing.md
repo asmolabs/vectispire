@@ -23,7 +23,10 @@ is one ticket.
 ## Configuring
 
 Under [Settings](../administration/settings.md): the tracker type, its URL, the project or
-target, and a token.
+target, and a token. The URL, the project and the Jira account are an administrator's, like the
+token: the token acts wherever they point it. A GitHub project is `owner/repository` and nothing
+else — a path after it is refused when saved, and refused again at the send for a value stored
+before.
 
 Give the token the narrowest scope that can create and read issues in the target project.
 It is stored encrypted with your `ENCRYPTION_KEY`, and storing it is refused before that

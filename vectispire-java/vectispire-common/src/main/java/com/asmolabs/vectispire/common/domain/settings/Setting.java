@@ -94,7 +94,9 @@ public enum Setting {
                     + "is kept while any of it is inside the window. Set it to the period an "
                     + "assessor asks you to cover, plus the delay before they read it; the default is twelve months "
                     + "and five weeks. Zero keeps them for ever. Kept deliberately apart from the payload window "
-                    + "above: bounding disk growth and surviving an audit are different questions.",
+                    + "above: bounding disk growth and surviving an audit are different questions. Set by a "
+                    + "platform governor only: the roles whose controls this record proves do not decide how "
+                    + "long it survives.",
             String.valueOf(EvidenceRetention.DEFAULT.toDays())),
 
     WEBHOOK_URL("notification_webhook_url", SettingType.TEXT, Section.NOTIFICATIONS,
@@ -168,9 +170,10 @@ public enum Setting {
 
     NOTIFICATION_ALLOW_PRIVATE_URL("notification_allow_private_url", SettingType.BOOLEAN, Section.NOTIFICATIONS,
             "Allow a private webhook URL",
-            "For an internal bus. Off by default: a webhook URL resolving to a private address is far more often "
-                    + "a server-side request forgery attempt than an intranet endpoint. The instance metadata "
-                    + "endpoint stays refused in every case.",
+            "For an internal bus. Off by default, and set by an administrator only: a webhook URL resolving to "
+                    + "a private address is far more often a server-side request forgery attempt than an intranet "
+                    + "endpoint, and the channels are configured and tested by a security lead. The instance "
+                    + "metadata endpoint stays refused in every case.",
             "false"),
 
     /**
@@ -226,7 +229,9 @@ public enum Setting {
 
     TICKET_PROJECT("ticket_project", SettingType.TEXT, Section.TICKETS,
             "Project",
-            "The GitLab path (\"group/project\") or the Jira project key (\"SEC\").",
+            "The GitLab path (\"group/project\"), the GitHub repository (\"owner/repository\") or the Jira "
+                    + "project key (\"SEC\"). Set by an administrator only: the tracker token goes wherever "
+                    + "this points, on the tracker's host.",
             ""),
 
     TICKET_TOKEN("ticket_token", SettingType.TEXT, Section.TICKETS,
@@ -252,7 +257,7 @@ public enum Setting {
     TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
             "Jira account",
             "The account address, required by Jira alongside the token for basic authentication. GitLab does "
-                    + "not use it.",
+                    + "not use it. Set by an administrator only, like the token it travels with.",
             ""),
 
     TICKET_ISSUE_TYPE("ticket_issue_type", SettingType.TEXT, Section.TICKETS,
@@ -593,10 +598,17 @@ public enum Setting {
      * could write. Changing {@code ticket_base_url} to one's own host made the next ticket carry
      * {@code Authorization: Bearer <the administrator's token>} there — a credential its role could
      * neither set nor read, collected by redirecting it.
+     *
+     * <p><b>The host is not the whole destination.</b> The project and the Jira account stayed a
+     * CISO's after the base URL became an administrator's, and the token reaches every project of
+     * its host that its owner can reach: choosing the project chose where the administrator's token
+     * opened and closed issues, and a GitHub project was pasted into the path as typed, so
+     * {@code owner/repo/issues/12/comments#} turned "open a ticket" into a comment on an issue of
+     * the writer's choosing.
      */
     public Optional<Setting> directsCredential() {
         return switch (this) {
-            case TICKET_BASE_URL, TICKET_ALLOW_PRIVATE_URL -> Optional.of(TICKET_TOKEN);
+            case TICKET_BASE_URL, TICKET_ALLOW_PRIVATE_URL, TICKET_PROJECT, TICKET_USER -> Optional.of(TICKET_TOKEN);
             case AI_REVIEW_OPENAI_URL, AI_REVIEW_ALLOW_REMOTE -> Optional.of(AI_REVIEW_OPENAI_KEY);
             default -> Optional.empty();
         };
@@ -606,11 +618,35 @@ public enum Setting {
      * Whether only an administrator may change this setting.
      *
      * <p>A setting that decides where a credential is sent ({@link #directsCredential()}), and the
-     * switch that opens the internal network to the SIEM export — a channel a security lead
-     * configures and tests, and which therefore must not also decide how far it may reach.
+     * switches that open the internal network to the SIEM export and to the notification channels —
+     * channels a security lead configures and tests, and which therefore must not also decide how far
+     * they may reach. The notifications' switch was a security lead's until the SIEM's was split from
+     * it, and left behind: with the test button answering the sender's error, it let that role read
+     * which internal hosts and ports answered.
      */
     public boolean administratorOnly() {
-        return directsCredential().isPresent() || this == SIEM_ALLOW_PRIVATE_DESTINATION;
+        return directsCredential().isPresent()
+                || this == SIEM_ALLOW_PRIVATE_DESTINATION
+                || this == NOTIFICATION_ALLOW_PRIVATE_URL;
+    }
+
+    /**
+     * Whether only the platform governor may change this setting: it decides a rule, not a parameter.
+     *
+     * <p>Every setting of the access, triage and checklist sections — who sees what, whether a
+     * dismissal takes two people, whether Vectispire writes answers in a document people sign — and
+     * the evidence window. That one was a retention period like the payloads', and a CISO or an
+     * administrator could set it to a day: the next tick purged every gate verdict, compliance capture
+     * and OWASP week, the only record that the controls those roles run were run. The roles the
+     * evidence judges do not decide how long it lives. A floor was the other way to close it, and it
+     * was not taken: any number of days written here would be somebody's regulation and not another's,
+     * while the governor, who operates nothing, has no record of their own to shorten.
+     */
+    public boolean governorOnly() {
+        return switch (section) {
+            case ACCESS, TRIAGE, CHECKLISTS -> true;
+            default -> this == EVIDENCE_RETENTION_DAYS;
+        };
     }
 
     /**
@@ -618,9 +654,10 @@ public enum Setting {
      * SOC as a security-relevant change.
      *
      * <p>Who sees what, whether a dismissal needs a second person, where a credential may be sent,
-     * whether a private or remote host may be reached, and the credentials themselves. Not the
-     * retention periods, the SLA windows or the enrichment switches: they change what is measured,
-     * and a SOC flooded with them would learn to ignore the channel.
+     * whether a private or remote host may be reached, how long the evidence that controls ran is
+     * kept, and the credentials themselves. Not the payload retention, the SLA windows or the
+     * enrichment switches: they change what is measured, and a SOC flooded with them would learn to
+     * ignore the channel.
      *
      * <p><b>A switch with no default</b>, so a setting added to this enum does not compile until
      * whoever adds it has answered the question — a default would answer "no" for them, silently.
@@ -628,14 +665,15 @@ public enum Setting {
     public boolean governsSecurity() {
         return switch (this) {
             case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, NOTIFICATION_ALLOW_PRIVATE_URL,
-                    SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
+                    SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_PROJECT, TICKET_USER,
+                    TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
                     WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
-                    AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER -> true;
+                    AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER, EVIDENCE_RETENTION_DAYS -> true;
             case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, SCAN_DEFAULT_INTERVAL_DAYS, RETENTION_KEEP_PER_TARGET,
-                    RETENTION_MAX_AGE_DAYS, EVIDENCE_RETENTION_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
+                    RETENTION_MAX_AGE_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
                     SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,
-                    NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_PROJECT,
-                    TICKET_USER, TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_OWASP_AFTER_SCAN,
+                    NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER,
+                    TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_OWASP_AFTER_SCAN,
                     AI_REVIEW_PROVIDER,
                     AI_REVIEW_MODEL, AI_REVIEW_TIMEOUT_SECONDS, AI_REVIEW_RISK_ACKNOWLEDGED_BY,
                     AI_REVIEW_RISK_ACKNOWLEDGED_AT, COMPLIANCE_FRESHNESS_DAYS, ISMS_SCOPE_STATEMENT,

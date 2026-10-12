@@ -121,6 +121,19 @@ class TicketsTest {
     class ReferencePath {
 
         @Test
+        @DisplayName("a GitHub project is one owner and one repository, or nothing reaches the path")
+        void aGithubProjectIsOneRepository() {
+            assertThat(Tickets.githubRepositoryPath("asmo-labs/vecti.spire_x")).contains("asmo-labs/vecti.spire_x");
+            assertThat(Tickets.githubRepositoryPath(" org/repo ")).contains("org/repo");
+            for (String steering : new String[] {
+                "owner/repo/issues/12/comments#", "owner/repo?x=1", "owner/repo#", "owner/..", "owner/.",
+                "../repo", "owner", "", "owner/re po", "owner/repo/"
+            }) {
+                assertThat(Tickets.githubRepositoryPath(steering)).as(steering).isEmpty();
+            }
+        }
+
+        @Test
         @DisplayName("a path, a query or another resource is not a reference, whatever the tracker")
         void refusesAnythingButTheTrackersGrammar() {
             // Pasted as typed, this turned "close incident X" into a request of the caller's choice

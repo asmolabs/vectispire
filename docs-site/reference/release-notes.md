@@ -688,6 +688,18 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Three settings a CISO could change are no longer theirs.** *Allow a private webhook URL* is an
+  administrator's, like the SIEM's private switch: with the channels' test button quoting the sender's
+  error — a refused connection, a timeout, an HTTP status, and with the switch off the address a host name
+  resolved to — a CISO could map the internal network from it. The button now answers delivered or not
+  delivered, the cause in the server log. The tracker's project and Jira account are an administrator's,
+  like its URL and token: the token acts on any project of its host, so choosing the project chose where it
+  wrote; a GitHub project must be `owner/repository`, refused otherwise when saved and at the send, where a
+  path after it had steered the token's request to another resource. And *Evidence kept for (days)* is a
+  platform governor's: a CISO or an administrator could set it to one day and purge, at the next turn, the
+  gate verdicts, compliance captures and OWASP weeks that record their own controls ran
+  ([settings](../administration/settings.md#who-may-change-what)). Stored values are kept; an
+  integration writing these through `PUT /api/v1/settings` with another role now receives 403.
 - **A report document is read by who sees what it carried.** A document was served to whoever saw the project
   whole at the download, so a repository taken out of the project after the run left its findings readable by
   somebody it was never shown to. A run now records the targets its export carried, and the download and the

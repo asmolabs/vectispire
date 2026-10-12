@@ -292,7 +292,7 @@ public class TicketService {
     }
 
     private Ticket createGithub(String baseUrl, String title, String body) {
-        String url = baseUrl + "/repos/" + project() + "/issues";
+        String url = baseUrl + "/repos/" + githubRepository() + "/issues";
         Map<String, Object> payload = new java.util.LinkedHashMap<>();
         payload.put("title", title);
         payload.put("body", body);
@@ -310,8 +310,20 @@ public class TicketService {
         return new Ticket("#" + response.path("number").asText(""), response.path("html_url").asText(""));
     }
 
+    /**
+     * The configured repository as a path, or a refusal the caller logs and survives.
+     *
+     * <p>Checked here as well as when saved: a value stored before the check, or written straight
+     * into the database, must not steer the token's request either — see
+     * {@link Tickets#githubRepositoryPath}.
+     */
+    private String githubRepository() {
+        return Tickets.githubRepositoryPath(project()).orElseThrow(() -> new IllegalStateException(
+                "the GitHub project \"" + project() + "\" is not an owner/repository pair"));
+    }
+
     private void closeGithub(String baseUrl, String number) {
-        String url = baseUrl + "/repos/" + project() + "/issues/" + number;
+        String url = baseUrl + "/repos/" + githubRepository() + "/issues/" + number;
         // PATCH, the verb GitHub documents for "update an issue"; its tolerance of POST as an alias
         // is a legacy courtesy nothing here should lean on.
         post.patchForResponse(

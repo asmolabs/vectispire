@@ -14,17 +14,21 @@ Seul ce qui est nécessaire pour atteindre cet écran est une variable d'environ
 
 Un CISO écrit l'essentiel de cette page, mais **pas la destination d'un identifiant**. Le jeton du
 tracker et la clé OpenAI ne sont réglés que par un administrateur ; les réglages qui décident où
-ils partent — l'URL du tracker, *Autoriser une URL de tracker privée*, l'URL OpenAI et
-l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc aussi ceux d'un
-administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle qui ne peut pas
-lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte.
-*Autoriser une destination SIEM privée* revient à un administrateur pour une raison voisine : l'export
-SIEM est configuré et testé par un CISO, et l'interrupteur qui décide s'il peut joindre le réseau
-interne n'est pas laissé au même rôle.
+ils partent — l'URL du tracker, son projet et son compte Jira, *Autoriser une URL de tracker privée*,
+l'URL OpenAI et l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc
+aussi ceux d'un administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle
+qui ne peut pas lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte, ou le
+faire écrire dans un projet de son choix sur l'hôte du tracker.
+*Autoriser une destination SIEM privée* et *Autoriser une URL de webhook privée* reviennent à un
+administrateur pour une raison voisine : l'export SIEM et les canaux de notification sont configurés
+et testés par un CISO, et l'interrupteur qui décide s'ils peuvent joindre le réseau interne n'est pas
+laissé au même rôle. Le bouton de test des canaux répond délivré ou non délivré ; la raison d'un échec
+est écrite dans le journal du serveur, pas renvoyée.
 
-Trois paramètres décident des règles plutôt que des réglages et reviennent au seul **gouverneur de
-plateforme** — qui voit quelles cibles, si un triage demande [deux personnes](four-eyes.fr.md), et si
-Vectispire répond aux lignes mesurées d'une checklist (ci-dessous) : qui agit sous une règle ne la lève
+Quatre paramètres décident des règles plutôt que des réglages et reviennent au seul **gouverneur de
+plateforme** — qui voit quelles cibles, si un triage demande [deux personnes](four-eyes.fr.md), si
+Vectispire répond aux lignes mesurées d'une checklist (ci-dessous), et combien de temps les preuves
+qu'un contrôle a tourné sont gardées (*Rétention*, ci-dessous) : qui agit sous une règle ne la lève
 pas.
 
 Le formulaire SIEM fonctionne à l'inverse, parce que le même rôle y règle le point d'arrivée et
@@ -101,8 +105,9 @@ mesuré » en un clic demeure.
 ## Rétention
 
 Combien de temps les scans et leurs artefacts bruts sont conservés, et — à part — combien de
-temps les preuves le sont : *Evidence kept for (days)* (`evidence_retention_days`). Voir
-[Rotation et purge](maintenance.md).
+temps les preuves le sont : *Evidence kept for (days)* (`evidence_retention_days`), que seul un
+gouverneur de plateforme change — les rôles dont ces preuves attestent les contrôles ne décident pas
+de leur durée de vie. Voir [Rotation et purge](maintenance.md).
 
 ## Notifications
 

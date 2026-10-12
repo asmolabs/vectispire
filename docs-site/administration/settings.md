@@ -14,16 +14,20 @@ Only what is needed to reach this screen at all is an environment variable. See
 
 A CISO writes most of this page, but **not where a credential is sent**. The tracker token and
 the OpenAI key are set by an administrator only, so the settings that decide their destination —
-the tracker base URL, *Allow a private tracker URL*, the OpenAI URL and the acknowledgement that
-lets code go to a remote endpoint — are an administrator's too, and show read-only to anyone else.
-Otherwise a role that cannot read a credential could collect it by pointing it at its own host.
-*Allow a private SIEM destination* is an administrator's for a neighbouring reason: the SIEM export is
-configured and tested by a CISO, and the switch deciding whether it may reach the internal network
-is not left to the same role.
+the tracker base URL, its project and its Jira account, *Allow a private tracker URL*, the OpenAI URL
+and the acknowledgement that lets code go to a remote endpoint — are an administrator's too, and show
+read-only to anyone else. Otherwise a role that cannot read a credential could collect it by pointing
+it at its own host, or have it write into a project of its choosing on the tracker's host.
+*Allow a private SIEM destination* and *Allow a private webhook URL* are an administrator's for a
+neighbouring reason: the SIEM export and the notification channels are configured and tested by a
+CISO, and the switch deciding whether they may reach the internal network is not left to the same
+role. The channels' test button answers delivered or not delivered; why a message was not delivered
+is written to the server log, not answered.
 
-Three settings decide rules rather than parameters and are a **platform governor's** only — who
-sees which targets, whether a triage takes [two people](four-eyes.md), and whether Vectispire answers
-the measured lines of a checklist (below): whoever acts under a rule does not lift it.
+Four settings decide rules rather than parameters and are a **platform governor's** only — who
+sees which targets, whether a triage takes [two people](four-eyes.md), whether Vectispire answers
+the measured lines of a checklist (below), and how long the evidence that controls ran is kept
+(*Retention*, below): whoever acts under a rule does not lift it.
 
 The SIEM form works the other way round, because the same role sets its endpoint and its header:
 changing the endpoint **drops the stored header** unless a new one is typed with it. A header is
@@ -94,7 +98,8 @@ written stay until somebody answers over them, and answering as measured in one 
 ## Retention
 
 How long scans and their raw artefacts are kept, and — apart from them — how long the evidence
-is: *Evidence kept for (days)* (`evidence_retention_days`). See
+is: *Evidence kept for (days)* (`evidence_retention_days`), which only a platform governor changes —
+the roles whose controls that evidence proves do not decide how long it survives. See
 [Rotation and purge](maintenance.md).
 
 ## Notifications

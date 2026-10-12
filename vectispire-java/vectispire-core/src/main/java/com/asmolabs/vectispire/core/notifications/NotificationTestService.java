@@ -119,14 +119,23 @@ public class NotificationTestService {
                 0,
                 "test-msg-" + Instant.now().toEpochMilli());
 
+        // **Delivered or not, and nothing of why.** The answer quoted the sender's own words to the
+        // security lead who pressed the button — "Connection refused", a timeout, "HTTP 404", and with
+        // private destinations refused, the guard's sentence naming the internal address a host name
+        // resolved to. Pointing a channel at host after host made the button a scanner of the internal
+        // network. The cause goes to the server log, where an administrator reads it — as the SIEM
+        // export's test does.
         try {
             channel.deliver(testPayload);
             return new NotificationTestResult(channel.type(), true, "Test payload successfully dispatched to " + channel.type(), Instant.now());
         } catch (Exception e) {
             log.warn("Notification test failed for {}: {}", channel.type(), e.getMessage());
-            return new NotificationTestResult(channel.type(), false, "Delivery failed: " + e.getMessage(), Instant.now());
+            return new NotificationTestResult(channel.type(), false, NOT_DELIVERED, Instant.now());
         }
     }
+
+    static final String NOT_DELIVERED = "The test message was not delivered: the destination is refused by the "
+            + "outbound policy, could not be reached, or did not accept it. The cause is in the server log.";
 
     private static String maskDestination(String dest) {
         if (dest == null || dest.isBlank()) return "";

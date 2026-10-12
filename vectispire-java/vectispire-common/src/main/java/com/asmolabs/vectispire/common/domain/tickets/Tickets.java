@@ -151,6 +151,30 @@ public final class Tickets {
     private static final java.util.regex.Pattern SERVICENOW_ID =
             java.util.regex.Pattern.compile("[0-9a-f]{32}|[A-Z]{2,8}[0-9]{4,12}");
 
+    private static final java.util.regex.Pattern GITHUB_REPOSITORY =
+            java.util.regex.Pattern.compile("([A-Za-z0-9-]+)/([A-Za-z0-9._-]+)");
+
+    /**
+     * The {@code owner/repository} path a GitHub project becomes in a call to the tracker, each name
+     * encoded, or empty when the project is not one repository.
+     *
+     * <p><b>The project was pasted into {@code /repos/<project>/issues} as typed</b>, while GitLab's
+     * was encoded: {@code owner/repo/issues/12/comments#} turned "open a ticket" into a comment on an
+     * issue of the writer's choosing, sent with the integration's token, and a closing PATCH into an
+     * edit of it. GitHub's own grammar is the allowance — an owner of letters, digits and hyphens, a
+     * repository of letters, digits, dots, underscores and hyphens — and {@code .} and {@code ..},
+     * which the pattern admits and a server would resolve as a step up the path, are refused.
+     */
+    public static java.util.Optional<String> githubRepositoryPath(String project) {
+        java.util.regex.Matcher repository = GITHUB_REPOSITORY.matcher(project == null ? "" : project.trim());
+        if (!repository.matches() || repository.group(2).equals(".") || repository.group(2).equals("..")) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(
+                java.net.URLEncoder.encode(repository.group(1), java.nio.charset.StandardCharsets.UTF_8) + "/"
+                        + java.net.URLEncoder.encode(repository.group(2), java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     /**
      * The path segment a reference becomes in a call to the tracker, or empty when it is not a
      * reference that tracker issues.

@@ -3,11 +3,15 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.users.Role;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * Who may write a setting, asked over HTTP.
@@ -134,4 +138,108 @@ class SettingsRoutesTest extends ApiTestBase {
                         .content("{\"ticket_base_url\":\"https://tracker.example.com\"}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
     }
+
+    @Test
+    @DisplayName("a CISO cannot choose the tracker project or the Jira account the token is used with")
+    void aCisoCannotChooseWhereTheTokenActs() throws Exception {
+        // The host was an administrator's, the project was not: the token reaches every project of
+        // its host its owner can, so choosing the project chose where the administrator's token wrote.
+        Setting project = Setting.TICKET_PROJECT;
+        Setting user = Setting.TICKET_USER;
+        settingsStore.set(project, "team/service");
+        settingsStore.set(user, "bot@example.com");
+        try {
+            String ciso = asCiso();
+            for (String body : new String[] {
+                "{\"ticket_project\":\"someone-else/private-repo\"}",
+                "{\"ticket_user\":\"other@example.com\"}"
+            }) {
+                mvc.perform(authenticated(put("/api/v1/settings"), ciso)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                        .andExpect(status().isForbidden());
+            }
+            assertThat(settingsStore.get(project)).isEqualTo("team/service");
+            assertThat(settingsStore.get(user)).isEqualTo("bot@example.com");
+
+            mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"ticket_project\":\"team/other\",\"ticket_user\":\"other@example.com\"}"))
+                    .andExpect(status().isOk());
+            assertThat(settingsStore.get(project)).isEqualTo("team/other");
+        } finally {
+            settingsStore.set(project, "");
+            settingsStore.set(user, "");
+        }
+    }
+
+    @Test
+    @DisplayName("a GitHub project is one owner/repository pair, nothing after it")
+    void aGithubProjectIsOneRepository() throws Exception {
+        // Pasted into /repos/<project>/issues as typed, "owner/repo/issues/12/comments#" made the
+        // ticket a comment on an issue of the writer's choosing.
+        String previousProvider = settingsStore.get(Setting.TICKET_PROVIDER);
+        try {
+            for (String steering : new String[] {
+                "owner/repo/issues/12/comments#", "owner/repo?x=1", "owner/..", "../owner", "owner"
+            }) {
+                MvcResult refused = mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"ticket_provider\":\"github\",\"ticket_project\":\""
+                                        + steering + "\"}"))
+                        .andExpect(status().isBadRequest())
+                        .andReturn();
+                assertThat(detailOf(refused)).as(steering).contains("owner/repository");
+            }
+            assertThat(settingsStore.get(Setting.TICKET_PROJECT)).isEmpty();
+
+            mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"ticket_provider\":\"github\",\"ticket_project\":\"asmo-labs/vecti.spire_x\"}"))
+                    .andExpect(status().isOk());
+        } finally {
+            settingsStore.set(Setting.TICKET_PROVIDER, previousProvider);
+            settingsStore.set(Setting.TICKET_PROJECT, "");
+        }
+    }
+
+    @Test
+    @DisplayName("only the platform governor sets how long the evidence of controls is kept")
+    void theEvidenceWindowIsTheGovernors() throws Exception {
+        // A CISO or an administrator could set it to one day, and the next tick purged every gate
+        // verdict, compliance capture and OWASP week — the record that their own controls ran.
+        Setting window = Setting.EVIDENCE_RETENTION_DAYS;
+        settingsStore.set(window, "400");
+        try {
+            // The screen shows it read-only to everybody else by this flag.
+            com.fasterxml.jackson.databind.JsonNode catalog = json.readTree(
+                    mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                            .get("/api/v1/settings"), asAdmin()))
+                            .andExpect(status().isOk())
+                            .andReturn().getResponse().getContentAsString());
+            assertThat(catalog.findValues("settings").stream()
+                            .flatMap(section -> java.util.stream.StreamSupport.stream(section.spliterator(), false))
+                            .filter(entry -> entry.path("key").asText().equals("evidence_retention_days"))
+                            .map(entry -> entry.path("governor_only").asBoolean()))
+                    .containsExactly(true);
+
+            for (String writer : new String[] {asCiso(), asAdmin()}) {
+                mvc.perform(authenticated(put("/api/v1/settings"), writer)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"evidence_retention_days\":\"1\"}"))
+                        .andExpect(status().isForbidden());
+            }
+            assertThat(settingsStore.get(window)).isEqualTo("400");
+
+            mvc.perform(authenticated(put("/api/v1/settings"),
+                                    tokenFor("governor-" + System.nanoTime(), Role.SUPERUSER, false))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"evidence_retention_days\":\"730\"}"))
+                    .andExpect(status().isOk());
+            assertThat(settingsStore.get(window)).isEqualTo("730");
+        } finally {
+            settingsStore.set(window, "400");
+        }
+    }
 }
+

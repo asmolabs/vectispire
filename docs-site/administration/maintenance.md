@@ -58,7 +58,8 @@ the weekly OWASP record, and, for each [report](report-plugins.md#requesting-a-r
 export it was given and the signed document it produced. Only those bytes go: the report run itself
 stays, with the digests of its export, its document and its package. Unlike a payload none of it can be regenerated, so set it to the
 period an assessor asks you to cover plus the delay before they read it, and not to the payload
-window. The hourly maintenance turn purges what has left it. A week of the OWASP record is kept
+window. Only a platform governor changes it: a CISO or an administrator could set it to a day, and the
+next turn purged the record of every control they run. The hourly maintenance turn purges what has left it. A week of the OWASP record is kept
 while any of it is still inside the window; once purged, the *By week* view shows it as it shows
 the weeks before the record began — reconstructed from the issues' dates, with no recorded state.
 

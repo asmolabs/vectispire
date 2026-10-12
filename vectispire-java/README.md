@@ -194,6 +194,9 @@ same name; decision records written before that date keep the names they had.
 | A raw socket is opened by the syslog sender alone, to the address the guard pinned | `ArchitectureTest`, `SyslogSenderTest` |
 | A syslog collector is judged by the same address rules as a URL, reserved endpoints included | `OutboundUrlGuardTest`, `SiemRoutesTest` |
 | The SIEM export reaches a private collector only by its own, administrator-only setting, and its test route answers an outcome, never the socket's error | `SiemRoutesTest` |
+| The notification channels reach a private destination only by an administrator's setting, and their test route answers delivered or not, never the sender's error or the address a name resolved to | `NotificationCenterRoutesTest` |
+| Whatever directs the tracker token — its URL, project, Jira account, private switch — is an administrator's; a GitHub project is one `owner/repository`, checked when saved and again at the send | `SettingsRoutesTest`, `TicketsTest`, `TicketClosingTest` |
+| The evidence window is the platform governor's alone: the roles whose controls it records do not shorten it | `SettingsRoutesTest` |
 | A SIEM event leaves after its transaction commits, is retried, and the relay knows its type | `SiemExportRoutesTest` |
 | No outbound call runs inside a transaction: a scan's enrichment happens before its write opens, the KEV catalogue and the EPSS file are fetched before their writes, and the OWASP review's model call sits between a committed request and a second write — asked from inside the stubbed call | `EnrichmentOutsideTransactionTest`, `ScanIngestorTest`, `ThreatIntelFeedRoutesTest`, `EpssSyncRoutesTest`, `OwaspReportTest` |
 | A model review a stopped process left running reads as failed past its deadline, and the hourly sweep writes it so | `OwaspReportTest`, `MaintenanceJobsTest` |

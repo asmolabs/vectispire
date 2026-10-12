@@ -24,7 +24,10 @@ scans nocturnes consécutifs, c'est un ticket.
 ## Configurer
 
 Sous [Réglages](../administration/settings.md) : le type de tracker, son URL, le projet ou la
-cible, et un jeton.
+cible, et un jeton. L'URL, le projet et le compte Jira reviennent à un administrateur, comme le
+jeton : le jeton agit là où ils le dirigent. Un projet GitHub s'écrit `propriétaire/dépôt` et rien
+d'autre — un chemin après lui est refusé à l'enregistrement, et de nouveau à l'envoi pour une valeur
+enregistrée avant.
 
 Donnez au jeton la portée la plus étroite permettant de créer et de lire des tickets dans le
 projet visé. Il est stocké chiffré avec votre `ENCRYPTION_KEY`, et son stockage est refusé

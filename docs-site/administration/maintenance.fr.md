@@ -61,8 +61,9 @@ mensuels de conformité, le relevé hebdomadaire OWASP et, pour chaque
 signé qu'il a produit. Seuls ces octets partent : l'exécution du rapport elle-même reste, avec les
 empreintes de son export, de son document et de son paquet. Contrairement à un artefact brut, rien de
 cela ne se régénère : réglez-la sur la période qu'un auditeur vous demande de couvrir, plus le délai
-avant qu'il la lise, et non sur la fenêtre des artefacts. Le tour de maintenance horaire purge ce qui
-en est sorti. Une semaine du relevé OWASP est gardée tant qu'une partie d'elle est encore dans la
+avant qu'il la lise, et non sur la fenêtre des artefacts. Seul un gouverneur de plateforme la change :
+un CISO ou un administrateur pouvait la régler à un jour, et le tour suivant purgeait la trace de chaque
+contrôle qu'il mène. Le tour de maintenance horaire purge ce qui en est sorti. Une semaine du relevé OWASP est gardée tant qu'une partie d'elle est encore dans la
 fenêtre ; une fois purgée, la vue *Par semaine* la montre comme les semaines d'avant le début du
 relevé — reconstituée à partir des dates des issues, sans état relevé.
 

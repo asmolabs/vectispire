@@ -744,6 +744,20 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Trois réglages qu'un CISO pouvait changer ne sont plus les siens.** *Autoriser une URL de webhook
+  privée* revient à un administrateur, comme l'interrupteur privé du SIEM : le bouton de test des canaux
+  citant l'erreur de l'envoi — une connexion refusée, un délai dépassé, un statut HTTP, et l'interrupteur
+  coupé, l'adresse vers laquelle un nom se résolvait — un CISO pouvait en tirer la carte du réseau interne.
+  Le bouton répond désormais délivré ou non délivré, la cause dans le journal du serveur. Le projet du
+  tracker et son compte Jira reviennent à un administrateur, comme son URL et son jeton : le jeton agit sur
+  tout projet de son hôte, et choisir le projet choisissait où il écrivait ; un projet GitHub doit s'écrire
+  `propriétaire/dépôt`, refusé sinon à l'enregistrement et à l'envoi, où un chemin après lui dirigeait la
+  requête du jeton vers une autre ressource. Et *Evidence kept for (days)* revient au gouverneur de
+  plateforme : un CISO ou un administrateur pouvait la régler à un jour et purger, au tour suivant, les
+  verdicts de la barrière, les relevés de conformité et les semaines OWASP qui attestent que leurs propres
+  contrôles ont tourné ([réglages](../administration/settings.fr.md#qui-peut-changer-quoi)). Les valeurs
+  enregistrées sont gardées ; une intégration qui les écrit par `PUT /api/v1/settings` sous un autre rôle
+  reçoit désormais 403.
 - **Un document de rapport est lu par qui voit ce qu'il contient.** Un document était servi à quiconque voyait
   le projet entier au moment du téléchargement : un dépôt retiré du projet après l'exécution laissait ses
   constats lisibles par quelqu'un à qui il n'avait jamais été montré. Une exécution enregistre désormais les
