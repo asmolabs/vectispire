@@ -246,6 +246,24 @@ describe('the scan detail', () => {
         expect(page.textContent).toContain('Occurrences dans ce scan');
     });
 
+    // A row of the list is one occurrence, headed by what names it. "Findings" over it was a third
+    // word for a page that says issues above and occurrences here — and a plural over one row.
+    it('heads the column that names each occurrence as its identifier, in either language', async () => {
+        const headers = () =>
+            Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('th')).map((th) =>
+                th.textContent.trim()
+            );
+        useEnglish();
+        await load();
+        expect(headers()).toContain('Identifier');
+        expect(headers()).not.toContain('Findings');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(headers()).toContain('Identifiant');
+        expect(headers()).not.toContain('Constats');
+    });
+
     it('reports a failure from the summary, not from the detail', async () => {
         await load({
             ...DETAIL,

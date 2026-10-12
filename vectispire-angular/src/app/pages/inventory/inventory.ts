@@ -202,7 +202,12 @@ export class Inventory {
         // took the browser's: "9/18/2026, 11:00:00 AM" in a French interface on an English system.
         const when = scan.createdAt ? formatDate(scan.createdAt, 'dd/MM/yyyy HH:mm', this.locale) : '—';
         const branch = scan.branch ? ` · ${scan.branch}` : '';
-        return `${when}${branch} · ${scan.findingsCount ?? 0} · #${scan.id}`;
+        // A bare "7" said nothing of what it counted, and `findingsCount` is issues — one per
+        // fingerprint — where the scan's own list counts occurrences: the word keeps the two apart.
+        const issues = this.i18n.t('inventory.scan_issues', {
+            count: this.i18n.decimal(scan.findingsCount ?? 0, 0)
+        });
+        return `${when}${branch} · ${issues} · #${scan.id}`;
     }
 
     runDiff(): void {

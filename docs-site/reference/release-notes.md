@@ -720,6 +720,10 @@ from a list in which none is true of an exposed product — and signed into the 
   (*28 issues · 56 occurrences*), the list is *Occurrences in this scan*, and the history and the dashboard's
   recent scans call the same figure issues — as does each scan's line of the exported history PDF, which
   read *28 findings, 3 new, 2 resolved* and now reads *28 issues, …*. No figure changed ([scans](../guide/scans.md#reading-a-scan)).
+- **The SBOM comparison's pickers and the failing-targets table say what they count.** The scan pickers of
+  the SBOM comparison now say *7 issues*, with the reader's digit grouping, instead of a bare number; the
+  dashboard's failing-targets table heads its count *Violations*, since it counts gate-policy violations, not
+  findings; and the scan detail heads its occurrence list's identifier column *Identifier*.
 - **Dates and percentages read the same on every screen, in each language's typography.** A few screens wrote
   dates in the browser's locale or a hard-coded one (month first, a two-digit year, English month names to a
   French reader); every date now follows the interface's one pattern, day/month/year on a 24-hour clock.

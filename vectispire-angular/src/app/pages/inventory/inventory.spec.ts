@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Inventory } from './inventory';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The component search.
@@ -253,12 +254,49 @@ describe('the component search', () => {
         // browser's language has no say. Built from local fields: the pattern writes local time.
         vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
         const i18n = TestBed.inject(I18nService);
-        i18n.currentLang.set('fr');
+        useEnglish();
+        i18n.currentLang.set('en');
         const at = new Date(2026, 8, 18, 11, 5).toISOString();
 
-        expect(fixture.componentInstance.scanLabel(scan(34, at))).toBe('18/09/2026 11:05 · main · 7 · #34');
-        i18n.currentLang.set('en');
-        expect(fixture.componentInstance.scanLabel(scan(34, at))).toBe('18/09/2026 11:05 · main · 7 · #34');
+        expect(fixture.componentInstance.scanLabel(scan(34, at))).toBe('18/09/2026 11:05 · main · 7 issues · #34');
+        useFrench();
+        expect(fixture.componentInstance.scanLabel(scan(34, at))).toBe('18/09/2026 11:05 · main · 7 issues · #34');
+    });
+
+    /**
+     * **The picker says what its number counts.** It read `date · branch · 7 · #34`: a bare figure
+     * beside the scan's number, and `findingsCount` is issues — one per fingerprint — where the
+     * scan's own page lists occurrences, a larger figure. Read from the picker itself, since the
+     * label is what a reader chooses by; the figures differ so the plural and the grouping show.
+     */
+    it('names the count of each scan in the picker as issues, singular and grouped as the language writes them', async () => {
+        useEnglish();
+        const page = fixture.componentInstance;
+        page.activeTab.set('diff');
+        page.diffTarget = 'repo:5';
+        page.onTargetChosen();
+        const at = new Date(2026, 8, 18, 11, 5).toISOString();
+        http.expectOne((request) => request.url.includes('/api/v1/scans')).flush([
+            { ...scan(34, at), findingsCount: 1234 },
+            { ...scan(33, at), findingsCount: 1 }
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const picked = (id: string) =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector(`p-select:has(#${id}) .p-select-label`)
+                ?.textContent.trim();
+        expect(picked('diff-to')).toBe('18/09/2026 11:05 · main · 1,234 issues · #34');
+        expect(picked('diff-from')).toBe('18/09/2026 11:05 · main · 1 issue · #33');
+
+        useFrench();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(picked('diff-to')).toBe('18/09/2026 11:05 · main · 1 234 issues · #34');
+        expect(picked('diff-from')).toBe('18/09/2026 11:05 · main · 1 issue · #33');
     });
 
     it("names each change in the reader's language, not in the French it was first typed in", () => {

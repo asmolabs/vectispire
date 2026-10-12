@@ -372,6 +372,26 @@ describe('the failing targets table', () => {
         expect(cells).toContain('1,234');
     });
 
+    // The figure is `violations.length`: one per gate rule the target fails, beside the rules
+    // named in the column before it. Headed "Findings", "2" read as two findings on a target that
+    // may hold hundreds.
+    it("heads a failing target's count as the gate violations it counts, not as findings", () => {
+        const overview = failing('kev');
+        const kev = overview.failing[0].violations[0];
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush({
+            ...overview,
+            failing: [{ ...overview.failing[0], violations: [kev, { ...kev, rule: 'severity', issueId: 8 }] }]
+        });
+        fixture.detectChanges();
+
+        const table = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('table')).find((each) =>
+            each.textContent.includes('Arm Libs Spring')
+        );
+        const headers = Array.from(table?.querySelectorAll('th') ?? []).map((th) => th.textContent.trim());
+        expect(headers).toEqual(['Target', 'Rule at fault', 'Violations']);
+        expect(table?.querySelector('[data-testid="failing-violations"]')?.textContent.trim()).toBe('2');
+    });
+
     it('tags anything else as a severity breach', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
         fixture.detectChanges();

@@ -782,6 +782,11 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   nombre des issues — de même que la ligne de chaque scan dans le PDF de l'historique exporté, qui lisait
   *28 findings, 3 new, 2 resolved* et lit désormais *28 issues, …* (ce document est rédigé en anglais). Aucun
   nombre n'a changé ([scans](../guide/scans.md#lire-un-scan)).
+- **Les sélecteurs de la comparaison SBOM et le tableau des cibles en échec disent ce qu'ils comptent.** Les
+  sélecteurs de scans de la comparaison SBOM disent *7 issues*, avec le séparateur de milliers de la langue, au
+  lieu d'un nombre nu ; le tableau des cibles en échec du tableau de bord intitule son décompte *Violations* :
+  il compte les violations de la politique de gate, pas des constats ; et le détail d'un scan intitule
+  *Identifiant* la colonne d'identifiant de sa liste d'occurrences.
 - **Les dates et les pourcentages s'écrivent de la même façon sur tous les écrans, selon la typographie de chaque
   langue.** Quelques écrans écrivaient les dates dans la langue du navigateur ou une locale codée en dur (mois en
   premier, année sur deux chiffres, mois en anglais pour un lecteur francophone) ; toutes suivent désormais le

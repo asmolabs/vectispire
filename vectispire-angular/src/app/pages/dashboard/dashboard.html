@@ -556,7 +556,8 @@
                         <tr>
                             <th>{{ 'dashboard.target' | translate }}</th>
                             <th>{{ 'dashboard.col_rule_at_fault' | translate }}</th>
-                            <th class="text-right">{{ 'dashboard.findings' | translate }}</th>
+                            <!-- The gate's violations, one per rule the target fails: not findings, not issues. -->
+                            <th class="text-right">{{ 'dashboard.col_violations' | translate }}</th>
                         </tr>
                     </ng-template>
                     <ng-template #body let-target>
@@ -591,7 +592,9 @@
                                     </div>
                                 }
                             </td>
-                            <td class="text-right font-semibold">{{ target.violations.length }}</td>
+                            <td class="text-right font-semibold" data-testid="failing-violations">
+                                {{ target.violations.length | localNumber: 0 }}
+                            </td>
                         </tr>
                     </ng-template>
                 </p-table>
