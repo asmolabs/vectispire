@@ -641,7 +641,8 @@ const ORION_GATEWAY = {
 };
 
 /** The API key helios-portal's pipeline delivers its documents with — one key, one declared source. */
-const HELIOS_CI_KEY = '0d4f7a2c-9b61-4e38-a5c0-8e2b6d1f9c47';
+// Invented for the screenshot stubs, never a real key: the page only shows its id beside a source.
+const HELIOS_CI_KEY = '0d4f7a2c-9b61-4e38-a5c0-8e2b6d1f9c47'; // gitleaks:allow
 
 /**
  * The tracker's settings as `Setting` labels and explains them, word for word: the screen shows the

@@ -103,3 +103,8 @@ a64894b63eb619bd4d6f954ec73ebce0b3428e57:docs-site/integrations/ci-examples.md:c
 # `ISO-A.5.15`, …) beside a number: generic-api-key reads the code as a key. No credential.
 82795a5e063f488ce9f4a368e4a4a3a93b70f3dd:docs/en/COMPLIANCE_AND_REGULATORY.md:generic-api-key:231
 82795a5e063f488ce9f4a368e4a4a3a93b70f3dd:docs/fr/COMPLIANCE_AND_REGULATORY.fr.md:generic-api-key:231
+
+# The screenshot campaign's stubs give helios-portal's declared source an API key id: an invented
+# UUID that only shows as an identifier on the sources page. No credential; the line now carries
+# `gitleaks:allow`, and this pins the commit that introduced it.
+487bd9f8347b31e20772b1d2ecb55ee110d07e9d:vectispire-angular/e2e/screens.spec.ts:generic-api-key:644
