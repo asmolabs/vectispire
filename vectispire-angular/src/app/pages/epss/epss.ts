@@ -16,6 +16,7 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SeverityLabelPipe } from '@/app/shared/severity';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 import { TargetKindPipe } from '@/app/shared/target-kind';
 
 @Component({
@@ -32,6 +33,7 @@ import { TargetKindPipe } from '@/app/shared/target-kind';
         TranslatePipe,
         SeverityLabelPipe,
         LocalNumberPipe,
+        LocalPercentPipe,
         TargetKindPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,

@@ -10,7 +10,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
 import { SeverityLabelPipe } from '@/app/shared/severity';
-import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 
 /**
  * What the gate answered, newest first.
@@ -34,7 +34,7 @@ import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
         TagModule,
         TranslatePipe,
         SeverityLabelPipe,
-        LocalNumberPipe
+        LocalPercentPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './gate-verdicts.html'

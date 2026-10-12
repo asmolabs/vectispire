@@ -92,6 +92,15 @@ describe('the gate policy screen', () => {
         expect(fixture.componentInstance.globalPolicy()).toBeNull();
     });
 
+    it('dates a policy as every date of the interface reads, not by a locale written in the code', () => {
+        // `toLocaleString('fr-BE', …)` wrote "20/08/26 09:00" — a two-digit year no other screen
+        // shows. Built from local fields: the pattern writes local time.
+        const at = new Date(2026, 7, 20, 9, 0).toISOString();
+
+        expect(fixture.componentInstance.formatDate(at)).toBe('20/08/2026 09:00');
+        expect(fixture.componentInstance.formatDate(null)).toBe('—');
+    });
+
     it('separates the global policy from the overrides', () => {
         load([GLOBAL, OVERRIDE]);
 

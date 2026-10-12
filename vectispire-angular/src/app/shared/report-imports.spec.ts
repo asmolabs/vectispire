@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchemaList } from '@/app/core/testing/contract';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { ReportImports } from './report-imports';
 
 /**
@@ -100,8 +100,8 @@ describe("a repository's latest coverage and test report", () => {
     it('shows the newest coverage as percentages of lines and branches, with its provenance', () => {
         answer(COVERAGE, TESTS);
 
-        expect(text('[data-testid="coverage-lines"]')).toBe('83.3 % (250 / 300)');
-        expect(text('[data-testid="coverage-branches"]')).toBe('62.5 % (40 / 64)');
+        expect(text('[data-testid="coverage-lines"]')).toBe('83.3% (250 / 300)');
+        expect(text('[data-testid="coverage-branches"]')).toBe('62.5% (40 / 64)');
         const panel = text('[data-testid="latest-coverage"]');
         expect(panel).toContain('jacoco');
         expect(panel).toContain('0.8.14');
@@ -113,10 +113,19 @@ describe("a repository's latest coverage and test report", () => {
         expect(panel).not.toContain('older-ci');
     });
 
+    it('spaces the percent sign as French does, with a space that does not break', () => {
+        // The bundles wrote "{{percent}} %" in both languages, other screens glued the sign: French
+        // read "50%" here and "50 %" there, and English got the French space.
+        useFrench();
+        answer(COVERAGE, TESTS);
+
+        expect(text('[data-testid="coverage-lines"]')).toBe('83,3 % (250 / 300)');
+    });
+
     it('says branches were not counted rather than showing zero', () => {
         answer([COVERAGE[1]], []);
 
-        expect(text('[data-testid="coverage-lines"]')).toBe('50 % (1 / 2)');
+        expect(text('[data-testid="coverage-lines"]')).toBe('50% (1 / 2)');
         expect(text('[data-testid="coverage-branches"]')).toBe('Not counted by the report');
     });
 

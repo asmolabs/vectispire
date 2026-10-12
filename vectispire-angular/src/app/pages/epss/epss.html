@@ -115,7 +115,7 @@
                 </div>
                 <div class="mt-3">
                     <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">
-                        {{ summary()!.averageFleetEpss * 100 | localNumber: 1 : 1 }} %
+                        {{ summary()!.averageFleetEpss * 100 | localPercent: 1 : 1 }}
                     </span>
                     <span class="text-xs text-surface-500 ml-1">{{ 'epss.mean_probability' | translate }}</span>
                 </div>
@@ -263,9 +263,9 @@
                                 <div class="flex justify-between items-center text-[11px]">
                                     <!-- An unknown score is shown as unknown: printed as 0 %, it read as "not exploitable". -->
                                     @if (p.epssScore != null) {
-                                        <span class="font-bold text-amber-600 dark:text-amber-400"
-                                            >{{ p.epssScore * 100 | localNumber: 1 : 1 }}%</span
-                                        >
+                                        <span class="font-bold text-amber-600 dark:text-amber-400">{{
+                                            p.epssScore * 100 | localPercent: 1 : 1
+                                        }}</span>
                                     } @else {
                                         <span class="font-bold text-surface-400">—</span>
                                     }
@@ -384,7 +384,7 @@
                         <span class="text-xl font-extrabold text-amber-600 block mt-1">
                             {{
                                 lookupResult()!.epssScore != null
-                                    ? ((lookupResult()!.epssScore ?? 0) * 100 | localNumber: 2 : 2) + ' %'
+                                    ? ((lookupResult()!.epssScore ?? 0) * 100 | localPercent: 2 : 2)
                                     : '—'
                             }}
                         </span>

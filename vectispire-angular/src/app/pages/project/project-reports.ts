@@ -1,5 +1,15 @@
-import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { DatePipe, formatDate } from '@angular/common';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    LOCALE_ID,
+    computed,
+    effect,
+    inject,
+    input,
+    signal,
+    untracked
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -77,6 +87,7 @@ export const POLL_MS = 5000;
 export class ProjectReports {
     private readonly api = inject(ReportPluginsApi);
     private readonly i18n = inject(I18nService);
+    private readonly locale = inject(LOCALE_ID);
     private readonly session = inject(SessionStore);
     private readonly runsRequest = new LatestRequest();
 
@@ -314,7 +325,8 @@ export class ProjectReports {
     private withdrawnSentence(run: ReportRun): string {
         if (!run.withdrawnAt) return this.i18n.t('reports.withdrawn_download');
         return this.i18n.t('reports.withdrawn_download_since', {
-            date: new Date(run.withdrawnAt).toLocaleDateString(this.i18n.currentLang()),
+            // Day first, as the date pipes write it: `toLocaleDateString('en')` put the month first.
+            date: formatDate(run.withdrawnAt, 'dd/MM/yyyy', this.locale),
             reason: run.withdrawalJustification ?? '—'
         });
     }

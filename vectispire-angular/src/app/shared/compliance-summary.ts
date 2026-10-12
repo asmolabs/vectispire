@@ -13,6 +13,7 @@ import {
     gateStatusLabel
 } from './compliance-labels';
 import { LocalNumberPipe } from '../core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '../core/i18n/local-percent.pipe';
 
 /**
  * A `ComplianceSummary`, drawn: the executive figures, the per-target matrix, the frameworks and the
@@ -25,7 +26,7 @@ import { LocalNumberPipe } from '../core/i18n/local-number.pipe';
  */
 @Component({
     selector: 'app-compliance-summary',
-    imports: [NgClass, ButtonModule, TagModule, TranslatePipe, LocalNumberPipe],
+    imports: [NgClass, ButtonModule, TagModule, TranslatePipe, LocalNumberPipe, LocalPercentPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance-summary.html'
 })
@@ -123,7 +124,7 @@ export class ComplianceSummaryView {
 
     /** A score, or a dash where nothing was measured — its zero is no measurement. */
     scoreOf(status: string, score: number): string {
-        return status === 'NO_DATA' ? '—' : score + '%';
+        return status === 'NO_DATA' ? '—' : this.i18n.percent(score);
     }
 
     gateStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {

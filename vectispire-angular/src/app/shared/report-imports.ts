@@ -131,12 +131,10 @@ export class ReportImports {
         effect(() => this.load(this.repositoryId()));
     }
 
-    /** "83.3 % (250 / 300)", in the reader's language; a total of zero has no percentage. */
+    /** "83.3% (250 / 300)", "83,3 % (250 / 300)" in French; a total of zero has no percentage. */
     ratio(covered: number, total: number): string {
         if (total <= 0) return '—';
-        const percent = new Intl.NumberFormat(this.i18n.currentLang(), { maximumFractionDigits: 1 }).format(
-            (covered / total) * 100
-        );
+        const percent = this.i18n.percent((covered / total) * 100);
         return this.i18n.t('report_imports.ratio', { percent, covered, total });
     }
 

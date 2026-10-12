@@ -54,7 +54,7 @@
         @if (freshShare() !== null) {
             <div class="mb-6">
                 <div class="flex items-baseline gap-2 mb-1">
-                    <span class="font-medium">{{ freshShare() }}&nbsp;%</span>
+                    <span class="font-medium">{{ freshShare() | localPercent }}</span>
                     <span class="text-muted-color text-sm">{{ 'scope.fresh_share' | translate }}</span>
                 </div>
                 <div class="bg-surface-200 dark:bg-surface-700 rounded" style="height: 8px">

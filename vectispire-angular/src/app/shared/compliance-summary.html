@@ -59,10 +59,11 @@
             <div class="mt-3 flex items-baseline gap-2">
                 <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">
                     {{
-                        summary().totalMonitoredTargets > 0
+                        (summary().totalMonitoredTargets > 0
                             ? Math.round((summary().passingGateTargets / summary().totalMonitoredTargets) * 100)
                             : 100
-                    }}%
+                        ) | localPercent
+                    }}
                 </span>
                 <span class="text-xs text-surface-500"
                     >({{
@@ -95,7 +96,7 @@
                 <i class="pi pi-clock text-xl" [ngClass]="freshnessTone()"></i>
             </div>
             <div class="mt-3 flex items-baseline gap-2">
-                <span class="text-3xl font-bold" [ngClass]="freshnessTone()">{{ freshnessRate() }}%</span>
+                <span class="text-3xl font-bold" [ngClass]="freshnessTone()">{{ freshnessRate() | localPercent }}</span>
                 <span class="text-xs text-surface-500">
                     ({{ summary().freshTargets }}/{{ summary().totalMonitoredTargets }}
                     {{ 'compliance.coverage_freshness_help' | translate }})
@@ -216,7 +217,7 @@
                                     >
                                         {{
                                             target.frameworkScores['NIS_2'] != null
-                                                ? target.frameworkScores['NIS_2'] + '%'
+                                                ? (target.frameworkScores['NIS_2'] | localPercent)
                                                 : '-'
                                         }}
                                     </span>
@@ -234,7 +235,7 @@
                                     >
                                         {{
                                             target.frameworkScores['ISO_27001'] != null
-                                                ? target.frameworkScores['ISO_27001'] + '%'
+                                                ? (target.frameworkScores['ISO_27001'] | localPercent)
                                                 : '-'
                                         }}
                                     </span>
@@ -252,7 +253,7 @@
                                     >
                                         {{
                                             target.frameworkScores['EU_CRA'] != null
-                                                ? target.frameworkScores['EU_CRA'] + '%'
+                                                ? (target.frameworkScores['EU_CRA'] | localPercent)
                                                 : '-'
                                         }}
                                     </span>

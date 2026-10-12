@@ -1,5 +1,6 @@
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -248,10 +249,11 @@ export class GatePolicies {
     formatDate(value: string | null): string {
         if (!value) return '—';
         const at = new Date(value);
-        return Number.isNaN(at.getTime())
-            ? value
-            : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
+        // The pattern every date pipe of the interface writes, not a locale (`fr-BE` was written here).
+        return Number.isNaN(at.getTime()) ? value : formatDate(at, 'dd/MM/yyyy HH:mm', this.locale);
     }
+
+    private readonly locale = inject(LOCALE_ID);
 }
 
 function blank(): Draft {

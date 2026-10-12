@@ -202,7 +202,7 @@ if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 3552;
+const EXPECTED_KEYS = 3553;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -829,6 +829,88 @@ if (failed) {
     process.exit(1);
 }
 
+// **A date is written by the interface's one pattern, never by a locale.** The inventory's scan
+// picker called `toLocaleString()` with no argument and wrote the *browser's* date — "9/18/2026,
+// 11:00:00 AM" in a French interface on an English system — while the security and gate-policy
+// screens hard-coded `'fr-BE'`, and the project page's `date: 'medium'` spelt English month names to
+// a French reader (the date pipe reads `LOCALE_ID`, fixed at `en-US`). Every other date goes through
+// the date pipe or `formatDate` with a numeric pattern ('dd/MM/yyyy HH:mm'), which reads the same in
+// both languages. So: no `toLocale*String`, no `Intl.DateTimeFormat`, no locale spelt as a literal
+// ('fr-BE', 'en-US'), and no date format that writes words — a named one ('short', 'medium'…), a
+// pattern with a month or day name (`MMM`, `EEE`) or a day period (`a`), or a bare `| date`, whose
+// default is `mediumDate`. Numbers have `I18nService.decimal` / `percent` and their pipes.
+const NAMED_DATE_FORMATS = new Set(['short', 'medium', 'long', 'full', 'shortDate', 'mediumDate', 'longDate',
+    'fullDate', 'shortTime', 'mediumTime', 'longTime', 'fullTime']);
+const wordyPattern = (pattern) => NAMED_DATE_FORMATS.has(pattern) || /M{3,}|L{3,}|E{3,}|c{3,}|a|B/.test(pattern.replace(/'[^']*'/g, ''));
+const withoutComments = (source) =>
+    source
+        .replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '))
+        .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+        .replace(/^\s*\/\/.*$/gm, '');
+const localeBound = [];
+for (const file of walk(join(root, 'src/app'))) {
+    if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts')) continue;
+    const source = withoutComments(readFileSync(file, 'utf8'));
+    const where = (index) => `${file.slice(root.length + 1)}:${source.slice(0, index).split('\n').length}`;
+    for (const match of source.matchAll(/\.toLocale(?:Date|Time)?String\s*\(|\bIntl\.DateTimeFormat\b/g)) {
+        localeBound.push(`${where(match.index)}  ${match[0].trim()}`);
+    }
+    for (const match of source.matchAll(/(['"`])([a-z]{2,3}-[A-Z]{2})\1/g)) {
+        localeBound.push(`${where(match.index)}  ${match[0]}`);
+    }
+    for (const match of source.matchAll(/\|\s*date\b(?!\s*:)/g)) {
+        localeBound.push(`${where(match.index)}  | date (no pattern: mediumDate)`);
+    }
+    for (const match of source.matchAll(/\|\s*date\s*:\s*'([^']*)'|\bformatDate\(\s*[^,]+,\s*'([^']*)'/g)) {
+        const pattern = match[1] ?? match[2];
+        if (wordyPattern(pattern)) localeBound.push(`${where(match.index)}  '${pattern}'`);
+    }
+}
+if (localeBound.length > 0) {
+    console.error(`${localeBound.length} date(s) or figure(s) formatted by a locale rather than the interface's language:`);
+    for (const offender of localeBound) console.error(`  ${offender}`);
+    console.error(
+        `Write a date with the date pipe or formatDate and a numeric pattern ('dd/MM/yyyy HH:mm'), ` +
+            `a figure with I18nService.decimal / percent or the localNumber / localPercent pipes.`);
+    process.exit(1);
+}
+
+// **A percent sign belongs to its figure, and each language spaces it its own way.** English writes
+// "50%", French "50 %" with a no-break space — and the screens wrote whichever their author typed:
+// `}}%`, `}}&nbsp;%`, `+ '%'`, `+ ' %'`, bundles with "{{percent}} %" in both languages, so French read
+// "50%" on one screen and "50 %" on the next and English got the French space. A figure's sign now
+// comes from `I18nService.percent` (or `localPercent`), which writes what `Intl` writes for the
+// language; so a template or the code never writes a lone `%` after a value, a bundle never writes
+// one after a parameter, and a figure spelt in a bundle's prose follows its language's rule.
+const gluedSigns = [];
+for (const file of walk(join(root, 'src/app'))) {
+    if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts')) continue;
+    const source = withoutComments(readFileSync(file, 'utf8'));
+    for (const match of source.matchAll(/(?:\}\}|\$\{[^}]*\})(?:\s|&nbsp;|\u00a0)*%|(['"`])(?:\s|&nbsp;|\u00a0)*%\1/g)) {
+        gluedSigns.push(`${file.slice(root.length + 1)}:${source.slice(0, match.index).split('\n').length}  ${match[0].trim()}`);
+    }
+}
+const SPACING = {
+    en: { wrong: /\d[\s\u00a0\u202f]+%/, rule: 'no space before % in English ("50%")' },
+    fr: { wrong: /\d(?:%|[ \t\u202f]%)/, rule: 'a no-break space (U+00A0) before % in French ("50 %"), as Intl writes it' }
+};
+for (const lang of ['en', 'fr']) {
+    const tree = JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'));
+    for (const key of flatten(tree)) {
+        const value = key.split('.').reduce((node, part) => node[part], tree);
+        if (/\}\}\s*%/.test(value)) gluedSigns.push(`public/i18n/${lang}.json  ${key}: a % after a parameter`);
+        if (SPACING[lang].wrong.test(value)) gluedSigns.push(`public/i18n/${lang}.json  ${key}: ${SPACING[lang].rule}`);
+    }
+}
+if (gluedSigns.length > 0) {
+    console.error(`${gluedSigns.length} percent sign(s) written beside a figure rather than with it:`);
+    for (const offender of gluedSigns) console.error(`  ${offender}`);
+    console.error(
+        `Pass the figure through I18nService.percent or the localPercent pipe — it carries its sign, spaced ` +
+            `as the language writes it — and let the bundle take the whole of it as a parameter.`);
+    process.exit(1);
+}
+
 console.log(
     `i18n check: ${referenced.size} keys referenced, all present in French and English; ` +
     `${hardcoded} hard-coded labels (ceiling ${HARDCODED_LABEL_CEILING}); ` +
@@ -837,4 +919,5 @@ console.log(
     `${untranslated} untranslated strings in the templates (ceiling ${UNTRANSLATED_TEXT_CEILING}); ` +
     `${messagesInCode} sentences in the code (ceiling ${MESSAGES_IN_CODE_CEILING}); ` +
     `no static attribute showing text (${STATIC_TOKENS.size} tokens allowed); ` +
-    `no word joined to a value (${CONCAT_TOKENS.size} tokens allowed); no HTML entity in a bundle.`);
+    `no word joined to a value (${CONCAT_TOKENS.size} tokens allowed); no HTML entity in a bundle; ` +
+    `no date or figure formatted by a locale; no percent sign glued to a figure.`);

@@ -185,5 +185,18 @@ describe('I18nService & TranslatePipe', () => {
             expect(service.decimal(12)).toBe('12');
             expect(service.decimal(12.5)).toBe('12,5');
         });
+
+        it('writes a percentage with its sign as each language spaces it', async () => {
+            // English glues the sign; French puts a no-break space before it. The screens mixed
+            // "50%" and "50 %" in French and gave English the French space.
+            await service.setLanguage('en');
+            expect(service.percent(87.5)).toBe('87.5%');
+            expect(service.percent(50)).toBe('50%');
+            expect(service.percent(0.043, 3)).toBe('0.043%');
+            await service.setLanguage('fr');
+            expect(service.percent(87.5)).toBe('87,5 %');
+            expect(service.percent(50)).toBe('50 %');
+            expect(service.percent(97, 2, 2)).toBe('97,00 %');
+        });
     });
 });

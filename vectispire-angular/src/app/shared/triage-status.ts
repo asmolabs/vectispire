@@ -5,9 +5,14 @@ import { keyFor } from '../core/i18n/literal-keys';
  * The triage statuses the bundle names. The document types `triageStatus` as a plain string; the
  * six the server writes today are `TRIAGE_STATUSES` in `core/testing/contract.ts`, and `accepted`
  * and `false_positive` are older decisions still found in the history.
+ *
+ * `under_investigation` is no triage status but the VEX one the AI review suggests for every finding
+ * it cannot call `affected` — most of them — and the suggestion's tag reads through this map: it
+ * showed the raw token until it was named here. No triage control offers it.
  */
 export type TriageStatus =
     | 'under_review'
+    | 'under_investigation'
     | 'pending_approval'
     | 'affected'
     | 'not_affected'
@@ -23,6 +28,7 @@ export type TriageStatus =
  */
 export const TRIAGE_STATUS_KEYS = {
     under_review: 'issues.triage_status.under_review',
+    under_investigation: 'issues.triage_status.under_investigation',
     pending_approval: 'issues.triage_status.pending_approval',
     affected: 'issues.triage_status.affected',
     not_affected: 'issues.triage_status.not_affected',

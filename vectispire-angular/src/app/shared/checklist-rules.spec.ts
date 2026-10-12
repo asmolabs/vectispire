@@ -466,7 +466,7 @@ describe('the checklist rules, as the form reads them', () => {
             'Evidence at most 7 days old'
         ]);
         expect(describeRule(i18n, COVERAGE_RULE)).toEqual([
-            'Coverage of lines at least 80 %, on every repository',
+            'Coverage of lines at least 80%, on every repository',
             'Evidence at most 14 days old'
         ]);
         expect(
@@ -486,7 +486,7 @@ describe('the checklist rules, as the form reads them', () => {
                 scope: { include: ['org/example/**'], exclude: ['**/generated/**'] }
             })
         ).toEqual([
-            'Coverage of lines at least 80 %, on every repository',
+            'Coverage of lines at least 80%, on every repository',
             'Only the packages matching org/example/**',
             'Except the packages matching **/generated/**',
             'Evidence at most 14 days old'
@@ -501,7 +501,7 @@ describe('the checklist rules, as the form reads them', () => {
                 branch: 'release/2026'
             })
         ).toEqual([
-            'At least 95 % of the changes merged in the last 30 days approved by at least 2 people other than their author — or a forge configuration requiring it',
+            'At least 95% of the changes merged in the last 30 days approved by at least 2 people other than their author — or a forge configuration requiring it',
             'Changes merged into release/2026',
             'Evidence at most 1 days old'
         ]);

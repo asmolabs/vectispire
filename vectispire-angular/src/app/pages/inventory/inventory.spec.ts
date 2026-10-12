@@ -1,7 +1,7 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Inventory } from './inventory';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
@@ -60,6 +60,8 @@ describe('the component search', () => {
             request.flush([]);
         }
     });
+
+    afterEach(() => vi.restoreAllMocks());
 
     function search(name: string, version: string, results: Record<string, unknown>): void {
         fixture.componentInstance.name = name;
@@ -243,6 +245,20 @@ describe('the component search', () => {
 
         expect(label).toContain('#34');
         expect(label).toContain('main');
+    });
+
+    it("dates a scan as every date of the interface reads, not in the browser's locale", () => {
+        // `toLocaleString()` without a locale wrote the system's format — "9/18/2026, 11:05:00 AM"
+        // in a French interface on an English machine. The pattern is the date pipes' own, so the
+        // browser's language has no say. Built from local fields: the pattern writes local time.
+        vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
+        const i18n = TestBed.inject(I18nService);
+        i18n.currentLang.set('fr');
+        const at = new Date(2026, 8, 18, 11, 5).toISOString();
+
+        expect(fixture.componentInstance.scanLabel(scan(34, at))).toBe('18/09/2026 11:05 · main · 7 · #34');
+        i18n.currentLang.set('en');
+        expect(fixture.componentInstance.scanLabel(scan(34, at))).toBe('18/09/2026 11:05 · main · 7 · #34');
     });
 
     it("names each change in the reader's language, not in the French it was first typed in", () => {

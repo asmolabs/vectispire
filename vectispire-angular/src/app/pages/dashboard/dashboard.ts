@@ -70,6 +70,7 @@ function themeColour(variable: string, fallback: string): string {
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 import { TargetKindPipe } from '@/app/shared/target-kind';
 
 @Component({
@@ -87,6 +88,7 @@ import { TargetKindPipe } from '@/app/shared/target-kind';
         GradeLabelPipe,
         RiskPointsPipe,
         LocalNumberPipe,
+        LocalPercentPipe,
         TargetKindPipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,

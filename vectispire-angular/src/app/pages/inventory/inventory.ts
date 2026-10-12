@@ -1,5 +1,5 @@
-import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { DatePipe, formatDate } from '@angular/common';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -44,6 +44,7 @@ export class Inventory {
     private readonly targetsApi = inject(TargetsApi);
     private readonly scansApi = inject(ScansApi);
     private readonly i18n = inject(I18nService);
+    private readonly locale = inject(LOCALE_ID);
 
     name = '';
     version = '';
@@ -197,7 +198,9 @@ export class Inventory {
     );
 
     scanLabel(scan: ScanSummary): string {
-        const when = scan.createdAt ? new Date(scan.createdAt).toLocaleString() : '—';
+        // The pattern every date pipe of the interface writes. `toLocaleString()` without a locale
+        // took the browser's: "9/18/2026, 11:00:00 AM" in a French interface on an English system.
+        const when = scan.createdAt ? formatDate(scan.createdAt, 'dd/MM/yyyy HH:mm', this.locale) : '—';
         const branch = scan.branch ? ` · ${scan.branch}` : '';
         return `${when}${branch} · ${scan.findingsCount ?? 0} · #${scan.id}`;
     }

@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GateVerdicts } from './gate-verdicts';
 import { asSchema } from '@/app/core/testing/contract';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
  * The verdict register, and the number it must not invent.
@@ -60,6 +61,18 @@ describe('le registre des verdicts', () => {
 
     it('computes the rate over the total of answers', () => {
         expect(fixture.componentInstance.refusalRate()).toBe(50);
+    });
+
+    it('writes the rate with its sign as each language spaces it', () => {
+        // The template wrote `&nbsp;%` for every reader: the French space reached English too.
+        const shown = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+        fixture.detectChanges();
+        expect(shown()).toContain('50%');
+        expect(shown()).not.toContain('50 %');
+
+        TestBed.inject(I18nService).currentLang.set('fr');
+        fixture.detectChanges();
+        expect(shown()).toContain('50 %');
     });
 
     it('ne garde que les refus quand on le demande', () => {

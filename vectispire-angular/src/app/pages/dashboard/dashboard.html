@@ -193,7 +193,7 @@
                                     'dashboard.resolution_ratio'
                                         | translate
                                             : {
-                                                  percent: (pa.netResolutionRatePercentage | localNumber),
+                                                  percent: (pa.netResolutionRatePercentage | localPercent),
                                                   resolved: pa.totalResolvedInWindow,
                                                   opened: pa.totalOpenedInWindow
                                               }

@@ -94,7 +94,7 @@
                 @if (statusTone(f.overallStatus) === 'none') {
                     —
                 } @else {
-                    {{ f.scorePercentage }}&nbsp;%
+                    {{ f.scorePercentage | localPercent }}
                 }
             </span>
             <span

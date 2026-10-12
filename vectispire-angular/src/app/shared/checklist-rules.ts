@@ -677,10 +677,11 @@ export function sameRule(a: ChecklistRule | null, b: ChecklistRule | null): bool
 
 // ---------------------------------------------------------------------- in words
 
-/** A ratio as a person reads it: 0.6 is 60, 0.3333 is 33.33. */
-export function percentOf(i18n: Pick<I18nService, 'decimal'>, ratio: number): string {
-    // In the reader's decimal mark: a KPI of "87,5 %" is a French sentence, "87.5 %" is not.
-    return i18n.decimal(ratio * 100, 4);
+/** A ratio as a person reads it: 0.6 is 60 %, 0.3333 is 33.33 %. */
+export function percentOf(i18n: Pick<I18nService, 'percent'>, ratio: number): string {
+    // In the reader's decimal mark and spacing: a KPI of "87,5 %" is a French sentence, "87.5%" an
+    // English one, and neither is the other's.
+    return i18n.percent(ratio * 100, 4);
 }
 
 export function ruleKindLabel(i18n: I18nService, kind: string): string {

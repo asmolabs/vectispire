@@ -697,6 +697,11 @@ from a list in which none is true of an exposed product — and signed into the 
   tool reported, so a scan read "28" above 56 rows. The card now says *Issues* with the occurrences beneath it
   (*28 issues · 56 occurrences*), the list is *Occurrences in this scan*, and the history and the dashboard's
   recent scans call the same figure issues. No figure changed ([scans](../guide/scans.md#reading-a-scan)).
+- **Dates and percentages read the same on every screen, in each language's typography.** A few screens wrote
+  dates in the browser's locale or a hard-coded one (month first, a two-digit year, English month names to a
+  French reader); every date now follows the interface's one pattern, day/month/year on a 24-hour clock.
+  Percentages follow each language: *50%* in English, *50 %* in French with a no-break space. The AI review's
+  VEX suggestion `under_investigation` is labelled *Under investigation* instead of showing the raw token.
 - **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
   default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
   `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies

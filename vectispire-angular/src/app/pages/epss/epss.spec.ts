@@ -49,7 +49,7 @@ describe('EPSS prioritisation', () => {
                 kev_listed: 'KEV: inscrite.',
                 kev_not_listed: 'KEV: absente.',
                 kev_unknown: 'KEV: inconnue.',
-                epss: 'EPSS: {{chance}} %.',
+                epss: 'EPSS: {{chance}}.',
                 epss_unknown: 'EPSS: inconnue.',
                 fix_none: 'Aucun correctif enregistré.'
             }
@@ -313,7 +313,7 @@ describe('EPSS prioritisation', () => {
         });
         fixture.detectChanges();
 
-        expect(document.body.textContent ?? '').toContain('KEV: inscrite. EPSS: 0.043 %.');
+        expect(document.body.textContent ?? '').toContain('KEV: inscrite. EPSS: 0.043%.');
     });
 
     it('shows no percentile for a CVE the EPSS file does not score', () => {
@@ -335,13 +335,14 @@ describe('EPSS prioritisation', () => {
         useEnglish();
         lookup();
         const card = () => (document.body.textContent ?? '').replace(/\s+/g, ' ');
-        expect(card()).toContain('97.00 %');
+        // Each language spaces the sign its own way: none in English, a no-break space in French.
+        expect(document.body.textContent).toContain('97.00%');
         expect(card()).toContain('pctl 99.0');
 
         // The percentile was `toFixed(1) + 'e %'`: a French ordinal glued to an English decimal.
         useFrench();
         fixture.detectChanges();
-        expect(card()).toContain('97,00 %');
+        expect(document.body.textContent).toContain('97,00\u00a0%');
         expect(card()).toContain('99,0e pctl');
     });
 
@@ -350,7 +351,7 @@ describe('EPSS prioritisation', () => {
         fixture.detectChanges();
         const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
         expect(text).toContain('CVSS × EPSS');
-        expect(text).toContain('EPSS ≥ 50% et CVSS ≥ 7,0');
+        expect(text).toContain('EPSS ≥ 50\u00a0% et CVSS ≥ 7,0');
         expect(text).not.toMatch(/&(?:[a-z]+|#\d+);/);
     });
 

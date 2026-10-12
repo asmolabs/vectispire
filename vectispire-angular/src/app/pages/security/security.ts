@@ -1,4 +1,5 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { Component, inject, signal, ChangeDetectionStrategy, LOCALE_ID } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -57,15 +58,14 @@ export class Security {
         // Explicit `Z` suffix: the value is UTC with no zone, and without it the browser would
         // read it as local time — and therefore display it shifted.
         //
-        // The locale stays `fr-BE` although the interface is in English: it is a regional
-        // format, not a language, and `en-US` would swap day and month for the people reading
-        // this.
+        // Day first in both languages, as every date pipe of the interface writes it: `en-US`
+        // would swap day and month for the people reading this. The pattern is spelt out rather
+        // than left to a locale (`fr-BE` was written here) so the screen reads like the others.
         const at = new Date(`${value.replace(' ', 'T')}Z`);
-        return Number.isNaN(at.getTime())
-            ? value
-            : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
+        return Number.isNaN(at.getTime()) ? value : formatDate(at, 'dd/MM/yyyy HH:mm', this.locale);
     }
 
+    private readonly locale = inject(LOCALE_ID);
     private readonly i18n = inject(I18nService);
 
     observationLabel(target: TargetPosture): string {

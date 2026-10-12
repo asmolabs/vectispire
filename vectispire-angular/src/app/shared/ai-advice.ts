@@ -54,8 +54,9 @@ export function adviceFix(i18n: I18nService, own: AiDeterministic): string {
 /**
  * A probability as a percentage, to three decimals at most. One decimal wrote 0.0 % for most of
  * FIRST's scores — measured, small, and not zero. In the reader's decimal mark: French reads
- * "0,043 %", and `toFixed` wrote the English point on both screens.
+ * "0,043 %", and `toFixed` wrote the English point on both screens. The sign comes with the figure,
+ * as each language writes it: "0.043%" in English.
  */
-export function epssPercent(i18n: Pick<I18nService, 'decimal'>, probability: number): string {
-    return i18n.decimal(probability * 100, 3);
+export function epssPercent(i18n: Pick<I18nService, 'percent'>, probability: number): string {
+    return i18n.percent(probability * 100, 3);
 }

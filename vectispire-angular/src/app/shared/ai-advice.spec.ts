@@ -45,7 +45,7 @@ describe('the advisor wording', () => {
     });
 
     it('states the listing and the score the feeds hold', () => {
-        expect(adviceExploitation(i18n, OWN)).toBe('KEV-LISTED EPSS 94.358');
+        expect(adviceExploitation(i18n, OWN)).toBe('KEV-LISTED EPSS 94.358%');
     });
 
     it('says unknown for a listing nobody read and a score nobody published — never 85 %', () => {
@@ -78,14 +78,15 @@ describe('the advisor wording', () => {
     });
 
     it('does not round a small measured score to zero', () => {
-        expect(epssPercent(i18n, 0.00043)).toBe('0.043');
-        expect(epssPercent(i18n, 0.975)).toBe('97.5');
+        expect(epssPercent(i18n, 0.00043)).toBe('0.043%');
+        expect(epssPercent(i18n, 0.975)).toBe('97.5%');
     });
 
     it("writes the probability in the reader's decimal mark", () => {
         i18n.currentLang.set('fr');
-        expect(epssPercent(i18n, 0.00043)).toBe('0,043');
-        expect(epssPercent(i18n, 0.975)).toBe('97,5');
-        expect(adviceExploitation(i18n, OWN)).toBe('KEV-LISTED EPSS 94,358');
+        // French spaces the sign, with a no-break space so it never starts a line of its own.
+        expect(epssPercent(i18n, 0.00043)).toBe('0,043\u00a0%');
+        expect(epssPercent(i18n, 0.975)).toBe('97,5\u00a0%');
+        expect(adviceExploitation(i18n, OWN)).toBe('KEV-LISTED EPSS 94,358\u00a0%');
     });
 });

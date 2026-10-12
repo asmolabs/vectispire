@@ -754,6 +754,12 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   désormais *Issues*, avec les occurrences en dessous (*28 issues · 56 occurrences*), la liste s'intitule
   *Occurrences dans ce scan*, et l'historique comme les dernières analyses de la vue d'ensemble appellent ce même
   nombre des issues. Aucun nombre n'a changé ([scans](../guide/scans.md#lire-un-scan)).
+- **Les dates et les pourcentages s'écrivent de la même façon sur tous les écrans, selon la typographie de chaque
+  langue.** Quelques écrans écrivaient les dates dans la langue du navigateur ou une locale codée en dur (mois en
+  premier, année sur deux chiffres, mois en anglais pour un lecteur francophone) ; toutes suivent désormais le
+  format unique de l'interface, jour/mois/année sur 24 heures. Les pourcentages suivent chaque langue : *50%* en
+  anglais, *50 %* en français avec une espace insécable. La suggestion VEX `under_investigation` de la revue IA
+  s'affiche *En cours d'analyse* au lieu du code brut.
 - **Les identifiants de l'agent et le Keycloak d'évaluation ne sont plus à portée de `docker inspect` ni
   d'une valeur par défaut publiée.** Le profil `with-agent` de la composition passait `VECTISPIRE_AGENT_TOKEN`
   et `VECTISPIRE_AGENT_SIGNING_KEY` dans l'environnement, que tout client du démon — les deux proxys de socket

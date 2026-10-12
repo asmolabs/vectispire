@@ -175,7 +175,7 @@
                             />
                             @if (target.scanId !== null) {
                                 <a [routerLink]="['/scans', target.scanId]" class="text-muted-color">
-                                    {{ target.scannedAt | date: 'medium' }}
+                                    {{ target.scannedAt | date: 'dd/MM/yyyy HH:mm' }}
                                 </a>
                             }
                         </li>

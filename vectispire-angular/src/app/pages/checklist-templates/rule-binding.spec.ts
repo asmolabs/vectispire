@@ -297,7 +297,7 @@ describe('binding a rule to a template line', () => {
         choose('#rule-aggregation', 'over the project, weighted by size');
         await settle();
         expect(text('[data-testid="rule-described"]')).toContain(
-            'Coverage of branches at least 75 %, over the project, weighted by size'
+            'Coverage of branches at least 75%, over the project, weighted by size'
         );
         const request = keepAndSave();
         expect(request.request.body).toEqual({
@@ -539,7 +539,7 @@ describe('binding a rule to a template line', () => {
 
         expect(text('[data-testid="item-5"] [data-testid="item-rule-kind"]')).toBe('Test coverage');
         expect(text('[data-testid="item-5"] [data-testid="item-rule"]')).toContain(
-            'Coverage of lines at least 80 %, on every repository'
+            'Coverage of lines at least 80%, on every repository'
         );
         await edit(5);
         expect((dom().querySelector('#rule-minimum-ratio') as HTMLInputElement).value).toBe('0.8');

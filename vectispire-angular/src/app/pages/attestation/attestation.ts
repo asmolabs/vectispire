@@ -8,6 +8,7 @@ import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 import { saveDocument } from '@/app/core/download';
 import { FRAMEWORKS, complianceStatusLabel, frameworkLabel } from '@/app/shared/compliance-labels';
 import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from '@/app/core/api.models';
@@ -25,7 +26,7 @@ import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from 
  */
 @Component({
     selector: 'app-attestation',
-    imports: [DatePipe, RouterLink, ButtonModule, MessageModule, TranslatePipe],
+    imports: [DatePipe, RouterLink, ButtonModule, MessageModule, TranslatePipe, LocalPercentPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attestation.html'
 })

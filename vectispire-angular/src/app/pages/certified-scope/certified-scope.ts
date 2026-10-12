@@ -7,6 +7,7 @@ import { TargetsApi } from '@/app/core/api/targets.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 import type { MonitoredContainer, MonitoredRepository, ScopeView } from '@/app/core/api.models';
 
 /**
@@ -27,7 +28,7 @@ import type { MonitoredContainer, MonitoredRepository, ScopeView } from '@/app/c
  */
 @Component({
     selector: 'zs-certified-scope',
-    imports: [FormsModule, MessageModule, TranslatePipe],
+    imports: [FormsModule, MessageModule, TranslatePipe, LocalPercentPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './certified-scope.html'
 })

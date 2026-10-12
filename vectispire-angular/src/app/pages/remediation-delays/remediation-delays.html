@@ -73,9 +73,9 @@
                                     </div>
                                 } @else if (hasDeadline(row)) {
                                     <div class="flex items-baseline gap-2 mb-1">
-                                        <span class="font-medium" style="font-variant-numeric: tabular-nums"
-                                            >{{ row.percentageWithinSla | localNumber }}&nbsp;%</span
-                                        >
+                                        <span class="font-medium" style="font-variant-numeric: tabular-nums">{{
+                                            row.percentageWithinSla | localPercent
+                                        }}</span>
                                         <span
                                             class="text-muted-color text-xs"
                                             style="font-variant-numeric: tabular-nums"

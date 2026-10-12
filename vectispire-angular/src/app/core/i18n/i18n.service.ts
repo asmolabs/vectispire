@@ -117,6 +117,24 @@ export class I18nService {
         return this.numberFormat(maximumFractionDigits, minimumFractionDigits).format(value);
     }
 
+    /**
+     * A share, given in percentage points (`87.5` for 87.5 %), with its sign as the reader's
+     * language writes it: "87.5%" in English, "87,5 %" in French — a no-break space before the sign,
+     * so the figure and its sign never part at a line end.
+     *
+     * The screens glued the sign themselves, each its own way — `+ '%'`, `}}%`, `&nbsp;%`, `' %'`,
+     * and bundles writing "{{percent}} %" — so French read "50%" on one screen and "50 %" on the
+     * next, and English got the French space. The sign belongs to the figure: a bundle takes the
+     * whole of it as a parameter and never writes a `%` after one (check-i18n-keys.mjs).
+     */
+    percent(points: number, maximumFractionDigits = 1, minimumFractionDigits = 0): string {
+        return new Intl.NumberFormat(this.currentLang(), {
+            style: 'percent',
+            maximumFractionDigits,
+            minimumFractionDigits
+        }).format(points / 100);
+    }
+
     private numberFormat(maximumFractionDigits: number, minimumFractionDigits: number): Intl.NumberFormat {
         return new Intl.NumberFormat(this.currentLang(), { maximumFractionDigits, minimumFractionDigits });
     }

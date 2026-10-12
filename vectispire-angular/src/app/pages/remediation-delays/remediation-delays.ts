@@ -7,6 +7,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/api.models';
 import { SeverityLabelPipe } from '@/app/shared/severity';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
+import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 
 /**
  * Remediation times, by the distribution's tail and not by the mean.
@@ -23,7 +24,7 @@ import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
  */
 @Component({
     selector: 'zs-remediation-delays',
-    imports: [MessageModule, TranslatePipe, SeverityLabelPipe, LocalNumberPipe],
+    imports: [MessageModule, TranslatePipe, SeverityLabelPipe, LocalNumberPipe, LocalPercentPipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remediation-delays.html'
 })

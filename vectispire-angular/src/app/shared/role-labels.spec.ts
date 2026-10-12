@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '../core/i18n/i18n.service';
 import { missingFromBundles } from '../core/testing/bundles';
-import { useEnglish } from '../core/testing/english';
+import { useEnglish, useFrench } from '../core/testing/english';
 import english from '../../../public/i18n/en.json';
 import { ROLE_KEYS, roleLabel } from './role-labels';
 import { TRIAGE_STATUS_KEYS, triageStatusLabel } from './triage-status';
@@ -36,5 +36,13 @@ describe('roles and triage statuses in words', () => {
         expect(triageStatusLabel(i18n, 'false_positive')).toBe(english.issues.triage_status.false_positive);
         expect(triageStatusLabel(i18n, 'will_not_fix')).toBe(english.issues.triage_status.will_not_fix);
         expect(triageStatusLabel(i18n, 'deferred')).toBe('deferred');
+    });
+
+    it('names the VEX status the AI review suggests most, in both languages, never as the raw token', () => {
+        // `under_investigation` is what the review proposes for every finding it cannot call
+        // `affected`; its tag read "under_investigation" to every reader.
+        expect(triageStatusLabel(i18n, 'under_investigation')).toBe('Under investigation');
+        useFrench();
+        expect(triageStatusLabel(i18n, 'under_investigation')).toBe("En cours d'analyse");
     });
 });

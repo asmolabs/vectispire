@@ -167,7 +167,7 @@ describe('the measured lines of a project checklist', () => {
 
         const coverage = '[data-testid="measurement-1"]';
         expect(text(`${coverage} [data-testid="rule-kind"]`)).toBe('Test coverage');
-        expect(text(`${coverage} [data-testid="rule-words"]`)).toContain('Coverage of lines at least 80 %');
+        expect(text(`${coverage} [data-testid="rule-words"]`)).toContain('Coverage of lines at least 80%');
         expect(text(`${coverage} [data-testid="outcome"]`)).toBe('Met');
         expect(text(`${coverage} [data-testid="reconciliation"]`)).toBe('Consistent');
         expect(text(`${coverage} [data-testid="as-of"]`)).toContain('As of 27/09/2026');
