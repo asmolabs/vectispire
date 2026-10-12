@@ -913,6 +913,11 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   de ce compte ([authentification unique](../administration/sso.fr.md)).
 - **Un compte créé par l'annuaire SCIM n'est plus retenu sur l'écran de changement de mot de passe.**
   Il recevait un mot de passe aléatoire à changer, ce que ses sessions fédérées ne pouvaient pas faire.
+  Les comptes que l'annuaire a créés en 0.10.0 ou en `v0.11.0-rc.1` gardent l'indicateur après la mise à
+  niveau, et restent retenus sur cet écran après une connexion unique : un administrateur le lève pour
+  chacun — le journal d'audit les nomme (`USER_CREATED`, « SCIM provisioned account: … ») — par `update
+  t_user set must_change_password = false where username = '…'`, aucun écran ne le levant pour un compte
+  sans mot de passe à changer.
 - **Une connexion réussie n'efface plus les échecs de son adresse.** Seuls les compteurs du compte et du
   nom repartent à zéro : se connecter à son propre compte entre deux essais ne remet plus à zéro le
   plafond par adresse.

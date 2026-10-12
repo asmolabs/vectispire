@@ -836,7 +836,11 @@ from a list in which none is true of an exposed product — and signed into the 
   account that already held one, and the next sign-on skipped that account's password and second
   factor ([single sign-on](../administration/sso.md)).
 - **An account the SCIM directory creates is no longer held on the change-password screen.** It was
-  given a random password and told to change it, which its federated sessions could not do.
+  given a random password and told to change it, which its federated sessions could not do. Accounts
+  the directory created on 0.10.0 or `v0.11.0-rc.1` keep the flag after the upgrade, and are still held
+  there after a single sign-on: an administrator clears it for each — the audit log names them
+  (`USER_CREATED`, "SCIM provisioned account: …") — with `update t_user set must_change_password = false
+  where username = '…'`, since no screen clears it for an account with no password to change.
 - **A successful sign-in no longer erases its address's failures.** Only the account's and the name's
   counters start again, so signing in to one's own account between attempts no longer resets the
   per-address ceiling.

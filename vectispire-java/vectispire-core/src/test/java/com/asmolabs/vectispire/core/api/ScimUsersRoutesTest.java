@@ -10,7 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.AuthenticationFlowService;
+import com.asmolabs.vectispire.core.access.ExternalIdentityService;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.access.web.security.chain.OidcConfiguration;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +35,9 @@ class ScimUsersRoutesTest extends ApiTestBase {
 
     @Autowired
     private UserRepository users;
+
+    @Autowired
+    private AuthenticationFlowService flows;
 
     @Test
     @DisplayName("a PATCH setting active to false deactivates the account and closes its sessions")
@@ -217,6 +224,40 @@ class ScimUsersRoutesTest extends ApiTestBase {
                 .andExpect(status().isCreated());
 
         assertThat(users.findByUsername("scim-provisioned").orElseThrow().getMustChangePassword()).isFalse();
+    }
+
+    /**
+     * The same, from the directory's request to an ordinary route: the flag was only the first link.
+     * A provisioned account signed in through the provider was answered 403 "change your password" on
+     * every route, by a screen asking for a password nobody held — and the check above, on the row,
+     * could not say whether anything else on the way still held it there.
+     */
+    @Test
+    @DisplayName("a provisioned account's federated session reaches an ordinary route")
+    void aProvisionedAccountsFederatedSessionIsServed() throws Exception {
+        String name = "scim-federated-" + System.nanoTime();
+        String subject = "subject-" + name;
+        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", name, "externalId", subject))))
+                .andExpect(status().isCreated());
+
+        var signedIn = flows.completeFederatedSignIn(new AuthenticationFlowService.FederatedIdentity(
+                        subject, "https://idp.example.invalid/realms/vectispire",
+                        new ExternalIdentityService.Claimed(name, null, false), List.of("otp"), null, List.of()),
+                "browser", "198.51.100.7");
+        assertThat(signedIn).isInstanceOf(AuthenticationFlowService.FederatedSignIn.SignedIn.class);
+        String handoff = ((AuthenticationFlowService.FederatedSignIn.SignedIn) signedIn).issued().token();
+
+        String body = mvc.perform(post("/api/v1/auth/session/exchange")
+                        .cookie(new Cookie(OidcConfiguration.HANDOFF_COOKIE, handoff)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.mustChangePassword").value(false))
+                .andReturn().getResponse().getContentAsString();
+        String session = json.readTree(body).get("token").asText();
+
+        // The route `PasswordChangeGateTest` shows refused to an account that owes a change.
+        mvc.perform(authenticated(get("/api/v1/issues"), session)).andExpect(status().isOk());
     }
 
     @Test
