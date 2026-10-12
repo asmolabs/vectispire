@@ -82,12 +82,13 @@ public class RuleSetAdministrationService {
      * agree to, and who agreed" has an answer a year from now. The languages are sorted, so the
      * same selection always reads the same in the log.
      *
-     * @param includeGitleaksPorts whether {@link RuleCatalogue#GITLEAKS_PORTS} comes too; {@code null}
-     *     is the default, which leaves them out — they duplicate the secrets step, and their twins
-     *     outlive the secret's triage. The entry says which, when the languages hold any
+     * @param includeGitleaksDuplicates whether {@link RuleCatalogue#GITLEAKS_PORTS} and {@link
+     *     RuleCatalogue#GITLEAKS_COVERED_SECURITY_RULES} come too; {@code null} is the default, which
+     *     leaves them out — they duplicate the secrets step, and their twins outlive the secret's
+     *     triage. The entry says which, when the languages hold any
      */
     public RuleSetView importCatalogue(
-            String commit, List<String> requestedLanguages, String licenceSha256, Boolean includeGitleaksPorts,
+            String commit, List<String> requestedLanguages, String licenceSha256, Boolean includeGitleaksDuplicates,
             RequestActor actor) {
 
         RuleCatalogue.requireCommit(commit);
@@ -109,26 +110,28 @@ public class RuleSetAdministrationService {
         }
 
         Set<String> languages = requestedLanguages == null ? Set.of() : Set.copyOf(requestedLanguages);
-        boolean withPorts = Boolean.TRUE.equals(includeGitleaksPorts);
-        List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages, withPorts);
-        boolean portsReached = RuleCatalogue.reachesGitleaksPorts(fetched.contents(), languages);
+        boolean withDuplicates = Boolean.TRUE.equals(includeGitleaksDuplicates);
+        List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages, withDuplicates);
+        boolean duplicatesReached = RuleCatalogue.reachesGitleaksDuplicates(fetched.contents(), languages);
 
         SemgrepRuleSetEntity stored = ruleSets.store(
-                files, RuleCatalogue.nameFor(fetched.commit(), languages, withPorts && portsReached), actor.username());
+                files,
+                RuleCatalogue.nameFor(fetched.commit(), languages, withDuplicates && duplicatesReached),
+                actor.username());
 
         SortedSet<String> sorted = new TreeSet<>(languages);
         // **The licence digest first and the languages last.** The description is cut at 255
         // characters, and with eleven languages the digest — what the acceptance is bound to — was
         // past the cut. The languages are also in the set's name, which the entry's id leads to.
-        String ports = !portsReached ? ""
-                : withPorts ? " gitleaks ports included on request."
-                : " gitleaks ports left out.";
+        String duplicates = !duplicatesReached ? ""
+                : withDuplicates ? " gitleaks duplicates included on request."
+                : " gitleaks duplicates left out.";
         audit.record(actor.entry(
                 AuditOperation.RULE_SET_UPLOADED,
                 String.valueOf(stored.getId()),
                 "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ": " + stored.getRuleCount()
                         + " rules. Licence " + RuleCatalogue.LICENCE + " accepted, sha256 " + fetched.licenceSha256()
-                        + "." + ports + " Languages: " + String.join(", ", sorted) + "."));
+                        + "." + duplicates + " Languages: " + String.join(", ", sorted) + "."));
         return RuleSetView.of(stored);
     }
 

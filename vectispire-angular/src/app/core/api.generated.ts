@@ -4937,7 +4937,7 @@ export interface components {
             };
             commit?: string;
             /** Format: int32 */
-            gitleaksPorts: number;
+            gitleaksDuplicates: number;
             languages?: {
                 [key: string]: number;
             };
@@ -4948,7 +4948,7 @@ export interface components {
         };
         CatalogueRequest: {
             commit?: string;
-            includeGitleaksPorts?: boolean;
+            includeGitleaksDuplicates?: boolean;
             languages?: string[];
             licence_sha256?: string;
         };

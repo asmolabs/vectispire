@@ -96,11 +96,12 @@ export class RuleSets {
     readonly fetching = signal(false);
     readonly chosen = signal<Set<string>>(new Set());
     /**
-     * The opt-in to the upstream's ports of gitleaks' rules, off unless ticked. They look for what
+     * The opt-in to the upstream's rules that duplicate gitleaks — the ports of its rules, and the
+     * `security/` secret rules one of its default rules covers — off unless ticked. They look for what
      * the secrets step already finds, and each leak would come back as a SAST twin that stays open
      * once the secret is triaged — so the default is to leave them out, and the screen says so.
      */
-    includeGitleaksPorts = false;
+    includeGitleaksDuplicates = false;
 
     languagesOf(preview: CataloguePreview): { name: string; count: number }[] {
         return Object.entries(preview.languages).map(([name, count]) => ({ name, count }));
@@ -136,7 +137,7 @@ export class RuleSets {
         // Cleared, not kept: the acceptance is bound to one licence text, and leaving a tick
         // from a previous tag would carry an agreement to terms nobody has read.
         this.licenceAccepted = false;
-        this.includeGitleaksPorts = false;
+        this.includeGitleaksDuplicates = false;
         this.catalogue.set(null);
         this.chosen.set(new Set());
 
@@ -160,7 +161,12 @@ export class RuleSets {
 
         this.fetching.set(true);
         this.ruleSetsApi
-            .fetchRuleCatalogue(preview.commit, [...this.chosen()], preview.licence_sha256, this.includeGitleaksPorts)
+            .fetchRuleCatalogue(
+                preview.commit,
+                [...this.chosen()],
+                preview.licence_sha256,
+                this.includeGitleaksDuplicates
+            )
             .subscribe({
                 next: (stored) => {
                     this.fetching.set(false);

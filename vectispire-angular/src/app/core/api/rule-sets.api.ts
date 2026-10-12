@@ -23,15 +23,16 @@ export class RuleSetsApi {
 
     /**
      * Fetches the chosen languages. The digest is echoed back from the preview: it is what binds
-     * the acceptance to a licence rather than to a button. `includeGitleaksPorts` is sent as chosen,
-     * `false` by default: the server leaves `generic/secrets/gitleaks/` out unless it is `true`.
+     * the acceptance to a licence rather than to a button. `includeGitleaksDuplicates` is sent as
+     * chosen, `false` by default: the server leaves `generic/secrets/gitleaks/` and the rules of
+     * `generic/secrets/security/` that gitleaks already covers out unless it is `true`.
      */
-    fetchRuleCatalogue(commit: string, languages: string[], licenceSha256: string, includeGitleaksPorts = false) {
+    fetchRuleCatalogue(commit: string, languages: string[], licenceSha256: string, includeGitleaksDuplicates = false) {
         return this.http.post<{ id: number; ruleCount: number; fileCount: number }>('/api/v1/rule-sets/catalogue', {
             commit,
             languages,
             licence_sha256: licenceSha256,
-            includeGitleaksPorts
+            includeGitleaksDuplicates
         });
     }
 

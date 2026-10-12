@@ -202,10 +202,10 @@ class RuleCatalogueTest {
         void countedApart() {
             RuleCatalogue.Contents contents = RuleCatalogue.describe(GENERIC, "L");
 
-            assertThat(contents.gitleaksPorts()).isEqualTo(2);
+            assertThat(contents.gitleaksDuplicates()).isEqualTo(2);
             assertThat(contents.languages()).containsEntry("generic", 4);
-            assertThat(RuleCatalogue.reachesGitleaksPorts(contents, Set.of("generic"))).isTrue();
-            assertThat(RuleCatalogue.reachesGitleaksPorts(contents, Set.of("python"))).isFalse();
+            assertThat(RuleCatalogue.reachesGitleaksDuplicates(contents, Set.of("generic"))).isTrue();
+            assertThat(RuleCatalogue.reachesGitleaksDuplicates(contents, Set.of("python"))).isFalse();
         }
 
         @Test
@@ -216,7 +216,7 @@ class RuleCatalogueTest {
 
             assertThatThrownBy(() -> RuleCatalogue.select(contents, Set.of("generic"), false))
                     .isInstanceOf(com.asmolabs.vectispire.common.domain.errors.InvalidInputException.class)
-                    .hasMessageContaining("include the ports");
+                    .hasMessageContaining("include the gitleaks duplicates");
         }
 
         @Test
@@ -225,9 +225,98 @@ class RuleCatalogueTest {
             String commit = "f1d2b562b414783763fd02a6ed2736eaed622efa";
 
             assertThat(RuleCatalogue.nameFor(commit, Set.of("generic"), true))
-                    .isEqualTo("opengrep/opengrep-rules@f1d2b562b414 (generic) with gitleaks ports");
+                    .isEqualTo("opengrep/opengrep-rules@f1d2b562b414 (generic) with gitleaks duplicates");
             assertThat(RuleCatalogue.nameFor(commit, Set.of("generic"), false))
                     .isEqualTo("opengrep/opengrep-rules@f1d2b562b414 (generic)");
+        }
+    }
+
+    /**
+     * <b>Twenty-seven files of {@code generic/secrets/security/} duplicate the secrets step too</b>:
+     * each looks for a token format a dedicated default rule of gitleaks v8.30.1 already looks for. They
+     * go with the ports, under the same opt-in; the rest of the directory — a bcrypt hash, a password
+     * in a URI — stays, because nothing in gitleaks' defaults looks for it.
+     */
+    @Nested
+    @DisplayName("the security/ rules gitleaks already covers")
+    class GitleaksCovered {
+
+        /**
+         * The twenty-seven, spelled out here rather than read from the list under test: a fixture
+         * derived from the list would follow an entry dropped from it, and pin nothing.
+         */
+        private static final List<String> COVERED = List.of(
+                "detected-artifactory-token", "detected-aws-access-key-id-value",
+                "detected-facebook-access-token", "detected-facebook-oauth", "detected-generic-api-key",
+                "detected-generic-secret", "detected-github-token", "detected-google-api-key",
+                "detected-google-cloud-api-key", "detected-heroku-api-key", "detected-jwt-token",
+                "detected-mailchimp-api-key", "detected-mailgun-api-key", "detected-pgp-private-key-block",
+                "detected-picatic-api-key", "detected-private-key", "detected-sendgrid-api-key",
+                "detected-slack-token", "detected-slack-webhook", "detected-snyk-api-key",
+                "detected-sonarqube-docs-api-key", "detected-square-access-token", "detected-stripe-api-key",
+                "detected-stripe-restricted-api-key", "detected-telegram-bot-api-key",
+                "detected-twilio-api-key", "google-maps-apikeyleak");
+
+        /** Every listed file, as the upstream lays it out, and two the list leaves alone. */
+        private static final List<RuleCatalogue.Entry> SECURITY = java.util.stream.Stream.concat(
+                        COVERED.stream()
+                                .map(stem -> new RuleCatalogue.Entry(
+                                        "generic/secrets/security/" + stem + ".yaml", RULE)),
+                        java.util.stream.Stream.of(
+                                new RuleCatalogue.Entry("generic/secrets/security/detected-bcrypt-hash.yaml", RULE),
+                                new RuleCatalogue.Entry(
+                                        "generic/secrets/security/detected-username-and-password-in-uri.yaml", RULE)))
+                .toList();
+
+        @Test
+        @DisplayName("names the twenty-seven, sorted, and none of the rules gitleaks' defaults lack")
+        void theList() {
+            assertThat(RuleCatalogue.GITLEAKS_COVERED_SECURITY_RULES)
+                    .isSorted()
+                    .containsExactlyElementsOf(COVERED)
+                    .doesNotContain("detected-bcrypt-hash", "detected-aws-secret-access-key",
+                            "detected-npm-registry-auth-token", "detected-username-and-password-in-uri");
+        }
+
+        @Test
+        @DisplayName("each listed file is left out by default, and the unlisted ones are kept")
+        void leftOutByDefault() {
+            RuleCatalogue.Contents contents = RuleCatalogue.describe(SECURITY, "L");
+
+            assertThat(RuleCatalogue.select(contents, Set.of("generic")))
+                    .extracting(RuleSet.UploadedFile::name)
+                    .containsExactly(
+                            "generic/secrets/security/detected-bcrypt-hash.yaml",
+                            "generic/secrets/security/detected-username-and-password-in-uri.yaml");
+            assertThat(contents.gitleaksDuplicates()).isEqualTo(27);
+            assertThat(RuleCatalogue.reachesGitleaksDuplicates(contents, Set.of("generic"))).isTrue();
+        }
+
+        @Test
+        @DisplayName("all come in with the same opt-in as the ports")
+        void includedOnRequest() {
+            List<RuleSet.UploadedFile> files =
+                    RuleCatalogue.select(RuleCatalogue.describe(SECURITY, "L"), Set.of("generic"), true);
+
+            assertThat(files).hasSize(29);
+            assertThat(files).extracting(RuleSet.UploadedFile::name)
+                    .containsAll(SECURITY.stream().map(RuleCatalogue.Entry::path).toList());
+        }
+
+        @Test
+        @DisplayName("are matched by their place, in either YAML spelling and any case, not by their name elsewhere")
+        void matchedByTheirPlace() {
+            RuleCatalogue.Contents contents = RuleCatalogue.describe(List.of(
+                    new RuleCatalogue.Entry("generic/secrets/security/detected-jwt-token.yml", RULE),
+                    new RuleCatalogue.Entry("Generic/Secrets/Security/detected-private-key.yaml", RULE),
+                    new RuleCatalogue.Entry("generic/other/detected-jwt-token.yaml", RULE),
+                    new RuleCatalogue.Entry("generic/secrets/security/detected-jwt-token-v2.yaml", RULE)), "L");
+
+            assertThat(RuleCatalogue.select(contents, Set.of("generic")))
+                    .extracting(RuleSet.UploadedFile::name)
+                    .containsExactly(
+                            "generic/other/detected-jwt-token.yaml",
+                            "generic/secrets/security/detected-jwt-token-v2.yaml");
         }
     }
 

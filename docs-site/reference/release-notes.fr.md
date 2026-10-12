@@ -761,19 +761,22 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
-- **L'import du catalogue laisse de côté les portages des règles de gitleaks, qui trouvaient chaque clé
-  divulguée une seconde fois.** Choisir `generic` importait `generic/secrets/gitleaks/`, 175 règles portées
-  des règles gitleaks que l'étape des secrets exécute déjà. Chaque fuite devenait une issue *secret* et une
-  jumelle *SAST*, et trier le secret laissait la jumelle ouverte : elle pouvait encore faire échouer la
-  barrière, pesait sur le score et comptait sa catégorie OWASP deux fois. Elles sont désormais laissées de
-  côté sauf si **Les inclure malgré tout** est coché — pour une installation dont les analyses n'ont pas
-  d'étape des secrets — et l'écran dit combien. Le reste de `generic/secrets/` est toujours importé. Un jeu
-  importé auparavant garde les portages jusqu'au prochain import, dont l'activation compte les issues que
-  leurs règles laissent derrière elles comme toute activation. L'entrée d'audit de l'import porte désormais
-  l'empreinte de la licence avant les langages, qu'une sélection de onze langages avait repoussée au-delà
-  des 255 caractères de l'entrée. `POST /api/v1/rule-sets/catalogue` accepte `includeGitleaksPorts`,
-  `false` en son absence, et `GET /api/v1/rule-sets/catalogue` répond `gitleaksPorts`
-  ([jeux de règles](../administration/rule-sets.md#depuis-le-catalogue-amont)).
+- **L'import du catalogue laisse de côté les règles qui font double emploi avec gitleaks, qui trouvaient
+  chaque clé divulguée une seconde fois.** Choisir `generic` importait `generic/secrets/gitleaks/`, 175
+  règles portées des règles gitleaks que l'étape des secrets exécute déjà, et 27 règles de
+  `generic/secrets/security/` dont une règle par défaut dédiée de gitleaks trouve déjà le format de jeton
+  (identifiants de clé d'accès AWS, GitHub, Slack, Stripe, clés privées…). Chaque fuite devenait une issue
+  *secret* et une jumelle *SAST*, et trier le secret laissait la jumelle ouverte : elle pouvait encore faire
+  échouer la barrière, pesait sur le score et comptait sa catégorie OWASP deux fois. Les deux groupes sont
+  désormais laissés de côté sauf si **Les inclure malgré tout** est coché — pour une installation dont les
+  analyses n'ont pas d'étape des secrets — et l'écran dit combien. Les 23 autres règles de
+  `generic/secrets/security/` — une empreinte bcrypt, des identifiants dans une URI, une clé secrète
+  AWS… — sont toujours importées. Un jeu importé auparavant garde ces règles jusqu'au prochain import,
+  dont l'activation compte les issues qu'elles laissent derrière elles comme toute activation. L'entrée
+  d'audit de l'import porte désormais l'empreinte de la licence avant les langages, qu'une sélection de onze
+  langages avait repoussée au-delà des 255 caractères de l'entrée. `POST /api/v1/rule-sets/catalogue`
+  accepte `includeGitleaksDuplicates`, `false` en son absence, et `GET /api/v1/rule-sets/catalogue` répond
+  `gitleaksDuplicates` ([jeux de règles](../administration/rule-sets.md#depuis-le-catalogue-amont)).
 - **Le compte d'un scan nomme des issues, et sa liste des occurrences.** Le détail d'un scan titrait *Constats*
   un nombre d'issues — une par empreinte, qui ne porte pas de ligne — au-dessus d'une liste de *constats* tenant
   une ligne par endroit signalé par un outil : un scan affichait « 28 » au-dessus de 56 lignes. La carte dit

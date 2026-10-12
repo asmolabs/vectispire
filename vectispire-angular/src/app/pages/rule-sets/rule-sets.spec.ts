@@ -32,7 +32,7 @@ describe('the catalogue preview', () => {
             licence_sha256: 'abc123',
             languages: { generic: 257, java: 412, python: 388 },
             categories,
-            gitleaksPorts: 175
+            gitleaksDuplicates: 202
         });
 
     beforeEach(async () => {
@@ -93,14 +93,16 @@ describe('the catalogue preview', () => {
     });
 
     /**
-     * **The ports of gitleaks' rules are left out unless ticked.** The secrets step already runs
+     * **The rules that duplicate gitleaks are left out unless ticked** — the ports of its rules and
+     * the `security/` secret rules one of its default rules covers. The secrets step already runs
      * them; imported as well, each leak comes back as a SAST twin that stays open once the secret is
      * triaged. The screen says so where it matters — once `generic` is chosen — and sends the
      * operator's choice, `false` unless they opt in. Asserted through the DOM and the request: a
      * component field set by hand proves nothing if the checkbox is not bound to it.
      */
-    describe('the ports of gitleaks rules', () => {
-        const portsNote = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="gitleaks-ports"]');
+    describe('the rules that duplicate gitleaks', () => {
+        const duplicatesNote = () =>
+            (fixture.nativeElement as HTMLElement).querySelector('[data-testid="gitleaks-duplicates"]');
 
         function fetchAs(): Record<string, unknown> {
             fixture.componentInstance.fetchCatalogue();
@@ -114,14 +116,14 @@ describe('the catalogue preview', () => {
 
         it('are said, with their count, only once generic is chosen', () => {
             readCatalogue({});
-            expect(portsNote()).toBeNull();
+            expect(duplicatesNote()).toBeNull();
 
             fixture.componentInstance.choose('generic', true);
             fixture.detectChanges();
 
-            expect(portsNote()).not.toBeNull();
-            expect(portsNote()!.textContent).toContain('rule_sets.gitleaks_ports_note');
-            expect(portsNote()!.querySelector('input[type="checkbox"]')).not.toBeNull();
+            expect(duplicatesNote()).not.toBeNull();
+            expect(duplicatesNote()!.textContent).toContain('rule_sets.gitleaks_duplicates_note');
+            expect(duplicatesNote()!.querySelector('input[type="checkbox"]')).not.toBeNull();
         });
 
         it('are left out by default', () => {
@@ -129,7 +131,7 @@ describe('the catalogue preview', () => {
             fixture.componentInstance.choose('generic', true);
             fixture.detectChanges();
 
-            expect(fetchAs()).toMatchObject({ languages: ['generic'], includeGitleaksPorts: false });
+            expect(fetchAs()).toMatchObject({ languages: ['generic'], includeGitleaksDuplicates: false });
         });
 
         it('come in when the box is ticked', async () => {
@@ -137,20 +139,20 @@ describe('the catalogue preview', () => {
             fixture.componentInstance.choose('generic', true);
             fixture.detectChanges();
 
-            (portsNote()!.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+            (duplicatesNote()!.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
             fixture.detectChanges();
             await fixture.whenStable();
 
-            expect(fetchAs()).toMatchObject({ includeGitleaksPorts: true });
+            expect(fetchAs()).toMatchObject({ includeGitleaksDuplicates: true });
         });
 
         it('are left out again when the catalogue is read anew', () => {
             readCatalogue({});
-            fixture.componentInstance.includeGitleaksPorts = true;
+            fixture.componentInstance.includeGitleaksDuplicates = true;
             readCatalogue({});
             fixture.componentInstance.choose('generic', true);
 
-            expect(fetchAs()).toMatchObject({ includeGitleaksPorts: false });
+            expect(fetchAs()).toMatchObject({ includeGitleaksDuplicates: false });
         });
     });
 });

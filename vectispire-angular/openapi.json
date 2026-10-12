@@ -1240,7 +1240,7 @@
           "commit" : {
             "type" : "string"
           },
-          "gitleaksPorts" : {
+          "gitleaksDuplicates" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -1264,7 +1264,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "gitleaksPorts" ],
+        "required" : [ "gitleaksDuplicates" ],
         "type" : "object"
       },
       "CatalogueRequest" : {
@@ -1272,7 +1272,7 @@
           "commit" : {
             "type" : "string"
           },
-          "includeGitleaksPorts" : {
+          "includeGitleaksDuplicates" : {
             "type" : "boolean"
           },
           "languages" : {

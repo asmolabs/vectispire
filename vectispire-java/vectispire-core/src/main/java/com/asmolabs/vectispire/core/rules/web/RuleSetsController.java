@@ -90,9 +90,10 @@ public class RuleSetsController {
      * @param licence the text at this tag, shown in full. Not summarised: a summary of a licence
      *     is an opinion about a licence
      * @param licenceSha256 echoed back on acceptance, which is what binds the two together
-     * @param gitleaksPorts how many of the rule files counted under {@code generic} are the upstream's
-     *     ports of gitleaks' rules ({@code generic/secrets/gitleaks/}), which an import leaves out
-     *     unless {@code includeGitleaksPorts} asks for them
+     * @param gitleaksDuplicates how many of the rule files counted under {@code generic} duplicate
+     *     the secrets step — the upstream's ports of gitleaks' rules ({@code generic/secrets/gitleaks/})
+     *     and the files of {@code generic/secrets/security/} a default rule of gitleaks already covers —
+     *     which an import leaves out unless {@code includeGitleaksDuplicates} asks for them
      */
     public record CataloguePreview(
             String upstream,
@@ -102,10 +103,11 @@ public class RuleSetsController {
             @JsonProperty("licence_sha256") String licenceSha256,
             Map<String, Integer> languages,
             Map<String, Integer> categories,
-            int gitleaksPorts) {}
+            int gitleaksDuplicates) {}
 
     /**
-     * @param includeGitleaksPorts {@code true} to import {@code generic/secrets/gitleaks/} as well.
+     * @param includeGitleaksDuplicates {@code true} to import {@code generic/secrets/gitleaks/} and the
+     *     files of {@code generic/secrets/security/} a default rule of gitleaks covers as well.
      *     Absent or {@code false} leaves those rules out: they look for what the secrets step already
      *     looks for, and each finding would come back as a SAST twin of the secret that stays open
      *     once the secret is triaged
@@ -114,7 +116,7 @@ public class RuleSetsController {
             String commit,
             List<String> languages,
             @JsonProperty("licence_sha256") String licenceSha256,
-            Boolean includeGitleaksPorts) {}
+            Boolean includeGitleaksDuplicates) {}
 
     @GetMapping
     public RuleSetListing list() {
@@ -184,7 +186,7 @@ public class RuleSetsController {
                 preview.licenceSha256(),
                 preview.languages(),
                 preview.categories(),
-                preview.gitleaksPorts());
+                preview.gitleaksDuplicates());
     }
 
     /**
@@ -209,7 +211,7 @@ public class RuleSetsController {
             HttpServletRequest request) {
 
         RuleSetView stored = administration.importCatalogue(
-                body.commit(), body.languages(), body.licenceSha256(), body.includeGitleaksPorts(),
+                body.commit(), body.languages(), body.licenceSha256(), body.includeGitleaksDuplicates(),
                 RequestActors.of(principal, request));
         return new Uploaded(
                 stored.id(), stored.contentHash(), stored.ruleCount(), stored.fileCount());

@@ -33,22 +33,33 @@ is on Vectispire redistributing them, not on you running them.
 rule files each language holds, and stores the languages you choose as a set — not activated. Choose the
 languages you scan: every rule id becomes part of an issue's identity.
 
-**The ports of gitleaks' rules are left out by default.** `generic` holds `generic/secrets/gitleaks/`,
-some 175 rules ported from gitleaks — the rules the secrets step already runs, since Vectispire's
-gitleaks configuration extends gitleaks' defaults. Imported as well, each leaked key would be found
-twice: a *secret* issue and a *SAST* one, two issues since the type is part of an issue's identity.
-Triaging the secret would leave its SAST twin open, where it can still fail the gate, weigh on the
-score and count its OWASP category a second time. The screen says how many it leaves out once
-`generic` is chosen, and **Include them anyway** brings them in — for an installation whose scans run no
-secrets step. The rest of `generic/secrets/` stays: many of those rules look for what gitleaks'
-defaults do not, a bcrypt hash or a password on an `sshpass` command line.
+**The rules that duplicate gitleaks are left out by default.** The secrets step runs gitleaks with its
+default rules — Vectispire's gitleaks configuration extends them — and `generic` holds two groups of
+rules that look for the same thing:
 
-A set imported before 0.11.0 with `generic` keeps the ports until you import again. Activating the
+- `generic/secrets/gitleaks/`, some 175 rules ported from gitleaks itself;
+- 27 of the 50 rules of `generic/secrets/security/`, each looking for a token format a dedicated default
+  rule of gitleaks (v8.30.1, the version the secrets step runs) already finds: AWS access key ids,
+  Artifactory, Facebook, GitHub, Google and Google Maps API keys, Heroku, JWTs, Mailchimp, Mailgun,
+  Picatic, PGP and other private keys, SendGrid, Slack tokens and webhooks, Snyk, SonarQube, Square,
+  Stripe, Telegram and Twilio, and the generic API key and generic secret rules.
+
+Imported as well, each leaked key would be found twice: a *secret* issue and a *SAST* one, two issues
+since the type is part of an issue's identity. Triaging the secret would leave its SAST twin open, where
+it can still fail the gate, weigh on the score and count its OWASP category a second time. The screen
+says how many it leaves out once `generic` is chosen, and **Include them anyway** brings both groups in —
+for an installation whose scans run no secrets step. The other 23 rules of `generic/secrets/security/`
+stay, because gitleaks' defaults do not look for what they do: a bcrypt hash, an `/etc/shadow` line, a
+username and password in a URI, an AWS secret access key or session token, an `_authToken` in an
+`.npmrc`, a Google OAuth access token…
+
+A set imported before 0.11.0 with `generic` keeps those rules until you import again. Activating the
 new set is then guarded like any other: their open issues are counted, by rule, before the button
 goes ahead.
 
-For a script: `POST /api/v1/rule-sets/catalogue` takes `includeGitleaksPorts` (`false` when absent),
-and the preview's `gitleaksPorts` is the count it concerns.
+For a script: `POST /api/v1/rule-sets/catalogue` takes `includeGitleaksDuplicates` (`false` when
+absent), and the preview's `gitleaksDuplicates` is the count it concerns, both groups together. A set
+holding them is named `… with gitleaks duplicates`.
 
 ## Security and quality
 

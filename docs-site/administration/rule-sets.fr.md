@@ -36,24 +36,35 @@ exécution.
 de fichiers de règles de chaque langage, et stocke les langages choisis comme un jeu — non activé.
 Choisissez les langages que vous analysez : chaque identifiant de règle entre dans l'identité d'une issue.
 
-**Les portages des règles de gitleaks sont laissés de côté par défaut.** `generic` contient
-`generic/secrets/gitleaks/`, quelque 175 règles portées de gitleaks — celles que l'étape des secrets
-exécute déjà, la configuration gitleaks de Vectispire étendant les règles par défaut de gitleaks.
+**Les règles qui font double emploi avec gitleaks sont laissées de côté par défaut.** L'étape des
+secrets exécute gitleaks avec ses règles par défaut — la configuration gitleaks de Vectispire les
+étend — et `generic` contient deux groupes de règles qui cherchent la même chose :
+
+- `generic/secrets/gitleaks/`, quelque 175 règles portées de gitleaks lui-même ;
+- 27 des 50 règles de `generic/secrets/security/`, chacune cherchant un format de jeton qu'une règle
+  par défaut dédiée de gitleaks (v8.30.1, la version qu'exécute l'étape des secrets) trouve déjà : les
+  identifiants de clé d'accès AWS, Artifactory, Facebook, GitHub, les clés d'API Google et Google Maps,
+  Heroku, les JWT, Mailchimp, Mailgun, Picatic, les clés privées PGP et autres, SendGrid, les jetons et
+  webhooks Slack, Snyk, SonarQube, Square, Stripe, Telegram et Twilio, ainsi que les règles de clé d'API
+  et de secret génériques.
+
 Importées aussi, chaque clé divulguée serait trouvée deux fois : une issue *secret* et une issue *SAST*,
 deux issues puisque le type fait partie de l'identité d'une issue. Trier le secret laisserait sa jumelle
 SAST ouverte, où elle peut encore faire échouer la barrière, peser sur le score et compter sa catégorie
 OWASP une seconde fois. L'écran dit combien il en laisse de côté dès que `generic` est choisi, et
-**Les inclure malgré tout** les fait entrer — pour une installation dont les analyses n'ont pas d'étape
-des secrets. Le reste de `generic/secrets/` demeure : bon nombre de ces règles cherchent ce que les
-règles par défaut de gitleaks ne cherchent pas, une empreinte bcrypt ou un mot de passe sur une ligne
-de commande `sshpass`.
+**Les inclure malgré tout** fait entrer les deux groupes — pour une installation dont les analyses n'ont
+pas d'étape des secrets. Les 23 autres règles de `generic/secrets/security/` demeurent, parce que les
+règles par défaut de gitleaks ne cherchent pas ce qu'elles cherchent : une empreinte bcrypt, une ligne de
+`/etc/shadow`, un nom d'utilisateur et un mot de passe dans une URI, une clé d'accès secrète ou un jeton
+de session AWS, un `_authToken` dans un `.npmrc`, un jeton d'accès OAuth Google…
 
-Un jeu importé avant la 0.11.0 avec `generic` garde les portages jusqu'au prochain import. Activer le
+Un jeu importé avant la 0.11.0 avec `generic` garde ces règles jusqu'au prochain import. Activer le
 nouveau jeu est alors gardé comme toute activation : leurs issues ouvertes sont comptées, règle par
 règle, avant que le bouton n'aboutisse.
 
-Pour un script : `POST /api/v1/rule-sets/catalogue` accepte `includeGitleaksPorts` (`false` en son
-absence), et le `gitleaksPorts` de l'aperçu est le nombre concerné.
+Pour un script : `POST /api/v1/rule-sets/catalogue` accepte `includeGitleaksDuplicates` (`false` en son
+absence), et le `gitleaksDuplicates` de l'aperçu est le nombre concerné, les deux groupes ensemble. Un
+jeu qui les contient est nommé `… with gitleaks duplicates`.
 
 ## Sécurité et qualité
 

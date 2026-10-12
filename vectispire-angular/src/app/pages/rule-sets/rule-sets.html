@@ -129,23 +129,26 @@
                 </div>
 
                 <!--
-                    The ports of gitleaks' rules, left out unless ticked: the secrets step runs those
-                    rules already, and each leak would come back as a SAST twin that outlives the
-                    secret's triage. Said where generic is chosen, since that is where they sit.
+                    The rules that duplicate gitleaks — its ports, and the security/ secret rules one of
+                    its default rules covers — left out unless ticked: the secrets step runs those rules
+                    already, and each leak would come back as a SAST twin that outlives the secret's
+                    triage. Said where generic is chosen, since that is where they sit.
                 -->
-                @if (preview.gitleaksPorts > 0 && chosen().has('generic')) {
-                    <div class="flex flex-col gap-2 mb-4 max-w-3xl" data-testid="gitleaks-ports">
+                @if (preview.gitleaksDuplicates > 0 && chosen().has('generic')) {
+                    <div class="flex flex-col gap-2 mb-4 max-w-3xl" data-testid="gitleaks-duplicates">
                         <small class="text-muted-color">
-                            {{ 'rule_sets.gitleaks_ports_note' | translate: { count: preview.gitleaksPorts } }}
+                            {{
+                                'rule_sets.gitleaks_duplicates_note' | translate: { count: preview.gitleaksDuplicates }
+                            }}
                         </small>
                         <div class="flex items-center gap-2">
                             <p-checkbox
-                                inputId="include-gitleaks-ports"
+                                inputId="include-gitleaks-duplicates"
                                 [binary]="true"
-                                [(ngModel)]="includeGitleaksPorts"
+                                [(ngModel)]="includeGitleaksDuplicates"
                             />
-                            <label for="include-gitleaks-ports" class="cursor-pointer text-sm">
-                                {{ 'rule_sets.gitleaks_ports_include' | translate }}
+                            <label for="include-gitleaks-duplicates" class="cursor-pointer text-sm">
+                                {{ 'rule_sets.gitleaks_duplicates_include' | translate }}
                             </label>
                         </div>
                     </div>

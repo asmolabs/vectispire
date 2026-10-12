@@ -125,10 +125,66 @@ public final class RuleCatalogue {
      * <p>Excluded at the selection rather than reconciled later: merging findings across tools
      * would have the twin flap open and closed with every scan whose secrets step did not run
      * (decision 0007). An operator who runs without the secrets step, or wants both, opts in on
-     * the import. The rest of {@code generic/secrets/} — the {@code security/} rules — stays:
-     * many of them look for what gitleaks' defaults do not.
+     * the import — one opt-in for these and for {@link #GITLEAKS_COVERED_SECURITY_RULES}, which
+     * duplicate the step for the same reason.
      */
     public static final String GITLEAKS_PORTS = "generic/secrets/gitleaks/";
+
+    /** Where {@link #GITLEAKS_COVERED_SECURITY_RULES} sit, beside the rules of that directory that stay. */
+    public static final String SECURITY_SECRETS = "generic/secrets/security/";
+
+    /**
+     * The files of {@link #SECURITY_SECRETS} that a dedicated default rule of gitleaks already
+     * covers — the same token format — left out with {@link #GITLEAKS_PORTS} and for the same
+     * reason: each leak would come back as a {@code sast} twin of the {@code secret} issue, which
+     * outlives the secret's triage.
+     *
+     * <p><b>Named one by one, against the gitleaks the secrets step runs</b> — v8.30.1, the image
+     * {@code ScannerImages} pins — with the rule of its defaults that covers each, after the arrow.
+     * The other files of the directory stay, because gitleaks' defaults have no rule for what they
+     * look for: a bcrypt hash, an {@code /etc/shadow} line, a password in a URI, an AWS secret key
+     * or session token, an {@code _authToken} in an {@code .npmrc}… <b>A gitleaks upgrade that
+     * drops or narrows one of the rules named here means revisiting this list</b>: the entry would
+     * then hide a leak nothing else looks for. A name absent from a given catalogue commit is simply not there — the list
+     * selects, it does not require.
+     *
+     * <p>File stems, without {@code .yaml}: the rule's id is the same word, and a file renamed
+     * upstream comes back in rather than vanishing, which is the safe way for this list to be wrong.
+     */
+    public static final List<String> GITLEAKS_COVERED_SECURITY_RULES = List.of(
+            "detected-artifactory-token", //              → artifactory-api-key
+            "detected-aws-access-key-id-value", //        → aws-access-token
+            "detected-facebook-access-token", //          → facebook-page-access-token
+            "detected-facebook-oauth", //                 → facebook-secret
+            "detected-generic-api-key", //                → generic-api-key
+            "detected-generic-secret", //                 → generic-api-key (its keywords include secret)
+            "detected-github-token", //                   → github-pat, github-oauth, github-app-token, github-refresh-token
+            "detected-google-api-key", //                 → gcp-api-key
+            "detected-google-cloud-api-key", //           → gcp-api-key
+            "detected-heroku-api-key", //                 → heroku-api-key
+            "detected-jwt-token", //                      → jwt
+            "detected-mailchimp-api-key", //              → mailchimp-api-key
+            "detected-mailgun-api-key", //                → mailgun-private-api-token
+            "detected-pgp-private-key-block", //          → private-key (BEGIN … PRIVATE KEY BLOCK)
+            "detected-picatic-api-key", //                → stripe-access-token (the same sk_live_ format)
+            "detected-private-key", //                    → private-key
+            "detected-sendgrid-api-key", //               → sendgrid-api-token
+            "detected-slack-token", //                    → slack-bot-token, slack-user-token, slack-legacy-*-token
+            "detected-slack-webhook", //                  → slack-webhook-url
+            "detected-snyk-api-key", //                   → snyk-api-token
+            "detected-sonarqube-docs-api-key", //         → sonar-api-token
+            "detected-square-access-token", //            → square-access-token
+            "detected-stripe-api-key", //                 → stripe-access-token
+            "detected-stripe-restricted-api-key", //      → stripe-access-token (rk_live_)
+            "detected-telegram-bot-api-key", //           → telegram-bot-api-token
+            "detected-twilio-api-key", //                 → twilio-api-key
+            "google-maps-apikeyleak"); //                 → gcp-api-key
+
+    /** {@link #GITLEAKS_COVERED_SECURITY_RULES} as the paths they sit at, in either YAML spelling. */
+    private static final Set<String> GITLEAKS_COVERED_PATHS = GITLEAKS_COVERED_SECURITY_RULES.stream()
+            .flatMap(stem -> java.util.stream.Stream.of(
+                    SECURITY_SECRETS + stem + ".yaml", SECURITY_SECRETS + stem + ".yml"))
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     private RuleCatalogue() {}
 
@@ -146,16 +202,17 @@ public final class RuleCatalogue {
      *     the order an operator wants.
      * @param licence the text as it stands <b>at this tag</b>, not a copy kept in Vectispire: a
      *     licence can change between tags, and a copy would let somebody accept the wrong one
-     * @param gitleaksPorts how many of the language counts' rule files sit under {@link
-     *     #GITLEAKS_PORTS}, and are left out of an import unless it asks for them — counted so the
-     *     screen can say what the default leaves behind rather than import fewer files than it shows
+     * @param gitleaksDuplicates how many of the language counts' rule files duplicate the secrets
+     *     step — under {@link #GITLEAKS_PORTS} or among {@link #GITLEAKS_COVERED_SECURITY_RULES} — and
+     *     are left out of an import unless it asks for them: counted so the screen can say what the
+     *     default leaves behind rather than import fewer files than it shows
      */
     public record Contents(
             Map<String, Integer> languages,
             Map<String, Integer> categories,
             String licence,
             List<Entry> entries,
-            int gitleaksPorts) {}
+            int gitleaksDuplicates) {}
 
     /**
      * Refuses anything that is not a full commit SHA.
@@ -182,13 +239,13 @@ public final class RuleCatalogue {
     public static Contents describe(List<Entry> entries, String licence) {
         Map<String, Integer> byLanguage = new TreeMap<>();
         Map<String, Integer> byCategory = new TreeMap<>();
-        int gitleaksPorts = 0;
+        int gitleaksDuplicates = 0;
         for (Entry entry : entries) {
             if (!isRule(entry)) {
                 continue;
             }
-            if (isGitleaksPort(entry)) {
-                gitleaksPorts++;
+            if (isGitleaksDuplicate(entry)) {
+                gitleaksDuplicates++;
             }
             String language = topLevelOf(entry.path());
             if (language != null) {
@@ -199,7 +256,7 @@ public final class RuleCatalogue {
                 byCategory.merge(category, 1, Integer::sum);
             }
         }
-        return new Contents(byLanguage, byCategory, licence, entries, gitleaksPorts);
+        return new Contents(byLanguage, byCategory, licence, entries, gitleaksDuplicates);
     }
 
     /**
@@ -210,20 +267,22 @@ public final class RuleCatalogue {
      * and the rule id enters an issue's fingerprint. Losing the upstream path here would be
      * invisible today and would resolve every SAST finding the day it changed.
      *
-     * <p>Without {@link #GITLEAKS_PORTS}, which only {@link #select(Contents, Set, boolean)} brings in.
+     * <p>Without {@link #GITLEAKS_PORTS} and {@link #GITLEAKS_COVERED_SECURITY_RULES}, which only
+     * {@link #select(Contents, Set, boolean)} brings in.
      */
     public static List<RuleSet.UploadedFile> select(Contents contents, Set<String> languages) {
         return select(contents, languages, false);
     }
 
     /**
-     * The rule files for the chosen languages, with or without the ports of gitleaks' rules.
+     * The rule files for the chosen languages, with or without the rules that duplicate gitleaks.
      *
-     * @param includeGitleaksPorts the operator's opt-in to {@link #GITLEAKS_PORTS}: for an
-     *     installation whose scans run no secrets step, where they are not a duplicate
+     * @param includeGitleaksDuplicates the operator's opt-in to {@link #GITLEAKS_PORTS} and {@link
+     *     #GITLEAKS_COVERED_SECURITY_RULES}: for an installation whose scans run no secrets step,
+     *     where they are not a duplicate
      */
     public static List<RuleSet.UploadedFile> select(
-            Contents contents, Set<String> languages, boolean includeGitleaksPorts) {
+            Contents contents, Set<String> languages, boolean includeGitleaksDuplicates) {
         if (languages == null || languages.isEmpty()) {
             throw new InvalidInputException("Choose at least one language: a rule set with no rules resolves the backlog.");
         }
@@ -240,24 +299,24 @@ public final class RuleCatalogue {
                 // language, and `Set.of(…).contains(null)` throws rather than answering false.
                 .filter(entry -> topLevelOf(entry.path()) != null)
                 .filter(entry -> languages.contains(topLevelOf(entry.path())))
-                .filter(entry -> includeGitleaksPorts || !isGitleaksPort(entry))
+                .filter(entry -> includeGitleaksDuplicates || !isGitleaksDuplicate(entry))
                 .sorted(Comparator.comparing(Entry::path))
                 .map(entry -> new RuleSet.UploadedFile(entry.path(), entry.content()))
                 .toList();
-        // Said here, in these words: a language holding nothing but the ports would otherwise
+        // Said here, in these words: a language holding nothing but those rules would otherwise
         // reach the store as "No file was uploaded", which names the wrong gesture.
         if (selected.isEmpty()) {
-            throw new InvalidInputException("These languages hold only the ports of gitleaks' rules, which the "
-                    + "secrets step already runs. Choose another language, or include the ports.");
+            throw new InvalidInputException("These languages hold only rules that duplicate gitleaks, which the "
+                    + "secrets step already runs. Choose another language, or include the gitleaks duplicates.");
         }
         return selected;
     }
 
-    /** Whether the chosen languages hold any of {@link #GITLEAKS_PORTS} — what the default left out. */
-    public static boolean reachesGitleaksPorts(Contents contents, Set<String> languages) {
+    /** Whether the chosen languages hold any rule that duplicates gitleaks — what the default left out. */
+    public static boolean reachesGitleaksDuplicates(Contents contents, Set<String> languages) {
         return contents.entries().stream()
                 .filter(RuleCatalogue::isRule)
-                .filter(RuleCatalogue::isGitleaksPort)
+                .filter(RuleCatalogue::isGitleaksDuplicate)
                 .anyMatch(entry -> languages.contains(topLevelOf(entry.path())));
     }
 
@@ -268,11 +327,11 @@ public final class RuleCatalogue {
     }
 
     /**
-     * As {@link #nameFor(String, Set)}, marked when the set holds the ports of gitleaks' rules — the
+     * As {@link #nameFor(String, Set)}, marked when the set holds the rules that duplicate gitleaks — the
      * exception to the default, which is what a reader of the list needs to see.
      */
-    public static String nameFor(String commit, Set<String> languages, boolean holdsGitleaksPorts) {
-        return nameFor(commit, languages) + (holdsGitleaksPorts ? " with gitleaks ports" : "");
+    public static String nameFor(String commit, Set<String> languages, boolean holdsGitleaksDuplicates) {
+        return nameFor(commit, languages) + (holdsGitleaksDuplicates ? " with gitleaks duplicates" : "");
     }
 
     private static boolean isRule(Entry entry) {
@@ -283,8 +342,9 @@ public final class RuleCatalogue {
     }
 
     /** Compared in lower case like the language, so a capitalised directory is not a way past it. */
-    private static boolean isGitleaksPort(Entry entry) {
-        return entry.path().toLowerCase(Locale.ROOT).startsWith(GITLEAKS_PORTS);
+    private static boolean isGitleaksDuplicate(Entry entry) {
+        String path = entry.path().toLowerCase(Locale.ROOT);
+        return path.startsWith(GITLEAKS_PORTS) || GITLEAKS_COVERED_PATHS.contains(path);
     }
 
     private static String topLevelOf(String path) {

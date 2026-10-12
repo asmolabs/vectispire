@@ -29,18 +29,20 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
- * Importing the upstream catalogue leaves its ports of gitleaks' rules out unless asked for.
+ * Importing the upstream catalogue leaves the rules that duplicate gitleaks out unless asked for.
  *
  * <p><b>Why they are left out.</b> The secrets step runs gitleaks with its default rules, and
- * {@code generic/secrets/gitleaks/} is those same rules for Semgrep. Imported, every leaked key comes
- * back twice — a {@code secret} issue and a {@code sast} one, separate issues because the type is in
- * the fingerprint — and triaging the secret leaves its twin open, failing the gate and counting in the
- * score. The rest of {@code generic/secrets/} stays: it looks for things gitleaks' defaults do not.
+ * {@code generic/secrets/gitleaks/} is those same rules for Semgrep, as are the files of {@code
+ * generic/secrets/security/} that {@link RuleCatalogue#GITLEAKS_COVERED_SECURITY_RULES} names. Imported,
+ * every leaked key comes back twice — a {@code secret} issue and a {@code sast} one, separate issues
+ * because the type is in the fingerprint — and triaging the secret leaves its twin open, failing the gate
+ * and counting in the score. The rest of {@code generic/secrets/security/} stays: it looks for things
+ * gitleaks' defaults do not.
  *
  * <p>The fetcher is a spy whose clone is replaced by a fixed archive; the preview, the selection, the
  * store, the audit entry and the activation guard are the application's own.
  */
-@DisplayName("importing the rule catalogue leaves the ports of gitleaks' rules out unless asked")
+@DisplayName("importing the rule catalogue leaves the rules that duplicate gitleaks out unless asked")
 class RuleCatalogueImportRoutesTest extends ApiTestBase {
 
     private static final String COMMIT = "f1d2b562b414783763fd02a6ed2736eaed622efa";
@@ -50,7 +52,8 @@ class RuleCatalogueImportRoutesTest extends ApiTestBase {
 
     private static final String PORT_RULE = "generic-api-key-" + RUN;
     private static final String PORT = RuleCatalogue.GITLEAKS_PORTS + "generic-api-key.yaml";
-    private static final String SECURITY = "generic/secrets/security/detected-bcrypt-hash.yaml";
+    private static final String COVERED = RuleCatalogue.SECURITY_SECRETS + "detected-twilio-api-key.yaml";
+    private static final String SECURITY = RuleCatalogue.SECURITY_SECRETS + "detected-bcrypt-hash.yaml";
     private static final String PYTHON = "python/flask/sqli.yaml";
 
     private static final RuleCatalogueFetcher.Fetched FETCHED = new RuleCatalogueFetcher.Fetched(
@@ -58,6 +61,7 @@ class RuleCatalogueImportRoutesTest extends ApiTestBase {
             RuleCatalogue.describe(List.of(
                             new RuleCatalogue.Entry("LICENSE", "LGPL-2.1 with Commons Clause"),
                             new RuleCatalogue.Entry(PORT, rule(PORT_RULE)),
+                            new RuleCatalogue.Entry(COVERED, rule("detected-twilio-api-key-" + RUN)),
                             new RuleCatalogue.Entry(SECURITY, rule("detected-bcrypt-hash-" + RUN)),
                             new RuleCatalogue.Entry(PYTHON, rule("sqli-" + RUN))),
                     "LGPL-2.1 with Commons Clause"),
@@ -81,48 +85,49 @@ class RuleCatalogueImportRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("the preview says how many of the generic rules are the ports")
-    void thePreviewCountsThePorts() throws Exception {
+    @DisplayName("the preview says how many of the generic rules duplicate gitleaks: the ports and the covered")
+    void thePreviewCountsTheDuplicates() throws Exception {
         mvc.perform(authenticated(get("/api/v1/rule-sets/catalogue"), asCiso()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.languages.generic").value(2))
-                .andExpect(jsonPath("$.gitleaksPorts").value(1));
+                .andExpect(jsonPath("$.languages.generic").value(3))
+                .andExpect(jsonPath("$.gitleaksDuplicates").value(2));
     }
 
     @Test
-    @DisplayName("by default: the ports are left out, the rest of generic/secrets/ kept, and the entry says so")
+    @DisplayName("by default: the duplicates are left out, the rest of generic/secrets/ kept, and the entry says so")
     void leftOutByDefault() throws Exception {
         long id = importing(Map.of());
 
         SemgrepRuleSetEntity stored = ruleSets.findById(id).orElseThrow();
-        assertThat(stored.getFiles()).doesNotContain(PORT).contains(SECURITY).contains(PYTHON);
+        assertThat(stored.getFiles()).doesNotContain(PORT).doesNotContain(COVERED).contains(SECURITY).contains(PYTHON);
         assertThat(stored.getName()).doesNotContain("gitleaks");
-        assertThat(entryOf(id)).contains("gitleaks ports left out.").contains("sha256 licence-digest");
+        assertThat(entryOf(id)).contains("gitleaks duplicates left out.").contains("sha256 licence-digest");
     }
 
     @Test
     @DisplayName("an explicit false is the default")
     void falseIsTheDefault() throws Exception {
-        long id = importing(Map.of("includeGitleaksPorts", false));
+        long id = importing(Map.of("includeGitleaksDuplicates", false));
 
-        assertThat(ruleSets.findById(id).orElseThrow().getFiles()).doesNotContain(PORT).contains(SECURITY);
+        assertThat(ruleSets.findById(id).orElseThrow().getFiles())
+                .doesNotContain(PORT).doesNotContain(COVERED).contains(SECURITY);
     }
 
     @Test
-    @DisplayName("on request: the ports come too, and the set's name and the entry say so")
+    @DisplayName("on request: the duplicates come too, and the set's name and the entry say so")
     void includedOnRequest() throws Exception {
-        long id = importing(Map.of("includeGitleaksPorts", true));
+        long id = importing(Map.of("includeGitleaksDuplicates", true));
 
         SemgrepRuleSetEntity stored = ruleSets.findById(id).orElseThrow();
-        assertThat(stored.getFiles()).contains(PORT).contains(SECURITY).contains(PYTHON);
-        assertThat(stored.getName()).endsWith(" with gitleaks ports");
-        assertThat(entryOf(id)).contains("gitleaks ports included on request.");
+        assertThat(stored.getFiles()).contains(PORT).contains(COVERED).contains(SECURITY).contains(PYTHON);
+        assertThat(stored.getName()).endsWith(" with gitleaks duplicates");
+        assertThat(entryOf(id)).contains("gitleaks duplicates included on request.");
     }
 
     @Test
-    @DisplayName("a selection that does not reach generic says nothing of the ports")
-    void silentWhereThePortsAreNotInPlay() throws Exception {
-        long id = importing(Map.of("languages", List.of("python"), "includeGitleaksPorts", true));
+    @DisplayName("a selection that does not reach generic says nothing of the duplicates")
+    void silentWhereTheDuplicatesAreNotInPlay() throws Exception {
+        long id = importing(Map.of("languages", List.of("python"), "includeGitleaksDuplicates", true));
 
         assertThat(ruleSets.findById(id).orElseThrow().getName()).doesNotContain("gitleaks");
         assertThat(entryOf(id)).doesNotContain("gitleaks");
@@ -136,7 +141,7 @@ class RuleCatalogueImportRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("re-importing without the ports goes through the activation guard, which counts their issues")
     void reImportingWithoutThePortsIsGuarded() throws Exception {
-        long withPorts = importing(Map.of("includeGitleaksPorts", true));
+        long withPorts = importing(Map.of("includeGitleaksDuplicates", true));
         Map<String, Object> accept = new HashMap<>();
         accept.put("acceptLosing", impactOf(withPorts).path("affectedIssues").asLong());
         mvc.perform(authenticated(post("/api/v1/rule-sets/" + withPorts + "/activate"), asCiso())
