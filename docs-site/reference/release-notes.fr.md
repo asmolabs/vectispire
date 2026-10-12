@@ -761,6 +761,18 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Un tracker derrière une CA interne est joint : sa CA peut être épinglée, comme celle d'une connexion de
+  forge.** Chaque appel au tracker — ouvrir un ticket sur GitLab, GitHub, Jira ou ServiceNow, le fermer, la
+  recherche des transitions de Jira, celle de l'incident sur ServiceNow — était vérifié contre le seul
+  magasin de confiance de l'environnement Java, si bien qu'un tracker hébergé dont le certificat venait de la
+  CA de l'organisation échouait à la négociation à chaque appel : aucun ticket n'était jamais ouvert, et le
+  balayage horaire réessayait avec une ligne du journal du serveur pour seule trace. Le réglage
+  `ticket_ca_pem`, réservé à un administrateur, reçoit cette CA en PEM ; elle est vérifiée à
+  l'enregistrement selon la règle des connexions de forge (une CA, en cours de validité, au plus 8
+  certificats et 16 384 caractères) et **remplace** le magasin de l'environnement pour le seul tracker — les
+  CA publiques ne sont alors pas reconnues pour lui, et son nom reste vérifié. L'écran des réglages affiche
+  son sujet et son expiration, lus sur `GET /api/v1/settings/ticket-ca` ([un tracker derrière une CA
+  interne](../integrations/ticketing.md#internal-ca)).
 - **L'import du catalogue laisse de côté les règles qui font double emploi avec gitleaks, qui trouvaient
   chaque clé divulguée une seconde fois.** Choisir `generic` importait `generic/secrets/gitleaks/`, 175
   règles portées des règles gitleaks que l'étape des secrets exécute déjà, et 27 règles de

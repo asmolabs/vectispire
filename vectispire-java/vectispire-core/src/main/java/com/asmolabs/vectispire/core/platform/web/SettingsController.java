@@ -154,6 +154,28 @@ public class SettingsController {
         return Map.of("configured", !token.isBlank());
     }
 
+    /**
+     * What the tracker CA pins, as the forge connections show theirs: the first certificate's subject and the
+     * bundle's earliest expiry — past it, no ticket is opened or closed.
+     *
+     * @param pinned whether a CA is stored at all
+     * @param subject null when none is, or when the stored text no longer reads as a CA
+     * @param notAfter null in the same cases
+     */
+    public record TicketCaState(boolean pinned, String subject, java.time.Instant notAfter) {}
+
+    /**
+     * Administrator-only, like the setting's value in the catalog: the CA's name maps the internal PKI that the
+     * tracker's URL, withheld from other roles, sits behind.
+     */
+    @RequiresAdministrator
+    @GetMapping("/ticket-ca")
+    public TicketCaState ticketCaState() {
+        return administration.pinnedTrackerCa()
+                .map(ca -> new TicketCaState(true, ca.subject(), ca.notAfter()))
+                .orElse(new TicketCaState(false, null, null));
+    }
+
     /** The token's state, without ever returning it. */
     @GetMapping("/ticket-token")
     public Map<String, Boolean> ticketTokenState() {

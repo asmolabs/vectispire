@@ -275,6 +275,26 @@ public enum Setting {
             "On by default. Clear it for a deployment that only uses a hosted tracker.",
             "true"),
 
+    /**
+     * The CA a self-hosted tracker's certificate must chain to, in place of the runtime's trust store.
+     *
+     * <p>A GitLab, Jira Data Center or ServiceNow on an internal network carries a certificate from the
+     * organisation's own CA, which the JVM's store does not hold: every call failed the handshake, no
+     * ticket was ever opened, and the hourly sweep retried in silence. Pinned here, the CA is trusted for
+     * the tracker alone and the public CAs are not — {@code PinnedCa}'s rule, as for a forge connection.
+     * It decides whom the tracker token is presented to, so it is an administrator's
+     * ({@link #directsCredential()}); hidden from other roles like the URL, being a map of the internal
+     * PKI rather than a secret.
+     */
+    TICKET_CA("ticket_ca_pem", SettingType.TEXT, Section.TICKETS,
+            "Tracker CA (PEM)",
+            "For a tracker whose certificate comes from your organisation's own CA: paste that CA's certificate in "
+                    + "PEM form (-----BEGIN CERTIFICATE-----), a root and its intermediates if need be. Used for the "
+                    + "tracker only, and **in place of** the server's trust store — the public CAs are then not "
+                    + "trusted for it; the tracker's name is still verified. Empty, the server's trust store applies. "
+                    + "Set by an administrator only: it decides whom the tracker token is presented to.",
+            "", Sensitivity.SECRET),
+
     // **What the switch does today, and only that.** It was labelled "Review the code with a local model",
     // with a help describing the findings such a review would produce; nothing calls the code review
     // (`AiReviewService.reviewCode`), so an operator turning it on believed every scan had a second
@@ -608,7 +628,8 @@ public enum Setting {
      */
     public Optional<Setting> directsCredential() {
         return switch (this) {
-            case TICKET_BASE_URL, TICKET_ALLOW_PRIVATE_URL, TICKET_PROJECT, TICKET_USER -> Optional.of(TICKET_TOKEN);
+            case TICKET_BASE_URL, TICKET_ALLOW_PRIVATE_URL, TICKET_PROJECT, TICKET_USER, TICKET_CA ->
+                    Optional.of(TICKET_TOKEN);
             case AI_REVIEW_OPENAI_URL, AI_REVIEW_ALLOW_REMOTE -> Optional.of(AI_REVIEW_OPENAI_KEY);
             default -> Optional.empty();
         };
@@ -666,7 +687,7 @@ public enum Setting {
         return switch (this) {
             case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, NOTIFICATION_ALLOW_PRIVATE_URL,
                     SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_PROJECT, TICKET_USER,
-                    TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
+                    TICKET_CA, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
                     WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
                     AI_REVIEW_OLLAMA_URL, CHECKLIST_AUTO_ANSWER, EVIDENCE_RETENTION_DAYS -> true;
             case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, SCAN_DEFAULT_INTERVAL_DAYS, RETENTION_KEEP_PER_TARGET,

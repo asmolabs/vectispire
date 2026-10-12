@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { OllamaCheck, SettingDefinition } from '../api.models';
+import { OllamaCheck, SettingDefinition, TicketCaState } from '../api.models';
 
 /**
  * The instance settings under `/api/v1/settings`, including the write-only secrets and the model
@@ -46,6 +46,14 @@ export class SettingsApi {
 
     setTicketToken(token: string): Observable<{ configured: boolean }> {
         return this.http.put<{ configured: boolean }>('/api/v1/settings/ticket-token', { token });
+    }
+
+    /**
+     * What the tracker CA pins — subject and expiry, as a forge connection shows its CA. Administrator-only:
+     * the value is written through {@link updateSettings} as `ticket_ca_pem`.
+     */
+    ticketCaState(): Observable<TicketCaState> {
+        return this.http.get<TicketCaState>('/api/v1/settings/ticket-ca');
     }
 
     webhookSecretState(): Observable<{ configured: boolean }> {

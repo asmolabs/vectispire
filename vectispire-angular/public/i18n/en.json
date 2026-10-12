@@ -2340,7 +2340,10 @@
     "epss_in_progress": "An EPSS synchronisation is in progress; this request did not start another.",
     "epss_last_attempt_failed": "The attempt of {{at}} failed: {{reason}}. The scores in use are kept until the next successful read.",
     "epss_synced": "EPSS scores of {{count}} CVEs in use; {{issues}} open issues re-scored.",
-    "error_epss_sync": "The EPSS file could not be read. The scores in use are kept."
+    "error_epss_sync": "The EPSS file could not be read. The scores in use are kept.",
+    "ticket_ca_pinned": "Pinned: {{subject}}, valid until {{date}}",
+    "ticket_ca_unreadable": "The stored CA no longer reads as a CA certificate: no ticket is opened or closed until it is replaced.",
+    "ticket_ca_placeholder": "-----BEGIN CERTIFICATE-----"
   },
   "severities": {
     "critical": "Critical",

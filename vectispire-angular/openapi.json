@@ -11088,6 +11088,22 @@
         },
         "type" : "object"
       },
+      "TicketCaState" : {
+        "properties" : {
+          "notAfter" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "pinned" : {
+            "type" : "boolean"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "pinned" ],
+        "type" : "object"
+      },
       "TokenRequest" : {
         "properties" : {
           "token" : {
@@ -20073,6 +20089,24 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/OllamaCheck"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "settings-controller" ]
+      }
+    },
+    "/api/v1/settings/ticket-ca" : {
+      "get" : {
+        "operationId" : "ticketCaState",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TicketCaState"
                 }
               }
             },

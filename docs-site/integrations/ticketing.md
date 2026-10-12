@@ -30,7 +30,42 @@ before.
 
 Give the token the narrowest scope that can create and read issues in the target project.
 It is stored encrypted with your `ENCRYPTION_KEY`, and storing it is refused before that
-key exists.
+key exists. A tracker whose certificate comes from your own CA needs that CA pinned —
+[below](#internal-ca).
+
+## A tracker behind an internal CA {#internal-ca}
+
+A self-hosted GitLab, Jira Data Center or ServiceNow on your network often carries a certificate
+issued by your organisation's own CA, which the Java runtime's trust store does not hold. Before
+0.11.0 every call to it failed the TLS handshake: no ticket was opened, and the hourly sweep retried
+without saying why anywhere but the server log.
+
+Paste that CA's certificate, in PEM (`-----BEGIN CERTIFICATE-----`), into **Settings → Tracker →
+Tracker CA (PEM)** — the root, and its intermediates if your server does not send them; up to 8
+certificates and 16,384 characters. To get it, ask whoever runs your PKI for the issuing CA's
+certificate, or read the chain the tracker presents —
+`openssl s_client -connect gitlab.example.internal:443 -showcerts </dev/null` — and keep the
+certificate of the CA at the top of it, **not** the server's own (the first one printed).
+
+- **It applies to the tracker only.** Every call the integration makes — opening a ticket on any
+  of the four trackers, closing it, Jira's list of transitions, ServiceNow's incident lookup — is
+  verified against it; nothing else Vectispire connects to trusts it.
+- **It replaces the runtime's store for the tracker, it is not added to it** — the same rule as a
+  [forge connection's](../administration/forge-connections.md) and the [SIEM collector's](siem.md#tls) CA. The
+  public CAs are then not trusted for the tracker: a certificate some public CA issued for its name
+  does not pass. Leave the field empty for a tracker with a public certificate.
+- **The tracker's name is still verified**: its certificate must name the host of the tracker URL.
+  There is no "skip verification", which would hand the token to whoever answers first.
+- **The save refuses what would not work or would trust too much**, in the forge connections'
+  words: a certificate that is not a CA (the server's own), one that has expired or is not yet
+  valid, one whose key usage forbids signing certificates, anything that is not a certificate — a
+  private key pasted by mistake is refused and not echoed back.
+- **It is an administrator's**, like the URL: it decides whom the tracker token is presented to.
+  Other roles see the field read-only and without its value. Saving it is audited
+  (`ticket_ca_pem changed`) and forwarded to the SIEM as a security setting change.
+- **Shown by its subject and expiry.** Past that date the CA is not trusted any more: no ticket is
+  opened or closed, the server log says the tracker CA expired, and the fix is to paste the renewed
+  CA.
 
 ## What lands in the ticket
 

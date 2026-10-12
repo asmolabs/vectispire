@@ -64,3 +64,4 @@ Add the following webhook endpoints in your external issue tracker:
 * Tracker credentials (`TICKET_TOKEN`) are encrypted at rest with AES-GCM-256 bound to key context `setting:ticket_token`.
 * A delivery is acted on once: its body is remembered for thirty days, so a captured signed request sent again later is answered *"Delivery already processed"* and changes nothing. The tracker's own redelivery of the same event lands there too.
 * Every synchronization update is recorded in the cryptographically chained audit log.
+* A tracker whose certificate comes from an internal CA is reached through the CA pinned for it (`ticket_ca_pem`, administrator-only), which replaces the Java runtime's trust store for every tracker call and for nothing else; the tracker's name is still verified. See the user guide's *A tracker behind an internal CA*.

@@ -240,6 +240,13 @@ public class SettingsAdministrationService {
             setting.validate(value).ifPresent(problem -> {
                 throw new InvalidInputException(setting.label() + " — " + problem);
             });
+            // **A pinned CA is read as a forge connection's is** — CA certificates only, current, bounded —
+            // and refused here in the same words rather than at the next sweep, which would only log it.
+            // Only on a change, like the checks above: a stored CA that has since expired, sent back
+            // unchanged by a screen saving the section, is the calls' to refuse, not this save's.
+            if (setting == Setting.TICKET_CA && !value.isEmpty() && !value.equals(settings.get(setting).trim())) {
+                tickets.caToPin(value);
+            }
             changes.add(new Change(setting, value));
         }
 
@@ -336,6 +343,11 @@ public class SettingsAdministrationService {
                 ? entry.signalling(SecurityEventType.SECURITY_SETTING_CHANGED)
                 : entry);
         return applied;
+    }
+
+    /** What the tracker CA setting pins, for the screen; empty when nothing is. */
+    public Optional<TicketService.PinnedTrackerCa> pinnedTrackerCa() {
+        return tickets.pinnedCa();
     }
 
     /**

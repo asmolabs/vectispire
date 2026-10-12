@@ -2333,6 +2333,10 @@
       "scan_default_interval_days": {
         "label": "Intervalle de réanalyse par défaut (jours)",
         "help": "La fréquence de réanalyse d'un dépôt ou d'une image qui n'a ni intervalle ni expression cron — c'est-à-dire toute cible ajoutée sans toucher à la planification. L'intervalle ou l'expression d'une cible l'emporte toujours, et une cible « manuel uniquement » n'est jamais réanalysée. Chaque cible a son propre moment dans l'intervalle : un parc est étalé sur la semaine au lieu d'être analysé d'un coup. Zéro : pas de défaut, une cible sans planification n'est alors plus réanalysée, comme avant la 0.11.0."
+      },
+      "ticket_ca_pem": {
+        "label": "CA du gestionnaire de tickets (PEM)",
+        "help": "Pour un gestionnaire de tickets dont le certificat vient de l'autorité de certification interne de votre organisation : collez le certificat de cette CA au format PEM (-----BEGIN CERTIFICATE-----), une racine et ses intermédiaires au besoin. Utilisée pour le gestionnaire seul, et à la place du magasin de confiance du serveur — les CA publiques ne sont alors pas reconnues pour lui ; son nom reste vérifié. Vide, le magasin du serveur s'applique. Réservé à un administrateur : elle décide à qui le jeton du gestionnaire est présenté."
       }
     },
     "last_sync": "Dernière lecture du catalogue KEV",
@@ -2462,7 +2466,10 @@
     "epss_in_progress": "Une synchronisation EPSS est en cours ; cette demande n'en a pas lancé une autre.",
     "epss_last_attempt_failed": "La tentative du {{at}} a échoué : {{reason}}. Les scores en usage sont conservés jusqu'à la prochaine lecture réussie.",
     "epss_synced": "Scores EPSS de {{count}} CVE en usage ; {{issues}} constats ouverts renotés.",
-    "error_epss_sync": "Le fichier EPSS n'a pas pu être lu. Les scores en usage sont conservés."
+    "error_epss_sync": "Le fichier EPSS n'a pas pu être lu. Les scores en usage sont conservés.",
+    "ticket_ca_pinned": "Épinglée : {{subject}}, valide jusqu'au {{date}}",
+    "ticket_ca_unreadable": "La CA enregistrée ne se lit plus comme un certificat d'autorité : aucun ticket n'est ouvert ni fermé tant qu'elle n'est pas remplacée.",
+    "ticket_ca_placeholder": "-----BEGIN CERTIFICATE-----"
   },
   "severities": {
     "critical": "Critique",

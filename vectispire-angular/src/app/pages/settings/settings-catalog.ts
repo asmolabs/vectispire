@@ -1,4 +1,5 @@
-import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -7,7 +8,8 @@ import { InputNumberModule } from '@openng/optimus-ui/inputnumber';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
-import type { SettingDefinition } from '../../core/api.models';
+import type { SettingDefinition, TicketCaState } from '../../core/api.models';
+import { SettingsApi } from '../../core/api/settings.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SessionStore } from '../../core/session.store';
@@ -49,6 +51,7 @@ const SERVER_STAMPED = new Set(['ai_review_risk_acknowledged_by', 'ai_review_ris
 @Component({
     selector: 'app-settings-catalog',
     imports: [
+        DatePipe,
         FormsModule,
         ButtonModule,
         CardModule,
@@ -71,6 +74,30 @@ export class SettingsCatalog {
     readonly state = inject(SettingsState);
 
     readonly tab = input.required<SettingsTab>();
+
+    private readonly settingsApi = inject(SettingsApi);
+
+    /**
+     * What the tracker CA pins, read from the server rather than parsed here: the subject and the expiry are
+     * the ones the calls will check, as the forge connections show theirs. Asked for by an administrator
+     * only — the route is theirs, like the value in the catalogue.
+     */
+    readonly ticketCa = signal<TicketCaState | null>(null);
+
+    constructor() {
+        this.state.register(() => this.loadTicketCa(), inject(DestroyRef));
+    }
+
+    private loadTicketCa(): void {
+        if (!this.session.isAdmin()) {
+            this.ticketCa.set(null);
+            return;
+        }
+        this.settingsApi.ticketCaState().subscribe({
+            next: (state) => this.ticketCa.set(state),
+            error: () => this.ticketCa.set(null)
+        });
+    }
 
     readonly severities = computed(() => {
         this.i18n.translations();

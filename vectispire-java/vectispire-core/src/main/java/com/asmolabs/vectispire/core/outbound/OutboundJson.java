@@ -81,6 +81,18 @@ public class OutboundJson {
      */
     public Optional<JsonNode> get(
             String url, OutboundPolicy policy, String label, Map<String, String> headers, long maxBodyBytes) {
+        return get(url, policy, label, headers, maxBodyBytes, Optional.empty());
+    }
+
+    /**
+     * The same, verifying the server against a pinned CA when one is given — a tracker on an internal
+     * network whose certificate the runtime's store does not know.
+     *
+     * @param trust the CA the server must chain to, in place of the runtime's store; empty for that store
+     */
+    public Optional<JsonNode> get(
+            String url, OutboundPolicy policy, String label, Map<String, String> headers, long maxBodyBytes,
+            Optional<PinnedCa> trust) {
         Map<String, String> all = new java.util.LinkedHashMap<>(headers);
         // Accept last: a caller cannot quietly turn this into a request for something else.
         all.put("Accept", "application/json");
@@ -92,7 +104,8 @@ public class OutboundJson {
                 null,
                 TIMEOUT,
                 label,
-                maxBodyBytes);
+                maxBodyBytes,
+                trust);
 
         if (response.status() == 404) {
             return Optional.empty();

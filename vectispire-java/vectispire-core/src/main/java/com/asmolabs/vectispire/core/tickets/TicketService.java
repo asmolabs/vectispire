@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
@@ -9,12 +10,16 @@ import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.outbound.PinnedHttpSender;
+import com.asmolabs.vectispire.core.outbound.PinnedHttpSender.Method;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -35,6 +40,13 @@ import org.springframework.stereotype.Service;
  * issue comes back: a ticket that rises from the dead on every rescan is how people learn to
  * mute a project's notifications. The stored reference is set once and never cleared — it is
  * also the sweep's deduplication key.
+ *
+ * <p><b>Every call to the tracker carries the CA pinned for it, when one is</b> ({@link Setting#TICKET_CA}):
+ * the creations, the closures and the lookups they make first. A self-hosted tracker whose certificate
+ * comes from the organisation's own CA failed every handshake against the runtime's store, so no ticket
+ * was ever opened and the hourly sweep retried in silence. The pinned CA replaces that store for the
+ * tracker, as a forge connection's does (decision 0037) — one call left on the runtime's store would fail
+ * the same way, which is why the trust is read once per gesture and handed to each call.
  */
 @Service
 public class TicketService {
@@ -49,18 +61,69 @@ public class TicketService {
     private final OutboundPost post;
     private final OutboundJson lookup;
     private final ObjectMapper json;
+    private final Clock clock;
+
+    /** How the pinned CA's refusals name the field — the same rule as a forge's, in the tracker's words. */
+    public static final PinnedCa.Subject CA = new PinnedCa.Subject("The tracker CA", "the tracker");
 
     public TicketService(
             SettingsService settings,
             EncryptionService encryption,
             OutboundPost post,
             OutboundJson lookup,
-            ObjectMapper json) {
+            ObjectMapper json,
+            Clock clock) {
         this.settings = settings;
         this.encryption = encryption;
         this.post = post;
         this.lookup = lookup;
         this.json = json;
+        this.clock = clock;
+    }
+
+    /**
+     * The CA an administrator is saving, read and checked as a forge connection's is: CA certificates only,
+     * current now, within {@link PinnedCa#MAX_LENGTH}. Empty for a blank value, which clears the pin.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException worded for whoever pasted it
+     */
+    public Optional<PinnedCa> caToPin(String pem) {
+        return pem == null || pem.isBlank() ? Optional.empty() : Optional.of(PinnedCa.parse(pem, clock.instant(), CA));
+    }
+
+    /**
+     * What is pinned, for the screen: the first certificate's subject and the bundle's earliest expiry.
+     *
+     * @param subject null when the stored text no longer reads as a CA (a row edited by hand) — the
+     *     calls refuse it, and the screen shows the field to replace
+     */
+    public record PinnedTrackerCa(String subject, Instant notAfter) {}
+
+    /** Empty when nothing is pinned. Read without checking the dates: an expired CA is shown, to be replaced. */
+    public Optional<PinnedTrackerCa> pinnedCa() {
+        String stored = settings.get(Setting.TICKET_CA).trim();
+        if (stored.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            PinnedCa ca = PinnedCa.read(stored, CA);
+            return Optional.of(new PinnedTrackerCa(ca.subject(), ca.notAfter()));
+        } catch (RuntimeException unreadable) {
+            return Optional.of(new PinnedTrackerCa(null, null));
+        }
+    }
+
+    /**
+     * The stored CA, checked current at every use as a forge's is: the JDK does not read a trust anchor's
+     * own dates, and a lapsed CA must not vouch for the tracker.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException when it no longer reads or
+     *     is no longer valid — the gesture then fails, and says why, rather than falling back on the
+     *     runtime's store
+     */
+    private Optional<PinnedCa> trust() {
+        String stored = settings.get(Setting.TICKET_CA).trim();
+        return stored.isEmpty() ? Optional.empty() : Optional.of(PinnedCa.parse(stored, clock.instant(), CA));
     }
 
     /** @param reference what the tracker calls it; @param url where a human goes to read it */
@@ -177,10 +240,12 @@ public class TicketService {
         }
 
         String baseUrl;
+        Optional<PinnedCa> trust;
         try {
             // **Validated here too**, and not only when saved: a setting written straight into
             // the database must not become an unchecked destination.
             baseUrl = validatedBaseUrl(baseUrl());
+            trust = trust();
         } catch (RuntimeException refused) {
             log.error("Ticket not created: {}", refused.getMessage());
             return Optional.empty();
@@ -190,10 +255,10 @@ public class TicketService {
             String title = Tickets.title(issue, targetName);
             String body = Tickets.body(issue, targetName);
             return switch (provider()) {
-                case GITLAB -> Optional.of(createGitlab(baseUrl, title, body));
-                case GITHUB -> Optional.of(createGithub(baseUrl, title, body));
-                case JIRA -> Optional.of(createJira(baseUrl, title, body));
-                case SERVICENOW -> Optional.of(createServiceNow(baseUrl, title, body));
+                case GITLAB -> Optional.of(createGitlab(baseUrl, title, body, trust));
+                case GITHUB -> Optional.of(createGithub(baseUrl, title, body, trust));
+                case JIRA -> Optional.of(createJira(baseUrl, title, body, trust));
+                case SERVICENOW -> Optional.of(createServiceNow(baseUrl, title, body, trust));
                 case NONE -> Optional.empty();
             };
         } catch (RuntimeException failed) {
@@ -211,10 +276,12 @@ public class TicketService {
         }
 
         String baseUrl;
+        Optional<PinnedCa> trust;
         try {
             baseUrl = validatedBaseUrl(baseUrl());
+            trust = trust();
         } catch (RuntimeException refused) {
-            log.error("Ticket closure failed - invalid base URL: {}", refused.getMessage());
+            log.error("Ticket closure failed: {}", refused.getMessage());
             return false;
         }
 
@@ -228,10 +295,10 @@ public class TicketService {
 
         try {
             switch (provider()) {
-                case GITLAB -> closeGitlab(baseUrl, segment.get());
-                case GITHUB -> closeGithub(baseUrl, segment.get());
-                case JIRA -> closeJira(baseUrl, segment.get());
-                case SERVICENOW -> closeServiceNow(baseUrl, segment.get(), resolutionReason);
+                case GITLAB -> closeGitlab(baseUrl, segment.get(), trust);
+                case GITHUB -> closeGithub(baseUrl, segment.get(), trust);
+                case JIRA -> closeJira(baseUrl, segment.get(), trust);
+                case SERVICENOW -> closeServiceNow(baseUrl, segment.get(), resolutionReason, trust);
                 case NONE -> {}
             }
             log.info("Successfully closed ticket {} on {}", ticketRef, provider());
@@ -270,28 +337,31 @@ public class TicketService {
         return Tickets.parseLabels(settings.get(Setting.TICKET_LABELS));
     }
 
-    private Ticket createGitlab(String baseUrl, String title, String body) {
+    private Ticket createGitlab(String baseUrl, String title, String body, Optional<PinnedCa> trust) {
         // The project identifier has to be encoded when it is a path ("group/project"), which is
         // the form most people have it in.
         String url = baseUrl + "/api/v4/projects/" + URLEncoder.encode(project(), StandardCharsets.UTF_8) + "/issues";
-        JsonNode payload = read(post.postForResponse(
+        JsonNode payload = read(post.send(
+                Method.POST,
                 url,
                 Map.of("title", title, "description", body, "labels", String.join(",", labels())),
                 policy(),
                 "GitLab",
-                Map.of("PRIVATE-TOKEN", token())));
+                Map.of("PRIVATE-TOKEN", token()),
+                trust));
 
         return new Ticket("#" + payload.path("iid").asText(""), payload.path("web_url").asText(""));
     }
 
-    private void closeGitlab(String baseUrl, String iid) {
+    private void closeGitlab(String baseUrl, String iid, Optional<PinnedCa> trust) {
         String url = baseUrl + "/api/v4/projects/" + URLEncoder.encode(project(), StandardCharsets.UTF_8) + "/issues/" + iid;
         // PUT: GitLab's "edit an issue". A POST on this path is not routed, so closing went out as one
         // and failed on every issue — see PinnedHttpSender.Method.
-        post.putForResponse(url, Map.of("state_event", "close"), policy(), "GitLab", Map.of("PRIVATE-TOKEN", token()));
+        post.send(Method.PUT, url, Map.of("state_event", "close"), policy(), "GitLab", Map.of("PRIVATE-TOKEN", token()),
+                trust);
     }
 
-    private Ticket createGithub(String baseUrl, String title, String body) {
+    private Ticket createGithub(String baseUrl, String title, String body, Optional<PinnedCa> trust) {
         String url = baseUrl + "/repos/" + githubRepository() + "/issues";
         Map<String, Object> payload = new java.util.LinkedHashMap<>();
         payload.put("title", title);
@@ -300,12 +370,14 @@ public class TicketService {
             payload.put("labels", labels());
         }
 
-        JsonNode response = read(post.postForResponse(
+        JsonNode response = read(post.send(
+                Method.POST,
                 url,
                 payload,
                 policy(),
                 "GitHub",
-                Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json")));
+                Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json"),
+                trust));
 
         return new Ticket("#" + response.path("number").asText(""), response.path("html_url").asText(""));
     }
@@ -322,19 +394,21 @@ public class TicketService {
                 "the GitHub project \"" + project() + "\" is not an owner/repository pair"));
     }
 
-    private void closeGithub(String baseUrl, String number) {
+    private void closeGithub(String baseUrl, String number, Optional<PinnedCa> trust) {
         String url = baseUrl + "/repos/" + githubRepository() + "/issues/" + number;
         // PATCH, the verb GitHub documents for "update an issue"; its tolerance of POST as an alias
         // is a legacy courtesy nothing here should lean on.
-        post.patchForResponse(
+        post.send(
+                Method.PATCH,
                 url,
                 Map.of("state", "closed", "state_reason", "completed"),
                 policy(),
                 "GitHub",
-                Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json"));
+                Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json"),
+                trust);
     }
 
-    private Ticket createJira(String baseUrl, String title, String body) {
+    private Ticket createJira(String baseUrl, String title, String body, Optional<PinnedCa> trust) {
         Map<String, Object> fields = new java.util.LinkedHashMap<>();
         fields.put("project", Map.of("key", project()));
         fields.put("summary", title);
@@ -345,12 +419,14 @@ public class TicketService {
             fields.put("labels", labels());
         }
 
-        JsonNode payload = read(post.postForResponse(
+        JsonNode payload = read(post.send(
+                Method.POST,
                 baseUrl + "/rest/api/3/issue",
                 Map.of("fields", fields),
                 policy(),
                 "Jira",
-                jiraHeaders()));
+                jiraHeaders(),
+                trust));
 
         String key = payload.path("key").asText("");
         return new Ticket(key, key.isEmpty() ? "" : baseUrl + "/browse/" + key);
@@ -365,9 +441,10 @@ public class TicketService {
      * issue somewhere unintended. Jira lists the transitions available to an issue with the status
      * each leads to; the one whose status is in the {@code done} category is the one to take.
      */
-    private void closeJira(String baseUrl, String key) {
+    private void closeJira(String baseUrl, String key, Optional<PinnedCa> trust) {
         String url = baseUrl + "/rest/api/3/issue/" + key + "/transitions";
-        JsonNode offered = lookup.get(url, policy(), "Jira", jiraHeaders())
+        JsonNode offered = lookup.get(
+                        url, policy(), "Jira", jiraHeaders(), PinnedHttpSender.DEFAULT_MAX_BODY_BYTES, trust)
                 .orElseThrow(() -> new IllegalStateException("Jira lists no transitions for " + key + "."));
         String transition = null;
         for (JsonNode candidate : offered.path("transitions")) {
@@ -380,10 +457,10 @@ public class TicketService {
             throw new IllegalStateException("No transition to a done status is available for " + key
                     + " in its workflow; it was left open.");
         }
-        post.postForResponse(url, Map.of("transition", Map.of("id", transition)), policy(), "Jira", jiraHeaders());
+        post.send(Method.POST, url, Map.of("transition", Map.of("id", transition)), policy(), "Jira", jiraHeaders(), trust);
     }
 
-    private Ticket createServiceNow(String baseUrl, String title, String body) {
+    private Ticket createServiceNow(String baseUrl, String title, String body, Optional<PinnedCa> trust) {
         String url = baseUrl + "/api/now/table/incident";
         Map<String, Object> payload = new java.util.LinkedHashMap<>();
         payload.put("short_description", title);
@@ -392,7 +469,7 @@ public class TicketService {
         payload.put("urgency", "1");
         payload.put("impact", "1");
 
-        JsonNode response = read(post.postForResponse(url, payload, policy(), "ServiceNow", serviceNowHeaders()));
+        JsonNode response = read(post.send(Method.POST, url, payload, policy(), "ServiceNow", serviceNowHeaders(), trust));
         JsonNode result = response.path("result");
         String number = result.path("number").asText("");
         String sysId = result.path("sys_id").asText("");
@@ -410,15 +487,17 @@ public class TicketService {
      * opened was ever closed by it. A number is therefore resolved first, by a query through the same
      * guard and pin, under the same policy.
      */
-    private void closeServiceNow(String baseUrl, String incident, String resolutionReason) {
-        String sysId = SERVICENOW_SYS_ID.matcher(incident).matches() ? incident : serviceNowSysId(baseUrl, incident);
+    private void closeServiceNow(String baseUrl, String incident, String resolutionReason, Optional<PinnedCa> trust) {
+        String sysId = SERVICENOW_SYS_ID.matcher(incident).matches() ? incident : serviceNowSysId(baseUrl, incident, trust);
         String url = baseUrl + "/api/now/table/incident/" + sysId;
-        post.patchForResponse(
+        post.send(
+                Method.PATCH,
                 url,
                 Map.of("state", "6", "close_code", "Solved (Permanently)", "close_notes", "Resolved by Vectispire: " + resolutionReason),
                 policy(),
                 "ServiceNow",
-                serviceNowHeaders());
+                serviceNowHeaders(),
+                trust);
     }
 
     /** A {@code sys_id} as ServiceNow issues one: 32 lower-case hex digits, nothing a path could carry. */
@@ -434,11 +513,12 @@ public class TicketService {
      *
      * @param number already held to {@code Tickets.referencePath}'s grammar and encoded
      */
-    private String serviceNowSysId(String baseUrl, String number) {
+    private String serviceNowSysId(String baseUrl, String number, Optional<PinnedCa> trust) {
         String url = baseUrl + "/api/now/table/incident?sysparm_query="
                 + URLEncoder.encode("number=" + number, StandardCharsets.UTF_8)
                 + "&sysparm_fields=sys_id&sysparm_limit=1";
-        JsonNode found = lookup.get(url, policy(), "ServiceNow", serviceNowHeaders())
+        JsonNode found = lookup.get(
+                        url, policy(), "ServiceNow", serviceNowHeaders(), PinnedHttpSender.DEFAULT_MAX_BODY_BYTES, trust)
                 .orElseThrow(() -> new IllegalStateException("ServiceNow does not know incident " + number + "."));
         String sysId = found.path("result").path(0).path("sys_id").asText("");
         if (!SERVICENOW_SYS_ID.matcher(sysId).matches()) {

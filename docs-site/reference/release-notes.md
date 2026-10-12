@@ -703,6 +703,17 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **A tracker behind an internal CA is reached: its CA can be pinned, as a forge connection's is.** Every
+  call to the tracker — opening a ticket on GitLab, GitHub, Jira or ServiceNow, closing it, Jira's
+  transitions lookup, ServiceNow's incident lookup — was verified against the Java runtime's trust store
+  alone, so a self-hosted tracker whose certificate came from the organisation's own CA failed the
+  handshake on every call: no ticket was ever opened, and the hourly sweep retried with a line in the
+  server log as the only trace. The administrator-only setting `ticket_ca_pem` takes that CA in PEM; it
+  is checked when saved by the forge connections' rule (a CA, current, within 8 certificates and 16,384
+  characters) and **replaces** the runtime's store for the tracker alone — the public CAs are then not
+  trusted for it, and the tracker's name is still verified. The settings screen shows its subject and
+  expiry, read from `GET /api/v1/settings/ticket-ca` ([a tracker behind an internal
+  CA](../integrations/ticketing.md#internal-ca)).
 - **The catalogue import leaves out the rules that duplicate gitleaks, which found every leaked key a
   second time.** Choosing `generic` imported `generic/secrets/gitleaks/`, 175 rules ported from the gitleaks
   rules the secrets step already runs, and 27 rules of `generic/secrets/security/` whose token formats a

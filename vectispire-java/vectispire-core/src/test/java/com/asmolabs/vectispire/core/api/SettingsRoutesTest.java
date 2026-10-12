@@ -174,6 +174,59 @@ class SettingsRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the tracker CA is an administrator's, read as a forge's CA is, and shown by its subject")
+    void theTrackerCaIsAnAdministrators() throws Exception {
+        String pem = CollectorPki.create("Tracker Test CA").caPem;
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        // A known starting point: the database is shared across the suite.
+        settingsStore.set(Setting.TICKET_CA, "");
+        try {
+            // It decides whom the tracker token is presented to over TLS: a CISO pinning a CA of their own
+            // would have the next ticket carry the administrator's token to a server of their choosing.
+            mvc.perform(authenticated(put("/api/v1/settings"), asCiso())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("ticket_ca_pem", pem))))
+                    .andExpect(status().isForbidden());
+            assertThat(settingsStore.get(Setting.TICKET_CA)).isEmpty();
+
+            // Refused at the save, in the forge connections' words, rather than logged by the next sweep.
+            for (String refusedPem : new String[] {"not a certificate", "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----"}) {
+                MvcResult refused = mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json.writeValueAsString(Map.of("ticket_ca_pem", refusedPem))))
+                        .andExpect(status().isBadRequest())
+                        .andReturn();
+                assertThat(detailOf(refused)).startsWith("The tracker CA");
+            }
+            assertThat(settingsStore.get(Setting.TICKET_CA)).isEmpty();
+
+            mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("ticket_ca_pem", pem))))
+                    .andExpect(status().isOk());
+            assertThat(settingsStore.get(Setting.TICKET_CA)).isEqualTo(pem.trim());
+
+            MvcResult shown = mvc.perform(authenticated(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/settings/ticket-ca"),
+                            asAdmin()))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            com.fasterxml.jackson.databind.JsonNode state = json.readTree(shown.getResponse().getContentAsString());
+            assertThat(state.path("pinned").asBoolean()).isTrue();
+            assertThat(state.path("subject").asText()).isEqualTo("CN=Tracker Test CA");
+            assertThat(state.path("notAfter").isNull()).isFalse();
+
+            // Withheld from other roles, as the value is in the catalog.
+            mvc.perform(authenticated(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/settings/ticket-ca"),
+                            asCiso()))
+                    .andExpect(status().isForbidden());
+        } finally {
+            settingsStore.set(Setting.TICKET_CA, "");
+        }
+    }
+
+    @Test
     @DisplayName("a GitHub project is one owner/repository pair, nothing after it")
     void aGithubProjectIsOneRepository() throws Exception {
         // Pasted into /repos/<project>/issues as typed, "owner/repo/issues/12/comments#" made the

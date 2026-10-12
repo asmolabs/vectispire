@@ -2,12 +2,14 @@ package com.asmolabs.vectispire.core.outbound;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.asmolabs.vectispire.common.domain.notifications.WebhookSignature;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -126,6 +128,22 @@ public class OutboundPost {
     }
 
     /**
+     * Sends with the verb named, verifying the server against a pinned CA when one is given — a tracker
+     * on an internal network whose certificate the runtime's store does not know.
+     *
+     * <p>Its own name and arity rather than another {@code postForResponse}: an overload beside the one
+     * taking a timeout, at the same arity, is the coin toss described above.
+     *
+     * @param trust the CA the server must chain to, for this request alone and <b>in place of</b> the
+     *     runtime's store ({@link PinnedHttpSender}); empty for that store
+     */
+    public String send(
+            PinnedHttpSender.Method method, String url, Object body, OutboundPolicy policy, String label,
+            Map<String, String> headers, Optional<PinnedCa> trust) {
+        return sendEncoded(method, url, encode(body), policy, label, headers, TIMEOUT, trust);
+    }
+
+    /**
      * The one place a body becomes a string.
      *
      * <p>Shared with {@link #postSignedJson} so that what is signed and what is sent cannot be two
@@ -155,9 +173,16 @@ public class OutboundPost {
     private String sendEncoded(
             PinnedHttpSender.Method method, String url, String encoded, OutboundPolicy policy, String label,
             Map<String, String> headers, Duration timeout) {
+        return sendEncoded(method, url, encoded, policy, label, headers, timeout, Optional.empty());
+    }
+
+    private String sendEncoded(
+            PinnedHttpSender.Method method, String url, String encoded, OutboundPolicy policy, String label,
+            Map<String, String> headers, Duration timeout, Optional<PinnedCa> trust) {
 
         PinnedHttpSender.Response response = sender.send(
-                method, guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label);
+                method, guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label,
+                PinnedHttpSender.DEFAULT_MAX_BODY_BYTES, trust);
 
         if (response.status() / 100 != 2) {
             throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.status() + ".");

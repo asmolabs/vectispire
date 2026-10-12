@@ -3888,6 +3888,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/ticket-ca": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ticketCaState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/ticket-token": {
         parameters: {
             query?: never;
@@ -8636,6 +8652,12 @@ export interface components {
             /** Format: int32 */
             maxOpen?: number;
             minResolvedRatio?: number;
+        };
+        TicketCaState: {
+            /** Format: date-time */
+            notAfter?: string;
+            pinned: boolean;
+            subject?: string;
         };
         TokenRequest: {
             token?: string;
@@ -14816,6 +14838,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["OllamaCheck"];
+                };
+            };
+        };
+    };
+    ticketCaState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TicketCaState"];
                 };
             };
         };

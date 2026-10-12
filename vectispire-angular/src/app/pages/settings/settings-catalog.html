@@ -77,6 +77,19 @@
                                                 [fluid]="true"
                                                 styleClass="w-full sm:w-96"
                                             />
+                                        } @else if (setting.key === 'ticket_ca_pem') {
+                                            <!-- A PEM bundle is several lines: a one-line input would
+                                                 join them and the server would refuse the paste. -->
+                                            <textarea
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [id]="setting.key"
+                                                rows="6"
+                                                spellcheck="false"
+                                                class="w-full sm:w-96 max-w-full p-2 border rounded-md font-mono text-xs bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                                [placeholder]="'settings.ticket_ca_placeholder' | translate"
+                                                [ngModel]="state.values()[setting.key]"
+                                                (ngModelChange)="state.set(setting.key, $event)"
+                                            ></textarea>
                                         } @else {
                                             <input
                                                 pInputText
@@ -98,6 +111,23 @@
                             <small class="text-muted-color flex items-center gap-1">
                                 <i class="pi pi-lock text-xs"></i>{{ 'settings.governor_only' | translate }}
                             </small>
+                        }
+
+                        @if (setting.key === 'ticket_ca_pem' && ticketCa()?.pinned) {
+                            @if (ticketCa()?.subject; as subject) {
+                                <small class="text-green-600" data-testid="ticket-ca-pinned">{{
+                                    'settings.ticket_ca_pinned'
+                                        | translate
+                                            : {
+                                                  subject: subject,
+                                                  date: (ticketCa()?.notAfter | date: 'dd/MM/yyyy' : 'UTC') ?? ''
+                                              }
+                                }}</small>
+                            } @else {
+                                <small class="text-red-600" data-testid="ticket-ca-unreadable">{{
+                                    'settings.ticket_ca_unreadable' | translate
+                                }}</small>
+                            }
                         }
 
                         <small class="text-muted-color max-w-3xl">{{ getSettingHelp(setting) }}</small>

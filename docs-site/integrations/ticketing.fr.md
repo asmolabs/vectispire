@@ -31,7 +31,44 @@ enregistrée avant.
 
 Donnez au jeton la portée la plus étroite permettant de créer et de lire des tickets dans le
 projet visé. Il est stocké chiffré avec votre `ENCRYPTION_KEY`, et son stockage est refusé
-avant que cette clé existe.
+avant que cette clé existe. Un tracker dont le certificat vient de votre propre CA a besoin que cette
+CA soit épinglée — [plus bas](#internal-ca).
+
+## Un tracker derrière une CA interne {#internal-ca}
+
+Un GitLab, un Jira Data Center ou un ServiceNow hébergé sur votre réseau porte souvent un certificat
+émis par l'autorité de certification de votre organisation, que le magasin de confiance de
+l'environnement Java ne contient pas. Avant la 0.11.0, chaque appel échouait à la négociation TLS :
+aucun ticket n'était ouvert, et le balayage horaire réessayait sans le dire ailleurs que dans le
+journal du serveur.
+
+Collez le certificat de cette CA, au format PEM (`-----BEGIN CERTIFICATE-----`), dans **Réglages →
+Tracker → CA du gestionnaire de tickets (PEM)** — la racine, et ses intermédiaires si votre serveur ne
+les envoie pas ; jusqu'à 8 certificats et 16 384 caractères. Pour l'obtenir, demandez le certificat de
+la CA émettrice à qui gère votre PKI, ou lisez la chaîne que présente le tracker —
+`openssl s_client -connect gitlab.example.internal:443 -showcerts </dev/null` — et gardez le
+certificat de la CA au sommet de la chaîne, **pas** celui du serveur (le premier affiché).
+
+- **Elle ne vaut que pour le tracker.** Chaque appel de l'intégration — ouvrir un ticket sur l'un des
+  quatre trackers, le fermer, la liste des transitions de Jira, la recherche d'incident de ServiceNow
+  — est vérifié avec elle ; rien d'autre de ce que Vectispire contacte ne lui fait confiance.
+- **Elle remplace le magasin de l'environnement pour le tracker, elle ne s'y ajoute pas** — la même
+  règle que la CA d'une [connexion de forge](../administration/forge-connections.md) et celle du
+  [collecteur SIEM](siem.md#tls). Les CA publiques ne sont alors pas reconnues pour le tracker : un
+  certificat qu'une CA publique aurait émis pour son nom ne passe pas. Laissez le champ vide pour un
+  tracker au certificat public.
+- **Le nom du tracker reste vérifié** : son certificat doit nommer l'hôte de l'URL du tracker. Il n'y
+  a pas de « ne pas vérifier », qui remettrait le jeton au premier qui répond.
+- **L'enregistrement refuse ce qui ne marcherait pas ou ferait trop confiance**, dans les termes des
+  connexions de forge : un certificat qui n'est pas une CA (celui du serveur), une CA expirée ou pas
+  encore valide, une CA dont l'usage de clé interdit de signer des certificats, tout ce qui n'est pas
+  un certificat — une clé privée collée par erreur est refusée sans être recopiée dans le message.
+- **Elle revient à un administrateur**, comme l'URL : elle décide à qui le jeton du tracker est
+  présenté. Les autres rôles voient le champ en lecture seule et sans sa valeur. Son enregistrement
+  est audité (`ticket_ca_pem changed`) et transmis au SIEM comme un changement de réglage de sécurité.
+- **Affichée par son sujet et son expiration.** Passé cette date, la CA n'est plus reconnue : aucun
+  ticket n'est ouvert ni fermé, le journal du serveur dit que la CA du tracker a expiré, et le remède
+  est de coller la CA renouvelée.
 
 ## Ce qui atterrit dans le ticket
 

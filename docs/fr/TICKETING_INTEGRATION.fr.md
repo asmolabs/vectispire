@@ -65,3 +65,4 @@ Dans les paramètres de votre gestionnaire de tickets, ajoutez un Webhook pointa
 * Les jetons d'accès aux trackers (`TICKET_TOKEN`) sont **chiffrés au repos** via AES-GCM-256 avec contexte de clé `setting:ticket_token`.
 * Une livraison n'est traitée qu'une fois : son corps est mémorisé trente jours, si bien qu'une requête signée capturée et renvoyée plus tard reçoit *« Delivery already processed »* et ne change rien. La redélivrance du même événement par le traqueur y aboutit aussi.
 * Chaque décision de synchronisation produit une entrée horodatée dans le journal d'audit chaîné par empreintes.
+* Un tracker dont le certificat vient d'une CA interne est joint à travers la CA épinglée pour lui (`ticket_ca_pem`, réservée à un administrateur), qui remplace le magasin de confiance de l'environnement Java pour chaque appel au tracker et pour rien d'autre ; le nom du tracker reste vérifié. Voir *Un tracker derrière une CA interne* dans le guide.

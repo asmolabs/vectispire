@@ -14,7 +14,7 @@ Only what is needed to reach this screen at all is an environment variable. See
 
 A CISO writes most of this page, but **not where a credential is sent**. The tracker token and
 the OpenAI key are set by an administrator only, so the settings that decide their destination —
-the tracker base URL, its project and its Jira account, *Allow a private tracker URL*, the OpenAI URL
+the tracker base URL, its project, its Jira account and its pinned CA, *Allow a private tracker URL*, the OpenAI URL
 and the acknowledgement that lets code go to a remote endpoint — are an administrator's too, and show
 read-only to anyone else. Otherwise a role that cannot read a credential could collect it by pointing
 it at its own host, or have it write into a project of its choosing on the tracker's host.
@@ -109,8 +109,10 @@ Covered under [Notifications](../integrations/notifications.md).
 
 ## Tracker
 
-GitLab, GitHub, Jira or ServiceNow: URL, project, token. Covered under
-[Tracker tickets](../integrations/ticketing.md).
+GitLab, GitHub, Jira or ServiceNow: URL, project, token, and the CA a tracker on your own PKI is
+verified against (`ticket_ca_pem`, PEM, in place of the runtime's trust store). Covered under
+[Tracker tickets](../integrations/ticketing.md) and [a tracker behind an internal
+CA](../integrations/ticketing.md#internal-ca).
 
 ## AI review
 

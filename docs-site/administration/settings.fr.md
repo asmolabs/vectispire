@@ -14,7 +14,7 @@ Seul ce qui est nécessaire pour atteindre cet écran est une variable d'environ
 
 Un CISO écrit l'essentiel de cette page, mais **pas la destination d'un identifiant**. Le jeton du
 tracker et la clé OpenAI ne sont réglés que par un administrateur ; les réglages qui décident où
-ils partent — l'URL du tracker, son projet et son compte Jira, *Autoriser une URL de tracker privée*,
+ils partent — l'URL du tracker, son projet, son compte Jira et sa CA épinglée, *Autoriser une URL de tracker privée*,
 l'URL OpenAI et l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc
 aussi ceux d'un administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle
 qui ne peut pas lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte, ou le
@@ -116,7 +116,10 @@ Couvert sous [Notifications](../integrations/notifications.md).
 
 ## Tracker
 
-GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton. Couvert sous [Tickets](../integrations/ticketing.md).
+GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton, et la CA contre laquelle un tracker sur votre
+propre PKI est vérifié (`ticket_ca_pem`, PEM, à la place du magasin de confiance de l'environnement).
+Couvert sous [Tickets](../integrations/ticketing.md) et [un tracker derrière une CA
+interne](../integrations/ticketing.md#internal-ca).
 
 ## Revue par IA
 

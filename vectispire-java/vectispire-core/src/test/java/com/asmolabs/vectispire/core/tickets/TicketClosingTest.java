@@ -81,7 +81,8 @@ class TicketClosingTest {
         OutboundUrlGuard guard = new OutboundUrlGuard();
         PinnedHttpSender sender = new PinnedHttpSender();
         service = new TicketService(
-                settings, encryption, new OutboundPost(sender, guard, json), new OutboundJson(sender, guard, json), json);
+                settings, encryption, new OutboundPost(sender, guard, json), new OutboundJson(sender, guard, json), json,
+                java.time.Clock.systemUTC());
     }
 
     @AfterEach

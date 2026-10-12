@@ -50,6 +50,9 @@ class SettingTest {
                         Setting.DISCORD_WEBHOOK_URL,
                         Setting.WEBHOOK_SIGNING_SECRET,
                         Setting.TICKET_BASE_URL,
+                        // Not a bearer capability — a CA is public — but withheld like the URL it pins:
+                        // its subject names the internal PKI the tracker sits behind.
+                        Setting.TICKET_CA,
                         Setting.TICKET_TOKEN,
                         // Authenticates the tracker calling us. Whoever reads it can forge a
                         // webhook and close somebody's finding, which is the whole reason it

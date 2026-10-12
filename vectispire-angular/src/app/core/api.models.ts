@@ -1416,6 +1416,18 @@ export type OllamaCheck = Refine<
     }
 >;
 
+/**
+ * What the tracker CA setting pins: the first certificate's subject and the bundle's earliest expiry. Both
+ * `null` when nothing is pinned, or when the stored text no longer reads as a CA.
+ */
+export type TicketCaState = Refine<
+    Schema<'TicketCaState'>,
+    {
+        subject: string | null;
+        notAfter: string | null;
+    }
+>;
+
 /** Where an issue was seen: one scan, and the project version that scan read. */
 export type IssueSighting = Refine<
     Schema<'Sighting'>,

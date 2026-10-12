@@ -33,13 +33,21 @@ class SettingsAuditRoutesTest extends ApiTestBase {
     @Autowired
     private AuditLogRepository entries;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.settings.SettingsService settings;
+
     /** The secrets the generic route writes; the encrypted ones it refuses have their own suite. */
     static Stream<Setting> writableSecrets() {
         return Arrays.stream(Setting.values()).filter(setting -> setting.isSecret() && !setting.isEncrypted());
     }
 
     /** A value each accepts, carrying a marker the entry must not contain. */
-    private static String valueFor(Setting setting) {
+    private static String valueFor(Setting setting) throws Exception {
+        if (setting == Setting.TICKET_CA) {
+            // A CA is refused unless it reads as one; the marker rides as the explanatory text PEM allows
+            // before the block, which the bundle keeps as written.
+            return "MARKER-" + setting.key() + "\n" + CollectorPki.create("Audit Test CA").caPem;
+        }
         // The model endpoint must stay local unless the remote risk was acknowledged.
         return setting == Setting.AI_REVIEW_OLLAMA_URL
                 ? "http://127.0.0.1:11434/MARKER-" + setting.key()
@@ -59,6 +67,11 @@ class SettingsAuditRoutesTest extends ApiTestBase {
                 .extracting(AuditLogEntity::getDescription)
                 .anySatisfy(description -> assertThat(description).contains(setting.key()))
                 .noneSatisfy(description -> assertThat(description).contains("MARKER"));
+        if (setting == Setting.TICKET_CA) {
+            // The database is the suite's: a pinned CA left behind would make every tracker reached later
+            // answer to it.
+            settings.set(Setting.TICKET_CA, "");
+        }
     }
 
     @Test

@@ -23,6 +23,7 @@ import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.outbound.PinnedHttpSender.Method;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -46,7 +47,8 @@ class TicketServiceTest {
         settings = mock(SettingsService.class);
         encryption = new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of()));
         post = mock(OutboundPost.class);
-        service = new TicketService(settings, encryption, post, mock(OutboundJson.class), new ObjectMapper());
+        service = new TicketService(
+                settings, encryption, post, mock(OutboundJson.class), new ObjectMapper(), java.time.Clock.systemUTC());
 
         when(settings.get(any())).thenReturn("");
         when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.GITLAB.wireName());
@@ -57,7 +59,7 @@ class TicketServiceTest {
         when(settings.get(Setting.TICKET_LABELS)).thenReturn("vectispire,security");
         when(settings.isEnabled(Setting.TICKET_ALLOW_PRIVATE_URL)).thenReturn(true);
         when(post.validate(anyString(), any(), anyString())).thenAnswer(call -> call.getArgument(0));
-        when(post.postForResponse(anyString(), any(), any(), anyString(), any()))
+        when(post.send(eq(Method.POST), anyString(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"iid\":12,\"web_url\":\"https://gitlab.example.com/team/service/-/issues/12\"}");
     }
 
@@ -70,8 +72,8 @@ class TicketServiceTest {
             assertThat(created.url()).endsWith("/issues/12");
         });
         // The project path has to be URL-encoded: "group/project" is the form most people have.
-        verify(post).postForResponse(
-                contains("/projects/team%2Fservice/issues"), any(), any(), anyString(), any());
+        verify(post).send(
+                eq(Method.POST), contains("/projects/team%2Fservice/issues"), any(), any(), anyString(), any(), any());
     }
 
     @Test
@@ -106,7 +108,7 @@ class TicketServiceTest {
     @Test
     @DisplayName("a tracker outage returns empty so the next pass retries")
     void anOutageIsNotFatal() {
-        when(post.postForResponse(anyString(), any(), any(), anyString(), any()))
+        when(post.send(eq(Method.POST), anyString(), any(), any(), anyString(), any(), any()))
                 .thenThrow(new OutboundJson.OutboundFailureException("HTTP 503"));
 
         assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
@@ -134,7 +136,7 @@ class TicketServiceTest {
     void jiraBodiesAreStructured() {
         when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.JIRA.wireName());
         when(settings.get(Setting.TICKET_ISSUE_TYPE)).thenReturn("Bug");
-        when(post.postForResponse(anyString(), any(), any(), anyString(), any())).thenReturn("{\"key\":\"SEC-4\"}");
+        when(post.send(eq(Method.POST), anyString(), any(), any(), anyString(), any(), any())).thenReturn("{\"key\":\"SEC-4\"}");
 
         assertThat(service.createForIssue(issue(), "team/service")).get().satisfies(ticket -> {
             assertThat(ticket.reference()).isEqualTo("SEC-4");
@@ -165,12 +167,12 @@ class TicketServiceTest {
     @org.junit.jupiter.api.DisplayName("closing sends the reference's own segment, and refuses one that is not a reference")
     void closingNeverPastesTheReferenceAsTyped() {
         assertThat(service.closeTicket("../../../../users/1?", "resolved")).isFalse();
-        verify(post, org.mockito.Mockito.never()).putForResponse(anyString(), any(), any(), anyString(), any());
+        verify(post, org.mockito.Mockito.never()).send(eq(Method.PUT), anyString(), any(), any(), anyString(), any(), any());
 
         assertThat(service.closeTicket("#105", "resolved")).isTrue();
-        verify(post).putForResponse(
-                eq("https://gitlab.example.com/api/v4/projects/team%2Fservice/issues/105"),
-                any(), any(), anyString(), any());
+        verify(post).send(
+                eq(Method.PUT), eq("https://gitlab.example.com/api/v4/projects/team%2Fservice/issues/105"),
+                any(), any(), anyString(), any(), any());
     }
 
     @org.junit.jupiter.api.Test
