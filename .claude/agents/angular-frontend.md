@@ -157,4 +157,9 @@ A `p-multiselect`'s `inputId` lands on a hidden input: Playwright times out clic
 screenshot campaign (`screens-en`, `screens-fr` projects) regenerates `docs-site/assets/screens/`;
 commit regenerated screenshots in a commit of their own so the visual diff can be reviewed.
 
+**A fixture that looks like a secret fails the `secrets` job** once pushed, even when invented: the
+screenshot stubs' API key id (a UUID) did on 2026-10-12. Mark such a line `// gitleaks:allow` and
+say beside it that the value is invented, in the same commit — gitleaks reads the whole history, so a
+marker added later still leaves the first commit to pin in `.gitleaksignore`.
+
 **Never report a green build when it is red.** Run it, read the output, say what it says.
