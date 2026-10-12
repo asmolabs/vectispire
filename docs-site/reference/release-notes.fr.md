@@ -744,6 +744,11 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Le catalogue de règles amont est lu sans suivre de lien.** Un lien symbolique publié en amont — un
+  `LICENSE` pointant vers un fichier de cet hôte, un secret monté sous `/run/secrets` par exemple — était suivi
+  par la récupération : montré dans l'aperçu de la licence, ou conservé comme règle. Un fichier lié est
+  désormais écarté, une licence liée laisse le catalogue sans licence et la récupération est refusée, et aucun
+  fichier n'est ouvert à travers un lien ([jeux de règles](../administration/rule-sets.fr.md)).
 - **Deux lectures de gouvernance restreintes.** Le registre des exceptions lisait toutes les exceptions et
   filtrait ensuite, et son curseur désignait la dernière ligne lue, visible ou non : un lecteur restreint à un
   dépôt, parcourant une ligne à la fois, lisait l'instant et l'identifiant de chaque acceptation de risque du

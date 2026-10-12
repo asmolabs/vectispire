@@ -688,6 +688,11 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **The upstream rule catalogue is read without following a link.** A symbolic link committed upstream — a
+  `LICENSE` pointing at a file of this host, a secret mounted under `/run/secrets` say — was followed by the
+  fetch: shown on the licence preview, or stored as a rule. A linked file is now left out, a linked licence
+  leaves the catalogue without one and the fetch is refused, and no file is opened through a link
+  ([rule sets](../administration/rule-sets.md)).
 - **Two governance reads narrowed.** The exceptions register read every exception and filtered afterwards,
   and its cursor named the last row read, visible or not: a reader restricted to one repository paging one row
   at a time read the instant and issue id of every risk acceptance in the estate, as the gate verdict register

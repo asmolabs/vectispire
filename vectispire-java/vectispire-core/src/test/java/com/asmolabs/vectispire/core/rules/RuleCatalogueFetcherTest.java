@@ -57,6 +57,30 @@ class RuleCatalogueFetcherTest {
                 .hasMessageContaining("No LICENSE file at the root");
     }
 
+    @Test
+    @DisplayName("reads nothing through a link the upstream committed: a linked licence is no licence")
+    void aLinkIsNeverFollowed(@TempDir Path checkout, @TempDir Path host) throws Exception {
+        // A committed `LICENSE -> /run/secrets/encryption_key` was followed, read from this host and shown
+        // on the licence preview; a linked rule file was stored as a rule.
+        Path secret = host.resolve("encryption_key");
+        Files.writeString(secret, "the host's own secret");
+        Path hostRules = host.resolve("rules");
+        write(hostRules, "stolen.yaml", "rules: [the host's]");
+        Files.createSymbolicLink(checkout.resolve("LICENSE"), secret);
+        Files.createDirectories(checkout.resolve("python"));
+        Files.createSymbolicLink(checkout.resolve("python/linked.yaml"), hostRules.resolve("stolen.yaml"));
+        Files.createSymbolicLink(checkout.resolve("linked-directory"), hostRules);
+        write(checkout, "python/lang/eval.yaml", "rules: []");
+
+        List<RuleCatalogue.Entry> read = RuleCatalogueFetcher.read(checkout);
+
+        assertThat(read).extracting(RuleCatalogue.Entry::path).containsExactly("python/lang/eval.yaml");
+        assertThat(read).extracting(RuleCatalogue.Entry::content).noneMatch(content -> content.contains("host"));
+        assertThatThrownBy(() -> RuleCatalogueFetcher.licenceOf(read))
+                .isInstanceOf(RuleCatalogueFetcher.FetchFailureException.class)
+                .hasMessageContaining("No LICENSE file at the root");
+    }
+
     private static void write(Path root, String relative, String content) throws Exception {
         Path file = root.resolve(relative);
         Files.createDirectories(file.getParent());

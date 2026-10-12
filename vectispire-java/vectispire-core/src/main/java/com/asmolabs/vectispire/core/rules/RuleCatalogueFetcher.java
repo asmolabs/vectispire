@@ -2,11 +2,14 @@ package com.asmolabs.vectispire.core.rules;
 
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
+import com.asmolabs.vectispire.common.scanning.SourceFiles;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -148,18 +151,32 @@ public class RuleCatalogueFetcher {
         }
     }
 
-    /** Package-private so the reading rules can be pinned on a local tree, without the network. */
+    /**
+     * The rule files and the licence of a checkout. Package-private so the reading rules can be pinned on a
+     * local tree, without the network.
+     *
+     * <p><b>A regular file itself, never through a link, and opened without following one.</b> The checkout
+     * is the upstream's tree, and a symbolic link is something a commit can hold: {@code Files.isRegularFile}
+     * and {@code Files.readString} follow it, so a {@code LICENSE -> /run/secrets/encryption_key} committed
+     * upstream was read from this host — the licence preview showed it to a governance reader, and a rule file
+     * linked the same way was stored as a rule. A link is left out whatever it points to: one standing for
+     * the licence leaves the catalogue without one, which {@link #licenceOf} refuses. The open refuses a link
+     * as well ({@code NOFOLLOW_LINKS}), should an entry be swapped for one between the walk and the read, and
+     * the walk does not follow a linked directory. The ceiling is counted on the bytes read, not on a size
+     * asked beforehand: a file can grow in between.
+     */
     static List<RuleCatalogue.Entry> read(Path checkout) {
         List<RuleCatalogue.Entry> entries = new ArrayList<>();
         long[] total = {0};
         try (var paths = Files.walk(checkout)) {
-            paths.filter(Files::isRegularFile)
+            paths.filter(SourceFiles::isRegularFile)
                     .filter(path -> !checkout.relativize(path).startsWith(".git"))
                     .filter(RuleCatalogueFetcher::isInteresting)
                     .sorted(Comparator.naturalOrder())
                     .forEach(path -> {
-                        try {
-                            total[0] += Files.size(path);
+                        try (InputStream in = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
+                            byte[] content = in.readNBytes((int) (MAX_BYTES - total[0] + 1));
+                            total[0] += content.length;
                             if (total[0] > MAX_BYTES) {
                                 throw new FetchFailureException(
                                         "The catalogue exceeds " + (MAX_BYTES / 1024 / 1024)
@@ -167,7 +184,7 @@ public class RuleCatalogueFetcher {
                             }
                             entries.add(new RuleCatalogue.Entry(
                                     checkout.relativize(path).toString().replace('\\', '/'),
-                                    Files.readString(path, StandardCharsets.UTF_8)));
+                                    new String(content, StandardCharsets.UTF_8)));
                         } catch (IOException unreadable) {
                             throw new UncheckedIOException(unreadable);
                         }

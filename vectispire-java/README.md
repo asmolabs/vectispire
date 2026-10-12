@@ -193,6 +193,7 @@ same name; decision records written before that date keep the names they had.
 | A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |
 | Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
+| The upstream rule catalogue is read as regular files only, none through a symbolic link, within a ceiling counted on the bytes read | `RuleCatalogueFetcherTest` |
 | A raw socket is opened by the syslog sender alone, to the address the guard pinned | `ArchitectureTest`, `SyslogSenderTest` |
 | A syslog collector is judged by the same address rules as a URL, reserved endpoints included | `OutboundUrlGuardTest`, `SiemRoutesTest` |
 | The SIEM export reaches a private collector only by its own, administrator-only setting, and its test route answers an outcome, never the socket's error | `SiemRoutesTest` |
