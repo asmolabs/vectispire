@@ -16,6 +16,8 @@ projet porte les plugins activés pour lui, les exécutions, les téléchargemen
 [Rapports](../guide/exports.fr.md#rapports) dans le guide utilisateur. Chaque route ci-dessous reste là pour
 l'automatisation.
 
+![Le registre des plugins de rapport : un plugin approuvé dont un manifeste plus récent attend une seconde personne, et un jamais approuvé, qui ne peut pas tourner.](../assets/screens/fr/report-plugins.png)
+
 ## Le manifeste
 
 ```json

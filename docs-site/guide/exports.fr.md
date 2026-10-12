@@ -129,6 +129,8 @@ administrateurs ont enregistré et approuvé. Vectispire donne l'export au plugi
 écrit et le signe avec la clé de la plateforme. Les rapports se trouvent sur la page du projet, dans la
 section **Rapports**.
 
+![La section Rapports d'un projet : l'export signé, le plugin de rapport activé, et deux exécutions — une produite, une en échec avec sa raison.](../assets/screens/fr/project-reports.png)
+
 ### Qui voit quoi
 
 La section est montrée à quiconque voit le projet **entier**, images comprises : un rapport et l'export

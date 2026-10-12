@@ -36,6 +36,8 @@ exécution.
 de fichiers de règles de chaque langage, et stocke les langages choisis comme un jeu — non activé.
 Choisissez les langages que vous analysez : chaque identifiant de règle entre dans l'identité d'une issue.
 
+![La lecture du catalogue amont : les langages choisis, la note sur les règles generic qui doublonnent gitleaks avec la case pour les inclure quand même, et la licence à accepter.](../assets/screens/fr/rule-catalogue-import.png)
+
 **Les règles qui font double emploi avec gitleaks sont laissées de côté par défaut.** L'étape des
 secrets exécute gitleaks avec ses règles par défaut — la configuration gitleaks de Vectispire les
 étend — et `generic` contient deux groupes de règles qui cherchent la même chose :

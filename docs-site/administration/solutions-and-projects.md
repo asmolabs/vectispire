@@ -112,6 +112,8 @@ image name those of that image. A **project name opens the project's page** (bel
 carries **Compliance & score**, which opens the solution's compliance and score over what you see of
 it — the same drawing as the project page's.
 
+![Solutions and projects: each solution with its projects, the repositories and images filed in them, their languages and their open issues by severity.](../assets/screens/en/solutions.png)
+
 On a solution or a project, **each severity tag is a link** to the [issues list](../guide/issues.md)
 narrowed to that solution or project, that severity, and **Hide settled triage** — the clause the tag
 counts by, so the list holds the number the tag showed. The tags of **No project** are figures only:

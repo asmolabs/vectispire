@@ -194,6 +194,8 @@ shows whether the plugin must be signed, and the [waiver](#running-an-unsigned-p
 stays open to every account: a developer or a security champion, who has no Administration section,
 reaches it from the scan's **Plugins** card, whose plugin names link to it.
 
+![The plugin registry: three plugins, one declaring network access, and the house rules opened on their signed image and their manifest.](../assets/screens/en/plugins.png)
+
 Through the API:
 
 - `POST /api/v1/plugins` with the manifest registers it.
@@ -341,6 +343,8 @@ holding the scope of every ticked kind — `sarif_import` for SARIF, `report_imp
 the scope is a project *or* a repository, and the tools, separated by commas, are asked only while
 SARIF is ticked. Disabling
 stops a source's imports; removing it keeps the issues it imported, under its slug.
+
+![Declared sources: what each one delivers — SARIF, coverage, test reports, build SBOMs — its tools, its key, and one whose key was revoked.](../assets/screens/en/sarif-sources.png)
 
 ### 3. Upload
 
@@ -530,6 +534,8 @@ branches as a percentage with their counts, or *Not counted by the report* when 
 branches, the format and tool version, the commit and branch as the pipeline stated them, when and
 from which source — and its latest test report: tests, failures, errors and skipped. Nothing is
 uploaded from the interface.
+
+![A repository's imports: the latest coverage and test report, and the SARIF documents each source delivered, with what they opened and resolved.](../assets/screens/en/repository-imports.png)
 
 Each accepted import is in the audit log (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`); a refusal for
 what the key claimed is audited as `REPORT_IMPORT_REFUSED` and sent to the SIEM as `VECTI-SEC-027`. A

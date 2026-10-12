@@ -8,6 +8,8 @@ atteint, une décision de privilège ou de triage, un journal d'audit qui ne se 
 Il se configure dans **Paramètres → Intégrations → SIEM**, par un administrateur ou un responsable
 sécurité.
 
+![Le flux vers un SIEM en syslog TLS, l'AC du collecteur épinglée.](../assets/screens/fr/settings-siem.png)
+
 ## Protocoles et points d'arrivée
 
 Le protocole choisit le transport, et chaque protocole lit **un seul** format de point d'arrivée :

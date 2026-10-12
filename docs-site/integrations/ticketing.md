@@ -67,6 +67,8 @@ certificate of the CA at the top of it, **not** the server's own (the first one 
   opened or closed, the server log says the tracker CA expired, and the fix is to paste the renewed
   CA.
 
+![The tracker's settings: an internal GitLab, the organisation's CA pinned and read back by its subject and its end of validity.](../assets/screens/en/settings-tickets.png)
+
 ## When the token expires, or stops working {#token-expiry}
 
 A tracker token does not last: GitLab now gives every token an expiry, a year at most by default.
@@ -96,6 +98,8 @@ notification channel or the SIEM, as for a forge connection's token: the screen 
 it is said. `GET /api/v1/settings/ticket-token` answers `expiresAt`, `expirySource` (`reported`,
 `declared` or `unknown`), `refusedStatus`, `refusedSince` and `checkedAt` beside `configured`, and
 `PUT` answers the same once the tracker has been asked.
+
+![The tracker token, saved, announced as expiring in eleven days.](../assets/screens/en/settings-ticket-token.png)
 
 ## What lands in the ticket
 

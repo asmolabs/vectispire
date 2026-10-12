@@ -70,6 +70,8 @@ certificat de la CA au sommet de la chaîne, **pas** celui du serveur (le premie
   ticket n'est ouvert ni fermé, le journal du serveur dit que la CA du tracker a expiré, et le remède
   est de coller la CA renouvelée.
 
+![Les réglages du tracker : un GitLab interne, l'AC de l'organisation épinglée et relue par son sujet et sa fin de validité.](../assets/screens/fr/settings-tickets.png)
+
 ## Quand le jeton expire, ou cesse de fonctionner {#token-expiry}
 
 Un jeton de tracker ne dure pas : GitLab donne désormais une expiration à chaque jeton, un an au plus
@@ -101,6 +103,8 @@ ne change. Rien n'est envoyé à un canal de notification ni au SIEM, comme pour
 de forge : l'écran et le journal sont là où c'est dit. `GET /api/v1/settings/ticket-token` répond
 `expiresAt`, `expirySource` (`reported`, `declared` ou `unknown`), `refusedStatus`, `refusedSince` et
 `checkedAt` à côté de `configured`, et `PUT` répond de même une fois le tracker interrogé.
+
+![Le jeton du tracker, enregistré, annoncé comme expirant dans onze jours.](../assets/screens/fr/settings-ticket-token.png)
 
 ## Ce qui atterrit dans le ticket
 

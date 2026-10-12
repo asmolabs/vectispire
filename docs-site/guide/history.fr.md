@@ -12,6 +12,8 @@ Par dépôt, chaque scan, avec :
 - chaque **décision de triage** prise à leur sujet — de quel statut vers quel statut, par qui,
   avec quelle justification, et contre quelle version.
 
+![L'historique d'un dépôt : chaque scan avec ses issues, ses nouvelles et ses résolues, et les décisions de triage sur chaque issue.](../assets/screens/fr/history.png)
+
 ## Les réouvertures
 
 Quand une analyse (ou un import) retrouve une issue résolue, l'issue est rouverte, et

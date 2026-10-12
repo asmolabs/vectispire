@@ -114,6 +114,8 @@ d'une image ceux de cette image. **Le nom d'un projet ouvre la page du projet** 
 solution porte **Conformité et score**, qui ouvre la conformité et le score de la solution sur ce que
 vous en voyez — le même dessin que celui de la page du projet.
 
+![Solutions et projets : chaque solution avec ses projets, les dépôts et images qui y sont rangés, leurs langages et leurs issues ouvertes par gravité.](../assets/screens/fr/solutions.png)
+
 Sur une solution ou un projet, **chaque étiquette de sévérité est un lien** vers la
 [liste des constats](../guide/issues.md) restreinte à cette solution ou à ce projet, à cette sévérité,
 et à **Masquer le triage réglé** — la clause selon laquelle l'étiquette compte, pour que la liste

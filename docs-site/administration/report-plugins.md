@@ -14,6 +14,8 @@ that registered a digest sees why it cannot approve it. A project's page carries
 it, the runs, the downloads and the project export: see [Reports](../guide/exports.md#reports) in the user
 guide. Every route below is also there for automation.
 
+![The report plugin registry: an approved plugin whose newer manifest awaits a second person, and one never approved, which cannot run.](../assets/screens/en/report-plugins.png)
+
 ## The manifest
 
 ```json

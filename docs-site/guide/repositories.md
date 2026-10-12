@@ -151,6 +151,10 @@ encrypted like a key, never shown again, and reaches an agent only in `delegated
 in the clear in the repository row and sent to every agent. Repositories already registered that
 way keep working; to move one, remove the credential from its URL and attach a token.
 
+![HTTPS tokens, each bound to one host, with its encryption state and the repositories using it.](../assets/screens/en/git-tokens.png)
+
+![Editing a repository cloned over HTTPS: only the tokens bound to the URL's host are offered.](../assets/screens/en/repository-form.png)
+
 ## Recurrence
 
 A repository is rescanned in one of four ways, and the list says which, next to the last scan:

@@ -163,6 +163,10 @@ conservé en clair dans la ligne du dépôt et envoyé à chaque agent. Les dép
 continuent de fonctionner ; pour en migrer un, retirez l'identifiant de son URL et rattachez un
 jeton.
 
+![Les jetons HTTPS, chacun lié à un hôte, avec son état de chiffrement et les dépôts qui l'utilisent.](../assets/screens/fr/git-tokens.png)
+
+![La modification d'un dépôt cloné en HTTPS : seuls les jetons liés à l'hôte de l'URL sont proposés.](../assets/screens/fr/repository-form.png)
+
 ## Récurrence {#recurrence}
 
 Un dépôt est réanalysé de l'une de quatre façons, et la liste dit laquelle, à côté du dernier scan :

@@ -200,6 +200,8 @@ et la [dérogation](#faire-tourner-un-plugin-non-signe) quand il y en a une. La 
 développeur ou un security champion, qui n'a pas de section Administration, l'atteint depuis la carte
 **Plugins** du scan, dont les noms de plugin y mènent.
 
+![Le registre des plugins : trois plugins, dont un qui déclare un accès réseau, et les règles maison ouvertes sur leur image signée et leur manifeste.](../assets/screens/fr/plugins.png)
+
 Par l'API :
 
 - `POST /api/v1/plugins` avec le manifeste l'enregistre.
@@ -351,6 +353,8 @@ les clés non expirées portant la portée de chaque type coché — `sarif_impo
 par des virgules, ne sont demandés que tant que SARIF est coché.
 Désactiver arrête les imports d'une source ; la retirer conserve les issues qu'elle a importées, sous son
 identifiant.
+
+![Les sources déclarées : ce que chacune livre — SARIF, couverture, rapports de tests, SBOM de build —, ses outils, sa clé, et une dont la clé a été révoquée.](../assets/screens/fr/sarif-sources.png)
 
 ### 3. Téléverser
 
@@ -549,6 +553,8 @@ en pourcentage avec leurs nombres, ou *Non comptées par le rapport* quand il n'
 le format et la version de l'outil, le commit et la branche tels que le pipeline les a énoncés, quand et
 depuis quelle source — et sur son dernier rapport de tests : tests, échecs, erreurs et ignorés. Rien
 n'est téléversé depuis l'interface.
+
+![Les imports d'un dépôt : la dernière couverture et le dernier rapport de tests, et les documents SARIF livrés par chaque source, avec ce qu'ils ont ouvert et résolu.](../assets/screens/fr/repository-imports.png)
 
 Chaque import accepté figure au journal d'audit (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`) ; un refus
 pour ce que la clé prétendait est audité `REPORT_IMPORT_REFUSED` et envoyé au SIEM comme `VECTI-SEC-027`.

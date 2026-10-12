@@ -58,6 +58,10 @@ fichier sur quinze lignes fait une issue et quinze occurrences, et un scan qui a
 56 occurrences* au-dessus d'une liste de 56 lignes n'a rien perdu ni rien dupliqué. L'historique et
 les dernières analyses de la vue d'ensemble montrent le nombre d'issues.
 
+![Un scan : sept issues et, en dessous, dix occurrences ; ce qu'il a examiné ; un plugin produit, un non applicable.](../assets/screens/fr/scan-detail.png)
+
+![Les occurrences de ce scan : le même jeton sur deux lignes et la même règle sur trois, une ligne chacune.](../assets/screens/fr/scan-detail-occurrences.png)
+
 Les sorties brutes sont conservées à côté des constats normalisés — le SBOM tel que le
 catalogueur l'a produit, et la sortie brute du moteur de rapprochement — à fin d'audit. C'est
 ce que vous remettez à quelqu'un qui veut re-dériver vos conclusions plutôt que les prendre

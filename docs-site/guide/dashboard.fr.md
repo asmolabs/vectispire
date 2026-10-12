@@ -23,7 +23,7 @@ Le backlog de qualité du code n'a pas d'entrée de menu : il s'ouvre depuis cet
 qualité par règle, par fichier et par dépôt, et rien de tout cela ne peut faire échouer une
 construction — voir [Qualité du code](quality.md).
 
-![Le tableau de bord : les chiffres de posture, l'encours et les mouvements quotidiens sur deux graphiques empilés à côté du délai de résolution et de la vélocité de remédiation, et la dette de sécurité estimée en dessous.](../assets/screens/fr/dashboard.png)
+![Le tableau de bord : les chiffres de posture, l'encours et les mouvements quotidiens sur deux graphiques empilés à côté du délai de résolution et de la vélocité de remédiation, une ligne datée le jour où la formule du score a changé, et la dette de sécurité estimée en dessous.](../assets/screens/fr/dashboard.png)
 
 ## La vue d'ensemble Sécurité
 
@@ -69,6 +69,8 @@ tout un parc serait soit écrasée par sa taille, en additionnant le backlog de 
 note de la pire cible sous un autre nom ; combien de cibles sont en F, si ce nombre baisse, et laquelle
 ouvrir d'abord, c'est sur cela que vous agissez
 ([décision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0036-the-posture-score-formula.md)).
+
+![Le panneau du portefeuille : combien de cibles lisent chaque note, la plus faible, les points de risque de tout ce qui est ouvert — au-dessus du classement et des cibles en échec avec leurs violations.](../assets/screens/fr/dashboard-portfolio.png)
 
 Le classement de maturité donne à chaque dépôt et conteneur **la note de son scorecard**, de A+ à F,
 à côté de son niveau de criticité métier. Le niveau est ce que vous posez à l'enregistrement du

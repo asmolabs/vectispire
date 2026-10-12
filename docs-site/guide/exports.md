@@ -120,6 +120,8 @@ layout, a quarterly summary in your management's template — rendered from a pr
 Vectispire gives the plugin the export, checks the file it writes, and signs it with the platform's key.
 Reports live on the project's page, in the **Reports** section.
 
+![A project's Reports section: the signed export, the report plugin switched on, and two runs — one produced, one failed with its reason.](../assets/screens/en/project-reports.png)
+
 ### Who sees what
 
 The section is shown to anybody who sees the **whole** project, its images included: a report and the

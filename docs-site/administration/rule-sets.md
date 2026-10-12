@@ -33,6 +33,8 @@ is on Vectispire redistributing them, not on you running them.
 rule files each language holds, and stores the languages you choose as a set — not activated. Choose the
 languages you scan: every rule id becomes part of an issue's identity.
 
+![Reading the upstream catalogue: the languages chosen, the note on the generic rules that duplicate gitleaks with the box to include them anyway, and the licence to accept.](../assets/screens/en/rule-catalogue-import.png)
+
 **The rules that duplicate gitleaks are left out by default.** The secrets step runs gitleaks with its
 default rules — Vectispire's gitleaks configuration extends them — and `generic` holds two groups of
 rules that look for the same thing:

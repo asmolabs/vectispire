@@ -49,7 +49,7 @@ visible comme telle, et non comme un nom que personne n'a reconnu.
 
 ## Dérive et différentiel de SBOM
 
-![La comparaison de SBOM : la cible d'abord, puis ses propres scans proposés par date, les deux plus récents déjà sélectionnés.](../assets/screens/fr/sbom-comparison.png)
+![La comparaison de SBOM : la cible d'abord, puis ses propres scans proposés par date et nombre d'issues, les deux plus récents déjà sélectionnés.](../assets/screens/fr/sbom-comparison.png)
 
 **Dans l'interface, la cible vient d'abord.** Choisir un dépôt ou une image remplit deux listes
 avec les scans de cette cible — la date, la branche et le nombre d'issues de chacun — et

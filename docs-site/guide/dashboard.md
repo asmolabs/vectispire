@@ -21,7 +21,7 @@ The code-quality backlog has no menu entry: it is opened from this page, by the 
 beside the backlog by severity, marked *never blocks*. It ranks quality findings by rule, file and
 repository, and none of it can fail a build — see [Code quality](quality.md).
 
-![The dashboard: the posture figures, the backlog and the daily movements on two stacked charts beside the time to resolve and the remediation velocity, and the estimated security debt beneath them.](../assets/screens/en/dashboard.png)
+![The dashboard: the posture figures, the backlog and the daily movements on two stacked charts beside the time to resolve and the remediation velocity, a dated line on the day the score formula changed, and the estimated security debt beneath them.](../assets/screens/en/dashboard.png)
 
 ## The security overview
 
@@ -65,6 +65,8 @@ each disallowed licence once. A grade for a whole estate would be either crushed
 every target's backlog up, or the worst target's grade under another name; how many targets are in
 F, whether that number falls, and which one to open first are what you act on
 ([decision 0036](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0036-the-posture-score-formula.md)).
+
+![The portfolio panel: how many targets read each grade, the weakest one, the risk points of everything open — above the ranking and the failing targets with their violations.](../assets/screens/en/dashboard-portfolio.png)
 
 The maturity ranking gives each repository and container **its scorecard's grade**, from A+ to F,
 alongside its business criticality tier. The tier is what you set when registering the repository;

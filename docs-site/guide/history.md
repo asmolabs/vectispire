@@ -12,6 +12,8 @@ Per repository, every scan, with:
 - every **triage decision** taken on them — from which status to which, by whom, with which
   justification, and against which version.
 
+![A repository's history: each scan with its issues, new and resolved, and the triage decisions on each issue.](../assets/screens/en/history.png)
+
 ## Reopenings
 
 When a scan (or an import) finds a resolved issue again, the issue reopens, and the history

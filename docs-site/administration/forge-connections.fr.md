@@ -18,6 +18,8 @@ granularité fine, ce qui veut dire *inconnu*, pas lecture seule —, l'expirati
 **quatorze jours à l'avance**, puis *Expiré*), la déclaration de réseau, l'AC épinglée et sa fin de
 validité, l'état de chiffrement, la dernière découverte et le nombre de cibles importées par elle.
 
+![Deux connexions de forge : un GitLab interne joint par sa propre AC avec un jeton en lecture seule, et une organisation GitHub dont le jeton expire dans sept jours.](../assets/screens/fr/forge-connections.png)
+
 - **Ajouter une connexion** : la forge, un nom, l'adresse web (vide pour gitlab.com ou github.com), le
   propriétaire pour GitHub, le jeton. Pour un serveur auto-hébergé, cochez *Ce serveur est sur le réseau
   interne* et collez votre AC en PEM : le formulaire lit le collage avant de l'envoyer et dit en mots ce qui
@@ -66,6 +68,12 @@ validité, l'état de chiffrement, la dernière découverte et le nombre de cibl
    cibles d'un nouveau projet ne sont visibles que des administrateurs. Toute modification après l'aperçu en
    demande un nouveau avant que *Importer* ne soit proposé : **ce qui est importé est ce qui a été
    prévisualisé**. Un import en prend au plus mille ; les autres restent cochés pour le suivant.
+
+![Une découverte terminée : quarante et un dépôts dans six espaces de noms, et les trois nouveaux depuis la précédente.](../assets/screens/fr/forge-discovery.png)
+
+![La sélection : les dépôts proposés cochés, un dépôt déjà cible grisé avec la raison, un projet personnel laissé décoché.](../assets/screens/fr/forge-selection.png)
+
+![L'aperçu avant l'import : deux cibles, la solution et le projet que l'import crée, le jeton HTTPS avec lequel chacune se clone et qui les verra.](../assets/screens/fr/forge-import.png)
 
 Le **résultat** liste les cibles créées — chacune liée à ses problèmes et, si elle est en file, à sa
 première analyse — et celles ignorées, et renvoie au journal d'audit, où l'import est résumé une fois sous

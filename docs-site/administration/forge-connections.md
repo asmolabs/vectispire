@@ -18,6 +18,8 @@ GitHub Enterprise Server classic token), or *Not reported* for a GitHub fine-gra
 network statement, the pinned CA and its end of validity, the encryption state, the last discovery and the
 number of targets imported through it.
 
+![Two forge connections: an internal GitLab reached through its own CA with a read-only token, and a GitHub organisation whose token expires in seven days.](../assets/screens/en/forge-connections.png)
+
 - **Add a connection**: the forge, a name, the web address (blank for gitlab.com or github.com), the owner
   for GitHub, the token. For a self-managed server, tick *This server is on the internal network* and paste
   your CA in PEM: the form reads the paste before sending it and says in words what is wrong — a private
@@ -61,6 +63,12 @@ number of targets imported through it.
    reused project; a new project's targets are visible to administrators only. Any change after the preview
    asks for a new one before *Import* is offered: **what is imported is what was previewed**. An import takes
    at most a thousand; the rest stay ticked for the next one.
+
+![A completed discovery: forty-one repositories in six namespaces, and the three that are new since the previous run.](../assets/screens/en/forge-discovery.png)
+
+![The selection: the proposed repositories ticked, one already a target greyed with the reason, a personal project left unticked.](../assets/screens/en/forge-selection.png)
+
+![The preview before importing: two targets, the solution and project the import creates, the HTTPS token each clones with and who will see them.](../assets/screens/en/forge-import.png)
 
 The **result** lists the targets created — each linked to its issues and, when queued, its first scan — and
 those skipped, and points at the audit log, where the import is summarised once as *Repositories imported

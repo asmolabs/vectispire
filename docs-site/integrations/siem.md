@@ -7,6 +7,8 @@ or syslog.
 
 It is configured under **Settings → Integrations → SIEM**, by an administrator or a security lead.
 
+![Streaming to a SIEM over syslog TLS, the collector's CA pinned.](../assets/screens/en/settings-siem.png)
+
 ## Protocols and endpoints
 
 The protocol decides the transport, and each protocol reads **one** endpoint format:

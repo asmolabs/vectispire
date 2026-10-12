@@ -52,6 +52,10 @@ lines is one issue and fifteen occurrences, and a scan reading *28 issues · 56 
 a list of 56 rows has lost nothing and duplicated nothing. The history and the dashboard's recent
 scans show the issue count.
 
+![A scan: seven issues and, beneath them, ten occurrences; what it examined; one plugin produced, one not applicable.](../assets/screens/en/scan-detail.png)
+
+![Occurrences in this scan: the same token on two lines and the same rule on three, one row each.](../assets/screens/en/scan-detail-occurrences.png)
+
 The raw outputs are kept alongside the normalised findings — the SBOM as the cataloguer
 produced it, and the raw matcher output — for audit purposes. They are what you hand to
 somebody who wants to re-derive your conclusions rather than take them.
