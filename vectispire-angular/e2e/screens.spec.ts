@@ -652,8 +652,8 @@ const HELIOS_CI_KEY = '0d4f7a2c-9b61-4e38-a5c0-8e2b6d1f9c47'; // gitleaks:allow
 const TICKET_SETTINGS: Record<string, { label: string; help: string }> = {
     ticket_provider: {
         label: 'Provider',
-        help: '"gitlab", "jira", or "none" to disable. A ticket is opened for any issue that would fail a build'
-        + ' under the gate policy — there is no second threshold, so that one single place defines "serious'
+        help: '"gitlab", "github", "jira", "servicenow", or "none" to disable. A ticket is opened for any issue'
+        + ' that would fail a build under the gate policy — there is no second threshold, so that one single place defines "serious'
         + ' enough to act on".'
     },
     ticket_base_url: {
@@ -675,12 +675,12 @@ const TICKET_SETTINGS: Record<string, { label: string; help: string }> = {
     },
     ticket_webhook_secret: {
         label: 'Inbound webhook secret',
-        help: 'Authenticates the tracker calling **us**, which is the opposite direction from the access token '
+        help: 'Authenticates the tracker calling us, which is the opposite direction from the access token '
         + 'above. The webhook route is anonymous by necessity — Jira holds no session — and it moves a '
         + 'triage decision, so without this an anonymous caller who guesses a ticket reference can close a '
         + 'finding. GitLab sends `X-Gitlab-Token` verbatim; GitHub sends `X-Hub-Signature-256` as '
         + 'HMAC-SHA256 over the raw body; Jira and ServiceNow have no convention, so a shared token in '
-        + '`X-Vectispire-Token` is accepted for those. **While it is empty the route refuses every call** '
+        + '`X-Vectispire-Token` is accepted for those. While it is empty the route refuses every call '
         + 'with a 403 telling the tracker the webhook is not configured: set it, then set the same value in'
         + ' the tracker. Encrypted at rest and written only by `PUT '
         + '/api/v1/settings/ticket-webhook-secret`.'
@@ -695,16 +695,18 @@ const TICKET_SETTINGS: Record<string, { label: string; help: string }> = {
     },
     ticket_user: {
         label: 'Jira account',
-        help: 'The account address, required by Jira alongside the token for basic authentication. GitLab does '
-        + 'not use it. Set by an administrator only, like the token it travels with.'
+        help: 'The account address, required by Jira alongside the token for basic authentication. ServiceNow '
+        + 'uses it the same way when it is set, and the token alone otherwise; GitLab and GitHub do not use '
+        + 'it. Set by an administrator only, like the token it travels with.'
     },
     ticket_issue_type: {
         label: 'Jira issue type',
-        help: 'The type name in the target project. GitLab does not use it.'
+        help: 'The type name in the target Jira project. The other trackers do not use it.'
     },
     ticket_labels: {
         label: 'Labels',
-        help: 'Comma-separated, applied to every ticket opened.'
+        help: 'Comma-separated, applied to every ticket opened on GitLab, GitHub or Jira. ServiceNow incidents '
+        + 'carry no labels.'
     },
     ticket_allow_private_url: {
         label: 'Allow an internal URL',
@@ -714,7 +716,7 @@ const TICKET_SETTINGS: Record<string, { label: string; help: string }> = {
         label: 'Tracker CA (PEM)',
         help: 'For a tracker whose certificate comes from your organisation\'s own CA: paste that CA\'s '
         + 'certificate in PEM form (-----BEGIN CERTIFICATE-----), a root and its intermediates if need be. '
-        + 'Used for the tracker only, and **in place of** the server\'s trust store — the public CAs are '
+        + 'Used for the tracker only, and in place of the server\'s trust store — the public CAs are '
         + 'then not trusted for it; the tracker\'s name is still verified. Empty, the server\'s trust store'
         + ' applies. Set by an administrator only: it decides whom the tracker token is presented to.'
     }

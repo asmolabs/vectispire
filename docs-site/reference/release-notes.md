@@ -1043,6 +1043,16 @@ from a list in which none is true of an exposed product — and signed into the 
   French 0 takes the singular ("0 dépôt"), in English the plural ("0 repositories"). The last ones follow:
   the audit chain's verdict, a team's deletion warning, the checklist's "lines 3 still need attention"
   and the other messages naming lines, and six counted labels (blast radius, EPSS, licences, rule files).
+- **The settings screen speaks French to a French reader, and its help reads as text.** Twenty-one
+  settings showed the server's English label and help to a French reader — the tracker card's URL,
+  account, issue type, labels and internal-URL switch, the Slack, Discord and e-mail channels, the
+  notification threshold, the evidence window, target visibility, the forbidden licences, the certified
+  scope and the four-eyes rule among them — and the French help of the tracker's provider still listed
+  values that no longer exist; each now has its own. Seventeen English helps showed markdown asterisks
+  as text (`**in place of**`); they are written without them. The provider's help now names all five
+  values (`gitlab`, `github`, `jira`, `servicenow`, `none`), and the tracker account's and labels' helps
+  say what ServiceNow does with them. The *Imports* window of a repository sizes its *Latest coverage*,
+  *Latest test report* and *SARIF imports* headings as section titles rather than as page titles.
 - **The screens name the OWASP Top 10:2021, and claim no more than the tool does.** Vectispire classifies
   against the 2021 edition only, and the menu, the coverage pages, the heatmap, the issues filter, the
   rule-set catalogue, the posture PDF and the coverage API said "OWASP Top 10" without the edition; they now

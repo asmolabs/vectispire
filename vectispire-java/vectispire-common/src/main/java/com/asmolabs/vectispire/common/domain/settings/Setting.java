@@ -46,7 +46,7 @@ public enum Setting {
             "Detect platforms past their support window",
             "A class of risk with no CVE attached: an expired environment will receive no fix for the next "
                     + "vulnerability, whatever it turns out to be. Switching this off leaves existing findings "
-                    + "**open** rather than resolving them — \"we stopped looking\" is not \"it is fixed\".",
+                    + "open rather than resolving them — \"we stopped looking\" is not \"it is fixed\".",
             "true"),
 
     EOL_WARN_DAYS("eol_warn_days", SettingType.INTEGER, Section.END_OF_LIFE,
@@ -82,7 +82,7 @@ public enum Setting {
 
     RETENTION_MAX_AGE_DAYS("retention_max_age_days", SettingType.INTEGER, Section.RETENTION,
             "Maximum age of raw payloads (days)",
-            "The two rules combine: a payload is purged only if it is **both** outside the window above and "
+            "The two rules combine: a payload is purged only if it is both outside the window above and "
                     + "older than this age. Both at zero disables purging.",
             String.valueOf(RetentionPolicy.DEFAULT.maxAge().toDays())),
 
@@ -90,7 +90,7 @@ public enum Setting {
             "Evidence kept for (days)",
             "Gate verdicts — every pass and every refusal the barrier returned — the monthly compliance captures "
                     + "and the weekly OWASP record. This is the only record that a "
-                    + "control **executed**, and unlike a payload it cannot be regenerated. A week of the OWASP record "
+                    + "control executed, and unlike a payload it cannot be regenerated. A week of the OWASP record "
                     + "is kept while any of it is inside the window. Set it to the period an "
                     + "assessor asks you to cover, plus the delay before they read it; the default is twelve months "
                     + "and five weeks. Zero keeps them for ever. Kept deliberately apart from the payload window "
@@ -113,7 +113,7 @@ public enum Setting {
 
     TEAMS_WEBHOOK_URL("notification_teams_url", SettingType.TEXT, Section.NOTIFICATIONS,
             "Microsoft Teams webhook URL",
-            "The URL of a Teams **workflow** — \"when a Teams webhook request is received\" in Power Automate. "
+            "The URL of a Teams workflow — \"when a Teams webhook request is received\" in Power Automate. "
                     + "The old Office 365 connector was retired, and a workflow is what replaces it. Vectispire posts "
                     + "an Adaptive Card, so nothing has to be mapped in the designer. Empty disables it; it can run "
                     + "beside the generic webhook and the e-mail rather than instead of them.",
@@ -133,8 +133,8 @@ public enum Setting {
             "Webhook signing secret",
             "Signs every webhook message — the global one and each team's — so a receiver can tell a message "
                     + "Vectispire sent from one sent by whoever learned the URL. An `X-Vectispire-Signature` header "
-                    + "carries HMAC-SHA256 over the timestamp and the exact body. **Worth it for a script, a bus "
-                    + "or your own gateway**, which can check it; Slack, Teams and Discord accept whatever "
+                    + "carries HMAC-SHA256 over the timestamp and the exact body. Worth it for a script, a bus "
+                    + "or your own gateway, which can check it; Slack, Teams and Discord accept whatever "
                     + "arrives and will ignore it. Empty means unsigned, which is what every existing "
                     + "deployment stays. Stored encrypted, like a tracker token, and never returned by any route — "
                     + "only by `PUT /api/v1/settings/webhook-secret`.",
@@ -149,7 +149,7 @@ public enum Setting {
 
     DIGEST_ENABLED("notification_digest_enabled", SettingType.BOOLEAN, Section.NOTIFICATIONS,
             "Send a weekly posture report",
-            "Every other notification fires when something **appears**, which is right for an alert and wrong "
+            "Every other notification fires when something appears, which is right for an alert and wrong "
                     + "for a report: on a quiet week nobody is told anything — and a quiet week is also the week a "
                     + "target has silently not been scanned for twenty days. This says how much there is, which way "
                     + "it is moving, and what was never examined, once a week, to the global webhook and the "
@@ -204,19 +204,19 @@ public enum Setting {
     TARGET_VISIBILITY("target_visibility", SettingType.TEXT, Section.ACCESS,
             "What a non-administrator sees",
             "\"everyone\" means every signed-in account sees every target — the behaviour of a deployment "
-                    + "that has never thought about it, and the value an **upgrade** keeps so that nothing "
+                    + "that has never thought about it, and the value an upgrade keeps so that nothing "
                     + "blanks overnight. \"assigned\" means an account sees only the targets an administrator "
                     + "has assigned to it, and an account with no assignment sees nothing. Administrators "
-                    + "always see everything: somebody has to be able to make the assignments. **A new "
-                    + "installation is created with \"assigned\"** — the safe value is written into the table "
+                    + "always see everything: somebody has to be able to make the assignments. A new "
+                    + "installation is created with \"assigned\" — the safe value is written into the table "
                     + "when the database is empty, which is the one moment it cannot break anything.",
             "everyone"),
 
     TICKET_PROVIDER("ticket_provider", SettingType.TEXT, Section.TICKETS,
             "Provider",
-            "\"gitlab\", \"jira\", or \"none\" to disable. A ticket is opened for any issue that would fail a "
-                    + "build under the gate policy — there is no second threshold, so that one single place "
-                    + "defines \"serious enough to act on\".",
+            "\"gitlab\", \"github\", \"jira\", \"servicenow\", or \"none\" to disable. A ticket is opened for "
+                    + "any issue that would fail a build under the gate policy — there is no second threshold, so "
+                    + "that one single place defines \"serious enough to act on\".",
             TicketProvider.NONE.wireName()),
 
     TICKET_BASE_URL("ticket_base_url", SettingType.TEXT, Section.TICKETS,
@@ -243,13 +243,13 @@ public enum Setting {
 
     TICKET_WEBHOOK_SECRET("ticket_webhook_secret", SettingType.TEXT, Section.TICKETS,
             "Inbound webhook secret",
-            "Authenticates the tracker calling **us**, which is the opposite direction from the access token "
+            "Authenticates the tracker calling us, which is the opposite direction from the access token "
                     + "above. The webhook route is anonymous by necessity — Jira holds no session — and it moves "
                     + "a triage decision, so without this an anonymous caller who guesses a ticket reference can "
                     + "close a finding. GitLab sends `X-Gitlab-Token` verbatim; GitHub sends "
                     + "`X-Hub-Signature-256` as HMAC-SHA256 over the raw body; Jira and ServiceNow have no "
-                    + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. **While it is "
-                    + "empty the route refuses every call** with a 403 telling the tracker the webhook is not "
+                    + "convention, so a shared token in `X-Vectispire-Token` is accepted for those. While it is "
+                    + "empty the route refuses every call with a 403 telling the tracker the webhook is not "
                     + "configured: set it, then set the same value in the tracker. Encrypted at rest and written only by "
                     + "`PUT /api/v1/settings/ticket-webhook-secret`.",
             "", Sensitivity.ENCRYPTED),
@@ -270,18 +270,20 @@ public enum Setting {
 
     TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
             "Jira account",
-            "The account address, required by Jira alongside the token for basic authentication. GitLab does "
-                    + "not use it. Set by an administrator only, like the token it travels with.",
+            "The account address, required by Jira alongside the token for basic authentication. ServiceNow "
+                    + "uses it the same way when it is set, and the token alone otherwise; GitLab and GitHub do not "
+                    + "use it. Set by an administrator only, like the token it travels with.",
             ""),
 
     TICKET_ISSUE_TYPE("ticket_issue_type", SettingType.TEXT, Section.TICKETS,
             "Jira issue type",
-            "The type name in the target project. GitLab does not use it.",
+            "The type name in the target Jira project. The other trackers do not use it.",
             Tickets.DEFAULT_JIRA_ISSUE_TYPE),
 
     TICKET_LABELS("ticket_labels", SettingType.TEXT, Section.TICKETS,
             "Labels",
-            "Comma-separated, applied to every ticket opened.",
+            "Comma-separated, applied to every ticket opened on GitLab, GitHub or Jira. ServiceNow incidents "
+                    + "carry no labels.",
             String.join(",", Tickets.DEFAULT_LABELS)),
 
     TICKET_ALLOW_PRIVATE_URL("ticket_allow_private_url", SettingType.BOOLEAN, Section.TICKETS,
@@ -304,7 +306,7 @@ public enum Setting {
             "Tracker CA (PEM)",
             "For a tracker whose certificate comes from your organisation's own CA: paste that CA's certificate in "
                     + "PEM form (-----BEGIN CERTIFICATE-----), a root and its intermediates if need be. Used for the "
-                    + "tracker only, and **in place of** the server's trust store — the public CAs are then not "
+                    + "tracker only, and in place of the server's trust store — the public CAs are then not "
                     + "trusted for it; the tracker's name is still verified. Empty, the server's trust store applies. "
                     + "Set by an administrator only: it decides whom the tracker token is presented to.",
             "", Sensitivity.SECRET),
@@ -319,7 +321,7 @@ public enum Setting {
                     + "from the OWASP page or, with the next setting, after each repository scan. The model is sent the "
                     + "repository's open findings — identifiers, components, paths, descriptions — not its source, "
                     + "though a description can quote a line of it. The report is a document: nothing in it becomes "
-                    + "an issue, and nothing in it reaches a gate. **No scan reviews the code with a model**: that "
+                    + "an issue, and nothing in it reaches a gate. No scan reviews the code with a model: that "
                     + "review is not wired, and a scan examines exactly the same with this on as with it off.",
             "false"),
 
@@ -339,7 +341,7 @@ public enum Setting {
 
     AI_REVIEW_PROVIDER("ai_review_provider", SettingType.TEXT, Section.MODEL_REVIEW,
             "Provider",
-            "**`ollama` keeps what is sent on a machine you run. `openai` sends it to OpenAI.** That is the "
+            "`ollama` keeps what is sent on a machine you run. `openai` sends it to OpenAI. That is the "
                     + "whole difference, and it is not a performance one: with `openai`, the open findings of every "
                     + "repository whose report is written — identifiers, components, file paths and descriptions, of "
                     + "private repositories too, a description able to quote a committed line — leave your estate in "
@@ -352,7 +354,7 @@ public enum Setting {
 
     AI_REVIEW_OLLAMA_URL("ai_review_ollama_url", SettingType.TEXT, Section.MODEL_REVIEW,
             "Ollama service URL",
-            "**This endpoint receives the open findings of every repository whose report is written** — "
+            "This endpoint receives the open findings of every repository whose report is written — "
                     + "identifiers, components, paths, descriptions — and will receive its source code the day the "
                     + "code review is wired. The risk is therefore not that it points inward, but outward: a well-formed public URL is exactly what an exfiltration "
                     + "channel looks like. A public destination is refused unless explicitly acknowledged below.",
@@ -360,8 +362,8 @@ public enum Setting {
 
     AI_REVIEW_OPENAI_URL("ai_review_openai_url", SettingType.TEXT, Section.MODEL_REVIEW,
             "OpenAI-compatible API URL",
-            "The API root, without `/chat/completions` — it is appended. **Public and local are both allowed, "
-                    + "and the same rule decides which**: this URL goes through the outbound guard exactly like "
+            "The API root, without `/chat/completions` — it is appended. Public and local are both allowed, "
+                    + "and the same rule decides which: this URL goes through the outbound guard exactly like "
                     + "the Ollama one, so a public destination is refused until the acknowledgement below is on. "
                     + "Left at OpenAI's own address, what is sent goes to OpenAI. Pointed at vLLM, LM Studio, "
                     + "llama.cpp or an internal gateway — anything speaking the same wire protocol — it never "
@@ -392,8 +394,8 @@ public enum Setting {
     AI_REVIEW_ALLOW_REMOTE("ai_review_allow_remote_url", SettingType.BOOLEAN, Section.MODEL_REVIEW,
             "Allow a public model endpoint",
             "Off by default, and it is the most consequential setting on this screen: turning it on allows "
-                    + "**the findings of every scanned repository — and, once the code review is wired, its source "
-                    + "code — to be sent to a host outside your estate** — "
+                    + "the findings of every scanned repository — and, once the code review is wired, its source "
+                    + "code — to be sent to a host outside your estate — "
                     + "OpenAI's API, or any other public address entered above. Leave it off and both providers "
                     + "are held to a destination on your own network. It governs the URL, not the provider: a "
                     + "local OpenAI-compatible endpoint needs nothing acknowledged.",
@@ -426,10 +428,10 @@ public enum Setting {
     // breach, from a gesture that looked like switching something off.
     COMPLIANCE_FRESHNESS_DAYS("compliance_freshness_days", SettingType.INTEGER, Section.REMEDIATION,
             "Compliance: an observation counts as current for",
-            "**A target never observed has no known vulnerability**, and on a naive dashboard it is green "
+            "A target never observed has no known vulnerability, and on a naive dashboard it is green "
                     + "— the one green that should raise an alarm. Past this number of days a scan stops "
                     + "counting as a current observation, and a control assessed on incomplete coverage can "
-                    + "no longer be reported compliant: it is *not assessed*, which is a different sentence "
+                    + "no longer be reported compliant: it is \"not assessed\", which is a different sentence "
                     + "in front of an auditor. Zero disables the ceiling and gives the assessment back its "
                     + "earlier behaviour.",
             "30"),
@@ -443,19 +445,19 @@ public enum Setting {
 
     ISMS_SCOPE_ASSETS("isms_scope_assets", SettingType.INTEGER, Section.RETENTION,
             "Assets the certified scope covers",
-            "**A tool measuring its own coverage always reports full coverage.** Vectispire knows the targets "
+            "A tool measuring its own coverage always reports full coverage. Vectispire knows the targets "
                     + "somebody registered in it; an asset inside the certified scope that was never registered "
                     + "has no row here to be missing from, so an estate made of half the certified assets reports "
                     + "as entirely scanned. Taken from the scope document, this number is what makes the "
-                    + "difference visible. Zero means nobody has said — which is reported as *undeclared*, never "
+                    + "difference visible. Zero means nobody has said — which is reported as undeclared, never "
                     + "as complete.",
             "0"),
 
     SLA_CRITICAL_DAYS("sla_critical_days", SettingType.INTEGER, Section.REMEDIATION,
             "Critical: days to remediate",
-            "Counted from when the issue was **first seen**, never from the last scan — otherwise a target "
+            "Counted from when the issue was first seen, never from the last scan — otherwise a target "
                     + "scanned nightly would reset every deadline every night and nothing would ever be late. "
-                    + "Zero disables the deadline for this severity. **No window blocks a gate**: being late is "
+                    + "Zero disables the deadline for this severity. No window blocks a gate: being late is "
                     + "reported to people, not used to stop a deployment that might carry the fix.",
             String.valueOf(RemediationSla.DEFAULT.windowFor(Severity.CRITICAL).orElseThrow().toDays())),
 

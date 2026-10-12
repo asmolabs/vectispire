@@ -2230,10 +2230,6 @@
         "label": "URL de l'API compatible OpenAI",
         "help": "Racine de l'API, sans /chat/completions. Celle d'OpenAI envoie ce qui est transmis chez OpenAI ; pointée sur vLLM, LM Studio ou une passerelle interne, rien ne sort."
       },
-      "ai_review_prompt_context": {
-        "label": "Consignes et contexte d'évaluation pour l'IA",
-        "help": "Instructions contextuelles et règles de filtrage transmises au LLM pour affiner ses analyses."
-      },
       "ai_review_provider": {
         "label": "Fournisseur",
         "help": "« Ollama » garde ce qui est transmis — aujourd'hui les constats ouverts, le jour où la revue de code sera branchée le code source — sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
@@ -2244,7 +2240,7 @@
       },
       "compliance_freshness_days": {
         "label": "Conformité : une observation reste courante pendant",
-        "help": "**Une cible jamais observée n'a aucune vulnérabilité connue**, et sur un tableau naïf elle est verte — c'est le seul vert qui devrait déclencher une alarme. Au-delà de ce nombre de jours, un scan cesse de compter comme une observation courante, et un contrôle évalué sur une couverture incomplète ne peut plus être rendu conforme : il est *non évalué*, ce qui n'est pas la même phrase devant un auditeur. Zéro désactive le plafond et rend à l'évaluation son comportement d'avant."
+        "help": "Une cible jamais observée n'a aucune vulnérabilité connue, et sur un tableau naïf elle est verte — c'est le seul vert qui devrait déclencher une alarme. Au-delà de ce nombre de jours, un scan cesse de compter comme une observation courante, et un contrôle évalué sur une couverture incomplète ne peut plus être rendu conforme : il est « non évalué », ce qui n'est pas la même phrase devant un auditeur. Zéro désactive le plafond et rend à l'évaluation son comportement d'avant."
       },
       "enrichment_enabled": {
         "label": "Enrichissement CISA KEV et scores EPSS",
@@ -2290,14 +2286,6 @@
         "label": "Activer l'analyse statique du code (Semgrep)",
         "help": "Scanne le code source à chaque analyse pour identifier les faiblesses applicatives et mauvaises pratiques."
       },
-      "scanner_concurrency": {
-        "label": "Nombre maximal d'analyses simultanées",
-        "help": "Nombre de conteneurs et dépôts analysés en parallèle par le moteur."
-      },
-      "scanner_docker_timeout_seconds": {
-        "label": "Délai d'expiration des conteneurs de scan (secondes)",
-        "help": "Timeout au-delà duquel l'exécution d'un scanner (Trivy, Syft, Semgrep) est interrompue."
-      },
       "sla_critical_days": {
         "label": "Délai SLA Critique (jours)",
         "help": "Délai maximal autorisé pour corriger une vulnérabilité critique avant non-conformité."
@@ -2314,21 +2302,13 @@
         "label": "Délai SLA Moyen (jours)",
         "help": "Délai maximal recommandé pour corriger une vulnérabilité moyenne."
       },
-      "ticket_label": {
-        "label": "Étiquette (label) des tickets créés",
-        "help": "Label apposé systématiquement sur tous les tickets créés (ex: vectispire-security)."
-      },
       "ticket_project": {
         "label": "Projet ou Référentiel cible",
         "help": "Clé du projet Jira (ex: SEC) ou chemin du dépôt (ex: organisation/depot)."
       },
       "ticket_provider": {
         "label": "Fournisseur de tickets d'incidents",
-        "help": "Plateforme cible pour l'export automatique : JIRA, GITHUB_ISSUES ou GITLAB_ISSUES."
-      },
-      "ticket_url": {
-        "label": "URL du serveur de tickets",
-        "help": "Point d'accès de votre instance Jira, GitLab ou API GitHub."
+        "help": "« gitlab », « github », « jira », « servicenow », ou « none » pour désactiver. Un ticket est ouvert pour toute issue qui ferait échouer un build selon la politique de la barrière — il n'y a pas de second seuil, pour qu'un seul endroit définisse ce qui est « assez grave pour agir »."
       },
       "scan_default_interval_days": {
         "label": "Intervalle de réanalyse par défaut (jours)",
@@ -2341,6 +2321,110 @@
       "ticket_token_expires_on": {
         "label": "Date d'expiration du jeton",
         "help": "La date à laquelle le jeton d'accès cesse de fonctionner, au format AAAA-MM-JJ, pour un tracker qui ne la donne pas — Jira et ServiceNow. GitLab et GitHub donnent l'expiration de leurs jetons, lue à l'enregistrement du jeton puis chaque jour ; cette date ne s'applique à eux que s'ils n'en donnent aucune. L'écran des réglages l'annonce quatorze jours à l'avance ; vide, l'expiration est affichée comme inconnue. Réservé à un administrateur, comme le jeton qu'elle décrit."
+      },
+      "evidence_retention_days": {
+        "label": "Preuves conservées pendant (jours)",
+        "help": "Les verdicts de la barrière — chaque passage et chaque refus qu'elle a rendus —, les relevés mensuels de conformité et le relevé OWASP hebdomadaire. C'est la seule trace qu'un contrôle s'est exécuté, et contrairement à une sortie brute elle ne peut pas être régénérée. Une semaine du relevé OWASP est gardée tant qu'une partie se trouve dans la fenêtre. Réglez-la sur la période qu'un auditeur vous demande de couvrir, plus le délai avant qu'il la lise ; par défaut douze mois et cinq semaines. Zéro conserve tout. Volontairement distincte de la fenêtre des sorties brutes ci-dessus : borner la croissance du disque et tenir un audit sont deux questions différentes. Réservé à un gouverneur de la plateforme : les rôles dont cette trace prouve les contrôles ne décident pas de sa durée de vie."
+      },
+      "notification_slack_url": {
+        "label": "URL de webhook Slack",
+        "help": "URL de webhook entrant pour publier des cartes Slack Block Kit. Vide, Slack est désactivé."
+      },
+      "notification_discord_url": {
+        "label": "URL de webhook Discord",
+        "help": "URL de webhook pour publier des cartes Discord (Rich Embed). Vide, Discord est désactivé."
+      },
+      "notification_mail_to": {
+        "label": "Destinataires des e-mails",
+        "help": "Séparés par des virgules. Vide, l'e-mail est désactivé. Le serveur d'envoi se configure par `VECTISPIRE_MAIL_HOST` et les variables qui l'accompagnent : un relais de messagerie relève de l'infrastructure du déploiement, pas d'un écran de réglages, et son mot de passe n'a rien à faire dans une table que l'application peut exporter."
+      },
+      "notification_digest_enabled": {
+        "label": "Envoyer un rapport hebdomadaire de posture",
+        "help": "Toutes les autres notifications partent quand quelque chose apparaît, ce qui convient à une alerte et pas à un rapport : une semaine calme, personne n'est prévenu de rien — et une semaine calme est aussi celle où une cible n'a pas été analysée depuis vingt jours sans que personne le voie. Ce rapport dit combien il y en a, dans quel sens cela évolue et ce qui n'a jamais été examiné, une fois par semaine, au webhook global et aux destinataires des e-mails. Désactivé par défaut : l'activer sur un déploiement existant changerait sans prévenir ce que reçoivent ses canaux."
+      },
+      "notification_min_severity": {
+        "label": "Sévérité minimale notifiée",
+        "help": "Rien de nouveau au-dessus de ce seuil, aucun message. Une notification par scan apprend aux gens à filtrer le canal."
+      },
+      "notification_always_on_kev": {
+        "label": "Notifier toute vulnérabilité activement exploitée",
+        "help": "Quelle que soit sa sévérité : le seuil seul écarterait une vulnérabilité « moyenne » exploitée aujourd'hui."
+      },
+      "notification_allow_private_url": {
+        "label": "Autoriser une URL de webhook privée",
+        "help": "Pour un bus interne. Désactivé par défaut, et réservé à un administrateur : une URL de webhook qui se résout vers une adresse privée est bien plus souvent une tentative de falsification de requête côté serveur (SSRF) qu'un point d'accès intranet, et les canaux sont configurés et testés par un responsable sécurité. Le point d'accès des métadonnées de l'instance reste refusé dans tous les cas."
+      },
+      "license_blocklist": {
+        "label": "Licences interdites",
+        "help": "Identifiants SPDX séparés par des virgules, par exemple « GPL-3.0-only,AGPL-3.0-only ». Vide, rien n'est signalé : les licences interdites sont une décision de l'organisation, pas une question technique. Lu dans le SBOM déjà produit — aucun outil supplémentaire n'est nécessaire."
+      },
+      "target_visibility": {
+        "label": "Ce que voit un non-administrateur",
+        "help": "« everyone » : chaque compte connecté voit toutes les cibles — le comportement d'un déploiement qui ne s'est jamais posé la question, et la valeur qu'une mise à niveau conserve pour que rien ne disparaisse du jour au lendemain. « assigned » : un compte ne voit que les cibles qu'un administrateur lui a attribuées, et un compte sans attribution ne voit rien. Les administrateurs voient toujours tout : il faut bien que quelqu'un puisse faire les attributions. Une nouvelle installation est créée avec « assigned » — la valeur sûre est écrite dans la table quand la base est vide, le seul moment où elle ne peut rien casser."
+      },
+      "ticket_base_url": {
+        "label": "URL du gestionnaire de tickets",
+        "help": "Une destination interne est acceptée ici, contrairement au webhook : un GitLab ou un Jira auto-hébergé se trouve souvent sur un réseau interne. Le point d'accès des métadonnées de l'instance reste refusé."
+      },
+      "ticket_token": {
+        "label": "Jeton d'accès",
+        "help": "Donne un accès en écriture au gestionnaire de tickets, un secret d'une autre nature qu'une URL de webhook : il est donc chiffré au repos comme une clé SSH, pas stocké en clair avec les autres réglages. Écrit uniquement par `PUT /api/v1/settings/ticket-token`."
+      },
+      "ticket_webhook_secret": {
+        "label": "Secret du webhook entrant",
+        "help": "Authentifie le gestionnaire de tickets quand il nous appelle, dans le sens inverse du jeton d'accès ci-dessus. La route du webhook est anonyme par nécessité — Jira ne tient pas de session — et elle déplace une décision de triage : sans ce secret, un appelant anonyme qui devine une référence de ticket peut clore un constat. GitLab envoie `X-Gitlab-Token` tel quel ; GitHub envoie `X-Hub-Signature-256`, un HMAC-SHA256 du corps brut ; Jira et ServiceNow n'ont pas de convention, un jeton partagé dans `X-Vectispire-Token` est donc accepté pour eux. Tant qu'il est vide, la route refuse chaque appel par un 403 qui dit au gestionnaire que le webhook n'est pas configuré : réglez-le, puis saisissez la même valeur dans le gestionnaire. Chiffré au repos et écrit uniquement par `PUT /api/v1/settings/ticket-webhook-secret`."
+      },
+      "ticket_user": {
+        "label": "Compte Jira",
+        "help": "L'adresse du compte, exigée par Jira avec le jeton pour l'authentification basique. ServiceNow l'utilise de la même façon quand elle est renseignée, et le jeton seul sinon ; GitLab et GitHub ne l'utilisent pas. Réservé à un administrateur, comme le jeton qui l'accompagne."
+      },
+      "ticket_issue_type": {
+        "label": "Type de ticket Jira",
+        "help": "Le nom du type dans le projet Jira cible. Les autres gestionnaires ne l'utilisent pas."
+      },
+      "ticket_labels": {
+        "label": "Étiquettes",
+        "help": "Séparées par des virgules, apposées sur chaque ticket ouvert dans GitLab, GitHub ou Jira. Les incidents ServiceNow ne portent pas d'étiquettes."
+      },
+      "ticket_allow_private_url": {
+        "label": "Autoriser une URL interne",
+        "help": "Activé par défaut. Désactivez-le pour un déploiement qui n'utilise qu'un gestionnaire hébergé."
+      },
+      "ai_review_owasp_after_scan": {
+        "label": "Rédiger le rapport OWASP après chaque scan de dépôt",
+        "help": "Quand le scan d'un dépôt se termine, Vectispire demande au modèle le rapport OWASP de ce dépôt, comme le fait le bouton de sa page — ce qui est envoyé est le même : les constats ouverts, jamais le code source. Seulement quand la revue par modèle est active ; jamais pour un scan en échec ni pour une image de conteneur. Un rapport à la fois, à côté des scans et sans jamais les retenir : un dépôt dont le rapport est en cours de rédaction n'est pas redemandé, et les scans qui arrivent pendant l'attente y sont regroupés. Un échec est consigné sur le rapport, comme pour un rapport demandé à la main, et le scan reste terminé."
+      },
+      "ai_review_openai_key": {
+        "label": "Clé d'API OpenAI",
+        "help": "Envoyée dans `Authorization: Bearer`. Stockée chiffrée, comme un jeton de gestionnaire de tickets, et jamais renvoyée par aucune route — un écran indique si une clé est configurée, jamais la clé. Un point d'accès local qui n'authentifie personne peut s'en passer."
+      },
+      "ai_review_timeout_seconds": {
+        "label": "Attente maximale du modèle (secondes)",
+        "help": "Un modèle local qui rédige un rapport prend plusieurs minutes sur du matériel ordinaire, et les dix secondes qui conviennent à un webhook transforment chaque exécution en « délai dépassé » — qui se lit comme un Ollama en panne plutôt que comme une limite réglée ici. La bonne valeur dépend de la machine et du modèle : c'est pourquoi c'est un réglage et non une constante."
+      },
+      "ai_review_allow_remote_url": {
+        "label": "Autoriser un point d'accès public pour le modèle",
+        "help": "Désactivé par défaut, et c'est le réglage le plus lourd de conséquences de cet écran : l'activer permet d'envoyer les constats de chaque dépôt analysé — et, une fois la revue de code branchée, son code source — à un hôte hors de votre parc : l'API d'OpenAI, ou toute autre adresse publique saisie ci-dessus. Désactivé, les deux fournisseurs sont limités à une destination sur votre propre réseau. Il porte sur l'URL, pas sur le fournisseur : un point d'accès local compatible OpenAI n'a rien à faire accepter."
+      },
+      "ai_review_risk_acknowledged_by": {
+        "label": "Risque de fuite de données accepté par",
+        "help": "Le compte qui a activé le point d'accès public, consigné par le serveur à ce moment-là. Vide, personne ne l'a fait — c'est aussi ce qu'il indique après que quelqu'un l'a désactivé."
+      },
+      "ai_review_risk_acknowledged_at": {
+        "label": "Risque de fuite de données accepté le",
+        "help": "Le moment où cette acceptation a été consignée, en UTC. Le journal d'audit porte le même événement et n'est jamais purgé ; cette ligne est ce que l'écran peut afficher sans requête."
+      },
+      "isms_scope_statement": {
+        "label": "Périmètre certifié",
+        "help": "Ce que couvre le périmètre certifié du système de management, dans les termes du document qui le définit. Recopié ici pour qu'un dossier de preuves porte le périmètre qu'il décrit — une archive dont il faut expliquer à part le sujet à son lecteur n'est qu'une demi-archive."
+      },
+      "isms_scope_assets": {
+        "label": "Actifs couverts par le périmètre certifié",
+        "help": "Un outil qui mesure sa propre couverture la déclare toujours complète. Vectispire connaît les cibles que quelqu'un y a enregistrées ; un actif du périmètre certifié jamais enregistré n'a ici aucune ligne dont il pourrait manquer, et un parc fait de la moitié des actifs certifiés se présente comme entièrement analysé. Repris du document de périmètre, ce nombre rend l'écart visible. Zéro signifie que personne ne l'a renseigné — ce qui est présenté comme non déclaré, jamais comme complet."
+      },
+      "triage_four_eyes_required": {
+        "label": "Exiger une double validation (quatre yeux) pour le triage VEX",
+        "help": "Activé, marquer une issue NOT_AFFECTED, WILL_NOT_FIX ou FIXED par un utilisateur sans droit d'approbation RSSI ou administrateur crée une demande PENDING_APPROVAL. Désactivé, tout utilisateur autorisé peut trancher directement le triage."
       }
     },
     "last_sync": "Dernière lecture du catalogue KEV",

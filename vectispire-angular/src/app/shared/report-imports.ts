@@ -29,7 +29,7 @@ import { LatestRequest } from '../core/latest-request';
         <p class="text-sm text-muted-color mt-0">{{ 'report_imports.explain' | translate }}</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <section class="border border-surface rounded-border p-3" data-testid="latest-coverage">
-                <h3 class="text-base font-semibold mt-0 mb-2">{{ 'report_imports.coverage_title' | translate }}</h3>
+                <h3>{{ 'report_imports.coverage_title' | translate }}</h3>
                 @if (coverageError(); as message) {
                     <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
                 } @else if (coverageLoading()) {
@@ -73,7 +73,7 @@ import { LatestRequest } from '../core/latest-request';
             </section>
 
             <section class="border border-surface rounded-border p-3" data-testid="latest-test-report">
-                <h3 class="text-base font-semibold mt-0 mb-2">{{ 'report_imports.tests_title' | translate }}</h3>
+                <h3>{{ 'report_imports.tests_title' | translate }}</h3>
                 @if (testsError(); as message) {
                     <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
                 } @else if (testsLoading()) {
@@ -106,6 +106,16 @@ import { LatestRequest } from '../core/latest-request';
                 }
             </section>
         </div>
+    `,
+    // The template's global `h3` (1.75rem, bold, wide margins) is not in a cascade layer, so it beats
+    // every Tailwind utility on the element: `text-base mt-0 mb-2` rendered as page-sized titles
+    // inside a dialog. A component rule is more specific than the global one and is not layered.
+    styles: `
+        h3 {
+            margin: 0 0 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
     `
 })
 export class ReportImports {

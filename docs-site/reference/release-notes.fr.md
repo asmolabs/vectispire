@@ -1152,6 +1152,18 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   chaîne d'audit, l'avertissement de suppression d'une équipe, le « les lignes 3 demandent encore de
   l'attention » des checklists et les autres messages qui nomment des lignes, et six libellés comptés
   (rayon d'impact, EPSS, licences, fichiers de règles).
+- **L'écran des réglages parle français à un lecteur français, et son aide se lit comme du texte.**
+  Vingt et un réglages montraient au lecteur français le libellé et l'aide anglais du serveur — l'URL, le
+  compte, le type de ticket, les étiquettes et l'interrupteur d'URL interne du gestionnaire de tickets,
+  les canaux Slack, Discord et e-mail, le seuil des notifications, la durée de conservation des preuves,
+  la visibilité des cibles, les licences interdites, le périmètre certifié et la règle des quatre yeux
+  notamment — et l'aide française du fournisseur de tickets citait encore des valeurs qui n'existent plus ;
+  chacun a désormais la sienne. Dix-sept aides anglaises affichaient des astérisques de markdown en
+  toutes lettres (`**in place of**`) ; elles sont écrites sans. L'aide du fournisseur nomme désormais
+  les cinq valeurs (`gitlab`, `github`, `jira`, `servicenow`, `none`), et celles du compte et des
+  étiquettes disent ce qu'en fait ServiceNow. La fenêtre *Imports* d'un dépôt dimensionne ses titres
+  *Dernière couverture*, *Dernier rapport de tests* et *Imports SARIF* en titres de section plutôt
+  qu'en titres de page.
 - **Les écrans nomment l'OWASP Top 10:2021, et ne revendiquent pas plus que ce que fait l'outil.**
   Vectispire classe selon l'édition 2021 seulement, et le menu, les pages de couverture, la carte de
   chaleur, le filtre des issues, le catalogue des jeux de règles, le PDF de posture et l'API de couverture

@@ -32,6 +32,16 @@ class SettingTest {
                 .isEmpty();
     }
 
+    @ParameterizedTest(name = "{0} is written as text, without markdown emphasis")
+    @EnumSource(Setting.class)
+    void labelAndHelpAreText(Setting setting) {
+        // The settings screen renders a label and a help as text — it renders no markdown, by rule —
+        // so "**in place of**" reached the English screen with its asterisks, in seventeen helps,
+        // until the 0.11.0 screenshots showed it.
+        assertThat(setting.label()).doesNotContain("*");
+        assertThat(setting.help()).doesNotContain("*");
+    }
+
     @Test
     @DisplayName("every setting whose value is a bearer capability is marked secret")
     void secretsAreMarked() {
