@@ -179,7 +179,7 @@ champs, la phase 3 la règle et son niveau.
 
 L'identifiant de signature est un contrat : les règles de corrélation s'écrivent dessus, et il ne
 changera pas de sens. Son préfixe a changé une fois, de `ZAN-SEC-` à `VECTI-SEC-`, dans la
-0.10.0 — mêmes numéros, mêmes sens ; voir les [notes de version](../reference/release-notes.md#avant-la-mise-a-jour).
+0.10.0 — mêmes numéros, mêmes sens ; voir les [notes de version](../reference/release-notes.md#avant-la-mise-a-jour-0100).
 
 | Signature | Nom | Sévérité CEF | Émis quand |
 |---|---|---|---|

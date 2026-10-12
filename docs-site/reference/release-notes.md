@@ -7,39 +7,50 @@ What follows is what 0.11.0 will contain, against 0.10.0.
 
 ### Before you upgrade
 
-Each point is written out in full below; this is what to do before the new image starts.
+Each point is written out in full below; this is what to do before the new image starts. The first list
+is for every installation coming from 0.10.0; one running `v0.11.0-rc.1` reads it too, then the second.
 
 - **Back up the database.** Migrations V65 to V88 run at startup and have no way back: going back to
   0.10.0 means restoring that backup and the previous image digest
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
+- **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
+  they carry (`sealed:v2:`), and an agent older than this release — `v0.11.0-rc.1` included — is handed
+  none: its sealing key is refused, and its scans of repositories carrying a key or a token wait for an
+  executor that can run them
+  ([agents](../administration/agents.md#before-delegating-credentials-pin-the-signing-key)).
+- **With the composition's `with-agent` or `sso` profile, complete `.env`.** Declare `VECTISPIRE_AGENT_TOKEN`
+  and `VECTISPIRE_AGENT_SIGNING_KEY` (empty if unused) — the agent no longer starts without both lines — and set
+  `KEYCLOAK_ADMIN_PASSWORD`, which no longer defaults to `admin` (*Agent credentials and the evaluation
+  Keycloak*, below).
+- **A pipeline that gates a target not yet scanned now fails.** So does one gating a target whose last
+  scan failed. Scan first and wait for the scan to complete, then gate; look on the Security overview for
+  targets marked never scanned or last scan failed before the upgrade, since each of their pipelines turns
+  red (*The gate refuses a target nobody examined*, below).
+- **Check who writes the settings that changed hands.** `notification_allow_private_url`, `ticket_project`
+  and `ticket_user` are an administrator's now, `evidence_retention_days` the platform governor's, and the
+  statement of applicability (`GET /api/v1/compliance/soa`) requires governance read. Stored values are
+  kept; a script writing these through `PUT /api/v1/settings` with a CISO's key, or reading the statement
+  without governance read, receives 403. A GitHub `ticket_project` stored as anything but
+  `owner/repository` is refused at the next ticket: correct it (*Three settings a CISO could change are no
+  longer theirs* and *Four authorization gaps closed*, below).
 - **Tell the teams their grades will drop.** The score formula counts mediums, lows and every further
   issue; nothing in their repositories changed. A check reading the badge's letter or the API's `score`
-  will see it drop (*Score formula*, below).
+  will see it drop, and one reading `score` or `grade` on `GET /api/v1/scorecards/global` finds neither:
+  the portfolio has no single grade any more (*Score formula*, below).
+- **Tell the SOC that `VECTI-SEC-030` now carries the late issue's severity.** It was a fixed 6, under the
+  default minimum, so no breach reached the SOC; with the default, critical and high breaches now arrive,
+  and a rule matching them on severity 6 stops matching — match the signature (*Other changes*, below).
 - **Expect every unscheduled target to be rescanned weekly.** All of them move to the installation's
   default interval at the upgrade, spread across the week. Size the workers or agents for it, set the
   targets meant to stay manual to **manual only**, or set `scan_default_interval_days` to `0` to keep the
-  old behaviour everywhere (*Every target without a schedule is now scanned weekly*, below).
+  old behaviour everywhere. A script that switched rescans off by sending an interval of `0` must send
+  `scanManualOnly: true`: `0` now means the default (*Every target without a schedule is now scanned
+  weekly*, below).
 - **On MySQL, start the server with `--max-allowed-packet=160M`.** At the default 64 MiB a report's export
   is kept up to about 32 MiB and its document about 31 MiB; the shipped composition now sets it
   ([report plugins](../administration/report-plugins.md)).
 - **An integration creating repositories unconditionally must read 409 as "already there".** A repository
   target is filed once (*A repository target is filed once*, below).
-- **A pipeline that gates a target not yet scanned now fails.** So does one gating a target whose last
-  scan failed. Scan first and wait for the scan to complete, then gate; look on the Security overview for
-  targets marked never scanned or last scan failed before the upgrade, since each of their pipelines turns
-  red (*The gate refuses a target nobody examined*, below).
-
-- **With the composition's `with-agent` or `sso` profile, complete `.env`.** Declare `VECTISPIRE_AGENT_TOKEN`
-  and `VECTISPIRE_AGENT_SIGNING_KEY` (empty if unused) — the agent no longer starts without both lines — and set
-  `KEYCLOAK_ADMIN_PASSWORD`, which no longer defaults to `admin` (*Agent credentials and the evaluation
-  Keycloak*, below).
-- **Installed the Helm chart from `v0.11.0-rc.1` with in-cluster agents?** Add `ports` to each
-  `agents.networkPolicy.allowTo` entry — `[{port: 443}]` for the ingress controller — or `helm upgrade`
-  refuses to render (*An in-cluster agent's way back to the Ingress*, below).
-- **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
-  they carry, and an agent older than 0.11.0 is handed none: its sealing key is refused, and its scans of
-  repositories carrying a key or a token wait for an executor that can run them
-  ([agents](../administration/agents.md#before-delegating-credentials-pin-the-signing-key)).
 - **Read the approval queue for requests a tracker's refusal put there.** Until 0.11.0 a ticket closed
   as *Won't Fix*, *Declined*, *Rejected*, *Risk Accepted*, *Withdrawn* or GitHub's *not planned* was
   queued as `not_affected` with `inline_mitigations_already_exist`, and those requests stay as they are.
@@ -47,7 +58,34 @@ Each point is written out in full below; this is what to do before the new image
   t_issue where triage_status = 'pending_approval' and triaged_by like '%_webhook'` — and turn down those
   that came from a refusal: decide them as *Will not fix — risk accepted*, with a review date, if that is
   what they are. Nothing converts them for you: only a person can tell a refusal from a false positive in the
-  comment (*Will not fix — risk accepted*, below).
+  comment. A request queued from now on is granted as asked: approving it with another settling status,
+  by hand or by script, answers 409 `triage-approval-differs` (*Will not fix — risk accepted*, below).
+- **Re-import the rule catalogue if your active set came from it with `generic`.** That set keeps the
+  rules that duplicate gitleaks, and each leaked key its *SAST* twin, until the catalogue is imported again
+  and the new set activated; the activation counts, by rule, the open issues those rules leave behind
+  before it goes ahead ([rule sets](../administration/rule-sets.md#from-the-upstream-catalogue)).
+- **Clear the change-password flag of the accounts the SCIM directory created.** They keep it after the
+  upgrade and are held on the change-password screen after a single sign-on; the audit log names them
+  (`USER_CREATED`, "SCIM provisioned account: …"), and `update t_user set must_change_password = false
+  where username = '…'` clears it for each. The directory no longer binds an existing privileged account to
+  an identity-provider subject unless `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true` — and never one with
+  a local second factor ([single sign-on](../administration/sso.md)).
+- **Tell administrators that changing their own password revokes the API keys they issued.** A pipeline
+  key one of them owns stops working at the change: issue a new one.
+
+From `v0.11.0-rc.1`, in addition:
+
+- **Migrations V84 to V88 run** — V83 and V85 are not used; the backup above applies.
+- **Helm chart with in-cluster agents: complete the values, or `helm upgrade` refuses to render.** Add
+  `ports` to each `agents.networkPolicy.allowTo` entry — `[{port: 443}]` for the ingress controller; give
+  the agents a node selector (or a required node affinity) and tolerations of their own, or set
+  `agents.acknowledgeSharedNodes`; and make `agents.controlPlaneUrl` `https://`
+  ([installation](../getting-started/installation.md#kubernetes); *An in-cluster agent's way back to the
+  Ingress*, below).
+- **Do not rely on the `.sig` in a report package a release candidate produced**: it was made with the
+  platform's key over bytes a plugin wrote (*A report plugin's file is no longer signed raw*, below). And
+  the report documents produced before this release recorded no targets: they are read only by somebody
+  who sees everything.
 
 ### Changes an integration can see
 
@@ -218,15 +256,22 @@ from a list in which none is true of an exposed product — and signed into the 
 - **The ticket webhook proposes `will_not_fix` for a refusal** — Jira *Won't Fix*, *Declined*,
   *Rejected*; ServiceNow *Won't Fix*, *Risk Accepted*, *Withdrawn*; GitHub *not planned*; GitLab
   *wontfix* — with no justification and a proposed review date ninety days out, which the approver
-  replaces with theirs. Only an explicit false positive is still proposed as `not_affected`
-  ([the inbound webhook](../integrations/ticketing.md#inbound-webhook)).
-- **A request awaiting approval says what it asks for, and is granted as asked.** Every issue shape
-  (`GET /api/v1/issues`, `GET /api/v1/issues/{id}`, a triage's answer) gains `triageRequestedStatus` —
-  `not_affected`, `will_not_fix` or `fixed` while `triageStatus` is `pending_approval`, null otherwise —
-  and `GET /api/v1/exceptions` gains `requested_status` on each entry. Approving with another settling
-  status answers **409** with the type `urn:vectispire:problem:triage-approval-differs` and the member
-  `requestedStatus`; an approver who disagrees turns the request down (`under_review` or `affected`) and
-  decides after ([granted as asked, or turned down](../administration/four-eyes.md#granted-as-asked-or-turned-down)).
+  replaces with theirs. A refusal was queued as `not_affected` with `inline_mitigations_already_exist`, a
+  mitigation the tracker never mentioned, which the signed documents would have carried once approved; and
+  GitHub's *not planned*, its only way to close without completing, which says nothing about reachability,
+  as `not_affected` with `vulnerable_code_not_in_execute_path`. Only an explicit false positive is still
+  proposed as `not_affected` ([the inbound webhook](../integrations/ticketing.md#inbound-webhook)).
+- **A request awaiting approval says what it asks for, and is granted as asked.** A request kept its
+  justification, comment and review date and dropped its status, and the approver chose one: a tracker's
+  *Won't Fix* could be granted as `not_affected`, and the signed VEX then said "not exposed". The request
+  now keeps its status (migration V88). Every issue shape (`GET /api/v1/issues`, `GET /api/v1/issues/{id}`,
+  a triage's answer) gains `triageRequestedStatus` — `not_affected`, `will_not_fix` or `fixed` while
+  `triageStatus` is `pending_approval`, null otherwise — and `GET /api/v1/exceptions` gains
+  `requested_status` on each entry. Approving with another settling status answers **409** with the type
+  `urn:vectispire:problem:triage-approval-differs` and the member `requestedStatus`; an approver who
+  disagrees turns the request down (`under_review` or `affected`) and decides after
+  ([granted as asked, or turned down](../administration/four-eyes.md#granted-as-asked-or-turned-down)).
+  The triage dialog opens on the requested status and the proposed review date, which it used to empty.
   Requests queued before the upgrade recorded no status, and are granted as the approver chooses.
 - **A webhook no longer moves an issue a person settled** (`not_affected`, `will_not_fix`, `fixed`). The
   tracker's word is recorded in the audit log; when it contradicts the decision, the entry is
@@ -237,6 +282,51 @@ from a list in which none is true of an exposed product — and signed into the 
 
 #### Other changes
 
+- **`VECTI-SEC-030` (remediation deadline passed) is as severe as the late issue**: CEF severity 8 for
+  a critical issue, 7 for a high, 5 for a medium, 3 for a low — in the CEF header and in the syslog
+  priority, and the minimum severity is compared with that. It was a fixed 6, under the default minimum
+  (High), so with the factory configuration no breach reached the SOC, not even a critical one's. With
+  the default, critical and high breaches now arrive; Medium lets medium ones through too. **A SOC rule
+  matching these alerts on severity 6 must adapt** — match `VECTI-SEC-030` on the signature, and read
+  the severity as the issue's. An event already queued at the upgrade leaves at 6, as it was raised —
+  [SIEM export](../integrations/siem.md#event-catalogue).
+- **No request is retried behind its caller's back any more.** The HTTP client every outbound call goes
+  through sent a GET again after a 429 or a 503, sleeping whatever `Retry-After` said, and after a dropped
+  connection; a webhook, a ticket, a model review or a catalogue download that failed once now fails once,
+  and a caller that retries says so.
+- **The CLI is a release asset, signed like the gate script.** `vectispire-cli.sh` is attached to the
+  release with its Sigstore bundle, `vectispire-cli.sh.cosign.bundle`, signed by `release.yml` at the
+  tag and verified with the same `cosign verify-blob` command as the jar; the release notes print its
+  SHA-256. The snippets of the **CI/CD** dialog on *Repositories* and of
+  [`CI_CD_INTEGRATION`](https://github.com/asmolabs/vectispire/blob/main/docs/en/CI_CD_INTEGRATION.md#-getting-the-cli)
+  used to download `scripts/vectispire-cli.sh` from the repository's raw URL at the tag and run it
+  unchecked; they now download the asset, compare its SHA-256 with the one they pin, and stop the job
+  on any other file. A pipeline copied from an earlier snippet keeps working, unchecked, until it is
+  replaced — 0.10.0 and earlier carry no CLI asset.
+- **Publishing a checklist template version can answer 409 `checklist-template-unrenderable`.**
+  `POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish` fills the workbook in once, as a
+  sign-off would, and refuses a workbook no sign-off could be written into; the problem's `cells` member
+  names each cell at fault (`cell`, `kind` — `shared` or `array` — and `range`). See *Fixed* below.
+  **Opening a project checklist, or moving one to another version, can answer 409
+  `checklist-version-unrenderable`** — `POST /api/v1/projects/{id}/checklists` runs the same trial on the
+  version opened on or moved to, and refuses one published earlier that fails it, with the same `cells`
+  member; nothing is stored or recorded. The version moved from is never tried.
+  `GET /api/v1/projects/{id}/checklists/offered` still lists such a version, with a new member,
+  `unrenderable` — the trial's `detail` and the same `cells` — which is null on every other version.
+- **A checklist's automatic answers arrive within a minute of a scan or a report, not at once.** A
+  completed scan, or an accepted SARIF, coverage or test report, queues them with its own results, and
+  the scheduler's next relay gives them, retrying if answering fails. They used to be given just after
+  the commit, and a server stopping in between left the lines unanswered until the next scan. A script
+  that reads a checklist right after uploading a report should wait for the relay — opening, moving or
+  reopening a revision still answers at once.
+- **A SIEM event an audit entry signals, and `SECURITY_GATE_FAILED`, are queued with what caused them.**
+  They were queued just after, in a transaction of their own, and a stop between the two lost them.
+  If the two cannot be written together, the entry or the verdict is still written and the event queued
+  right after it, as before; the server logs a warning when that happens.
+- **An agent's `AGENT_RESULT_SUBMITTED` audit entry is written up to a minute after the result**, from
+  the outbox, instead of just after it — and is no longer lost when the server stops in between. The
+  entry's timestamp is when it is written; the moment the result was accepted is in its description
+  ("… at 2026-…"), with the delivery's id.
 - **The OWASP report is in the menu's *Security* section**, after *Attack paths*, no longer under
   *Compliance & evidence*: it reads the findings, as the Security screens do. Same page, same access.
 - **The OWASP report carries what its screen links with** (`GET` and `POST
@@ -261,7 +351,7 @@ from a list in which none is true of an exposed product — and signed into the 
   scan left still listed every package. It now reads that inventory, as `component_present` does, and an
   empty one beside a purged payload is no data, `inventory_absent`, which withdraws the automatic *no*.
   `dependency_analysis` still requires the SBOM kept: that is what it measures.
-- **A checklist rule has a sixth kind, `change_review`, and a measurement four more reasons and a source.**
+- **A checklist rule has a seventh kind, `change_review`, and a measurement four more reasons and a source.**
   A rule's `kind` may read `change_review`, with `minimumApprovals`, `windowDays` and an optional `branch`
   on `ChecklistRuleForm` (its share is `minimumRatio`, as coverage's minimum is); a `reason` may read
   `forge_unlinked`, `forge_unreadable`, `review_incomplete` or `no_change_merged`, a repository's
@@ -272,12 +362,6 @@ from a list in which none is true of an exposed product — and signed into the 
   gains `suitePatterns` (2 to 10 globs), stated instead of `suitePattern`, never beside it; each pattern is
   judged on its own suites, against the same `minimumTests`. A rule with one pattern is written `suitePattern`
   exactly as before — its canonical form and its digest unchanged, so no bound line is marked changed.
-- **The project export is schema 1.1**: each `inventory.components[]` gains `sources` — `build`, `scanner`
-  or both, who listed the component across its targets. An optional field, by the schema's own rule; a
-  plugin written for 1.0 reads 1.1 as it read 1.0. `GET /api/v1/inventory/search` occurrences gain
-  `source` (`scanner`, `build`, `both`) and `scannerVersion`, and the project's consolidated components
-  (`GET /api/v1/projects/{id}/components`) `sources`. A source's `kinds` may now hold `sbom`; a client
-  listing them should show a kind it does not know as itself, as the screen does.
 - **A coverage import answers `packagesState`**, and a checklist measurement has three more reasons.
   `POST` and `GET /api/v1/repositories/{id}/coverage-imports` carry `packagesState` — `kept`, `too_many`,
   `path_refused`, `inconsistent`, or `null` for an import accepted before this version — and a rule's
@@ -286,92 +370,25 @@ from a list in which none is true of an exposed product — and signed into the 
   A client that switches over `reason` should handle them; one that does not still reads no data. A
   rule's form (`boundRule`, the rules route) gains an optional `scope`; a rule without one keeps its
   canonical form and its content digest. Schema V71 adds a column and a table, nothing to do.
+- **The project export is schema 1.1**: each `inventory.components[]` gains `sources` — `build`, `scanner`
+  or both, who listed the component across its targets. An optional field, by the schema's own rule; a
+  plugin written for 1.0 reads 1.1 as it read 1.0. `GET /api/v1/inventory/search` occurrences gain
+  `source` (`scanner`, `build`, `both`) and `scannerVersion`, and the project's consolidated components
+  (`GET /api/v1/projects/{id}/components`) `sources`. A source's `kinds` may now hold `sbom`; a client
+  listing them should show a kind it does not know as itself, as the screen does.
 - **A plugin refusal has a third reason, `registry_authentication_required`**, and a checklist
   measurement a matching reason, `plugin_registry_authentication_required`: the plugin's image declares
   a signer, and its registry would not let the signature be read. A client that switches over
   `refusal` or over a measurement's `reason` should handle the new token; one that does not know it
   still reads a refusal.
-- **A checklist's automatic answers arrive within a minute of a scan or a report, not at once.** A
-  completed scan, or an accepted SARIF, coverage or test report, queues them with its own results, and
-  the scheduler's next relay gives them, retrying if answering fails. They used to be given just after
-  the commit, and a server stopping in between left the lines unanswered until the next scan. A script
-  that reads a checklist right after uploading a report should wait for the relay — opening, moving or
-  reopening a revision still answers at once.
-- **A SIEM event an audit entry signals, and `SECURITY_GATE_FAILED`, are queued with what caused them.**
-  They were queued just after, in a transaction of their own, and a stop between the two lost them.
-  If the two cannot be written together, the entry or the verdict is still written and the event queued
-  right after it, as before; the server logs a warning when that happens.
-- **An agent's `AGENT_RESULT_SUBMITTED` audit entry is written up to a minute after the result**, from
-  the outbox, instead of just after it — and is no longer lost when the server stops in between. The
-  entry's timestamp is when it is written; the moment the result was accepted is in its description
-  ("… at 2026-…"), with the delivery's id.
 - **An issue's triage history gains entries of origin `reopen`**, on `GET /api/v1/issues/{id}`
   (`decisions`) and in a target's history (`GET /api/v1/history/repositories/{id}`), with a new field,
   `previousResolvedAt` — null on every other entry. Their `actor` is null, as on an `expiry`. The history
   CSV gains a last column, `decision_previous_resolved_at`; a target's `decisions` count leaves reopenings
   out.
-- **The CLI is a release asset, signed like the gate script.** `vectispire-cli.sh` is attached to the
-  release with its Sigstore bundle, `vectispire-cli.sh.cosign.bundle`, signed by `release.yml` at the
-  tag and verified with the same `cosign verify-blob` command as the jar; the release notes print its
-  SHA-256. The snippets of the **CI/CD** dialog on *Repositories* and of
-  [`CI_CD_INTEGRATION`](https://github.com/asmolabs/vectispire/blob/main/docs/en/CI_CD_INTEGRATION.md#-getting-the-cli)
-  used to download `scripts/vectispire-cli.sh` from the repository's raw URL at the tag and run it
-  unchecked; they now download the asset, compare its SHA-256 with the one they pin, and stop the job
-  on any other file. A pipeline copied from an earlier snippet keeps working, unchecked, until it is
-  replaced — 0.10.0 and earlier carry no CLI asset.
-- **`VECTI-SEC-030` (remediation deadline passed) is as severe as the late issue**: CEF severity 8 for
-  a critical issue, 7 for a high, 5 for a medium, 3 for a low — in the CEF header and in the syslog
-  priority, and the minimum severity is compared with that. It was a fixed 6, under the default minimum
-  (High), so with the factory configuration no breach reached the SOC, not even a critical one's. With
-  the default, critical and high breaches now arrive; Medium lets medium ones through too. **A SOC rule
-  matching these alerts on severity 6 must adapt** — match `VECTI-SEC-030` on the signature, and read
-  the severity as the issue's. An event already queued at the upgrade leaves at 6, as it was raised —
-  [SIEM export](../integrations/siem.md#event-catalogue).
-
-- **Publishing a checklist template version can answer 409 `checklist-template-unrenderable`.**
-  `POST /api/v1/checklist-templates/{slug}/versions/{ordinal}/publish` fills the workbook in once, as a
-  sign-off would, and refuses a workbook no sign-off could be written into; the problem's `cells` member
-  names each cell at fault (`cell`, `kind` — `shared` or `array` — and `range`). See *Fixed* below.
-  **Opening a project checklist, or moving one to another version, can answer 409
-  `checklist-version-unrenderable`** — `POST /api/v1/projects/{id}/checklists` runs the same trial on the
-  version opened on or moved to, and refuses one published earlier that fails it, with the same `cells`
-  member; nothing is stored or recorded. The version moved from is never tried.
-  `GET /api/v1/projects/{id}/checklists/offered` still lists such a version, with a new member,
-  `unrenderable` — the trial's `detail` and the same `cells` — which is null on every other version.
 
 ### New
 
-- **The OWASP report links to the findings it describes.** Under each category heading, *View the N
-  findings* opens the repository's open, unsettled findings in that category — the same list the grid's
-  count opens — or says there are none. The identifiers the model was shown (CVEs, rule ids, packages)
-  link to their issue, or to a search when several issues carry one; an identifier the prose cites
-  without the model having been shown it stays text.
-- **The OWASP report can be written after each repository scan**
-  ([OWASP report](../guide/risk-analysis.md#the-owasp-report-written-by-a-model)). With **Write the OWASP
-  report after each repository scan** (`ai_review_owasp_after_scan`, off by default) and model review on,
-  a repository scan that completes asks the model for that repository's report, built from that scan —
-  never a failed scan, never a container image. The request is queued with the scan's results and
-  written beside the scans, never holding one up: one report at a time per instance, and none started
-  while any report is being written, by another instance or from the button, since a local model answers
-  one request at a time. A repository whose report is being written is not asked again, and scans of one
-  repository arriving while its report waits are folded into one, from the newest. A failure is recorded
-  on the report as for a report asked by hand, and the scan stays completed. The audit log records each
-  one as `AI_REVIEW_REQUESTED` with no user. Off, nothing changes. A request held by an instance that
-  stops before starting it is lost; the next scan asks again.
-- **A checklist line answers "library X is used" and "the versions of family Y in use", and a range of
-  versions** ([Components](../administration/checklist-templates.md#components-presence-versions-and-ranges)).
-  A `component_present` rule passes when a package matching its prefix is in the newest analysed SBOM,
-  **whatever its version — one a Maven BOM manages, which Syft writes `UNKNOWN`, included**: a line that had
-  no automatic answer on a compliant project using a BOM now has one. It fails when the package is absent,
-  and has no data without a fresh analysis, or where the newest analysis no longer holds its SBOM and its
-  inventory lists nothing. A namespace prefix (`pkg:maven/org.example.platform`) lists, per repository,
-  each of its packages with its versions, twenty at most and the rest counted — on `component_versions`
-  too. A `component_versions` line now takes **Maven version ranges** beside exact versions on a
-  `pkg:maven/` package — `[1.17,2.0)`, `[1.17.7]`, `(,2.0)`, unions — in Maven's own order: `1.17-SNAPSHOT`
-  and `1.17-RC1` before `1.17`, `5.3.0.RELEASE` equal to `5.3.0`; a range that does not read is refused in
-  words when bound. Where a version stays unstated, the evidence says it is managed outside the SBOM and
-  that an SBOM produced by the build resolves it. The template's rule editor offers both, in French and
-  English.
 - **Kubernetes: a Helm chart** in `deploy/helm/vectispire/`
   ([installation](../getting-started/installation.md#kubernetes),
   [decision 0038](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0038-deploying-on-kubernetes.md)).
@@ -393,132 +410,6 @@ from a list in which none is true of an exposed product — and signed into the 
     addresses — `169.254.0.0/16` and those outside it — from the agents' egress whatever the list says.
   - **Checked in CI** for each of these shapes, and that the single-namespace ones render nothing
     outside their namespace.
-- **A checklist line can measure change reviews — *every merge request is approved by a peer before
-  merge*** ([the rule](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch),
-  [what the forge is asked](../administration/forge-connections.md#change-reviews-what-the-checklists-ask-the-forge),
-  decision 0037, lot G3). A `change_review` rule states the approvals by people other than the author
-  (`minimumApprovals`), the window (`windowDays`), the share of merged changes that must have them
-  (`minimumRatio`) and, optionally, the branch. An hourly maintenance turn reads each repository's forge
-  through the connection that imported it — or one whose discovery listed its URL —, never on a request:
-  the **settings** where the forge has them (GitLab Premium and Ultimate approval rules, *Prevent approval
-  by author* and the protected branch; GitHub rulesets and branch protection), which pass the line alone
-  when they require the approvals, refuse the author's own and refuse a direct push; and the **history** on
-  every edition — the **GitLab Community Edition** included, which has no approval rule and answers 404 for
-  the settings: the merge requests or pull requests merged in the window and who approved each, **an
-  approval by the author counted nowhere**. The line shows *47 of 47 merged merge requests approved by a
-  peer in 30 days*, or the settings in a sentence, and the signed document prints it. No data, never a pass,
-  for a repository no connection knows, a token refused (on GitHub a fine-grained token also needs **Pull
-  requests: read**; GitLab's `read_api` already covers it), more than 500 changes in the window, or nothing
-  merged in it. The template editor offers the kind, proposing one peer, every change and thirty days.
-  Migration V81 (`t_forge_review_reading`).
-- **A build's SBOM completes the scanner's inventory** ([Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom),
-  [decision 0039](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0039-a-build-sbom-completes-the-scanners-inventory.md),
-  lot G10). The scanner reads a Maven tree's poms: a version a parent's BOM manages came out as
-  `UNKNOWN`, and a library pulled in transitively was not listed at all, so a checklist line asking
-  whether it is used answered a false "no". A declared source may now deliver `sbom`: `POST
-  /api/v1/repositories/{id}/build-sbom-imports` takes the CycloneDX JSON the build wrote
-  (`cyclonedx-maven-plugin`'s `makeAggregateBom`, the Gradle CycloneDX plugin), spec 1.4 to 1.6, up to
-  32 MB (`VECTISPIRE_MAX_BODY_SBOM_IMPORT`) and 50,000 components, fetching nothing it refers to; the
-  CLI's `build-sbom` sends it. **Each scan's inventory is the scanner's, completed by the newest build
-  SBOM of its branch**: the union of both, matched by purl, the build's stated version winning, the
-  scanner's kept beside it. The newest completed scan is completed as the import is answered, and every
-  later scan as its inventory is written; older scans keep what they were given. The component search,
-  the consolidated inventory, its CycloneDX export, the project export, the licence inventory and its
-  tallies, and the `component_versions` and `component_present` checklist lines all read the completed rows, each saying who
-  listed it. Vulnerability matching is unchanged, and an SBOM opens no issue. Audited
-  `BUILD_SBOM_IMPORTED`; a refusal `REPORT_IMPORT_REFUSED`, `VECTI-SEC-027`. The SBOMs leave with the
-  evidence window and with their repository. Migration V82 (`t_build_sbom`, `t_build_sbom_component`,
-  five columns of `t_component`), nothing to do.
-- **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
-  (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
-  ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).
-  A GitHub discovery no longer answers 409 `forge-discovery-unsupported`. A fine-grained token lists the
-  connection's owner; a classic token (Enterprise Server) every organisation its user belongs to and the
-  user's own repositories, flagged `personal` and offered unticked. The listing carries the default branch,
-  archived, fork, visibility (`internal` included), `pushed_at`, language and size, pages by `Link` on the
-  connection's own origin, and waits out GitHub's primary and secondary rate limits. **An organisation the
-  token cannot read — single sign-on not authorised, an IP allow list — no longer stops anything**: the run
-  goes on, ends `completed`, and names it in a new member of the discovery, `unreadableNamespaces` (`path`,
-  `reason`), and in `detail`; **none of its repositories is marked gone by that run**. Imported as GitLab's
-  are, the organisation a solution and each repository its own project. Migration V80
-  (`t_forge_discovery.unreadable_namespaces`).
-- **Forge connections, discovery and import on screen** ([On screen](../administration/forge-connections.md#on-screen),
-  decision 0037, lot D7). **Administration → Forge connections**, administrators only: each connection with
-  its token's kind and scopes, whether it can write (*Not reported* for a GitHub fine-grained token —
-  unknown, not read-only), its expiry announced fourteen days ahead, the network statement, the pinned CA,
-  the last discovery and the targets imported; adding one with a CA pasted in PEM and read for its shape in
-  words before it is sent, the probe's refusal shown as the server words it; replacing the token in place;
-  renaming or changing the network statement or the CA; deleting, the targets kept. Each connection's page
-  takes three steps: **discover** (the run followed with a back-off until it ends, its counters, a partial
-  or failed run's reason in words, the comparison's figures each opening its list), **choose** (the
-  server's filtered table, what each filter could not judge counted, proposed / all / none / invert / by id,
-  personal namespaces unticked at first, an id the server drops named), and **place and import** (the
-  filing per namespace or repository, the clone credential per host, first scans off by default and spaced
-  10 s to 10 min, a preview saying who will see each target, an import that sends exactly what was
-  previewed — at most a thousand at a time — and a result linking each target). No route changes.
-- **Forge imports: a discovery's repositories selected, previewed and imported as ordinary targets**
-  ([Selecting and importing](../administration/forge-connections.md#selecting-and-importing), decision 0037,
-  lots D5 and D6 — the screen is lot D7). `GET …/discoveries/{discoveryId}/selection` is the table, filtered
-  and paged on the server — archived and forks hidden by default, inactivity, language, visibility,
-  namespace, a path pattern, personal and present — with each repository's **presence by identity** (the
-  repository form's duplicate rule: its HTTPS or SSH clone URL against every target's, whatever the branch
-  and sub-path) and the solution and project GitLab's layout proposes (top-level group → solution, parent
-  subgroup → project); `POST` on it applies proposed / all / none / invert / add / remove. `POST
-  …/imports/preview` says what would be created, reused, skipped or refused, the clone credential per host,
-  the first scans and **who will see the new targets**; `POST …/imports` creates up to 1,000 targets **in one
-  transaction**, through the forms' own gestures and audit entries, planned again inside it so that **a
-  replay creates nothing**. The forge's default branch; no schedule of its own — the default applies, at
-  each target's own slot rather than all at the next tick; first scans only when asked, one every 60 seconds
-  by default (10 s to 10 min); no grant. One `FORGE_IMPORT_APPLIED` entry per import, signalled
-  **`VECTI-SEC-035`** once when it created something. Administrators only. The connection's own token never
-  clones. Deleting an imported target drops its provenance; deleting the connection keeps the targets.
-  Migration V78 (`t_forge_import_link`).
-- **Forge discoveries: a GitLab's repositories listed in the background, kept as a snapshot and compared
-  run to run** ([Discovering repositories](../administration/forge-connections.md#discovering-repositories),
-  decision 0037, lots D2 and D3 — choosing and importing repositories come next, and GitHub's listing with
-  lot D4). `POST /api/v1/forge-connections/{id}/discoveries` answers 202 with a `pending` run that a
-  control-plane instance takes under a lease — a restart resumes it — and `GET …/discoveries/{discoveryId}`
-  reports its progress; one per connection at a time (409 `forge-discovery-in-progress`). The groups and
-  projects the token is a member of are listed (`membership=true`, `min_access_level=10`) with their
-  default branch, archived, fork, visibility, last activity, language and size — **a value GitLab did not
-  give is kept `null`, unknown, never zero** — and a project in a user's own namespace is flagged
-  `personal`. `…/repositories?change=new|changed|gone` reads the comparison; **only a completed run marks a
-  repository gone**, and nothing is deleted. Bounds: thirty minutes and 20,000 repositories per run, a
-  rate-limit wait of up to a minute spent inside it — past any of them the run ends `partial`. Every
-  request goes through the outbound guard and the connection's pinned CA; a next page on another origin is
-  never followed — the run fails, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`.
-  Each discovery queued is audited `FORGE_DISCOVERY_REQUESTED` (a request answered 409 records nothing),
-  not signalled. Administrators only; on screen with lot D7 (above).
-- **No request is retried behind its caller's back any more.** The HTTP client every outbound call goes
-  through sent a GET again after a 429 or a 503, sleeping whatever `Retry-After` said, and after a dropped
-  connection; a webhook, a ticket, a model review or a catalogue download that failed once now fails once,
-  and a caller that retries says so.
-- **Forge connections: a read-only token to a GitHub or a GitLab, probed before it is kept**
-  ([Forge connections](../administration/forge-connections.md), decision 0037, lot D1 — the discovery
-  and the import of repositories come next). `/api/v1/forge-connections`, administrators only, on
-  screen with lot D7 (above). The token is presented to the forge once through the outbound guard and refused when it is
-  rejected, broader than read-only (GitLab: `read_api`; GitHub: a fine-grained token, or a classic one on
-  Enterprise Server, flagged `canWrite`), or the server is older than GitLab 16 or GHES 3.12. A
-  self-managed server on the internal network is reached when the administrator says so, behind its own
-  CA when it is pinned for that connection — there is no switch that skips verification. The token is
-  encrypted with its row as context, replaced in place, re-sealed when the connection is saved during an
-  `ENCRYPTION_KEY` rotation, and never returned. Audited `FORGE_CONNECTION_CHANGED` and
-  `FORGE_CONNECTION_REFUSED`; signalled `VECTI-SEC-034`, and `VECTI-SEC-036` for a blocked address or a
-  refused scope.
-- **A coverage line may measure a scope of packages**
-  ([how to write one](../administration/checklist-templates.md#coverage-over-a-scope-of-packages)). A
-  `coverage_threshold` rule takes an optional `scope` — `include` and `exclude` patterns over package
-  paths, `**/service/**`, `org/example/**`, `**` for whole segments and `*` within one — decided in the
-  template rather than in each build's coverage filter, where a reviewer never saw it. The figure is
-  covered over total across the matching packages; the evidence names how many matched, and the
-  measurement's summary — the signed document's `Evidence` sheet — states the scope beside the figure. To
-  measure it, a coverage import now keeps its counts per package beside its totals (a JaCoCo or Cobertura
-  `<package>`, an lcov file's directory), up to 10,000 packages and only when they add up to the totals.
-  A scope matching nothing, an import from before this version (upload the report again) or one whose
-  packages were not kept is no data in those words — never 0 %, 100 % or the report's totals. Patterns
-  that would not read as written — `org.example.service`, `**/serv**`, `?` — are refused when the rule is
-  bound. Until a line is rebound with a scope, nothing changes.
-
 - **A project's export, signed, and its published schema** — the first lot of report plugins
   ([decision 0035](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0035-report-plugins.md),
   accepted on 2026-10-03). `GET /api/v1/projects/{id}/export` returns a zip of `export.json` — the
@@ -531,7 +422,6 @@ from a list in which none is true of an exposed product — and signed into the 
   `GET /api/v1/schemas/project-export/1`. Audited `PROJECT_EXPORTED`, sent to the SIEM as the new
   `VECTI-SEC-032`; `VECTI-SEC-033` is reserved for the plugins themselves
   ([how](../guide/exports.md#project-export)).
-
 - **The report plugins' registry** — the second lot of decision 0035. The platform governor registers a
   report plugin from its manifest — an image pinned by digest, the export major it reads, the one file it
   writes and its media type from a closed list (Office Open XML, OpenDocument, PDF, CSV, plain text; no
@@ -548,7 +438,6 @@ from a list in which none is true of an exposed product — and signed into the 
   (`REPORT_PLUGIN_*`) and sent to the SIEM as the new `VECTI-SEC-031`. A private plugin image is pulled
   and verified with the control plane's Docker configuration: the manifest holds no credential, and Vectispire stores none
   ([how](../administration/report-plugins.md)).
-
 - **Report runs** — the third lot of decision 0035. A write account or an auditor who sees a whole project
   asks a report of a plugin switched on for it (`POST /api/v1/projects/{id}/reports`, 202): the run is
   queued in the database and claimed by the **control plane's** executor — the Docker endpoint the built-in
@@ -570,7 +459,6 @@ from a list in which none is true of an exposed product — and signed into the 
   rather than left pending for ever. Audited `REPORT_REQUESTED`, `PROJECT_EXPORTED`
   (`VECTI-SEC-032`, the export reaching a plugin), `REPORT_PRODUCED`, `REPORT_FAILED`, `REPORT_REFUSED` —
   the last sent to the SIEM as the new `VECTI-SEC-033` ([how](../administration/report-plugins.md#requesting-a-report)).
-
 - **Report documents, checked, signed and downloadable** — the fourth lot of decision 0035. At the end of a
   run the file the plugin wrote is **checked on its bytes** against its manifest's media type: an Office
   Open XML package through the checklist import's zip guards, its main part of the declared type, and no
@@ -592,7 +480,6 @@ from a list in which none is true of an exposed product — and signed into the 
   restores to the manifest's ceiling. The runs gain
   `outputMediaType`, `signingKeyId` and `packageSha256`
   ([how](../administration/report-plugins.md#the-document-and-how-to-verify-it)).
-
 - **The demonstration report plugin** — the fifth lot of decision 0035. `vectispire-report-demo` renders a
   project's export into `summary.xlsx` — a `Summary` sheet (the project, who asked, the version, the export's
   instant, the gate per target, the counts), one row per issue on `Issues`, one per checklist line on
@@ -604,7 +491,6 @@ from a list in which none is true of an exposed product — and signed into the 
   Sigstore bundle — verify it, then register it like any report plugin. It is the contract's test as much as a
   sample: every build renders the exports the suite generates and checks the workbook
   ([how](../administration/report-plugins.md#the-demonstration-plugin)).
-
 - **Report plugins on screen** — the sixth lot of decision 0035. **Administration → Report plugins**, for
   the roles that read governance, lists every report plugin with its approved and pending digests and the
   history of its manifests — who registered, approved and withdrew each, and whether four-eyes applied. The
@@ -619,7 +505,6 @@ from a list in which none is true of an exposed product — and signed into the 
   the export**. Every refusal the server names (a disabled plugin, no approved manifest, no executor, a run
   already under way, four-eyes) is said in the reader's language. Marking a withdrawn manifest's documents
   comes with the next lot ([how](../guide/exports.md#reports)).
-
 - **Withdrawn report documents, and asking whether a document still stands** — the seventh lot of decision
   0035. Withdrawing a manifest digest now withdraws **every document it produced**, which stay stored and
   downloadable: their runs carry `withdrawnAt`, `withdrawnBy` and `withdrawalJustification`, the download
@@ -632,13 +517,141 @@ from a list in which none is true of an exposed product — and signed into the 
   marked **Withdrawn** with the date, who withdrew it and why, and its download is followed by what it is
   worth. `REPORT_PLUGIN_WITHDRAWN` counts the documents withdrawn; V79 adds three indexes to the runs
   ([how](../administration/report-plugins.md#does-the-installation-still-stand-by-a-document)).
-
-- **Experimental: other scorecard weights, side by side with the production ones.**
-  `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
-  solution under the card's formula and under the weights asked for, with each row's risk points; with
-  no parameter the two agree. It served to decide the formula above, sets both ways of grading a scope
-  — the weakest link the card uses and the rejected sum — beside each other, and is retired in the
-  release after this one ([how](../guide/repositories.md#score-simulation)).
+- **Forge connections: a read-only token to a GitHub or a GitLab, probed before it is kept**
+  ([Forge connections](../administration/forge-connections.md), decision 0037, lot D1 — the discovery
+  and the import of repositories come next). `/api/v1/forge-connections`, administrators only, on
+  screen with lot D7 (above). The token is presented to the forge once through the outbound guard and refused when it is
+  rejected, broader than read-only (GitLab: `read_api`; GitHub: a fine-grained token, or a classic one on
+  Enterprise Server, flagged `canWrite`), or the server is older than GitLab 16 or GHES 3.12. A
+  self-managed server on the internal network is reached when the administrator says so, behind its own
+  CA when it is pinned for that connection — there is no switch that skips verification. The token is
+  encrypted with its row as context, replaced in place, re-sealed when the connection is saved during an
+  `ENCRYPTION_KEY` rotation, and never returned. Audited `FORGE_CONNECTION_CHANGED` and
+  `FORGE_CONNECTION_REFUSED`; signalled `VECTI-SEC-034`, and `VECTI-SEC-036` for a blocked address or a
+  refused scope.
+- **Forge discoveries: a GitLab's repositories listed in the background, kept as a snapshot and compared
+  run to run** ([Discovering repositories](../administration/forge-connections.md#discovering-repositories),
+  decision 0037, lots D2 and D3 — choosing and importing repositories come next, and GitHub's listing with
+  lot D4). `POST /api/v1/forge-connections/{id}/discoveries` answers 202 with a `pending` run that a
+  control-plane instance takes under a lease — a restart resumes it — and `GET …/discoveries/{discoveryId}`
+  reports its progress; one per connection at a time (409 `forge-discovery-in-progress`). The groups and
+  projects the token is a member of are listed (`membership=true`, `min_access_level=10`) with their
+  default branch, archived, fork, visibility, last activity, language and size — **a value GitLab did not
+  give is kept `null`, unknown, never zero** — and a project in a user's own namespace is flagged
+  `personal`. `…/repositories?change=new|changed|gone` reads the comparison; **only a completed run marks a
+  repository gone**, and nothing is deleted. Bounds: thirty minutes and 20,000 repositories per run, a
+  rate-limit wait of up to a minute spent inside it — past any of them the run ends `partial`. Every
+  request goes through the outbound guard and the connection's pinned CA; a next page on another origin is
+  never followed — the run fails, recorded `FORGE_CONNECTION_REFUSED` and signalled `VECTI-SEC-036`.
+  Each discovery queued is audited `FORGE_DISCOVERY_REQUESTED` (a request answered 409 records nothing),
+  not signalled. Administrators only; on screen with lot D7 (below).
+- **Forge discoveries: a GitHub's repositories too** — github.com, Enterprise Cloud with data residency
+  (`<subdomain>.ghe.com`) and Enterprise Server 3.12 or later at `/api/v3`
+  ([what is listed](../administration/forge-connections.md#discovering-repositories), decision 0037, lot D4).
+  A GitHub discovery no longer answers 409 `forge-discovery-unsupported`. A fine-grained token lists the
+  connection's owner; a classic token (Enterprise Server) every organisation its user belongs to and the
+  user's own repositories, flagged `personal` and offered unticked. The listing carries the default branch,
+  archived, fork, visibility (`internal` included), `pushed_at`, language and size, pages by `Link` on the
+  connection's own origin, and waits out GitHub's primary and secondary rate limits. **An organisation the
+  token cannot read — single sign-on not authorised, an IP allow list — no longer stops anything**: the run
+  goes on, ends `completed`, and names it in a new member of the discovery, `unreadableNamespaces` (`path`,
+  `reason`), and in `detail`; **none of its repositories is marked gone by that run**. Imported as GitLab's
+  are, the organisation a solution and each repository its own project. Migration V80
+  (`t_forge_discovery.unreadable_namespaces`).
+- **Forge imports: a discovery's repositories selected, previewed and imported as ordinary targets**
+  ([Selecting and importing](../administration/forge-connections.md#selecting-and-importing), decision 0037,
+  lots D5 and D6 — the screen is lot D7). `GET …/discoveries/{discoveryId}/selection` is the table, filtered
+  and paged on the server — archived and forks hidden by default, inactivity, language, visibility,
+  namespace, a path pattern, personal and present — with each repository's **presence by identity** (the
+  repository form's duplicate rule: its HTTPS or SSH clone URL against every target's, whatever the branch
+  and sub-path) and the solution and project GitLab's layout proposes (top-level group → solution, parent
+  subgroup → project); `POST` on it applies proposed / all / none / invert / add / remove. `POST
+  …/imports/preview` says what would be created, reused, skipped or refused, the clone credential per host,
+  the first scans and **who will see the new targets**; `POST …/imports` creates up to 1,000 targets **in one
+  transaction**, through the forms' own gestures and audit entries, planned again inside it so that **a
+  replay creates nothing**. The forge's default branch; no schedule of its own — the default applies, at
+  each target's own slot rather than all at the next tick; first scans only when asked, one every 60 seconds
+  by default (10 s to 10 min); no grant. One `FORGE_IMPORT_APPLIED` entry per import, signalled
+  **`VECTI-SEC-035`** once when it created something. Administrators only. The connection's own token never
+  clones. Deleting an imported target drops its provenance; deleting the connection keeps the targets.
+  Migration V78 (`t_forge_import_link`).
+- **Forge connections, discovery and import on screen** ([On screen](../administration/forge-connections.md#on-screen),
+  decision 0037, lot D7). **Administration → Forge connections**, administrators only: each connection with
+  its token's kind and scopes, whether it can write (*Not reported* for a GitHub fine-grained token —
+  unknown, not read-only), its expiry announced fourteen days ahead, the network statement, the pinned CA,
+  the last discovery and the targets imported; adding one with a CA pasted in PEM and read for its shape in
+  words before it is sent, the probe's refusal shown as the server words it; replacing the token in place;
+  renaming or changing the network statement or the CA; deleting, the targets kept. Each connection's page
+  takes three steps: **discover** (the run followed with a back-off until it ends, its counters, a partial
+  or failed run's reason in words, the comparison's figures each opening its list), **choose** (the
+  server's filtered table, what each filter could not judge counted, proposed / all / none / invert / by id,
+  personal namespaces unticked at first, an id the server drops named), and **place and import** (the
+  filing per namespace or repository, the clone credential per host, first scans off by default and spaced
+  10 s to 10 min, a preview saying who will see each target, an import that sends exactly what was
+  previewed — at most a thousand at a time — and a result linking each target). No route changes.
+- **A checklist line can measure change reviews — *every merge request is approved by a peer before
+  merge*** ([the rule](../administration/checklist-templates.md#change-review-how-changes-reach-a-branch),
+  [what the forge is asked](../administration/forge-connections.md#change-reviews-what-the-checklists-ask-the-forge),
+  decision 0037, lot G3). A `change_review` rule states the approvals by people other than the author
+  (`minimumApprovals`), the window (`windowDays`), the share of merged changes that must have them
+  (`minimumRatio`) and, optionally, the branch. An hourly maintenance turn reads each repository's forge
+  through the connection that imported it — or one whose discovery listed its URL —, never on a request:
+  the **settings** where the forge has them (GitLab Premium and Ultimate approval rules, *Prevent approval
+  by author* and the protected branch; GitHub rulesets and branch protection), which pass the line alone
+  when they require the approvals, refuse the author's own and refuse a direct push; and the **history** on
+  every edition — the **GitLab Community Edition** included, which has no approval rule and answers 404 for
+  the settings: the merge requests or pull requests merged in the window and who approved each, **an
+  approval by the author counted nowhere**. The line shows *47 of 47 merged merge requests approved by a
+  peer in 30 days*, or the settings in a sentence, and the signed document prints it. No data, never a pass,
+  for a repository no connection knows, a token refused (on GitHub a fine-grained token also needs **Pull
+  requests: read**; GitLab's `read_api` already covers it), more than 500 changes in the window, or nothing
+  merged in it. The template editor offers the kind, proposing one peer, every change and thirty days.
+  Migration V81 (`t_forge_review_reading`).
+- **A checklist line answers "library X is used" and "the versions of family Y in use", and a range of
+  versions** ([Components](../administration/checklist-templates.md#components-presence-versions-and-ranges)).
+  A `component_present` rule passes when a package matching its prefix is in the newest analysed SBOM,
+  **whatever its version — one a Maven BOM manages, which Syft writes `UNKNOWN`, included**: a line that had
+  no automatic answer on a compliant project using a BOM now has one. It fails when the package is absent,
+  and has no data without a fresh analysis, or where the newest analysis no longer holds its SBOM and its
+  inventory lists nothing. A namespace prefix (`pkg:maven/org.example.platform`) lists, per repository,
+  each of its packages with its versions, twenty at most and the rest counted — on `component_versions`
+  too. A `component_versions` line now takes **Maven version ranges** beside exact versions on a
+  `pkg:maven/` package — `[1.17,2.0)`, `[1.17.7]`, `(,2.0)`, unions — in Maven's own order: `1.17-SNAPSHOT`
+  and `1.17-RC1` before `1.17`, `5.3.0.RELEASE` equal to `5.3.0`; a range that does not read is refused in
+  words when bound. Where a version stays unstated, the evidence says it is managed outside the SBOM and
+  that an SBOM produced by the build resolves it. The template's rule editor offers both, in French and
+  English.
+- **A coverage line may measure a scope of packages**
+  ([how to write one](../administration/checklist-templates.md#coverage-over-a-scope-of-packages)). A
+  `coverage_threshold` rule takes an optional `scope` — `include` and `exclude` patterns over package
+  paths, `**/service/**`, `org/example/**`, `**` for whole segments and `*` within one — decided in the
+  template rather than in each build's coverage filter, where a reviewer never saw it. The figure is
+  covered over total across the matching packages; the evidence names how many matched, and the
+  measurement's summary — the signed document's `Evidence` sheet — states the scope beside the figure. To
+  measure it, a coverage import now keeps its counts per package beside its totals (a JaCoCo or Cobertura
+  `<package>`, an lcov file's directory), up to 10,000 packages and only when they add up to the totals.
+  A scope matching nothing, an import from before this version (upload the report again) or one whose
+  packages were not kept is no data in those words — never 0 %, 100 % or the report's totals. Patterns
+  that would not read as written — `org.example.service`, `**/serv**`, `?` — are refused when the rule is
+  bound. Until a line is rebound with a scope, nothing changes.
+- **A build's SBOM completes the scanner's inventory** ([Importing a build's SBOM](../administration/plugins.md#importing-a-builds-sbom),
+  [decision 0039](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0039-a-build-sbom-completes-the-scanners-inventory.md),
+  lot G10). The scanner reads a Maven tree's poms: a version a parent's BOM manages came out as
+  `UNKNOWN`, and a library pulled in transitively was not listed at all, so a checklist line asking
+  whether it is used answered a false "no". A declared source may now deliver `sbom`: `POST
+  /api/v1/repositories/{id}/build-sbom-imports` takes the CycloneDX JSON the build wrote
+  (`cyclonedx-maven-plugin`'s `makeAggregateBom`, the Gradle CycloneDX plugin), spec 1.4 to 1.6, up to
+  32 MB (`VECTISPIRE_MAX_BODY_SBOM_IMPORT`) and 50,000 components, fetching nothing it refers to; the
+  CLI's `build-sbom` sends it. **Each scan's inventory is the scanner's, completed by the newest build
+  SBOM of its branch**: the union of both, matched by purl, the build's stated version winning, the
+  scanner's kept beside it. The newest completed scan is completed as the import is answered, and every
+  later scan as its inventory is written; older scans keep what they were given. The component search,
+  the consolidated inventory, its CycloneDX export, the project export, the licence inventory and its
+  tallies, and the `component_versions` and `component_present` checklist lines all read the completed rows, each saying who
+  listed it. Vulnerability matching is unchanged, and an SBOM opens no issue. Audited
+  `BUILD_SBOM_IMPORTED`; a refusal `REPORT_IMPORT_REFUSED`, `VECTI-SEC-027`. The SBOMs leave with the
+  evidence window and with their repository. Migration V82 (`t_build_sbom`, `t_build_sbom_component`,
+  five columns of `t_component`), nothing to do.
 - **A weekly record of the OWASP Top 10 coverage starts now.** Every six hours at most, the maintenance
   turn records, for every repository and image — scanned or not — and for each of the ten categories,
   the state the OWASP grid shows (findings, not measured, not covered, nothing found), the open findings
@@ -674,7 +687,8 @@ from a list in which none is true of an exposed product — and signed into the 
   project nothing has scanned reads *not measured*, however covered the rest of the estate is. The
   response gains `scope` (`kind`, `id`, `name`, `partial`, `targetCount`, `null` without one); the
   category declarations are the category's, whatever the scope. Without a parameter the grid is
-  unchanged.
+  unchanged. On screen, the OWASP page's current grid has the weekly view's scope picker, the scope kept in the
+  address, and each open count opens the backlog of its category in the same scope.
 - **New backlog filters for that view's figures**: `owasp_category` (`A01`…`A10`, placed as the grid
   places issues — a vulnerability is `A06`), `open_at` (open at the end of that day, UTC) and
   `first_seen_from` / `first_seen_to` / `resolved_from` / `resolved_to` — `open_at` and the resolved range
@@ -700,6 +714,135 @@ from a list in which none is true of an exposed product — and signed into the 
   reconstructed flag; *Print / PDF* prints the view without the application's menus (the browser's
   own "save as PDF" — no PDF is generated on the server). Window, scope and selected week are in the
   address, so a link reproduces the view.
+- **The OWASP report links to the findings it describes.** Under each category heading, *View the N
+  findings* opens the repository's open, unsettled findings in that category — the same list the grid's
+  count opens — or says there are none. The identifiers the model was shown (CVEs, rule ids, packages)
+  link to their issue, or to a search when several issues carry one; an identifier the prose cites
+  without the model having been shown it stays text.
+- **The OWASP report can be written after each repository scan**
+  ([OWASP report](../guide/risk-analysis.md#the-owasp-report-written-by-a-model)). With **Write the OWASP
+  report after each repository scan** (`ai_review_owasp_after_scan`, off by default) and model review on,
+  a repository scan that completes asks the model for that repository's report, built from that scan —
+  never a failed scan, never a container image. The request is queued with the scan's results and
+  written beside the scans, never holding one up: one report at a time per instance, and none started
+  while any report is being written, by another instance or from the button, since a local model answers
+  one request at a time. A repository whose report is being written is not asked again, and scans of one
+  repository arriving while its report waits are folded into one, from the newest. A failure is recorded
+  on the report as for a report asked by hand, and the scan stays completed. The audit log records each
+  one as `AI_REVIEW_REQUESTED` with no user. Off, nothing changes. A request held by an instance that
+  stops before starting it is lost; the next scan asks again.
+- **Experimental: other scorecard weights, side by side with the production ones.**
+  `GET /api/v1/scorecards/simulation`, administrators only, scores every visible target, project and
+  solution under the card's formula and under the weights asked for, with each row's risk points; with
+  no parameter the two agree. It served to decide the formula above, sets both ways of grading a scope
+  — the weakest link the card uses and the rejected sum — beside each other, and is retired in the
+  release after this one ([how](../guide/repositories.md#score-simulation)).
+
+### Security
+
+- **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
+  default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
+  `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies
+  included — reads back; they are now files under `/run/secrets/`, read through the configuration tree as the
+  Helm chart's agents read them. **Keep both lines in `.env`**, empty if unused: the agent does not start while
+  either is undeclared. The `sso` profile's Keycloak administrator defaulted to `admin`/`admin`; it now refuses
+  to start without `KEYCLOAK_ADMIN_PASSWORD` in `.env`, and the evaluation realm's published password is
+  temporary, changed at the first sign-in ([single sign-on](../administration/sso.md)).
+- **An HTTPS token sealed for an agent is bound to its host and user name, and a deployment key to
+  being one.** The token was sealed alone while its host travelled beside it, so the envelope stayed
+  valid whatever host it was paired with; the agent now opens it only under the host and user name it
+  was sealed for, and refuses the scan otherwise. The envelope format is `sealed:v2:` and an agent
+  vouches for it in its signed sealing-key announcement; migration V86 forgets the sealing keys
+  accepted before, which every current agent announces again at its next start.
+- **Three settings a CISO could change are no longer theirs.** *Allow a private webhook URL* is an
+  administrator's, like the SIEM's private switch: with the channels' test button quoting the sender's
+  error — a refused connection, a timeout, an HTTP status, and with the switch off the address a host name
+  resolved to — a CISO could map the internal network from it. The button now answers delivered or not
+  delivered, the cause in the server log. The tracker's project and Jira account are an administrator's,
+  like its URL and token: the token acts on any project of its host, so choosing the project chose where it
+  wrote; a GitHub project must be `owner/repository`, refused otherwise when saved and at the send, where a
+  path after it had steered the token's request to another resource. And *Evidence kept for (days)* is a
+  platform governor's: a CISO or an administrator could set it to one day and purge, at the next turn, the
+  gate verdicts, compliance captures and OWASP weeks that record their own controls ran
+  ([settings](../administration/settings.md#who-may-change-what)). Stored values are kept; an
+  integration writing these through `PUT /api/v1/settings` with another role now receives 403.
+- **Four authorization gaps closed.** A key restricted to a repository could export the project whose
+  only repository it was, though such a key never sees a project whole; it is now answered as absent there,
+  as on its checklists. An administrator could revoke a platform governor's API key, which only a governor
+  may administer; it is refused. The exceptions register read every exception and filtered afterwards, and
+  its cursor, like the gate verdict register's, named the last row read, visible or not: a reader
+  restricted to one repository, paging one row at a time, read the timing of every verdict and the instant
+  and issue id of every risk acceptance in the estate. A restricted reader's pages are now read within its
+  targets. And the statement of applicability (`GET /api/v1/compliance/soa`, `…/soa/{framework}`) was
+  readable by every signed-in account, while its overdue reviews already required governance read; both
+  now require it, as the reference said.
+- **A report document, and a checklist revision, are read by who sees what they carried.** A document
+  was served to whoever saw the project whole at the download, so a repository taken out of the project
+  after the run left its findings readable by somebody it was never shown to. A run now records the
+  targets its export carried, and the download and the document status route also require the caller to
+  see each of them; documents produced before this release recorded none and are read only by somebody who
+  sees everything
+  ([decision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
+  A submission's and a sign-off's stored measurements, the signed package and the statement a project
+  export embeds carry the evidence of every repository the project held then, and were served to whoever
+  saw the project whole now. They now also require the caller to see each of those repositories — named by
+  the stored evidence itself, so revisions submitted before this release are covered without a migration;
+  anybody else is told the revision does not exist, and a project export carrying such a statement is
+  refused rather than cut. A report run records those repositories among its export's targets
+  ([decision 0042 §5](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
+- **The SCIM directory no longer binds an existing privileged account, or one with a local second
+  factor, to an identity-provider subject.** It could not grant those roles, but it could bind an
+  account that already held one, and the next sign-on skipped that account's password and second
+  factor. A first binding of a privileged account is now refused unless
+  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true` allows it — the rule a sign-in claim already follows —
+  and of an account with a local second factor always ([single sign-on](../administration/sso.md)).
+- **Changing your own password revokes the API keys you issued**, as an administrator's reset already
+  did: the other sessions closed, but a key minted by whoever knew the old password kept acting for the
+  account. The answer carries `revokedApiKeys`, and each key revoked is its own audit entry. A pipeline
+  key owned by an administrator who changes their password stops working: issue a new one.
+- **The single sign-on hand-off is no longer a session.** The cookie lived sixty seconds, the row
+  behind it a session's hour, and its value worked as a bearer token until it was exchanged. It is now
+  stored apart, exchanged only, and expires with the cookie.
+- **The sign-in counters can no longer be walked around.** A name the database's collation equates with
+  an account's — `jeßica` for `jessica`, `æ` for `ae` — counted against a counter of its own, so the lockout
+  told an existing account from an absent one; the name is now folded as MySQL compares it, checked against
+  the server's own collation. The collation also reads past characters an account name never contains — the
+  soft hyphen, the zero-width spaces and joiners, the word joiner, the byte-order mark, most control
+  characters — so `alice` typed with a soft hyphen inside (U+00AD) opened `alice` and met its lockout while
+  counting under a name of its own; a typed name outside the account names' grammar (letters, digits, `.`,
+  `_`, `-`) is now answered as an unknown one, the right password included, and an accented spelling such
+  as `Àlice` no longer signs in to `alice` either. An IPv6 caller had a fresh bucket for every address of
+  its /64, which its host picks at will; the sign-in, bearer-token and webhook ceilings now count it by its
+  /64, while the audit log keeps the full address. And a successful sign-in erased its address's failures:
+  signing in to one's own account between attempts reset the per-address ceiling. Only the account's and
+  the name's counters start again now.
+- **The outbound guard refuses more of what no setting should reach.** The cloud metadata addresses that
+  are not link-local — Alibaba's `100.100.100.200`, AWS's IPv6 `fd00:ec2::254`, Oracle's legacy
+  `192.0.0.192`, Azure's WireServer `168.63.129.16` — and the unspecified address (`0.0.0.0`, `::`), which
+  reaches the local machine, are refused under every policy, for a clone as for a request. A database or
+  Docker daemon reserved as `localhost` is reserved on every loopback address. A forge listing's next page
+  must stay under the connection's API path, not merely on its host
+  ([forge connections](../administration/forge-connections.md)).
+- **An in-cluster agent's way back to the Ingress opens the port it names, not every port.** The Helm chart's
+  `agents.networkPolicy.allowTo` became an egress rule without `ports`, so the entry an agent needs to reach
+  the ingress controller — whose pods lie in the excluded pod range once kube-proxy has translated the
+  LoadBalancer address — opened every port of those pods to anything escaping a scanner, and an entry for
+  an internal Git host every port of that host. Each entry now carries its own `ports` (`protocol`
+  defaults to TCP) and is a rule of its own; **an entry without them is refused at render**, the message
+  naming the fix, since the chart cannot tell all ports meant from ports forgotten. `agents.networkPolicy.dnsTo`,
+  empty by default, narrows DNS from port 53 anywhere to your resolvers
+  ([installation](../getting-started/installation.md#kubernetes)).
+- **A report plugin's file is no longer signed raw by the platform's key.** `v0.11.0-rc.1` put a detached
+  `<output>.sig` in the package, made with the key that signs VEX, CSAF and the project export, so a plugin
+  image could obtain the platform's signature on any bytes it wrote. The package now holds the file and
+  `provenance.json` only, and the file is bound by the provenance's subject
+  ([how to verify](../administration/report-plugins.md#the-document-and-how-to-verify-it)). Packages a
+  release candidate produced keep their `.sig`: do not rely on it.
+- **The upstream rule catalogue is read without following a link.** A symbolic link committed upstream — a
+  `LICENSE` pointing at a file of this host, a secret mounted under `/run/secrets` say — was followed by the
+  fetch: shown on the licence preview, or stored as a rule. A linked file is now left out, a linked licence
+  leaves the catalogue without one and the fetch is refused, and no file is opened through a link
+  ([rule sets](../administration/rule-sets.md)).
 
 ### Fixed
 
@@ -739,187 +882,49 @@ from a list in which none is true of an exposed product — and signed into the 
   selection of eleven languages had pushed past the entry's 255 characters.
   `POST /api/v1/rule-sets/catalogue` takes `includeGitleaksDuplicates`, `false` when absent, and
   `GET /api/v1/rule-sets/catalogue` answers `gitleaksDuplicates` ([rule sets](../administration/rule-sets.md#from-the-upstream-catalogue)).
-- **A scan's count names issues, and its list occurrences.** The scan detail headed with *Findings* a count of
-  issues — one per fingerprint, which carries no line — above a list of *findings* holding one row per place a
-  tool reported, so a scan read "28" above 56 rows. The card now says *Issues* with the occurrences beneath it
-  (*28 issues · 56 occurrences*), the list is *Occurrences in this scan*, and the history and the dashboard's
-  recent scans call the same figure issues — as does each scan's line of the exported history PDF, which
-  read *28 findings, 3 new, 2 resolved* and now reads *28 issues, …*. No figure changed ([scans](../guide/scans.md#reading-a-scan)).
-- **The SBOM comparison's pickers and the failing-targets table say what they count.** The scan pickers of
-  the SBOM comparison now say *7 issues*, with the reader's digit grouping, instead of a bare number; the
-  dashboard's failing-targets table heads its count *Violations*, since it counts gate-policy violations, not
-  findings; and the scan detail heads its occurrence list's identifier column *Identifier*.
-- **Dates and percentages read the same on every screen, in each language's typography.** A few screens wrote
-  dates in the browser's locale or a hard-coded one (month first, a two-digit year, English month names to a
-  French reader); every date now follows the interface's one pattern, day/month/year on a 24-hour clock.
-  Percentages follow each language: *50%* in English, *50 %* in French with a no-break space. The AI review's
-  VEX suggestion `under_investigation` is labelled *Under investigation* instead of showing the raw token.
-- **An in-cluster agent's way back to the Ingress opens the port it names, not every port.** The Helm chart's
-  `agents.networkPolicy.allowTo` became an egress rule without `ports`, so the entry an agent needs to reach
-  the ingress controller — whose pods lie in the excluded pod range once kube-proxy has translated the
-  LoadBalancer address — opened every port of those pods to anything escaping a scanner, and an entry for
-  an internal Git host every port of that host. Each entry now carries its own `ports` (`protocol`
-  defaults to TCP) and is a rule of its own; **an entry without them is refused at render**, the message
-  naming the fix, since the chart cannot tell all ports meant from ports forgotten. `agents.networkPolicy.dnsTo`,
-  empty by default, narrows DNS from port 53 anywhere to your resolvers
-  ([installation](../getting-started/installation.md#kubernetes)).
-- **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
-  default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
-  `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies
-  included — reads back; they are now files under `/run/secrets/`, read through the configuration tree as the
-  Helm chart's agents read them. **Keep both lines in `.env`**, empty if unused: the agent does not start while
-  either is undeclared. The `sso` profile's Keycloak administrator defaulted to `admin`/`admin`; it now refuses
-  to start without `KEYCLOAK_ADMIN_PASSWORD` in `.env`, and the evaluation realm's published password is
-  temporary, changed at the first sign-in ([single sign-on](../administration/sso.md)).
-- **A sign-in name no account can hold opens no account.** MySQL's collation reads past characters an account
-  name never contains — the soft hyphen, the zero-width spaces and joiners, the word joiner, the byte-order mark,
-  most control characters — so `alice` typed with a soft hyphen inside (U+00AD) opened `alice` and met its lockout while counting under a name of its
-  own: the sixth attempt told an existing account from an absent one, as `jeßica` did before. A typed name
-  outside the account names' grammar (letters, digits, `.`, `_`, `-`) is now answered as an unknown one, the
-  right password included; an accented spelling such as `Àlice` no longer signs in to `alice` either.
-- **The upstream rule catalogue is read without following a link.** A symbolic link committed upstream — a
-  `LICENSE` pointing at a file of this host, a secret mounted under `/run/secrets` say — was followed by the
-  fetch: shown on the licence preview, or stored as a rule. A linked file is now left out, a linked licence
-  leaves the catalogue without one and the fetch is refused, and no file is opened through a link
-  ([rule sets](../administration/rule-sets.md)).
-- **The exceptions register no longer fails on an issue that names no target.** One excepted issue with
-  neither a repository nor a container answered the register with an error — the screen, the answer to
-  every review, and the evidence bundle that seals the register. The application creates no such issue,
-  but the schema allows one, written by hand or restored from elsewhere. It is now listed with no target to
-  a reader who sees the whole estate, and to no restricted reader.
-- **Two governance reads narrowed.** The exceptions register read every exception and filtered afterwards,
-  and its cursor named the last row read, visible or not: a reader restricted to one repository paging one row
-  at a time read the instant and issue id of every risk acceptance in the estate, as the gate verdict register
-  allowed before. A restricted reader's pages are now read within its targets. And the statement of
-  applicability (`GET /api/v1/compliance/soa`, `…/soa/{framework}`) was readable by every signed-in account,
-  while its overdue reviews already required governance read; both now require it, as the reference said.
-- **Three settings a CISO could change are no longer theirs.** *Allow a private webhook URL* is an
-  administrator's, like the SIEM's private switch: with the channels' test button quoting the sender's
-  error — a refused connection, a timeout, an HTTP status, and with the switch off the address a host name
-  resolved to — a CISO could map the internal network from it. The button now answers delivered or not
-  delivered, the cause in the server log. The tracker's project and Jira account are an administrator's,
-  like its URL and token: the token acts on any project of its host, so choosing the project chose where it
-  wrote; a GitHub project must be `owner/repository`, refused otherwise when saved and at the send, where a
-  path after it had steered the token's request to another resource. And *Evidence kept for (days)* is a
-  platform governor's: a CISO or an administrator could set it to one day and purge, at the next turn, the
-  gate verdicts, compliance captures and OWASP weeks that record their own controls ran
-  ([settings](../administration/settings.md#who-may-change-what)). Stored values are kept; an
-  integration writing these through `PUT /api/v1/settings` with another role now receives 403.
-- **A report document is read by who sees what it carried.** A document was served to whoever saw the project
-  whole at the download, so a repository taken out of the project after the run left its findings readable by
-  somebody it was never shown to. A run now records the targets its export carried, and the download and the
-  document status route also require the caller to see each of them
-  ([decision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
-  Documents produced before this release recorded none and are read only by somebody who sees everything.
-- **A checklist revision is read by who sees what it carried, too.** A submission's and a sign-off's stored
-  measurements, the signed package and the statement a project export embeds carry the evidence of every
-  repository the project held then, and were served to whoever saw the project whole now. They now also require
-  the caller to see each of those repositories — named by the stored evidence itself, so revisions submitted
-  before this release are covered without a migration; anybody else is told the revision does not exist, and a
-  project export carrying such a statement is refused rather than cut. A report run records those repositories
-  among its export's targets
-  ([decision 0042 §5](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
-- **Two ways around the sign-in counters closed.** A name the database's collation equates with an
-  account's — `jeßica` for `jessica`, `æ` for `ae` — counted against a counter of its own, so the lockout
-  told an existing account from an absent one; the name is now folded as MySQL compares it, checked against
-  the server's own collation. And an IPv6 caller had a fresh bucket for every address of its /64, which its
-  host picks at will; the sign-in, bearer-token and webhook ceilings now count an IPv6 caller by its /64,
-  while the audit log keeps the full address.
-- **Three authorization gaps closed.** A key restricted to a repository could export the project whose
-  only repository it was, though such a key never sees a project whole; it is now answered as absent there,
-  as on its checklists. An administrator could revoke a platform governor's API key,
-  which only a governor may administer; it is refused. And the gate verdict register's cursor named the last
-  row read, visible to the reader or not, so a restricted reader paging one row at a time read the timing of
-  every verdict in the estate; a restricted reader's pages are now read within its targets.
-- **An approval no longer grants a status nobody asked for.** A request queued for approval kept its
-  justification, comment and review date and dropped its status, and the approver chose one: a tracker's
-  *Won't Fix* could be granted as `not_affected`, and the signed VEX then said "not exposed". The request
-  now keeps its status (V88) and is granted as asked or refused (409); the triage dialog opens on the
-  requested status and the proposed review date, which it used to empty
-  ([decision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md)).
+- **An OWASP category reads clean only where every target's newest scan examined it.** The grid read a
+  category measured as soon as any target in scope had a scan: a project of images alone showed A05 and
+  A07 *nothing found*, though an image's scan looks for neither secrets nor misconfiguration, and a
+  repository whose secrets step failed showed A07 clean all the same. Each target now carries what its
+  newest finished scan examined — the types its steps produced and the languages its code-analysis rules
+  read — and a category is measured over a scope only when every target that can be examined for it was;
+  one that was not makes it *not measured*, and the line says how many and why. A target nothing can
+  examine for a category (an image, for secrets) is left aside, and open findings are counted whatever
+  examined the target. Code analysis is credited per repository and per language, in the grid and in the
+  monthly compliance record, and the weekly record reads the same rule. A category that read *nothing
+  found* before the upgrade may read *not measured* after it: nothing had examined it.
+- **The VEX documents no longer state what nobody decided.** The OpenVEX aggregate looked for
+  `false_positive` and `accepted_risk`, statuses that never existed: every approved `not_affected` left it
+  as `affected`, and an issue under review or awaiting approval as `affected` too, where CycloneDX said
+  `in_triage` and CSAF `under_investigation`. The per-target CSAF export had no case for
+  `pending_approval`, so such a product appeared in no status list at all; it is `under_investigation`. A
+  `not_affected` row without a justification — older or imported — was given
+  `vulnerable_code_not_in_execute_path` by CycloneDX and `vulnerable_code_cannot_be_controlled_by_adversary`
+  by CSAF, guessed from the spelling of whatever was there; it is now stated as under investigation, since
+  nobody made that claim. And CycloneDX received OpenVEX's justification labels, which its schema does not
+  accept, and answered `will_not_fix` on every `not_affected` — nothing to fix in a product that is not
+  affected; its justifications are now in its own vocabulary
+  ([how a triage reads in VEX](../guide/exports.md#how-a-triage-reads-in-vex)).
 - **Applying the advisor's suggestion no longer fails on every finding off the KEV list.** The advisor
   suggests in VEX's vocabulary, `under_investigation` for those, and the dialog took it as the triage
   status: the status list showed nothing and the server refused the decision. It is now applied as
   *under review*.
-- **A tracker's refusal is no longer proposed as `not_affected`.** A ticket closed as *Won't Fix*,
-  *Declined*, *Rejected*, *Risk Accepted* or *Withdrawn* was queued as `not_affected` with
-  `inline_mitigations_already_exist` — a mitigation the tracker never mentioned, which the signed
-  documents would have carried once approved. It is now a request for `will_not_fix`.
-- **GitHub's *not planned* is no longer read as a false positive.** It was queued as `not_affected` with
-  `vulnerable_code_not_in_execute_path`, although it is GitHub's only way to close without completing
-  and says nothing about reachability. It is a refusal now.
-- **The OpenVEX aggregate no longer reads statuses that never existed.** It looked for `false_positive`
-  and `accepted_risk`: every approved `not_affected` left it as `affected`, and an issue under review or
-  awaiting approval as `affected` too, where CycloneDX said `in_triage` and CSAF `under_investigation`.
-- **The per-target CSAF export no longer drops an issue awaiting approval.** `pending_approval` had no
-  case, so such a product appeared in no status list at all; it is `under_investigation`.
-- **No VEX document invents a justification any more.** A `not_affected` row without one — older or
-  imported — was given `vulnerable_code_not_in_execute_path` by CycloneDX and
-  `vulnerable_code_cannot_be_controlled_by_adversary` by CSAF, guessed from the spelling of whatever was
-  there. It is now stated as under investigation: nobody made that claim.
-- **CycloneDX justifications are in CycloneDX's vocabulary.** It received OpenVEX's labels, which its
-  schema does not accept, and answered `will_not_fix` on every `not_affected` — nothing to fix in a
-  product that is not affected.
-- **The outbound guard refuses more of what no setting should reach.** The cloud metadata addresses that
-  are not link-local — Alibaba's `100.100.100.200`, AWS's IPv6 `fd00:ec2::254`, Oracle's legacy
-  `192.0.0.192`, Azure's WireServer `168.63.129.16` — and the unspecified address (`0.0.0.0`, `::`), which
-  reaches the local machine, are refused under every policy, for a clone as for a request. A database or
-  Docker daemon reserved as `localhost` is reserved on every loopback address. A forge listing's next page
-  must stay under the connection's API path, not merely on its host
-  ([forge connections](../administration/forge-connections.md)).
-- **A report plugin's file is no longer signed raw by the platform's key.** `v0.11.0-rc.1` put a detached
-  `<output>.sig` in the package, made with the key that signs VEX, CSAF and the project export, so a plugin
-  image could obtain the platform's signature on any bytes it wrote. The package now holds the file and
-  `provenance.json` only, and the file is bound by the provenance's subject
-  ([how to verify](../administration/report-plugins.md#the-document-and-how-to-verify-it)). Packages a
-  release candidate produced keep their `.sig`: do not rely on it.
-- **Changing your own password revokes the API keys you issued**, as an administrator's reset already
-  did: the other sessions closed, but a key minted by whoever knew the old password kept acting for the
-  account. The answer carries `revokedApiKeys`, and each key revoked is its own audit entry. A pipeline
-  key owned by an administrator who changes their password stops working: issue a new one.
-- **The SCIM directory no longer binds an existing privileged account, or one with a local second
-  factor, to an identity-provider subject.** It could not grant those roles, but it could bind an
-  account that already held one, and the next sign-on skipped that account's password and second
-  factor ([single sign-on](../administration/sso.md)).
 - **An account the SCIM directory creates is no longer held on the change-password screen.** It was
   given a random password and told to change it, which its federated sessions could not do. Accounts
   the directory created on 0.10.0 or `v0.11.0-rc.1` keep the flag after the upgrade, and are still held
   there after a single sign-on: an administrator clears it for each — the audit log names them
   (`USER_CREATED`, "SCIM provisioned account: …") — with `update t_user set must_change_password = false
   where username = '…'`, since no screen clears it for an account with no password to change.
-- **A successful sign-in no longer erases its address's failures.** Only the account's and the name's
-  counters start again, so signing in to one's own account between attempts no longer resets the
-  per-address ceiling.
-- **The single sign-on hand-off is no longer a session.** The cookie lived sixty seconds, the row
-  behind it a session's hour, and its value worked as a bearer token until it was exchanged. It is now
-  stored apart, exchanged only, and expires with the cookie.
-- **An HTTPS token sealed for an agent is bound to its host and user name, and a deployment key to
-  being one.** The token was sealed alone while its host travelled beside it, so the envelope stayed
-  valid whatever host it was paired with; the agent now opens it only under the host and user name it
-  was sealed for, and refuses the scan otherwise. The envelope format is `sealed:v2:` and an agent
-  vouches for it in its signed sealing-key announcement; migration V86 forgets the sealing keys
-  accepted before, which every current agent announces again at its next start.
-- **A repository without an OWASP report says so.** The card showed *No findings categorized under
-  this section*, which reads as a report that found nothing; and any failure to read the report, a 500
-  included, was shown as no report at all. Only a 404 now means "no report yet"; anything else is an
-  error.
-- **The OWASP report files each finding where the OWASP grid does.** The model chose the categories
-  itself, and put committed secrets under A02 while the grid on the same screen counts them in A07. It
-  is now sent each finding's category as the grid places it — by type, or by the category a static
-  analysis rule declares — told never to move one, and given the findings the grid places nowhere apart,
-  under *Not placed by the scanners*, rather than in a category of its choosing. It is also given the
-  grid's state of each category, and no longer told that a category with no finding is one no scanner
-  looked at: the grid's *nothing found* says a scanner did. The PDF's "How to read this" says the same,
-  and says which of the two ways a report was written: one written before this release was placed by the
-  model. The `inputs` of a report (`GET /api/v1/repositories/{id}/owasp-review`) gain an
-  `owasp_category` column, second, and the repository's coverage above the table.
-- **Refreshing a project's checklist, or opening a link to it, no longer answers 404.** The server handed
-  the interface paths of one and two segments only; `/projects/{id}/checklist` and
-  `/solutions/{id}/compliance` have three, and answered "Nothing is served at this path" unless reached by
-  clicking. Every route of the interface is now forwarded, and the build checks it.
-- **A template with an identifier column in front of its domain is proposed in the right columns.**
-  The column left of the domain shifted every proposed column by one (control on the identifier,
-  contact on the domain, KPI on the objective).
+- **Concurrent audit writes could break the audit chain, and raise a false tampering alarm.** Two
+  entries written at the same moment — two requests on one server, or two servers — could both chain
+  onto the same predecessor; the verification then reported the chain broken, and the SIEM received
+  `AUDIT_CHAIN_BROKEN`, although nothing had been altered. Entries are now written one at a time,
+  across servers too (migration V66). An installation that saw an unexplained break should verify again
+  after the upgrade: entries written from then on chain correctly; a break already recorded stays where
+  it is, since rewriting an integrity log is what it exists to reveal.
+- **The first evidence bundle of an installation without `vectispire.signing.key` answered 500.** The
+  signing key created on first use joined the bundle's read-only transaction, which MySQL and PostgreSQL
+  refuse to write in. It is now created outside it.
 - **A Docker daemon on `tcp://` with `DOCKER_TLS_VERIFY` is spoken to over TLS.** The client read
   `DOCKER_TLS_VERIFY` and `DOCKER_CERT_PATH` and then built its connection without them, so a daemon
   listening with TLS on 2376 was sent plain HTTP and every call failed. The client certificate under
@@ -936,12 +941,6 @@ from a list in which none is true of an exposed product — and signed into the 
 - **The container guide said registry credentials were stored encrypted with `ENCRYPTION_KEY`.** They
   never were: a pull uses the Docker configuration of the executor that scans. The guide now says so,
   and how to give an executor credentials for a private registry.
-- **The licences of the interface now ship with it.** `ng build` writes the notices of the npm
-  packages it bundles (Angular, Optimus UI, chart.js…, mostly MIT) beside the `browser/` folder, and
-  only that folder reached the jar and the image; the MIT notice of the shell (Sparked, PrimeTek's
-  Sakai ported to Optimus UI — copied code, not a package) shipped nowhere either. Both are now in the
-  jar under `static/licenses/` (`3rdpartylicenses.txt`, `sparked/LICENSE.md`), `NOTICE` names the
-  shell, and the build refuses a bundle that lost either.
 - **A `git://` repository its server does not serve was retried for a quarter of an hour before failing
   as "the clone failed".** `git daemon` answers a path it does not have, or does not export, with a
   refusal of its own, which was read as an unknown failure — transient — so the scan waited one minute,
@@ -974,16 +973,39 @@ from a list in which none is true of an exposed product — and signed into the 
   judgement that survives the return), the date the resolution it ended began, and the scan that found
   the issue again; nobody is named, since nobody decided (migration V68). A reopening before the upgrade
   stays without an entry.
-- **Concurrent audit writes could break the audit chain, and raise a false tampering alarm.** Two
-  entries written at the same moment — two requests on one server, or two servers — could both chain
-  onto the same predecessor; the verification then reported the chain broken, and the SIEM received
-  `AUDIT_CHAIN_BROKEN`, although nothing had been altered. Entries are now written one at a time,
-  across servers too (migration V66). An installation that saw an unexplained break should verify again
-  after the upgrade: entries written from then on chain correctly; a break already recorded stays where
-  it is, since rewriting an integrity log is what it exists to reveal.
-- **The first evidence bundle of an installation without `vectispire.signing.key` answered 500.** The
-  signing key created on first use joined the bundle's read-only transaction, which MySQL and PostgreSQL
-  refuse to write in. It is now created outside it.
+- **The exceptions register no longer fails on an issue that names no target.** One excepted issue with
+  neither a repository nor a container answered the register with an error — the screen, the answer to
+  every review, and the evidence bundle that seals the register. The application creates no such issue,
+  but the schema allows one, written by hand or restored from elsewhere. It is now listed with no target to
+  a reader who sees the whole estate, and to no restricted reader.
+- **The OWASP report files each finding where the OWASP grid does.** The model chose the categories
+  itself, and put committed secrets under A02 while the grid on the same screen counts them in A07. It
+  is now sent each finding's category as the grid places it — by type, or by the category a static
+  analysis rule declares — told never to move one, and given the findings the grid places nowhere apart,
+  under *Not placed by the scanners*, rather than in a category of its choosing. It is also given the
+  grid's state of each category, and no longer told that a category with no finding is one no scanner
+  looked at: the grid's *nothing found* says a scanner did. The PDF's "How to read this" says the same,
+  and says which of the two ways a report was written: one written before this release was placed by the
+  model. The `inputs` of a report (`GET /api/v1/repositories/{id}/owasp-review`) gain an
+  `owasp_category` column, second, and the repository's coverage above the table.
+- **A repository without an OWASP report says so.** The card showed *No findings categorized under
+  this section*, which reads as a report that found nothing; and any failure to read the report, a 500
+  included, was shown as no report at all. Only a 404 now means "no report yet"; anything else is an
+  error.
+- **The model review's switch says what it sends.** `ai_review_enabled` was labelled *Review the code
+  with a local model*, with a help describing what such a review would find, and the leak warnings spoke of
+  source code leaving. Nothing calls a code review: what leaves is the repository's open findings —
+  identifiers, components, paths, descriptions, a description able to quote a committed line — for the OWASP
+  report. The switch is now *Let a model write the OWASP report*, and its help, the provider and endpoint
+  settings, the remote-endpoint acknowledgement, its confirmation and the banner say what is sent today,
+  and what would be the day a code review is wired.
+- **Refreshing a project's checklist, or opening a link to it, no longer answers 404.** The server handed
+  the interface paths of one and two segments only; `/projects/{id}/checklist` and
+  `/solutions/{id}/compliance` have three, and answered "Nothing is served at this path" unless reached by
+  clicking. Every route of the interface is now forwarded, and the build checks it.
+- **A template with an identifier column in front of its domain is proposed in the right columns.**
+  The column left of the domain shifted every proposed column by one (control on the identifier,
+  contact on the domain, KPI on the objective).
 - **Following a link from one scan to another could show the previous scan.** The scan page kept the
   first scan on screen until the second answered, and if the first answer came last it replaced the
   second: the address named scan 35 while the header, the plugins and the findings were scan 34's. The
@@ -993,6 +1015,27 @@ from a list in which none is true of an exposed product — and signed into the 
   then to the dashboard, the link forgotten; the same happened to a change opened from the top bar or
   the account page. The change now returns to the page asked for — or the one it was opened from — and
   only to a page of Vectispire: an address pointing elsewhere is ignored.
+- **A scan's count names issues, its list occurrences, and every count says what it counts.** The scan
+  detail headed with *Findings* a count of issues — one per fingerprint, which carries no line — above a
+  list of *findings* holding one row per place a tool reported, so a scan read "28" above 56 rows. The card
+  now says *Issues* with the occurrences beneath it (*28 issues · 56 occurrences*), the list is
+  *Occurrences in this scan*, and the history and the dashboard's recent scans call the same figure issues —
+  as does each scan's line of the exported history PDF, which read *28 findings, 3 new, 2 resolved* and now
+  reads *28 issues, …* ([scans](../guide/scans.md#reading-a-scan)). The scan pickers of the SBOM comparison
+  say *7 issues*, with the reader's digit grouping, instead of a bare number; the dashboard's
+  failing-targets table heads its count *Violations*, since it counts gate-policy violations, not findings;
+  and the scan detail heads its occurrence list's identifier column *Identifier*. No figure changed.
+- **Dates, numbers and labels read the same on every screen, in the reader's language.** A few screens
+  wrote dates in the browser's locale or a hard-coded one (month first, a two-digit year, English month
+  names to a French reader); every date now follows the interface's one pattern, day/month/year on a
+  24-hour clock. Percentages follow each language — *50%* in English, *50 %* in French with a no-break
+  space — and decimals carry the reader's decimal mark (*11,4 jours*, not *11.4 jours*). Severities,
+  statuses, compliance states and frameworks are labels where screens printed the raw value (`critical`,
+  `PARTIAL`, `NON_COMPLIANT`, `ISO_27001`), the EPSS screen no longer shows HTML entities as text
+  (`&gt; 20%`), and the AI review's VEX suggestion `under_investigation` reads *Under investigation*. The
+  last labels frozen in one language follow the language preference: the change tags of the inventory diff
+  ("AJOUTÉ", "SUPPRIMÉ"…), a notification channel's state ("Configuré", "Inactif"), the "UNPROTECTED" and
+  "HIGH RISK" tags of the attack surface, and the badge image's alternative text.
 - **"1 scans", "1 target(s)": counts now agree with their noun**, in English and French. Forty-six
   messages — scans queued, issues to be resolved, entries missing from the audit chain, targets never
   scanned, components listed, checklist lines answered… — were written in the plural or with "(s)" and
@@ -1000,9 +1043,21 @@ from a list in which none is true of an exposed product — and signed into the 
   French 0 takes the singular ("0 dépôt"), in English the plural ("0 repositories"). The last ones follow:
   the audit chain's verdict, a team's deletion warning, the checklist's "lines 3 still need attention"
   and the other messages naming lines, and six counted labels (blast radius, EPSS, licences, rule files).
-- **The last labels frozen in one language follow the language preference**: the change tags of the
-  inventory diff ("AJOUTÉ", "SUPPRIMÉ"…), a notification channel's state ("Configuré", "Inactif"), the
-  "UNPROTECTED" and "HIGH RISK" tags of the attack surface, and the badge image's alternative text.
+- **The screens name the OWASP Top 10:2021, and claim no more than the tool does.** Vectispire classifies
+  against the 2021 edition only, and the menu, the coverage pages, the heatmap, the issues filter, the
+  rule-set catalogue, the posture PDF and the coverage API said "OWASP Top 10" without the edition; they now
+  say *OWASP Top 10:2021*. *SOC 2 Type II* — an auditor's report over a period, which no tool produces — is
+  *SOC 2*; audit trails called immutable are tamper-evident; *Download Evidence Vault* downloads the
+  evidence bundle. The CRA controls' titles cite Regulation (EU) 2024/2847 as adopted — Article 14(1) for
+  the actively exploited vulnerabilities, Annex I Part II, Article 13 — where they followed the 2022
+  proposal's Articles 10 and 11; their codes (`CRA-ART10-*`, `CRA-ART11-*`) are stored with every
+  declaration and assessment, and stay. The OpenAPI document's descriptions moved with them; no field did.
+- **The licences of the interface now ship with it.** `ng build` writes the notices of the npm
+  packages it bundles (Angular, Optimus UI, chart.js…, mostly MIT) beside the `browser/` folder, and
+  only that folder reached the jar and the image; the MIT notice of the shell (Sparked, PrimeTek's
+  Sakai ported to Optimus UI — copied code, not a package) shipped nowhere either. Both are now in the
+  jar under `static/licenses/` (`3rdpartylicenses.txt`, `sparked/LICENSE.md`), `NOTICE` names the
+  shell, and the build refuses a bundle that lost either.
 
 ### Performance
 
@@ -1037,7 +1092,7 @@ from a list in which none is true of an exposed product — and signed into the 
 Read **Before you upgrade** first: five of its points stop something working
 until an operator acts, on purpose.
 
-### Before you upgrade
+### Before you upgrade {#before-you-upgrade-0100}
 
 **SIEM signature identifiers are renamed from `ZAN-SEC-nnn` to `VECTI-SEC-nnn`, all at once.** The
 number and the meaning of every event stay the same; only the prefix changes, and no event carries

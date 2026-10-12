@@ -167,7 +167,7 @@ fields, phase 3 the rule and its level.
 
 The signature identifier is a contract: correlation rules are written against it, and it will not
 change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in
-0.10.0 — same numbers, same meanings; see the [release notes](../reference/release-notes.md#before-you-upgrade).
+0.10.0 — same numbers, same meanings; see the [release notes](../reference/release-notes.md#before-you-upgrade-0100).
 
 | Signature | Name | CEF severity | Emitted when |
 |---|---|---|---|
