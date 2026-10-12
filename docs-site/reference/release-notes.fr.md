@@ -744,6 +744,14 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Un nom de connexion qu'aucun compte ne peut porter n'ouvre aucun compte.** La collation de MySQL lit
+  par-dessus des caractères qu'un nom de compte ne contient jamais — le trait d'union conditionnel, les espaces
+  et liants de largeur nulle, le gluon de mots, l'indicateur d'ordre des octets, la plupart des caractères de
+  contrôle — si bien que `alice` saisi avec un trait d'union conditionnel (U+00AD) ouvrait `alice` et rencontrait son verrouillage en comptant sous un nom à lui :
+  la sixième tentative distinguait un compte existant d'un compte absent, comme `jeßica` auparavant. Un nom
+  saisi hors de la grammaire des noms de compte (lettres, chiffres, `.`, `_`, `-`) reçoit désormais la réponse
+  d'un nom inconnu, bon mot de passe compris ; une orthographe accentuée comme `Àlice` n'ouvre plus `alice`
+  non plus.
 - **Le catalogue de règles amont est lu sans suivre de lien.** Un lien symbolique publié en amont — un
   `LICENSE` pointant vers un fichier de cet hôte, un secret monté sous `/run/secrets` par exemple — était suivi
   par la récupération : montré dans l'aperçu de la licence, ou conservé comme règle. Un fichier lié est

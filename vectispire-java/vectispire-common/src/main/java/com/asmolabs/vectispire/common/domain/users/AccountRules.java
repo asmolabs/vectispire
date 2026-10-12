@@ -21,6 +21,17 @@ public final class AccountRules {
 
     private static final Pattern USERNAME = Pattern.compile("^[A-Za-z0-9._-]{2,64}$");
 
+    /**
+     * Whether an account could carry this name — every account is created through {@link #validateUsername}.
+     *
+     * <p>Asked of a name typed at sign-in before the database is: MySQL's {@code utf8mb4_0900_ai_ci} ignores
+     * characters no account name holds — a soft hyphen, the zero-width spaces and joiners, the word joiner,
+     * a byte-order mark, control characters inside the name — so {@code ali\u00ADce} opened {@code alice}.
+     */
+    public static boolean isWellFormedUsername(String username) {
+        return username != null && USERNAME.matcher(username).matches();
+    }
+
     /** Empty if the name is acceptable, otherwise the message to show. */
     public static Optional<String> validateUsername(String username) {
         if (username == null || username.isEmpty()) {

@@ -127,15 +127,38 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("every spelling the database resolves to one account shares that account's budget")
+    @DisplayName("a spelling the database would resolve to an account opens nothing, and meets the name's folded counter")
     void theCollationDecidesTheCounter() {
-        // MySQL's collation opens "alice" for "ÀLICE"; lowercasing in Java does not reach the
-        // accent, so the spelling had a budget of its own.
+        // MySQL's collation opens "alice" for "ÀLICE", and the spelling had a budget of its own. No account
+        // can be named so: it is not looked up — the right password is refused under it — and its failures
+        // meet the account's on the folded name, whichever of the two exists.
         when(users.findByUsername("ÀLICE")).thenReturn(Optional.of(user("alice", true)));
-        when(attempts.findByCounterKeyAndOccurredAtAfter(eqUserKey(), any()))
-                .thenReturn(fiveRecentAttempts());
 
+        assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Invalid.class);
+        verify(users, never()).findByUsername("ÀLICE");
+
+        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice")), any()))
+                .thenReturn(fiveRecentAttempts());
         assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+    }
+
+    @Test
+    @DisplayName("a character the collation ignores opens no account, so the lockout tells nothing")
+    void anIgnoredCharacterIsNoOracle() {
+        // utf8mb4_0900_ai_ci reads past a soft hyphen: "ali\u00ADce" opened "alice" and met its account
+        // counter, while its own folded key was a counter apart. After five failures as "alice", the sixth
+        // as "ali\u00ADce" answered 429 when the account existed and 401 when it did not.
+        String typed = "ali\u00ADce";
+        when(users.findByUsername(typed)).thenReturn(Optional.of(user("alice", true)));
+        when(attempts.findByCounterKeyAndOccurredAtAfter(eqUserKey(), any())).thenReturn(fiveRecentAttempts());
+
+        assertThat(service.login(request(typed, PASSWORD)).outcome())
+                .as("answered as an unknown name, the account's full counter notwithstanding")
+                .isInstanceOf(AuthService.Outcome.Invalid.class);
+        verify(users, never()).findByUsername(typed);
+        assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
+                .doesNotContain(LoginThrottle.accountKey(1L))
+                .contains(LoginThrottle.userKey(typed));
     }
 
     @Test

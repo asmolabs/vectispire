@@ -64,7 +64,11 @@ ouvert, et par adresse de l'appelant telle que le serveur la résout à travers 
 proxys de confiance (`VECTISPIRE_TRUSTED_PROXIES`, voir l'[installation](../getting-started/installation.fr.md)) ; un `client_id` envoyé par le client n'est
 plus lu. Un appelant IPv6 compte pour son /64 : un hôte y choisit ses adresses à volonté. Le nom est
 replié comme la base le compare — casse, accents, et les lettres que MySQL tient pour d'autres (`ß` et
-`ss`, `æ` et `ae`…) — si bien qu'aucune orthographe d'un compte n'a son propre compteur. Une connexion
+`ss`, `æ` et `ae`…) — si bien qu'aucune orthographe d'un compte n'a son propre compteur. Un nom
+qu'aucun compte ne peut porter — autre chose que des lettres, des chiffres, `.`, `_` et `-` — n'ouvre
+aucun compte, même là où la base aurait lu par-dessus un trait d'union conditionnel ou un caractère
+invisible : il est refusé comme un nom inconnu, si bien qu'on se connecte avec le nom du compte tel
+qu'il a été créé. Une connexion
 réussie remet à zéro le compteur du compte et celui du nom, pas celui de
 l'adresse : se connecter à son propre compte n'efface pas les échecs que la même adresse a accumulés
 contre d'autres.

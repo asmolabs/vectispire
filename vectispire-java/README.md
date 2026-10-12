@@ -166,6 +166,7 @@ same name; decision records written before that date keep the names they had.
 | The owners' questions a measurement asks — the newest analysed scan and its SBOM, the scans within an age, each plugin's state, a scope's backlog, the import carrying a tool (its key escaped), an SBOM's components — answer past 70,000 identifiers | `MeasurementQueriesIntegrationTest` (MySQL, PostgreSQL) |
 | An expired session, a reset password and a role change all close the sessions; a reset also revokes the account's integration keys | `AccountAdministrationService`, `ApiKeyIntegrationRoutesTest` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
+| A sign-in name no account can hold is answered as an unknown one: no character the collation reads past opens an account under a counter of its own | `AuthServiceTest`, `CollationFoldDatabaseTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
 | A forge connection's token is probed through the guard before it is kept — a private address only when the administrator states the server is internal, a private CA only when pinned for that server, never verification skipped — its scopes judged against a read-only allow-list, stored encrypted with its row as context and never returned, logged or audited | `ForgeProbesTest`, `ForgeConnectionsRoutesTest`, `ForgeCredentialTest` |

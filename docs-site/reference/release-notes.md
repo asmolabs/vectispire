@@ -688,6 +688,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **A sign-in name no account can hold opens no account.** MySQL's collation reads past characters an account
+  name never contains — the soft hyphen, the zero-width spaces and joiners, the word joiner, the byte-order mark,
+  most control characters — so `alice` typed with a soft hyphen inside (U+00AD) opened `alice` and met its lockout while counting under a name of its
+  own: the sixth attempt told an existing account from an absent one, as `jeßica` did before. A typed name
+  outside the account names' grammar (letters, digits, `.`, `_`, `-`) is now answered as an unknown one, the
+  right password included; an accented spelling such as `Àlice` no longer signs in to `alice` either.
 - **The upstream rule catalogue is read without following a link.** A symbolic link committed upstream — a
   `LICENSE` pointing at a file of this host, a secret mounted under `/run/secrets` say — was followed by the
   fetch: shown on the licence preview, or stored as a rule. A linked file is now left out, a linked licence

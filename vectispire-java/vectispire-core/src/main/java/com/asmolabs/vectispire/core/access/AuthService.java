@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
@@ -249,7 +250,16 @@ public class AuthService {
         // The folded name is counted as well, for an existing account and an unknown one alike,
         // and the stricter of the two decides: which counters an attempt meets must not depend on
         // whether the account exists — see LoginThrottle#userKey.
-        Optional<UserEntity> user = users.findByUsername(request.username());
+        //
+        // **A name no account can hold opens no account.** The collation also ignores characters an
+        // account name never contains — U+00AD, U+200B to U+200D, U+2060, U+FEFF, controls — so
+        // "ali\u00ADce" opened "alice" and met its account counter, while its folded key was a counter
+        // of its own: the sixth attempt answered 429 when the account existed and 401 when it did not.
+        // Every account is created under AccountRules' grammar; a typed name outside it is answered as
+        // an unknown one — counted on its name key, verified against the stand-in hash, refused alike.
+        Optional<UserEntity> user = AccountRules.isWellFormedUsername(request.username())
+                ? users.findByUsername(request.username())
+                : Optional.empty();
         String nameKey = LoginThrottle.userKey(request.username());
         String clientKey = LoginThrottle.clientKey(String.valueOf(request.ipAddress()));
         Map<String, Integer> ceilings = new LinkedHashMap<>();

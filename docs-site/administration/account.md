@@ -63,7 +63,9 @@ caller address as the server resolves it through the trusted proxies (`VECTISPIR
 a `client_id` sent by the client is no longer read. An IPv6 caller counts as its /64: a host picks its
 addresses within it at will. The name is folded as the database compares it — case, accents, and the
 letters MySQL equates with others (`ß` and `ss`, `æ` and `ae`…) — so no spelling of an account gets a
-counter of its own. A successful sign-in clears the account's count
+counter of its own. A name no account can hold — anything but letters, digits, `.`, `_` and `-` — opens
+no account at all, even where the database would have read past a soft hyphen or an invisible character:
+it is refused like an unknown name, so sign in with the account's name as it was created. A successful sign-in clears the account's count
 and the name's, not the address's: signing in to one's own account does not erase the failures the
 same address made against others.
 
