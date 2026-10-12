@@ -11104,6 +11104,34 @@
         "required" : [ "pinned" ],
         "type" : "object"
       },
+      "TicketTokenState" : {
+        "properties" : {
+          "checkedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "configured" : {
+            "type" : "boolean"
+          },
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "expirySource" : {
+            "type" : "string"
+          },
+          "refusedSince" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "refusedStatus" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "configured" ],
+        "type" : "object"
+      },
       "TokenRequest" : {
         "properties" : {
           "token" : {
@@ -20124,10 +20152,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "boolean"
-                  },
-                  "type" : "object"
+                  "$ref" : "#/components/schemas/TicketTokenState"
                 }
               }
             },
@@ -20153,10 +20178,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "boolean"
-                  },
-                  "type" : "object"
+                  "$ref" : "#/components/schemas/TicketTokenState"
                 }
               }
             },

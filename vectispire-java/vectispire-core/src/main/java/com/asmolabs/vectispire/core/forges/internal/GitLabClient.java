@@ -5,12 +5,10 @@ import com.asmolabs.vectispire.common.domain.forges.ForgeConnectionRefusal.Reaso
 import com.asmolabs.vectispire.common.domain.forges.ForgeCredential;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.forges.ForgeVersion;
+import com.asmolabs.vectispire.common.domain.forges.TokenExpiry;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +57,9 @@ class GitLabClient implements ForgeClient {
         self.path("scopes").forEach(scope -> scopes.add(scope.asText()));
         // Judged now, before the token is presented again; the bot flag comes with the third answer.
         ForgeCredential.gitlab(scopes, false);
-        Optional<Instant> expiresAt = expiryOf(self.path("expires_at"));
+        Optional<Instant> expiresAt = self.path("expires_at").isTextual()
+                ? TokenExpiry.ofDate(self.path("expires_at").asText())
+                : Optional.empty();
 
         JsonNode versionAnswer = expect(get(target, api + "/version", headers), "its version", target);
         Optional<String> version = Optional.ofNullable(versionAnswer.path("version").textValue())
@@ -93,17 +93,5 @@ class GitLabClient implements ForgeClient {
             default -> throw new ForgeConnectionRefusal(Reason.UNREACHABLE,
                     "GitLab answered " + what + " with HTTP " + answer.status() + ".");
         };
-    }
-
-    /** {@code expires_at} is a date, the token's last valid day being the one before it at midnight UTC. */
-    private static Optional<Instant> expiryOf(JsonNode value) {
-        if (!value.isTextual()) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(LocalDate.parse(value.asText()).atStartOfDay(ZoneOffset.UTC).toInstant());
-        } catch (DateTimeParseException unreadable) {
-            return Optional.empty();
-        }
     }
 }

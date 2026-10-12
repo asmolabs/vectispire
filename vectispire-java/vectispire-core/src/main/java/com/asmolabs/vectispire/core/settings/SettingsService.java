@@ -145,6 +145,26 @@ public class SettingsService {
     }
 
     /**
+     * Writes a row no {@link Setting} names — state the deployment keeps for itself and the settings screen
+     * never offers, such as what the tracker last said of its token — creating it if it is not there.
+     *
+     * <p>Refused for a catalog key: that row has a label, a validation and an audit trail, which this door
+     * would skip.
+     */
+    @Transactional
+    public void setInternal(String key, String value) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, written through set(Setting, …).");
+        }
+        if (settings.updateValue(key, value) == 0) {
+            SettingEntity row = new SettingEntity();
+            row.setKey(key);
+            row.setValue(value);
+            settings.save(row);
+        }
+    }
+
+    /**
      * Writes a value, creating the row if it is not there.
      *
      * <p><b>Update first, insert only if nothing was updated.</b> Read-then-write would let two

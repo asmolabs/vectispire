@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.platform.SettingsAdministrationService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
+import com.asmolabs.vectispire.core.tickets.TrackerTokenState;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -144,14 +145,14 @@ public class SettingsController {
      */
     @RequiresAdministrator
     @PutMapping("/ticket-token")
-    public Map<String, Boolean> setTicketToken(
+    public TicketTokenState setTicketToken(
             @RequestBody TokenRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
         String token = body == null || body.token() == null ? "" : body.token();
-        administration.setTicketToken(token, RequestActors.of(principal, request));
-        return Map.of("configured", !token.isBlank());
+        return TicketTokenState.of(
+                !token.isBlank(), administration.setTicketToken(token, RequestActors.of(principal, request)));
     }
 
     /**
@@ -176,10 +177,40 @@ public class SettingsController {
                 .orElse(new TicketCaState(false, null, null));
     }
 
+    /**
+     * The tracker token's state — never the token.
+     *
+     * @param configured whether one is stored
+     * @param expiresAt when it stops working, as the tracker reported it or an administrator declared it; null
+     *     when neither is known, which the screen says rather than leaving blank
+     * @param expirySource {@code reported}, {@code declared} or {@code unknown}
+     * @param refusedStatus the HTTP status the tracker refused it with, since {@code refusedSince}; null while it
+     *     accepts it, or has not been asked
+     * @param checkedAt when the tracker last answered the daily check
+     */
+    public record TicketTokenState(
+            boolean configured,
+            java.time.Instant expiresAt,
+            String expirySource,
+            Integer refusedStatus,
+            java.time.Instant refusedSince,
+            java.time.Instant checkedAt) {
+
+        static TicketTokenState of(boolean configured, TrackerTokenState.Health health) {
+            return new TicketTokenState(
+                    configured,
+                    health.expiresAt().orElse(null),
+                    health.expirySource().wireName(),
+                    health.refused().map(TrackerTokenState.Refusal::status).orElse(null),
+                    health.refused().map(TrackerTokenState.Refusal::since).orElse(null),
+                    health.checkedAt().orElse(null));
+        }
+    }
+
     /** The token's state, without ever returning it. */
     @GetMapping("/ticket-token")
-    public Map<String, Boolean> ticketTokenState() {
-        return Map.of("configured", !tickets.token().isEmpty());
+    public TicketTokenState ticketTokenState() {
+        return TicketTokenState.of(!tickets.token().isEmpty(), tickets.tokenHealth());
     }
 
     /**

@@ -67,6 +67,36 @@ certificate of the CA at the top of it, **not** the server's own (the first one 
   opened or closed, the server log says the tracker CA expired, and the fix is to paste the renewed
   CA.
 
+## When the token expires, or stops working {#token-expiry}
+
+A tracker token does not last: GitLab now gives every token an expiry, a year at most by default.
+Before 0.11.0 the day it lapsed the hourly sweep failed on every call, with a line in the server log
+as the only trace, and no ticket was opened or closed again until somebody noticed.
+
+The tracker card under **Settings → Integrations** now shows the token's life, as the
+[forge connections' list](../administration/forge-connections.md) shows a connection's:
+
+- **Its expiry, announced fourteen days ahead** — *Expires in 9 days*, then *Expired*. GitLab reports
+  it (`GET /api/v4/personal_access_tokens/self`, for personal, group and project access tokens) and
+  GitHub too (the `github-authentication-token-expiration` header of an authenticated call); both are
+  asked when the token is saved and once a day after, through the tracker's [pinned CA](#internal-ca)
+  when one is set. Jira and ServiceNow have no reliable way to say: enter the date yourself in
+  **Token expiry date** (`ticket_token_expires_on`, `YYYY-MM-DD`, administrator-only), which also
+  applies to a GitLab or GitHub token that reports none. Neither known, the card says *Expiry unknown*
+  rather than nothing.
+- **That it stopped working.** When the tracker answers a call of the sweep with `401` or `403` — an
+  expired, revoked or under-privileged token — or the daily check with `401`, the card says *Stopped
+  working* with the status and since when, before any date. It goes back to normal at the next call
+  the tracker accepts, or when a new token is saved, which forgets everything known of the previous
+  one.
+
+Each change is written **once** to the server log at `WARN` — entering the fourteen days, expiring,
+being refused, accepted again — never once an hour while nothing changes. Nothing is sent to a
+notification channel or the SIEM, as for a forge connection's token: the screen and the log are where
+it is said. `GET /api/v1/settings/ticket-token` answers `expiresAt`, `expirySource` (`reported`,
+`declared` or `unknown`), `refusedStatus`, `refusedSince` and `checkedAt` beside `configured`, and
+`PUT` answers the same once the tracker has been asked.
+
 ## What lands in the ticket
 
 Enough to act without opening Vectispire: the component and version, the identifier, the

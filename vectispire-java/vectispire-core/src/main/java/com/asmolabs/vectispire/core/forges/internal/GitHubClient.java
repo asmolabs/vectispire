@@ -6,15 +6,10 @@ import com.asmolabs.vectispire.common.domain.forges.ForgeCredential;
 import com.asmolabs.vectispire.common.domain.forges.ForgeEdition;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.forges.ForgeVersion;
+import com.asmolabs.vectispire.common.domain.forges.TokenExpiry;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -34,10 +29,6 @@ class GitHubClient implements ForgeClient {
 
     /** The REST version the adapters are written against; GitHub keeps a version stable for two years. */
     static final String API_VERSION = "2022-11-28";
-
-    private static final List<DateTimeFormatter> EXPIRY_FORMATS = List.of(
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z", Locale.ROOT),
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT));
 
     private final OutboundJson outbound;
 
@@ -83,18 +74,7 @@ class GitHubClient implements ForgeClient {
                     + version.get() + "; " + ForgeVersion.GHES_MINIMUM_MAJOR + "." + ForgeVersion.GHES_MINIMUM_MINOR
                     + " or later is required.");
         }
-        return new Probe(credential, answer.header("github-authentication-token-expiration").flatMap(GitHubClient::instant),
+        return new Probe(credential, answer.header("github-authentication-token-expiration").flatMap(TokenExpiry::ofGithubHeader),
                 edition == ForgeEdition.GITHUB_ENTERPRISE_SERVER ? version : Optional.empty());
-    }
-
-    private static Optional<Instant> instant(String value) {
-        for (DateTimeFormatter format : EXPIRY_FORMATS) {
-            try {
-                return Optional.of(ZonedDateTime.parse(value.trim(), format).toInstant());
-            } catch (DateTimeParseException tryNext) {
-                // The header's zone has been written both as a name and as an offset.
-            }
-        }
-        return Optional.empty();
     }
 }

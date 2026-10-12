@@ -714,6 +714,17 @@ from a list in which none is true of an exposed product — and signed into the 
   trusted for it, and the tracker's name is still verified. The settings screen shows its subject and
   expiry, read from `GET /api/v1/settings/ticket-ca` ([a tracker behind an internal
   CA](../integrations/ticketing.md#internal-ca)).
+- **A tracker token that expires is announced before it does, and one the tracker refuses is said to
+  have stopped working.** A lapsed token — GitLab now forces an expiry, a year at most by default — made
+  the hourly sweep fail on every call with a log line as the only trace, for ever. GitLab's and GitHub's
+  reported expiry is read when the token is saved and daily after (through the pinned CA), a date can be
+  declared for Jira and ServiceNow (`ticket_token_expires_on`, administrator-only), and the tracker card
+  shows it fourteen days ahead as the forge connections' list does, *Expiry unknown* when nothing is
+  known; a `401` or `403` met by the sweep (a `401` by the daily check) shows *Stopped working* until a
+  call is accepted again or a new token is saved. Each change is logged once at `WARN`, not every hour.
+  `GET` and `PUT /api/v1/settings/ticket-token` answer `expiresAt`, `expirySource`, `refusedStatus`,
+  `refusedSince` and `checkedAt` beside `configured` ([when the token
+  expires](../integrations/ticketing.md#token-expiry)).
 - **The catalogue import leaves out the rules that duplicate gitleaks, which found every leaked key a
   second time.** Choosing `generic` imported `generic/secrets/gitleaks/`, 175 rules ported from the gitleaks
   rules the secrets step already runs, and 27 rules of `generic/secrets/security/` whose token formats a

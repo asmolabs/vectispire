@@ -254,6 +254,20 @@ public enum Setting {
                     + "`PUT /api/v1/settings/ticket-webhook-secret`.",
             "", Sensitivity.ENCRYPTED),
 
+    /**
+     * When the tracker token stops working, for a tracker that does not say: Jira and ServiceNow have no
+     * reliable way to read a token's expiry, GitLab and GitHub report theirs and this date is used only when
+     * they report none. Announced fourteen days ahead, as a forge connection's reported expiry is.
+     */
+    TICKET_TOKEN_EXPIRES_ON("ticket_token_expires_on", SettingType.TEXT, Section.TICKETS,
+            "Token expiry date",
+            "The date the access token stops working, as YYYY-MM-DD, for a tracker that does not report it — Jira "
+                    + "and ServiceNow. GitLab and GitHub report their tokens' expiry, read when the token is saved and "
+                    + "daily after; this date applies to them only when they report none. The settings screen "
+                    + "announces it fourteen days ahead; empty, the expiry is shown as unknown. Set by an "
+                    + "administrator only, like the token it describes.",
+            ""),
+
     TICKET_USER("ticket_user", SettingType.TEXT, Section.TICKETS,
             "Jira account",
             "The account address, required by Jira alongside the token for basic authentication. GitLab does "
@@ -643,10 +657,12 @@ public enum Setting {
      * channels a security lead configures and tests, and which therefore must not also decide how far
      * they may reach. The notifications' switch was a security lead's until the SIEM's was split from
      * it, and left behind: with the test button answering the sender's error, it let that role read
-     * which internal hosts and ports answered.
+     * which internal hosts and ports answered. And the tracker token's declared expiry, which describes a
+     * credential only an administrator sets and sees the life of.
      */
     public boolean administratorOnly() {
         return directsCredential().isPresent()
+                || this == TICKET_TOKEN_EXPIRES_ON
                 || this == SIEM_ALLOW_PRIVATE_DESTINATION
                 || this == NOTIFICATION_ALLOW_PRIVATE_URL;
     }
@@ -693,7 +709,7 @@ public enum Setting {
             case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, SCAN_DEFAULT_INTERVAL_DAYS, RETENTION_KEEP_PER_TARGET,
                     RETENTION_MAX_AGE_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
                     SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,
-                    NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER,
+                    NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_TOKEN_EXPIRES_ON,
                     TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_OWASP_AFTER_SCAN,
                     AI_REVIEW_PROVIDER,
                     AI_REVIEW_MODEL, AI_REVIEW_TIMEOUT_SECONDS, AI_REVIEW_RISK_ACKNOWLEDGED_BY,

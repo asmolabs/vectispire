@@ -28,6 +28,51 @@
                     <p-button [label]="'common.save' | translate" [loading]="savingToken()" (onClick)="saveToken()" />
                 </div>
             </div>
+            @if (tokenConfigured() && tokenState(); as token) {
+                <!-- The token's life, as the forge connections' list shows a connection's: a refusal first,
+                     then the expiry fourteen days ahead, and "unknown" said rather than left blank. -->
+                <div class="flex flex-wrap items-center gap-2 text-sm" data-testid="ticket-token-health">
+                    @if (token.refusedStatus) {
+                        <p-tag severity="danger" [value]="'settings.token_refused_tag' | translate" />
+                        <span data-testid="ticket-token-refused">{{
+                            'settings.token_refused'
+                                | translate
+                                    : {
+                                          status: token.refusedStatus,
+                                          date: (token.refusedSince | date: 'yyyy-MM-dd HH:mm' : 'UTC') ?? ''
+                                      }
+                        }}</span>
+                    } @else {
+                        @switch (tokenExpiry()) {
+                            @case ('none') {
+                                <span class="text-muted-color" data-testid="ticket-token-expiry-unknown">{{
+                                    'settings.token_expiry_unknown' | translate
+                                }}</span>
+                            }
+                            @case ('expired') {
+                                <p-tag severity="danger" [value]="'forges.connections.expired' | translate" />
+                                {{ token.expiresAt | date: 'yyyy-MM-dd' : 'UTC' }}
+                            }
+                            @case ('soon') {
+                                <p-tag
+                                    severity="warn"
+                                    [value]="'forges.connections.expires_soon' | translate: { count: tokenDaysLeft() }"
+                                />
+                                {{ token.expiresAt | date: 'yyyy-MM-dd' : 'UTC' }}
+                            }
+                            @default {
+                                <span>{{
+                                    'settings.token_expires_on'
+                                        | translate: { date: (token.expiresAt | date: 'yyyy-MM-dd' : 'UTC') ?? '' }
+                                }}</span>
+                            }
+                        }
+                        @if (token.expirySource === 'declared') {
+                            <span class="text-muted-color">{{ 'settings.token_expiry_declared' | translate }}</span>
+                        }
+                    }
+                </div>
+            }
             <small class="text-muted-color max-w-3xl">
                 {{ 'settings.token_hint' | translate }}
             </small>

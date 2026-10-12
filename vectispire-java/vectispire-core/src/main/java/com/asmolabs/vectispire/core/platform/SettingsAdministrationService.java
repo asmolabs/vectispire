@@ -18,6 +18,7 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
+import com.asmolabs.vectispire.core.tickets.TrackerTokenState;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -196,8 +197,11 @@ public class SettingsAdministrationService {
                                 + credential.label().toLowerCase(java.util.Locale.ROOT)
                                 + " is sent, and only an administrator — who alone may set that credential — "
                                 + "may change it.")
-                        .orElse(setting.label() + " decides how far a channel configured by a security lead "
-                                + "may reach, and only an administrator may change it."));
+                        .orElse(setting == Setting.TICKET_TOKEN_EXPIRES_ON
+                                ? setting.label() + " describes the tracker token, which only an administrator sets, "
+                                        + "and only an administrator may change it."
+                                : setting.label() + " decides how far a channel configured by a security lead "
+                                        + "may reach, and only an administrator may change it."));
             }
             // **Switching on a two-person control requires that there be two.** Without this
             // guard, switching it on where no approver is active puts every decision in a queue
@@ -246,6 +250,11 @@ public class SettingsAdministrationService {
             // unchanged by a screen saving the section, is the calls' to refuse, not this save's.
             if (setting == Setting.TICKET_CA && !value.isEmpty() && !value.equals(settings.get(setting).trim())) {
                 tickets.caToPin(value);
+            }
+            // A date the screen announces from, so a typo is refused here rather than read as "unknown".
+            if (setting == Setting.TICKET_TOKEN_EXPIRES_ON && !value.isEmpty()
+                    && com.asmolabs.vectispire.common.domain.forges.TokenExpiry.ofDate(value).isEmpty()) {
+                throw new InvalidInputException(setting.label() + " — a date, written as 2027-01-31.");
             }
             changes.add(new Change(setting, value));
         }
@@ -355,8 +364,10 @@ public class SettingsAdministrationService {
      *
      * <p>The value is <b>not</b> logged, unlike the other settings: the audit trail is readable by
      * every administrator.
+     *
+     * @return what the tracker says of the token just stored — its expiry, or that it refuses it
      */
-    public void setTicketToken(String token, RequestActor actor) {
+    public TrackerTokenState.Health setTicketToken(String token, RequestActor actor) {
         refuseOversized(token, "The tracker token");
         tickets.setToken(token);
         audit.record(actor.entry(
@@ -364,6 +375,9 @@ public class SettingsAdministrationService {
                 Setting.TICKET_TOKEN.key(),
                 token.isBlank() ? "Tracker token cleared." : "Tracker token stored.")
                 .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
+        // Asked now rather than at tomorrow's check, after the audit entry and outside any transaction: the
+        // screen that saved the token is the one that should say when it expires, or that the tracker refuses it.
+        return tickets.checkTokenNow();
     }
 
     /**

@@ -117,9 +117,12 @@ Couvert sous [Notifications](../integrations/notifications.md).
 ## Tracker
 
 GitLab, GitHub, Jira ou ServiceNow : URL, projet, jeton, et la CA contre laquelle un tracker sur votre
-propre PKI est vérifié (`ticket_ca_pem`, PEM, à la place du magasin de confiance de l'environnement).
+propre PKI est vérifié (`ticket_ca_pem`, PEM, à la place du magasin de confiance de l'environnement),
+et la date d'expiration du jeton pour un tracker qui ne la donne pas (`ticket_token_expires_on`, réservée à
+un administrateur).
 Couvert sous [Tickets](../integrations/ticketing.md) et [un tracker derrière une CA
-interne](../integrations/ticketing.md#internal-ca).
+interne](../integrations/ticketing.md#internal-ca) ; l'expiration et le refus du jeton sont affichés
+sur la carte du tracker ([quand le jeton expire](../integrations/ticketing.md#token-expiry)).
 
 ## Revue par IA
 

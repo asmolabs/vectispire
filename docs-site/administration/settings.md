@@ -110,9 +110,11 @@ Covered under [Notifications](../integrations/notifications.md).
 ## Tracker
 
 GitLab, GitHub, Jira or ServiceNow: URL, project, token, and the CA a tracker on your own PKI is
-verified against (`ticket_ca_pem`, PEM, in place of the runtime's trust store). Covered under
+verified against (`ticket_ca_pem`, PEM, in place of the runtime's trust store), and the token's expiry
+date for a tracker that does not report it (`ticket_token_expires_on`, administrator-only). Covered under
 [Tracker tickets](../integrations/ticketing.md) and [a tracker behind an internal
-CA](../integrations/ticketing.md#internal-ca).
+CA](../integrations/ticketing.md#internal-ca); the token's expiry and refusal are shown on the tracker
+card ([when the token expires](../integrations/ticketing.md#token-expiry)).
 
 ## AI review
 

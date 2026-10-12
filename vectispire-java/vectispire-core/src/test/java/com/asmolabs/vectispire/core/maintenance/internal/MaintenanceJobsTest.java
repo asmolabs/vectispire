@@ -60,8 +60,10 @@ import com.asmolabs.vectispire.core.forges.ForgeReviewService;
 import com.asmolabs.vectispire.core.forges.internal.ChangeReviewTask;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssScoresSyncTask;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogueSyncTask;
+import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.asmolabs.vectispire.core.tickets.TicketSweepService;
 import com.asmolabs.vectispire.core.tickets.internal.TicketSweepTask;
+import com.asmolabs.vectispire.core.tickets.internal.TicketTokenCheckTask;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -106,6 +108,7 @@ class MaintenanceJobsTest {
             ScanRetentionTask.class,
             SentMessagesTask.class,
             TicketSweepTask.class,
+            TicketTokenCheckTask.class,
             InventoryBackfillTask.class,
             RepositoryIdentityTask.class,
             TriageExpiryTask.class,
@@ -128,6 +131,7 @@ class MaintenanceJobsTest {
     private RetentionService retention;
     private OutboxService outbox;
     private TicketSweepService tickets;
+    private TicketService trackerToken;
     private SessionCleanupService sessions;
     private InventoryBackfill backfill;
     private RepositoryIdentityService identities;
@@ -156,6 +160,7 @@ class MaintenanceJobsTest {
         retention = mock(RetentionService.class);
         outbox = mock(OutboxService.class);
         tickets = mock(TicketSweepService.class);
+        trackerToken = mock(TicketService.class);
         sessions = mock(SessionCleanupService.class);
         backfill = mock(InventoryBackfill.class);
         identities = mock(RepositoryIdentityService.class);
@@ -194,6 +199,7 @@ class MaintenanceJobsTest {
                 new ScanRetentionTask(retention),
                 new SentMessagesTask(outbox),
                 new TicketSweepTask(tickets),
+                new TicketTokenCheckTask(trackerToken),
                 new InventoryBackfillTask(backfill),
                 new RepositoryIdentityTask(identities),
                 new TriageExpiryTask(triage),
@@ -244,13 +250,16 @@ class MaintenanceJobsTest {
         // cover less than its name says. In order, because two positions matter: the decisions
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
-        InOrder turn = inOrder(retention, outbox, tickets, backfill, identities, triage, breaches, digest, complianceHistory,
-                owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, buildSboms, reviews, feed,
+        InOrder turn = inOrder(retention, outbox, tickets, trackerToken, backfill, identities, triage, breaches, digest,
+                complianceHistory, owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, buildSboms, reviews, feed,
                 forgeReviews,
                 targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
+        // The only caller of the tracker token's check: without it an expiry is read when the token is saved
+        // and never again, and nothing says it is near until the sweep starts failing.
+        turn.verify(trackerToken).checkTokenIfDue();
         turn.verify(backfill).runOnce();
         // The only writer of the guard on the rows V73 found: without it, a second filing of any target
         // registered before the upgrade is accepted for as long as the install lives.

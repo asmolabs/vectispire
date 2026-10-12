@@ -773,6 +773,18 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   CA publiques ne sont alors pas reconnues pour lui, et son nom reste vérifié. L'écran des réglages affiche
   son sujet et son expiration, lus sur `GET /api/v1/settings/ticket-ca` ([un tracker derrière une CA
   interne](../integrations/ticketing.md#internal-ca)).
+- **Un jeton de tracker qui expire est annoncé avant, et celui que le tracker refuse est dit hors
+  d'usage.** Un jeton expiré — GitLab impose désormais une expiration, un an au plus par défaut — faisait
+  échouer le balayage horaire à chaque appel avec une ligne de journal pour seule trace, pour toujours.
+  L'expiration que donnent GitLab et GitHub est lue à l'enregistrement du jeton puis chaque jour (à travers
+  la CA épinglée), une date peut être déclarée pour Jira et ServiceNow (`ticket_token_expires_on`, réservée
+  à un administrateur), et la carte du tracker l'annonce quatorze jours à l'avance comme la liste des
+  connexions de forge, *Expiration inconnue* quand rien n'est connu ; un `401` ou un `403` rencontré par le
+  balayage (un `401` par la vérification quotidienne) affiche *Ne fonctionne plus* jusqu'à ce qu'un appel
+  soit de nouveau accepté ou qu'un nouveau jeton soit enregistré. Chaque changement est journalisé une fois
+  au niveau `WARN`, pas chaque heure. `GET` et `PUT /api/v1/settings/ticket-token` répondent `expiresAt`,
+  `expirySource`, `refusedStatus`, `refusedSince` et `checkedAt` à côté de `configured` ([quand le jeton
+  expire](../integrations/ticketing.md#token-expiry)).
 - **L'import du catalogue laisse de côté les règles qui font double emploi avec gitleaks, qui trouvaient
   chaque clé divulguée une seconde fois.** Choisir `generic` importait `generic/secrets/gitleaks/`, 175
   règles portées des règles gitleaks que l'étape des secrets exécute déjà, et 27 règles de

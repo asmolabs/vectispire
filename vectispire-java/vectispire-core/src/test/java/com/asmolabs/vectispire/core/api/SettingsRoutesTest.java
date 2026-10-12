@@ -227,6 +227,44 @@ class SettingsRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the tracker token's declared expiry is an administrator's, a date, and reported with the token's state")
+    void theDeclaredExpiryIsAnAdministratorsDate() throws Exception {
+        settingsStore.set(Setting.TICKET_TOKEN_EXPIRES_ON, "");
+        try {
+            mvc.perform(authenticated(put("/api/v1/settings"), asCiso())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"ticket_token_expires_on\":\"2099-01-31\"}"))
+                    .andExpect(status().isForbidden());
+
+            MvcResult refused = mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"ticket_token_expires_on\":\"31/01/2099\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andReturn();
+            assertThat(detailOf(refused)).contains("2027-01-31");
+
+            mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"ticket_token_expires_on\":\"2099-01-31\"}"))
+                    .andExpect(status().isOk());
+
+            // No provider is configured here, so nothing reports an expiry: the declared one is what is known.
+            MvcResult state = mvc.perform(authenticated(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/settings/ticket-token"),
+                            asReader()))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            com.fasterxml.jackson.databind.JsonNode body =
+                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(state.getResponse().getContentAsString());
+            assertThat(body.path("expirySource").asText()).isEqualTo("declared");
+            assertThat(body.path("expiresAt").asText()).isEqualTo("2099-01-31T00:00:00Z");
+            assertThat(body.has("configured")).isTrue();
+        } finally {
+            settingsStore.set(Setting.TICKET_TOKEN_EXPIRES_ON, "");
+        }
+    }
+
+    @Test
     @DisplayName("a GitHub project is one owner/repository pair, nothing after it")
     void aGithubProjectIsOneRepository() throws Exception {
         // Pasted into /repos/<project>/issues as typed, "owner/repo/issues/12/comments#" made the

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.forges.TokenExpiry;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -62,6 +64,7 @@ public class TicketService {
     private final OutboundJson lookup;
     private final ObjectMapper json;
     private final Clock clock;
+    private final TrackerTokenState tokenState;
 
     /** How the pinned CA's refusals name the field — the same rule as a forge's, in the tracker's words. */
     public static final PinnedCa.Subject CA = new PinnedCa.Subject("The tracker CA", "the tracker");
@@ -72,13 +75,15 @@ public class TicketService {
             OutboundPost post,
             OutboundJson lookup,
             ObjectMapper json,
-            Clock clock) {
+            Clock clock,
+            TrackerTokenState tokenState) {
         this.settings = settings;
         this.encryption = encryption;
         this.post = post;
         this.lookup = lookup;
         this.json = json;
         this.clock = clock;
+        this.tokenState = tokenState;
     }
 
     /**
@@ -222,10 +227,127 @@ public class TicketService {
                 value.isEmpty() ? "" : encryption.encrypt(value, WEBHOOK_SECRET_CONTEXT));
     }
 
-    /** Stores the token encrypted, bound to its own setting key. */
+    /**
+     * Stores the token encrypted, bound to its own setting key — and forgets what was known of the previous one:
+     * its expiry and a refusal describe a credential that is gone.
+     */
     public void setToken(String rawToken) {
         String value = rawToken == null ? "" : rawToken.trim();
         settings.set(Setting.TICKET_TOKEN, value.isEmpty() ? "" : encryption.encrypt(value, TOKEN_CONTEXT));
+        tokenState.reset();
+    }
+
+    /** How often the tracker is asked about its token: daily, like the forge connections' reading of theirs. */
+    static final Duration TOKEN_CHECK_INTERVAL = Duration.ofDays(1);
+
+    /**
+     * What is known of the token, read from the tracker now when it can say — GitLab and GitHub report their
+     * tokens' expiry — and announced when that changed something. Called when the token is saved.
+     *
+     * <p>Never throws, like the sweep: a tracker that does not answer leaves what was known as it was.
+     */
+    public TrackerTokenState.Health checkTokenNow() {
+        Instant now = clock.instant();
+        try {
+            if (isEnabled()) {
+                askTheTracker(now);
+            }
+            tokenState.announce(now);
+        } catch (RuntimeException failed) {
+            log.warn("The tracker token could not be checked: {}", failed.getMessage());
+        }
+        return tokenState.read();
+    }
+
+    /**
+     * The daily check, from the hourly tick: the tracker is asked when it last answered a day ago or more, and
+     * what there is to say is announced whatever it answered — an expiry entering its fourteen days changes no
+     * stored value, only the date.
+     */
+    public void checkTokenIfDue() {
+        Instant now = clock.instant();
+        try {
+            boolean due = tokenState.checkedAt().map(at -> !now.isBefore(at.plus(TOKEN_CHECK_INTERVAL))).orElse(true);
+            if (isEnabled() && due) {
+                askTheTracker(now);
+            }
+            tokenState.announce(now);
+        } catch (RuntimeException failed) {
+            log.warn("The tracker token could not be checked: {}", failed.getMessage());
+        }
+    }
+
+    /** What the token's own state is, for the screen. */
+    public TrackerTokenState.Health tokenHealth() {
+        return tokenState.read();
+    }
+
+    /**
+     * Asks GitLab or GitHub what they know of the token, through the same guard, policy and pinned CA as a
+     * ticket. Jira and ServiceNow have no reliable way to say, and are not asked: their expiry is the one an
+     * administrator declares, and a refusal is learned from the calls the sweep makes.
+     */
+    private void askTheTracker(Instant now) {
+        TicketProvider provider = provider();
+        if (provider != TicketProvider.GITLAB && provider != TicketProvider.GITHUB) {
+            return;
+        }
+        String baseUrl = validatedBaseUrl(baseUrl());
+        Optional<PinnedCa> trust = trust();
+        OutboundJson.Answer answer = provider == TicketProvider.GITLAB
+                // The token's own description: personal, group and project access tokens alike, as the forge
+                // connections read theirs.
+                ? lookup.answer(baseUrl + "/api/v4/personal_access_tokens/self", policy(), "GitLab",
+                        Map.of("PRIVATE-TOKEN", token()), trust)
+                // Any authenticated call carries the expiry in a header; the repository's is the one the
+                // token must be able to read anyway.
+                : lookup.answer(baseUrl + "/repos/" + githubRepository(), policy(), "GitHub",
+                        Map.of("Authorization", "Bearer " + token(), "Accept", "application/vnd.github+json"), trust);
+        switch (answer.status()) {
+            case 200 -> {
+                tokenState.recordReported(provider == TicketProvider.GITLAB
+                        ? Optional.ofNullable(answer.body().orElseThrow().path("expires_at").textValue())
+                                .flatMap(TokenExpiry::ofDate)
+                        : answer.header("github-authentication-token-expiration").flatMap(TokenExpiry::ofGithubHeader),
+                        now);
+                // The tracker knows the token again — unless what refused it was a 403 on a ticket: describing
+                // itself proves nothing about that permission, and clearing it here would have the refusal
+                // announced again, and cleared again, every day.
+                if (tokenState.read().refused().map(refusal -> refusal.status() != 403).orElse(true)) {
+                    tokenState.recordAccepted(now);
+                }
+            }
+            // Expired, revoked or wrong: the same answer every call of the sweep would get.
+            case 401 -> tokenState.recordRefused(401, now);
+            // A 403 here says the token may not describe itself or read the repository, not that it stopped
+            // working; the sweep's own calls say whether it can still open a ticket.
+            default -> log.warn("The tracker answered HTTP {} when asked about its token; nothing learned.",
+                    answer.status());
+        }
+    }
+
+    /** A call made with the token succeeded. Recorded apart, so that a failure to record never costs the ticket. */
+    private void noteAccepted() {
+        try {
+            tokenState.recordAccepted(clock.instant());
+        } catch (RuntimeException unrecorded) {
+            log.warn("The tracker token's state could not be recorded: {}", unrecorded.getMessage());
+        }
+    }
+
+    /**
+     * A call failed: when the tracker refused the token — {@code 401}, or {@code 403} on a call the integration
+     * needs — that is recorded, and announced once. The status is read from the failure's type, never its words.
+     */
+    private void noteFailure(RuntimeException failed) {
+        if (failed instanceof OutboundJson.OutboundStatusException refused
+                && (refused.status() == 401 || refused.status() == 403)) {
+            try {
+                tokenState.recordRefused(refused.status(), clock.instant());
+            } catch (RuntimeException unrecorded) {
+                log.warn("The tracker token's state could not be recorded: {}", unrecorded.getMessage());
+            }
+        }
     }
 
     /**
@@ -254,14 +376,19 @@ public class TicketService {
         try {
             String title = Tickets.title(issue, targetName);
             String body = Tickets.body(issue, targetName);
-            return switch (provider()) {
+            Optional<Ticket> created = switch (provider()) {
                 case GITLAB -> Optional.of(createGitlab(baseUrl, title, body, trust));
                 case GITHUB -> Optional.of(createGithub(baseUrl, title, body, trust));
                 case JIRA -> Optional.of(createJira(baseUrl, title, body, trust));
                 case SERVICENOW -> Optional.of(createServiceNow(baseUrl, title, body, trust));
                 case NONE -> Optional.empty();
             };
+            if (created.isPresent()) {
+                noteAccepted();
+            }
+            return created;
         } catch (RuntimeException failed) {
+            noteFailure(failed);
             log.warn("Ticket creation failed for issue {} — will be retried: {}", issue.id(), failed.getMessage());
             return Optional.empty();
         }
@@ -302,8 +429,10 @@ public class TicketService {
                 case NONE -> {}
             }
             log.info("Successfully closed ticket {} on {}", ticketRef, provider());
+            noteAccepted();
             return true;
         } catch (RuntimeException e) {
+            noteFailure(e);
             log.warn("Failed to close ticket {} on {}: {}", ticketRef, provider(), e.getMessage());
             return false;
         }

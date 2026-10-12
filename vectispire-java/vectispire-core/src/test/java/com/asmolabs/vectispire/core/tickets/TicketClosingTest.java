@@ -82,7 +82,7 @@ class TicketClosingTest {
         PinnedHttpSender sender = new PinnedHttpSender();
         service = new TicketService(
                 settings, encryption, new OutboundPost(sender, guard, json), new OutboundJson(sender, guard, json), json,
-                java.time.Clock.systemUTC());
+                java.time.Clock.systemUTC(), new TrackerTokenState(settings));
     }
 
     @AfterEach

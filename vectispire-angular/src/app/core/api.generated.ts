@@ -8659,6 +8659,18 @@ export interface components {
             pinned: boolean;
             subject?: string;
         };
+        TicketTokenState: {
+            /** Format: date-time */
+            checkedAt?: string;
+            configured: boolean;
+            /** Format: date-time */
+            expiresAt?: string;
+            expirySource?: string;
+            /** Format: date-time */
+            refusedSince?: string;
+            /** Format: int32 */
+            refusedStatus?: number;
+        };
         TokenRequest: {
             token?: string;
         };
@@ -14877,9 +14889,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": {
-                        [key: string]: boolean;
-                    };
+                    "*/*": components["schemas"]["TicketTokenState"];
                 };
             };
         };
@@ -14903,9 +14913,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": {
-                        [key: string]: boolean;
-                    };
+                    "*/*": components["schemas"]["TicketTokenState"];
                 };
             };
         };

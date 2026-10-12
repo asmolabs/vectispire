@@ -165,7 +165,7 @@ public class OutboundPost {
                 guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label);
 
         if (response.status() / 100 != 2) {
-            throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.status() + ".");
+            throw new OutboundJson.OutboundStatusException(label, response.status());
         }
         return response.body();
     }
@@ -185,7 +185,7 @@ public class OutboundPost {
                 PinnedHttpSender.DEFAULT_MAX_BODY_BYTES, trust);
 
         if (response.status() / 100 != 2) {
-            throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.status() + ".");
+            throw new OutboundJson.OutboundStatusException(label, response.status());
         }
         return response.body();
     }

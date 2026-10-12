@@ -111,7 +111,7 @@ public class OutboundJson {
             return Optional.empty();
         }
         if (response.status() / 100 != 2) {
-            throw new OutboundFailureException(label + ": HTTP " + response.status() + ".");
+            throw new OutboundStatusException(label, response.status());
         }
         try {
             return Optional.of(json.readTree(response.body()));
@@ -186,6 +186,27 @@ public class OutboundJson {
             return new Answer(response.status(), Optional.of(json.readTree(response.body())), response.headers());
         } catch (IOException | UncheckedIOException unreadable) {
             throw new OutboundFailureException(label + ": the answer is not JSON.", unreadable);
+        }
+    }
+
+    /**
+     * A destination that answered, with a status that is not a success — the status kept as a value, so that a
+     * caller to whom a {@code 401} means something (a tracker token that stopped working) reads it from a type
+     * and never from the message's words.
+     */
+    public static class OutboundStatusException extends OutboundFailureException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final int status;
+
+        public OutboundStatusException(String label, int status) {
+            super(label + ": HTTP " + status + ".");
+            this.status = status;
+        }
+
+        public int status() {
+            return status;
         }
     }
 

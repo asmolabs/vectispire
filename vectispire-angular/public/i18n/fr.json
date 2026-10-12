@@ -2337,6 +2337,10 @@
       "ticket_ca_pem": {
         "label": "CA du gestionnaire de tickets (PEM)",
         "help": "Pour un gestionnaire de tickets dont le certificat vient de l'autorité de certification interne de votre organisation : collez le certificat de cette CA au format PEM (-----BEGIN CERTIFICATE-----), une racine et ses intermédiaires au besoin. Utilisée pour le gestionnaire seul, et à la place du magasin de confiance du serveur — les CA publiques ne sont alors pas reconnues pour lui ; son nom reste vérifié. Vide, le magasin du serveur s'applique. Réservé à un administrateur : elle décide à qui le jeton du gestionnaire est présenté."
+      },
+      "ticket_token_expires_on": {
+        "label": "Date d'expiration du jeton",
+        "help": "La date à laquelle le jeton d'accès cesse de fonctionner, au format AAAA-MM-JJ, pour un tracker qui ne la donne pas — Jira et ServiceNow. GitLab et GitHub donnent l'expiration de leurs jetons, lue à l'enregistrement du jeton puis chaque jour ; cette date ne s'applique à eux que s'ils n'en donnent aucune. L'écran des réglages l'annonce quatorze jours à l'avance ; vide, l'expiration est affichée comme inconnue. Réservé à un administrateur, comme le jeton qu'elle décrit."
       }
     },
     "last_sync": "Dernière lecture du catalogue KEV",
@@ -2469,7 +2473,12 @@
     "error_epss_sync": "Le fichier EPSS n'a pas pu être lu. Les scores en usage sont conservés.",
     "ticket_ca_pinned": "Épinglée : {{subject}}, valide jusqu'au {{date}}",
     "ticket_ca_unreadable": "La CA enregistrée ne se lit plus comme un certificat d'autorité : aucun ticket n'est ouvert ni fermé tant qu'elle n'est pas remplacée.",
-    "ticket_ca_placeholder": "-----BEGIN CERTIFICATE-----"
+    "ticket_ca_placeholder": "-----BEGIN CERTIFICATE-----",
+    "token_refused_tag": "Ne fonctionne plus",
+    "token_refused": "Le tracker refuse ce jeton (HTTP {{status}}) depuis le {{date}} UTC : aucun ticket n'est ouvert ni fermé tant qu'il n'est pas remplacé.",
+    "token_expiry_unknown": "Expiration inconnue — GitLab et GitHub la donnent ; pour Jira ou ServiceNow, renseignez la date d'expiration du jeton dans les réglages du tracker.",
+    "token_expires_on": "Expire le {{date}}",
+    "token_expiry_declared": "(déclarée par un administrateur)"
   },
   "severities": {
     "critical": "Critique",

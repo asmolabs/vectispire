@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { OllamaCheck, SettingDefinition, TicketCaState } from '../api.models';
+import { OllamaCheck, SettingDefinition, TicketCaState, TicketTokenState } from '../api.models';
 
 /**
  * The instance settings under `/api/v1/settings`, including the write-only secrets and the model
@@ -40,12 +40,14 @@ export class SettingsApi {
         return this.http.put<{ updated: number }>('/api/v1/settings', values);
     }
 
-    ticketTokenState(): Observable<{ configured: boolean }> {
-        return this.http.get<{ configured: boolean }>('/api/v1/settings/ticket-token');
+    /** Whether a token is stored, when it expires and whether the tracker refuses it. Never the token. */
+    ticketTokenState(): Observable<TicketTokenState> {
+        return this.http.get<TicketTokenState>('/api/v1/settings/ticket-token');
     }
 
-    setTicketToken(token: string): Observable<{ configured: boolean }> {
-        return this.http.put<{ configured: boolean }>('/api/v1/settings/ticket-token', { token });
+    /** Stores the token; the answer is what the tracker said of it when asked right after. */
+    setTicketToken(token: string): Observable<TicketTokenState> {
+        return this.http.put<TicketTokenState>('/api/v1/settings/ticket-token', { token });
     }
 
     /**

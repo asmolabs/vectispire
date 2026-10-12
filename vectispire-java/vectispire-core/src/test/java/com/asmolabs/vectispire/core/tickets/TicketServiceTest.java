@@ -48,7 +48,8 @@ class TicketServiceTest {
         encryption = new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of()));
         post = mock(OutboundPost.class);
         service = new TicketService(
-                settings, encryption, post, mock(OutboundJson.class), new ObjectMapper(), java.time.Clock.systemUTC());
+                settings, encryption, post, mock(OutboundJson.class), new ObjectMapper(), java.time.Clock.systemUTC(),
+                new TrackerTokenState(settings));
 
         when(settings.get(any())).thenReturn("");
         when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.GITLAB.wireName());

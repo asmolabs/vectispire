@@ -1417,6 +1417,22 @@ export type OllamaCheck = Refine<
 >;
 
 /**
+ * The tracker token's state — never the token. `expiresAt` is what the tracker reported or an administrator
+ * declared (`expirySource`), `null` when neither is known; `refusedStatus` and `refusedSince` are set while the
+ * tracker refuses it.
+ */
+export type TicketTokenState = Refine<
+    Schema<'TicketTokenState'>,
+    {
+        expiresAt: string | null;
+        expirySource: 'reported' | 'declared' | 'unknown';
+        refusedStatus: number | null;
+        refusedSince: string | null;
+        checkedAt: string | null;
+    }
+>;
+
+/**
  * What the tracker CA setting pins: the first certificate's subject and the bundle's earliest expiry. Both
  * `null` when nothing is pinned, or when the stored text no longer reads as a CA.
  */

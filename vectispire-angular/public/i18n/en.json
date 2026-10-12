@@ -2343,7 +2343,12 @@
     "error_epss_sync": "The EPSS file could not be read. The scores in use are kept.",
     "ticket_ca_pinned": "Pinned: {{subject}}, valid until {{date}}",
     "ticket_ca_unreadable": "The stored CA no longer reads as a CA certificate: no ticket is opened or closed until it is replaced.",
-    "ticket_ca_placeholder": "-----BEGIN CERTIFICATE-----"
+    "ticket_ca_placeholder": "-----BEGIN CERTIFICATE-----",
+    "token_refused_tag": "Stopped working",
+    "token_refused": "The tracker refuses this token (HTTP {{status}}) since {{date}} UTC: no ticket is opened or closed until it is replaced.",
+    "token_expiry_unknown": "Expiry unknown — GitLab and GitHub report it; for Jira or ServiceNow, set the token expiry date in the tracker settings.",
+    "token_expires_on": "Expires on {{date}}",
+    "token_expiry_declared": "(declared by an administrator)"
   },
   "severities": {
     "critical": "Critical",

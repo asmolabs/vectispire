@@ -1,12 +1,16 @@
 import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
+import type { TicketTokenState } from '../../core/api.models';
 import { SettingsApi } from '../../core/api/settings.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { daysLeft, expiryState, type ExpiryState } from '../../shared/forge-words';
 import { SettingsState } from './settings-state';
 
 /**
@@ -19,7 +23,7 @@ import { SettingsState } from './settings-state';
  */
 @Component({
     selector: 'app-settings-ticketing',
-    imports: [FormsModule, ButtonModule, CardModule, InputTextModule, TranslatePipe],
+    imports: [DatePipe, FormsModule, ButtonModule, CardModule, InputTextModule, TagModule, TranslatePipe],
     templateUrl: './settings-ticketing.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
@@ -32,6 +36,13 @@ export class SettingsTicketing {
     readonly active = input.required<boolean>();
 
     readonly tokenConfigured = signal(false);
+
+    /**
+     * When the token stops working and whether the tracker still accepts it, announced as the forge
+     * connections' list announces a connection's token: fourteen days ahead, then expired — and a refusal
+     * first, since a refused token's date no longer matters.
+     */
+    readonly tokenState = signal<TicketTokenState | null>(null);
     readonly savingToken = signal(false);
     tokenInput = '';
 
@@ -56,9 +67,10 @@ export class SettingsTicketing {
         this.savingToken.set(true);
         this.state.error.set(null);
         this.settingsApi.setTicketToken(this.tokenInput).subscribe({
-            next: ({ configured }) => {
+            next: (state) => {
                 this.savingToken.set(false);
-                this.tokenConfigured.set(configured);
+                this.tokenConfigured.set(state.configured);
+                this.tokenState.set(state);
                 // Cleared from the model at the same time as from the field: keeping it would
                 // leave the value reachable in the open tab, as for an API key.
                 this.tokenInput = '';
@@ -108,6 +120,16 @@ export class SettingsTicketing {
         });
     }
 
+    /** Where the token's known expiry stands now, by the forge connections' rule and window. */
+    tokenExpiry(): ExpiryState {
+        return expiryState(this.tokenState()?.expiresAt, new Date());
+    }
+
+    tokenDaysLeft(): number {
+        const expiresAt = this.tokenState()?.expiresAt;
+        return expiresAt ? daysLeft(expiresAt, new Date()) : 0;
+    }
+
     getWebhookUrl(provider: string): string {
         return `${window.location.origin}/api/v1/tickets/webhook/${provider}`;
     }
@@ -122,8 +144,14 @@ export class SettingsTicketing {
 
     private load(): void {
         this.settingsApi.ticketTokenState().subscribe({
-            next: ({ configured }) => this.tokenConfigured.set(configured),
-            error: () => this.tokenConfigured.set(false)
+            next: (state) => {
+                this.tokenConfigured.set(state.configured);
+                this.tokenState.set(state);
+            },
+            error: () => {
+                this.tokenConfigured.set(false);
+                this.tokenState.set(null);
+            }
         });
 
         this.settingsApi.webhookSecretState().subscribe({

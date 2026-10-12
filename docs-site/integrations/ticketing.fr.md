@@ -70,6 +70,38 @@ certificat de la CA au sommet de la chaîne, **pas** celui du serveur (le premie
   ticket n'est ouvert ni fermé, le journal du serveur dit que la CA du tracker a expiré, et le remède
   est de coller la CA renouvelée.
 
+## Quand le jeton expire, ou cesse de fonctionner {#token-expiry}
+
+Un jeton de tracker ne dure pas : GitLab donne désormais une expiration à chaque jeton, un an au plus
+par défaut. Avant la 0.11.0, le jour où il expirait, le balayage horaire échouait à chaque appel avec
+une ligne du journal du serveur pour seule trace, et plus aucun ticket n'était ouvert ni fermé jusqu'à
+ce que quelqu'un s'en aperçoive.
+
+La carte du tracker sous **Réglages → Intégrations** montre désormais la vie du jeton, comme la
+[liste des connexions de forge](../administration/forge-connections.md) montre celle d'une connexion :
+
+- **Son expiration, annoncée quatorze jours à l'avance** — *Expire dans 9 jours*, puis *Expiré*. GitLab
+  la donne (`GET /api/v4/personal_access_tokens/self`, pour les jetons personnels, de groupe et de
+  projet) et GitHub aussi (l'en-tête `github-authentication-token-expiration` d'un appel authentifié) ;
+  les deux sont interrogés à l'enregistrement du jeton puis une fois par jour, à travers la
+  [CA épinglée](#internal-ca) du tracker si elle est définie. Jira et ServiceNow n'ont pas de moyen
+  fiable de la dire : saisissez la date vous-même dans **Date d'expiration du jeton**
+  (`ticket_token_expires_on`, `AAAA-MM-JJ`, réservé à un administrateur), qui s'applique aussi à un jeton
+  GitLab ou GitHub qui n'en donne aucune. Aucune des deux connue, la carte dit *Expiration inconnue*
+  plutôt que rien.
+- **Qu'il a cessé de fonctionner.** Quand le tracker répond à un appel du balayage par `401` ou `403` —
+  un jeton expiré, révoqué ou sans le droit nécessaire — ou à la vérification quotidienne par `401`, la
+  carte dit *Ne fonctionne plus* avec le statut et depuis quand, avant toute date. Elle revient à la
+  normale au prochain appel que le tracker accepte, ou quand un nouveau jeton est enregistré, ce qui
+  oublie tout ce qu'on savait du précédent.
+
+Chaque changement est écrit **une fois** dans le journal du serveur au niveau `WARN` — l'entrée dans les
+quatorze jours, l'expiration, le refus, le retour à la normale — jamais une fois par heure tant que rien
+ne change. Rien n'est envoyé à un canal de notification ni au SIEM, comme pour le jeton d'une connexion
+de forge : l'écran et le journal sont là où c'est dit. `GET /api/v1/settings/ticket-token` répond
+`expiresAt`, `expirySource` (`reported`, `declared` ou `unknown`), `refusedStatus`, `refusedSince` et
+`checkedAt` à côté de `configured`, et `PUT` répond de même une fois le tracker interrogé.
+
 ## Ce qui atterrit dans le ticket
 
 De quoi agir sans ouvrir Vectispire : le composant et sa version, l'identifiant, la gravité,

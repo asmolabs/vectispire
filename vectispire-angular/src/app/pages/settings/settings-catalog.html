@@ -77,6 +77,16 @@
                                                 [fluid]="true"
                                                 styleClass="w-full sm:w-96"
                                             />
+                                        } @else if (setting.key === 'ticket_token_expires_on') {
+                                            <input
+                                                pInputText
+                                                type="date"
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [id]="setting.key"
+                                                class="w-full sm:w-48 max-w-full"
+                                                [ngModel]="state.values()[setting.key]"
+                                                (ngModelChange)="state.set(setting.key, $event ?? '')"
+                                            />
                                         } @else if (setting.key === 'ticket_ca_pem') {
                                             <!-- A PEM bundle is several lines: a one-line input would
                                                  join them and the server would refuse the paste. -->
