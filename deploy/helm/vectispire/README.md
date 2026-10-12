@@ -63,8 +63,8 @@ The chart refuses to render without these. Each refusal names its reason.
 - `ingress.tls.secretName`, unless `ingress.allowPlainHttp` is set
 - with agents: `agents.controlPlaneUrl`, over `https://` (the agent sends its key on every poll),
   `agents.token.secretName`, `agents.signingKey.secretName` (without a pinned key the agent's results are
-  accepted unattested), `agents.networkPolicy.excludeCidrs`, and `agents.nodeSelector` with
-  `agents.tolerations` (below)
+  accepted unattested), `agents.networkPolicy.excludeCidrs`, `ports` on each
+  `agents.networkPolicy.allowTo` entry, and `agents.nodeSelector` with `agents.tolerations` (below)
 
 See `values.example.yaml` for a complete installation.
 
@@ -129,6 +129,37 @@ Docker daemon of its own:
     Empty, the chart refuses to render (`agents.networkPolicy.acknowledgeClusterReachable` overrides).
     `169.254.0.0/16`, the cloud metadata endpoint's range, and the metadata addresses outside it
     (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) are excluded whatever the list says.
+  - **the ingress controller back, in `agents.networkPolicy.allowTo`, on port 443 only.** The agent
+    reaches the control plane through the Ingress, and kube-proxy translates the Ingress's LoadBalancer
+    address to a controller pod's before the policy applies — an address in the pod range you just
+    excluded. Without an entry the agent never polls. An internal Git host or registry inside an excluded
+    range is the same: an `ipBlock` with 443, 22 or both.
+
+    ```yaml
+    agents:
+      networkPolicy:
+        allowTo:
+          - namespaceSelector:              # in the same entry: ANDed — these pods, in that namespace
+              matchLabels:
+                kubernetes.io/metadata.name: ingress-nginx
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: ingress-nginx
+            ports:
+              - port: 443                   # the pod's port, after translation; protocol defaults to TCP
+    ```
+
+    **An entry without `ports` is refused**, and so is a port without a number or an entry naming no
+    peer. A NetworkPolicy rule without ports opens every port of what it selects: the controller's
+    metrics and admission webhook, or every service of a Git host, to whatever escapes a scanner. The
+    chart cannot tell an entry meant for all ports from one where they were forgotten, and forgetting is
+    the likely case — so it asks rather than keeps the old reading. No shipped example had an entry; one
+    written against the release candidate needs its `ports` added before `helm upgrade`. Each entry is a
+    rule of its own, so one entry's ports never open another's peer.
+  - DNS: port 53 to anywhere, unless `agents.networkPolicy.dnsTo` names your resolvers. The chart does
+    not guess them — kube-dns by its labels misses NodeLocal DNSCache (a link-local address) and
+    distributions that run their own, and a miss leaves the agent unable to resolve anything. Setting it
+    keeps port 53 of every other pod and host out of a scanner's reach.
 
   Where privileged pods are forbidden, use a Docker host outside the cluster.
 - `agents.dind.variant: rootless` — `docker:dind-rootless`. **It does not scan with this release's

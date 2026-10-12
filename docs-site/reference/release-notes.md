@@ -33,6 +33,9 @@ Each point is written out in full below; this is what to do before the new image
   and `VECTISPIRE_AGENT_SIGNING_KEY` (empty if unused) — the agent no longer starts without both lines — and set
   `KEYCLOAK_ADMIN_PASSWORD`, which no longer defaults to `admin` (*Agent credentials and the evaluation
   Keycloak*, below).
+- **Installed the Helm chart from `v0.11.0-rc.1` with in-cluster agents?** Add `ports` to each
+  `agents.networkPolicy.allowTo` entry — `[{port: 443}]` for the ingress controller — or `helm upgrade`
+  refuses to render (*An in-cluster agent's way back to the Ingress*, below).
 - **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
   they carry, and an agent older than 0.11.0 is handed none: its sealing key is refused, and its scans of
   repositories carrying a key or a token wait for an executor that can run them
@@ -702,6 +705,15 @@ from a list in which none is true of an exposed product — and signed into the 
   French reader); every date now follows the interface's one pattern, day/month/year on a 24-hour clock.
   Percentages follow each language: *50%* in English, *50 %* in French with a no-break space. The AI review's
   VEX suggestion `under_investigation` is labelled *Under investigation* instead of showing the raw token.
+- **An in-cluster agent's way back to the Ingress opens the port it names, not every port.** The Helm chart's
+  `agents.networkPolicy.allowTo` became an egress rule without `ports`, so the entry an agent needs to reach
+  the ingress controller — whose pods lie in the excluded pod range once kube-proxy has translated the
+  LoadBalancer address — opened every port of those pods to anything escaping a scanner, and an entry for
+  an internal Git host every port of that host. Each entry now carries its own `ports` (`protocol`
+  defaults to TCP) and is a rule of its own; **an entry without them is refused at render**, the message
+  naming the fix, since the chart cannot tell all ports meant from ports forgotten. `agents.networkPolicy.dnsTo`,
+  empty by default, narrows DNS from port 53 anywhere to your resolvers
+  ([installation](../getting-started/installation.md#kubernetes)).
 - **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
   default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
   `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies

@@ -87,6 +87,19 @@ in a pod's log.
 {{- if and .Values.agents.networkPolicy.enabled (not .Values.agents.networkPolicy.excludeCidrs) (not .Values.agents.networkPolicy.acknowledgeClusterReachable) -}}
 {{- fail "agents.networkPolicy.excludeCidrs is required: a scanner's traffic leaves through the agent's pod, and with nothing excluded it reaches the whole cluster. List the pod, service and node ranges and the database's subnet, or set agents.networkPolicy.acknowledgeClusterReachable." -}}
 {{- end -}}
+{{- range $i, $to := .Values.agents.networkPolicy.allowTo -}}
+{{- if not (or $to.ipBlock $to.namespaceSelector $to.podSelector) -}}
+{{- fail (printf "agents.networkPolicy.allowTo[%d] names no destination: give it an ipBlock, a namespaceSelector or a podSelector. A rule to no one in particular is its ports everywhere, past excludeCidrs." $i) -}}
+{{- end -}}
+{{- if not $to.ports -}}
+{{- fail (printf "agents.networkPolicy.allowTo[%d] has no ports, and would open every port of what it selects. Add the ones it is for: ports: [{port: 443}] for the ingress controller, 443 or 22 for a Git host or a registry (protocol defaults to TCP)." $i) -}}
+{{- end -}}
+{{- range $to.ports -}}
+{{- if not .port -}}
+{{- fail (printf "agents.networkPolicy.allowTo[%d].ports has an entry without a port, which opens every port of its protocol. Name it: {port: 443}." $i) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- if not (has .Values.agents.dind.variant (list "privileged" "rootless")) -}}
 {{- fail (printf "agents.dind.variant is privileged or rootless, not %q." .Values.agents.dind.variant) -}}
 {{- end -}}

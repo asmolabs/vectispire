@@ -370,6 +370,11 @@ jobs:
           refused -f ci/dind-privileged-values.yaml --set agents.nodeSelector=null
           refused -f ci/dind-privileged-values.yaml --set agents.tolerations=null
           refused -f ci/dind-privileged-values.yaml --set agents.controlPlaneUrl=http://vectispire.example.org
+          # An agent's way back into an excluded range names its ports: without them the ingress
+          # controller's entry opened every port of every controller pod.
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.allowTo[0].ports=null
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.allowTo[0].ports[0].port=null
+          refused -f ci/dind-privileged-values.yaml --set-json 'agents.networkPolicy.allowTo=[{"ports":[{"port":443}]}]'
       - name: the chart renders the isolation it does not leave to the operator
         working-directory: deploy/helm/vectispire
         run: |
@@ -380,6 +385,18 @@ jobs:
             grep -q -- "- $cidr" rendered.yaml ||
               { echo "::error::$cidr, a cloud metadata address, is not excluded from the agents' egress"; exit 1; }
           done
+          # Each allowTo entry is a rule of its own, to its peer and its ports alone.
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml \
+            -s templates/agents/networkpolicy.yaml > rendered.yaml
+          grep -A12 'kubernetes.io/metadata.name: ingress-nginx' rendered.yaml |
+            grep -A2 '^      ports:' | grep -q -- '- port: 443' &&
+            grep -A6 'cidr: 10.0.30.12/32' rendered.yaml | grep -A2 '^      ports:' | grep -q -- '- port: 22' ||
+            { echo "::error::an agents.networkPolicy.allowTo entry renders without the ports it names"; exit 1; }
+          # dnsTo, when set, is where port 53 goes; unset, it goes anywhere — the chart cannot know the resolver.
+          helm template vs . -n vectispire -f ci/dind-privileged-values.yaml -s templates/agents/networkpolicy.yaml \
+            --set-json 'agents.networkPolicy.dnsTo=[{"podSelector":{"matchLabels":{"k8s-app":"kube-dns"}}}]' > rendered.yaml
+          grep -B1 -A4 '^      to:' rendered.yaml | grep -q 'k8s-app: kube-dns' ||
+            { echo "::error::agents.networkPolicy.dnsTo does not restrict the DNS rule"; exit 1; }
           # Kept off every agent's node, of any release in any namespace — the recommended shape, without
           # agents of its own, included: its agents are another release's.
           for values in ci/no-agents-values.yaml ci/dind-privileged-values.yaml; do

@@ -298,5 +298,36 @@ agents:
     acknowledgeClusterReachable: false
     #  - 10.244.0.0/16
     #  - 10.96.0.0/12
-    # The ingress controller's address, when the control plane's Ingress resolves inside an excluded range.
+    # Destinations inside an excluded range, each to its own ports. **The ingress controller is usually
+    # one**: kube-proxy translates the Ingress's LoadBalancer address to a controller pod's before the
+    # policy is applied, and that pod lies in the excluded pod range — without an entry the agent cannot
+    # reach the control plane. So is an internal Git host or registry in an excluded subnet.
+    # Each entry is one peer (an ipBlock, or a namespaceSelector and/or a podSelector, ANDed) with its
+    # `ports` — **required**: the chart refuses an entry without them, which would open every port of what
+    # it selects. A port is the pod's, after translation (the controller's container port, not the
+    # Service's); `protocol` defaults to TCP.
     allowTo: []
+    #  - namespaceSelector:
+    #      matchLabels:
+    #        kubernetes.io/metadata.name: ingress-nginx
+    #    podSelector:
+    #      matchLabels:
+    #        app.kubernetes.io/name: ingress-nginx
+    #    ports:
+    #      - port: 443
+    #  - ipBlock:
+    #      cidr: 10.0.30.12/32    # an internal Git host: HTTPS and SSH
+    #    ports:
+    #      - port: 443
+    #      - port: 22
+    # DNS goes to port 53 anywhere unless this names the resolvers. Empty by default: the chart cannot tell
+    # kube-dns from a node-local cache (often 169.254.20.10) or another distribution's resolver, and a wrong
+    # guess leaves every agent without a name. Set it to yours to keep port 53 of every other pod and
+    # host out of a scanner's reach:
+    dnsTo: []
+    #  - namespaceSelector:
+    #      matchLabels:
+    #        kubernetes.io/metadata.name: kube-system
+    #    podSelector:
+    #      matchLabels:
+    #        k8s-app: kube-dns

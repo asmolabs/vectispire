@@ -412,10 +412,17 @@ own container reaches that daemon, and through it the node. Give these pods:
 - **the NetworkPolicy**: on by default. It denies all ingress. List in
   `agents.networkPolicy.excludeCidrs` what an escaped scanner must not reach: the cluster's pod,
   service **and node** ranges (the kubelets, and the API server's real address), and the database's
-  subnet when it is outside them, as a managed MySQL usually is. Egress then reaches the outside world
-  and the Ingress. The chart refuses an empty list (`agents.networkPolicy.acknowledgeClusterReachable`
+  subnet when it is outside them, as a managed MySQL usually is. Egress then reaches the outside world.
+  The chart refuses an empty list (`agents.networkPolicy.acknowledgeClusterReachable`
   overrides), and excludes `169.254.0.0/16` — the cloud metadata endpoint — and the metadata addresses
-  outside it (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) whatever it says;
+  outside it (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) whatever it says.
+  **Give the agents the Ingress back in `agents.networkPolicy.allowTo`**: kube-proxy translates the
+  Ingress's LoadBalancer address to an ingress controller pod's, which lies in the excluded pod range.
+  An entry is the controller's `namespaceSelector` and `podSelector` together with `ports: [{port: 443}]`;
+  an internal Git host or registry in an excluded range is an `ipBlock` with 443 or 22. The chart refuses
+  an entry without `ports`, which would open every port of what it selects
+  ([chart README](https://github.com/asmolabs/vectispire/blob/main/deploy/helm/vectispire/README.md#scan-agents)).
+  DNS goes to port 53 anywhere unless `agents.networkPolicy.dnsTo` names your resolvers;
 - **a pinned signing key** (`agents.signingKey.secretName`), which the chart requires: without one the
   control plane accepts the agent's results unattested.
 

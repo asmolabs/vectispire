@@ -54,6 +54,18 @@ networkPolicy:
 
 # Agents run on a Docker host outside the cluster (the installation guide's "Kubernetes" section), so
 # nothing is deployed for them here. For agents in the cluster instead — privileged pods, on nodes of
-# their own — see values.yaml, `agents`.
+# their own — see values.yaml, `agents`. Their policy then needs the ingress controller back, on its TLS
+# port only: its pods lie in the pod range the agents' egress excludes.
 agents:
   enabled: false
+  # networkPolicy:
+  #   excludeCidrs: [10.244.0.0/16, 10.96.0.0/12, 10.0.0.0/24]
+  #   allowTo:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: ingress-nginx
+  #       podSelector:
+  #         matchLabels:
+  #           app.kubernetes.io/name: ingress-nginx
+  #       ports:
+  #         - port: 443

@@ -35,3 +35,19 @@ agents:
     excludeCidrs:
       - 10.244.0.0/16
       - 10.96.0.0/12
+    # The ingress controller, inside the excluded pod range, on its TLS port only; and a Git host over
+    # SSH, protocol stated.
+    allowTo:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: ingress-nginx
+        ports:
+          - port: 443
+      - ipBlock:
+          cidr: 10.0.30.12/32
+        ports:
+          - port: 22
+            protocol: TCP
