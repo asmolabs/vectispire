@@ -83,6 +83,23 @@ async function stub(page: Page, pattern: string, body: unknown): Promise<void> {
     });
 }
 
+/**
+ * The same, for a path whose methods answer different things — the forge selection is read with a
+ * GET and changed with a POST to one address, and `stub` would hand the POST the GET's page.
+ *
+ * <p>A method left out falls back to the routes registered before, the catch-all last, so it is
+ * recorded there like any other request nobody stubbed.
+ */
+async function stubByMethod(page: Page, pattern: string, bodies: Partial<Record<string, unknown>>): Promise<void> {
+    await page.route(pattern, (route) => {
+        const method = route.request().method();
+        if (!(method in bodies)) return route.fallback();
+        const body = bodies[method];
+        contractProblems.push(...againstContract(method, new URL(route.request().url()).pathname, body));
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+}
+
 interface PublishedSchema { $ref?: string; type?: string; items?: PublishedSchema }
 type Operations = Record<string, { responses?: Record<string, { content?: Record<string, { schema?: PublishedSchema }> }> }>;
 const PUBLISHED = (openapi as unknown as { paths: Record<string, Operations> }).paths;
@@ -193,7 +210,7 @@ async function stubEverything(page: Page): Promise<void> {
                 neverScannedCount: 1,
                 lastScanFailedCount: 1
             },
-            backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
+            backlogBySeverity: { critical: 4, high: 12, medium: 31, low: 365 },
             qualityTotal: 0,
             failing: [],
             recentScans: []
@@ -406,6 +423,388 @@ const NEVER_EXAMINED = {
 const LAST_SCAN_FAILED = {
     ...NEVER_EXAMINED,
     reason: 'the last scan of this target failed — its backlog is not an observation of the code as it is'
+};
+
+/**
+ * The violations the two observed failing targets carry — the gate verdicts capture's four for
+ * helios-portal (one critical, three high) and two for the API image — worded as `PolicyGate` words
+ * them. Log4Shell is the exploited one, so it fails on the KEV rule and not a second time on its
+ * severity, as the gate reports it.
+ */
+const severityViolation = (issueId: number, identifier: string, severity: string, pkg: string, fixVersions: string) => ({
+    rule: 'severity', issueId, identifier, severity, package: pkg, fixVersions,
+    reason: `severity ${severity} >= threshold high`
+});
+const HELIOS_VIOLATIONS = [
+    { rule: 'kev', issueId: 41, identifier: 'CVE-2021-44228', severity: 'critical', package: 'log4j-core',
+      fixVersions: '2.17.1', reason: 'actively exploited vulnerability (CISA KEV catalog)' },
+    severityViolation(44, 'CVE-2024-38816', 'high', 'spring-webmvc', '6.1.13'),
+    severityViolation(45, 'CVE-2022-25857', 'high', 'snakeyaml', '1.31'),
+    severityViolation(46, 'CVE-2024-47072', 'high', 'xstream', '1.4.21')
+];
+const API_IMAGE_VIOLATIONS = [
+    severityViolation(47, 'CVE-2023-38545', 'critical', 'libcurl4', '7.88.1-10+deb12u4'),
+    severityViolation(42, 'CVE-2024-1086', 'high', 'linux-libc-dev', '6.1.76-1')
+];
+
+/**
+ * The dashboard's overview, which the scan detail capture also passes through: its recent scans are
+ * the way a reader reaches a scan. Scan 34 is the SBOM comparison's newest — seven issues, one new,
+ * three resolved — and the scan detail capture opens it.
+ */
+const DASHBOARD_OVERVIEW = {
+    posture: { totalCount: 14, failingCount: 4, kevCount: 2, overdueCount: 5,
+               neverScannedCount: 1, lastScanFailedCount: 1 },
+    backlogBySeverity: { critical: 4, high: 12, medium: 31, low: 365 },
+    qualityTotal: 1432,
+    failing: [
+        { kind: 'repository', targetId: 5, name: 'helios-portal', observed: true, violations: HELIOS_VIOLATIONS },
+        { kind: 'container', targetId: 3, name: 'registry.example/api:1.4', observed: true,
+          violations: API_IMAGE_VIOLATIONS },
+        // Failing because nobody examined them — the never-scanned and the last-failed
+        // tiles above — and tagged so, never as a severity.
+        { kind: 'repository', targetId: 6, name: 'basalt-libs', observed: false,
+          violations: [LAST_SCAN_FAILED] },
+        { kind: 'repository', targetId: 7, name: 'billing-legacy', observed: false,
+          violations: [NEVER_EXAMINED] }
+    ],
+    recentScans: [
+        { id: 35, status: 'completed', targetKind: 'container', targetName: 'registry.example/nginx-edge',
+          repoId: null, containerId: 4, error: null, createdAt: '2026-09-18T04:03:00Z', findingsCount: 0 },
+        { id: 34, status: 'completed', targetKind: 'repository', targetName: 'helios-portal',
+          repoId: 5, containerId: null, error: null, createdAt: '2026-09-17T21:04:00Z',
+          findingsCount: 7 },
+        { id: 32, status: 'completed', targetKind: 'container', targetName: 'registry.example/api:1.4',
+          repoId: null, containerId: 3, error: null, createdAt: '2026-09-17T18:06:00Z', findingsCount: 58 },
+        { id: 30, status: 'failed', targetKind: 'repository', targetName: 'basalt-libs',
+          repoId: 6, containerId: null, error: 'clone refused', createdAt: '2026-09-16T03:11:00Z',
+          findingsCount: 0 }
+    ]
+};
+
+/** An `OpenIssues` tally, its total the sum of its severities as the server counts it. */
+const openIssues = (critical: number, high: number, medium: number, low: number) => ({
+    critical, high, medium, low, negligible: 0, unknown: 0, total: critical + high + medium + low
+});
+
+/**
+ * The estate's solutions and projects, as `/solutions` answers them: the tree the solutions screen
+ * draws, and the one the declared sources and the forge import read names from. Helios's figures
+ * are the dashboard scoreboard's for its repository and its image; the two images nobody filed are
+ * the containers capture's other two.
+ */
+const SOLUTION_TREE = {
+    solutions: [
+        {
+            id: 1, name: 'Customer services', description: 'What customers reach directly',
+            createdAt: '2026-05-04T09:00:00Z', partial: false, repositoryCount: 1, containerCount: 1,
+            openIssues: openIssues(4, 10, 26, 232),
+            projects: [
+                { id: 11, solutionId: 1, name: 'Helios portal', description: 'The customer portal and its API image',
+                  createdAt: '2026-05-04T09:05:00Z', partial: false, checklistsVisible: true,
+                  repositoryCount: 1, containerCount: 1, openIssues: openIssues(4, 10, 26, 232),
+                  repositories: [{ id: 5, name: 'helios-portal' }],
+                  containers: [{ id: 3, name: 'registry.example/api:1.4' }],
+                  detectedLanguages: ['java', 'typescript'], languagesUnknownFor: [] }
+            ]
+        },
+        {
+            id: 2, name: 'Platform', description: 'Shared code and back-office services',
+            createdAt: '2026-05-04T09:10:00Z', partial: false, repositoryCount: 2, containerCount: 0,
+            openIssues: openIssues(0, 2, 5, 30),
+            projects: [
+                { id: 12, solutionId: 2, name: 'Shared libraries', description: null,
+                  createdAt: '2026-05-04T09:12:00Z', partial: false, checklistsVisible: false,
+                  repositoryCount: 1, containerCount: 0, openIssues: openIssues(0, 2, 5, 30),
+                  repositories: [{ id: 6, name: 'basalt-libs' }], containers: [],
+                  detectedLanguages: ['java', 'python'], languagesUnknownFor: [] },
+                // Never scanned, so nothing says what it is written in — said, not left blank.
+                { id: 13, solutionId: 2, name: 'Billing', description: 'Invoicing, being rewritten',
+                  createdAt: '2026-06-22T14:00:00Z', partial: false, checklistsVisible: false,
+                  repositoryCount: 1, containerCount: 0, openIssues: openIssues(0, 0, 0, 0),
+                  repositories: [{ id: 7, name: 'billing-legacy' }], containers: [],
+                  detectedLanguages: [], languagesUnknownFor: [7] }
+            ]
+        }
+    ],
+    unfiled: {
+        repositoryCount: 0, containerCount: 2, repositories: [],
+        containers: [{ id: 4, name: 'registry.example/nginx-edge' }, { id: 5, name: 'registry.example/batch-runner:2026.09' }],
+        openIssues: openIssues(0, 1, 4, 7)
+    }
+};
+
+/**
+ * The HTTPS clone tokens, one per forge host the estate clones from. The internal GitLab's is the
+ * one the repository form and the forge import offer for `git.example.org`; the last is still
+ * readable only under the previous encryption key, the state the column exists for.
+ */
+const GIT_TOKENS = [
+    { id: '4d2b8e61-7c90-4f13-a5d2-9e0b3c6f1a74', name: 'gitlab-read', host: 'git.example.org',
+      username: 'vectispire-bot', encryptionState: 'current', createdAt: '2026-08-03T10:15:00Z',
+      usedByRepositories: 4 },
+    { id: '91e7c3a0-2b5d-4e68-8f14-6a0d9c2b7e53', name: 'github-mirror-read', host: 'github.com',
+      username: null, encryptionState: 'current', createdAt: '2026-07-21T08:40:00Z', usedByRepositories: 2 },
+    { id: 'c6a4f2d9-8e17-4b30-9c5a-1d7e3b0f6a28', name: 'bitbucket-legacy-read', host: 'bitbucket.example.org',
+      username: 'x-token-auth', encryptionState: 'previous_key', createdAt: '2026-02-11T15:05:00Z',
+      usedByRepositories: 1 }
+];
+
+/**
+ * A self-managed GitLab on the internal network behind the organisation's own CA — the estate
+ * decision 0037 was written for — whose last discovery found three new repositories, one changed
+ * and one gone since the one before.
+ */
+const FORGE_ID = '6f1c2a9e-0b7d-4c3e-9a51-3d2e8f40b7aa';
+const FORGE_DISCOVERY = {
+    id: 12, connectionId: FORGE_ID, state: 'completed', reason: null, detail: null, attempts: 1,
+    namespacesSeen: 6, repositoriesSeen: 41, repositoriesSkipped: 0, requestsMade: 47,
+    rateLimitWaitSeconds: 0, rateLimitResetAt: null, unreadableNamespaces: [],
+    requestedAt: '2026-09-18T08:00:00Z', requestedBy: 'c.moreau',
+    startedAt: '2026-09-18T08:00:02Z', finishedAt: '2026-09-18T08:01:10Z',
+    newCount: 3, changedCount: 1, goneCount: 1
+};
+const FORGE_CONNECTION = {
+    id: FORGE_ID, name: 'Internal GitLab', kind: 'gitlab', edition: 'gitlab_self_managed',
+    baseUrl: 'https://git.example.org', owner: null, credentialKind: 'gitlab_bot', scopes: ['read_api'],
+    canWrite: false, tokenExpiresAt: '2027-03-01T00:00:00Z', forgeVersion: '17.4.1', internalNetwork: true,
+    caSubject: 'CN=Example Internal Root CA', caNotAfter: '2030-01-01T00:00:00Z', encryptionState: 'current',
+    lastDiscovery: FORGE_DISCOVERY, importedTargets: 5,
+    createdAt: '2026-09-01T09:00:00Z', createdBy: 'c.moreau', probedAt: '2026-09-18T07:00:00Z',
+    updatedAt: '2026-09-01T09:00:00Z', updatedBy: 'c.moreau'
+};
+
+/** A repository as the forge listed it, in the shape the discovery and the selection both carry. */
+const forgeRepository = (forgeId: string, fullPath: string, changes: Record<string, unknown> = {}) => {
+    const parts = fullPath.split('/');
+    return {
+        id: Number(forgeId), connectionId: FORGE_ID, forgeId, fullPath,
+        namespacePath: parts.slice(0, -1).join('/'), name: parts[parts.length - 1],
+        defaultBranch: 'main', archived: false, fork: false, visibility: 'private', language: 'Java',
+        lastActivityAt: '2026-09-15T10:00:00Z', sizeBytes: null,
+        httpUrl: `https://git.example.org/${fullPath}.git`, sshUrl: `git@git.example.org:${fullPath}.git`,
+        webUrl: `https://git.example.org/${fullPath}`, personal: false,
+        firstSeenAt: '2026-09-18T08:01:00Z', firstSeenBy: 12, lastSeenAt: '2026-09-18T08:01:00Z', lastSeenBy: 12,
+        changeSummary: null,
+        ...changes
+    };
+};
+const FORGE_NEW = [
+    forgeRepository('201', 'payments/orion/gateway', { lastActivityAt: '2026-09-17T16:20:00Z' }),
+    forgeRepository('202', 'payments/orion/ledger', { language: 'Kotlin', lastActivityAt: '2026-09-16T09:45:00Z' }),
+    forgeRepository('203', 'data/reporting/report-builder', { language: 'Python', lastActivityAt: '2026-09-12T13:05:00Z' })
+];
+
+/** The same estate on github.com, whose fine-grained token reports no scopes and expires next week. */
+const GITHUB_CONNECTION = {
+    ...FORGE_CONNECTION,
+    id: '2b7e9d40-5c13-4a86-b1f2-7d0e3a9c6b51', name: 'GitHub — example-org', kind: 'github', edition: 'github_com',
+    baseUrl: 'https://api.github.com', owner: 'example-org', credentialKind: 'github_fine_grained', scopes: null,
+    canWrite: null, tokenExpiresAt: '2026-09-25T00:00:00Z', forgeVersion: null, internalNetwork: false,
+    caSubject: null, caNotAfter: null, lastDiscovery: null, importedTargets: 0,
+    createdAt: '2026-09-15T13:00:00Z', probedAt: '2026-09-18T07:00:00Z', updatedAt: '2026-09-15T13:00:00Z'
+};
+
+/**
+ * The monitored repositories, shaped from `openapi.json` and not from memory: a first attempt
+ * guessed the fields and the table never rendered — `openIssues` is required and was missing, and
+ * the criticality is `tier`. Reading the contract is how a fixture stops being a second opinion
+ * about the server.
+ */
+const REPOSITORIES = [
+    { id: 5, url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
+      displayName: 'helios-portal', name: 'helios-portal', subPath: null,
+      openIssues: 214, tier: 'TIER_1_MISSION_CRITICAL', scanIntervalMinutes: 1440, scanCron: null, scanManualOnly: false,
+      schedule: { mode: 'interval', intervalMinutes: 1440 },
+      sshKeyId: null, httpsTokenId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-17T21:00:00Z',
+      projectId: 11, projectName: 'Helios portal', detectedLanguages: ['java', 'typescript'],
+      lastScan: { id: 34, status: 'completed', createdAt: '2026-09-17T21:04:00Z', error: null } },
+    { id: 6, url: 'ssh://git@example.invalid/basalt-libs.git', branch: 'master',
+      displayName: 'basalt-libs', name: 'basalt-libs', subPath: null,
+      openIssues: 37, tier: 'TIER_3_INTERNAL', scanIntervalMinutes: null, scanCron: '0 3 * * *', scanManualOnly: false,
+      schedule: { mode: 'cron', intervalMinutes: null },
+      sshKeyId: null, httpsTokenId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-16T03:00:00Z',
+      projectId: 12, projectName: 'Shared libraries', detectedLanguages: ['java', 'python'],
+      lastScan: { id: 30, status: 'failed', createdAt: '2026-09-16T03:11:00Z',
+                  error: 'clone refused' } }
+];
+
+/** A repository the forge import has just created: cloned over HTTPS, its first scan queued. */
+const ORION_GATEWAY = {
+    id: 8, url: 'https://git.example.org/payments/orion/gateway.git', branch: 'main',
+    displayName: 'orion-gateway', name: 'orion-gateway', subPath: null,
+    openIssues: 0, tier: 'TIER_2_BUSINESS_OPERATIONAL', scanIntervalMinutes: null, scanCron: null, scanManualOnly: false,
+    schedule: { mode: 'default', intervalMinutes: 10080 },
+    sshKeyId: null, httpsTokenId: GIT_TOKENS[0].id, requiredAgentLabel: null, lastScheduledScanAt: null,
+    projectId: null, projectName: null, detectedLanguages: [],
+    lastScan: { id: 36, status: 'pending', createdAt: '2026-09-18T11:58:00Z', error: null }
+};
+
+/** The API key helios-portal's pipeline delivers its documents with — one key, one declared source. */
+const HELIOS_CI_KEY = '0d4f7a2c-9b61-4e38-a5c0-8e2b6d1f9c47';
+
+/**
+ * The tracker's settings as `Setting` labels and explains them, word for word: the screen shows the
+ * server's help wherever the bundle has no translation of its own, so a stub with blank help would
+ * photograph a sparser card than any installation shows.
+ */
+const TICKET_SETTINGS: Record<string, { label: string; help: string }> = {
+    ticket_provider: {
+        label: 'Provider',
+        help: '"gitlab", "jira", or "none" to disable. A ticket is opened for any issue that would fail a build'
+        + ' under the gate policy — there is no second threshold, so that one single place defines "serious'
+        + ' enough to act on".'
+    },
+    ticket_base_url: {
+        label: 'Tracker URL',
+        help: 'An internal destination is accepted here, unlike the webhook: a self-hosted GitLab or Jira '
+        + 'commonly lives on an internal network. The instance metadata endpoint stays refused.'
+    },
+    ticket_project: {
+        label: 'Project',
+        help: 'The GitLab path ("group/project"), the GitHub repository ("owner/repository") or the Jira '
+        + 'project key ("SEC"). Set by an administrator only: the tracker token goes wherever this points, '
+        + 'on the tracker\'s host.'
+    },
+    ticket_token: {
+        label: 'Access token',
+        help: 'Grants write access to the tracker, which is a different class of secret from a webhook URL: it '
+        + 'is therefore encrypted at rest like an SSH key, not stored in the clear alongside the other '
+        + 'settings. Written only by `PUT /api/v1/settings/ticket-token`.'
+    },
+    ticket_webhook_secret: {
+        label: 'Inbound webhook secret',
+        help: 'Authenticates the tracker calling **us**, which is the opposite direction from the access token '
+        + 'above. The webhook route is anonymous by necessity — Jira holds no session — and it moves a '
+        + 'triage decision, so without this an anonymous caller who guesses a ticket reference can close a '
+        + 'finding. GitLab sends `X-Gitlab-Token` verbatim; GitHub sends `X-Hub-Signature-256` as '
+        + 'HMAC-SHA256 over the raw body; Jira and ServiceNow have no convention, so a shared token in '
+        + '`X-Vectispire-Token` is accepted for those. **While it is empty the route refuses every call** '
+        + 'with a 403 telling the tracker the webhook is not configured: set it, then set the same value in'
+        + ' the tracker. Encrypted at rest and written only by `PUT '
+        + '/api/v1/settings/ticket-webhook-secret`.'
+    },
+    ticket_token_expires_on: {
+        label: 'Token expiry date',
+        help: 'The date the access token stops working, as YYYY-MM-DD, for a tracker that does not report it — '
+        + 'Jira and ServiceNow. GitLab and GitHub report their tokens\' expiry, read when the token is '
+        + 'saved and daily after; this date applies to them only when they report none. The settings screen'
+        + ' announces it fourteen days ahead; empty, the expiry is shown as unknown. Set by an '
+        + 'administrator only, like the token it describes.'
+    },
+    ticket_user: {
+        label: 'Jira account',
+        help: 'The account address, required by Jira alongside the token for basic authentication. GitLab does '
+        + 'not use it. Set by an administrator only, like the token it travels with.'
+    },
+    ticket_issue_type: {
+        label: 'Jira issue type',
+        help: 'The type name in the target project. GitLab does not use it.'
+    },
+    ticket_labels: {
+        label: 'Labels',
+        help: 'Comma-separated, applied to every ticket opened.'
+    },
+    ticket_allow_private_url: {
+        label: 'Allow an internal URL',
+        help: 'On by default. Clear it for a deployment that only uses a hosted tracker.'
+    },
+    ticket_ca_pem: {
+        label: 'Tracker CA (PEM)',
+        help: 'For a tracker whose certificate comes from your organisation\'s own CA: paste that CA\'s '
+        + 'certificate in PEM form (-----BEGIN CERTIFICATE-----), a root and its intermediates if need be. '
+        + 'Used for the tracker only, and **in place of** the server\'s trust store — the public CAs are '
+        + 'then not trusted for it; the tracker\'s name is still verified. Empty, the server\'s trust store'
+        + ' applies. Set by an administrator only: it decides whom the tracker token is presented to.'
+    }
+};
+
+/** A CA certificate as a reader pastes one: shortened, since only its shape is on screen. */
+const EXAMPLE_CA_PEM = [
+    '-----BEGIN CERTIFICATE-----',
+    'MIIBszCCAVmgAwIBAgIUQ2V4YW1wbGUgSW50ZXJuYWwgUm9vdCBDQTAKBggqhkjO',
+    'PQQDAjAmMSQwIgYDVQQDDBtFeGFtcGxlIEludGVybmFsIFJvb3QgQ0EwHhcNMjUw',
+    '-----END CERTIFICATE-----'
+].join('\n');
+
+/**
+ * The analysis plugins (decision 0017): the house rules every Java project runs, signed; a Python
+ * checker, which reads nothing on a Java repository — not applicable, not absent; and a Terraform
+ * policy that needs the network, said so on its row.
+ */
+const pluginManifest = (id: string, name: string, languages: string[], network: boolean, digestSeed: string) => ({
+    id, name, image: `registry.example/sec/${id}@sha256:${digestSeed.repeat(64 / digestSeed.length)}`,
+    languages, arguments: ['--sarif', '{output}', '{source}'], output: 'results.sarif', exit_codes: [0, 1],
+    network, network_justification: network ? 'Reads the module registry to resolve provider versions' : null,
+    timeout_seconds: 600,
+    signature: { identity: `https://ci.example.org/sec/${id}/.ci/release@refs/tags/v1.3.0`,
+                 issuer: 'https://ci.example.org/oidc', public_key: null }
+});
+const plugin = (manifest: ReturnType<typeof pluginManifest>, enabled: boolean, digest: string) => ({
+    id: manifest.id, name: manifest.name, manifest, manifestDigest: digest, enabled,
+    createdAt: '2026-08-14T08:00:00Z', createdBy: 'c.moreau', updatedAt: null, updatedBy: null, unsignedWaiver: null
+});
+const HOUSE_RULES = plugin(pluginManifest('house-rules', 'Example house rules', ['java', 'kotlin'], false, '3a9f'), true,
+                           '8e41c07d2b95f3a6e0d1c48b7f2a9e53d6b0c1f47a8e2d95b3c6f0a1e7d4b28c');
+const PYTHON_TYPING = plugin(pluginManifest('python-typing', 'Strict typing for Python', ['python'], false, '51c2'), true,
+                             '2f7b9d1e4a6c8e0b3d5f7a9c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0b');
+const TERRAFORM_POLICY = plugin(pluginManifest('terraform-policy', 'Terraform estate policy', ['terraform'], true, 'b7e0'),
+                                false, '9c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e');
+
+/**
+ * A report plugin (decision 0035): approved by a second person, with a newer version awaiting the
+ * same — the project's reports run the approved digest until then.
+ */
+const REPORT_MANIFEST = {
+    id: 'quarterly-risk-summary', name: 'Quarterly risk summary',
+    image: `registry.example/reports/quarterly-risk-summary@sha256:${'4d2a'.repeat(16)}`,
+    export_schema: 1, arguments: ['--in', '{input}', '--out', '{output}'], output: 'summary.xlsx',
+    media_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    max_output_bytes: 20971520, timeout_seconds: 120,
+    signature: { identity: 'https://ci.example.org/reports/quarterly-risk-summary/.ci/release@refs/tags/v2.1.0',
+                 issuer: 'https://ci.example.org/oidc', public_key: null }
+};
+const REPORT_APPROVED_DIGEST = 'a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3';
+const REPORT_PENDING_MANIFEST = {
+    digest: 'e8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d1f3a5c7e9b2', status: 'pending_approval',
+    manifest: { ...REPORT_MANIFEST, timeout_seconds: 180,
+                signature: { ...REPORT_MANIFEST.signature,
+                             identity: 'https://ci.example.org/reports/quarterly-risk-summary/.ci/release@refs/tags/v2.2.0' } },
+    registeredAt: '2026-09-16T10:00:00Z', registeredBy: 'n.faure', approvedAt: null, approvedBy: null,
+    approvalFourEyes: null, withdrawnAt: null, withdrawnBy: null, withdrawalJustification: null
+};
+const REPORT_PLUGIN = {
+    id: REPORT_MANIFEST.id, name: REPORT_MANIFEST.name, approvedDigest: REPORT_APPROVED_DIGEST,
+    pendingDigest: REPORT_PENDING_MANIFEST.digest, enabled: true,
+    createdAt: '2026-09-01T08:00:00Z', createdBy: 'n.faure', updatedAt: '2026-09-16T10:00:00Z', updatedBy: 'n.faure',
+    manifests: [
+        REPORT_PENDING_MANIFEST,
+        { ...REPORT_PENDING_MANIFEST, digest: REPORT_APPROVED_DIGEST, status: 'approved', manifest: REPORT_MANIFEST,
+          registeredAt: '2026-09-01T08:00:00Z', approvedAt: '2026-09-02T09:30:00Z', approvedBy: 'c.moreau',
+          approvalFourEyes: true }
+    ]
+};
+
+/** A document the plugin produced and the package signed, then the attempt before it, refused. */
+const PRODUCED_REPORT = {
+    id: 7, projectId: 11, projectName: 'Helios portal', pluginId: REPORT_MANIFEST.id, state: 'produced',
+    reason: null, detail: null, requestedAt: '2026-09-15T08:00:00Z', requestedBy: 'n.faure',
+    startedAt: '2026-09-15T08:00:05Z', exportedAt: '2026-09-15T08:00:06Z', finishedAt: '2026-09-15T08:00:31Z',
+    manifestDigest: REPORT_APPROVED_DIGEST, imageDigest: `sha256:${'4d2a'.repeat(16)}`,
+    signerIdentity: REPORT_MANIFEST.signature.identity, signerIssuer: REPORT_MANIFEST.signature.issuer,
+    signerKeySha256: null, exportSchemaVersion: '1.0',
+    exportSha256: '6b8d0f2a4c6e8b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d', exportSize: 48213,
+    exitCode: 0, outputSize: 2_116_402,
+    outputSha256: 'd3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0b1d3f5',
+    outputMediaType: REPORT_MANIFEST.media_type, signingKeyId: 'installation-2026',
+    packageSha256: 'f1a3c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3', productVersion: '0.11.0',
+    withdrawnAt: null, withdrawnBy: null, withdrawalJustification: null
+};
+const FAILED_REPORT = {
+    ...PRODUCED_REPORT, id: 6, state: 'failed', reason: 'exit_code', detail: 'the export has no issues part',
+    requestedAt: '2026-09-12T16:40:00Z', startedAt: '2026-09-12T16:40:04Z', exportedAt: '2026-09-12T16:40:05Z',
+    finishedAt: '2026-09-12T16:40:09Z', exitCode: 1, outputSize: null, outputSha256: null, outputMediaType: null,
+    signingKeyId: null, packageSha256: null
 };
 
 test.describe('documentation screenshots', () => {
@@ -655,6 +1054,11 @@ test.describe('documentation screenshots', () => {
             // The two most recent are preselected, so the screen answers "since last time" before
             // anybody clicks. A capture of two empty pickers would be a capture of the old defect.
             await expect(page.getByText('#34').first()).toBeVisible({ timeout: 15_000 });
+            // **Then the second picker opened, and left open on purpose.** A closed one cuts its label
+            // after the branch, so the count each scan offers — "7 issues", which used to be a bare
+            // "7" — was never in the picture. Opened to the end, its two options are the shot.
+            await page.locator('p-select', { has: page.locator('#diff-to') }).click();
+            await expect(page.getByRole('option')).toHaveCount(2, { timeout: 15_000 });
             await shoot(page, 'sbom-comparison', locale);
         });
 
@@ -666,30 +1070,9 @@ test.describe('documentation screenshots', () => {
             // five past their deadline. The debt, the portfolio and the scoreboard below restate
             // those figures rather than invent their own — a dashboard whose cards disagree with
             // each other is a capture of a defect, whatever each card says on its own.
-            await stub(page, '**/api/v1/dashboard', asSchema('DashboardOverview', {
-                posture: { totalCount: 14, failingCount: 4, kevCount: 2, overdueCount: 5,
-                           neverScannedCount: 1, lastScanFailedCount: 1 },
-                backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
-                qualityTotal: 1432,
-                failing: [
-                    { kind: 'repository', targetId: 5, name: 'helios-portal', observed: true, violations: [] },
-                    { kind: 'container', targetId: 3, name: 'registry.example/api:1.4', observed: true, violations: [] },
-                    // Failing because nobody examined them — the never-scanned and the last-failed
-                    // tiles above — and tagged so, never as a severity.
-                    { kind: 'repository', targetId: 6, name: 'basalt-libs', observed: false,
-                      violations: [LAST_SCAN_FAILED] },
-                    { kind: 'repository', targetId: 7, name: 'billing-legacy', observed: false,
-                      violations: [NEVER_EXAMINED] }
-                ],
-                recentScans: [
-                    { id: 34, status: 'completed', targetKind: 'repository', targetName: 'helios-portal',
-                      repoId: 5, containerId: null, error: null, createdAt: '2026-09-17T21:04:00Z',
-                      findingsCount: 7 },
-                    { id: 33, status: 'failed', targetKind: 'repository', targetName: 'basalt-libs',
-                      repoId: 6, containerId: null, error: 'clone refused', createdAt: '2026-09-17T03:10:00Z',
-                      findingsCount: 0 }
-                ]
-            }));
+            // The failing targets carry the violations the gate verdicts capture counts, so the
+            // Violations column reads four and two where the verdict register says four and two.
+            await stub(page, '**/api/v1/dashboard', asSchema('DashboardOverview', DASHBOARD_OVERVIEW));
             // Two charts rather than two axes: the backlog and the daily movements differ by two
             // orders of magnitude, so the capture has to show both curves readable.
             const days = [
@@ -700,8 +1083,12 @@ test.describe('documentation screenshots', () => {
                 { day: '2026-09-16', open: 410, opened: 9, resolved: 3 },
                 { day: '2026-09-17', open: 412, opened: 6, resolved: 4 }
             ];
+            // **The dated marker** (decision 0036): the day this installation's grades changed
+            // formula, inside the window, so the line is drawn on both charts and said in words below
+            // them. The backlog does not move with it — the formula grades, it does not count.
             await stub(page, '**/api/v1/dashboard/trends*', asSchema('Trends', {
-                points: days, mean_days_to_resolve: 11.4, resolved_in_window: 21
+                points: days, mean_days_to_resolve: 11.4, resolved_in_window: 21,
+                score_formula_changed_on: '2026-09-15'
             }));
             // **The panel that read "undefined% (undefined resolved / undefined opened)".** The same
             // six days: 38 opened, 21 resolved, so the velocity is 21 / 38 = 55.3 %, rounded to one
@@ -765,7 +1152,23 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByText('helios-portal').first()).toBeVisible({ timeout: 15_000 });
             // The velocity line, by its figures — each edition in its own decimal mark: "55.3 %", "55,3 %".
             await expect(page.getByText(/55[.,]3\s?%/).first()).toBeVisible({ timeout: 15_000 });
+            // The dated line in words, by its date: a canvas draws nothing a test can read.
+            await expect(page.getByTestId('score-formula-change')).toContainText('2026-09-15', { timeout: 15_000 });
             await shoot(page, 'dashboard', locale);
+
+            // **The lower half, from the portfolio down.** The grade distribution, the weakest
+            // target, and the two tables whose columns changed meaning — violations of the gate,
+            // issues of a scan — sit below the fold of the first capture.
+            await expect(page.getByTestId('portfolio-weakest')).toContainText('helios-portal', { timeout: 15_000 });
+            // With a margin the height of the top bar, which stays fixed over the page: aligned to
+            // the very top, the card's title scrolled underneath it.
+            await page.getByTestId('portfolio-distribution').evaluate((node) => {
+                const card = node.closest('p-card') as HTMLElement | null;
+                if (!card) return;
+                card.style.scrollMarginTop = '5rem';
+                card.scrollIntoView({ block: 'start', behavior: 'instant' });
+            });
+            await shoot(page, 'dashboard-portfolio', locale);
         });
 
         test('issues', async ({ page }, testInfo) => {
@@ -849,25 +1252,7 @@ test.describe('documentation screenshots', () => {
         test('repositories', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
-            // **Shaped from `openapi.json`, not from memory.** A first attempt guessed the fields
-            // and the table never rendered: `openIssues` is required and was missing, and the
-            // criticality is `tier`. Reading the contract is how a fixture stops being a second
-            // opinion about the server.
-            await stub(page, '**/api/v1/repositories*', [
-                { id: 5, url: 'ssh://git@example.invalid/helios-portal.git', branch: 'main',
-                  displayName: 'helios-portal', name: 'helios-portal', subPath: null,
-                  openIssues: 214, tier: 'TIER_1_MISSION_CRITICAL', scanIntervalMinutes: 1440, scanCron: null, scanManualOnly: false,
-                  schedule: { mode: 'interval', intervalMinutes: 1440 },
-                  sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-17T21:00:00Z',
-                  lastScan: { id: 34, status: 'completed', createdAt: '2026-09-17T21:04:00Z', error: null } },
-                { id: 6, url: 'ssh://git@example.invalid/basalt-libs.git', branch: 'master',
-                  displayName: 'basalt-libs', name: 'basalt-libs', subPath: null,
-                  openIssues: 37, tier: 'TIER_3_INTERNAL', scanIntervalMinutes: null, scanCron: '0 3 * * *', scanManualOnly: false,
-                  schedule: { mode: 'cron', intervalMinutes: null },
-                  sshKeyId: null, requiredAgentLabel: null, lastScheduledScanAt: '2026-09-16T03:00:00Z',
-                  lastScan: { id: 30, status: 'failed', createdAt: '2026-09-16T03:11:00Z',
-                              error: 'clone refused' } }
-            ]);
+            await stub(page, '**/api/v1/repositories*', REPOSITORIES);
             await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
             await enterApp(page, locale);
             await openScreen(page, '/repositories');
@@ -947,7 +1332,7 @@ test.describe('documentation screenshots', () => {
             await stub(page, '**/api/v1/dashboard', {
                 posture: { totalCount: 14, failingCount: 4, kevCount: 2, overdueCount: 5,
                            neverScannedCount: 1, lastScanFailedCount: 1 },
-                backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
+                backlogBySeverity: { critical: 4, high: 12, medium: 31, low: 365 },
                 qualityTotal: 1432, failing: [], recentScans: []
             });
             await enterApp(page, locale);
@@ -1427,5 +1812,642 @@ test.describe('documentation screenshots', () => {
                 node.scrollIntoView({ block: 'start', behavior: 'instant' }));
 
             await shoot(page, 'rule-sets', locale);
+        });
+
+        test('repository form', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **An HTTPS clone, because that is what changed on this form.** The credential follows
+            // the URL: an `https://` address offers no SSH key, and only the tokens bound to its host
+            // — so the internal GitLab's token is offered and the other two are not.
+            await stub(page, '**/api/v1/repositories*', [...REPOSITORIES, ORION_GATEWAY]);
+            await stub(page, '**/api/v1/git-tokens', GIT_TOKENS);
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
+            await enterApp(page, locale);
+            await openScreen(page, '/repositories');
+
+            await expect(page.getByText('orion-gateway').first()).toBeVisible({ timeout: 15_000 });
+            // By the edit button's accessible name, which carries the URL — the one label read here,
+            // in both editions' words, because the three buttons of a row differ by nothing else.
+            await page.getByRole('button', { name: new RegExp(`^(Edit|Modifier) ${ORION_GATEWAY.url}$`) }).click();
+            await expect(page.locator('#url')).toHaveValue(ORION_GATEWAY.url, { timeout: 15_000 });
+            // The dialog scrolls on its own; the credential is in its lower half, so it is brought up.
+            const token = page.getByRole('dialog').locator('p-select', { has: page.locator('#https-token') });
+            await token.evaluate((node) => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
+            await expect(token).toContainText('gitlab-read (git.example.org)');
+            await shoot(page, 'repository-form', locale);
+        });
+
+        test('repository imports', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/repositories*', REPOSITORIES);
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
+            // What helios-portal's pipeline sends beside the scans: the coverage and the test
+            // report of its last build, and the SARIF documents of two declared sources — the CI's
+            // SonarQube on every build, and a penetration test's ZAP report once. The figures are
+            // what the tools stated; the screen says so, and so does the capture.
+            await stub(page, '**/api/v1/repositories/5/coverage-imports', [
+                { id: 18, repoId: 5, sourceId: 3, sourceSlug: 'helios-ci', apiKeyId: HELIOS_CI_KEY,
+                  importedBy: 'helios-ci-key', importedAt: '2026-09-17T20:58:00Z', format: 'jacoco',
+                  toolVersion: '0.8.12', commit: '9c41e07b2d5f8a13e6b0c47d2a9f1e85b3c6d702', branch: 'main',
+                  linesCovered: 18342, linesTotal: 24117, branchesCovered: 4210, branchesTotal: 6630,
+                  documentSha256: '1f0c9a7e3b5d24c8e6f1a0b9d7c3e5f2a4b6c8d0e1f3a5b7c9d0e2f4a6b8c1d3',
+                  packagesState: null }
+            ]);
+            await stub(page, '**/api/v1/repositories/5/test-report-imports', [
+                { id: 22, repoId: 5, sourceId: 3, sourceSlug: 'helios-ci', apiKeyId: HELIOS_CI_KEY,
+                  importedBy: 'helios-ci-key', importedAt: '2026-09-17T20:59:00Z', format: 'junit',
+                  commit: '9c41e07b2d5f8a13e6b0c47d2a9f1e85b3c6d702', branch: 'main',
+                  documentsCount: 214, suitesCount: 214, testsCount: 1873, failuresCount: 2, errorsCount: 0,
+                  skippedCount: 11,
+                  documentSha256: '7a2e4c6b8d0f1e3a5c7b9d2f4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a' }
+            ]);
+            const sarif = (id: number, slug: string, keyName: string, at: string, tool: string,
+                           results: number, created: number, resolved: number, reopened: number, sha: string) => ({
+                id, repoId: 5, sourceId: slug === 'helios-ci' ? 3 : 4, sourceSlug: slug, apiKeyId: HELIOS_CI_KEY,
+                importedBy: keyName, importedAt: at, tools: [tool], toolKeys: [tool.toLowerCase()],
+                resultsCount: results, createdCount: created, resolvedCount: resolved, reopenedCount: reopened,
+                documentSha256: sha
+            });
+            await stub(page, '**/api/v1/repositories/5/sarif-imports', [
+                sarif(51, 'helios-ci', 'helios-ci-key', '2026-09-17T21:00:00Z', 'SonarQube', 37, 2, 5, 0,
+                      '3f9a1c7e5b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a'),
+                sarif(48, 'helios-ci', 'helios-ci-key', '2026-09-10T20:57:00Z', 'SonarQube', 40, 4, 1, 1,
+                      'b8d0f2a4c6e8b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2'),
+                sarif(46, 'appsec-pentest', 'pentest-upload-key', '2026-09-04T15:12:00Z', 'ZAP', 6, 6, 0, 0,
+                      'c5e7b9d2f4a6c8e0b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7')
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/repositories');
+
+            await expect(page.getByText('basalt-libs').first()).toBeVisible({ timeout: 15_000 });
+            // helios-portal is the first card; its button names it, which the dialog header repeats.
+            await page.getByTestId('sarif-imports-btn').first().click();
+            await expect(page.getByRole('dialog')).toContainText('helios-portal', { timeout: 15_000 });
+            await expect(page.getByTestId('sarif-import')).toHaveCount(3, { timeout: 15_000 });
+            await expect(page.getByTestId('tests-count')).toHaveText('1873');
+            await shoot(page, 'repository-imports', locale);
+        });
+
+        test('https tokens', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/git-tokens', GIT_TOKENS);
+            await enterApp(page, locale);
+            await openScreen(page, '/git-tokens');
+
+            await expect(page.getByText('bitbucket-legacy-read').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'git-tokens', locale);
+        });
+
+        test('solutions and projects', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/solutions', SOLUTION_TREE);
+            await enterApp(page, locale);
+            await openScreen(page, '/solutions');
+
+            await expect(page.getByText('Shared libraries').first()).toBeVisible({ timeout: 15_000 });
+            await expect(page.getByTestId('unfiled')).toContainText('registry.example/batch-runner:2026.09');
+            await shoot(page, 'solutions', locale);
+        });
+
+        test('project reports', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/solutions', SOLUTION_TREE);
+            const project = SOLUTION_TREE.solutions[0].projects[0];
+            await stub(page, '**/api/v1/projects/11', {
+                ...project, solution: { id: 1, name: 'Customer services' }
+            });
+            // **Graded by its weakest target** (decision 0036): helios-portal's F at 18, the
+            // dashboard scoreboard's, and the risk points of both targets' open backlog.
+            await stub(page, '**/api/v1/projects/11/compliance', {
+                kind: 'project', id: 11, name: 'Helios portal', partial: false, targetCount: 2,
+                compliance: {
+                    evaluations: [
+                        { framework: 'NIS_2', overallStatus: 'PARTIAL', scorePercentage: 61, controls: [] },
+                        { framework: 'ISO_27001', overallStatus: 'PARTIAL', scorePercentage: 66, controls: [] },
+                        { framework: 'EU_CRA', overallStatus: 'NON_COMPLIANT', scorePercentage: 48, controls: [] }
+                    ],
+                    mttr: { mttrBySeverityDays: { critical: 3.2, high: 6.8 }, overallMttrDays: 9.6, resolvedCount: 18 },
+                    overdueCount: 3, dueSoonCount: 1, totalMonitoredTargets: 2, passingGateTargets: 0,
+                    observedTargets: 2, freshTargets: 2,
+                    targets: [
+                        { targetId: 'REPOSITORY:5', name: 'helios-portal', type: 'REPOSITORY', gateStatus: 'FAILED',
+                          openIssuesCount: 214, overdueCount: 2, overallStatus: 'PARTIAL', overallScore: 58,
+                          frameworkScores: { NIS_2: 58, ISO_27001: 63, EU_CRA: 44 } },
+                        { targetId: 'CONTAINER:3', name: 'registry.example/api:1.4', type: 'CONTAINER',
+                          gateStatus: 'FAILED', openIssuesCount: 58, overdueCount: 1, overallStatus: 'PARTIAL',
+                          overallScore: 66, frameworkScores: { NIS_2: 64, ISO_27001: 69, EU_CRA: 52 } }
+                    ]
+                },
+                scorecard: {
+                    targetId: 11, targetKind: 'project', targetName: 'Helios portal', score: 18, grade: 'F',
+                    riskPoints: 563.5,
+                    weakestTarget: { targetKind: 'repository', targetId: 5, targetName: 'helios-portal',
+                                     score: 18, grade: 'F', riskPoints: 412.5 },
+                    totalTargets: 2, observedTargets: 2, openKevCount: 1, openCriticalCount: 4, openHighCount: 10,
+                    licenseViolationCount: 0, overdueCount: 3, hasAttestation: true,
+                    recommendations: ['Fix the actively exploited vulnerability first.']
+                }
+            });
+            await stub(page, '**/api/v1/projects/11/components', {
+                kind: 'project', id: 11, name: 'Helios portal', partial: false, complete: true,
+                targets: [
+                    { kind: 'repository', id: 5, name: 'helios-portal', scanId: 34, scannedAt: '2026-09-17T21:04:00Z',
+                      inventory: 'listed', componentCount: 2 },
+                    { kind: 'container', id: 3, name: 'registry.example/api:1.4', scanId: 32,
+                      scannedAt: '2026-09-17T18:06:00Z', inventory: 'listed', componentCount: 1 }
+                ],
+                components: [
+                    { name: 'log4j-core', version: '2.14.1', purl: 'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1',
+                      type: 'library', sources: ['scanner'], targets: [{ kind: 'repository', id: 5, name: 'helios-portal' }] },
+                    { name: 'spring-webmvc', version: '6.1.12', purl: 'pkg:maven/org.springframework/spring-webmvc@6.1.12',
+                      type: 'library', sources: ['scanner'], targets: [{ kind: 'repository', id: 5, name: 'helios-portal' }] },
+                    { name: 'libcurl4', version: '7.88.1-10+deb12u3', purl: 'pkg:deb/debian/libcurl4@7.88.1-10%2Bdeb12u3',
+                      type: 'library', sources: ['scanner'],
+                      targets: [{ kind: 'container', id: 3, name: 'registry.example/api:1.4' }] }
+                ]
+            });
+            await stub(page, '**/api/v1/report-plugins', [REPORT_PLUGIN]);
+            await stub(page, '**/api/v1/projects/11/report-plugins', [
+                { id: 1, pluginId: REPORT_PLUGIN.id, pluginName: REPORT_PLUGIN.name, projectId: 11,
+                  activatedAt: '2026-09-08T10:00:00Z', activatedBy: 'c.moreau' }
+            ]);
+            // A document produced and signed, and the attempt before it, which the plugin refused
+            // to finish: what a run says when it fails, beside what it says when it does not.
+            await stub(page, '**/api/v1/projects/11/reports', [PRODUCED_REPORT, FAILED_REPORT]);
+            await enterApp(page, locale);
+            await openScreen(page, '/solutions');
+            await page.locator('a[href="/projects/11"]').first().click();
+            await expect(page).toHaveURL(/\/projects\/11(\?|#|$)/, { timeout: 15_000 });
+
+            await expect(page.getByTestId(`run-${PRODUCED_REPORT.id}`)).toBeVisible({ timeout: 15_000 });
+            await page.getByTestId('project-reports').evaluate((node) => {
+                (node as HTMLElement).style.scrollMarginTop = '5rem';
+                node.scrollIntoView({ block: 'start', behavior: 'instant' });
+            });
+            await shoot(page, 'project-reports', locale);
+        });
+
+        test('report plugins', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // One plugin approved and a new version of it awaiting a second person, and one never
+            // approved, which nothing can switch on — the two states the four-eyes rule produces.
+            await stub(page, '**/api/v1/report-plugins', [
+                REPORT_PLUGIN,
+                { ...REPORT_PLUGIN, id: 'audit-pack-pdf', name: 'Audit pack (PDF)', approvedDigest: null,
+                  pendingDigest: 'c3e5a7b9d1f2a4c6e8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4', enabled: false, createdAt: '2026-09-16T14:00:00Z', updatedAt: null, updatedBy: null,
+                  manifests: [{
+                      ...REPORT_PENDING_MANIFEST,
+                      digest: 'c3e5a7b9d1f2a4c6e8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4',
+                      registeredAt: '2026-09-16T14:00:00Z',
+                      manifest: { ...REPORT_MANIFEST, id: 'audit-pack-pdf', name: 'Audit pack (PDF)',
+                                  image: `registry.example/reports/audit-pack-pdf@sha256:${'7c1e'.repeat(16)}`,
+                                  output: 'audit-pack.pdf', media_type: 'application/pdf' }
+                  }] }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/report-plugins');
+
+            await expect(page.getByTestId(`report-plugin-${REPORT_PLUGIN.id}`)).toBeVisible({ timeout: 15_000 });
+            await page.getByTestId(`open-${REPORT_PLUGIN.id}`).click();
+            await expect(page.getByTestId('report-plugin-detail')).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'report-plugins', locale);
+        });
+
+        test('plugins', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/plugins', [HOUSE_RULES, PYTHON_TYPING, TERRAFORM_POLICY]);
+            await stub(page, '**/api/v1/plugins/house-rules', HOUSE_RULES);
+            await stub(page, '**/api/v1/plugins/house-rules/projects', [
+                { id: 1, pluginId: 'house-rules', projectId: 11, projectName: 'Helios portal', solutionId: 1,
+                  solutionName: 'Customer services', activatedAt: '2026-08-20T09:00:00Z', activatedBy: 'c.moreau' },
+                { id: 2, pluginId: 'house-rules', projectId: 12, projectName: 'Shared libraries', solutionId: 2,
+                  solutionName: 'Platform', activatedAt: '2026-08-20T09:02:00Z', activatedBy: 'c.moreau' }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/plugins');
+
+            await expect(page.getByTestId('plugin-terraform-policy')).toBeVisible({ timeout: 15_000 });
+            // Opened, because what the registry has to show is a manifest — the image by digest,
+            // what it reads, whether it may reach the network — and the projects that run it.
+            await page.getByTestId('plugin-house-rules').locator('p-button[icon="pi pi-eye"] button').click();
+            await expect(page.getByTestId('plugin-detail')).toContainText('Shared libraries', { timeout: 15_000 });
+            await shoot(page, 'plugins', locale);
+        });
+
+        test('declared sources', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/solutions', SOLUTION_TREE);
+            await stub(page, '**/api/v1/repositories*', REPOSITORIES);
+            // The keys the declaration form offers: the ones that deliver, each holding the scope
+            // `ApiKeyScope` withholds by default.
+            const deliveryKey = (id: string, name: string, prefix: string, createdAt: string) => ({
+                id, name, prefix, scopes: ['sarif_import'], targetKind: null, targetId: null, targetLabel: null,
+                createdAt, lastUsedAt: '2026-09-17T21:00:00Z', expiresAt: null, isExpired: false
+            });
+            await stub(page, '**/api/v1/api-keys', [
+                deliveryKey(HELIOS_CI_KEY, 'helios-ci-key', 'vsp_Hc4q', '2026-08-11T09:25:00Z'),
+                deliveryKey('e2a9c4b7-6d13-4f58-8b02-3c7e1a9d5f46', 'pentest-upload-key', 'vsp_Pt7w', '2026-09-01T13:55:00Z'),
+                deliveryKey('f7b3d1e9-2c46-4a80-9e5d-0b8f6c2a4d13', 'platform-build-key', 'vsp_Pb2k', '2026-08-25T11:15:00Z')
+            ]);
+            // **What each source delivers, which is what the column was renamed for.** A source was
+            // a SARIF source; it now declares the kinds of document its key may send — findings,
+            // coverage, test reports, a build SBOM — and one key carries one source.
+            await stub(page, '**/api/v1/sarif-sources', [
+                { id: 3, slug: 'helios-ci', name: 'Helios portal pipeline', apiKeyId: HELIOS_CI_KEY,
+                  apiKeyName: 'helios-ci-key', projectId: 11, repositoryId: null, tools: ['SonarQube'],
+                  kinds: ['sarif', 'coverage', 'test_report'], enabled: true,
+                  createdAt: '2026-08-11T09:30:00Z', createdBy: 'c.moreau' },
+                { id: 4, slug: 'appsec-pentest', name: 'Yearly penetration test', apiKeyId: 'e2a9c4b7-6d13-4f58-8b02-3c7e1a9d5f46',
+                  apiKeyName: 'pentest-upload-key', projectId: null, repositoryId: 5, tools: ['ZAP'],
+                  kinds: ['sarif'], enabled: true, createdAt: '2026-09-01T14:00:00Z', createdBy: 'c.moreau' },
+                { id: 5, slug: 'platform-build', name: 'Shared libraries build', apiKeyId: 'f7b3d1e9-2c46-4a80-9e5d-0b8f6c2a4d13',
+                  apiKeyName: 'platform-build-key', projectId: 12, repositoryId: null,
+                  tools: ['CycloneDX Maven plugin', 'JaCoCo'], kinds: ['sbom', 'coverage'], enabled: true,
+                  createdAt: '2026-08-25T11:20:00Z', createdBy: 'n.faure' },
+                // Its key was revoked: the source still stands, and delivers nothing — said so.
+                { id: 2, slug: 'legacy-scanner', name: 'Former SAST service', apiKeyId: null,
+                  apiKeyName: null, projectId: 13, repositoryId: null, tools: ['Fortify'],
+                  kinds: ['sarif'], enabled: false, createdAt: '2026-04-02T08:00:00Z', createdBy: 'admin' }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/sarif-sources');
+
+            await expect(page.getByTestId('source-legacy-scanner')).toBeVisible({ timeout: 15_000 });
+            await expect(page.getByTestId('source-helios-ci')).toContainText('Helios portal');
+            await shoot(page, 'sarif-sources', locale);
+        });
+
+        test('forge connections', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/forge-connections', [FORGE_CONNECTION, GITHUB_CONNECTION]);
+            await enterApp(page, locale);
+            await openScreen(page, '/forge-connections');
+
+            await expect(page.getByTestId('connection')).toHaveCount(2, { timeout: 15_000 });
+            await expect(page.getByTestId('connection-address').first()).toHaveText('https://git.example.org');
+            await shoot(page, 'forge-connections', locale);
+        });
+
+        test('forge discovery, selection and import', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            const base = `**/api/v1/forge-connections/${FORGE_ID}`;
+            await stub(page, '**/api/v1/forge-connections', [FORGE_CONNECTION, GITHUB_CONNECTION]);
+            await stub(page, base, FORGE_CONNECTION);
+            // The run before this one, to show that a discovery is a dated observation and the
+            // comparison is between two of them.
+            await stub(page, `${base}/discoveries`, [
+                FORGE_DISCOVERY,
+                { ...FORGE_DISCOVERY, id: 9, repositoriesSeen: 39, requestsMade: 45, newCount: 39, changedCount: 0,
+                  goneCount: null, requestedAt: '2026-09-04T08:00:00Z', startedAt: '2026-09-04T08:00:03Z',
+                  finishedAt: '2026-09-04T08:01:02Z' }
+            ]);
+            await stub(page, `${base}/discoveries/12`, FORGE_DISCOVERY);
+            await stub(page, `${base}/discoveries/12/repositories*`, {
+                items: FORGE_NEW, limit: 50, offset: 0, total: 3
+            });
+            // Five of the forty-one the discovery saw, past the filters: the three new ones, one
+            // already watched — so not selectable, and said why — and a personal project nobody
+            // proposed.
+            const candidate = (repository: ReturnType<typeof forgeRepository>, changes: Record<string, unknown> = {}) => ({
+                repository, selectable: true, notSelectable: null, offered: true, presentAs: [], importedAs: null,
+                proposedSolution: repository.namespacePath.split('/')[0],
+                proposedProject: repository.namespacePath.split('/').slice(1).join('/') || null,
+                ...changes
+            });
+            await stubByMethod(page, `${base}/discoveries/12/selection*`, {
+                GET: {
+                    discoveryId: 12, limit: 50, offset: 0, listed: 41, total: 5, unjudged: { fork: 2 },
+                    items: [
+                        ...FORGE_NEW.map((repository) => candidate(repository)),
+                        candidate(forgeRepository('118', 'customer/helios/helios-portal'), {
+                            selectable: false, notSelectable: 'already_present', offered: false, presentAs: [5]
+                        }),
+                        candidate(forgeRepository('164', 'j.martin/sandbox', { personal: true, language: null }), {
+                            offered: false, proposedSolution: null, proposedProject: null
+                        })
+                    ]
+                },
+                POST: { discoveryId: 12, count: 2, selected: ['201', '202'], dropped: [] }
+            });
+            await stub(page, '**/api/v1/solutions', SOLUTION_TREE);
+            await stub(page, '**/api/v1/git-tokens', GIT_TOKENS);
+            // The two Orion repositories, into a solution and a project the import creates, cloned
+            // with the internal GitLab's token.
+            const gitlabRead = { kind: 'https_token', id: GIT_TOKENS[0].id, name: GIT_TOKENS[0].name };
+            await stub(page, `${base}/imports/preview`, {
+                connectionId: FORGE_ID, discoveryId: 12,
+                targets: FORGE_NEW.slice(0, 2).map((repository) => ({
+                    forgeId: repository.forgeId, fullPath: repository.fullPath, url: repository.httpUrl,
+                    branch: 'main', credential: gitlabRead, solution: 'payments', project: 'orion',
+                    visibleTo: null, firstScanNotBefore: null, warning: null
+                })),
+                skipped: [], refused: [],
+                solutions: [{ name: 'payments', existingId: null }],
+                projects: [{ name: 'orion', solution: 'payments', existingId: null, targets: 2, accounts: 0, teams: 0 }],
+                credentials: [{ host: 'git.example.org', credential: gitlabRead, proposed: true, repositories: 2 }],
+                // No first scan asked for — the box is left as it opens — so none is planned: each
+                // target waits for its own slot of the default schedule.
+                defaultIntervalDays: 7, visibilityMode: 'assigned', firstScans: null
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/forge-connections');
+            await page.getByTestId('connection-discover').first().click();
+            await expect(page).toHaveURL(new RegExp(`/forge-connections/${FORGE_ID}`), { timeout: 15_000 });
+
+            // **Discovery**: the last run's counters, and what it found that the run before had not.
+            await expect(page.getByTestId('repositories')).toContainText('41', { timeout: 15_000 });
+            await page.getByTestId('count-new').click();
+            await expect(page.getByTestId('changed-row')).toHaveCount(3, { timeout: 15_000 });
+            await shoot(page, 'forge-discovery', locale);
+
+            // **Selection**: the proposed repositories ticked in one move, as an operator starts.
+            await page.getByTestId('to-selection').click();
+            await expect(page.getByTestId('candidate')).toHaveCount(5, { timeout: 15_000 });
+            await page.getByTestId('op-proposed').click();
+            await expect(page.getByTestId('tick').first()).toBeChecked({ timeout: 15_000 });
+            // From the operations down: the filters above them fill the first screenful, and the
+            // table is what an operator reads before going on.
+            await page.getByTestId('op-proposed').evaluate((node) => {
+                const row = (node.parentElement ?? node) as HTMLElement;
+                row.style.scrollMarginTop = '5rem';
+                row.scrollIntoView({ block: 'start', behavior: 'instant' });
+            });
+            await shoot(page, 'forge-selection', locale);
+
+            // **Import**: the preview of what the import will create, before anything is.
+            await page.getByTestId('to-import').click();
+            await expect(page.getByTestId('visible-to')).toHaveCount(2, { timeout: 15_000 });
+            // Centred on the plan — each repository with its address, credential and filing — which
+            // sits below the placement and the credentials an operator may still change.
+            await page.getByTestId('visible-to').first().evaluate((node) =>
+                node.scrollIntoView({ block: 'center', behavior: 'instant' }));
+            await shoot(page, 'forge-import', locale);
+        });
+
+        test('scan detail', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/dashboard', DASHBOARD_OVERVIEW);
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
+            // **Seven issues, ten occurrences: the two counts the card now keeps apart.** An issue is
+            // one fingerprint and carries no line; an occurrence is one place a tool reported it.
+            // The leaked token sits on two lines of one file and the SQL string on three: seven
+            // issues, ten rows below.
+            const finding = (id: number, type: string, severity: string, identifier: string,
+                             changes: Record<string, unknown> = {}) => ({
+                id, type, severity, identifier, description: null, filePath: null, line: null, link: null,
+                packageName: null, packageVersion: null, fixVersions: null, tool: null, toolName: null,
+                toolVersion: null, ...changes
+            });
+            const sqlString = 'java.lang.security.audit.formatted-sql-string';
+            const builder = 'src/main/java/portal/LegacyQueryBuilder.java';
+            await stub(page, '**/api/v1/scans/34', {
+                scan: { id: 34, status: 'completed', branch: 'main', targetKind: 'REPOSITORY', targetName: 'helios-portal',
+                        targetId: 5, createdAt: '2026-09-17T21:04:00Z', durationMs: 91_000, findingsCount: 7,
+                        newIssuesCount: 1, resolvedIssuesCount: 3, error: null, claimedBy: null, attempts: 1,
+                        notBefore: null },
+                projectType: 'maven', projectVersion: '4.2.0', subPath: null, hasSbom: true,
+                examinedTypes: ['vulnerability', 'secret', 'iac', 'license', 'eol', 'sast', 'quality'],
+                plugins: [
+                    { pluginId: 'house-rules', state: 'produced', findings: 1, languages: ['java', 'kotlin'],
+                      manifestDigest: HOUSE_RULES.manifestDigest, signature: 'verified', reason: null, refusal: null },
+                    // Not a failure (decision 0017): there is no Python here for it to read.
+                    { pluginId: 'python-typing', state: 'not_applicable', findings: null, languages: ['python'],
+                      manifestDigest: PYTHON_TYPING.manifestDigest, signature: null, reason: null, refusal: null }
+                ],
+                findingsTotal: 10, findingsTruncated: false,
+                findings: [
+                    finding(901, 'vulnerability', 'critical', 'CVE-2021-44228', {
+                        description: 'Apache Log4j2 JNDI features do not protect against attacker-controlled LDAP endpoints',
+                        filePath: 'pom.xml', packageName: 'log4j-core', packageVersion: '2.14.1', fixVersions: '2.17.1', tool: 'trivy',
+                        link: 'https://nvd.nist.gov/vuln/detail/CVE-2021-44228' }),
+                    finding(902, 'vulnerability', 'high', 'CVE-2024-38816', {
+                        description: 'Path traversal in functional web frameworks',
+                        filePath: 'pom.xml', packageName: 'spring-webmvc', packageVersion: '6.1.12', fixVersions: '6.1.13', tool: 'trivy' }),
+                    finding(903, 'vulnerability', 'high', 'CVE-2022-25857', {
+                        description: 'Denial of service through nested collections',
+                        filePath: 'pom.xml', packageName: 'snakeyaml', packageVersion: '1.30', fixVersions: '1.31', tool: 'trivy' }),
+                    finding(904, 'secret', 'high', 'aws-access-token', {
+                        filePath: 'config/application-dev.yml', line: 14, tool: 'gitleaks' }),
+                    finding(905, 'secret', 'high', 'aws-access-token', {
+                        filePath: 'config/application-dev.yml', line: 31, tool: 'gitleaks' }),
+                    finding(906, 'sast', 'medium', sqlString, { filePath: builder, line: 88, tool: 'opengrep' }),
+                    finding(907, 'sast', 'medium', sqlString, { filePath: builder, line: 141, tool: 'opengrep' }),
+                    finding(908, 'sast', 'medium', sqlString, { filePath: builder, line: 203, tool: 'opengrep' }),
+                    finding(909, 'iac', 'medium', 'DS002', {
+                        description: 'The image runs as root', filePath: 'Dockerfile', line: 1, tool: 'trivy' }),
+                    finding(910, 'plugin', 'low', 'house-rules.no-system-exit', {
+                        description: 'System.exit() outside the launcher',
+                        filePath: 'src/main/java/portal/Shutdown.java', line: 27, tool: 'house-rules',
+                        toolName: 'house-rules', toolVersion: '1.3.0' })
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/dashboard');
+            // Through the dashboard's recent scans, the way a reader arrives at one scan.
+            await page.locator('a[href="/scans/34"]').first().click();
+            await expect(page).toHaveURL(/\/scans\/34(\?|$)/, { timeout: 15_000 });
+
+            await expect(page.getByTestId('scan-issues-count')).toHaveText('7', { timeout: 15_000 });
+            await expect(page.getByTestId('scan-occurrences-count')).toContainText('10');
+            await shoot(page, 'scan-detail', locale);
+
+            // **The list beneath, one row per occurrence**, which is where seven issues become ten
+            // rows: the same token on two lines, the same rule on three.
+            const occurrences = page.locator('p-card').filter({ has: page.locator('p-table') }).last();
+            await expect(occurrences).toContainText('LegacyQueryBuilder.java');
+            await occurrences.evaluate((node) => {
+                (node as HTMLElement).style.scrollMarginTop = '5rem';
+                node.scrollIntoView({ block: 'start', behavior: 'instant' });
+            });
+            await shoot(page, 'scan-detail-occurrences', locale);
+        });
+
+        test('history', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            const helios = { id: 5, name: 'helios-portal', url: 'ssh://git@example.invalid/helios-portal.git',
+                             branch: 'main', lastScanAt: '2026-09-17T21:04:00Z', openIssues: 7, decisions: 2,
+                             scanCount: 2, projectType: 'maven', version: '4.2.0' };
+            await stub(page, '**/api/v1/history/repositories', [
+                helios,
+                { id: 6, name: 'basalt-libs', url: 'ssh://git@example.invalid/basalt-libs.git', branch: 'master',
+                  lastScanAt: '2026-09-16T03:11:00Z', openIssues: 37, decisions: 0, scanCount: 5,
+                  projectType: 'gradle', version: null }
+            ]);
+            const observed = (id: number, identifier: string, severity: string, pkg: string, version: string,
+                              state: string, triage: string | null, decisions: unknown[] = [], resolvedAt: string | null = null) => ({
+                id, identifier, severity, type: 'vulnerability', packageName: pkg, packageVersion: version,
+                filePath: null, state, triageStatus: triage, firstSeenAt: '2026-08-21T07:57:53Z', resolvedAt, decisions
+            });
+            // The scan of the 17th, which the SBOM comparison and the scan detail show — seven
+            // issues, one new, three resolved — over the one of the 10th it is compared with.
+            await stub(page, '**/api/v1/history/repositories/5*', {
+                generatedAt: '2026-09-18T12:00:00Z',
+                repository: helios,
+                scans: [
+                    { id: 34, status: 'completed', branch: 'main', createdAt: '2026-09-17T21:04:00Z', durationMs: 91_000,
+                      findingsCount: 7, newIssuesCount: 1, resolvedIssuesCount: 3, error: null,
+                      projectType: 'maven', version: '4.2.0',
+                      issues: [
+                          observed(41, 'CVE-2021-44228', 'critical', 'log4j-core', '2.14.1', 'open', 'under_review', [
+                              { occurredAt: '2026-09-02T09:14:00Z', fromStatus: null, toStatus: 'under_review',
+                                justification: null, comment: 'Upgrade planned with the 4.3 release', actor: 'c.moreau',
+                                origin: 'manual', expiresAt: null, previousResolvedAt: null, scanId: 31, version: '4.1.2' }
+                          ]),
+                          observed(44, 'CVE-2024-38816', 'high', 'spring-webmvc', '6.1.12', 'open', null),
+                          observed(45, 'CVE-2022-25857', 'high', 'snakeyaml', '1.30', 'open', null),
+                          observed(49, 'CVE-2024-22262', 'high', 'spring-web', '6.1.4', 'resolved', null, [],
+                                   '2026-09-17T21:04:00Z')
+                      ] },
+                    { id: 33, status: 'completed', branch: 'main', createdAt: '2026-09-10T21:03:00Z', durationMs: 88_000,
+                      findingsCount: 9, newIssuesCount: 0, resolvedIssuesCount: 0, error: null,
+                      projectType: 'maven', version: '4.1.2', issues: [] }
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/history');
+
+            await expect(page.getByText('CVE-2021-44228').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'history', locale);
+        });
+
+        test('settings: tracker and SIEM', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // The tracker's section of the catalogue as `Setting` defines it: an internal GitLab,
+            // reached through the organisation's own CA, which is pinned here and read back.
+            const setting = (key: string, type: string, value: string, defaultValue: string,
+                             administratorOnly = true) => ({
+                key, type, section: 'Ticket tracker', label: TICKET_SETTINGS[key].label, help: TICKET_SETTINGS[key].help,
+                default: defaultValue, value, configured: value !== defaultValue,
+                governor_only: false, administrator_only: administratorOnly
+            });
+            await stub(page, '**/api/v1/settings', {
+                settings: [
+                    setting('ticket_provider', 'text', 'gitlab', 'none', false),
+                    setting('ticket_base_url', 'text', 'https://git.example.org', ''),
+                    setting('ticket_project', 'text', 'appsec/vectispire-findings', ''),
+                    setting('ticket_token', 'text', '', ''),
+                    setting('ticket_webhook_secret', 'text', '', ''),
+                    setting('ticket_token_expires_on', 'text', '', ''),
+                    setting('ticket_user', 'text', '', ''),
+                    setting('ticket_issue_type', 'text', 'Bug', 'Bug', false),
+                    setting('ticket_labels', 'text', 'vectispire,security', 'vectispire,security', false),
+                    setting('ticket_allow_private_url', 'boolean', 'true', 'true', false),
+                    setting('ticket_ca_pem', 'text', EXAMPLE_CA_PEM, '')
+                ]
+            });
+            await stub(page, '**/api/v1/settings/ticket-ca', {
+                pinned: true, subject: 'CN=Example Internal Root CA', notAfter: '2030-01-01T00:00:00Z'
+            });
+            // GitLab reports its tokens' expiry: eleven days ahead of the frozen clock, inside the
+            // fourteen the screen warns at.
+            await stub(page, '**/api/v1/settings/ticket-token', {
+                configured: true, expiresAt: '2026-09-29T00:00:00Z', expirySource: 'reported',
+                checkedAt: '2026-09-18T06:00:00Z', refusedSince: null, refusedStatus: null
+            });
+            await stub(page, '**/api/v1/settings/ticket-webhook-secret', { configured: true });
+            await stub(page, '**/api/v1/settings/webhook-secret', { configured: false });
+            await stub(page, '**/api/v1/siem/config', {
+                enabled: true, protocol: 'SYSLOG_TLS', endpoint: 'siem.example.org:6514', hasAuthHeader: false,
+                minSeverity: 'MEDIUM', tlsCaPem: EXAMPLE_CA_PEM, tlsCaSubject: 'CN=Example Internal Root CA',
+                tlsCaNotAfter: '2030-01-01T00:00:00Z', updatedAt: '2026-09-02T10:00:00Z'
+            });
+            // Asked for by the threat-intelligence tab's component whichever tab is open, and drawn
+            // on none of these captures: a synchronised feed, the ordinary state.
+            await stub(page, '**/api/v1/threat-intel/status', {
+                status: 'SYNCED', lastSyncedAt: '2026-09-18T03:00:00Z', lastAttemptAt: '2026-09-18T03:00:00Z',
+                lastError: null, kevCatalogVersion: '2026.09.17', kevReleasedAt: '2026-09-17T18:00:00Z',
+                totalKev: 1384, totalCves: 412, backlogUpdatedCount: 3,
+                epss: { status: 'SYNCED', lastSyncedAt: '2026-09-18T03:05:00Z', lastAttemptAt: '2026-09-18T03:05:00Z',
+                        lastError: null, modelVersion: 'v2025.03.14', scoreDate: '2026-09-17T00:00:00Z',
+                        totalScored: 412, backlogUpdatedCount: 11, inProgress: false }
+            });
+            await enterApp(page, locale);
+            // The menu's "Integrations" entry carries its tab in the query; `openScreen` matches a
+            // path, so the link is clicked here and the address checked as it does.
+            await page.locator('a[href="/settings?tab=integrations"]').first().click();
+            await expect(page).toHaveURL(/\/settings\?tab=integrations$/, { timeout: 15_000 });
+
+            const showFromTop = async (testId: string) =>
+                page.getByTestId(testId).evaluate((node) => {
+                    const card = (node.closest('p-card') ?? node) as HTMLElement;
+                    card.style.scrollMarginTop = '5rem';
+                    card.scrollIntoView({ block: 'start', behavior: 'instant' });
+                });
+
+            // **Aligned on the CA's foot, not on the card's top.** The French help texts make the card
+            // taller than the viewport, and aligned on its title the line saying what the pinned CA
+            // is — the thing this capture is for — fell below the fold in one edition only.
+            await expect(page.getByTestId('ticket-ca-pinned')).toContainText('CN=Example Internal Root CA', { timeout: 15_000 });
+            await page.getByTestId('ticket-ca-pinned').evaluate((node) => {
+                (node as HTMLElement).style.scrollMarginBottom = '2rem';
+                node.scrollIntoView({ block: 'end', behavior: 'instant' });
+            });
+            await shoot(page, 'settings-tickets', locale);
+
+            await expect(page.getByTestId('ticket-token-health')).toContainText('2026-09-29');
+            await showFromTop('ticket-token-health');
+            await shoot(page, 'settings-ticket-token', locale);
+
+            await expect(page.getByTestId('siem-ca-pinned')).toContainText('CN=Example Internal Root CA');
+            await showFromTop('siem-ca-pinned');
+            await shoot(page, 'settings-siem', locale);
+        });
+
+        test('rule catalogue import', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/rule-sets/coverage', RULE_COVERAGE);
+            await stub(page, '**/api/v1/rule-sets', { ruleSets: [] });
+            // The upstream as `RuleCatalogue` names it, at one commit, with the counts a reader
+            // chooses from. The licence text is abridged: the screen shows it whole, and a capture
+            // of it whole would be a capture of a licence.
+            await stub(page, '**/api/v1/rule-sets/catalogue', {
+                upstream: 'opengrep/opengrep-rules',
+                commit: 'a41c09e7d35b8f2c6e1a94b07d3f5c28e9b16a40',
+                licenceName: 'LGPL-2.1 with Commons Clause',
+                licence: [
+                    '"Commons Clause" License Condition v1.0',
+                    '',
+                    'The Software is provided to you by the Licensor under the License, as defined below,',
+                    'subject to the following condition. […]',
+                    '',
+                    'GNU LESSER GENERAL PUBLIC LICENSE — Version 2.1, February 1999 […]'
+                ].join('\n'),
+                licence_sha256: '5e8f2a1c7b3d9e04f6a2c8b1d5e9f3a7c0b4d8e2f6a1c5b9d3e7f0a4c8b2d6e1',
+                languages: { generic: 84, java: 312, javascript: 268, python: 297, typescript: 154, yaml: 61 },
+                categories: { A01: 58, A02: 41, A03: 233, A05: 66, A06: 12, A07: 29, A08: 17, A10: 9 },
+                gitleaksDuplicates: 38
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/rule-sets');
+
+            await page.getByRole('button', { name: /read the catalogue|lire le catalogue/i }).click();
+            await expect(page.locator('#lang-generic')).toBeAttached({ timeout: 15_000 });
+            // Java and Python, which the estate holds, and generic — where the secret rules are,
+            // so the note on the rules that duplicate gitleaks appears with its opt-out.
+            for (const language of ['java', 'python', 'generic']) {
+                await page.locator('p-checkbox', { has: page.locator(`#lang-${language}`) }).click();
+            }
+            await expect(page.getByTestId('gitleaks-duplicates')).toContainText('38', { timeout: 15_000 });
+            await page.getByTestId('gitleaks-duplicates').evaluate((node) => {
+                const card = node.closest('p-card') as HTMLElement | null;
+                if (!card) return;
+                card.style.scrollMarginTop = '5rem';
+                card.scrollIntoView({ block: 'start', behavior: 'instant' });
+            });
+            await shoot(page, 'rule-catalogue-import', locale);
         });
     });
