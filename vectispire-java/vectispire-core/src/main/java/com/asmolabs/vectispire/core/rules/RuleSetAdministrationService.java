@@ -81,9 +81,14 @@ public class RuleSetAdministrationService {
      * <p>The audit entry carries the tag, the commit and that digest, so that "which terms did we
      * agree to, and who agreed" has an answer a year from now. The languages are sorted, so the
      * same selection always reads the same in the log.
+     *
+     * @param includeGitleaksPorts whether {@link RuleCatalogue#GITLEAKS_PORTS} comes too; {@code null}
+     *     is the default, which leaves them out — they duplicate the secrets step, and their twins
+     *     outlive the secret's triage. The entry says which, when the languages hold any
      */
     public RuleSetView importCatalogue(
-            String commit, List<String> requestedLanguages, String licenceSha256, RequestActor actor) {
+            String commit, List<String> requestedLanguages, String licenceSha256, Boolean includeGitleaksPorts,
+            RequestActor actor) {
 
         RuleCatalogue.requireCommit(commit);
         RuleCatalogueFetcher.Fetched fetched = fetcher.fetch();
@@ -104,18 +109,26 @@ public class RuleSetAdministrationService {
         }
 
         Set<String> languages = requestedLanguages == null ? Set.of() : Set.copyOf(requestedLanguages);
-        List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages);
+        boolean withPorts = Boolean.TRUE.equals(includeGitleaksPorts);
+        List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages, withPorts);
+        boolean portsReached = RuleCatalogue.reachesGitleaksPorts(fetched.contents(), languages);
 
-        SemgrepRuleSetEntity stored =
-                ruleSets.store(files, RuleCatalogue.nameFor(fetched.commit(), languages), actor.username());
+        SemgrepRuleSetEntity stored = ruleSets.store(
+                files, RuleCatalogue.nameFor(fetched.commit(), languages, withPorts && portsReached), actor.username());
 
         SortedSet<String> sorted = new TreeSet<>(languages);
+        // **The licence digest first and the languages last.** The description is cut at 255
+        // characters, and with eleven languages the digest — what the acceptance is bound to — was
+        // past the cut. The languages are also in the set's name, which the entry's id leads to.
+        String ports = !portsReached ? ""
+                : withPorts ? " gitleaks ports included on request."
+                : " gitleaks ports left out.";
         audit.record(actor.entry(
                 AuditOperation.RULE_SET_UPLOADED,
                 String.valueOf(stored.getId()),
-                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ", languages " + String.join(", ", sorted) + ": "
-                        + stored.getRuleCount() + " rules. Licence " + RuleCatalogue.LICENCE
-                        + " accepted, sha256 " + fetched.licenceSha256() + "."));
+                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ": " + stored.getRuleCount()
+                        + " rules. Licence " + RuleCatalogue.LICENCE + " accepted, sha256 " + fetched.licenceSha256()
+                        + "." + ports + " Languages: " + String.join(", ", sorted) + "."));
         return RuleSetView.of(stored);
     }
 

@@ -75,7 +75,8 @@ public class RuleCatalogueFetcher {
             String licence,
             String licenceSha256,
             java.util.Map<String, Integer> languages,
-            java.util.Map<String, Integer> categories) {}
+            java.util.Map<String, Integer> categories,
+            int gitleaksPorts) {}
 
     /** How long a preview answers for itself before the upstream is asked again. */
     private static final Duration PREVIEW_LIFETIME = Duration.ofMinutes(10);
@@ -101,7 +102,8 @@ public class RuleCatalogueFetcher {
                     fetched.contents().licence(),
                     fetched.licenceSha256(),
                     fetched.contents().languages(),
-                    fetched.contents().categories());
+                    fetched.contents().categories(),
+                    fetched.contents().gitleaksPorts());
             previewedAt = now;
         }
         return preview;

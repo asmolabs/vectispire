@@ -30,6 +30,31 @@ dans **Jeux de règles**. Le registre de Semgrep, les règles internes de votre 
 celles d'un éditeur — la contrainte porte sur la redistribution par Vectispire, pas sur votre
 exécution.
 
+### Depuis le catalogue amont
+
+**Récupérer depuis le catalogue amont** clone `opengrep/opengrep-rules`, affiche sa licence et le nombre
+de fichiers de règles de chaque langage, et stocke les langages choisis comme un jeu — non activé.
+Choisissez les langages que vous analysez : chaque identifiant de règle entre dans l'identité d'une issue.
+
+**Les portages des règles de gitleaks sont laissés de côté par défaut.** `generic` contient
+`generic/secrets/gitleaks/`, quelque 175 règles portées de gitleaks — celles que l'étape des secrets
+exécute déjà, la configuration gitleaks de Vectispire étendant les règles par défaut de gitleaks.
+Importées aussi, chaque clé divulguée serait trouvée deux fois : une issue *secret* et une issue *SAST*,
+deux issues puisque le type fait partie de l'identité d'une issue. Trier le secret laisserait sa jumelle
+SAST ouverte, où elle peut encore faire échouer la barrière, peser sur le score et compter sa catégorie
+OWASP une seconde fois. L'écran dit combien il en laisse de côté dès que `generic` est choisi, et
+**Les inclure malgré tout** les fait entrer — pour une installation dont les analyses n'ont pas d'étape
+des secrets. Le reste de `generic/secrets/` demeure : bon nombre de ces règles cherchent ce que les
+règles par défaut de gitleaks ne cherchent pas, une empreinte bcrypt ou un mot de passe sur une ligne
+de commande `sshpass`.
+
+Un jeu importé avant la 0.11.0 avec `generic` garde les portages jusqu'au prochain import. Activer le
+nouveau jeu est alors gardé comme toute activation : leurs issues ouvertes sont comptées, règle par
+règle, avant que le bouton n'aboutisse.
+
+Pour un script : `POST /api/v1/rule-sets/catalogue` accepte `includeGitleaksPorts` (`false` en son
+absence), et le `gitleaksPorts` de l'aperçu est le nombre concerné.
+
 ## Sécurité et qualité
 
 Les constats Semgrep arrivent en deux sortes :

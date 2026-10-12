@@ -27,6 +27,29 @@ Obtain a rule set under a license that permits your use, and register it on **Ru
 Semgrep's own registry, your organisation's internal rules, or a vendor's — the constraint
 is on Vectispire redistributing them, not on you running them.
 
+### From the upstream catalogue
+
+**Fetch from the upstream catalogue** clones `opengrep/opengrep-rules`, shows its licence and how many
+rule files each language holds, and stores the languages you choose as a set — not activated. Choose the
+languages you scan: every rule id becomes part of an issue's identity.
+
+**The ports of gitleaks' rules are left out by default.** `generic` holds `generic/secrets/gitleaks/`,
+some 175 rules ported from gitleaks — the rules the secrets step already runs, since Vectispire's
+gitleaks configuration extends gitleaks' defaults. Imported as well, each leaked key would be found
+twice: a *secret* issue and a *SAST* one, two issues since the type is part of an issue's identity.
+Triaging the secret would leave its SAST twin open, where it can still fail the gate, weigh on the
+score and count its OWASP category a second time. The screen says how many it leaves out once
+`generic` is chosen, and **Include them anyway** brings them in — for an installation whose scans run no
+secrets step. The rest of `generic/secrets/` stays: many of those rules look for what gitleaks'
+defaults do not, a bcrypt hash or a password on an `sshpass` command line.
+
+A set imported before 0.11.0 with `generic` keeps the ports until you import again. Activating the
+new set is then guarded like any other: their open issues are counted, by rule, before the button
+goes ahead.
+
+For a script: `POST /api/v1/rule-sets/catalogue` takes `includeGitleaksPorts` (`false` when absent),
+and the preview's `gitleaksPorts` is the count it concerns.
+
 ## Security and quality
 
 Semgrep findings arrive in two kinds:

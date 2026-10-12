@@ -703,6 +703,17 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **The catalogue import leaves out the ports of gitleaks' rules, which found every leaked key a second
+  time.** Choosing `generic` imported `generic/secrets/gitleaks/`, 175 rules ported from the gitleaks rules
+  the secrets step already runs. Each leak became a *secret* issue and a *SAST* twin, and triaging the
+  secret left the twin open: it could still fail the gate, weighed on the score and counted its OWASP
+  category twice. They are now left out unless **Include them anyway** is ticked — for an installation
+  whose scans run no secrets step — and the screen says how many. The rest of `generic/secrets/` is still
+  imported. A set imported before keeps the ports until the next import, whose activation counts the issues
+  their rules leave behind as any activation does. The import's audit entry now carries the licence digest
+  before the languages, which a selection of eleven languages had pushed past the entry's 255 characters.
+  `POST /api/v1/rule-sets/catalogue` takes `includeGitleaksPorts`, `false` when absent, and
+  `GET /api/v1/rule-sets/catalogue` answers `gitleaksPorts` ([rule sets](../administration/rule-sets.md#from-the-upstream-catalogue)).
 - **A scan's count names issues, and its list occurrences.** The scan detail headed with *Findings* a count of
   issues — one per fingerprint, which carries no line — above a list of *findings* holding one row per place a
   tool reported, so a scan read "28" above 56 rows. The card now says *Issues* with the occurrences beneath it

@@ -99,7 +99,7 @@ class RuleCatalogueFetcherTest {
                 clones.incrementAndGet();
                 return new Fetched("abc123",
                         new com.asmolabs.vectispire.common.domain.rules.RuleCatalogue.Contents(
-                                java.util.Map.of("java", 3), java.util.Map.of("security", 3), "LICENCE TEXT", java.util.List.of()),
+                                java.util.Map.of("java", 3), java.util.Map.of("security", 3), "LICENCE TEXT", java.util.List.of(), 0),
                         "digest");
             }
         };

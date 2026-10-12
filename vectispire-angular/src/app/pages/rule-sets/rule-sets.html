@@ -129,6 +129,29 @@
                 </div>
 
                 <!--
+                    The ports of gitleaks' rules, left out unless ticked: the secrets step runs those
+                    rules already, and each leak would come back as a SAST twin that outlives the
+                    secret's triage. Said where generic is chosen, since that is where they sit.
+                -->
+                @if (preview.gitleaksPorts > 0 && chosen().has('generic')) {
+                    <div class="flex flex-col gap-2 mb-4 max-w-3xl" data-testid="gitleaks-ports">
+                        <small class="text-muted-color">
+                            {{ 'rule_sets.gitleaks_ports_note' | translate: { count: preview.gitleaksPorts } }}
+                        </small>
+                        <div class="flex items-center gap-2">
+                            <p-checkbox
+                                inputId="include-gitleaks-ports"
+                                [binary]="true"
+                                [(ngModel)]="includeGitleaksPorts"
+                            />
+                            <label for="include-gitleaks-ports" class="cursor-pointer text-sm">
+                                {{ 'rule_sets.gitleaks_ports_include' | translate }}
+                            </label>
+                        </div>
+                    </div>
+                }
+
+                <!--
                     What this catalogue covers of the Top 10, before importing it. A grey square on
                     the OWASP grid says either "no scanner here looks there" or "the rules that look
                     were never imported" — and nothing settled it without importing first. Rendered

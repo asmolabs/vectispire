@@ -1240,6 +1240,10 @@
           "commit" : {
             "type" : "string"
           },
+          "gitleaksPorts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "languages" : {
             "additionalProperties" : {
               "format" : "int32",
@@ -1260,12 +1264,16 @@
             "type" : "string"
           }
         },
+        "required" : [ "gitleaksPorts" ],
         "type" : "object"
       },
       "CatalogueRequest" : {
         "properties" : {
           "commit" : {
             "type" : "string"
+          },
+          "includeGitleaksPorts" : {
+            "type" : "boolean"
           },
           "languages" : {
             "items" : {

@@ -151,6 +151,86 @@ class RuleCatalogueTest {
         }
     }
 
+    /**
+     * <b>The upstream's ports of gitleaks' rules duplicate the secrets step.</b> Vectispire runs
+     * gitleaks with its defaults; {@code generic/secrets/gitleaks/} is those rules for Semgrep. Each
+     * leak then comes back as a {@code secret} issue and a {@code sast} twin — separate issues, the
+     * type being in the fingerprint — and the twin stays open once the secret is triaged.
+     */
+    @Nested
+    @DisplayName("the ports of gitleaks' rules")
+    class GitleaksPorts {
+
+        private static final List<RuleCatalogue.Entry> GENERIC = List.of(
+                new RuleCatalogue.Entry("LICENSE", "LGPL-2.1 with Commons Clause"),
+                new RuleCatalogue.Entry("generic/secrets/gitleaks/generic-api-key.yaml", RULE),
+                new RuleCatalogue.Entry("generic/secrets/gitleaks/aws-access-token.yml", RULE),
+                new RuleCatalogue.Entry("generic/secrets/security/detected-bcrypt-hash.yaml", RULE),
+                new RuleCatalogue.Entry("generic/nginx/security/alias-path-traversal.yaml", RULE),
+                new RuleCatalogue.Entry("python/flask/sqli.yaml", RULE));
+
+        @Test
+        @DisplayName("are left out by default, and every other generic rule is kept")
+        void leftOutByDefault() {
+            List<RuleSet.UploadedFile> files = RuleCatalogue.select(
+                    RuleCatalogue.describe(GENERIC, "L"), Set.of("generic", "python"), false);
+
+            assertThat(files).extracting(RuleSet.UploadedFile::name).containsExactly(
+                    "generic/nginx/security/alias-path-traversal.yaml",
+                    "generic/secrets/security/detected-bcrypt-hash.yaml",
+                    "python/flask/sqli.yaml");
+            // The overload without the option is the default, not a third behaviour.
+            assertThat(RuleCatalogue.select(RuleCatalogue.describe(GENERIC, "L"), Set.of("generic", "python")))
+                    .isEqualTo(files);
+        }
+
+        @Test
+        @DisplayName("come in when the operator asks for them")
+        void includedOnRequest() {
+            List<RuleSet.UploadedFile> files = RuleCatalogue.select(
+                    RuleCatalogue.describe(GENERIC, "L"), Set.of("generic"), true);
+
+            assertThat(files).extracting(RuleSet.UploadedFile::name).containsExactly(
+                    "generic/nginx/security/alias-path-traversal.yaml",
+                    "generic/secrets/gitleaks/aws-access-token.yml",
+                    "generic/secrets/gitleaks/generic-api-key.yaml",
+                    "generic/secrets/security/detected-bcrypt-hash.yaml");
+        }
+
+        @Test
+        @DisplayName("are counted apart, so the screen says what the default leaves behind")
+        void countedApart() {
+            RuleCatalogue.Contents contents = RuleCatalogue.describe(GENERIC, "L");
+
+            assertThat(contents.gitleaksPorts()).isEqualTo(2);
+            assertThat(contents.languages()).containsEntry("generic", 4);
+            assertThat(RuleCatalogue.reachesGitleaksPorts(contents, Set.of("generic"))).isTrue();
+            assertThat(RuleCatalogue.reachesGitleaksPorts(contents, Set.of("python"))).isFalse();
+        }
+
+        @Test
+        @DisplayName("a language holding nothing else is refused in words, not stored empty")
+        void nothingLeftIsRefused() {
+            RuleCatalogue.Contents contents = RuleCatalogue.describe(List.of(
+                    new RuleCatalogue.Entry("generic/secrets/gitleaks/generic-api-key.yaml", RULE)), "L");
+
+            assertThatThrownBy(() -> RuleCatalogue.select(contents, Set.of("generic"), false))
+                    .isInstanceOf(com.asmolabs.vectispire.common.domain.errors.InvalidInputException.class)
+                    .hasMessageContaining("include the ports");
+        }
+
+        @Test
+        @DisplayName("the set's name says when it holds them")
+        void theNameSaysSo() {
+            String commit = "f1d2b562b414783763fd02a6ed2736eaed622efa";
+
+            assertThat(RuleCatalogue.nameFor(commit, Set.of("generic"), true))
+                    .isEqualTo("opengrep/opengrep-rules@f1d2b562b414 (generic) with gitleaks ports");
+            assertThat(RuleCatalogue.nameFor(commit, Set.of("generic"), false))
+                    .isEqualTo("opengrep/opengrep-rules@f1d2b562b414 (generic)");
+        }
+    }
+
     @Nested
     @DisplayName("what the archive offers")
     class Contents {

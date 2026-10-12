@@ -30,8 +30,9 @@ describe('the catalogue preview', () => {
             licenceName: 'LGPL-2.1 with Commons Clause',
             licence: 'the full text',
             licence_sha256: 'abc123',
-            languages: { java: 412, python: 388 },
-            categories
+            languages: { generic: 257, java: 412, python: 388 },
+            categories,
+            gitleaksPorts: 175
         });
 
     beforeEach(async () => {
@@ -89,6 +90,68 @@ describe('the catalogue preview', () => {
         // harness renders keys unresolved. It is also the better assertion: a rewording of the
         // English does not break it, and a screen that stops rendering the empty branch does.
         expect(fixture.nativeElement.textContent as string).toContain('rule_sets.owasp_none');
+    });
+
+    /**
+     * **The ports of gitleaks' rules are left out unless ticked.** The secrets step already runs
+     * them; imported as well, each leak comes back as a SAST twin that stays open once the secret is
+     * triaged. The screen says so where it matters — once `generic` is chosen — and sends the
+     * operator's choice, `false` unless they opt in. Asserted through the DOM and the request: a
+     * component field set by hand proves nothing if the checkbox is not bound to it.
+     */
+    describe('the ports of gitleaks rules', () => {
+        const portsNote = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="gitleaks-ports"]');
+
+        function fetchAs(): Record<string, unknown> {
+            fixture.componentInstance.fetchCatalogue();
+            const request = http.expectOne('/api/v1/rule-sets/catalogue');
+            expect(request.request.method).toBe('POST');
+            const body = request.request.body as Record<string, unknown>;
+            request.flush({ id: 7, ruleCount: 600, fileCount: 600 });
+            http.expectOne('/api/v1/rule-sets').flush({ ruleSets: [] });
+            return body;
+        }
+
+        it('are said, with their count, only once generic is chosen', () => {
+            readCatalogue({});
+            expect(portsNote()).toBeNull();
+
+            fixture.componentInstance.choose('generic', true);
+            fixture.detectChanges();
+
+            expect(portsNote()).not.toBeNull();
+            expect(portsNote()!.textContent).toContain('rule_sets.gitleaks_ports_note');
+            expect(portsNote()!.querySelector('input[type="checkbox"]')).not.toBeNull();
+        });
+
+        it('are left out by default', () => {
+            readCatalogue({});
+            fixture.componentInstance.choose('generic', true);
+            fixture.detectChanges();
+
+            expect(fetchAs()).toMatchObject({ languages: ['generic'], includeGitleaksPorts: false });
+        });
+
+        it('come in when the box is ticked', async () => {
+            readCatalogue({});
+            fixture.componentInstance.choose('generic', true);
+            fixture.detectChanges();
+
+            (portsNote()!.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(fetchAs()).toMatchObject({ includeGitleaksPorts: true });
+        });
+
+        it('are left out again when the catalogue is read anew', () => {
+            readCatalogue({});
+            fixture.componentInstance.includeGitleaksPorts = true;
+            readCatalogue({});
+            fixture.componentInstance.choose('generic', true);
+
+            expect(fetchAs()).toMatchObject({ includeGitleaksPorts: false });
+        });
     });
 });
 

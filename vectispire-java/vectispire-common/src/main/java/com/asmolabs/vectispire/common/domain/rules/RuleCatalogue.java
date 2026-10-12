@@ -111,6 +111,25 @@ public final class RuleCatalogue {
     private static final Set<String> NOT_A_LANGUAGE =
             Set.of(".github", ".pre-commit-hooks", "stats", "scripts", "docs", "template", "libsonnet");
 
+    /**
+     * The upstream's ports of gitleaks' own rules, left out of an import unless asked for.
+     *
+     * <p><b>They duplicate the secrets step.</b> Vectispire's gitleaks configuration extends
+     * gitleaks' defaults, so the 175 files under this directory — {@code generic-api-key},
+     * {@code aws-access-token}, {@code private-key}… — look for what the secrets step already
+     * looks for, with the same patterns. And the duplicate does not stay a duplicate: the finding
+     * type enters an issue's fingerprint, so the same leaked key becomes a {@code secret} issue and
+     * a {@code sast} twin. Triaging the secret — fixed, not affected — leaves the twin open, where it
+     * can still fail the gate, add to the score and count its OWASP category a second time.
+     *
+     * <p>Excluded at the selection rather than reconciled later: merging findings across tools
+     * would have the twin flap open and closed with every scan whose secrets step did not run
+     * (decision 0007). An operator who runs without the secrets step, or wants both, opts in on
+     * the import. The rest of {@code generic/secrets/} — the {@code security/} rules — stays:
+     * many of them look for what gitleaks' defaults do not.
+     */
+    public static final String GITLEAKS_PORTS = "generic/secrets/gitleaks/";
+
     private RuleCatalogue() {}
 
     /** A file inside the fetched archive, already stripped of its top-level directory. */
@@ -127,12 +146,16 @@ public final class RuleCatalogue {
      *     the order an operator wants.
      * @param licence the text as it stands <b>at this tag</b>, not a copy kept in Vectispire: a
      *     licence can change between tags, and a copy would let somebody accept the wrong one
+     * @param gitleaksPorts how many of the language counts' rule files sit under {@link
+     *     #GITLEAKS_PORTS}, and are left out of an import unless it asks for them — counted so the
+     *     screen can say what the default leaves behind rather than import fewer files than it shows
      */
     public record Contents(
             Map<String, Integer> languages,
             Map<String, Integer> categories,
             String licence,
-            List<Entry> entries) {}
+            List<Entry> entries,
+            int gitleaksPorts) {}
 
     /**
      * Refuses anything that is not a full commit SHA.
@@ -159,9 +182,13 @@ public final class RuleCatalogue {
     public static Contents describe(List<Entry> entries, String licence) {
         Map<String, Integer> byLanguage = new TreeMap<>();
         Map<String, Integer> byCategory = new TreeMap<>();
+        int gitleaksPorts = 0;
         for (Entry entry : entries) {
             if (!isRule(entry)) {
                 continue;
+            }
+            if (isGitleaksPort(entry)) {
+                gitleaksPorts++;
             }
             String language = topLevelOf(entry.path());
             if (language != null) {
@@ -172,7 +199,7 @@ public final class RuleCatalogue {
                 byCategory.merge(category, 1, Integer::sum);
             }
         }
-        return new Contents(byLanguage, byCategory, licence, entries);
+        return new Contents(byLanguage, byCategory, licence, entries, gitleaksPorts);
     }
 
     /**
@@ -182,8 +209,21 @@ public final class RuleCatalogue {
      * a rule's {@code check_id} from its path unless {@code --no-rewrite-rule-ids} is passed,
      * and the rule id enters an issue's fingerprint. Losing the upstream path here would be
      * invisible today and would resolve every SAST finding the day it changed.
+     *
+     * <p>Without {@link #GITLEAKS_PORTS}, which only {@link #select(Contents, Set, boolean)} brings in.
      */
     public static List<RuleSet.UploadedFile> select(Contents contents, Set<String> languages) {
+        return select(contents, languages, false);
+    }
+
+    /**
+     * The rule files for the chosen languages, with or without the ports of gitleaks' rules.
+     *
+     * @param includeGitleaksPorts the operator's opt-in to {@link #GITLEAKS_PORTS}: for an
+     *     installation whose scans run no secrets step, where they are not a duplicate
+     */
+    public static List<RuleSet.UploadedFile> select(
+            Contents contents, Set<String> languages, boolean includeGitleaksPorts) {
         if (languages == null || languages.isEmpty()) {
             throw new InvalidInputException("Choose at least one language: a rule set with no rules resolves the backlog.");
         }
@@ -194,15 +234,31 @@ public final class RuleCatalogue {
             throw new InvalidInputException("No such language in this tag: " + String.join(", ", unknown) + ".");
         }
 
-        return contents.entries().stream()
+        List<RuleSet.UploadedFile> selected = contents.entries().stream()
                 .filter(RuleCatalogue::isRule)
                 // The null check before the lookup, not after: a root-level file has no
                 // language, and `Set.of(…).contains(null)` throws rather than answering false.
                 .filter(entry -> topLevelOf(entry.path()) != null)
                 .filter(entry -> languages.contains(topLevelOf(entry.path())))
+                .filter(entry -> includeGitleaksPorts || !isGitleaksPort(entry))
                 .sorted(Comparator.comparing(Entry::path))
                 .map(entry -> new RuleSet.UploadedFile(entry.path(), entry.content()))
                 .toList();
+        // Said here, in these words: a language holding nothing but the ports would otherwise
+        // reach the store as "No file was uploaded", which names the wrong gesture.
+        if (selected.isEmpty()) {
+            throw new InvalidInputException("These languages hold only the ports of gitleaks' rules, which the "
+                    + "secrets step already runs. Choose another language, or include the ports.");
+        }
+        return selected;
+    }
+
+    /** Whether the chosen languages hold any of {@link #GITLEAKS_PORTS} — what the default left out. */
+    public static boolean reachesGitleaksPorts(Contents contents, Set<String> languages) {
+        return contents.entries().stream()
+                .filter(RuleCatalogue::isRule)
+                .filter(RuleCatalogue::isGitleaksPort)
+                .anyMatch(entry -> languages.contains(topLevelOf(entry.path())));
     }
 
     /** Carries the short commit, so a set's origin is legible in a list a year later. */
@@ -211,11 +267,24 @@ public final class RuleCatalogue {
                 + " (" + String.join(", ", new java.util.TreeSet<>(languages)) + ")";
     }
 
+    /**
+     * As {@link #nameFor(String, Set)}, marked when the set holds the ports of gitleaks' rules — the
+     * exception to the default, which is what a reader of the list needs to see.
+     */
+    public static String nameFor(String commit, Set<String> languages, boolean holdsGitleaksPorts) {
+        return nameFor(commit, languages) + (holdsGitleaksPorts ? " with gitleaks ports" : "");
+    }
+
     private static boolean isRule(Entry entry) {
         return YAML.matcher(entry.path()).find()
                 && !TEST_FIXTURE.matcher(entry.path()).find()
                 && DECLARES_RULES.matcher(entry.content()).find()
                 && DECLARES_A_RULE_ID.matcher(entry.content()).find();
+    }
+
+    /** Compared in lower case like the language, so a capitalised directory is not a way past it. */
+    private static boolean isGitleaksPort(Entry entry) {
+        return entry.path().toLowerCase(Locale.ROOT).startsWith(GITLEAKS_PORTS);
     }
 
     private static String topLevelOf(String path) {
