@@ -106,8 +106,11 @@ public final class TriageHistoryReport {
                         + (scan.version() == null ? "" : " — version " + scan.version()),
                 ReportCursor.HELVETICA_BOLD_12);
 
-        String counts = scan.findingsCount() + " findings, " + scan.newIssuesCount() + " new, "
-                + scan.resolvedIssuesCount() + " resolved";
+        // "issues", not "findings": the scan's count is one per fingerprint — created, reopened or
+        // still open — and the screens call it issues beside the occurrences a tool reported. This
+        // line said "findings" after they had changed, and a reader comparing the two read two figures.
+        String counts = scan.findingsCount() + " " + (scan.findingsCount() == 1 ? "issue" : "issues") + ", "
+                + scan.newIssuesCount() + " new, " + scan.resolvedIssuesCount() + " resolved";
         cursor.text(scan.status() + " — " + counts, ReportCursor.HELVETICA_9);
 
         if (scan.error() != null && !scan.error().isBlank()) {

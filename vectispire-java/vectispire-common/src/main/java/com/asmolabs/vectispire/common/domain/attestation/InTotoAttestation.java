@@ -63,6 +63,16 @@ public record InTotoAttestation(
             Long policyVersion,
             Instant decidedAt) {}
 
+    /**
+     * What the scan recorded, in <b>two units the names do not tell apart</b>.
+     *
+     * <p>{@code critical} to {@code secrets} count the scan's findings — one per place a tool
+     * reported — while {@code total} is the scan's issue count, one per fingerprint, created,
+     * reopened or still open. A rule hitting a file twice is two in the first and one in the second,
+     * so {@code total} can be lower than the sum of the severities. The names are the v1 predicate's
+     * and a verifier reads them: renaming a field, or making {@code total} count findings, is a new
+     * predicate type, not a correction.
+     */
     public record FindingsSummary(
             long critical,
             long high,

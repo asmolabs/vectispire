@@ -718,7 +718,8 @@ from a list in which none is true of an exposed product — and signed into the 
   issues — one per fingerprint, which carries no line — above a list of *findings* holding one row per place a
   tool reported, so a scan read "28" above 56 rows. The card now says *Issues* with the occurrences beneath it
   (*28 issues · 56 occurrences*), the list is *Occurrences in this scan*, and the history and the dashboard's
-  recent scans call the same figure issues. No figure changed ([scans](../guide/scans.md#reading-a-scan)).
+  recent scans call the same figure issues — as does each scan's line of the exported history PDF, which
+  read *28 findings, 3 new, 2 resolved* and now reads *28 issues, …*. No figure changed ([scans](../guide/scans.md#reading-a-scan)).
 - **Dates and percentages read the same on every screen, in each language's typography.** A few screens wrote
   dates in the browser's locale or a hard-coded one (month first, a two-digit year, English month names to a
   French reader); every date now follows the interface's one pattern, day/month/year on a 24-hour clock.

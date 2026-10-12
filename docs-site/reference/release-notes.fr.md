@@ -779,7 +779,9 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   une ligne par endroit signalé par un outil : un scan affichait « 28 » au-dessus de 56 lignes. La carte dit
   désormais *Issues*, avec les occurrences en dessous (*28 issues · 56 occurrences*), la liste s'intitule
   *Occurrences dans ce scan*, et l'historique comme les dernières analyses de la vue d'ensemble appellent ce même
-  nombre des issues. Aucun nombre n'a changé ([scans](../guide/scans.md#lire-un-scan)).
+  nombre des issues — de même que la ligne de chaque scan dans le PDF de l'historique exporté, qui lisait
+  *28 findings, 3 new, 2 resolved* et lit désormais *28 issues, …* (ce document est rédigé en anglais). Aucun
+  nombre n'a changé ([scans](../guide/scans.md#lire-un-scan)).
 - **Les dates et les pourcentages s'écrivent de la même façon sur tous les écrans, selon la typographie de chaque
   langue.** Quelques écrans écrivaient les dates dans la langue du navigateur ou une locale codée en dur (mois en
   premier, année sur deux chiffres, mois en anglais pour un lecteur francophone) ; toutes suivent désormais le

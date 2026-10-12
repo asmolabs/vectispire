@@ -91,6 +91,27 @@ class ReportsReadBackTest {
             assertThat(text).contains("https://***@example.invalid/shop.git");
         }
 
+        /**
+         * <b>The scan's count is of issues</b> — one per fingerprint, created, reopened or still open —
+         * and the screens call it so, beside the occurrences a tool reported. The document said
+         * "findings" for the same number after the screens had changed, and a reader holding both read
+         * two different figures.
+         */
+        @Test
+        @DisplayName("a scan's count is printed as issues, as the screens name it")
+        void theScanCountIsOfIssues() throws Exception {
+            Repository repository =
+                    new Repository(1L, "shop", "https://example.invalid/shop.git", "main", null, null, 0, AT, 0, 0);
+            Scan many = new Scan(4L, "completed", "main", null, null, AT, 1000L, 28, 3, 2, null, List.of());
+            Scan one = new Scan(5L, "completed", "main", null, null, AT, 1000L, 1, 0, 0, null, List.of());
+
+            String text = readBack(TriageHistoryReport.render(repository, List.of(many, one), AT));
+
+            assertThat(text).contains("completed — 28 issues, 3 new, 2 resolved")
+                    .contains("completed — 1 issue, 0 new, 0 resolved")
+                    .doesNotContain("findings");
+        }
+
         @Test
         @DisplayName("a target with no decision says why the count is zero")
         void zeroDecisionsIsExplained() throws Exception {
