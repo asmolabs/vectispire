@@ -99,6 +99,13 @@ silently chose the plural. And a bundle value carries the character itself, neve
 the translate pipe interpolates text, so `&gt;` reached the EPSS screen as five characters; the check
 refuses those too.
 
+**A date has one pattern, a percentage its language's spacing** (2026-10-12). Dates are written
+`'dd/MM/yyyy HH:mm'` (date pipe or `formatDate`), the same in both languages: `toLocaleString()`
+wrote the browser's month-first format, a hard-coded `'fr-BE'` a two-digit year, and `date: 'medium'`
+English month names to a French reader, since the pipe's locale is en-US. A percentage goes through
+`I18nService.percent` or the `localPercent` pipe — "50%" in English, "50 %" with a no-break space in
+French — never a `%` glued in a template. `check-i18n-keys.mjs` refuses both classes.
+
 **A finding type has one list: `shared/finding-types.ts`.** Three screens spelt it, none alike — the
 scan detail built `issues.types.${type}`, the issue detail translated `sast` alone — so a new type
 (`plugin`, `imported`) shipped as a raw word on two of them. Add a type there, and to `FINDING_TYPES`
