@@ -237,6 +237,11 @@ Then `http://localhost:3180/swagger-ui.html`.
 
 ## Remote agents
 
+`VECTISPIRE_AGENT_TOKEN` and `VECTISPIRE_AGENT_SIGNING_KEY` are credentials: hand them to the agent as
+files named after them under `/run/secrets/`, read with `SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/`
+— as the composition's `with-agent` profile and the Helm chart do — rather than as variables, which every
+client of the daemon reads back with `docker inspect`.
+
 | Variable | Notes |
 |---|---|
 | `VECTISPIRE_URL` | The control plane the agent polls. |

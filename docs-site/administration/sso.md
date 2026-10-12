@@ -44,7 +44,10 @@ held to four rules:
   [SCIM](#provisioning-from-the-directory-scim), which takes the subject from the provider, or —
   for a realm where nobody chooses their own username — allow it with
   `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. The Keycloak of the `sso` compose profile signs
-  in as `admin`, so its `.env.oidc.example` sets it.
+  in as `admin`, so its `.env.oidc.example` sets it. That Keycloak does not start without
+  `KEYCLOAK_ADMIN_PASSWORD` in `.env` — its own administrator's, which used to default to `admin` —
+  and the realm's `admin` password, published with the realm, is temporary: Keycloak asks for a new
+  one at the first sign-in.
 - **An account with a local second factor is never bound by name**, whatever the setting above. A
   sign-on skips the local TOTP — the provider owns the second factor — so binding it on a claim
   would trade the factor its owner enrolled for a name somebody may have written. Its owner signs

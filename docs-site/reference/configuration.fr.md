@@ -242,6 +242,12 @@ Puis `http://localhost:3180/swagger-ui.html`.
 
 ## Agents distants
 
+`VECTISPIRE_AGENT_TOKEN` et `VECTISPIRE_AGENT_SIGNING_KEY` sont des identifiants : remettez-les à l'agent
+comme des fichiers portant leur nom sous `/run/secrets/`, lus avec
+`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/` — comme le font le profil `with-agent` de la
+composition et le chart Helm — plutôt que comme des variables, que tout client du démon relit avec
+`docker inspect`.
+
 | Variable | Notes |
 |---|---|
 | `VECTISPIRE_URL` | Le plan de contrôle que l'agent interroge. |

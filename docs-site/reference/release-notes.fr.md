@@ -30,6 +30,10 @@ Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la no
   interrogez la barrière ; repérez avant la mise à niveau, dans la vue d'ensemble Sécurité, les cibles
   marquées jamais analysées ou dernier scan échoué : chacun de leurs pipelines passera au rouge (*La
   barrière refuse une cible que personne n'a examinée*, plus bas).
+- **Avec le profil `with-agent` ou `sso` de la composition, complétez `.env`.** Déclarez
+  `VECTISPIRE_AGENT_TOKEN` et `VECTISPIRE_AGENT_SIGNING_KEY` (vides si inutilisées) — l'agent ne démarre plus
+  sans ces deux lignes — et réglez `KEYCLOAK_ADMIN_PASSWORD`, qui ne vaut plus `admin` par défaut (*Les
+  identifiants de l'agent et le Keycloak d'évaluation*, ci-dessous).
 - **Mettez à jour chaque agent `delegated` avec le plan de contrôle.** Les secrets sont désormais
   scellés liés à ce qu'ils transportent, et un agent antérieur à la 0.11.0 n'en reçoit aucun : sa clé de
   scellement est refusée, et ses scans de dépôts portant une clé ou un jeton attendent un exécutant
@@ -744,6 +748,15 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Les identifiants de l'agent et le Keycloak d'évaluation ne sont plus à portée de `docker inspect` ni
+  d'une valeur par défaut publiée.** Le profil `with-agent` de la composition passait `VECTISPIRE_AGENT_TOKEN`
+  et `VECTISPIRE_AGENT_SIGNING_KEY` dans l'environnement, que tout client du démon — les deux proxys de socket
+  compris — relit ; ce sont désormais des fichiers sous `/run/secrets/`, lus par l'arbre de configuration
+  comme le font les agents du chart Helm. **Gardez les deux lignes dans `.env`**, vides si inutilisées :
+  l'agent ne démarre pas tant que l'une n'est pas déclarée. L'administrateur du Keycloak du profil `sso`
+  valait `admin`/`admin` par défaut ; il refuse désormais de démarrer sans `KEYCLOAK_ADMIN_PASSWORD` dans
+  `.env`, et le mot de passe publié du realm d'évaluation est temporaire, changé à la première connexion
+  ([connexion unique](../administration/sso.fr.md)).
 - **Un nom de connexion qu'aucun compte ne peut porter n'ouvre aucun compte.** La collation de MySQL lit
   par-dessus des caractères qu'un nom de compte ne contient jamais — le trait d'union conditionnel, les espaces
   et liants de largeur nulle, le gluon de mots, l'indicateur d'ordre des octets, la plupart des caractères de

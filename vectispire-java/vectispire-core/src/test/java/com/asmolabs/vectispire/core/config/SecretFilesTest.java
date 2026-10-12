@@ -99,4 +99,27 @@ class SecretFilesTest {
         assertThat(Files.readAllLines(root.resolve(".env.oidc.example")))
                 .noneMatch(line -> line.startsWith("VECTISPIRE_OIDC_CLIENT_SECRET"));
     }
+
+    @Test
+    @DisplayName("the shipped compose hands the agent its token and signing key as files, never as environment")
+    @SuppressWarnings("unchecked")
+    void theComposeKeepsTheAgentsOutOfTheEnvironment() throws Exception {
+        // The `with-agent` profile passed both as variables: the token polls for work as the agent, and the
+        // signing key makes the control plane believe an empty result — the one that resolves a backlog.
+        // Both proxies answer `docker inspect`.
+        Path root = Path.of("").toAbsolutePath();
+        while (!Files.exists(root.resolve("docker-compose.yml"))) {
+            root = root.getParent();
+        }
+        Map<String, Object> compose = new org.yaml.snakeyaml.Yaml().load(Files.readString(root.resolve("docker-compose.yml")));
+        Map<String, Object> agent = (Map<String, Object>) ((Map<String, Object>) compose.get("services")).get("agent");
+        Map<String, Object> environment = (Map<String, Object>) agent.get("environment");
+
+        assertThat(environment.keySet()).doesNotContain("VECTISPIRE_AGENT_TOKEN", "VECTISPIRE_AGENT_SIGNING_KEY");
+        assertThat(environment).containsEntry("SPRING_CONFIG_IMPORT", "optional:configtree:/run/secrets/");
+        assertThat((java.util.List<Object>) agent.get("secrets"))
+                .map(secret -> secret instanceof Map<?, ?> long_ ? String.valueOf(long_.get("target")) : String.valueOf(secret))
+                .contains("VECTISPIRE_AGENT_TOKEN", "VECTISPIRE_AGENT_SIGNING_KEY");
+    }
 }
+

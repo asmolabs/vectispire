@@ -29,6 +29,10 @@ Each point is written out in full below; this is what to do before the new image
   targets marked never scanned or last scan failed before the upgrade, since each of their pipelines turns
   red (*The gate refuses a target nobody examined*, below).
 
+- **With the composition's `with-agent` or `sso` profile, complete `.env`.** Declare `VECTISPIRE_AGENT_TOKEN`
+  and `VECTISPIRE_AGENT_SIGNING_KEY` (empty if unused) — the agent no longer starts without both lines — and set
+  `KEYCLOAK_ADMIN_PASSWORD`, which no longer defaults to `admin` (*Agent credentials and the evaluation
+  Keycloak*, below).
 - **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
   they carry, and an agent older than 0.11.0 is handed none: its sealing key is refused, and its scans of
   repositories carrying a key or a token wait for an executor that can run them
@@ -688,6 +692,14 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
+  default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
+  `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies
+  included — reads back; they are now files under `/run/secrets/`, read through the configuration tree as the
+  Helm chart's agents read them. **Keep both lines in `.env`**, empty if unused: the agent does not start while
+  either is undeclared. The `sso` profile's Keycloak administrator defaulted to `admin`/`admin`; it now refuses
+  to start without `KEYCLOAK_ADMIN_PASSWORD` in `.env`, and the evaluation realm's published password is
+  temporary, changed at the first sign-in ([single sign-on](../administration/sso.md)).
 - **A sign-in name no account can hold opens no account.** MySQL's collation reads past characters an account
   name never contains — the soft hyphen, the zero-width spaces and joiners, the word joiner, the byte-order mark,
   most control characters — so `alice` typed with a soft hyphen inside (U+00AD) opened `alice` and met its lockout while counting under a name of its

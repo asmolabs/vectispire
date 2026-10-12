@@ -75,6 +75,16 @@ class ShippedRealmTest {
     }
 
     @Test
+    @DisplayName("the account's published password must be changed at its first sign-in")
+    void thePublishedPasswordIsTemporary() throws Exception {
+        // The password is in this public file, and the account is linked to the bootstrap SUPERUSER: kept
+        // as it is, whoever reached the evaluation Keycloak signed in to Vectispire as its governor.
+        assertThat(realm().at("/users/0/credentials"))
+                .allSatisfy(credential -> assertThat(credential.at("/temporary").asBoolean())
+                        .as("a published password is a first password only").isTrue());
+    }
+
+    @Test
     @DisplayName("the example configuration lets that account be linked, since it is a SUPERUSER")
     void theExampleAllowsLinkingThePrivilegedAccount() throws Exception {
         // An administrative account is not bound on a username claim unless the operator allows

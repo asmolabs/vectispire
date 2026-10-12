@@ -47,7 +47,10 @@ laisse chacun écrire. Elle obéit donc à quatre règles :
   [SCIM](#provisioning-from-the-directory-scim), qui prend le sujet chez le fournisseur, ou — pour un
   realm où personne ne choisit son nom — autorisez-le avec
   `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. Le Keycloak du profil compose `sso` se connecte en
-  `admin` : son `.env.oidc.example` le règle.
+  `admin` : son `.env.oidc.example` le règle. Ce Keycloak ne démarre pas sans `KEYCLOAK_ADMIN_PASSWORD`
+  dans `.env` — le mot de passe de son propre administrateur, qui valait `admin` par défaut — et le mot
+  de passe du compte `admin` du realm, publié avec lui, est temporaire : Keycloak en demande un nouveau
+  à la première connexion.
 - **Un compte doté d'un second facteur local n'est jamais lié par son nom**, quel que soit le
   réglage ci-dessus. Une connexion unique contourne le TOTP local — le fournisseur possède le second
   facteur — et le lier sur une revendication échangerait le facteur que son titulaire a enrôlé contre

@@ -19,7 +19,9 @@
 # the passwords through `spring.config.import: optional:configtree:/run/secrets/`.
 #
 # The document signing key and the OIDC client secret go the same way, as files named after the
-# property they set (`vectispire.signing.key`, `vectispire.oidc.client-secret`). Both are optional,
+# property they set (`vectispire.signing.key`, `vectispire.oidc.client-secret`), and so do the
+# agent's token and signing key (profile `with-agent`, `VECTISPIRE_AGENT_TOKEN` and
+# `VECTISPIRE_AGENT_SIGNING_KEY`). Both are optional,
 # so both are declared in `.env` even when unused — empty then, and Compose mounts nothing. A `.env`
 # that does not declare them stops `docker compose up` with a message naming the variable, rather
 # than dropping a signing key an installation was using and generating another: a replaced key makes
@@ -352,12 +354,25 @@ services:
     container_name: vectispire-keycloak
     profiles:
       - sso
+    # **No default password, and no start without one.** It defaulted to `admin`/`admin`: the master
+    # realm's administrator of every evaluation Keycloak was a pair printed in a public repository,
+    # and that account rewrites the `vectispire` realm — its users, its client, its group mapper —
+    # and with them who signs in to Vectispire as whom. Not `:?` — Compose interpolates the whole
+    # file even for an inactive profile, so a required variable would stop a plain `docker compose
+    # up` for everyone who never runs Keycloak. The check runs in the container instead, before
+    # Keycloak starts, and names the variable.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        test -n "$${KC_BOOTSTRAP_ADMIN_PASSWORD}" ||
+        { echo 'Set KEYCLOAK_ADMIN_PASSWORD in .env (openssl rand -base64 24): Keycloak has no default administrator password.' >&2; exit 1; };
+        exec /opt/keycloak/bin/kc.sh "$$@"
+      - kc.sh
     command: ["start-dev", "--import-realm"]
     environment:
-      # Not `:?` — Compose interpolates the whole file even for an inactive profile, as the `agent`
-      # service below already says.
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-}
     volumes:
       - ./ci/keycloak:/opt/keycloak/data/import:ro
     ports:
@@ -378,14 +393,13 @@ services:
       - with-agent
     environment:
       VECTISPIRE_URL: http://control-plane:3180
-      # Not `:?` — Compose interpolates the whole file even for an inactive profile, so a
-      # required variable here would stop a plain `docker compose up` for everyone who never
-      # runs an agent. An empty token is not a weak secret, it is an agent that fails to enrol
-      # and says so.
-      VECTISPIRE_AGENT_TOKEN: ${VECTISPIRE_AGENT_TOKEN:-}
-      # Empty: this agent's results are accepted on its API key alone. Pin a key from the agents
-      # screen and put here the private half it returns to you once.
-      VECTISPIRE_AGENT_SIGNING_KEY: ${VECTISPIRE_AGENT_SIGNING_KEY:-}
+      # **The token and the signing key arrive as files, never as environment** — see `secrets:`
+      # below and the header of this file. They were variables here, and an agent's environment is
+      # one `GET /containers/{id}/json` away from every client of the daemon, both socket proxies
+      # included: the token polls for work as this agent, and the signing key is what makes the
+      # control plane believe an empty result — the one that resolves a target's whole backlog. Read
+      # through the configuration tree, as the Helm chart's agents and the control plane read theirs.
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
       # Blank keeps the pinned digests. Set to pull scanners from an internal registry.
       VECTISPIRE_IMAGE_SYFT: ${VECTISPIRE_IMAGE_SYFT:-}
       VECTISPIRE_IMAGE_GRYPE: ${VECTISPIRE_IMAGE_GRYPE:-}
@@ -407,6 +421,17 @@ services:
       JDK_JAVA_OPTIONS: >-
         -Djava.io.tmpdir=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
         -Duser.home=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}/home
+    # Compose refuses to start this service when `.env` does not declare them, naming the variable,
+    # and mounts nothing for one declared empty. An empty token is not a weak secret, it is an agent
+    # that fails to enrol and says so; an empty signing key means this agent's results are accepted
+    # on its API key alone — pin a key from the agents screen and put the private half it returns
+    # to you once in `VECTISPIRE_AGENT_SIGNING_KEY`. Not in `x-required`: a plain `docker compose up`
+    # runs no agent and must not ask for its secrets.
+    secrets:
+      - source: agent_token
+        target: VECTISPIRE_AGENT_TOKEN
+      - source: agent_signing_key
+        target: VECTISPIRE_AGENT_SIGNING_KEY
     volumes:
       # **Its own directory, not the control plane's.** Sharing one would let each side read the
       # other's clones; the agent exists to be another trust domain, even on one host.
@@ -498,6 +523,11 @@ secrets:
     environment: VECTISPIRE_SIGNING_KEY
   oidc_client_secret:
     environment: VECTISPIRE_OIDC_CLIENT_SECRET
+  # The agent's (profile `with-agent`), named after the property each sets.
+  agent_token:
+    environment: VECTISPIRE_AGENT_TOKEN
+  agent_signing_key:
+    environment: VECTISPIRE_AGENT_SIGNING_KEY
 
 volumes:
   vectispire_mysql_data:

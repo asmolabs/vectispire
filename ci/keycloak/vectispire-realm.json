@@ -16,7 +16,7 @@
       "lastName": "Administrator",
       "email": "admin@vectispire.invalid",
       "credentials": [
-        { "type": "password", "value": "change-me-evaluation-only", "temporary": false }
+        { "type": "password", "value": "change-me-evaluation-only", "temporary": true }
       ],
       "groups": ["/AppSec"]
     }

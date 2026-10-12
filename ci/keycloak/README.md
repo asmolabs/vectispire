@@ -11,6 +11,11 @@ l'on rate en configurant Keycloak à la main.
 
 ## Ce n'est pas un Keycloak de production, et le fichier le dit
 
+Il ne démarre pas sans `KEYCLOAK_ADMIN_PASSWORD` dans `.env` : son administrateur — celui du realm
+`master`, qui réécrit le realm `vectispire` et donc qui se connecte à Vectispire sous quel nom — avait
+`admin` pour mot de passe par défaut. Le mot de passe du compte du realm ci-dessous est **temporaire** :
+Keycloak en exige un autre à la première connexion, puisque celui-ci est publié.
+
 `start-dev` l'annonce lui-même au démarrage : stockage éphémère, pas de HTTPS. Le secret client et
 le mot de passe du compte sont **en clair dans le realm et nommés pour ce qu'ils sont** —
 `evaluation-only-not-a-secret`, `change-me-evaluation-only`.
