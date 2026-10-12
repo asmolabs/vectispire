@@ -79,6 +79,12 @@ public class StatementOfApplicabilityController {
             String owner,
             @JsonProperty("review_due_at") Instant reviewDueAt) {}
 
+    // **Governance read, like the overdue reviews below**, and for the same reason: a declaration is a
+    // statement about the management system — applicability, justification, owner, review dates — that
+    // names no target for a visibility to narrow. These two routes carried the class's account marker
+    // alone, so any signed-in account read the document the route below refuses it; the screen that
+    // shows them is offered to governance readers only.
+    @RequiresGovernanceRead
     @Operation(summary = "Every framework's declaration", description = "The declaration of each framework, reconciled against the caller's view of the estate.")
     @ApiResponse(responseCode = "200", description = "Statements returned")
     @GetMapping
@@ -86,6 +92,7 @@ public class StatementOfApplicabilityController {
         return soa.statements(allowed(principal));
     }
 
+    @RequiresGovernanceRead
     @Operation(summary = "One framework's declaration", description = "Declared and measured, line by line, with the divergence between them.")
     @ApiResponse(responseCode = "200", description = "Statement returned")
     @GetMapping("/{framework}")

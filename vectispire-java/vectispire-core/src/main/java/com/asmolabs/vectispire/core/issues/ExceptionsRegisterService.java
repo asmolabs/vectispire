@@ -109,15 +109,16 @@ public class ExceptionsRegisterService {
     /**
      * The register, newest first, narrowed to what the caller may see.
      *
-     * <p><b>The limit bounds what is read, not what is returned.</b> Visibility is applied after
-     * the read, by {@code permits} — a reader restricted to two repositories sees only their rows
-     * among the ones this page covers, rather than a page assembled in SQL from somebody else's.
+     * <p><b>A restricted reader's page is read within its targets</b>, in the query. It was read
+     * whole and filtered afterwards by {@code permits}, and the cursor — taken from the last row read
+     * — then named an exception the reader could not see: paging one row at a time, a reader of one
+     * repository read the instant and the issue id of every risk acceptance in the estate. The rows
+     * read are now the reader's own, so the cursor can name nothing else; {@code permits} stays, as
+     * the second lock it was.
      *
-     * <p><b>And so the cursor is taken from the rows read.</b> A restricted reader's page can come
-     * back empty while the register still holds exceptions they may see — everything in that
-     * window belonged to somebody else. A cursor drawn from the visible rows would be absent
-     * there, the client would stop, and the register would have ended one page in for the reader
-     * least able to tell.
+     * <p><b>The cursor is still taken from the rows read</b>, never from those returned: a cursor drawn
+     * from the visible rows would be absent on a page the second lock emptied, the client would stop,
+     * and the register would have ended early for the reader least able to tell.
      *
      * @param limit how many decisions to read; clamped to {@link #MAX_ENTRIES}
      * @param cursor where to continue, or null to start at the newest
@@ -126,10 +127,8 @@ public class ExceptionsRegisterService {
     @Transactional(readOnly = true)
     public Register register(int limit, String cursor, Visibility allowed) {
         int capped = Math.clamp(limit, 1, MAX_ENTRIES);
-        List<IssueEntity> excepted = RegisterCursor.parse(cursor)
-                .flatMap(from -> asId(from.id())
-                        .map(id -> issues.findWithExceptionAfter(DECISIONS, from.at(), id, Limit.of(capped))))
-                .orElseGet(() -> issues.findWithException(DECISIONS, Limit.of(capped)));
+        List<IssueEntity> excepted = read(allowed, RegisterCursor.parse(cursor)
+                .flatMap(from -> asId(from.id()).map(id -> new RegisterCursor(from.at(), String.valueOf(id)))), capped);
 
         Map<Long, List<TriageEventEntity>> history = events
                 .findForIssues(excepted.stream().map(IssueEntity::getId).toList())
@@ -172,7 +171,7 @@ public class ExceptionsRegisterService {
      * Where the next page starts, or nothing when this one reached the end.
      *
      * <p>A short read exhausts the register; a full one may not, and the cursor names the last row
-     * <em>read</em> whether or not the caller was allowed to see it.
+     * <em>read</em> — for a restricted reader, one of its own targets' (see {@link #read}).
      *
      * <p>A row with no triage instant cannot be pointed at, and does not need to be: it sorts last
      * under {@code desc}, so it only ever appears on a final page — and a final page is short,
@@ -188,6 +187,34 @@ public class ExceptionsRegisterService {
                 : new RegisterCursor(last.getTriagedAt(), String.valueOf(last.getId())).encoded();
     }
 
+    /**
+     * The rows of a page: the whole register for a reader who sees everything, and only the targets a
+     * restricted reader may see otherwise — so that the cursor, taken from the last row read, never names
+     * an exception the reader could not have been shown.
+     */
+    private List<IssueEntity> read(Visibility allowed, Optional<RegisterCursor> after, int limit) {
+        if (allowed instanceof Visibility.Everything) {
+            return after.map(from -> issues.findWithExceptionAfter(
+                            DECISIONS, from.at(), Long.parseLong(from.id()), Limit.of(limit)))
+                    .orElseGet(() -> issues.findWithException(DECISIONS, Limit.of(limit)));
+        }
+        Visibility.Only only = (Visibility.Only) allowed;
+        List<Long> repoIds = new java.util.ArrayList<>(List.of(NO_TARGET));
+        List<Long> containerIds = new java.util.ArrayList<>(List.of(NO_TARGET));
+        for (ScanTarget target : only.targets()) {
+            switch (target) {
+                case ScanTarget.Repository repository -> repoIds.add(repository.id());
+                case ScanTarget.Container container -> containerIds.add(container.id());
+            }
+        }
+        return after.map(from -> issues.findWithExceptionAfterWithin(
+                        DECISIONS, repoIds, containerIds, from.at(), Long.parseLong(from.id()), Limit.of(limit)))
+                .orElseGet(() -> issues.findWithExceptionWithin(DECISIONS, repoIds, containerIds, Limit.of(limit)));
+    }
+
+    /** An identifier no target has, so that neither list is ever empty: `in ()` is not valid everywhere. */
+    private static final long NO_TARGET = -1L;
+
     private static Optional<Long> asId(String value) {
         try {
             return Optional.of(Long.parseLong(value));
@@ -199,8 +226,8 @@ public class ExceptionsRegisterService {
     /**
      * One row, or nothing when the caller may not see the issue it describes.
      *
-     * <p>Narrowed here rather than in the query, by {@code permits} — the single implementation of
-     * that question.
+     * <p>Narrowed here as well as in the query, by {@code permits} — the single implementation of
+     * that question, kept as the second lock.
      *
      * <p><b>The decision fields come from the issue, the dates from its history.</b> The issue
      * carries the exception as it stands now; the history says when it was granted and when it was

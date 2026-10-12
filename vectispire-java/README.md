@@ -187,6 +187,7 @@ same name; decision records written before that date keep the names they had.
 | A bulk triage is all-or-nothing, checks visibility on every id, and records each transition | `BulkTriageRoutesTest` |
 | A reopening is written into the issue's triage history in the scan's transaction — the triage it left, the resolution it ended, the scan — and a sync that reopens nothing writes nothing; every rendering of the trail (detail, dossier, PDF, CSV, the screens) names it as a reopening, never as a lapse or a decision | `IssueSyncDatabaseTest`, `HistoryTest`, `issue-detail.spec.ts`, `history.spec.ts` |
 | The backlog series is narrowed by visibility, like every other read | `TrendsRoutesTest`, `BacklogTrendTest` |
+| The exceptions register reads a restricted reader's page within its targets, so its cursor names no exception the reader cannot see; the statement of applicability is read with governance read only | `VisibilityRoutesTest`, `AuthorizationSurfaceTest` |
 | The weekly report goes out once a week, and a failed send is retried rather than recorded | `PostureDigestServiceTest`, `PostureDigestDatabaseTest`, `MaintenanceJobsTest` |
 | A team's findings are announced in its channel, not in everybody's | `TeamNotificationRoutingTest` |
 | A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |

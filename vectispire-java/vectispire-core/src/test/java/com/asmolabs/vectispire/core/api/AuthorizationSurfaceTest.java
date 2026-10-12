@@ -95,4 +95,18 @@ class AuthorizationSurfaceTest extends ApiTestBase {
         mvc.perform(authenticated(post("/api/v1/notifications/test/slack"), asReader()))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @DisplayName("a reader cannot read the statement of applicability, any more than its overdue reviews")
+    void theDeclarationIsGovernanceReading() throws Exception {
+        // A declaration names no target, so no visibility narrows it: applicability, justifications,
+        // owners and review dates of the management system went to every signed-in account through the
+        // two reads, while the overdue reviews of the same document were refused them.
+        for (String path : new String[] {
+            "/api/v1/compliance/soa", "/api/v1/compliance/soa/ISO_27001", "/api/v1/compliance/soa/reviews/overdue"
+        }) {
+            mvc.perform(authenticated(get(path), asReader())).andExpect(status().isForbidden());
+            mvc.perform(authenticated(get(path), asAuditor())).andExpect(status().isOk());
+        }
+    }
 }

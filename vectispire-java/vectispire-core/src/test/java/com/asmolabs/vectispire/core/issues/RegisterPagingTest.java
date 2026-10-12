@@ -24,18 +24,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * Paging a register whose visibility is applied after the read.
+ * Paging a register.
  *
  * <h2>The case that decides the design</h2>
  *
- * <p><b>A restricted reader's page can come back empty while the register still holds rows they
- * may see.</b> Everything in that window belonged to somebody else. If the cursor were taken from
- * the rows <em>returned</em>, it would be absent there, the client would stop, and the register
- * would have ended one page in — silently, and for the one class of reader least able to notice
- * that what they were shown was not what there was.
- *
- * <p>That is the third case below, and it is the only one that could not be written any other
- * way: every other property here would hold under an implementation that gets this wrong.
+ * <p><b>A restricted reader's page is read within its own targets.</b> It used to be read whole and
+ * filtered afterwards, with the cursor taken from the rows read so that a page emptied by the filter
+ * still pointed further on — and that cursor named, by instant and issue id, an exception the reader
+ * could not see: paging one row at a time, a reader of one repository walked every risk acceptance in
+ * the estate. Read within the reader's targets, a page never spends its window on somebody else's
+ * estate, so the third case below finds the reader's own row at once, and no cursor ever names a row
+ * of theirs.
  *
  * <h2>Why a cursor and not an offset</h2>
  *
@@ -97,13 +96,13 @@ class RegisterPagingTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("keeps pointing further on when a page held nothing the reader may see")
-    void anEmptyPageStillPointsFurtherOn() {
+    @DisplayName("reads a restricted reader's page within its targets, never somebody else's window")
+    void aRestrictedPageIsReadWithinTheReader() {
         long theirs = repository("theirs");
         long mine = repository("mine");
         // **The register's order is descending, so the last sorted comes first.** The reader's is
-        // therefore created first so as to end up last, behind a whole window containing nothing
-        // but somebody else's estate.
+        // created first so as to sort behind a whole window of somebody else's estate — the window a
+        // read of the whole register spent this page on, handing back a cursor that named their row.
         List<Long> visible = excepted(1, mine);
         excepted(2, theirs);
 
@@ -112,16 +111,12 @@ class RegisterPagingTest extends VectispireContextTest {
         ExceptionsRegisterService.Register page = register.register(2, null, restricted);
 
         assertThat(page.entries())
-                .as("that window contains nothing but somebody else's estate")
-                .isEmpty();
-        assertThat(page.nextCursor())
-                .as("the cursor comes from the rows read: otherwise the client stops here and "
-                        + "never sees its own")
-                .isNotNull();
-
-        assertThat(register.register(2, page.nextCursor(), restricted).entries())
                 .extracting(ExceptionsRegisterService.ExceptionEntry::issueId)
+                .as("the reader's own row, at once")
                 .containsExactlyElementsOf(visible);
+        assertThat(page.nextCursor())
+                .as("a short read within the reader's targets: nothing of theirs left to point at")
+                .isNull();
     }
 
     @Test

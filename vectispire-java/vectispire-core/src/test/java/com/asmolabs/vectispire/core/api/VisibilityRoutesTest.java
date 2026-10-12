@@ -264,6 +264,45 @@ class VisibilityRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.next_cursor").doesNotExist());
     }
 
+    @Test
+    @DisplayName("the exceptions register's cursor never names an acceptance the reader cannot see")
+    void theExceptionsCursorStaysWithinTheReader() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine-" + System.nanoTime() + ".git");
+        long theirs = repository("https://example.invalid/theirs-" + System.nanoTime() + ".git");
+        String reader = assignedReader(mine);
+        accepted(mine, "CVE-MINE-" + System.nanoTime(), Instant.now().minusSeconds(60));
+        // Theirs is the newest in the register. Read unfiltered, a page of one held it: shown nothing,
+        // the reader was handed a cursor carrying its instant and its issue id, page after empty page —
+        // every risk acceptance of the estate, counted and dated.
+        long hidden = accepted(theirs, "CVE-THEIRS-" + System.nanoTime(), Instant.now().plusSeconds(3_600));
+        // And one older than the reader's, which the page after the reader's own must not read either.
+        accepted(theirs, "CVE-THEIRS-OLD-" + System.nanoTime(), Instant.now().minusSeconds(3_600));
+
+        String first = mvc.perform(authenticated(get("/api/v1/exceptions").param("limit", "1"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(1))
+                .andExpect(jsonPath("$.entries[0].target_id").value(mine))
+                .andReturn().getResponse().getContentAsString();
+        String cursor = json.readTree(first).path("next_cursor").asText();
+        assertThat(com.asmolabs.vectispire.common.domain.paging.RegisterCursor.parse(cursor))
+                .hasValueSatisfying(at -> assertThat(at.id()).isNotEqualTo(String.valueOf(hidden)));
+
+        mvc.perform(authenticated(get("/api/v1/exceptions").param("limit", "1").param("cursor", cursor), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries.length()").value(0))
+                .andExpect(jsonPath("$.next_cursor").doesNotExist());
+    }
+
+    /** An issue carrying an accepted exception, decided at {@code at}. */
+    private long accepted(long repoId, String identifier, Instant at) {
+        IssueEntity issue = issues.findById(issue(repoId, identifier)).orElseThrow();
+        issue.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
+        issue.setTriagedAt(at);
+        issue.setTriagedBy("admin");
+        return issues.save(issue).getId();
+    }
+
     private void askTheGate(long repositoryId, String token) throws Exception {
         mvc.perform(authenticated(
                         post("/api/v1/gate")

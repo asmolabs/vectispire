@@ -688,6 +688,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Two governance reads narrowed.** The exceptions register read every exception and filtered afterwards,
+  and its cursor named the last row read, visible or not: a reader restricted to one repository paging one row
+  at a time read the instant and issue id of every risk acceptance in the estate, as the gate verdict register
+  allowed before. A restricted reader's pages are now read within its targets. And the statement of
+  applicability (`GET /api/v1/compliance/soa`, `…/soa/{framework}`) was readable by every signed-in account,
+  while its overdue reviews already required governance read; both now require it, as the reference said.
 - **Three settings a CISO could change are no longer theirs.** *Allow a private webhook URL* is an
   administrator's, like the SIEM's private switch: with the channels' test button quoting the sender's
   error — a refused connection, a timeout, an HTTP status, and with the switch off the address a host name

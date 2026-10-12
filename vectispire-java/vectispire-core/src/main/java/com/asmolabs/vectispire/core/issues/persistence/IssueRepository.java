@@ -35,9 +35,9 @@ public interface IssueRepository
      * been withdrawn kept its old row for ever — a register of current exceptions listing
      * exceptions that no longer exist, which is the one thing it must never do.
      *
-     * <p>Visibility is not expressed here, for the reason given on {@code GateVerdictRepository}: whose
-     * estate a row belongs to has one implementation and it is not in JPQL. The limit bounds what
-     * is read so a restricted reader sees fewer rows, never somebody else's.
+     * <p>No visibility clause: this one and {@link #findWithExceptionAfter} serve a reader who sees
+     * everything. A restricted reader is read through {@link #findWithExceptionWithin} and {@link
+     * #findWithExceptionAfterWithin}, which carry one — the cursor is taken from the last row read.
      */
     @Query("""
             select i from IssueEntity i
@@ -64,6 +64,42 @@ public interface IssueRepository
              order by i.triagedAt desc, i.id desc""")
     List<IssueEntity> findWithExceptionAfter(
             @Param("statuses") Collection<String> statuses,
+            @Param("triagedAt") Instant triagedAt,
+            @Param("id") Long id,
+            Limit limit);
+
+    /**
+     * {@link #findWithException}, within the targets a restricted reader may see.
+     *
+     * <p><b>The visibility clause the two above do not carry, and why the register needs it</b> — the
+     * gate verdict register's defect (8200ff43), here too. Read unfiltered, a page's cursor named the last
+     * row read, its instant and its id, whether or not the reader could see it: a reader restricted to one
+     * repository paging with a limit of one walked every risk acceptance of the estate — how many, when,
+     * and their issue ids — page by empty page. Filtered here, every row read is one the reader may see,
+     * and so is every cursor. Neither list is ever empty: the caller passes an id no row has instead.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.triageStatus in :statuses
+               and (i.repoId in :repoIds or i.containerId in :containerIds)
+             order by i.triagedAt desc, i.id desc""")
+    List<IssueEntity> findWithExceptionWithin(
+            @Param("statuses") Collection<String> statuses,
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("containerIds") Collection<Long> containerIds,
+            Limit limit);
+
+    /** {@link #findWithExceptionAfter}, within the targets a restricted reader may see; see {@link #findWithExceptionWithin}. */
+    @Query("""
+            select i from IssueEntity i
+             where i.triageStatus in :statuses
+               and (i.repoId in :repoIds or i.containerId in :containerIds)
+               and (i.triagedAt < :triagedAt or (i.triagedAt = :triagedAt and i.id < :id))
+             order by i.triagedAt desc, i.id desc""")
+    List<IssueEntity> findWithExceptionAfterWithin(
+            @Param("statuses") Collection<String> statuses,
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("containerIds") Collection<Long> containerIds,
             @Param("triagedAt") Instant triagedAt,
             @Param("id") Long id,
             Limit limit);

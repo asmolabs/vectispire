@@ -744,6 +744,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Deux lectures de gouvernance restreintes.** Le registre des exceptions lisait toutes les exceptions et
+  filtrait ensuite, et son curseur désignait la dernière ligne lue, visible ou non : un lecteur restreint à un
+  dépôt, parcourant une ligne à la fois, lisait l'instant et l'identifiant de chaque acceptation de risque du
+  parc, comme le registre des verdicts de la barrière le permettait auparavant. Les pages d'un lecteur restreint
+  sont désormais lues dans ses cibles. Et la déclaration d'applicabilité (`GET /api/v1/compliance/soa`,
+  `…/soa/{framework}`) était lisible par tout compte connecté, alors que ses revues en retard exigeaient déjà
+  la lecture de gouvernance ; les deux l'exigent désormais, comme la référence le disait.
 - **Trois réglages qu'un CISO pouvait changer ne sont plus les siens.** *Autoriser une URL de webhook
   privée* revient à un administrateur, comme l'interrupteur privé du SIEM : le bouton de test des canaux
   citant l'erreur de l'envoi — une connexion refusée, un délai dépassé, un statut HTTP, et l'interrupteur
