@@ -1117,3 +1117,213 @@ describe('accepting a risk', () => {
         expect(document.body.querySelector('#triage-expires-hint')?.textContent).toContain('Leave empty');
     });
 });
+
+/**
+ * A request awaiting approval is answered as it was asked (decision 0041).
+ *
+ * <p>The dialog opened on `pending_approval` with the review date emptied: the approver chose a status
+ * of their own, and a tracker's "Won't Fix" could leave granted as "not affected" — a signed "not
+ * exposed" nobody had asked for. It now opens on the requested status and the proposed review date.
+ */
+describe('answering a request awaiting approval', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    const DAY = 86_400_000;
+    const proposedReview = new Date(Date.now() + 30 * DAY - 60_000).toISOString();
+
+    function row(id: number, fields: Record<string, unknown>): Record<string, unknown> {
+        return asSchema('BacklogEntry', {
+            id,
+            targetKind: 'repository',
+            type: 'vulnerability',
+            identifier: `CVE-2026-${id}`,
+            severity: 'high',
+            state: 'open',
+            firstSeenAt: '2026-03-03T08:00:00Z',
+            lastSeenAt: '2026-08-21T05:03:00Z',
+            timesSeen: 1,
+            isKev: false,
+            ...fields
+        });
+    }
+
+    const ROWS = [
+        row(8, {
+            triageStatus: 'pending_approval',
+            triageRequestedStatus: 'will_not_fix',
+            triageExpiresAt: proposedReview,
+            triageComment: 'Legacy module, retired next quarter.',
+            triagedBy: 'jira_webhook'
+        }),
+        // Queued before the request was recorded: nothing to offer, so nothing is invented.
+        row(9, {
+            triageStatus: 'pending_approval',
+            triageRequestedStatus: null,
+            triageJustification: 'inline_mitigations_already_exist'
+        }),
+        row(10, {
+            triageStatus: 'not_affected',
+            triageJustification: 'vulnerable_code_not_present',
+            triageExpiresAt: proposedReview
+        })
+    ];
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        TestBed.inject(SessionStore).user.set({
+            id: 1,
+            username: 'approver',
+            role: 'CISO',
+            mustChangePassword: false
+        } as never);
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(
+                request.request.url.endsWith('/issues') ? { items: ROWS, total: ROWS.length, limit: 50, offset: 0 } : []
+            );
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('opens on the requested status and review date, and grants exactly that', () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[0]);
+
+        expect(component.triageStatus).toBe('will_not_fix');
+        expect(component.triageRequested).toBe('will_not_fix');
+        expect(component.triageJustification).toBeNull();
+        expect(component.triageExpiresInDays).toBe(30);
+        expect(component.triageComment).toBe('Legacy module, retired next quarter.');
+        expect(component.canSubmitTriage()).toBe(true);
+
+        component.submitTriage();
+        const body = http.expectOne('/api/v1/issues/8/triage').request.body;
+        expect(body.status).toBe('will_not_fix');
+        expect(body.justification).toBeNull();
+        expect(body.expires_in_days).toBe(30);
+    });
+
+    it('says what the request asks for, in the row and in the dialog', async () => {
+        const requested = fixture.nativeElement.querySelectorAll('[data-testid="issue-requested-status"]');
+        expect(requested.length).toBe(1);
+        expect(requested[0].textContent).toContain('Will not fix — risk accepted');
+
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(document.body.querySelector('[data-testid="triage-requested-hint"]')?.textContent).toContain(
+            'Will not fix — risk accepted'
+        );
+    });
+
+    it('invents nothing for a request that recorded no status, and keeps its proposed date', () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[1]);
+
+        expect(component.triageStatus).toBe('pending_approval');
+        expect(component.triageRequested).toBeNull();
+        expect(component.triageJustification).toBe('inline_mitigations_already_exist');
+        expect(component.triageExpiresInDays).toBeNull();
+    });
+
+    it('opens a settled decision as it stands, with the delay to choose again', () => {
+        const component = fixture.componentInstance;
+        component.openTriage(component.issues()[2]);
+
+        expect(component.triageStatus).toBe('not_affected');
+        expect(component.triageRequested).toBeNull();
+        expect(component.triageExpiresInDays).toBeNull();
+    });
+});
+
+/**
+ * The advisor's suggestion, applied as a triage the server accepts.
+ *
+ * <p>The advisor answers in VEX's vocabulary, and `under_investigation` — its answer for every finding
+ * not on the KEV list — is no triage status: the dialog's select showed nothing, and the server refused
+ * the decision for having no status.
+ */
+describe('applying the advisor suggestion', () => {
+    let fixture: ComponentFixture<Issues>;
+    let http: HttpTestingController;
+
+    const ROW = asSchema('BacklogEntry', {
+        id: 11,
+        targetKind: 'repository',
+        type: 'vulnerability',
+        identifier: 'CVE-2026-11',
+        severity: 'high',
+        state: 'open',
+        firstSeenAt: '2026-03-03T08:00:00Z',
+        lastSeenAt: '2026-08-21T05:03:00Z',
+        timesSeen: 1,
+        triageStatus: 'affected',
+        isKev: false
+    });
+
+    function advise(status: string): void {
+        const component = fixture.componentInstance;
+        component.openAiAdvisor(component.issues()[0]);
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/11').flush({
+            identifier: 'CVE-2026-11',
+            title: '',
+            summaryExplanation: 'Remote code execution.',
+            exploitMechanics: '',
+            exposureAssessment: '',
+            remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+            vexSuggestion: { status, justification: '', impactStatement: 'Reachable.', actionStatement: '' },
+            references: []
+        });
+        component.applySuggestedVex();
+    }
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Issues],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        fixture = TestBed.createComponent(Issues);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            if (request.request.url.endsWith('/ai-advisor/status')) {
+                request.flush({ enabled: true, selectedModel: 'llama3', availableModels: ['llama3'] });
+            } else {
+                request.flush(
+                    request.request.url.endsWith('/issues') ? { items: [ROW], total: 1, limit: 50, offset: 0 } : []
+                );
+            }
+        }
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('reads an investigation as under review, which the dialog offers and the server accepts', () => {
+        advise('under_investigation');
+        const component = fixture.componentInstance;
+
+        expect(component.triageStatus).toBe('under_review');
+        expect(component.triageOptions().map((option) => option.value)).toContain(component.triageStatus);
+
+        component.submitTriage();
+        expect(http.expectOne('/api/v1/issues/11/triage').request.body.status).toBe('under_review');
+    });
+
+    it('keeps a status the triage vocabulary shares', () => {
+        advise('affected');
+        expect(fixture.componentInstance.triageStatus).toBe('affected');
+    });
+});

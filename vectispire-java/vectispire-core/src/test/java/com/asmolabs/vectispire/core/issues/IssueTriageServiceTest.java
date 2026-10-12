@@ -204,6 +204,112 @@ class IssueTriageServiceTest {
         assertThat(already.getTriagedAt()).isEqualTo(NOW.minusSeconds(3600));
     }
 
+    @Test
+    @DisplayName("a queued acceptance keeps the status it asked for, and its review date, on the issue and in the history")
+    void aQueuedDecisionKeepsWhatItAskedFor() {
+        IssueEntity issue = issue(TriageStatus.UNDER_REVIEW, null);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        IssueEntity queued = service.triage(1L, new Triage.Request(
+                TriageStatus.WILL_NOT_FIX, "bob_dev", null, "Legacy module, retired in Q3.", Period.ofDays(90)), false);
+
+        assertThat(queued.getTriageStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        // Dropped here, the approver saw `pending_approval` and chose — a "Won't Fix" granted as a
+        // clearance the signed VEX then stated as "not exposed".
+        assertThat(queued.getTriageRequestedStatus()).isEqualTo(TriageStatus.WILL_NOT_FIX.wireName());
+        assertThat(queued.getTriageExpiresAt())
+                .describedAs("the review date the requester proposed, which the approval dialog offers again")
+                .isEqualTo(NOW.plus(Period.ofDays(90)));
+
+        var event = recorded();
+        assertThat(event.getToStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        assertThat(event.getRequestedStatus()).isEqualTo(TriageStatus.WILL_NOT_FIX.wireName());
+        assertThat(event.getExpiresAt()).isEqualTo(NOW.plus(Period.ofDays(90)));
+    }
+
+    @Test
+    @DisplayName("a request for an accepted risk cannot be granted as not affected")
+    void anApprovalCannotGrantAnotherStatus() {
+        IssueEntity issue = pendingRequestFor(TriageStatus.WILL_NOT_FIX);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        assertThatThrownBy(() -> service.triage(1L, new Triage.Request(
+                        TriageStatus.NOT_AFFECTED, "carol_champion", VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST,
+                        "Looks mitigated to me.", Period.ofDays(30)), true))
+                .isInstanceOf(TriageApprovalDiffersException.class)
+                .hasMessageContaining("will_not_fix")
+                .satisfies(refusal -> assertThat(((TriageApprovalDiffersException) refusal).members())
+                        .containsEntry("requestedStatus", "will_not_fix"));
+
+        assertThat(issue.getTriageStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        assertThat(issue.getTriageRequestedStatus()).isEqualTo(TriageStatus.WILL_NOT_FIX.wireName());
+        org.mockito.Mockito.verify(events, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("the same refusal on a bulk decision that would grant one of its requests as something else")
+    void aBulkApprovalCannotGrantAnotherStatus() {
+        IssueEntity asked = pendingRequestFor(TriageStatus.FIXED);
+        when(issues.findById(1L)).thenReturn(Optional.of(asked));
+
+        assertThatThrownBy(() -> service.triageAll(List.of(1L), new Triage.Request(
+                        TriageStatus.WILL_NOT_FIX, "carol_champion", null, null, Period.ofDays(30)), true))
+                .isInstanceOf(TriageApprovalDiffersException.class);
+    }
+
+    @Test
+    @DisplayName("granted as asked, the status applies, the request is cleared, and the history says approval")
+    void anApprovalGrantsWhatWasAsked() {
+        IssueEntity issue = pendingRequestFor(TriageStatus.WILL_NOT_FIX);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        IssueEntity granted = service.triage(1L, new Triage.Request(
+                TriageStatus.WILL_NOT_FIX, "carol_champion", null, "Accepted until the migration.", Period.ofDays(60)),
+                true);
+
+        assertThat(granted.getTriageStatus()).isEqualTo(TriageStatus.WILL_NOT_FIX.wireName());
+        assertThat(granted.getTriageRequestedStatus()).isNull();
+        assertThat(granted.getTriageExpiresAt()).isEqualTo(NOW.plus(Period.ofDays(60)));
+        var event = recorded();
+        assertThat(event.getOrigin()).isEqualTo("approval");
+        assertThat(event.getToStatus()).isEqualTo(TriageStatus.WILL_NOT_FIX.wireName());
+        assertThat(event.getRequestedStatus()).isNull();
+    }
+
+    @Test
+    @DisplayName("an approver who disagrees turns the request down, which clears it")
+    void aRequestCanBeTurnedDown() {
+        IssueEntity issue = pendingRequestFor(TriageStatus.WILL_NOT_FIX);
+        when(issues.findById(1L)).thenReturn(Optional.of(issue));
+
+        IssueEntity refused = service.triage(1L, new Triage.Request(
+                TriageStatus.AFFECTED, "carol_champion", null, "Fix it.", null), true);
+
+        assertThat(refused.getTriageStatus()).isEqualTo(TriageStatus.AFFECTED.wireName());
+        assertThat(refused.getTriageRequestedStatus()).isNull();
+        assertThat(recorded().getOrigin()).isEqualTo("manual");
+    }
+
+    @Test
+    @DisplayName("a request that lapses at its review date asks for nothing any more")
+    void aLapsedRequestIsCleared() {
+        IssueEntity issue = pendingRequestFor(TriageStatus.WILL_NOT_FIX);
+        issue.setTriageExpiresAt(NOW.minusSeconds(1));
+        when(issues.findWithExpiredTriage(NOW)).thenReturn(List.of(issue));
+
+        service.expireStale();
+
+        assertThat(issue.getTriageStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
+        assertThat(issue.getTriageRequestedStatus()).isNull();
+    }
+
+    private static IssueEntity pendingRequestFor(TriageStatus requested) {
+        IssueEntity issue = issue(TriageStatus.PENDING_APPROVAL, NOW.plus(Period.ofDays(90)));
+        issue.setTriageRequestedStatus(requested.wireName());
+        issue.setTriagedBy("bob_dev");
+        return issue;
+    }
+
     private static IssueEntity issue(TriageStatus status, Instant expiresAt) {
         IssueEntity issue = new IssueEntity();
         issue.setId(1L);

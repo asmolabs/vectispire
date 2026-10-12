@@ -370,6 +370,18 @@
                             [severity]="triageColour(issue.triageStatus)"
                             [value]="triageLabel(issue.triageStatus)"
                         />
+                        <!--
+                        What a request awaiting approval asks for: "pending approval" alone left a queued
+                        acceptance, a queued clearance and a queued fix looking alike (decision 0041).
+                    -->
+                        @if (issue.triageStatus === 'pending_approval' && issue.triageRequestedStatus) {
+                            <div class="text-sm mt-1" data-testid="issue-requested-status">
+                                {{
+                                    'issues.requested_status'
+                                        | translate: { status: triageLabel(issue.triageRequestedStatus) }
+                                }}
+                            </div>
+                        }
                         @if (issue.triagedBy) {
                             <div class="text-muted-color text-sm">
                                 {{ 'issues.triaged_by' | translate: { name: issue.triagedBy } }}
@@ -494,6 +506,11 @@
                 styleClass="w-full"
                 appendTo="body"
             />
+            @if (triageRequested) {
+                <small class="text-muted-color" data-testid="triage-requested-hint">{{
+                    'issues.triage_requested_hint' | translate: { status: triageLabel(triageRequested) }
+                }}</small>
+            }
         </div>
 
         @if (triageStatus === 'not_affected' || triageStatus === 'pending_approval') {
@@ -703,7 +720,7 @@
                             {{ 'issues.ai_vex_suggestion' | translate }}
                         </h5>
                         <p-tag
-                            [value]="triageLabel(aiAdvice()!.vexSuggestion.status)"
+                            [value]="suggestedTriageLabel(aiAdvice()!)"
                             [severity]="aiAdvice()!.vexSuggestion.status === 'not_affected' ? 'success' : 'warn'"
                         />
                     </div>

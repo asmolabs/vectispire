@@ -354,6 +354,10 @@ export type Issue = Refine<
         triagedBy: string | null;
         triagedAt: string | null;
         triageExpiresAt: string | null;
+        /** While `triageStatus` is `pending_approval`: the settled status the request asked for —
+         *  `not_affected`, `will_not_fix` or `fixed`. An approval grants that status or is refused
+         *  (decision 0041); null otherwise, and on a request queued before it was recorded. */
+        triageRequestedStatus: string | null;
         isDirectDependency: boolean | null;
         ticketRef: string | null;
         ticketUrl: string | null;
@@ -1456,6 +1460,10 @@ export type IssueDetail = Refine<
         triagedBy: string | null;
         triagedAt: string | null;
         triageExpiresAt: string | null;
+        /** While `triageStatus` is `pending_approval`: the settled status the request asked for —
+         *  `not_affected`, `will_not_fix` or `fixed`. An approval grants that status or is refused
+         *  (decision 0041); null otherwise, and on a request queued before it was recorded. */
+        triageRequestedStatus: string | null;
         isDirectDependency: boolean | null;
         ticketRef: string | null;
         ticketUrl: string | null;
@@ -2053,6 +2061,8 @@ export type ExceptionEntry = Refine<
         comment: string | null;
         actor: string | null;
         origin: string | null;
+        /** On a request awaiting approval, the status it asks for; null otherwise. */
+        requested_status: string | null;
         decided_at: string | null;
         expires_at: string | null;
         last_reviewed_at: string | null;

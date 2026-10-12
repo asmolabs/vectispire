@@ -17,7 +17,9 @@ Two decisions, which say opposite things about the product:
 - **Not affected** — argued not to apply, with a VEX justification.
 
 Both are counted as **granted** once settled; a request still waiting for an approver under
-[four-eyes](../administration/four-eyes.md) is counted apart, as awaiting approval. An acceptance used to be recorded as *not affected* — with a justification
+[four-eyes](../administration/four-eyes.md) is counted apart, as awaiting approval, and says what it
+asks for — an acceptance, a clearance or a fix — which is the only status an approver can grant it
+([Granted as asked, or turned down](../administration/four-eyes.md#granted-as-asked-or-turned-down)). An acceptance used to be recorded as *not affected* — with a justification
 that could not be true of an exposed product — because there was no other status to record it under
 ([Accepting a risk](issues.md#accepting-a-risk)).
 

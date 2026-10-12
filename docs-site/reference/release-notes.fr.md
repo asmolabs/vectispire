@@ -9,7 +9,7 @@ encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 
 
 Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la nouvelle image démarre.
 
-- **Sauvegardez la base.** Les migrations V65 à V86 s'exécutent au démarrage et n'ont pas de retour
+- **Sauvegardez la base.** Les migrations V65 à V88 s'exécutent au démarrage et n'ont pas de retour
   arrière : revenir à 0.10.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
   ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
 - **Prévenez les équipes que leurs notes vont baisser.** La formule du score compte les moyennes, les
@@ -235,6 +235,16 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   *wontfix* —, sans justification et avec une date de réexamen proposée à quatre-vingt-dix jours, que
   l'approbateur remplace par la sienne. Seul un faux positif explicite est encore proposé comme
   `not_affected` ([le webhook entrant](../integrations/ticketing.fr.md#inbound-webhook)).
+- **Une demande en attente d'approbation dit ce qu'elle demande, et s'accorde telle quelle.** Chaque
+  forme d'issue (`GET /api/v1/issues`, `GET /api/v1/issues/{id}`, la réponse d'un triage) gagne
+  `triageRequestedStatus` — `not_affected`, `will_not_fix` ou `fixed` tant que `triageStatus` vaut
+  `pending_approval`, null sinon — et `GET /api/v1/exceptions` gagne `requested_status` sur chaque entrée.
+  Approuver avec un autre statut qui règle reçoit **409** de type
+  `urn:vectispire:problem:triage-approval-differs` avec le membre `requestedStatus` ; un approbateur en
+  désaccord refuse la demande (`under_review` ou `affected`) puis décide
+  ([accordée telle que demandée, ou refusée](../administration/four-eyes.fr.md#granted-as-asked-or-turned-down)).
+  Les demandes mises en file avant la mise à niveau n'ont enregistré aucun statut, et s'accordent comme
+  l'approbateur le choisit.
 - **Un webhook ne bouge plus une issue qu'une personne a réglée** (`not_affected`, `will_not_fix`,
   `fixed`). La parole du traqueur est inscrite au journal d'audit ; quand elle contredit la décision,
   l'entrée est `TRIAGE_CONTRADICTED_BY_TRACKER`, signalée au SIEM comme `VECTI-SEC-037`
@@ -845,6 +855,17 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   du registre des verdicts de la barrière nommait la dernière ligne lue, visible du lecteur ou non : un
   lecteur restreint qui lisait une ligne à la fois connaissait l'heure de chaque verdict du parc ; ses pages
   sont désormais lues dans ses cibles.
+- **Une approbation n'accorde plus un statut que personne n'a demandé.** Une demande mise en file gardait
+  sa justification, son commentaire et sa date de réexamen et perdait son statut, et l'approbateur en
+  choisissait un : le *Won't Fix* d'un traqueur pouvait être accordé en `not_affected`, et le VEX signé
+  disait alors « non exposé ». La demande garde désormais son statut (V88) et s'accorde telle quelle ou est
+  refusée (409) ; la fenêtre de triage s'ouvre sur le statut demandé et la date de réexamen proposée,
+  qu'elle vidait
+  ([décision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0041-will-not-fix-is-not-not-affected.md)).
+- **Appliquer la suggestion de l'assistant n'échoue plus pour chaque constat absent de la liste KEV.**
+  L'assistant suggère dans le vocabulaire VEX, `under_investigation` pour ceux-là, et la fenêtre le
+  prenait comme statut de triage : la liste des statuts n'affichait rien et le serveur refusait la
+  décision. Il s'applique désormais comme *en cours d'examen*.
 - **Le refus d'un traqueur n'est plus proposé comme `not_affected`.** Un ticket fermé comme *Won't Fix*,
   *Declined*, *Rejected*, *Risk Accepted* ou *Withdrawn* était mis en file comme `not_affected` avec
   `inline_mitigations_already_exist` — une atténuation dont le traqueur n'avait jamais parlé, et que les

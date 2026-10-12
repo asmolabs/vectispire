@@ -218,8 +218,12 @@ public class VexIngestorService {
                         Triage.MAX_COMMENT_LENGTH);
 
                 for (IssueEntity issue : matchingIssues) {
+                    // A request waiting for approval that asked for another status is a person's
+                    // open question: a vendor's document neither grants it as something else — the
+                    // approval would be refused — nor replaces it.
                     if ("not_affected".equalsIgnoreCase(issue.getTriageStatus())
-                            || "resolved".equalsIgnoreCase(issue.getState())) {
+                            || "resolved".equalsIgnoreCase(issue.getState())
+                            || IssueTriageService.contradictsTheRequest(issue, TriageStatus.NOT_AFFECTED)) {
                         continue;
                     }
 
@@ -277,7 +281,8 @@ public class VexIngestorService {
 
                 for (IssueEntity issue : matchingIssues) {
                     if ("not_affected".equalsIgnoreCase(issue.getTriageStatus())
-                            || "resolved".equalsIgnoreCase(issue.getState())) {
+                            || "resolved".equalsIgnoreCase(issue.getState())
+                            || IssueTriageService.contradictsTheRequest(issue, TriageStatus.NOT_AFFECTED)) {
                         continue;
                     }
 

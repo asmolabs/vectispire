@@ -19,7 +19,9 @@ Deux décisions, qui disent des choses opposées du produit :
 
 Les deux comptent comme **accordées** une fois réglées ; une demande qui attend encore un
 approbateur sous la [double validation](../administration/four-eyes.md) est comptée à part, en
-attente d'approbation. Une acceptation s'enregistrait autrefois comme *non
+attente d'approbation, et dit ce qu'elle demande — une acceptation, une levée ou une correction —,
+le seul statut qu'un approbateur puisse lui accorder
+([Accordée telle que demandée, ou refusée](../administration/four-eyes.md#granted-as-asked-or-turned-down)). Une acceptation s'enregistrait autrefois comme *non
 affecté* — avec une justification qui ne pouvait pas être vraie d'un produit exposé — faute d'un autre
 statut sous lequel l'inscrire ([Accepter un risque](issues.md#accepting-a-risk)).
 

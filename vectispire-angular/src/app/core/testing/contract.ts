@@ -179,6 +179,9 @@ const VERDICT_TARGET_KINDS = ['REPOSITORY', 'CONTAINER']; // GateController.Regi
 const LOOK_STATUSES = ['examined', 'not_applicable', ...NO_DATA_REASONS]; // Measurement.RepositoryEvidence
 
 const ISSUE = { state: ISSUE_STATES, severity: ISSUE_SEVERITIES, type: FINDING_TYPES, triageStatus: TRIAGE_STATUSES };
+/** What a request awaiting approval may ask for: the settled statuses (`TriageStatus.isSettled`). */
+const REQUESTED_STATUSES = ['not_affected', 'will_not_fix', 'fixed'];
+const ISSUE_ROW = { ...ISSUE, triageRequestedStatus: REQUESTED_STATUSES };
 
 const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     UserSummary: { role: ROLES },
@@ -190,12 +193,13 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     RecentScan: { status: SCAN_STATUSES },
     Scan: { status: SCAN_STATUSES },
     ScanSummary: { status: SCAN_STATUSES },
-    IssueDetail: ISSUE,
-    IssueView: ISSUE,
+    IssueDetail: ISSUE_ROW,
+    IssueView: ISSUE_ROW,
     ObservedIssue: ISSUE,
-    BacklogEntry: ISSUE,
+    BacklogEntry: ISSUE_ROW,
     FindingView: { type: FINDING_TYPES },
     PluginOutcome: { state: PLUGIN_STATES, refusal: PLUGIN_REFUSALS, signature: PLUGIN_SIGNATURES },
+    ExceptionEntry: { decision: TRIAGE_STATUSES, requested_status: REQUESTED_STATUSES },
     TriageRequest: { status: TRIAGE_STATUSES },
     BulkTriageRequest: { status: TRIAGE_STATUSES },
     ChecklistVersionSummary: { status: CHECKLIST_VERSION_STATUSES },

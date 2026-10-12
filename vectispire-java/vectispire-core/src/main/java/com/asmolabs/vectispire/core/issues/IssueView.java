@@ -57,6 +57,14 @@ public record IssueView(
         String triagedBy,
         Instant triagedAt,
         Instant triageExpiresAt,
+        // What a decision awaiting approval asked for, so the approver grants that or turns it down:
+        // queued, the issue reads only `pending_approval`, and a "Won't Fix" and a clearance looked alike.
+        @Schema(
+                description = "While triageStatus is pending_approval: the settled status the request asked for "
+                        + "(not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, "
+                        + "urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued "
+                        + "before it was recorded, which the approver grants as they choose.")
+        String triageRequestedStatus,
         Boolean isDirectDependency,
         Integer line,
         String ticketRef,
@@ -118,6 +126,7 @@ public record IssueView(
                 issue.getTriagedBy(),
                 issue.getTriagedAt(),
                 issue.getTriageExpiresAt(),
+                issue.getTriageRequestedStatus(),
                 issue.getIsDirectDependency(),
                 issue.getLine(),
                 issue.getTicketRef(),

@@ -71,6 +71,9 @@ public class ExceptionsRegisterService {
      * @param lastReviewedAt when somebody last revisited this exception and left it standing, or
      *     null when nobody has since it was granted. <b>Null is the interesting value</b>
      * @param lastReviewedBy who did
+     * @param requestedStatus on a request awaiting approval, the status it asks for — {@code not_affected},
+     *     {@code will_not_fix} or {@code fixed}; null otherwise, and on a request queued before it was
+     *     recorded. Without it a queued acceptance, a queued clearance and a queued fix read alike
      */
     public record ExceptionEntry(
             @JsonProperty("issue_id") Long issueId,
@@ -80,6 +83,7 @@ public class ExceptionsRegisterService {
             @JsonProperty("target_id") Long targetId,
             @JsonProperty("target_name") String targetName,
             String decision,
+            @JsonProperty("requested_status") String requestedStatus,
             String justification,
             String comment,
             String actor,
@@ -274,6 +278,7 @@ public class ExceptionsRegisterService {
                 issue.getRepoId() != null ? issue.getRepoId() : issue.getContainerId(),
                 names.of(issue.getRepoId(), issue.getContainerId()),
                 issue.getTriageStatus(),
+                issue.getTriageRequestedStatus(),
                 issue.getTriageJustification(),
                 issue.getTriageComment(),
                 issue.getTriagedBy(),

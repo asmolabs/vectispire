@@ -11,6 +11,8 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.issues.IssueDecisionService;
 import com.asmolabs.vectispire.core.issues.IssueQueryService;
 import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.issues.TriageApprovalDiffersException;
+import io.swagger.v3.oas.annotations.Operation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -153,6 +155,13 @@ public class IssuesController {
         return queries.detail(id, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
+    private static final String APPROVAL_RULE = " A settling status (not_affected, will_not_fix, fixed) from an "
+            + "account that cannot approve is queued as pending_approval, the status asked for kept in "
+            + "triageRequestedStatus. Approving grants that status: another settling status answers 409 with the "
+            + "type urn:vectispire:problem:" + TriageApprovalDiffersException.CAUSE + " and the member "
+            + "requestedStatus — turn the request down with under_review or affected instead. The requester cannot "
+            + "approve their own request (400).";
+
     /**
      * Records a triage decision.
      *
@@ -163,6 +172,7 @@ public class IssuesController {
      */
     @RequiresWriteAccount
     @PostMapping("/{id}/triage")
+    @Operation(description = "Records a triage decision on one issue." + APPROVAL_RULE)
     public IssueView triage(
             @PathVariable long id,
             @RequestBody TriageRequest body,
@@ -243,6 +253,8 @@ public class IssuesController {
      */
     @RequiresWriteAccount
     @PostMapping("/triage")
+    @Operation(description = "Records the same triage decision on several issues, every one checked before the "
+            + "first is written: one refusal writes none." + APPROVAL_RULE)
     public List<IssueView> triageMany(
             @RequestBody BulkTriageRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,

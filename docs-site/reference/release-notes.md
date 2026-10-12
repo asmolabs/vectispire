@@ -9,7 +9,7 @@ What follows is what 0.11.0 will contain, against 0.10.0.
 
 Each point is written out in full below; this is what to do before the new image starts.
 
-- **Back up the database.** Migrations V65 to V86 run at startup and have no way back: going back to
+- **Back up the database.** Migrations V65 to V88 run at startup and have no way back: going back to
   0.10.0 means restoring that backup and the previous image digest
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
 - **Tell the teams their grades will drop.** The score formula counts mediums, lows and every further
@@ -220,6 +220,14 @@ from a list in which none is true of an exposed product — and signed into the 
   *wontfix* — with no justification and a proposed review date ninety days out, which the approver
   replaces with theirs. Only an explicit false positive is still proposed as `not_affected`
   ([the inbound webhook](../integrations/ticketing.md#inbound-webhook)).
+- **A request awaiting approval says what it asks for, and is granted as asked.** Every issue shape
+  (`GET /api/v1/issues`, `GET /api/v1/issues/{id}`, a triage's answer) gains `triageRequestedStatus` —
+  `not_affected`, `will_not_fix` or `fixed` while `triageStatus` is `pending_approval`, null otherwise —
+  and `GET /api/v1/exceptions` gains `requested_status` on each entry. Approving with another settling
+  status answers **409** with the type `urn:vectispire:problem:triage-approval-differs` and the member
+  `requestedStatus`; an approver who disagrees turns the request down (`under_review` or `affected`) and
+  decides after ([granted as asked, or turned down](../administration/four-eyes.md#granted-as-asked-or-turned-down)).
+  Requests queued before the upgrade recorded no status, and are granted as the approver chooses.
 - **A webhook no longer moves an issue a person settled** (`not_affected`, `will_not_fix`, `fixed`). The
   tracker's word is recorded in the audit log; when it contradicts the decision, the entry is
   `TRIAGE_CONTRADICTED_BY_TRACKER`, sent to the SIEM as `VECTI-SEC-037`
@@ -777,6 +785,16 @@ from a list in which none is true of an exposed product — and signed into the 
   which only a governor may administer; it is refused. And the gate verdict register's cursor named the last
   row read, visible to the reader or not, so a restricted reader paging one row at a time read the timing of
   every verdict in the estate; a restricted reader's pages are now read within its targets.
+- **An approval no longer grants a status nobody asked for.** A request queued for approval kept its
+  justification, comment and review date and dropped its status, and the approver chose one: a tracker's
+  *Won't Fix* could be granted as `not_affected`, and the signed VEX then said "not exposed". The request
+  now keeps its status (V88) and is granted as asked or refused (409); the triage dialog opens on the
+  requested status and the proposed review date, which it used to empty
+  ([decision 0041](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0041-will-not-fix-is-not-not-affected.md)).
+- **Applying the advisor's suggestion no longer fails on every finding off the KEV list.** The advisor
+  suggests in VEX's vocabulary, `under_investigation` for those, and the dialog took it as the triage
+  status: the status list showed nothing and the server refused the decision. It is now applied as
+  *under review*.
 - **A tracker's refusal is no longer proposed as `not_affected`.** A ticket closed as *Won't Fix*,
   *Declined*, *Rejected*, *Risk Accepted* or *Withdrawn* was queued as `not_affected` with
   `inline_mitigations_already_exist` — a mitigation the tracker never mentioned, which the signed

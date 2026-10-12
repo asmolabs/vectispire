@@ -125,6 +125,26 @@ class VexImportAuthorityTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("a request waiting for approval that asked for another status is left as it is")
+    void aPendingRequestForAnotherStatusIsNotAnswered() {
+        long issueId = issue(repository("a"));
+        IssueEntity pending = issues.findById(issueId).orElseThrow();
+        pending.setTriageStatus(TriageStatus.PENDING_APPROVAL.wireName());
+        pending.setTriageRequestedStatus(TriageStatus.WILL_NOT_FIX.wireName());
+        pending.setTriagedBy("sam");
+        issues.save(pending);
+
+        // Read as an approval, the vendor's statement would be refused and the whole import with it;
+        // read as a request, it would replace a person's open one. Neither is the document's to do.
+        ingestor.ingestPayload(DOCUMENT, caller("carol", Role.CISO, Visibility.everything()));
+
+        IssueEntity after = issues.findById(issueId).orElseThrow();
+        assertThat(after.getTriageStatus()).isEqualTo(TriageStatus.PENDING_APPROVAL.wireName());
+        assertThat(after.getTriageRequestedStatus()).isEqualTo(TriageStatus.WILL_NOT_FIX.wireName());
+        assertThat(after.getTriagedBy()).isEqualTo("sam");
+    }
+
+    @Test
     @DisplayName("the platform governor is refused, and nothing is written")
     void theGovernorIsRefused() {
         long issueId = issue(repository("a"));

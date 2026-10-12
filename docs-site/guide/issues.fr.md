@@ -35,7 +35,9 @@ vous survivre : « non atteignable dans notre configuration », « non livré en
 `not affected`, `will not fix` et `fixed` **règlent** l'issue : elle cesse de faire échouer la
 barrière et sort des chiffres du backlog. Sous la [double validation](../administration/four-eyes.md),
 quelqu'un qui ne peut pas approuver ne fait que les demander — l'issue attend en `pending approval`,
-toujours comptée, jusqu'à ce qu'un approbateur l'accorde.
+toujours comptée, jusqu'à ce qu'un approbateur l'accorde. La ligne dit ce qui a été demandé, et un
+approbateur qui l'ouvre trouve ce statut et la date de réexamen proposée déjà choisis : la demande est
+accordée telle quelle ou refusée, jamais accordée comme autre chose.
 
 ### Accepter un risque {#accepting-a-risk}
 

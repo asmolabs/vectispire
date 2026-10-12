@@ -1027,7 +1027,8 @@
     },
     "load_failed": "Could not load the exceptions register.",
     "review_failed": "The review was not recorded.",
-    "more": "Load the next page"
+    "more": "Load the next page",
+    "requested": "asks for: {{status}}"
   },
   "footer": {
     "tagline": "Application security posture management",
@@ -1449,7 +1450,9 @@
     "chip_project": "Project: {{name}}",
     "chip_solution": "Solution: {{name}}",
     "aria_remove_project": "Remove the project filter {{name}}",
-    "aria_remove_solution": "Remove the solution filter {{name}}"
+    "aria_remove_solution": "Remove the solution filter {{name}}",
+    "requested_status": "asks for: {{status}}",
+    "triage_requested_hint": "This request asks for “{{status}}”. Grant it as asked, or turn it down — under review or affected — and record your own decision afterwards."
   },
   "layout": {
     "menu_mode": {

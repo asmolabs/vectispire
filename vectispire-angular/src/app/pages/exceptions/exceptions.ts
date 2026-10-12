@@ -206,6 +206,14 @@ export class Exceptions {
         return triageStatusLabel(this.i18n, entry.decision);
     }
 
+    /** What a request awaiting approval asks for — an acceptance, a clearance or a fix, which looked
+     *  alike here while the queue kept only `pending_approval` (decision 0041). */
+    requestedLabel(entry: ExceptionEntry): string {
+        return this.i18n.t('exceptions.requested', {
+            status: triageStatusLabel(this.i18n, entry.requested_status ?? '')
+        });
+    }
+
     severityOf(entry: ExceptionEntry): 'danger' | 'warn' | 'info' | 'secondary' {
         switch ((entry.severity ?? '').toLowerCase()) {
             case 'critical':

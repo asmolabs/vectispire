@@ -33,6 +33,7 @@ describe('le registre des exceptions', () => {
                 target_id: 7,
                 target_name: 'paiement-api',
                 decision: 'not_affected',
+                requested_status: null,
                 justification: 'vulnerable_code_not_in_execute_path',
                 comment: null,
                 actor: 'c.moreau',
@@ -174,6 +175,38 @@ describe('le registre des exceptions', () => {
             (cell: Element) => cell.textContent?.trim()
         );
         expect(labels).toEqual(['Not affected', 'Will not fix — risk accepted']);
+    });
+
+    it('says what a request awaiting approval asks for, so a queued acceptance and a clearance differ', () => {
+        // The queue kept only `pending_approval`: an acceptance, a clearance and a fix awaiting the
+        // second pair of eyes read alike, and the approver chose (decision 0041).
+        useEnglish();
+        const component = fixture.componentInstance;
+        component.load();
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
+            ...REGISTER,
+            entries: [
+                {
+                    ...REGISTER.entries[0],
+                    issue_id: 45,
+                    decision: 'pending_approval',
+                    requested_status: 'will_not_fix'
+                },
+                {
+                    ...REGISTER.entries[0],
+                    issue_id: 46,
+                    decision: 'pending_approval',
+                    requested_status: 'not_affected'
+                },
+                { ...REGISTER.entries[0], issue_id: 47, decision: 'pending_approval', requested_status: null }
+            ]
+        });
+        fixture.detectChanges();
+
+        const requested = [...fixture.nativeElement.querySelectorAll('[data-testid="exception-requested"]')].map(
+            (cell: Element) => cell.textContent?.trim()
+        );
+        expect(requested).toEqual(['asks for: Will not fix — risk accepted', 'asks for: Not affected']);
     });
 
     it('counts the never-reviewed as a figure apart from the lapsed', () => {

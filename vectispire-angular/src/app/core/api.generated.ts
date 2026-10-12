@@ -1925,6 +1925,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @description Records the same triage decision on several issues, every one checked before the first is written: one refusal writes none. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). */
         post: operations["triageMany"];
         delete?: never;
         options?: never;
@@ -1973,6 +1974,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @description Records a triage decision on one issue. A settling status (not_affected, will_not_fix, fixed) from an account that cannot approve is queued as pending_approval, the status asked for kept in triageRequestedStatus. Approving grants that status: another settling status answers 409 with the type urn:vectispire:problem:triage-approval-differs and the member requestedStatus — turn the request down with under_review or affected instead. The requester cannot approve their own request (400). */
         post: operations["triage"];
         delete?: never;
         options?: never;
@@ -4826,6 +4828,8 @@ export interface components {
             /** Format: date-time */
             triageExpiresAt?: string;
             triageJustification?: string;
+            /** @description While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose. */
+            triageRequestedStatus?: string;
             triageStatus?: string;
             /** Format: date-time */
             triagedAt?: string;
@@ -5863,6 +5867,7 @@ export interface components {
             last_reviewed_at?: string;
             last_reviewed_by?: string;
             origin?: string;
+            requested_status?: string;
             severity?: string;
             /** Format: int64 */
             target_id?: number;
@@ -6499,6 +6504,8 @@ export interface components {
             /** Format: date-time */
             triageExpiresAt?: string;
             triageJustification?: string;
+            /** @description While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose. */
+            triageRequestedStatus?: string;
             triageStatus?: string;
             /** Format: date-time */
             triagedAt?: string;
@@ -6599,6 +6606,8 @@ export interface components {
             /** Format: date-time */
             triageExpiresAt?: string;
             triageJustification?: string;
+            /** @description While triageStatus is pending_approval: the settled status the request asked for (not_affected, will_not_fix or fixed). An approval grants this status or is refused (409, urn:vectispire:problem:triage-approval-differs). Null otherwise, and on requests queued before it was recorded, which the approver grants as they choose. */
+            triageRequestedStatus?: string;
             triageStatus?: string;
             /** Format: date-time */
             triagedAt?: string;

@@ -101,9 +101,9 @@ lui-même — reçoit `200` *« Delivery already processed »* et ne change rien
 **Une décision est mise en file, jamais appliquée.** L'issue passe en `pending_approval` avec le
 statut proposé et sa justification, et reste *en cours d'investigation* dans les documents VEX
 exportés jusqu'à ce qu'une seconde personne l'approuve sous le [principe des quatre yeux](../administration/four-eyes.md).
-L'approbateur choisit le statut et, pour un risque accepté, la date de réexamen : la demande ne
-garde pas le statut que le tracker demandait, c'est donc dans le commentaire et l'historique qu'il
-se lit.
+La demande garde le statut que le tracker demandait (`triageRequestedStatus`) : l'approbateur
+accorde ce statut — un *Won't Fix* comme `will_not_fix`, jamais comme `not_affected` — ou refuse la
+demande, et fixe la date de réexamen, que la fenêtre propose d'après la demande.
 L'auteur enregistré est l'intégration (`GITLAB_webhook`, …) ; le nom que rapporte le tracker va
 dans le commentaire, comme donnée rapportée et non comme identité.
 

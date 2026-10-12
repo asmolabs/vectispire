@@ -120,6 +120,8 @@ public class IssueDecisionService {
                 AuditOperation.ISSUE_TRIAGED,
                 String.valueOf(id),
                 "Triage \"" + issue.getTriageStatus() + "\""
+                        + (issue.getTriageRequestedStatus() == null
+                                ? "" : " asking for \"" + issue.getTriageRequestedStatus() + "\"")
                         + (issue.getTriageJustification() == null ? "" : " (" + issue.getTriageJustification() + ")"),
                 actor,
                 caller.ipAddress(),

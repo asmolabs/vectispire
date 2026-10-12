@@ -96,9 +96,10 @@ body arriving again within that window — a replay, or the tracker's own redeli
 
 **A decision is queued, never applied.** The issue moves to `pending_approval` with the proposed
 status and its justification, and stays *under investigation* in the exported VEX documents until a
-second person approves it under [four-eyes](../administration/four-eyes.md). The approver chooses
-the status and, for an accepted risk, the review date: the request does not record which status the
-tracker asked for, so the comment and the history are where to read it. The author recorded is
+second person approves it under [four-eyes](../administration/four-eyes.md). The request keeps the
+status the tracker asked for (`triageRequestedStatus`): the approver grants that status — a *Won't
+Fix* as `will_not_fix`, never as `not_affected` — or turns the request down, and sets the review date,
+which the dialog proposes from the request. The author recorded is
 the integration (`GITLAB_webhook`, …); the name the tracker reports goes into the comment, as
 reported data rather than as an identity.
 

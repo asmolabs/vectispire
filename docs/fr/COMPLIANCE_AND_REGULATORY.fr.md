@@ -390,6 +390,7 @@ activé (le défaut) :
 2. **Statut `PENDING_APPROVAL` (En attente d'approbation)** :
       - Toute demande d'un statut qui règle le problème — `not_affected` (une levée), `will_not_fix` (un risque accepté, qui exige une date de réexamen et ne porte aucune justification VEX) ou `fixed` — formulée par quelqu'un qui ne peut pas approuver bascule automatiquement en `PENDING_APPROVAL`. De même pour toute décision venue du webhook d'un traqueur, quel que soit le réglage : un traqueur n'est pas un approbateur.
    - **Tant que la demande n'est pas approuvée, la Gate de déploiement CI/CD reste bloquante** (`isSettled() == false`), et les documents VEX déclarent le problème en cours d'investigation.
+   - La demande garde le statut qu'elle demande (`triageRequestedStatus`), et une approbation accorde **ce** statut ou est refusée (409 `triage-approval-differs`) : un risque accepté ne peut pas être approuvé comme une levée. Un approbateur en désaccord refuse la demande et décide sous son propre nom.
 
 3. **Demandeur ≠ Approbateur** :
    - L'approbation est refusée lorsque le compte approbateur est celui enregistré comme ayant demandé la dérogation. Sans cela le contrôle est une barrière de rôle et non un contrôle à quatre yeux, et un évaluateur lisant littéralement DORA art. 9 ou NIS 2 art. 21 a raison de le rejeter.

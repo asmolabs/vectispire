@@ -22,6 +22,22 @@ décision du même poids qu'une levée ([décision 0041](https://github.com/asmo
 ne peut pas approuver est mise en file en `pending_approval`, compte toujours à la barrière, et se lit
 *en cours d'investigation* dans tous les formats VEX jusqu'à ce qu'elle soit accordée.
 
+## Accordée telle que demandée, ou refusée {#granted-as-asked-or-turned-down}
+
+Une demande en file garde le statut qu'elle demande — affiché à côté de *en attente d'approbation*
+dans le backlog et dans le [registre des exceptions](../guide/exceptions.fr.md) — et la date de
+réexamen qu'elle propose. La fenêtre de triage s'ouvre sur les deux. Un approbateur **accorde ce
+statut ou aucun** : approuver comme *non affecté* une demande de risque accepté, ou comme *corrigé*
+une demande de levée, est refusé (`409`, `urn:vectispire:problem:triage-approval-differs`). Quatre
+yeux sur un statut que la seconde paire a choisi, ce serait une seule paire d'yeux sur ce statut — le
+demandeur ne l'a jamais demandé — et un *Won't Fix* accordé comme une levée est un « non exposé »
+signé que personne n'a affirmé.
+
+Un approbateur en désaccord **refuse la demande** — retour en *en cours d'examen*, ou *affecté* — et
+peut ensuite enregistrer sa propre décision, sous son nom. La date de réexamen reste la sienne : la
+fenêtre propose celle de la demande, modifiable avant d'accorder. Une demande mise en file avant cet
+enregistrement (0.11.0) ne porte pas de statut, et l'approbateur choisit comme avant.
+
 ## Qui approuve, et qui ne peut pas
 
 L'approbation appartient aux rôles qui répondent du parc. Le **gouverneur de la plateforme** — le
@@ -82,7 +98,8 @@ encore en approbation — le secret prouve que le traqueur a envoyé l'appel, pa
 regardé la vulnérabilité — et l'entrée d'audit inscrit l'intégration comme auteur, le nom revendiqué
 restant à côté comme une donnée rapportée. Le refus d'un traqueur (*Won't Fix*, le *not planned*
 de GitHub…) arrive comme une demande de `will_not_fix`, un faux positif explicite comme une demande
-de `not_affected` ; l'approbateur choisit le statut et la date de réexamen. Et une issue qu'une
+de `not_affected` ; l'approbateur accorde ce statut ou refuse la demande, et fixe la date de
+réexamen. Et une issue qu'une
 personne a déjà réglée ne bouge pas du tout sur un ticket : la parole du traqueur est inscrite, et
 signalée comme `VECTI-SEC-037` quand elle contredit la décision
 ([Tickets](../integrations/ticketing.md#inbound-webhook)).

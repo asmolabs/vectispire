@@ -115,9 +115,8 @@ tableau, pas une branche par générateur.
 - Une équipe qui ferme un ticket en *Won't Fix* voit une demande d'acceptation de risque, pas une levée.
   L'accorder retire le constat du chemin de la barrière jusqu'à sa date de revue, et les documents VEX
   continuent de dire que le produit est exposé.
-- **Une demande en attente n'enregistre pas le statut demandé.** L'approbateur lit le commentaire et
-  l'historique, puis choisit ; une acceptation et une levée en file se ressemblent dans le registre d'ici
-  là. L'enregistrer demande une colonne, laissée pour le jour où le registre en aura besoin.
+- ~~**Une demande en attente n'enregistre pas le statut demandé.**~~ Levé le 2026-10-12 — voir
+  *Amendée* ci-dessous : la demande garde son statut, et une approbation accorde ce statut ou est refusée.
 - L'interface gagne le statut (libellé, filtre, couleur, le dialogue qui exige une date de revue et
   masque la justification) dans les deux langues ; le guide du triage et la référence des exports VEX
   changent dans `docs/{en,fr}/` et `docs-site/`.
@@ -133,6 +132,41 @@ tableau, pas une branche par générateur.
   à `not_affected`.
 - **Ignorer le refus.** La synchronisation depuis le tracker ne servirait plus à rien pour les refus,
   alors que l'information existe.
+
+## Amendée le 2026-10-12 : une demande est accordée telle que demandée
+
+La limite ci-dessus était un défaut, pas un report. Mise en file, une décision gardait sa justification,
+son commentaire et sa date de revue et perdait son statut ; l'approbateur en choisissait un, et rien ne
+comparait les deux. Le *Won't Fix* d'un traqueur — mis en file en `will_not_fix` par le §2 — pouvait être
+accordé en `not_affected`, et le VEX signé disait alors « non exposé », l'affirmation même que cette
+décision existe pour empêcher. Et la fenêtre de triage vidait la date de revue proposée à l'ouverture.
+
+- **Enregistré.** V88 ajoute `t_issue.triage_requested_status` et `t_issue_triage_event.requested_status`
+  (nullables, `varchar(30)`). `IssueTriageService.queueIfNotApprover` garde le statut demandé ; le
+  constat le porte tant qu'il est `pending_approval`, et toute autre décision l'efface — une approbation,
+  un refus, l'échéance de la date de revue, une revue qui révoque. La ligne d'historique qui a mis la
+  demande en file l'enregistre. La date de revue proposée était déjà gardée sur le constat en attente
+  (`triage_expires_at`) : pas de colonne pour elle.
+- **Accordée telle que demandée, ou refusée.** Une approbation (`origin = approval`) qui accorde un autre
+  statut réglé est refusée, 409 de type `urn:vectispire:problem:triage-approval-differs` avec le membre
+  `requestedStatus`. Un approbateur en désaccord répond `under_review` ou `affected` — pas une
+  approbation — et peut ensuite décider sous son propre nom. Laisser l'approbateur choisir, avec un
+  commentaire et une entrée d'audit, a été écarté : quatre yeux sur un statut que la seconde paire a
+  choisi, c'est une seule paire d'yeux sur ce statut.
+- **Un import VEX ne répond pas à la demande d'un autre.** Une déclaration amont `not_affected` laisse
+  telle quelle une demande en attente pour un autre statut, plutôt que de faire échouer l'import sur le
+  refus ou de remplacer la demande d'une personne.
+- **Affiché.** `triageRequestedStatus` sur chaque forme de constat (`IssueView`, la ligne du backlog, le
+  détail) et `requested_status` sur les entrées du registre des exceptions ; la ligne du backlog et le
+  registre disent ce qui est demandé, et la fenêtre de triage s'ouvre sur le statut demandé et la date de
+  revue proposée.
+- **Les demandes mises en file avant V88** ne portent pas de statut. Elles sont accordées comme
+  l'approbateur le choisit, comme avant ; le conseil de la première conséquence ci-dessus vaut toujours
+  pour elles.
+
+Vérifié par `IssueTriageServiceTest`, `TrackerRefusalRoutesTest` (les demandes du webhook, le 409 et
+l'octroi, par les routes), `VexImportAuthorityTest`, et les specs de l'interface pour la fenêtre et le
+registre.
 
 ## Tranché le 2026-10-10
 

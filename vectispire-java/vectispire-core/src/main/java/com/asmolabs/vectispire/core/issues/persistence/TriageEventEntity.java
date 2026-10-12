@@ -57,6 +57,13 @@ public class TriageEventEntity {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    /**
+     * On the row that queued a decision for approval ({@code to_status = pending_approval}): the status
+     * it asked for. Null on every other row, and on requests recorded before V88.
+     */
+    @Column(name = "requested_status", length = 30)
+    private String requestedStatus;
+
     /** The target's last scan at that moment, hence the version the decision was taken against. */
     @Column(name = "scan_id")
     private Long scanId;
@@ -162,5 +169,13 @@ public class TriageEventEntity {
 
     public void setPreviousResolvedAt(Instant previousResolvedAt) {
         this.previousResolvedAt = previousResolvedAt;
+    }
+
+    public String getRequestedStatus() {
+        return requestedStatus;
+    }
+
+    public void setRequestedStatus(String requestedStatus) {
+        this.requestedStatus = requestedStatus;
     }
 }

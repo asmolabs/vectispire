@@ -66,7 +66,7 @@ public class IssueTriageService {
 
     @Transactional
     public IssueEntity triage(long issueId, Triage.Request request, boolean canApprove) {
-        Triage.Decision decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
+        Queued decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
 
         IssueEntity issue = issues.findById(issueId)
                 .orElseThrow(() -> new InvalidTriageException("Issue not found."));
@@ -94,7 +94,7 @@ public class IssueTriageService {
 
     @Transactional
     public List<IssueEntity> triageAll(List<Long> issueIds, Triage.Request request, boolean canApprove) {
-        Triage.Decision decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
+        Queued decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
 
         List<IssueEntity> triaged = new ArrayList<>(issueIds.size());
         for (Long issueId : issueIds) {
@@ -128,23 +128,48 @@ public class IssueTriageService {
      * afterwards keeps both rules true: a dismissal still cannot reach the queue without its
      * justification, and a fix is no longer asked for one it has no way to give.
      */
-    private static Triage.Decision queueIfNotApprover(Triage.Decision decision, boolean canApprove) {
+    private static Queued queueIfNotApprover(Triage.Decision decision, boolean canApprove) {
         if (canApprove || decision.status() == null || !decision.status().isSettled()) {
-            return decision;
+            return new Queued(decision, null);
         }
-        return new Triage.Decision(
+        // **The status asked for travels with the queue.** It was dropped here, keeping the
+        // justification, the comment and the review date: the approver then saw `pending_approval`
+        // and chose, and a tracker's "Won't Fix" could be granted as `not_affected` — a signed
+        // "not exposed" nobody had asked for (decision 0041).
+        return new Queued(new Triage.Decision(
                 TriageStatus.PENDING_APPROVAL,
                 decision.justification(),
                 decision.comment(),
                 decision.triagedBy(),
                 decision.triagedAt(),
-                decision.expiresAt());
+                decision.expiresAt()), decision.status());
+    }
+
+    /**
+     * A decision as it is written, and — when it was queued for approval — the settled status it asked
+     * for, which {@link #apply} keeps on the issue and on the history row until somebody answers.
+     */
+    private record Queued(Triage.Decision decision, TriageStatus requested) {}
+
+    /**
+     * Would settling this issue as {@code status} answer a request that asked for another one?
+     *
+     * <p>Only a request that recorded what it asked for can be contradicted: one queued before V88, or
+     * a {@code pending_approval} asked for directly, names nothing, and is granted as the approver
+     * chooses — as it always was.
+     */
+    static boolean contradictsTheRequest(IssueEntity issue, TriageStatus status) {
+        return TriageStatus.PENDING_APPROVAL.wireName().equals(issue.getTriageStatus())
+                && status != null && status.isSettled()
+                && issue.getTriageRequestedStatus() != null
+                && !issue.getTriageRequestedStatus().equals(status.wireName());
     }
 
     /**
      * Writes one decision onto one issue, history included.
      */
-    private IssueEntity apply(IssueEntity issue, Triage.Decision decision) {
+    private IssueEntity apply(IssueEntity issue, Queued queued) {
+        Triage.Decision decision = queued.decision();
         String previous = issue.getTriageStatus();
         // Settling, not dismissing — the counterpart of the widening in `queueIfNotApprover`. Without
         // it a queued `FIXED` would be granted as an ordinary edit: no approval recorded in the
@@ -154,6 +179,12 @@ public class IssueTriageService {
 
         if (APPROVAL.equals(origin)) {
             requireASecondPairOfEyes(issue, decision);
+            // **Granted as asked, or turned down.** Four eyes on a status the second pair chose is
+            // one pair of eyes on that status: the requester never asked for it. An approver who
+            // disagrees answers `under_review` or `affected`, which is no approval, and decides after.
+            if (contradictsTheRequest(issue, decision.status())) {
+                throw new TriageApprovalDiffersException(issue.getTriageRequestedStatus(), decision.status());
+            }
         }
 
         issue.setTriageStatus(decision.status().wireName());
@@ -163,8 +194,12 @@ public class IssueTriageService {
         issue.setTriagedBy(decision.triagedBy());
         issue.setTriagedAt(decision.triagedAt());
         issue.setTriageExpiresAt(decision.expiresAt().orElse(null));
+        // Kept while the issue waits, cleared by any other decision: a request answered, withdrawn or
+        // turned down asks for nothing any more.
+        String requested = queued.requested() == null ? null : queued.requested().wireName();
+        issue.setTriageRequestedStatus(requested);
 
-        events.save(event(
+        TriageEventEntity recorded = event(
                 issue,
                 previous,
                 decision.status().wireName(),
@@ -173,7 +208,9 @@ public class IssueTriageService {
                 decision.triagedBy(),
                 origin,
                 decision.triagedAt(),
-                decision.expiresAt().orElse(null)));
+                decision.expiresAt().orElse(null));
+        recorded.setRequestedStatus(requested);
+        events.save(recorded);
 
         return issue;
     }
@@ -314,6 +351,8 @@ public class IssueTriageService {
                 // Cleared rather than left: an expiry surviving a revocation would bring the
                 // withdrawn exception back through `expireStale` as though it had merely lapsed.
                 issue.setTriageExpiresAt(null);
+                // And a revoked request asks for nothing any more.
+                issue.setTriageRequestedStatus(null);
             }
         }
 
@@ -357,6 +396,9 @@ public class IssueTriageService {
             String previous = issue.getTriageStatus();
             issue.setTriageStatus(expiry.status().wireName());
             issue.setTriageExpiresAt(expiry.expiresAt());
+            // A request that waited past its own review date lapses with it: the issue is back under
+            // review and asks nobody for anything.
+            issue.setTriageRequestedStatus(null);
             expired.add(issue.getId());
 
             // **Recorded like a human decision, and marked as not being one.** An acceptance

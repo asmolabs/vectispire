@@ -34,6 +34,8 @@ execute".
 `not affected`, `will not fix` and `fixed` **settle** the issue: it stops failing the gate and leaves
 the backlog's figures. Under [four-eyes](../administration/four-eyes.md), somebody who may not approve
 only requests them — the issue waits in `pending approval`, still counted, until an approver grants it.
+The row says what was asked for, and an approver opening it finds that status and the proposed review
+date already chosen: the request is granted as asked or turned down, never granted as something else.
 
 ### Accepting a risk
 

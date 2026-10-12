@@ -380,6 +380,7 @@ workflow bears on — follow a four-eyes rule while `triage_four_eyes_required` 
 2. **`PENDING_APPROVAL` status**:
    - Any request for a settling status — `not_affected` (a clearance), `will_not_fix` (a risk accepted, which requires a review date and carries no VEX justification) or `fixed` — raised by somebody who may not approve moves automatically to `PENDING_APPROVAL`. So does every decision arriving from a tracker's webhook, whatever the setting: a tracker is not an approver.
    - **Until the request is approved, the CI/CD deployment gate keeps failing** (`isSettled() == false`), and the VEX documents state the issue as under investigation.
+   - The request keeps the status it asks for (`triageRequestedStatus`), and an approval grants **that** status or is refused (409 `triage-approval-differs`): an accepted risk cannot be approved as a clearance. An approver who disagrees turns the request down and decides under their own name.
 
 3. **Requester ≠ approver**:
    - The approval is refused when the approving account is the one recorded as having requested the exemption. Without this the control is a role gate rather than a four-eyes one, and an assessor reading DORA Art. 9 or NIS 2 Art. 21 literally is right to reject it.

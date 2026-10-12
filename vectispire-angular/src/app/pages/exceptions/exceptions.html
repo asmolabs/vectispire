@@ -83,6 +83,14 @@
                                         <p-tag severity="danger" [value]="'exceptions.state.lapsed' | translate" />
                                     } @else if (entry.decision === 'pending_approval') {
                                         <p-tag severity="warn" [value]="'exceptions.state.awaiting' | translate" />
+                                        @if (entry.requested_status) {
+                                            <div
+                                                class="text-muted-color text-xs mt-1"
+                                                data-testid="exception-requested"
+                                            >
+                                                {{ requestedLabel(entry) }}
+                                            </div>
+                                        }
                                     } @else {
                                         <p-tag severity="secondary" [value]="'exceptions.state.granted' | translate" />
                                     }

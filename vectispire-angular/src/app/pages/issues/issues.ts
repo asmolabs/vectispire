@@ -30,6 +30,36 @@ import { ANY_CATEGORY, isoDay, mondayOf, owaspCategory } from '@/app/shared/owas
 /** The longest review delay the server accepts, in days — ten years. */
 const MAX_REVIEW_DAYS = 3650;
 
+/**
+ * The triage status a VEX status suggests.
+ *
+ * The advisor answers in VEX's vocabulary, and its usual answer — every finding not on the KEV list —
+ * is `under_investigation`, which is no triage status: applied as it stood, the dialog's select showed
+ * nothing and the server refused the decision for having no status. An investigation is `under_review`
+ * here, and anything this screen does not know reads as that too, never as a stronger claim.
+ */
+function triageStatusOfVex(status: string | null | undefined): string {
+    switch (status) {
+        case 'affected':
+        case 'not_affected':
+        case 'fixed':
+            return status;
+        default:
+            return 'under_review';
+    }
+}
+
+/**
+ * The days from now to a proposed review date, as the dialog's field counts them; null when there is
+ * none, or it has passed. Rounded up: the server counts the delay from the approval, so the date granted
+ * falls on the proposed day or the one after, never before it.
+ */
+function reviewDaysLeft(expiresAt: string | null | undefined, now: number = Date.now()): number | null {
+    if (!expiresAt) return null;
+    const days = Math.ceil((new Date(expiresAt).getTime() - now) / 86_400_000);
+    return days >= 1 ? Math.min(days, MAX_REVIEW_DAYS) : null;
+}
+
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 
 /**
@@ -372,6 +402,8 @@ export class Issues {
     triageJustification: string | null = null;
     triageComment = '';
     triageExpiresInDays: number | null = null;
+    /** What the request being answered asked for, when the dialog opened on one; null otherwise. */
+    triageRequested: string | null = null;
     readonly triageError = signal<string | null>(null);
     private triaged: Issue | null = null;
 
@@ -714,17 +746,31 @@ export class Issues {
         return 'secondary';
     }
 
+    /** The advisor's suggestion, as the triage status applying it would choose. */
+    suggestedTriageLabel(advice: AiVulnerabilityAdvice): string {
+        return this.triageLabel(triageStatusOfVex(advice.vexSuggestion.status));
+    }
+
     triageLabel(status: string): string {
         return this.triageOptions().find((option) => option.value === status)?.label ?? status;
     }
 
+    /**
+     * On a request awaiting approval, the dialog opens on **what was asked**: the status and the review
+     * date the requester proposed. It opened on `pending_approval` with the review date emptied, so the
+     * approver chose a status of their own and the proposed date was lost — and a tracker's "Won't Fix"
+     * could leave granted as "not affected" (decision 0041). The server now refuses a grant that differs;
+     * the dialog offers the one it accepts.
+     */
     openTriage(issue: Issue): void {
         this.triaged = issue;
         this.bulk = false;
-        this.triageStatus = issue.triageStatus;
-        this.triageJustification = issue.triageJustification;
+        const pending = issue.triageStatus === 'pending_approval';
+        this.triageRequested = pending ? issue.triageRequestedStatus : null;
+        this.triageStatus = this.triageRequested ?? issue.triageStatus;
+        this.triageJustification = this.triageRequested === 'will_not_fix' ? null : issue.triageJustification;
         this.triageComment = issue.triageComment ?? '';
-        this.triageExpiresInDays = null;
+        this.triageExpiresInDays = pending ? reviewDaysLeft(issue.triageExpiresAt) : null;
         this.triageError.set(null);
         this.triageOpen = true;
     }
@@ -744,6 +790,7 @@ export class Issues {
         if (this.selected().length === 0) return;
         this.triaged = null;
         this.bulk = true;
+        this.triageRequested = null;
         this.triageStatus = 'under_review';
         this.triageJustification = null;
         this.triageComment = '';
@@ -894,7 +941,7 @@ export class Issues {
 
         this.openTriage(this.aiTargetIssue);
         if (advice.vexSuggestion) {
-            this.triageStatus = advice.vexSuggestion.status || 'under_investigation';
+            this.triageStatus = triageStatusOfVex(advice.vexSuggestion.status);
             this.triageJustification = advice.vexSuggestion.justification || null;
             this.triageComment = `${this.i18n.t('issues.ai_suggestion_prefix')} ${advice.vexSuggestion.impactStatement || advice.summaryExplanation}`;
         }

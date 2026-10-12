@@ -105,9 +105,8 @@ contradiction entry. A sixth status adds a row to the table, not a branch per ge
 - A team closing a ticket as *Won't Fix* sees a request for an accepted risk, not a clearance. Granting it takes
   the issue out of the gate's way until its review date, and the VEX documents keep saying the product is
   exposed.
-- **A pending request does not record which status was asked for.** The approver reads the comment and the
-  history and chooses; a queued acceptance and a queued clearance look alike in the register until then.
-  Recording it needs a column, and is left for when the register needs it.
+- ~~**A pending request does not record which status was asked for.**~~ Lifted on 2026-10-12 — see
+  *Amended* below: the request keeps its status, and an approval grants that status or is refused.
 - The interface gains the status (label, filter, colour, the dialog requiring a review date and hiding the
   justification) in both languages; the triage guide and the VEX export reference change in `docs/{en,fr}/`
   and `docs-site/`.
@@ -122,6 +121,38 @@ contradiction entry. A sixth status adds a row to the table, not a branch per ge
   acceptance the register had without offering one: teams would have gone back to `not_affected`.
 - **Ignore the refusal.** Synchronisation from the tracker would stop being useful for refusals, although the
   information exists.
+
+## Amended on 2026-10-12: a request is granted as asked
+
+The limitation above was a defect, not a deferral. Queued, a decision kept its justification, comment and
+review date and dropped its status; the approver then chose one, and nothing compared the two. A
+tracker's *Won't Fix* — queued as `will_not_fix` by §2 — could be granted as `not_affected`, and the
+signed VEX then said "not exposed", which is the claim this decision exists to stop. And the dialog
+emptied the proposed review date on opening.
+
+- **Recorded.** V88 adds `t_issue.triage_requested_status` and `t_issue_triage_event.requested_status`
+  (nullable, `varchar(30)`). `IssueTriageService.queueIfNotApprover` keeps the requested status; the
+  issue carries it while `pending_approval` and any other decision clears it — an approval, a refusal,
+  a lapse at the review date, a revoking review. The history row that queued the request records it.
+  The proposed review date was already kept on the pending issue (`triage_expires_at`); no column for
+  it.
+- **Granted as asked, or turned down.** An approval (`origin = approval`) granting another settled
+  status is refused, 409 with the type `urn:vectispire:problem:triage-approval-differs` and the member
+  `requestedStatus`. An approver who disagrees answers `under_review` or `affected` — no approval —
+  and may then decide under their own name. Letting the approver choose, with a comment and an audit
+  entry, was rejected: four eyes on a status the second pair chose is one pair of eyes on it.
+- **A VEX import does not answer someone else's request.** An upstream `not_affected` statement leaves
+  a pending request for another status as it is, rather than failing the import on the refusal or
+  replacing a person's request.
+- **Shown.** `triageRequestedStatus` on every issue shape (`IssueView`, the backlog row, the detail) and
+  `requested_status` on the exceptions register's entries; the backlog row and the register say what is
+  asked, and the triage dialog opens on the requested status and the proposed review date.
+- **Requests queued before V88** carry no status. They are granted as the approver chooses, as before;
+  the advice in the first consequence above still applies to them.
+
+Checked by `IssueTriageServiceTest`, `TrackerRefusalRoutesTest` (the webhook's requests, the 409 and the
+grant, through the routes), `VexImportAuthorityTest`, and the interface's specs for the dialog and the
+register.
 
 ## Decided on 2026-10-10
 

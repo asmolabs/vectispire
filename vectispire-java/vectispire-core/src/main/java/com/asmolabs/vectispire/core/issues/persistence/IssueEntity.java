@@ -195,6 +195,14 @@ public class IssueEntity {
     @Column(name = "triage_expires_at")
     private Instant triageExpiresAt;
 
+    /**
+     * While the issue is {@code pending_approval}: the settled status the queued decision asked for
+     * ({@code not_affected}, {@code will_not_fix}, {@code fixed}). Null on any other status, and on a
+     * request queued before V88, which recorded none.
+     */
+    @Column(name = "triage_requested_status", length = 30)
+    private String triageRequestedStatus;
+
     @Column(name = "is_direct_dependency")
     private Boolean isDirectDependency;
 
@@ -591,6 +599,14 @@ public class IssueEntity {
 
     public void setTriageExpiresAt(Instant triageExpiresAt) {
         this.triageExpiresAt = triageExpiresAt;
+    }
+
+    public String getTriageRequestedStatus() {
+        return triageRequestedStatus;
+    }
+
+    public void setTriageRequestedStatus(String triageRequestedStatus) {
+        this.triageRequestedStatus = triageRequestedStatus;
     }
 
     public Boolean getIsDirectDependency() {

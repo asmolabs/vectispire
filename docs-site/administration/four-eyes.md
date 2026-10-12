@@ -20,6 +20,21 @@ builds until its review date, which is a decision of the same weight as a cleara
 `pending_approval`, still counts against the gate, and reads *under investigation* in every VEX
 format until it is granted.
 
+## Granted as asked, or turned down
+
+A queued request keeps the status it asked for — shown beside *pending approval* in the backlog and
+in the [exceptions register](../guide/exceptions.md) — and the review date it proposed. The triage
+dialog opens on both. An approver **grants that status or none**: approving a request for an accepted
+risk as *not affected*, or a clearance as *fixed*, is refused (`409`,
+`urn:vectispire:problem:triage-approval-differs`). Four eyes on a status the second pair chose would
+be one pair of eyes on it — the requester never asked for it — and a *Won't Fix* granted as a
+clearance is a signed "not exposed" nobody claimed.
+
+An approver who disagrees **turns the request down** — back to *under review*, or *affected* — and
+may then record their own decision, under their own name. The review date stays theirs to set: the
+dialog offers the proposed one, and may be changed before granting. A request queued before this
+was recorded (0.11.0) carries no status, and the approver chooses as before.
+
 ## Who approves, and who cannot
 
 Approving is held by the roles that answer for the estate. The **platform governor** — the
@@ -77,8 +92,8 @@ secret is configured; once it is, what arrives through it still goes to approval
 the tracker sent the call, not that anybody looked at the vulnerability — and the audit entry
 records the integration as the author with any claimed name kept beside it as reported data. A
 tracker's refusal (*Won't Fix*, GitHub's *not planned*…) arrives as a request for `will_not_fix`, an
-explicit false positive as one for `not_affected`; the approver chooses the status and the review
-date. And an issue a person already settled is not moved by a ticket at all: the tracker's word is
+explicit false positive as one for `not_affected`; the approver grants that status or turns the
+request down, and sets the review date. And an issue a person already settled is not moved by a ticket at all: the tracker's word is
 recorded, and signalled as `VECTI-SEC-037` when it contradicts the decision
 ([Tracker tickets](../integrations/ticketing.md#inbound-webhook)).
 
