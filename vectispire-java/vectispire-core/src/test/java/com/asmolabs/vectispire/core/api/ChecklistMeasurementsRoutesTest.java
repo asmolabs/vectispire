@@ -120,6 +120,15 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
     @Autowired
     private ChecklistMeasurementRepository measurements;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.reportplugins.ProjectExportService exports;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.access.AuthService auth;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.access.VisibilityService visibility;
+
     private record Account(String token, long id, String name) {}
 
     private Account developer;
@@ -643,13 +652,66 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             JsonNode atSubmission = measurements(developer, project, 1).at("/lines/0/atSubmission");
             assertThat(repository(atSubmission, second).at("/repositoryName").asText()).isNotBlank();
 
-            // The submission's stored evidence still cites the repository; the project no longer holds it.
+            // The submission's stored evidence still cites the repository; the project no longer holds it. The
+            // developer still sees it — every account sees every target here — so the evidence is theirs to read;
+            // a reader who no longer sees it is refused (theStoredEvidenceIsReadByWhoSeesWhatItCarried).
             mvc.perform(authenticated(delete("/api/v1/projects/" + project + "/repositories/" + second), asAdmin()))
                     .andExpect(status().isNoContent());
             JsonNode after = measurements(developer, project, 1).at("/lines/0/atSubmission");
             assertThat(repository(after, second).at("/repositoryName").isNull())
                     .as("a name is handed out for the repositories the reader was judged by, only").isTrue();
             assertThat(repository(after, first).at("/repositoryName").asText()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("what a submission and a sign-off stored is read by who sees every repository it carried, not only the project now")
+        void theStoredEvidenceIsReadByWhoSeesWhatItCarried() throws Exception {
+            publishWithRule(SECRETS);
+            scan(first, hoursAgo(2), "secret", null, true);
+            scan(second, hoursAgo(2), "secret", null, true);
+            open(developer, project);
+            answerAll(itemIds(read(developer, 1)));
+            submit(developer, 1, edition()).andExpect(status().isOk());
+            signOff(ciso, 1, edition()).andExpect(status().isOk());
+
+            settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
+            Account grantee = account(Role.USER);
+            grant(grantee.id(), "project", project);
+            measurements(grantee, project, 1);
+            mvc.perform(authenticated(get(base(project) + "/1/document"), grantee.token())).andExpect(status().isOk());
+            mvc.perform(authenticated(get("/api/v1/projects/" + project + "/export"), grantee.token()))
+                    .andExpect(status().isOk());
+
+            // The project is still whole to the grantee — `first` alone now — while the revision's stored
+            // measurements, its signed package and the statement an export embeds carry `second`'s scans.
+            mvc.perform(authenticated(delete("/api/v1/projects/" + project + "/repositories/" + second), asAdmin()))
+                    .andExpect(status().isNoContent());
+            String absent = "Project \"Checkout\" has no checklist revision 1.";
+            assertThat(detailOf(mvc.perform(authenticated(get(base(project) + "/1/measurements"), grantee.token()))
+                    .andExpect(status().isNotFound()).andReturn())).isEqualTo(absent);
+            assertThat(detailOf(mvc.perform(authenticated(get(base(project) + "/1/document"), grantee.token()))
+                    .andExpect(status().isNotFound()).andReturn())).isEqualTo(absent);
+            mvc.perform(authenticated(get("/api/v1/projects/" + project + "/export"), grantee.token()))
+                    .andExpect(status().isNotFound());
+            // The words of a revision that does not exist.
+            assertThat(detailOf(mvc.perform(authenticated(get(base(project) + "/9/measurements"), grantee.token()))
+                    .andExpect(status().isNotFound()).andReturn())).isEqualTo("Project \"Checkout\" has no checklist revision 9.");
+
+            // Whoever sees the repository reads all of it, and a report built over the export records it as
+            // carried, so that its document is read under the same rule (decision 0042).
+            mvc.perform(authenticated(get(base(project) + "/1/document"), asAdmin())).andExpect(status().isOk());
+            Account admin = account(Role.ADMIN);
+            com.asmolabs.vectispire.core.access.UserView adminView = auth.activeAccount(admin.id()).orElseThrow();
+            com.asmolabs.vectispire.core.reportplugins.ProjectExportService.RunExport run = exports.forRun(project,
+                    adminView, visibility.allowance(adminView, com.asmolabs.vectispire.common.domain.access.Visibility.everything()),
+                    "en", com.asmolabs.vectispire.common.domain.reportplugins.ProjectExportBounds.STANDARD);
+            assertThat(run.targets()).contains(
+                    new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Repository(first),
+                    new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Repository(second));
+
+            grant(grantee.id(), "repository", second);
+            measurements(grantee, project, 1);
+            mvc.perform(authenticated(get(base(project) + "/1/document"), grantee.token())).andExpect(status().isOk());
         }
 
         @Test

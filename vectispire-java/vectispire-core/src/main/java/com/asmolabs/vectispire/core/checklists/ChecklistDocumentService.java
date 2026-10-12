@@ -52,6 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -78,6 +79,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p>The export refuses the project here, like every other checklist read (§8): absent, hidden and seen in
  * part are one "Project not found." An integration key restricted to one repository never sees a whole
  * project, so the export route that accepts one answers it 404.
+ *
+ * <h2>And what the revision carried</h2>
+ *
+ * <p>A signed-off or a superseded revision is rendered from the measurements stored at its submission and
+ * its sign-off, which carry the evidence of every repository the project held then. Its document goes to a
+ * reader who sees each of those repositories as well as the project now ({@link CarriedRepositories}); to
+ * anybody else the revision is absent, in the words an absent one gets.
  */
 @Service
 public class ChecklistDocumentService {
@@ -155,8 +163,14 @@ public class ChecklistDocumentService {
         VisibleProject project = RowVisibility.requireWhollyVisibleProject(projectId,
                 members.map(SolutionQueryService.ProjectMembers::name), repositoryIds, allowance);
         ChecklistEntity checklist = checklists.findByProjectIdAndRevision(project.projectId(), revision)
-                .orElseThrow(() -> new NotFoundException("Project \"" + project.name() + "\" has no checklist revision "
-                        + revision + "."));
+                .orElseThrow(() -> absent(project, revision));
+        // A closed revision's document is its stored measurements' — the signed package was rendered from them —
+        // and they may carry a repository the project has dropped since. An open one is measured for this
+        // rendering, over the repositories the guard above compared.
+        if (!ChecklistStatus.ofStored(checklist.getStatus()).isOpen()
+                && !CarriedRepositories.seenBy(CarriedRepositories.of(storedMeasurements(checklist).values()), allowance)) {
+            throw absent(project, revision);
+        }
 
         Optional<ChecklistDocumentEntity> stored = documents.findByChecklistId(checklist.getId());
         byte[] content;
@@ -182,6 +196,11 @@ public class ChecklistDocumentService {
 
     // ------------------------------------------------------------------ the project export's part
 
+    /** Absent and hidden in the same words: a revision the reader may not read is one the project does not have. */
+    private static NotFoundException absent(VisibleProject project, int revision) {
+        return new NotFoundException("Project \"" + project.name() + "\" has no checklist revision " + revision + ".");
+    }
+
     /**
      * A revision's statement as the project export embeds it (decision 0035 §1).
      *
@@ -189,8 +208,17 @@ public class ChecklistDocumentService {
      * @param documentSha256 the SHA-256 of the package signed at the sign-off; null for the open revision
      * @param statement a signed-off revision's statement as it was signed — read back from the stored
      *     package, never rendered again; the open revision's as it stands, its measured lines measured now
+     * @param repositoryIds every repository the statement carries evidence of: the project's now for the open
+     *     revision, those its stored measurements name for a signed one — which the report run records, so
+     *     that its document is read by those who see them (decision 0042)
      */
-    public record ExportedStatement(boolean draft, String documentSha256, ChecklistStatement statement) {}
+    public record ExportedStatement(boolean draft, String documentSha256, ChecklistStatement statement,
+            List<Long> repositoryIds) {
+
+        public ExportedStatement {
+            repositoryIds = List.copyOf(repositoryIds);
+        }
+    }
 
     /**
      * What a project's export says of its checklists: for each template, the newest revision signed off
@@ -199,8 +227,16 @@ public class ChecklistDocumentService {
      * <p><b>The caller has refused the project already</b>, through the whole-project guard: this takes the
      * proof it returns. A revision signed off before documents were signed has no package, and is not here:
      * its statement was never signed, and the export says only what was.
+     *
+     * <p><b>A signed statement carries the repositories of its sign-off</b>, which the project may have dropped
+     * since. A reader who does not see each of them is not given the export at all: leaving that revision
+     * out would have the export state a checklist history the project does not have — an older sign-off as
+     * the newest, or none — and the export states only what was recorded.
+     *
+     * @throws NotFoundException when a signed statement carries a repository the reader does not see
      */
-    public List<ExportedStatement> statementsForExport(VisibleProject project, List<Long> repositoryIds) {
+    public List<ExportedStatement> statementsForExport(VisibleProject project, List<Long> repositoryIds,
+            VisibilityService.Allowance allowance) {
         List<ChecklistEntity> revisions = checklists.findByProjectIdOrderByRevisionDesc(project.projectId());
         LinkedHashMap<Long, ExportedStatement> signedByTemplate = new LinkedHashMap<>();
         ExportedStatement open = null;
@@ -213,7 +249,7 @@ public class ChecklistDocumentService {
                 ChecklistTemplateEntity template = templates.findById(version.getTemplateId())
                         .orElseThrow(() -> new IllegalStateException("Template " + version.getTemplateId() + " is gone."));
                 open = new ExportedStatement(true, null, statement(project, repositoryIds, revision, version, template,
-                        forms.layout(version.getLayout()), false, clock.instant()));
+                        forms.layout(version.getLayout()), false, clock.instant()), repositoryIds);
                 continue;
             }
             if (revision.getSignedOffAt() == null) {
@@ -226,8 +262,18 @@ public class ChecklistDocumentService {
             }
             Optional<ChecklistDocumentEntity> stored = documents.findByChecklistId(revision.getId());
             if (stored.isPresent()) {
+                Optional<Set<Long>> carried = CarriedRepositories.of(storedMeasurements(revision).values());
+                if (!CarriedRepositories.seenBy(carried, allowance)) {
+                    throw new NotFoundException("The export of project \"" + project.name() + "\" would carry checklist "
+                            + "revision " + revision.getRevision() + ", which is not available to you.");
+                }
+                // Unreadable evidence passes the check above for a reader who sees everything, but a report run
+                // records the targets its export carried, and "some, unknown" is not a list it can record.
+                List<Long> carriedIds = carried.orElseThrow(() -> new IllegalStateException("The stored measurements of "
+                        + "checklist " + revision.getId() + " do not read back: what it carried cannot be recorded."))
+                        .stream().sorted().toList();
                 signedByTemplate.put(templateId, new ExportedStatement(false, stored.get().getSha256(),
-                        signedStatement(stored.get().getContent())));
+                        signedStatement(stored.get().getContent()), carriedIds));
             }
         }
         List<ExportedStatement> statements = new ArrayList<>(signedByTemplate.sequencedValues().reversed());
@@ -403,16 +449,24 @@ public class ChecklistDocumentService {
             }
             return measured;
         }
+        storedMeasurements(checklist).forEach((itemId, row) -> measured.put(itemId, new ChecklistStatement.Measured(row.getPurpose(),
+                row.getRuleKind(), row.getRuleDigest(), row.getBoundRule(), row.getOutcome(), row.getReason(), row.getAsOf(),
+                row.getComputedAt(), Measurement.read(row.getEvidence()).summary(), row.getEvidenceDigest(),
+                row.getEvidence())));
+        return measured;
+    }
+
+    /**
+     * The measurement a closed revision is rendered with, per line: the newest of its submission, replaced by the
+     * sign-off's where there is one. What a signed package was rendered from, and what its readers are judged by.
+     */
+    private Map<Long, ChecklistMeasurementEntity> storedMeasurements(ChecklistEntity checklist) {
         Map<Long, ChecklistMeasurementEntity> stored = new HashMap<>();
         measurements.findByChecklistIdAndPurposeOrderByIdAsc(checklist.getId(), MeasurementPurpose.SUBMISSION.wireName())
                 .forEach(row -> stored.put(row.getItemId(), row));
         measurements.findByChecklistIdAndPurposeOrderByIdAsc(checklist.getId(), MeasurementPurpose.SIGN_OFF.wireName())
                 .forEach(row -> stored.put(row.getItemId(), row));
-        stored.forEach((itemId, row) -> measured.put(itemId, new ChecklistStatement.Measured(row.getPurpose(),
-                row.getRuleKind(), row.getRuleDigest(), row.getBoundRule(), row.getOutcome(), row.getReason(), row.getAsOf(),
-                row.getComputedAt(), Measurement.read(row.getEvidence()).summary(), row.getEvidenceDigest(),
-                row.getEvidence())));
-        return measured;
+        return stored;
     }
 
     private static ChecklistStatement.Answer answer(ChecklistAnswerEntity row, AnswerWords words) {

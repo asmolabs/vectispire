@@ -706,6 +706,14 @@ from a list in which none is true of an exposed product — and signed into the 
   document status route also require the caller to see each of them
   ([decision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
   Documents produced before this release recorded none and are read only by somebody who sees everything.
+- **A checklist revision is read by who sees what it carried, too.** A submission's and a sign-off's stored
+  measurements, the signed package and the statement a project export embeds carry the evidence of every
+  repository the project held then, and were served to whoever saw the project whole now. They now also require
+  the caller to see each of those repositories — named by the stored evidence itself, so revisions submitted
+  before this release are covered without a migration; anybody else is told the revision does not exist, and a
+  project export carrying such a statement is refused rather than cut. A report run records those repositories
+  among its export's targets
+  ([decision 0042 §5](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
 - **Two ways around the sign-in counters closed.** A name the database's collation equates with an
   account's — `jeßica` for `jessica`, `æ` for `ae` — counted against a counter of its own, so the lockout
   told an existing account from an absent one; the name is now folded as MySQL compares it, checked against

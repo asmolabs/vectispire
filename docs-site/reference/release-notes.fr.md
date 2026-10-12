@@ -765,6 +765,14 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   que l'appelant voie chacune d'elles
   ([décision 0042](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
   Les documents produits avant cette version n'en ont enregistré aucune et ne sont lus que par qui voit tout.
+- **Une révision de checklist est lue elle aussi par qui voit ce qu'elle contient.** Les mesures conservées d'une
+  soumission et d'une approbation, le paquet signé et l'énoncé qu'embarque l'export d'un projet portent la preuve
+  de chaque dépôt que le projet contenait alors, et étaient servis à quiconque voyait le projet entier aujourd'hui.
+  Ils exigent désormais aussi que l'appelant voie chacun de ces dépôts — nommés par la preuve conservée elle-même,
+  si bien que les révisions soumises avant cette version sont couvertes sans migration ; tout autre apprend que la
+  révision n'existe pas, et l'export d'un projet qui porte un tel énoncé est refusé plutôt que tronqué. Une
+  exécution de rapport enregistre ces dépôts parmi les cibles de son export
+  ([décision 0042 §5](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0042-a-report-document-is-read-by-who-sees-what-it-carried.md)).
 - **Deux contournements des compteurs de connexion fermés.** Un nom que la collation de la base confond
   avec celui d'un compte — `jeßica` pour `jessica`, `æ` pour `ae` — comptait sur un compteur à lui, si bien
   que le verrouillage distinguait un compte existant d'un compte absent ; le nom est désormais replié comme

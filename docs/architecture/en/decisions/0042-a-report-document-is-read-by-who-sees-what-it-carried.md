@@ -56,6 +56,28 @@ The list of runs and a run's record (plugin, state, instants, digests, counts) a
 0035's rule. Hiding a run that exists from somebody who sees the project would make the screen disagree with
 itself for little: the content is in the document.
 
+### 5. Amendment, 12 October 2026: a checklist revision is read by who sees what it carried
+
+The same defect stood one step earlier. A submission and a sign-off store their measurements with the evidence
+of every repository the project held then ([0032](0032-security-checklists.md) §6), and the signed package is
+rendered from them (§10). The frozen measurements, the signed package and the statement a project export embeds
+were served to whoever saw the project whole **now**.
+
+- **What was carried is read from the evidence, not recorded twice.** Each stored measurement names, under its
+  digest, every repository it read: its figures and its summary are gathered repository by repository, each one
+  entered in the evidence as it is read. The union over a revision's stored rows — the newest of its submission,
+  replaced by the sign-off's — is exactly what it carries, for the revisions submitted before this amendment as
+  for the next ones, so no column and no backfill are needed. Evidence that does not read back is read as §3
+  reads an unrecorded run: by a caller who sees everything, never as fewer repositories.
+- **A submitted, signed-off or superseded revision's measurements, and a signed-off or superseded revision's
+  document, go to a caller who sees each carried repository** as well as the project; anybody else is told the
+  revision does not exist, in the words an absent one gets. A draft is measured for the read, over the
+  repositories the project's guard compared, and asks nothing more.
+- **The project export refuses rather than omits.** A signed statement the caller may not read fails the whole
+  export with a 404: left out, the export would state a checklist history the project does not have — an older
+  sign-off as the newest, or none. A report run built over the export records the carried repositories in
+  `export_targets` beside the project's targets, so its document is read under §2.
+
 ## Consequences
 
 - A reader who sees the project whole but not a target it held when the run was made no longer downloads that

@@ -1255,6 +1255,21 @@ public class ProjectChecklistService {
                 ? newestPerLine(checklist.getId(), MeasurementPurpose.SUBMISSION)
                 : Map.of();
         boolean live = status == ChecklistStatus.DRAFT || status == ChecklistStatus.SUBMITTED;
+        Map<Long, ChecklistMeasurementEntity> stored = new HashMap<>();
+        if (!live) {
+            stored.putAll(newestPerLine(checklist.getId(), MeasurementPurpose.SUBMISSION));
+            stored.putAll(newestPerLine(checklist.getId(), MeasurementPurpose.SIGN_OFF));
+        }
+        // **What was stored carries the repositories of its day.** The guard above compared the project's
+        // repositories now; a submission's or a sign-off's evidence names those it held then, and one taken out
+        // of the project since handed its scans and figures to a reader never shown it. Such a reader is told
+        // the revision is absent, in the words an absent one gets — see CarriedRepositories.
+        List<ChecklistMeasurementEntity> frozen = new ArrayList<>(atSubmission.values());
+        frozen.addAll(stored.values());
+        if (!CarriedRepositories.seenBy(CarriedRepositories.of(frozen), allowance)) {
+            throw new NotFoundException("Project \"" + guarded.project().name() + "\" has no checklist revision "
+                    + revision + ".");
+        }
         Instant now = clock.instant();
 
         // Named by the guard's repositories alone, in one batched lookup: every one the caller was judged
@@ -1269,9 +1284,6 @@ public class ProjectChecklistService {
                 outcomes.put(line.item().getId(), Optional.of(line.measurement().outcome()));
             }
         } else {
-            Map<Long, ChecklistMeasurementEntity> stored = new HashMap<>(
-                    newestPerLine(checklist.getId(), MeasurementPurpose.SUBMISSION));
-            stored.putAll(newestPerLine(checklist.getId(), MeasurementPurpose.SIGN_OFF));
             stored.forEach((itemId, row) -> shown.put(itemId, ChecklistMeasurementView.of(row, names, forms::ruleForm)));
         }
 

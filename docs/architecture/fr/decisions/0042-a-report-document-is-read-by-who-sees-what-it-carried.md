@@ -57,6 +57,30 @@ La liste des exécutions et la fiche d'une exécution (plugin, état, instants, 
 document et gardent la règle de 0035. Cacher une exécution qui existe à quelqu'un qui voit le projet mettrait
 l'écran en désaccord avec lui-même pour peu de chose : le contenu est dans le document.
 
+### 5. Amendement du 12 octobre 2026 : une révision de checklist est lue par qui voit ce qu'elle contient
+
+Le même défaut se tenait un pas plus tôt. Une soumission et une approbation conservent leurs mesures avec la
+preuve de chaque dépôt que le projet contenait alors ([0032](0032-security-checklists.md) §6), et le paquet signé
+est rendu à partir d'elles (§10). Les mesures figées, le paquet signé et l'énoncé qu'embarque l'export d'un
+projet étaient servis à quiconque voyait le projet entier **aujourd'hui**.
+
+- **Ce qui a été contenu se lit dans la preuve, sans être enregistré deux fois.** Chaque mesure conservée nomme,
+  sous son empreinte, chaque dépôt qu'elle a lu : ses chiffres et son résumé sont réunis dépôt par dépôt, chacun
+  inscrit dans la preuve au moment où il est lu. L'union sur les lignes conservées d'une révision — la plus
+  récente de sa soumission, remplacée par celle de l'approbation — est exactement ce qu'elle contient, pour les
+  révisions soumises avant cet amendement comme pour les suivantes : ni colonne ni reprise de données. Une preuve
+  qui ne se relit pas est lue comme le §3 lit une exécution non enregistrée : par un appelant qui voit tout,
+  jamais comme moins de dépôts.
+- **Les mesures d'une révision soumise, approuvée ou remplacée, et le document d'une révision approuvée ou
+  remplacée, vont à un appelant qui voit chaque dépôt contenu** en plus du projet ; tout autre apprend que la
+  révision n'existe pas, dans les mots que reçoit une révision absente. Un brouillon est mesuré pour la lecture,
+  sur les dépôts que la garde du projet a comparés, et ne demande rien de plus.
+- **L'export du projet refuse plutôt qu'il n'omet.** Un énoncé signé que l'appelant ne peut pas lire fait échouer
+  tout l'export par un 404 : omis, l'export affirmerait un historique de checklist que le projet n'a pas — une
+  approbation plus ancienne pour la plus récente, ou aucune. Une exécution de rapport construite sur l'export
+  enregistre les dépôts contenus dans `export_targets` à côté des cibles du projet, si bien que son document est
+  lu selon le §2.
+
 ## Conséquences
 
 - Un lecteur qui voit le projet entier mais pas une cible qu'il contenait au moment de l'exécution ne télécharge

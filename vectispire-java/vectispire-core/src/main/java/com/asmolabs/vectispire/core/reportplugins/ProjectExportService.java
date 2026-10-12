@@ -301,9 +301,11 @@ public class ProjectExportService {
         bounds.issues(unresolved.size()).ifPresent(exceeded -> {
             throw new ProjectExportTooLargeException(exceeded);
         });
-        List<ProjectExport.Checklist> statements = checklists.statementsForExport(whole, repositoryIds).stream()
-                .map(exported -> new ProjectExport.Checklist(exported.draft(), exported.documentSha256(),
-                        exported.statement()))
+        List<ChecklistDocumentService.ExportedStatement> exported =
+                checklists.statementsForExport(whole, repositoryIds, allowance);
+        List<ProjectExport.Checklist> statements = exported.stream()
+                .map(statement -> new ProjectExport.Checklist(statement.draft(), statement.documentSha256(),
+                        statement.statement()))
                 .toList();
 
         // Every name a part records, resolved once: display names, never the user names the rows keep.
@@ -351,9 +353,13 @@ public class ProjectExportService {
             throw new IllegalStateException("A project export could not be written.", failed);
         }
         // `filed`, the project's every target: the scope was refused above unless the caller saw them all, so the
-        // export was built over exactly these.
+        // export was built over these — and over every repository a signed checklist statement carries, which
+        // the project may have dropped since its sign-off: a report's document holds that evidence too, and is
+        // read by those who see it (decision 0042).
+        Set<ScanTarget> carried = new java.util.LinkedHashSet<>(filed);
+        exported.forEach(statement -> statement.repositoryIds().forEach(id -> carried.add(new ScanTarget.Repository(id))));
         return new Built(whole.name(), buffer.toByteArray(), unresolved.size(), merged.components().size(), about,
-                filed);
+                List.copyOf(carried));
     }
 
     /**
