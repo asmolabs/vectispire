@@ -255,6 +255,51 @@ describe('the gate policy screen', () => {
         expect(title()).toBe('Politique pour la politique globale');
     });
 
+    it("names an override whose target has no name by its kind in the reader's language", () => {
+        // The server sends no name for a target deleted since; the row printed the stored kind,
+        // "repository #12", in the French interface too.
+        useEnglish();
+        load([
+            { ...OVERRIDE, target_name: null, target_id: 12 },
+            { ...OVERRIDE, kind: 'container', target_name: null, target_id: 4 }
+        ]);
+        const names = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="override-target"]')].map(
+                (cell) => cell.textContent.trim()
+            );
+        const editLabels = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('button[aria-label^="Edit"]')].map((button) =>
+                button.getAttribute('aria-label')
+            );
+
+        expect(names()).toEqual(['Repository #12', 'Image #4']);
+        expect(editLabels()).toEqual(['Edit the override for Repository #12', 'Edit the override for Image #4']);
+
+        fixture.componentInstance.editOverride(fixture.componentInstance.overrides()[0]);
+        fixture.detectChanges();
+        const title = () => document.body.querySelector('[role="dialog"] .p-dialog-title')?.textContent?.trim();
+        expect(title()).toBe('Policy for Repository #12');
+
+        useFrench();
+        fixture.detectChanges();
+        expect(names()).toEqual(['Dépôt n° 12', 'Image n° 4']);
+        expect(title()).toBe('Politique pour Dépôt n° 12');
+    });
+
+    it('keeps the name of a named target, and its number in the dialog title', () => {
+        useEnglish();
+        load([OVERRIDE]);
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('[data-testid="override-target"]')?.textContent?.trim()
+        ).toBe('Arm Libs Spring');
+        fixture.componentInstance.editOverride(fixture.componentInstance.overrides()[0]);
+        fixture.detectChanges();
+        expect(document.body.querySelector('[role="dialog"] .p-dialog-title')?.textContent?.trim()).toBe(
+            'Policy for Arm Libs Spring #5'
+        );
+    });
+
     it('keeps the server refusal on screen instead of a generic failure', () => {
         load([]);
 

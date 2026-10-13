@@ -164,7 +164,7 @@
         <ng-template #body let-policy>
             <tr>
                 <td>
-                    <div class="font-medium">{{ policy.target_name ?? policy.kind + ' #' + policy.target_id }}</div>
+                    <div class="font-medium" data-testid="override-target">{{ targetName(policy) }}</div>
                     @if (policy.note) {
                         <div class="text-surface-500 dark:text-surface-400 text-sm">“{{ policy.note }}”</div>
                     }
@@ -182,20 +182,14 @@
                         icon="pi pi-pencil"
                         severity="secondary"
                         [text]="true"
-                        [ariaLabel]="
-                            'gate_policies.aria_edit'
-                                | translate: { name: policy.target_name ?? policy.kind + ' #' + policy.target_id }
-                        "
+                        [ariaLabel]="'gate_policies.aria_edit' | translate: { name: targetName(policy) }"
                         (onClick)="editOverride(policy)"
                     />
                     <p-button
                         icon="pi pi-trash"
                         severity="danger"
                         [text]="true"
-                        [ariaLabel]="
-                            'gate_policies.aria_remove'
-                                | translate: { name: policy.target_name ?? policy.kind + ' #' + policy.target_id }
-                        "
+                        [ariaLabel]="'gate_policies.aria_remove' | translate: { name: targetName(policy) }"
                         (onClick)="remove(policy)"
                     />
                 </td>

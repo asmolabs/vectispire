@@ -17,6 +17,7 @@ import { TargetsApi } from '../../core/api/targets.api';
 import type { GatePolicy, GatePolicies as GatePoliciesResponse } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { keyFor } from '../../core/i18n/literal-keys';
+import { targetKindLabel } from '../../shared/target-kind';
 
 /**
  * A threshold in words, through literal keys (decision 0019). The document types `fail_on_severity`
@@ -126,13 +127,30 @@ export class GatePolicies {
      * global policy and a new override; an override's target is named as the server names it.
      */
     private readonly scopeName = signal<
-        { key: 'gate_policies.scope_global' | 'gate_policies.scope_new' } | { text: string }
+        { key: 'gate_policies.scope_global' | 'gate_policies.scope_new' } | { policy: GatePolicy }
     >({ key: 'gate_policies.scope_global' });
     readonly scopeLabel = computed(() => {
         this.i18n.translations();
         const name = this.scopeName();
-        return 'key' in name ? this.i18n.t(name.key) : name.text;
+        if ('key' in name) return this.i18n.t(name.key);
+        const { target_name, target_id } = name.policy;
+        return target_name ? `${target_name} #${target_id}` : this.targetName(name.policy);
     });
+
+    /**
+     * An override's target in words: its name, or — when the server sent none, a target deleted
+     * since — its kind in the reader's language and its number. The kind was printed as stored,
+     * "repository #12" in the French interface.
+     */
+    targetName(policy: GatePolicy): string {
+        return (
+            policy.target_name ??
+            this.i18n.t('gate_policies.unnamed_target', {
+                kind: targetKindLabel(this.i18n, policy.kind),
+                id: policy.target_id ?? '—'
+            })
+        );
+    }
     draft: Draft = blank();
     /** `kind:id`, because a select carries one value and a scope is two. */
     chosenTarget: string | null = null;
@@ -162,7 +180,7 @@ export class GatePolicies {
 
     editOverride(policy: GatePolicy): void {
         this.scope = { kind: policy.kind as 'repository' | 'container', id: policy.target_id };
-        this.scopeName.set({ text: `${policy.target_name ?? policy.kind} #${policy.target_id}` });
+        this.scopeName.set({ policy });
         this.chosenTarget = null;
         this.draft = draftOf(policy);
         this.error.set(null);
