@@ -4,6 +4,20 @@
 
 À la suite de la 0.11.0 ; pas encore publiée. Ce qui suit est ce que contiendra la 0.11.1, par rapport à la 0.11.0.
 
+### Avant la mise à jour {#avant-la-mise-a-jour-0111}
+
+- **Une valeur de configuration manifestement erronée arrête désormais le démarrage avec un message qui la
+  nomme :** `VECTISPIRE_SCAN_MAX_CONCURRENT` inférieur à 1 (lu en silence comme 2 ; pour couper le worker,
+  `VECTISPIRE_EMBEDDED_WORKER=false`), et une durée de session, de bail du leader ou de file inférieure à une
+  seconde, comme `VECTISPIRE_SESSION_IDLE=60` sans unité, qui était lu comme 60 ms.
+
+### Changements visibles d'une intégration {#changements-visibles-dune-integration-0111}
+
+- **Les refus du webhook de tickets (400, 401, 403) sont des documents « problem » RFC 9457**, la raison
+  dans `detail`, et non plus le corps d'un succès avec `matched: false` et `actionTaken`.
+- **SCIM répond à un utilisateur ou un groupe absent (404) et à un `userName` ou un `displayName` déjà pris
+  (409, `scimType` `uniqueness`) dans le schéma d'erreur SCIM** au lieu d'un corps vide.
+
 ### Nouveautés {#nouveautes-0111}
 
 - **Un administrateur lève l'obligation de changer de mot de passe d'un compte fédéré depuis l'écran
@@ -25,6 +39,21 @@
 - **Les titres, paragraphes, liens et cartes suivent désormais les tailles et espacements que leur donne
   chaque écran** ; les styles globaux du gabarit les écrasaient. Les captures de la documentation française
   montrent les champs de date au format jj/mm/aaaa.
+- **Deux instances du plan de contrôle qui démarrent ensemble sur une base vide créent un seul premier
+  compte** ; l'une échouait à démarrer, ou, avec des `VECTISPIRE_BOOTSTRAP_USERNAME` différents, un second
+  SUPERUSER était créé.
+- **Un triage en masse lit ses issues en une requête, et les vérifie et les écrit en une transaction** ; une
+  issue modifiée entre-temps par une analyse ou une personne refuse tout le lot en 409
+  `issue-changed-meanwhile`. La liste des groupes SCIM ne fait plus une requête par équipe.
+- **Les documents CSAF, OpenVEX et CycloneDX exportés, le paquet de preuves et les événements SIEM sont
+  datés par l'horloge du plan de contrôle**, à la microseconde qu'il conserve.
+- **L'export OpenAPI synthétisé à partir des points d'accès découverts d'un dépôt est du JSON valide quel
+  que soit le contenu de ses chemins et résumés**, avec une opération par méthode, et un gestionnaire de
+  toutes les méthodes est développé en chacune des méthodes que le chemin ne déclare pas.
+- **L'agent distant avertit désormais au démarrage lorsque `VECTISPIRE_AGENT_WAIT`, `VECTISPIRE_AGENT_RETRY`
+  ou `VECTISPIRE_AGENT_HEARTBEAT` sort de sa plage** (1s–5m, 1s–5m, 5s–10m), en nommant la variable et la
+  valeur retenue à sa place. Un nombre nu comme `30` se lit en millisecondes et est relevé au plancher. Le
+  comportement est inchangé ; seul le silence disparaît.
 
 ## 0.11.0 — en préparation
 

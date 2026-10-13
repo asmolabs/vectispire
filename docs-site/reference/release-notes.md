@@ -4,6 +4,20 @@
 
 To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, against 0.11.0.
 
+### Before you upgrade {#before-you-upgrade-0111}
+
+- **A configuration value that is surely a mistake now stops the start with a message naming it:**
+  `VECTISPIRE_SCAN_MAX_CONCURRENT` below 1 (it was silently read as 2; to switch the worker off, use
+  `VECTISPIRE_EMBEDDED_WORKER=false`), and a session, leader or queue duration under one second, such as
+  `VECTISPIRE_SESSION_IDLE=60` with no unit, which was read as 60 ms.
+
+### Changes an integration can see {#changes-an-integration-can-see-0111}
+
+- **The ticket webhook's refusals (400, 401, 403) are RFC 9457 problem documents** with the reason in
+  `detail`, no longer the success body with `matched: false` and `actionTaken`.
+- **SCIM answers a missing user or group (404) and a taken `userName` or `displayName` (409, `scimType`
+  `uniqueness`) in SCIM's error schema** instead of an empty body.
+
 ### New {#new-0111}
 
 - **Administrators lift a federated account's password-change requirement from the Users screen**
@@ -23,6 +37,21 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **Headings, paragraphs, links and cards follow the sizes and spacing their screens give them**; the
   template's global styles had overridden them. French documentation screenshots show date fields as
   dd/mm/yyyy.
+- **Two control-plane instances starting together on an empty database create one first account**; one
+  used to fail its start, or, with different `VECTISPIRE_BOOTSTRAP_USERNAME`s, a second SUPERUSER was
+  created.
+- **A bulk triage reads its issues in one statement and is checked and written in one transaction**; an
+  issue changed by a scan or a person in between refuses the whole batch with 409
+  `issue-changed-meanwhile`. The SCIM group listing no longer runs one query per team.
+- **Exported CSAF, OpenVEX and CycloneDX documents, the evidence bundle and SIEM events are dated by the
+  control plane's clock**, at the microsecond precision it stores.
+- **The synthesized OpenAPI export of a repository's discovered endpoints is valid JSON whatever its paths
+  and summaries contain**, with one operation per method, and a handler for any method expanded to the
+  methods the path does not declare.
+- **The remote agent now warns at start when `VECTISPIRE_AGENT_WAIT`, `VECTISPIRE_AGENT_RETRY` or
+  `VECTISPIRE_AGENT_HEARTBEAT` is outside its range** (1s–5m, 1s–5m, 5s–10m), naming the variable and the
+  value it uses instead. A bare number such as `30` is read as milliseconds and raised to the floor. The
+  behaviour is unchanged; only the silence is gone.
 
 ## 0.11.0 — in preparation
 
