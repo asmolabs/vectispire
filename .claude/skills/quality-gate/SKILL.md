@@ -97,6 +97,11 @@ cd vectispire-java && ./gradlew :vectispire-core:test --tests '*ClientContractSp
 cd .. && npm run generate:api --workspace @vectispire/frontend
 ```
 
+Read the regenerated diff for `operationId` lines that moved on routes you did not touch: a new handler
+method named like an existing one renumbers springdoc's suffixes. `PublishedOperationIdsTest` fails on
+it; the answer is `@Operation(operationId = …)` on the new route, never an edit of
+`published-operation-ids.txt` (decision 0043, §1).
+
 ## 6. Docs — when docs, README or AGENTS changed, and whenever behaviour did
 
 ```bash

@@ -514,7 +514,12 @@ has already reached `develop`.
 
 **A route whose shape changes regenerates the contract.** `ClientContractSpecTest` fails with the
 command; run it with `-Dvectispire.openapi.write=true`, then `npm run generate:api`, and commit both
-files together.
+files together. Regenerating is not reviewing: **a new route never moves a published operation id.**
+Springdoc numbers handler methods of one name in the order it walks the paths, so the integrations'
+`list` (0.12) took `list_21` and shifted the audit log's and the gate policies' ids — a generated client
+broke with no route of theirs changed. A new route whose method name is taken names its id
+(`@Operation(operationId = …)`); `PublishedOperationIdsTest` fails on a moved id and on a new numbered
+one, against `src/test/resources/openapi/published-operation-ids.txt`, which is never edited to match.
 
 **A change that reaches `vectispire-angular/` passes the `frontend` job's whole list, not only
 `npm test`.** That is `npm run lint`, `npm run format:check -w vectispire-angular`, `npm run build`
