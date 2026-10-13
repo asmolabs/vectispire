@@ -809,6 +809,11 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Sécurité
 
+- **Le contrôle de santé de la base de la composition ne met plus le mot de passe root de MySQL sur une ligne
+  de commande.** `mysqladmin ping -p"…"` tournait toutes les dix secondes avec le mot de passe parmi ses
+  arguments, que `ps` montre à tout utilisateur du conteneur et de l'hôte. Il le lit désormais dans un fichier
+  d'options lisible par son seul propriétaire, écrit par une commande interne du shell et supprimé après
+  chaque ping. Concerne `docker-compose.yml` ; la chart Helm ne fait tourner aucune base.
 - **Les identifiants de l'agent et le Keycloak d'évaluation ne sont plus à portée de `docker inspect` ni
   d'une valeur par défaut publiée.** Le profil `with-agent` de la composition passait `VECTISPIRE_AGENT_TOKEN`
   et `VECTISPIRE_AGENT_SIGNING_KEY` dans l'environnement, que tout client du démon — les deux proxys de socket

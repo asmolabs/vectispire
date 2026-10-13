@@ -740,6 +740,11 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Security
 
+- **The composition's database health check no longer puts the MySQL root password on a command line.**
+  `mysqladmin ping -p"…"` ran every ten seconds with the password among its arguments, which `ps` shows to
+  every user of the container and of the host. It now reads the password from an option file only its owner
+  can read, written by a shell builtin and removed after each ping. Applies to `docker-compose.yml`; the Helm
+  chart runs no database.
 - **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
   default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
   `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies
