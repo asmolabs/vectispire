@@ -75,6 +75,12 @@ C'est le contrôle qu'un différentiel de fichier de verrouillage ne peut pas vo
 dépendance dont la licence change entre deux versions mineures ne change rien de visible dans
 le différentiel de votre manifeste, et change tout à ce que vous avez le droit de livrer.
 
+Une licence est celle que le composant **déclare** — dans le SBOM du build, sinon dans celui du
+scanner — et `UNKNOWN` quand il n'en déclare aucune ; elle n'est jamais devinée d'après le nom du
+paquet. Un scan dont le SBOM ne se lit pas n'est pas comparé : la route répond 409 de type
+`urn:vectispire:problem:sbom-unreadable`, plutôt qu'une comparaison qui se lirait comme tous les
+composants retirés ou comme aucun changement.
+
 ## Dette de sécurité
 
 `GET /api/v1/remediation/debt` convertit le backlog ouvert en heures d'ingénierie estimées et

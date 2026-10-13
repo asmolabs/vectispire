@@ -26,6 +26,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class SbomDiffService {
+
+    private static final Logger log = LoggerFactory.getLogger(SbomDiffService.class);
 
     private final ScanCatalog scans;
     private final ScanDocumentService documents;
@@ -263,63 +267,78 @@ public class SbomDiffService {
         return cve + ":" + pkg;
     }
 
+    /**
+     * A scan's components by name, each with the licence it declares — never one guessed.
+     *
+     * <p><b>The licence is read, and unknown when nothing declares it</b>: the build's declaration on a
+     * component row, else the scanner's SBOM ({@link SbomLicences}). It was inferred from the package's
+     * name — "mit" in {@code commit}, {@code spring-} for Apache-2.0 — so a licence change could be one the
+     * guess invented.
+     *
+     * @throws SbomUnreadableException when the scan's SBOM does not parse: compared as empty, it read as
+     *     every component removed, or as "no changes" against another unreadable one (decision 0007)
+     */
     private Map<String, ComponentInfo> loadComponents(ScanView scan) {
         Map<String, ComponentInfo> map = new HashMap<>();
+        List<JsonNode> artifacts = artifacts(scan);
 
         // 1. Try t_component table first
         List<ComponentEntity> rows = components.findByScanId(scan.id());
         if (!rows.isEmpty()) {
+            Map<String, String> licences = new HashMap<>();
+            for (JsonNode artifact : artifacts) {
+                String name = artifact.path("name").asText(null);
+                if (name != null && !name.isBlank()) {
+                    licences.putIfAbsent(name + "@" + artifact.path("version").asText(""),
+                            SbomLicences.declaredOrUnknown(artifact));
+                }
+            }
             for (ComponentEntity row : rows) {
+                // The version the scanner listed it under, where a build SBOM changed it (decision 0039).
+                String listedAs = row.getScannedVersion() != null ? row.getScannedVersion() : row.getVersion();
+                String license = row.getDeclaredLicense() != null && !row.getDeclaredLicense().isBlank()
+                        ? row.getDeclaredLicense()
+                        : licences.getOrDefault(row.getName() + "@" + (listedAs == null ? "" : listedAs),
+                                SbomLicences.UNDECLARED);
                 map.put(row.getName(), new ComponentInfo(
                         row.getName(),
                         row.getVersion(),
                         row.getPurl(),
                         row.getType(),
                         row.getIsDirect(),
-                        inferLicense(row.getName())));
+                        license));
             }
             return map;
         }
 
         // 2. Fallback to raw SBOM JSON if t_component was empty
-        if (scan.sbom() != null && !scan.sbom().isBlank()) {
-            try {
-                JsonNode root = objectMapper.readTree(scan.sbom());
-                JsonNode artifacts = root.path("artifacts");
-                if (artifacts.isArray()) {
-                    for (JsonNode artifact : artifacts) {
-                        String name = artifact.path("name").asText(null);
-                        if (name == null || name.isBlank()) continue;
-                        String version = artifact.path("version").asText(null);
-                        String purl = artifact.path("purl").asText(null);
-                        String type = artifact.path("type").asText(null);
-                        String license = extractLicense(artifact);
-                        map.put(name, new ComponentInfo(name, version, purl, type, null, license));
-                    }
-                }
-            } catch (Exception ignored) {}
+        for (JsonNode artifact : artifacts) {
+            String name = artifact.path("name").asText(null);
+            if (name == null || name.isBlank()) continue;
+            String version = artifact.path("version").asText(null);
+            String purl = artifact.path("purl").asText(null);
+            String type = artifact.path("type").asText(null);
+            map.put(name, new ComponentInfo(name, version, purl, type, null, SbomLicences.declaredOrUnknown(artifact)));
         }
 
         return map;
     }
 
-    private String extractLicense(JsonNode artifact) {
-        JsonNode licenses = artifact.path("licenses");
-        if (licenses.isArray() && !licenses.isEmpty()) {
-            JsonNode first = licenses.get(0);
-            if (first.isTextual()) return first.asText();
-            if (first.has("value")) return first.path("value").asText();
-            if (first.has("spdxExpression")) return first.path("spdxExpression").asText();
+    /** The scan's SBOM artifacts; none when it has no SBOM. */
+    private List<JsonNode> artifacts(ScanView scan) {
+        if (scan.sbom() == null || scan.sbom().isBlank()) {
+            return List.of();
         }
-        return inferLicense(artifact.path("name").asText(""));
-    }
-
-    private String inferLicense(String name) {
-        String lower = name.toLowerCase(Locale.ROOT);
-        if (lower.contains("apache") || lower.contains("commons-") || lower.contains("spring-")) return "Apache-2.0";
-        if (lower.contains("mit") || lower.contains("slf4j") || lower.contains("express")) return "MIT";
-        if (lower.contains("gpl")) return "GPL-3.0";
-        return "UNKNOWN";
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(scan.sbom());
+        } catch (Exception unreadable) {
+            log.warn("Scan {}: SBOM unreadable, the diff naming it is refused: {}", scan.id(), unreadable.getMessage());
+            throw new SbomUnreadableException(scan.id());
+        }
+        List<JsonNode> artifacts = new ArrayList<>();
+        root.path("artifacts").forEach(artifacts::add);
+        return artifacts;
     }
 
     private record ComponentInfo(

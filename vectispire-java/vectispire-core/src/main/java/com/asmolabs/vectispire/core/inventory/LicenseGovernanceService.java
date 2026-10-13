@@ -259,10 +259,7 @@ public class LicenseGovernanceService {
                             String version = artifact.path("version").asText(null);
                             String purl = artifact.path("purl").asText(null);
 
-                            String license = extractLicenseFromSbom(artifact);
-                            if (license == null || license.isBlank() || "UNKNOWN".equalsIgnoreCase(license)) {
-                                license = UNDECLARED;
-                            }
+                            String license = SbomLicences.declaredOrUnknown(artifact);
 
                             LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
                             boolean compliant = policy.isCompliant(license, risk);
@@ -737,32 +734,6 @@ public class LicenseGovernanceService {
                 breakdown);
     }
 
-    private String extractLicenseFromSbom(JsonNode artifact) {
-        JsonNode licenses = artifact.path("licenses");
-        if (licenses.isArray() && !licenses.isEmpty()) {
-            List<String> values = new ArrayList<>();
-            for (JsonNode lic : licenses) {
-                if (lic.isTextual()) {
-                    values.add(lic.asText());
-                } else if (lic.isObject()) {
-                    if (lic.hasNonNull("spdxExpression")) {
-                        values.add(lic.path("spdxExpression").asText());
-                    } else if (lic.hasNonNull("value")) {
-                        values.add(lic.path("value").asText());
-                    } else if (lic.has("license") && lic.path("license").hasNonNull("id")) {
-                        values.add(lic.path("license").path("id").asText());
-                    } else if (lic.has("license") && lic.path("license").hasNonNull("name")) {
-                        values.add(lic.path("license").path("name").asText());
-                    }
-                }
-            }
-            if (!values.isEmpty()) {
-                return String.join(" OR ", values);
-            }
-        }
-        return null;
-    }
-
     /**
      * What an undeclared licence is recorded as: unknown, and nothing more.
      *
@@ -774,7 +745,7 @@ public class LicenseGovernanceService {
      * invented one. Unknown is what the risk classification and the conflict matrix already have a
      * category for; a policy that refuses unknown licences can now actually see them.
      */
-    private static final String UNDECLARED = "UNKNOWN";
+    private static final String UNDECLARED = SbomLicences.UNDECLARED;
 
     private LicensePolicy toDomainPolicy(LicensePolicyEntity entity) {
         Set<LicenseRiskCategory> disallowed = new HashSet<>();

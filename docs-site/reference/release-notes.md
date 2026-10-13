@@ -864,6 +864,15 @@ from a list in which none is true of an exposed product — and signed into the 
   attack-surface pages say when a list failed to load instead of staying empty.
 - **A severity has one colour on every screen**: critical red, high orange, medium blue, low grey. High was
   red on the issue list and the solutions, orange on the exceptions, the attack paths and the dashboard.
+- **The SBOM diff no longer invents licences.** A component that declared none was given one guessed
+  from its name — `MIT` for anything containing "mit" (`commit-graph`, `summit-ui`), `Apache-2.0` for
+  `spring-` and `commons-`, `GPL-3.0` for "gpl" — and the first declared licence only of the others, so
+  `GET /api/v1/sbom/diff` and `…/diff/latest` reported licence changes nobody had declared. A licence is
+  now the build SBOM's declaration, else every licence the scanner's SBOM declares (joined by `OR`), else
+  `UNKNOWN` — the reading the licence inventory already used. **And an unreadable SBOM is no longer an
+  empty one**: the diff swallowed the parse error and compared nothing, which read as every component
+  removed or as no change; it now answers 409 with the type `urn:vectispire:problem:sbom-unreadable`, and
+  the server logs which scan.
 - **A triage made while a scan ran is no longer lost.** A scan read the target's issues when it began
   writing its results and saved them whole at the end; a decision committed in between — a triage, an
   approval, a review, a ticket attached — was put back to what the scan had read, with no error and no log

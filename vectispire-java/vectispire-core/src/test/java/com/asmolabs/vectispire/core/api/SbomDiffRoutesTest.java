@@ -122,4 +122,104 @@ class SbomDiffRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.toScanId").value(scan2.getId()));
     }
+
+    @Test
+    @DisplayName("reads each licence from the SBOM and calls an undeclared one unknown — never guessed from the name")
+    void licencesAreReadNotGuessed() throws Exception {
+        RepositoryEntity repo = repository("licences-read");
+        // No component rows: the diff reads the SBOM itself. "commit-graph" holds "mit", "spring-core" was
+        // Apache-2.0 and "gpl-tools" GPL-3.0 by name; none of them declares a licence in the first scan.
+        long from = scan(repo, "1.0.0", 7200, """
+                {"artifacts":[{"name":"commit-graph","version":"1.0"},{"name":"spring-core","version":"6.0"},
+                 {"name":"gpl-tools","version":"2.0"}]}""").getId();
+        long to = scan(repo, "1.1.0", 3600, """
+                {"artifacts":[{"name":"commit-graph","version":"1.0"},{"name":"spring-core","version":"6.0"},
+                 {"name":"gpl-tools","version":"2.0","licenses":[{"value":"MIT"},{"value":"BSD-3-Clause"}]},
+                 {"name":"summit-ui","version":"0.1"}]}""").getId();
+
+        mvc.perform(authenticated(get("/api/v1/sbom/diff")
+                .param("fromScanId", String.valueOf(from))
+                .param("toScanId", String.valueOf(to)), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.licenseChangedCount").value(1))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'gpl-tools')].oldLicense").value("UNKNOWN"))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'gpl-tools')].newLicense").value("MIT OR BSD-3-Clause"))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'summit-ui')].newLicense").value("UNKNOWN"))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'commit-graph')]").isEmpty())
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'spring-core')]").isEmpty());
+    }
+
+    @Test
+    @DisplayName("takes a component row's licence from its build, else from the scanner's SBOM, else unknown")
+    void aComponentRowsLicence() throws Exception {
+        RepositoryEntity repo = repository("licences-rows");
+        ScanEntity from = scan(repo, "1.0.0", 7200, """
+                {"artifacts":[{"name":"commons-io","version":"2.11.0","licenses":["Apache-2.0"]}]}""");
+        component(from, "commons-io", "2.11.0", null);
+        component(from, "express", "4.0.0", null);
+        // The scanner reads another licence for the same version: a change it declared, not one guessed.
+        ScanEntity to = scan(repo, "1.1.0", 3600, """
+                {"artifacts":[{"name":"commons-io","version":"2.11.0","licenses":["MIT"]}]}""");
+        component(to, "commons-io", "2.11.0", null);
+        component(to, "express", "4.0.0", "BSD-2-Clause");
+
+        mvc.perform(authenticated(get("/api/v1/sbom/diff")
+                .param("fromScanId", String.valueOf(from.getId()))
+                .param("toScanId", String.valueOf(to.getId())), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.licenseChangedCount").value(2))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'express')].oldLicense").value("UNKNOWN"))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'express')].newLicense").value("BSD-2-Clause"))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'commons-io')].oldLicense").value("Apache-2.0"))
+                .andExpect(jsonPath("$.componentDeltas[?(@.name == 'commons-io')].newLicense").value("MIT"));
+    }
+
+    @Test
+    @DisplayName("refuses a comparison whose SBOM cannot be read, rather than answering no change")
+    void anUnreadableSbomIsNotAnEmptyOne() throws Exception {
+        RepositoryEntity repo = repository("licences-unreadable");
+        long from = scan(repo, "1.0.0", 7200, "{\"artifacts\":[{\"name\":\"left-pad\"").getId();
+        long to = scan(repo, "1.1.0", 3600, "{\"artifacts\":[{\"name\":\"left-pad\"").getId();
+
+        mvc.perform(authenticated(get("/api/v1/sbom/diff")
+                .param("fromScanId", String.valueOf(from))
+                .param("toScanId", String.valueOf(to)), asAdmin()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("urn:vectispire:problem:sbom-unreadable"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("scan " + from)));
+        mvc.perform(authenticated(get("/api/v1/sbom/diff/latest")
+                .param("repoId", String.valueOf(repo.getId())), asAdmin()))
+                .andExpect(status().isConflict());
+    }
+
+    private RepositoryEntity repository(String name) {
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName(name);
+        repo.setUrl("https://example.invalid/" + name + "-" + System.nanoTime() + ".git");
+        repo.setBranch("main");
+        return repositories.save(repo);
+    }
+
+    private ScanEntity scan(RepositoryEntity repo, String version, long secondsAgo, String sbom) {
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(repo.getId());
+        scan.setBranch("main");
+        scan.setStatus("completed");
+        scan.setVersion(version);
+        scan.setCreatedAt(Instant.now().minusSeconds(secondsAgo));
+        scan.setSbom(sbom);
+        return scans.save(scan);
+    }
+
+    private void component(ScanEntity scan, String name, String version, String declaredLicense) {
+        ComponentEntity component = new ComponentEntity();
+        component.setScanId(scan.getId());
+        component.setRepoId(scan.getRepoId());
+        component.setScanCreatedAt(scan.getCreatedAt());
+        component.setName(name);
+        component.setVersion(version);
+        component.setType("java-archive");
+        component.setDeclaredLicense(declaredLicense);
+        components.save(component);
+    }
 }

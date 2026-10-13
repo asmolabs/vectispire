@@ -947,6 +947,16 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 - **Une sévérité a une seule couleur sur tous les écrans** : critique rouge, élevée orange, moyenne bleue,
   faible grise. Élevée était rouge sur la liste des constats et les solutions, orange sur les exceptions,
   les chemins d'attaque et le tableau de bord.
+- **Le différentiel de SBOM n'invente plus de licences.** Un composant qui n'en déclarait aucune en
+  recevait une devinée d'après son nom — `MIT` pour tout ce qui contient « mit » (`commit-graph`,
+  `summit-ui`), `Apache-2.0` pour `spring-` et `commons-`, `GPL-3.0` pour « gpl » — et des autres seule la
+  première licence déclarée était lue : `GET /api/v1/sbom/diff` et `…/diff/latest` rapportaient des
+  changements de licence que personne n'avait déclarés. Une licence est désormais la déclaration du SBOM
+  du build, sinon toutes celles que déclare le SBOM du scanner (jointes par `OR`), sinon `UNKNOWN` — la
+  lecture qu'utilisait déjà l'inventaire des licences. **Et un SBOM illisible n'est plus un SBOM vide** :
+  le différentiel avalait l'erreur d'analyse et ne comparait rien, ce qui se lisait comme tous les
+  composants retirés ou comme aucun changement ; il répond désormais 409 de type
+  `urn:vectispire:problem:sbom-unreadable`, et le serveur journalise quel scan.
 - **Un triage fait pendant un scan n'est plus perdu.** Un scan lisait les issues de la cible au début de
   l'écriture de ses résultats et les enregistrait entières à la fin ; une décision validée entre-temps — un
   triage, une approbation, une revue, un ticket attaché — était ramenée à ce que le scan avait lu, sans

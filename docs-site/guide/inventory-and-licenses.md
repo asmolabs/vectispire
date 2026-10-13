@@ -72,6 +72,12 @@ This is the check a lockfile diff cannot give you. A dependency relicensed betwe
 minor versions changes nothing visible in the diff of your manifest and changes everything
 about what you are allowed to ship.
 
+A licence is the one a component **declares** — in the build's SBOM, else in the scanner's — and
+`UNKNOWN` when it declares none; it is never guessed from the package's name. A scan whose SBOM
+cannot be read is not compared: the route answers 409 with the type
+`urn:vectispire:problem:sbom-unreadable`, rather than a comparison that would read as every
+component removed or as no change.
+
 ## Security debt
 
 `GET /api/v1/remediation/debt` converts the open backlog into estimated engineering hours
