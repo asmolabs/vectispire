@@ -1,12 +1,18 @@
 package com.asmolabs.vectispire.agent;
 
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * Everything the agent needs to know, and nothing more.
+ *
+ * <p>The three durations are bounded — {@code claimWait} and {@code retryDelay} between a second and
+ * five minutes, {@code heartbeat} between five seconds and ten minutes; a value outside is replaced
+ * by the bound it crossed, and the start says so in a warning that names the property.
  *
  * @param url the control plane's address. A fixed configuration value, which is why redirects
  *     are refused: it has no reason to redirect, and following one would send a scan's results
@@ -46,6 +52,8 @@ public record AgentProperties(
         @DefaultValue Images images,
         @DefaultValue("") String vulnerabilityDbDir) {
 
+    private static final Logger log = LoggerFactory.getLogger(AgentProperties.class);
+
     /** Blank keeps the digest the agent ships with — see {@code ScannerImages.withOverrides}. */
     public record Images(
             @DefaultValue("") String syft,
@@ -80,18 +88,51 @@ public record AgentProperties(
         url = url == null ? "" : url.trim().replaceAll("/+$", "");
         token = token == null ? "" : token.trim();
         signingKey = signingKey == null ? "" : signingKey.trim();
-        claimWait = clamp(claimWait, Duration.ofSeconds(1), Duration.ofMinutes(5));
-        retryDelay = clamp(retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
-        heartbeat = clamp(heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
+        claimWait = clamp("claim-wait", "VECTISPIRE_AGENT_WAIT", claimWait, Duration.ofSeconds(1), Duration.ofMinutes(5));
+        retryDelay = clamp("retry-delay", "VECTISPIRE_AGENT_RETRY", retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
+        heartbeat = clamp("heartbeat", "VECTISPIRE_AGENT_HEARTBEAT", heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
         // Absent means "no override", which is the same thing every blank field means.
         images = images == null ? new Images("", "", "", "", "", "", false) : images;
         vulnerabilityDbDir = vulnerabilityDbDir == null ? "" : vulnerabilityDbDir.trim();
     }
 
-    private static Duration clamp(Duration value, Duration min, Duration max) {
-        if (value == null || value.compareTo(min) < 0) {
+    /**
+     * A bound, and the operator told when it applies.
+     *
+     * <p><b>Clamped and not refused</b>, unlike the control plane's durations under a second
+     * ({@code ConfigurationPropertiesValidationTest}): every bound here lands on a value the agent
+     * works at — a floor of a second keeps a failed poll from spinning, the control plane holds a
+     * claim thirty seconds at most whatever is asked, and a ten-minute beat is still under the
+     * default twenty-minute lease. What was wrong was the silence: {@code 30} with its unit
+     * forgotten binds as thirty milliseconds, and the agent polled every second for a reason nobody
+     * could read. A null is the convenience constructor's "unset", not an operator's value, and
+     * takes the floor without a word.
+     */
+    private static Duration clamp(String property, String variable, Duration value, Duration min, Duration max) {
+        if (value == null) {
             return min;
         }
-        return value.compareTo(max) > 0 ? max : value;
+        if (value.compareTo(min) < 0) {
+            log.warn("vectispire.agent.{} ({}) is {}, under its floor of {}: the agent uses {}. A bare number is "
+                            + "read as milliseconds; write the unit, as in 30s.",
+                    property, variable, spoken(value), spoken(min), spoken(min));
+            return min;
+        }
+        if (value.compareTo(max) > 0) {
+            log.warn("vectispire.agent.{} ({}) is {}, over its ceiling of {}: the agent uses {}.",
+                    property, variable, spoken(value), spoken(max), spoken(max));
+            return max;
+        }
+        return value;
+    }
+
+    /** {@code 30ms}, {@code 30s}, {@code 5m}: the units an operator writes, not {@code PT0.03S}. */
+    static String spoken(Duration value) {
+        long millis = value.toMillis();
+        if (millis % 1000 != 0) {
+            return millis + "ms";
+        }
+        long seconds = millis / 1000;
+        return seconds != 0 && seconds % 60 == 0 ? seconds / 60 + "m" : seconds + "s";
     }
 }

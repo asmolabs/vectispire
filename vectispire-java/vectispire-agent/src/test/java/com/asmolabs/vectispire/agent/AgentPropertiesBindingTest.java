@@ -2,8 +2,15 @@ package com.asmolabs.vectispire.agent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -11,6 +18,7 @@ import org.springframework.boot.context.properties.source.MapConfigurationProper
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 
 /**
@@ -21,6 +29,74 @@ import org.springframework.core.io.ClassPathResource;
  */
 @DisplayName("agent properties binding")
 class AgentPropertiesBindingTest {
+
+    private final Logger logger = (Logger) LoggerFactory.getLogger(AgentProperties.class);
+    private final ListAppender<ILoggingEvent> logged = new ListAppender<>();
+
+    @BeforeEach
+    void listen() {
+        logged.start();
+        logger.addAppender(logged);
+    }
+
+    @AfterEach
+    void stopListening() {
+        logger.detachAppender(logged);
+    }
+
+    private static AgentProperties bind(Map<String, String> values) {
+        return new Binder(new MapConfigurationPropertySource(values))
+                .bind("vectispire.agent", AgentProperties.class)
+                .get();
+    }
+
+    private List<String> warnings() {
+        return logged.list.stream()
+                .filter(event -> event.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
+    }
+
+    @Test
+    @DisplayName("a duration within its bounds is taken as written, and nothing is said")
+    void withinBoundsIsSilent() {
+        AgentProperties bound = bind(Map.of(
+                "vectispire.agent.claim-wait", "1s",
+                "vectispire.agent.retry-delay", "5m",
+                "vectispire.agent.heartbeat", "5s"));
+
+        assertThat(bound.claimWait()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(bound.retryDelay()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(bound.heartbeat()).isEqualTo(Duration.ofSeconds(5));
+        assertThat(warnings()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a bare number is milliseconds: raised to the floor, and the start says so by name")
+    void underTheFloorIsRaisedAloud() {
+        AgentProperties bound = bind(Map.of("vectispire.agent.claim-wait", "30"));
+
+        assertThat(bound.claimWait()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(warnings()).containsExactly(
+                "vectispire.agent.claim-wait (VECTISPIRE_AGENT_WAIT) is 30ms, under its floor of 1s: the agent uses 1s. "
+                        + "A bare number is read as milliseconds; write the unit, as in 30s.");
+    }
+
+    @Test
+    @DisplayName("a value over the ceiling is lowered to it, and the start says so by name")
+    void overTheCeilingIsLoweredAloud() {
+        AgentProperties bound = bind(Map.of(
+                "vectispire.agent.heartbeat", "1h",
+                "vectispire.agent.retry-delay", "0s"));
+
+        assertThat(bound.heartbeat()).isEqualTo(Duration.ofMinutes(10));
+        assertThat(bound.retryDelay()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(warnings()).containsExactlyInAnyOrder(
+                "vectispire.agent.heartbeat (VECTISPIRE_AGENT_HEARTBEAT) is 60m, over its ceiling of 10m: "
+                        + "the agent uses 10m.",
+                "vectispire.agent.retry-delay (VECTISPIRE_AGENT_RETRY) is 0s, under its floor of 1s: the agent uses 1s. "
+                        + "A bare number is read as milliseconds; write the unit, as in 30s.");
+    }
 
     @Test
     @DisplayName("binds from configuration, defaults included")
