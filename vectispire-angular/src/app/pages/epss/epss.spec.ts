@@ -208,6 +208,58 @@ describe('EPSS prioritisation', () => {
     });
 
     /**
+     * Clearing was not enough: an explanation still on its way for the previous CVE arrived after the
+     * next search had cleared it, and the model's words about Log4Shell sat under another CVE's
+     * numbers. The answer below comes last on purpose.
+     */
+    it("does not show the previous CVE's explanation when it arrives after the next search", () => {
+        lookup();
+        fixture.componentInstance.explain();
+        const slow = http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'));
+
+        fixture.componentInstance.cveSearchQuery = 'CVE-2023-4863';
+        fixture.componentInstance.searchCve();
+        http.expectOne((call) => call.url.includes('/api/v1/epss/cve/')).flush({ ...RECORD, cveId: 'CVE-2023-4863' });
+        // A request still open would deliver the old explanation now; a cancelled one cannot.
+        if (!slow.cancelled) {
+            slow.flush({
+                identifier: 'CVE-2021-44228',
+                title: '',
+                summaryExplanation: 'LOG4SHELL ADVICE',
+                exploitMechanics: '',
+                exposureAssessment: '',
+                remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+                vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+                references: []
+            });
+        }
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('CVE-2023-4863');
+        expect(text).not.toContain('LOG4SHELL ADVICE');
+        // The button is offered again for the CVE now on screen, not left spinning for the last one.
+        expect(text).toContain('Explain this CVE (AI)');
+        expect(fixture.componentInstance.adviceLoading()).toBe(false);
+    });
+
+    it("shows the CVE searched last when the previous search's answer comes last", () => {
+        fixture.componentInstance.cveSearchQuery = 'CVE-2021-44228';
+        fixture.componentInstance.searchCve();
+        fixture.componentInstance.cveSearchQuery = 'CVE-2023-4863';
+        fixture.componentInstance.searchCve();
+
+        const [first, second] = http.match((call) => call.url.includes('/api/v1/epss/cve/'));
+        second.flush({ ...RECORD, cveId: 'CVE-2023-4863' });
+        if (!first.cancelled) first.flush(RECORD);
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('CVE-2023-4863');
+        expect(text).not.toContain('CVE-2021-44228');
+    });
+
+    /**
      * **Whose words are on the screen.**
      *
      * These fields carry a model's own prose when a model answers, so they cannot become tokens.

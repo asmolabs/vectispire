@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
 import { IntelApi } from '../../core/api/intel.api';
 import { messageOf } from '../../core/api-error';
+import { LatestRequest } from '../../core/latest-request';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { AiDeterministic, AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
 import * as wording from '../../shared/ai-advice';
@@ -93,6 +94,15 @@ export class Epss implements OnInit {
     readonly adviceLoading = signal<boolean>(false);
     readonly adviceError = signal<string | null>(null);
 
+    /**
+     * The lookup and the explanation, each latest-wins. Clearing the advice on a new search was not
+     * enough: an explanation still on its way for the previous CVE arrived afterwards and was shown
+     * under the next CVE's numbers. A new search cancels it, and a slow lookup cannot overtake the
+     * one typed after it either.
+     */
+    private readonly lookupLoad = new LatestRequest();
+    private readonly adviceLoad = new LatestRequest();
+
     ngOnInit(): void {
         this.loadSummary();
         this.intelApi.getAiAdvisorStatus().subscribe({
@@ -110,7 +120,7 @@ export class Epss implements OnInit {
         this.adviceError.set(null);
         this.advice.set(null);
 
-        this.intelApi.explainCveWithAi(record.cveId, this.i18n.currentLang()).subscribe({
+        this.adviceLoad.run(this.intelApi.explainCveWithAi(record.cveId, this.i18n.currentLang()), {
             next: (advice) => {
                 this.advice.set(advice);
                 this.adviceLoading.set(false);
@@ -181,12 +191,14 @@ export class Epss implements OnInit {
         this.lookupError.set(null);
         this.lookupDialogOpen.set(true);
 
-        // A fresh search clears the previous explanation: keeping it would show one CVE's analysis
-        // under another's numbers.
+        // A fresh search clears the previous explanation and cancels the one in flight: either would
+        // show one CVE's analysis under another's numbers.
+        this.adviceLoad.cancel();
         this.advice.set(null);
         this.adviceError.set(null);
+        this.adviceLoading.set(false);
 
-        this.intelApi.lookupEpssCve(this.cveSearchQuery.trim()).subscribe({
+        this.lookupLoad.run(this.intelApi.lookupEpssCve(this.cveSearchQuery.trim()), {
             next: (record) => {
                 this.lookupResult.set(record);
                 this.lookupLoading.set(false);
