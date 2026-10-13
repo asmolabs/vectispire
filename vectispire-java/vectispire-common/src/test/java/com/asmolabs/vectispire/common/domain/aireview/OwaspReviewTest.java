@@ -116,7 +116,7 @@ class OwaspReviewTest {
         // report with eight empty categories reads as eight categories that are fine.
         assertThat(OwaspReview.PROMPT).contains("Not evidenced");
         assertThat(OwaspReview.PROMPT).contains("silence is not safety");
-        assertThat(OwaspReview.TOP_TEN).hasSize(10).containsKeys("A01", "A10");
+        assertThat(OwaspCoverage.CATEGORIES).hasSize(10).containsKeys("A01", "A10");
     }
 
     @Test

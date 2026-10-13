@@ -40,28 +40,6 @@ public final class OwaspReview {
 
     private OwaspReview() {}
 
-    /** The 2021 edition, which is the one every audit questionnaire still asks about. */
-    public static final Map<String, String> TOP_TEN = topTen();
-
-    private static Map<String, String> topTen() {
-        Map<String, String> categories = new LinkedHashMap<>();
-        categories.put("A01", "Broken Access Control");
-        categories.put("A02", "Cryptographic Failures");
-        categories.put("A03", "Injection");
-        categories.put("A04", "Insecure Design");
-        categories.put("A05", "Security Misconfiguration");
-        categories.put("A06", "Vulnerable and Outdated Components");
-        categories.put("A07", "Identification and Authentication Failures");
-        categories.put("A08", "Software and Data Integrity Failures");
-        categories.put("A09", "Security Logging and Monitoring Failures");
-        categories.put("A10", "Server-Side Request Forgery");
-        // **`unmodifiableMap` and not `Map.copyOf`.** The latter loses insertion order and
-        // iterates in an order salted per JVM: the report's sections moved about from one run to
-        // the next, which contradicts the reproducibility this class claims two paragraphs
-        // above.
-        return java.util.Collections.unmodifiableMap(categories);
-    }
-
     /**
      * <b>The delimiter discipline is the same as the code review's, and for the same reason.</b>
      * A finding's description, a secret's file path and a rule's message are all written by

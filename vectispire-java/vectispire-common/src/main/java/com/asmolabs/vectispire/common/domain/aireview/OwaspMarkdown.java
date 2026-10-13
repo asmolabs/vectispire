@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.aireview;
 
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -234,6 +235,10 @@ public final class OwaspMarkdown {
     /**
      * The Top 10:2021 code a heading opens with, upper-cased, or null when it opens with none — the one
      * reading that decides both whether a heading is a {@link Kind#CATEGORY} and which category it is.
+     *
+     * <p>The ten are the grid's ({@link OwaspCoverage#CATEGORIES}), not a list of the report's own: a second
+     * copy of them once lived in {@code OwaspReview}, and a heading read as a category must name one the grid
+     * beside the report shows.
      */
     static String categoryOf(String heading) {
         Matcher code = CATEGORY_CODE.matcher(heading.strip().toUpperCase(Locale.ROOT));
@@ -241,7 +246,7 @@ public final class OwaspMarkdown {
             return null;
         }
         String category = code.group(1);
-        return OwaspReview.TOP_TEN.containsKey(category) ? category : null;
+        return OwaspCoverage.CATEGORIES.containsKey(category) ? category : null;
     }
 
     /**
