@@ -9,6 +9,8 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { DataViewModule } from '@openng/optimus-ui/dataview';
 import { messageOf } from '../../core/api-error';
+import { LatestRequest } from '@/app/core/latest-request';
+import { PAGE_SIZE, pageHolding } from '@/app/shared/list-paging';
 import { ScansApi } from '../../core/api/scans.api';
 import { TargetsApi } from '../../core/api/targets.api';
 import type { MonitoredContainer } from '../../core/api.models';
@@ -104,8 +106,22 @@ export class Containers {
      */
     private readonly scanInFlight = computed(() => anyScanRunning(this.containers().map((row) => row.lastScan)));
 
+    /**
+     * The list's request, latest wins: a poll tick and the reload after a save can be in flight
+     * together, and the older answer landing last put rows back that the newer one had changed.
+     */
+    private readonly listRequest = new LatestRequest();
+    /** The list's own failure, told apart from an action's: a poll that recovers clears only its own. */
+    private listError: string | null = null;
+
+    /** Client-side pages, and the one the reader is on, kept across the refreshes (see repositories). */
+    readonly pageSize = PAGE_SIZE;
+    readonly first = signal(0);
+
     constructor() {
-        pollWhile(this.scanInFlight, () => this.reload());
+        // In the background: no overlay. Raised every five seconds while a scan ran, it flashed
+        // over the whole list and swallowed the clicks of whoever was reading it.
+        pollWhile(this.scanInFlight, () => this.reload(true));
         this.reload();
         // Only the dialog reads it, and only an administrator opens the dialog. A failure leaves the
         // dialog naming the setting instead of a number.
@@ -140,16 +156,20 @@ export class Containers {
         });
     }
 
-    reload(): void {
-        this.loading.set(true);
-        this.targetsApi.containers().subscribe({
+    reload(background = false): void {
+        if (!background) this.loading.set(true);
+        this.listRequest.run(this.targetsApi.containers(), {
             next: (containers) => {
                 this.containers.set(containers);
-                this.error.set(null);
+                this.first.set(pageHolding(this.first(), containers.length));
+                // A refresh nobody asked for leaves an action's error in place; it clears its own.
+                if (!background || this.error() === this.listError) this.error.set(null);
+                this.listError = null;
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('containers.load_failed'));
+            error: (response: unknown) => {
+                this.listError = messageOf(response, this.i18n.t('containers.load_failed'));
+                this.error.set(this.listError);
                 this.loading.set(false);
             }
         });

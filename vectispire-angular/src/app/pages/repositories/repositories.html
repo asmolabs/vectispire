@@ -33,7 +33,16 @@
     <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 
-<p-dataview [value]="repositories()" [loading]="loading()" layout="list">
+<p-dataview
+    [value]="repositories()"
+    [loading]="loading()"
+    layout="list"
+    [paginator]="true"
+    [rows]="pageSize"
+    [first]="first()"
+    (onPage)="first.set($event.first)"
+    [alwaysShowPaginator]="false"
+>
     <ng-template #list let-items>
         <!--
             A card per repository rather than a row, because these are entities and not

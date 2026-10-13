@@ -2,7 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Containers } from './containers';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
@@ -232,5 +232,75 @@ describe('the container list', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.formError()).toContain('Expected five fields');
+    });
+});
+
+/**
+ * The image list while a scan runs, and when it is long: the same defects as the repository list,
+ * the overlay raised on every poll tick and no pages.
+ */
+describe('the container list, refreshed and paged', () => {
+    let fixture: ComponentFixture<Containers>;
+    let http: HttpTestingController;
+
+    const container = (id: number, status = 'completed') =>
+        asSchema('ContainerSummary', {
+            id,
+            imageName: `image-${id}`,
+            reference: `registry.invalid/image-${id}:1.0`,
+            tag: '1.0',
+            openIssues: 0,
+            scanManualOnly: false,
+            lastScan: { id: 1000 + id, status, createdAt: '2026-08-21T05:03:00Z', error: null }
+        });
+
+    const MANY = Array.from({ length: 45 }, (_, index) => container(index + 1, index === 0 ? 'scanning' : 'completed'));
+
+    beforeEach(async () => {
+        vi.useFakeTimers();
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Containers],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Containers);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        for (const request of http.match(() => true)) {
+            request.flush(request.request.url.endsWith('/containers') ? MANY : []);
+        }
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    /** The full references on the cards shown (each card's title carries it), in order. */
+    function shown(): string[] {
+        return [...page().querySelectorAll('[title^="registry.invalid/"]')].map((node) => node.getAttribute('title')!);
+    }
+
+    it('raises no overlay on a poll tick, and lets the latest request win', () => {
+        vi.advanceTimersByTime(5000);
+        const tick = http.expectOne('/api/v1/containers');
+        expect(page().querySelector('.p-dataview-loading')).toBeNull();
+
+        fixture.componentInstance.reload();
+        expect(tick.cancelled).toBe(true);
+        http.expectOne('/api/v1/containers').flush(MANY);
+    });
+
+    it('pages by twenty and keeps the page across a refresh', () => {
+        expect(shown()).toHaveLength(20);
+        page().querySelectorAll<HTMLButtonElement>('.p-paginator-page')[1].click();
+        expect(shown()[0]).toBe('registry.invalid/image-21:1.0');
+
+        vi.advanceTimersByTime(5000);
+        http.expectOne('/api/v1/containers').flush(MANY);
+        expect(shown()[0]).toBe('registry.invalid/image-21:1.0');
     });
 });
