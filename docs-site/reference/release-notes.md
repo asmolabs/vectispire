@@ -17,6 +17,12 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   `detail`, no longer the success body with `matched: false` and `actionTaken`.
 - **SCIM answers a missing user or group (404) and a taken `userName` or `displayName` (409, `scimType`
   `uniqueness`) in SCIM's error schema** instead of an empty body.
+- **Each line of the OWASP Top 10 grid (`GET /api/v1/owasp/coverage`) carries `reason` beside `because`,
+  which is kept:** `code`, one of fourteen (`NO_SCANNER` … `REPOSITORIES_NOT_EXAMINED`), and its values —
+  `types`, the finding types it names by wire name, and for a scope examined in part `missing`, `applicable`
+  and `gaps` (each `gap`, `NEVER_SCANNED`, `LAST_SCAN_FAILED`…, with its count of `targets`).
+- **The OWASP report's PDF (`GET /api/v1/repositories/{id}/owasp-review/export.pdf`) takes
+  `language=en|fr`**, English by default; another value answers 400.
 
 ### New {#new-0111}
 
@@ -31,6 +37,9 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   configured notification channel — never the token itself. Replacing a refused tracker token announces
   it working again ([notifications](../integrations/notifications.md#integration-token-alerts),
   [SIEM](../integrations/siem.md)).
+- **The OWASP Top 10 grid explains each category in the interface's language**, and the OWASP report's PDF
+  follows the reader's language for its own words, includes the repository's coverage grid (the ten
+  categories with their state and why), and prints the model's text as written.
 
 ### Fixed {#fixed-0111}
 

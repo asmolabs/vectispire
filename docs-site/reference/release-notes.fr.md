@@ -17,6 +17,13 @@
   dans `detail`, et non plus le corps d'un succès avec `matched: false` et `actionTaken`.
 - **SCIM répond à un utilisateur ou un groupe absent (404) et à un `userName` ou un `displayName` déjà pris
   (409, `scimType` `uniqueness`) dans le schéma d'erreur SCIM** au lieu d'un corps vide.
+- **Chaque ligne de la grille OWASP Top 10 (`GET /api/v1/owasp/coverage`) porte `reason` à côté de
+  `because`, qui est conservé :** `code`, l'un de quatorze (`NO_SCANNER` … `REPOSITORIES_NOT_EXAMINED`), et
+  ses valeurs — `types`, les types de constat qu'il nomme par leur nom d'échange, et pour un périmètre
+  examiné en partie `missing`, `applicable` et `gaps` (chaque `gap`, `NEVER_SCANNED`, `LAST_SCAN_FAILED`…,
+  avec son nombre de `targets`).
+- **Le PDF du rapport OWASP (`GET /api/v1/repositories/{id}/owasp-review/export.pdf`) accepte
+  `language=en|fr`**, l'anglais par défaut ; une autre valeur répond 400.
 
 ### Nouveautés {#nouveautes-0111}
 
@@ -33,6 +40,9 @@
   jeton de gestionnaire de tickets refusé annonce qu'il fonctionne de nouveau
   ([notifications](../integrations/notifications.md#integration-token-alerts),
   [SIEM](../integrations/siem.md)).
+- **La grille du Top 10 OWASP explique chaque catégorie dans la langue de l'interface**, et le PDF du rapport
+  OWASP suit la langue du lecteur pour ses propres mots, contient la grille de couverture du dépôt (les dix
+  catégories avec leur état et leur raison) et reproduit le texte du modèle tel qu'il l'a écrit.
 
 ### Corrigé {#corrige-0111}
 
