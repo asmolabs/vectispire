@@ -846,6 +846,14 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **A screen no longer shows the answer to an earlier request.** Switching the dashboard's window, searching
+  a second CVE on the EPSS page, opening another dossier in the history or picking another package in the
+  blast radius could leave the slower, earlier answer on screen under the new label — one CVE's AI
+  explanation under another's numbers. The last request asked is now the one shown. The attack-surface page
+  waits for the scans it launched to finish rather than for the first endpoint, and the blast-radius and
+  attack-surface pages say when a list failed to load instead of staying empty.
+- **A severity has one colour on every screen**: critical red, high orange, medium blue, low grey. High was
+  red on the issue list and the solutions, orange on the exceptions, the attack paths and the dashboard.
 - **A tracker behind an internal CA is reached: its CA can be pinned, as a forge connection's is.** Every
   call to the tracker — opening a ticket on GitLab, GitHub, Jira or ServiceNow, closing it, Jira's
   transitions lookup, ServiceNow's incident lookup — was verified against the Java runtime's trust store

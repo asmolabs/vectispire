@@ -927,6 +927,16 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Un écran n'affiche plus la réponse d'une requête précédente.** Changer la fenêtre du tableau de bord,
+  chercher une deuxième CVE sur la page EPSS, ouvrir un autre dossier dans l'historique ou choisir un autre
+  paquet dans le rayon d'impact pouvait laisser à l'écran la réponse plus lente de la demande précédente,
+  sous le nouveau libellé — l'explication IA d'une CVE sous les chiffres d'une autre. C'est désormais la
+  dernière demande qui s'affiche. La page de surface d'attaque attend la fin des scans qu'elle a lancés
+  plutôt que le premier point d'accès, et les pages rayon d'impact et surface d'attaque signalent l'échec
+  du chargement d'une liste au lieu de rester vides.
+- **Une sévérité a une seule couleur sur tous les écrans** : critique rouge, élevée orange, moyenne bleue,
+  faible grise. Élevée était rouge sur la liste des constats et les solutions, orange sur les exceptions,
+  les chemins d'attaque et le tableau de bord.
 - **Un tracker derrière une CA interne est joint : sa CA peut être épinglée, comme celle d'une connexion de
   forge.** Chaque appel au tracker — ouvrir un ticket sur GitLab, GitHub, Jira ou ServiceNow, le fermer, la
   recherche des transitions de Jira, celle de l'incident sur ServiceNow — était vérifié contre le seul
