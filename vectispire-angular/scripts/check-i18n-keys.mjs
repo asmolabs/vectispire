@@ -842,12 +842,27 @@ if (failed) {
 const NAMED_DATE_FORMATS = new Set(['short', 'medium', 'long', 'full', 'shortDate', 'mediumDate', 'longDate',
     'fullDate', 'shortTime', 'mediumTime', 'longTime', 'fullTime']);
 const wordyPattern = (pattern) => NAMED_DATE_FORMATS.has(pattern) || /M{3,}|L{3,}|E{3,}|c{3,}|a|B/.test(pattern.replace(/'[^']*'/g, ''));
+// **And the numeric pattern is the interface's one: day, month, year.** A 'yyyy-MM-dd' is numeric and
+// names no locale, so the rule above let it through — and the tracker card wrote "Expire dans 11 jours
+// 2026-09-29", the forge screens their tokens' and certificates' days, year first, beside dates written
+// 'dd/MM/yyyy' everywhere else (2026-10-13). So the day, the month and the year a pattern writes come in
+// that order: 'yyyy-MM-dd' and 'MM/dd/yyyy' are refused, 'dd/MM', 'dd/MM/yyyy HH:mm' and a bare 'HH:mm'
+// pass. What it cannot see is a day put into a sentence as the API sent it, with no pattern at all —
+// the other way the year came first, on the dashboard, the weekly OWASP view and the backlog's banner:
+// a `Format: date` value shown to a reader goes through the date pipe or `formatDate` too.
+const dateFieldOrder = (pattern) =>
+    [...pattern.replace(/'[^']*'/g, '').matchAll(/d+|M+|L+|y+|Y+/g)]
+        .map((field) => field[0][0].replace('L', 'M').replace('Y', 'y'))
+        .join('');
+// The fields a pattern writes, in order, must be a run of 'dMy': '', 'd', 'dM', 'My', 'dMy'…
+const outOfOrder = (pattern) => !'dMy'.includes(dateFieldOrder(pattern));
 const withoutComments = (source) =>
     source
         .replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '))
         .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
         .replace(/^\s*\/\/.*$/gm, '');
 const localeBound = [];
+const wrongOrder = [];
 for (const file of walk(join(root, 'src/app'))) {
     if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts')) continue;
     const source = withoutComments(readFileSync(file, 'utf8'));
@@ -864,6 +879,7 @@ for (const file of walk(join(root, 'src/app'))) {
     for (const match of source.matchAll(/\|\s*date\s*:\s*'([^']*)'|\bformatDate\(\s*[^,]+,\s*'([^']*)'/g)) {
         const pattern = match[1] ?? match[2];
         if (wordyPattern(pattern)) localeBound.push(`${where(match.index)}  '${pattern}'`);
+        else if (outOfOrder(pattern)) wrongOrder.push(`${where(match.index)}  '${pattern}'`);
     }
 }
 if (localeBound.length > 0) {
@@ -872,6 +888,15 @@ if (localeBound.length > 0) {
     console.error(
         `Write a date with the date pipe or formatDate and a numeric pattern ('dd/MM/yyyy HH:mm'), ` +
             `a figure with I18nService.decimal / percent or the localNumber / localPercent pipes.`);
+    process.exit(1);
+}
+if (wrongOrder.length > 0) {
+    console.error(`${wrongOrder.length} date pattern(s) not written day, month, year:`);
+    for (const offender of wrongOrder) console.error(`  ${offender}`);
+    console.error(
+        `A date has one pattern, the same in both languages: 'dd/MM/yyyy', 'dd/MM/yyyy HH:mm' with a time ` +
+            `(angular-frontend agent, "A date has one pattern"). A calendar day the API sends as yyyy-MM-dd ` +
+            `goes through the date pipe or formatDate with no timezone, so that it does not move a day.`);
     process.exit(1);
 }
 
@@ -920,4 +945,5 @@ console.log(
     `${messagesInCode} sentences in the code (ceiling ${MESSAGES_IN_CODE_CEILING}); ` +
     `no static attribute showing text (${STATIC_TOKENS.size} tokens allowed); ` +
     `no word joined to a value (${CONCAT_TOKENS.size} tokens allowed); no HTML entity in a bundle; ` +
-    `no date or figure formatted by a locale; no percent sign glued to a figure.`);
+    `no date or figure formatted by a locale, no date pattern but day, month, year; ` +
+    `no percent sign glued to a figure.`);
