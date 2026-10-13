@@ -388,3 +388,66 @@ describe('the agents screen, on credentialed scans nobody can take', () => {
         expect(banner()).toContain('2 scans');
     });
 });
+
+/**
+ * The fleet's activity and the agent list, when the server fails, say so in its words (RFC 7807
+ * `detail`). The activity was read with `error: () => {}`: the running and waiting figures simply
+ * vanished, which reads as an idle fleet.
+ */
+describe('the agents screen when a read fails', () => {
+    let fixture: ComponentFixture<Agents>;
+    let http: HttpTestingController;
+
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+    const problem = (detail: string) => ({ title: 'Internal Server Error', status: 500, detail });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Agents],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Agents);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    });
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function answer(activity: () => [object, { status: number; statusText: string }?], agents: object = []): void {
+        for (const request of http.match(() => true)) {
+            const url = request.request.url;
+            if (url.endsWith('/activity')) request.flush(...activity());
+            else if (url === '/api/v1/admin/agents') request.flush(agents, 'status' in agents ? failure : undefined);
+            else if (url.endsWith('/credentialed-backlog')) request.flush({ scans: 0, labels: [], keptAgents: [] });
+            else request.flush([]);
+        }
+    }
+
+    it('says the activity could not be read, in the server’s words, and clears it when a refresh answers', () => {
+        answer(() => [problem('Activity view is being rebuilt.'), failure]);
+
+        expect(page().querySelector('[data-testid="activity-error"]')?.textContent).toContain(
+            'Activity view is being rebuilt.'
+        );
+
+        fixture.componentInstance.refreshActivity();
+        http.expectOne('/api/v1/admin/agents/activity').flush({
+            runningScans: [],
+            pendingScans: [],
+            stats: null
+        });
+
+        expect(page().querySelector('[data-testid="activity-error"]')).toBeNull();
+    });
+
+    it('shows the agent list’s failure in the server’s words', () => {
+        answer(() => [{ runningScans: [], pendingScans: [], stats: null }], problem('Agent registry locked.'));
+
+        expect(page().textContent).toContain('Agent registry locked.');
+    });
+});

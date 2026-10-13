@@ -124,7 +124,8 @@
     "reset_sealing_confirm": "Oublier la clé",
     "reset_sealing_notice": "La clé de scellement de {{name}} est oubliée. Il ne reçoit plus d'identifiant délégué tant qu'il n'en a pas prouvé une nouvelle.",
     "error_reset_sealing": "Impossible d'oublier la clé de scellement.",
-    "error_not_found": "Cet agent n'existe plus."
+    "error_not_found": "Cet agent n'existe plus.",
+    "activity_failed": "Impossible de charger les scans en cours et en attente."
   },
   "ai": {
     "exposure_not_assessed": "Exposition non évaluée : Vectispire n'analyse pas si votre code appelle ce composant. Vérifiez si des parcours utilisateur atteignent les fonctions de cette bibliothèque.",
