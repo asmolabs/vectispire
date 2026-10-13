@@ -48,6 +48,30 @@ replaces was retired.
 Vectispire posts an Adaptive Card, so nothing has to be mapped in the designer — create
 the workflow, take its URL, paste it in.
 
+## When an integration token changes {#integration-token-alerts}
+
+Since 0.11.1 the same channels are told when the [tracker token](ticketing.md#token-expiry) or a
+[forge connection's token](../administration/forge-connections.md#token-expiry) **changes state**:
+fourteen days before it expires, when it expired or the server refused it, and when it works again or
+is no longer about to expire. Once per change, never once an hour; a restart says nothing again.
+
+- **The installation's channels**: the global webhook, Slack, Teams, Discord and mail — each one
+  configured, one outbox row each, as for a scan's delta. A team's own webhook is not told: the token
+  is the installation's. The issue threshold does not apply; it is about findings.
+- **The same rules**: the URL read at the send, the private-address switch, the webhook signature.
+- **What it says**: the tracker or the connection by its name, the server and its address, the date or
+  the status and since when, and a link to the screen where the token is replaced when the deployment
+  knows its public address. **Never the token**, nor a header.
+- **The webhook's body** is told apart from a scan's delta by `event: "token_state_changed"`, with
+  `credential` (`tracker_token` or `forge_connection`), `name`, `reference`, `state` and
+  `previous_state` (`none`, `expires_soon`, `expired`, `refused`), `signature_id` (the
+  [SIEM event](siem.md#event-catalogue), `VECTI-SEC-038` to `040`), `expires_at`, `refused_status`,
+  `refused_since`, `observed_at` and `message_id`.
+
+The same change is in the audit log and sent to the SIEM — see the tables on the
+[ticketing](ticketing.md#token-expiry) and [forge connections](../administration/forge-connections.md#token-expiry)
+pages.
+
 ## The weekly posture report
 
 Off by default, and it exists to cover the blind spot every other notification has.

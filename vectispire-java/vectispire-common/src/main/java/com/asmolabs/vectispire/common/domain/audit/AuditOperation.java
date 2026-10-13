@@ -517,7 +517,26 @@ public enum AuditOperation {
      * A produced report's package — the document, its signature and its provenance — was downloaded (decision 0035
      * §4). The entry names the run, the output's and the package's SHA-256.
      */
-    REPORT_DOWNLOADED;
+    REPORT_DOWNLOADED,
+
+    /**
+     * An integration token — the tracker's, or a forge connection's — came within fourteen days of its expiry
+     * ({@code TokenExpiry.NOTICE}). Written once per change of what there is to say about the token, never every
+     * hour; the entry names the tracker or the connection, the server and the date — never the token.
+     */
+    INTEGRATION_TOKEN_EXPIRING,
+
+    /**
+     * An integration token stopped working: past its expiry, or refused by the server it is presented to (a
+     * {@code 401}, or a {@code 403} on a call the integration needs). Once per change, like the other two.
+     */
+    INTEGRATION_TOKEN_STOPPED,
+
+    /**
+     * An integration token that had been said to expire soon, to have expired or to be refused is no longer: it
+     * was replaced, or accepted again. Once per change, like the other two.
+     */
+    INTEGRATION_TOKEN_RESTORED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

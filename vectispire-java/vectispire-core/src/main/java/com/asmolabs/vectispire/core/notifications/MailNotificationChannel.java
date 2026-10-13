@@ -2,7 +2,10 @@ package com.asmolabs.vectispire.core.notifications;
 
 import com.asmolabs.vectispire.common.domain.notifications.MailMessage;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.notifications.internal.AlertChannel;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.ExportProperties;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -30,7 +33,7 @@ import org.springframework.stereotype.Service;
  * sender, no channel and nothing queued — the same shape as the single sign-on.
  */
 @Service
-public class MailNotificationChannel implements NotificationChannel {
+public class MailNotificationChannel implements NotificationChannel, AlertChannel {
 
     private static final Logger log = LoggerFactory.getLogger(MailNotificationChannel.class);
 
@@ -124,6 +127,18 @@ public class MailNotificationChannel implements NotificationChannel {
         message.setText(body);
         mailer.send(message);
         log.info("Mail sent to {} recipient(s): {}", to.size(), subject);
+    }
+
+    @Override
+    public String alertKey() {
+        return "mail";
+    }
+
+    /** A token's change of state, to the same recipients through the same relay; throws on failure, like the rest. */
+    @Override
+    public void deliverAlert(TokenAlert alert, String messageId) {
+        MailMessage.Content content = TokenAlertMessages.mail(alert, deployment.publicUrl().orElse(null), messageId);
+        sendText(content.subject(), content.body());
     }
 
     private List<String> recipients() {

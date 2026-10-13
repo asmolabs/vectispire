@@ -101,6 +101,7 @@ public class ForgeConnectionService {
     private final ForgeProbes probes;
     private final EncryptionService encryption;
     private final AuditLogService audit;
+    private final ForgeTokenWatch tokenWatch;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
@@ -113,6 +114,7 @@ public class ForgeConnectionService {
             ForgeProbes probes,
             EncryptionService encryption,
             AuditLogService audit,
+            ForgeTokenWatch tokenWatch,
             Clock clock,
             PlatformTransactionManager transactions) {
         this.connections = connections;
@@ -123,6 +125,7 @@ public class ForgeConnectionService {
         this.probes = probes;
         this.encryption = encryption;
         this.audit = audit;
+        this.tokenWatch = tokenWatch;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactions);
     }
@@ -285,6 +288,8 @@ public class ForgeConnectionService {
             snapshot.deleteByConnection(id);
             links.deleteByConnection(id);
             readings.deleteByConnection(id);
+            // What was said of its token: a row outside the catalog, which nothing else would ever remove.
+            tokenWatch.forget(id);
             connections.deleteById(id);
         });
         record(actor, id, "Forge connection deleted: " + describe(entity), true);

@@ -19,6 +19,19 @@ public interface SettingRepository extends JpaRepository<SettingEntity, String> 
     int updateValue(@Param("key") String key, @Param("value") String value);
 
     /**
+     * Writes a value onto a row only if it still holds the one its writer read, and says whether it did.
+     *
+     * <p>The arbiter between instances: two that read the same value and both want to move it — two instances'
+     * hourly turns noticing the same change of a token's state — both issue this; the second waits on the first's
+     * row lock, then finds the value moved, on both engines (an update reads the committed row, whatever the
+     * isolation level), and is told zero.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update SettingEntity s set s.value = :value where s.key = :key and s.value = :expected")
+    int replaceValue(@Param("key") String key, @Param("expected") String expected, @Param("value") String value);
+
+    /**
      * Creates a row, and fails when the key already has one.
      *
      * <p>An insert and nothing else. {@code save} on an entity whose identifier is assigned merges —

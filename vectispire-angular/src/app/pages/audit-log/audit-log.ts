@@ -117,6 +117,9 @@ const OPERATION_KEYS: Record<string, string> = {
     REPORT_FAILED: 'audit_log.operations.report_failed',
     REPORT_REFUSED: 'audit_log.operations.report_refused',
     REPORT_DOWNLOADED: 'audit_log.operations.report_downloaded',
+    INTEGRATION_TOKEN_EXPIRING: 'audit_log.operations.integration_token_expiring',
+    INTEGRATION_TOKEN_STOPPED: 'audit_log.operations.integration_token_stopped',
+    INTEGRATION_TOKEN_RESTORED: 'audit_log.operations.integration_token_restored',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',

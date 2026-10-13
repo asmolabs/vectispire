@@ -165,6 +165,34 @@ public class SettingsService {
     }
 
     /**
+     * Moves a row no {@link Setting} names from the value its caller read to another, <b>in the caller's
+     * transaction</b>, and says whether this caller is the one that moved it.
+     *
+     * <p>For state that must change once whoever else is looking at it — what was last said about a token, which
+     * every instance's hourly turn notices — and for an effect that must commit with that change or not at all: the
+     * caller opens the transaction, moves the row, and only the one told {@code true} queues what the change causes.
+     *
+     * <p><b>The row must exist</b>: an update cannot arbitrate over a row nobody has written. Store it first with
+     * {@link #storeInternalIfAbsent}, outside the transaction, and read it back.
+     */
+    @Transactional
+    public boolean replaceInternal(String key, String expected, String value) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, written through set(Setting, …).");
+        }
+        return settings.replaceValue(key, expected, value) == 1;
+    }
+
+    /** Deletes a row no {@link Setting} names: the state kept for something that no longer exists. */
+    @Transactional
+    public void removeInternal(String key) {
+        if (Setting.byKey(key).isPresent()) {
+            throw new IllegalStateException(key + " is a catalog setting, and is not deleted.");
+        }
+        settings.deleteById(key);
+    }
+
+    /**
      * Writes a value, creating the row if it is not there.
      *
      * <p><b>Update first, insert only if nothing was updated.</b> Read-then-write would let two

@@ -61,7 +61,7 @@ class ForgeConnectionKeyRotationTest {
         ForgeConnectionService service = new ForgeConnectionService(connections,
                 mock(ForgeDiscoveryRepository.class), mock(ForgeRepositoryRepository.class),
                 mock(ForgeImportLinkRepository.class), mock(ForgeReviewReadingRepository.class), probes, during,
-                mock(AuditLogService.class), Clock.systemUTC(), mock(PlatformTransactionManager.class));
+                mock(AuditLogService.class), mock(ForgeTokenWatch.class), Clock.systemUTC(), mock(PlatformTransactionManager.class));
 
         assertThat(service.list()).singleElement()
                 .satisfies(view -> assertThat(view.encryptionState()).isEqualTo("previous_key"));
