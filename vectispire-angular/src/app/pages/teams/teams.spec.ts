@@ -40,6 +40,7 @@ describe('the teams screen', () => {
                 role: 'ADMIN',
                 isActive: true,
                 mustChangePassword: false,
+                federated: false,
                 createdAt: '2026-01-01T00:00:00Z',
                 activeSessions: 1
             },
@@ -51,6 +52,7 @@ describe('the teams screen', () => {
                 role: 'USER',
                 isActive: true,
                 mustChangePassword: false,
+                federated: false,
                 createdAt: '2026-01-01T00:00:00Z',
                 activeSessions: 0
             }

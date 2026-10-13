@@ -55,6 +55,7 @@ nature qui décide de qui est l'appelant.
 | **Auth** | `POST` | `/api/v1/auth/mfa/setup` | Compte | Initialisation de la double authentification (génération du secret TOTP). |
 | **Auth** | `POST` | `/api/v1/auth/mfa/enable` | Compte | Activation définitive du MFA après saisie d'un premier code. |
 | **Auth** | `POST` | `/api/v1/auth/mfa/disable` | Compte | Désactivation du MFA avec validation par code. |
+| **Utilisateurs** | `DELETE` | `/api/v1/users/{id}/password-change-requirement` | Admin | Lever l'obligation de changer de mot de passe d'un compte lié à un sujet du fournisseur d'identité (`federated` dans la liste des comptes) — jamais la sienne, et celle d'un super-administrateur par un super-administrateur seulement. `400` pour un compte qui se connecte avec son propre mot de passe : il la lève en le changeant. Idempotente : un compte qui ne doit rien est rendu tel quel, sans entrée. Rend le compte ; enregistrée comme `USER_UPDATED`, envoyée au SIEM comme `VECTI-SEC-010`. |
 | **Surface d'Attaque** | `GET` | `/api/v1/attack-surface` | Compte | Synthèse globale de la surface d'attaque et routes à haut risque. |
 | **Surface d'Attaque** | `DELETE` | `/api/v1/attack-surface` | Responsable/Admin | Purge globale de l'inventaire des endpoints et contrats. |
 | **Surface d'Attaque** | `GET` | `/api/v1/repositories/{id}/apis` | Compte | Inventaire des routes découvertes et contrats OpenAPI d'un dépôt. |

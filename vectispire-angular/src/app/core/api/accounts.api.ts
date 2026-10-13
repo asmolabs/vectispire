@@ -41,6 +41,14 @@ export class AccountsApi {
         return this.http.patch<UserSummary>(`/api/v1/users/${id}`, patch);
     }
 
+    /**
+     * Lifts an account's obligation to change its password. The server accepts it for a federated
+     * account other than one's own only, and answers the account as it stands afterwards.
+     */
+    clearPasswordChangeRequirement(id: number): Observable<UserSummary> {
+        return this.http.delete<UserSummary>(`/api/v1/users/${id}/password-change-requirement`);
+    }
+
     deleteUser(id: number): Observable<void> {
         return this.http.delete<void>(`/api/v1/users/${id}`);
     }

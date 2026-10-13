@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -239,6 +240,71 @@ public class AccountAdministrationService {
                     actor.userAgent()));
         }
         return new AccountView(UserView.of(user), revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
+    }
+
+    /**
+     * Lifts another account's obligation to change its password, for an account that signs in through
+     * the identity provider.
+     *
+     * <p><b>Why it exists.</b> The directory created its accounts, on 0.10.0 and {@code v0.11.0-rc.1},
+     * with a random password and the flag; every federated session of such an account is held on the
+     * change-password screen, which asks for a current password nobody has. The release notes of 0.11.0
+     * could only offer an {@code update} statement.
+     *
+     * <p><b>Why only for an account bound to a provider subject.</b> The flag is the control that makes a
+     * password somebody else chose — the bootstrap one in the deployment's configuration, the one an
+     * administrator typed at a creation or a reset — stop being a credential. Lifting it on an account that
+     * signs in with that password would keep it valid for good, known to whoever chose it, and
+     * indistinguishable from its owner's use. That account lifts the flag itself, by changing the password.
+     * An account the provider vouches for does not sign in with the password it was given; one with no
+     * password at all has nothing to keep valid.
+     *
+     * <p><b>Never on one's own account</b>, as nobody changes their own role: a control is lifted by somebody
+     * other than the person it binds. An administrator owing a change cannot reach the route anyway — the
+     * server holds them on the change-password routes — and this refusal does not lean on that holding.
+     *
+     * <p><b>Idempotent.</b> An account that owes nothing is answered as it is, with no write and no entry:
+     * the request's outcome already holds, and a retry after a lost answer is not a second action.
+     *
+     * @param actingAccountId the account clearing it. Read, not trusted: it must hold an administrative role
+     *     today, whatever the route's marker admitted
+     * @throws AccessDeniedException when the caller is not an administrative account
+     */
+    public AccountView clearPasswordChangeRequirement(long id, Long actingAccountId, RequestActor actor) {
+        boolean administers = actingAccountId != null && users.findById(actingAccountId)
+                .flatMap(account -> Role.of(account.getRole()))
+                .map(Role::isAdministrative)
+                .orElse(false);
+        if (!administers) {
+            throw new AccessDeniedException("Only an administrator can lift another account's password-change requirement.");
+        }
+        UserEntity user = requireAccount(id);
+        if (isSelf(actingAccountId, id)) {
+            throw new InvalidInputException("You cannot lift your own password-change requirement: change your password.");
+        }
+        refuseGovernorAdministration(actingAccountId, Role.of(user.getRole()), Optional.empty());
+
+        if (!user.getMustChangePassword()) {
+            return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
+        }
+        if (signsInWithItsPassword(user)) {
+            throw new InvalidInputException("This account signs in with its password, which somebody else chose: "
+                    + "it lifts the requirement itself by changing it. Only an account that signs in through the "
+                    + "identity provider can have it lifted.");
+        }
+
+        user.setMustChangePassword(false);
+        user.setUpdatedAt(clock.instant());
+        // No session closes: no credential changed, and the account's sessions are the ones the flag was
+        // holding on the change-password screen.
+        accounts.save(user, false);
+        record(actor, id, "Account " + user.getUsername() + ": password-change requirement lifted");
+        return new AccountView(UserView.of(user), activeSessionsByUser().getOrDefault(id, 0L));
+    }
+
+    /** Holds a password and no provider subject: the password is how it signs in. */
+    private static boolean signsInWithItsPassword(UserEntity user) {
+        return user.getPassword() != null && user.getKeycloakId() == null;
     }
 
     /**

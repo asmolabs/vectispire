@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Users } from './users';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { useEnglish } from '@/app/core/testing/english';
 
 /**
  * The account screen, and the refusal it must not swallow.
@@ -19,7 +20,13 @@ describe('the accounts screen', () => {
     let fixture: ComponentFixture<Users>;
     let http: HttpTestingController;
 
-    const account = (id: number, username: string, role: string, isActive = true) =>
+    const account = (
+        id: number,
+        username: string,
+        role: string,
+        isActive = true,
+        owes: { mustChangePassword?: boolean; federated?: boolean } = {}
+    ) =>
         asSchema('UserAdminSummary', {
             id,
             username,
@@ -27,7 +34,8 @@ describe('the accounts screen', () => {
             displayName: null,
             role,
             isActive,
-            mustChangePassword: false,
+            mustChangePassword: owes.mustChangePassword ?? false,
+            federated: owes.federated ?? false,
             createdAt: '2026-01-01T00:00:00Z',
             activeSessions: 0
         });
@@ -335,5 +343,87 @@ describe('the accounts screen', () => {
         // The auditor sees the whole estate with no assignment — that is the counterpart of their
         // right to read governance, and the screen must say so rather than suggest otherwise.
         expect(page.accessUnrestricted()).toBe(true);
+    });
+
+    describe('lifting a password-change requirement', () => {
+        /**
+         * The current account (1), a provisioned account the provider signs in and that is held on the
+         * change-password screen (3), and a local account owing a change of the password it was given (4).
+         * Only the second is offered the action — the server refuses the others, and a button that can
+         * only be refused reads as a fault.
+         */
+        const HELD = asSchema('UserListing', {
+            users: [
+                account(1, 'admin', 'ADMIN', true, { mustChangePassword: true, federated: true }),
+                account(3, 'provisioned', 'USER', true, { mustChangePassword: true, federated: true }),
+                account(4, 'local', 'USER', true, { mustChangePassword: true })
+            ],
+            currentUserId: 1
+        });
+
+        const liftButton = (name: string) =>
+            document.querySelector<HTMLButtonElement>(
+                `button[aria-label="Lift the password-change requirement of ${name}"]`
+            );
+
+        async function showHeld(): Promise<void> {
+            useEnglish();
+            fixture.autoDetectChanges();
+            fixture.componentInstance.reload();
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(HELD);
+            await fixture.whenStable();
+        }
+
+        it('is offered, by name, for a federated account that owes a change — not for a local one nor oneself', async () => {
+            await showHeld();
+
+            expect(liftButton('provisioned')).not.toBeNull();
+            expect(liftButton('local')).toBeNull();
+            expect(liftButton('admin')).toBeNull();
+        });
+
+        it('asks first, then removes the requirement and reads the list again', async () => {
+            await showHeld();
+
+            liftButton('provisioned')!.click();
+            await fixture.whenStable();
+            http.expectNone((call) => call.method === 'DELETE');
+            expect(document.querySelector('#lift-consequence')?.textContent).toContain(
+                'provisioned signs in through the identity provider'
+            );
+
+            document.querySelector<HTMLButtonElement>('#lift-confirm button')!.click();
+            await fixture.whenStable();
+            http.expectOne(
+                (call) => call.method === 'DELETE' && call.url === '/api/v1/users/3/password-change-requirement'
+            ).flush(HELD.users[1]);
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/users').flush(HELD);
+
+            expect(fixture.componentInstance.liftVisible()).toBe(false);
+        });
+
+        it("keeps the dialog open on a refusal and shows the server's sentence", async () => {
+            await showHeld();
+
+            liftButton('provisioned')!.click();
+            await fixture.whenStable();
+            document.querySelector<HTMLButtonElement>('#lift-confirm button')!.click();
+            await fixture.whenStable();
+            http.expectOne((call) => call.method === 'DELETE').flush(
+                {
+                    type: 'about:blank',
+                    title: 'Bad Request',
+                    status: 400,
+                    detail: 'This account signs in with its password, which somebody else chose.'
+                },
+                { status: 400, statusText: 'Bad Request' }
+            );
+            await fixture.whenStable();
+
+            expect(fixture.componentInstance.liftVisible()).toBe(true);
+            await vi.waitFor(() =>
+                expect(document.body.textContent).toContain('signs in with its password, which somebody else chose')
+            );
+        });
     });
 });

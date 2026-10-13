@@ -55,6 +55,7 @@ decides who the caller is.
 | **Auth** | `POST` | `/api/v1/auth/mfa/setup` | Account | Initialize two-factor authentication (generate TOTP secret). |
 | **Auth** | `POST` | `/api/v1/auth/mfa/enable` | Account | Confirm and activate 2FA with an initial code. |
 | **Auth** | `POST` | `/api/v1/auth/mfa/disable` | Account | Disable 2FA after providing verification code. |
+| **Users** | `DELETE` | `/api/v1/users/{id}/password-change-requirement` | Admin | Lift an account's obligation to change its password, for an account bound to an identity-provider subject (`federated` on the account list) — never one's own, and a superuser's by a superuser only. `400` for an account that signs in with its own password: it lifts the requirement by changing it. Idempotent: an account owing nothing is answered as it is, with no entry. Answers the account; recorded as `USER_UPDATED`, sent to the SIEM as `VECTI-SEC-010`. |
 | **Attack Surface** | `GET` | `/api/v1/attack-surface` | Account | Global attack surface summary and high-risk exposed routes. |
 | **Attack Surface** | `DELETE` | `/api/v1/attack-surface` | Lead/Admin | Atomically purge all discovered endpoints and contracts. |
 | **Attack Surface** | `GET` | `/api/v1/repositories/{id}/apis` | Account | Discovered endpoints and declared OpenAPI contracts for a target. |

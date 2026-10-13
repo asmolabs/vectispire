@@ -2507,6 +2507,7 @@ test.describe('documentation screenshots', () => {
                     role: 'SUPERUSER',
                     isActive: true,
                     mustChangePassword: false,
+                    federated: false,
                     activeSessions: 0,
                     createdAt: '2026-04-23T08:00:00Z'
                 },
@@ -2518,6 +2519,7 @@ test.describe('documentation screenshots', () => {
                     role: 'CISO',
                     isActive: true,
                     mustChangePassword: false,
+                    federated: false,
                     activeSessions: 1,
                     createdAt: '2026-05-02T09:10:00Z'
                 },
@@ -2529,6 +2531,7 @@ test.describe('documentation screenshots', () => {
                     role: 'AUDITOR',
                     isActive: true,
                     mustChangePassword: false,
+                    federated: false,
                     activeSessions: 0,
                     createdAt: '2026-06-11T14:25:00Z'
                 }

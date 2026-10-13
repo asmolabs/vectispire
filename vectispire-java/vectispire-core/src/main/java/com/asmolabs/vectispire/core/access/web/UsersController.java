@@ -45,6 +45,9 @@ public class UsersController {
      *
      * <p>{@code password} is not on it, and never must be: a password hash that leaves the
      * server is a hash to crack offline.
+     *
+     * @param federated bound to an identity provider's subject: it signs in through the provider, and
+     *     only such an account may have its password-change requirement lifted by somebody else
      */
     public record UserAdminSummary(
             Long id,
@@ -54,6 +57,7 @@ public class UsersController {
             String role,
             boolean isActive,
             boolean mustChangePassword,
+            boolean federated,
             Instant createdAt,
             long activeSessions) {}
 
@@ -117,6 +121,23 @@ public class UsersController {
                 RequestActors.of(principal, request)));
     }
 
+    /**
+     * Lifts the account's obligation to change its password — for an account the identity provider
+     * signs in, never one's own; see {@link AccountAdministrationService#clearPasswordChangeRequirement}.
+     *
+     * <p>{@code DELETE} on the requirement, like the plugins' waiver and the agents' sealing key: what
+     * is removed is a thing the account owes. It answers the account as it now stands, whether or not it
+     * owed anything — the outcome holds either way.
+     */
+    @DeleteMapping("/{id}/password-change-requirement")
+    public UserAdminSummary clearPasswordChangeRequirement(
+            @PathVariable long id,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return summaryOf(accounts.clearPasswordChangeRequirement(
+                id, actingAccountId(principal), RequestActors.of(principal, request)));
+    }
+
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
     @GetMapping("/{id}/targets")
     public List<GrantableTargets.TargetGrant> targets(@PathVariable long id) {
@@ -171,6 +192,7 @@ public class UsersController {
                 user.role(),
                 user.isActive(),
                 user.mustChangePassword(),
+                user.keycloakId() != null,
                 user.createdAt(),
                 view.activeSessions());
     }

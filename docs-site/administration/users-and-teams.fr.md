@@ -14,6 +14,32 @@ variables sont ignorées.
 Un compte porte un indicateur `is_active`. Un compte désactivé ne peut pas se connecter, et son
 historique reste intact — ce qui est tout l'intérêt de désactiver plutôt que de supprimer.
 
+### L'obligation de changer de mot de passe
+
+Un compte créé depuis l'écran **Utilisateurs**, un compte dont un administrateur réinitialise le mot
+de passe, et le compte d'amorçage doivent changer leur mot de passe à leur prochaine connexion ;
+jusque-là, toute route autre que le changement de mot de passe, le profil et la déconnexion répond
+`403`. La liste les marque *Doit changer son mot de passe*.
+
+Pour un compte que le fournisseur d'identité connecte — lié à un sujet du fournisseur, par l'annuaire
+SCIM ou par une première connexion unique — l'obligation ne peut pas être remplie : il ne se connecte
+pas avec le mot de passe qu'il a reçu, et l'écran de changement demande ce mot de passe. Les comptes
+que l'annuaire a créés en 0.10.0 ou en `v0.11.0-rc.1` sont dans cet état. Un administrateur la lève
+par le bouton de déverrouillage de la ligne du compte, après confirmation ; les sessions du compte
+passent dès leur requête suivante, sans nouvelle connexion.
+
+- **Seulement pour un compte lié au fournisseur.** Un compte qui se connecte avec son propre mot de
+  passe est refusé (`400`) : l'obligation est ce qui fait qu'un mot de passe choisi par quelqu'un
+  d'autre — un administrateur, la configuration d'amorçage — cesse d'être un identifiant, et le compte
+  la lève en changeant ce mot de passe. Le bouton ne lui est pas proposé.
+- **Jamais sur son propre compte**, et celle d'un super-administrateur par un super-administrateur
+  seulement, comme pour toute autre modification de son compte.
+- **Enregistrée.** Le journal d'audit nomme qui l'a levée et pour quel compte (`USER_UPDATED`), et
+  l'entrée part vers le SIEM comme une modification de compte (`VECTI-SEC-010`).
+- **Idempotente.** Un compte qui ne doit rien est rendu tel quel, sans modification ni entrée.
+
+La route est `DELETE /api/v1/users/{id}/password-change-requirement`, pour les administrateurs.
+
 ## Rôles
 
 Les rôles décident de ce qu'une personne peut **faire** ; les équipes décident de ce qu'elle peut
