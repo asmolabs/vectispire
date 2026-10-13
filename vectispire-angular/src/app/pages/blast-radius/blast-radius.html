@@ -47,7 +47,7 @@
                 icon="pi pi-search"
                 [label]="'blast_radius.analyse' | translate"
                 (click)="explore()"
-                [loading]="loading()"
+                [loading]="exploring()"
             ></button>
             @if (searchQuery) {
                 <button
@@ -88,7 +88,7 @@
         }
     </div>
 
-    @if (loading()) {
+    @if (exploring() || (topLoading() && !report())) {
         <div class="flex justify-center items-center py-16">
             <p-progressSpinner strokeWidth="4"></p-progressSpinner>
         </div>
@@ -99,8 +99,11 @@
     }
 
     <!-- 1. Initial overview: the ranking of components at risk (when no search is active) -->
-    @if (!loading() && !report()) {
+    @if (!topLoading() && !exploring() && !report()) {
         <div class="flex flex-col gap-5">
+            @if (topError(); as message) {
+                <p-message severity="error" [text]="message" data-testid="top-packages-error"></p-message>
+            }
             <div
                 class="p-4 rounded-xl border border-primary-200 dark:border-primary-900/50 bg-primary-50/40 dark:bg-primary-950/20 text-xs text-primary-900 dark:text-primary-200 flex items-start gap-3"
             >
@@ -203,7 +206,7 @@
     }
 
     <!-- 2. Detailed view: shown only when a component or a search is selected -->
-    @if (!loading() && report()) {
+    @if (!exploring() && report()) {
         <!-- Metrics Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Total Targets Affected -->

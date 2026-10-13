@@ -11,6 +11,7 @@ import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { messageOf } from '@/app/core/api-error';
+import { LatestRequest } from '@/app/core/latest-request';
 import { TargetKindPipe } from '@/app/shared/target-kind';
 
 @Component({
@@ -34,25 +35,38 @@ export class BlastRadius implements OnInit {
     private readonly i18n = inject(I18nService);
 
     searchQuery = '';
-    readonly loading = signal<boolean>(false);
+    /**
+     * Two flags, one per request. A single `loading` was shared by the ranking and the exploration:
+     * whichever answered first switched it off, and the page showed the ranking or an empty detail
+     * while the other was still on its way.
+     */
+    readonly topLoading = signal<boolean>(false);
+    readonly exploring = signal<boolean>(false);
     readonly error = signal<string | null>(null);
+    /** The ranking's own failure: swallowed, it left an overview with no component and no reason. */
+    readonly topError = signal<string | null>(null);
     readonly report = signal<BlastRadiusReport | null>(null);
     readonly topPackages = signal<TopImpactPackage[]>([]);
     readonly selectedNodeId = signal<string | null>(null);
+
+    /** Latest click wins: clicking two components quickly showed whichever graph answered last. */
+    private readonly exploration = new LatestRequest();
 
     ngOnInit(): void {
         this.loadTopPackages();
     }
 
     loadTopPackages(): void {
-        this.loading.set(true);
+        this.topLoading.set(true);
+        this.topError.set(null);
         this.exposureApi.getTopBlastRadius(12).subscribe({
             next: (data) => {
                 this.topPackages.set(data);
-                this.loading.set(false);
+                this.topLoading.set(false);
             },
-            error: () => {
-                this.loading.set(false);
+            error: (err) => {
+                this.topError.set(messageOf(err, this.i18n.t('blast_radius.error_top')));
+                this.topLoading.set(false);
             }
         });
     }
@@ -64,27 +78,29 @@ export class BlastRadius implements OnInit {
 
         const trimmed = this.searchQuery.trim();
         if (!trimmed) {
-            this.report.set(null);
-            this.selectedNodeId.set(null);
+            this.resetSearch();
             return;
         }
 
-        this.loading.set(true);
+        this.exploring.set(true);
         this.error.set(null);
 
-        this.exposureApi.exploreBlastRadius(trimmed).subscribe({
+        this.exploration.run(this.exposureApi.exploreBlastRadius(trimmed), {
             next: (data) => {
                 this.report.set(data);
-                this.loading.set(false);
+                this.exploring.set(false);
             },
             error: (err) => {
                 this.error.set(messageOf(err, this.i18n.t('blast_radius.error_explore')));
-                this.loading.set(false);
+                this.exploring.set(false);
             }
         });
     }
 
     resetSearch(): void {
+        // An exploration still on its way would bring a graph back after the reader asked for none.
+        this.exploration.cancel();
+        this.exploring.set(false);
         this.searchQuery = '';
         this.report.set(null);
         this.selectedNodeId.set(null);
