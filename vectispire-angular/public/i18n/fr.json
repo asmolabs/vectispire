@@ -242,7 +242,8 @@
     "cvss_value": "CVSS {{value}}",
     "epss_value": "EPSS {{value}}",
     "col_action": "Action",
-    "inspect": "Inspecter"
+    "inspect": "Inspecter",
+    "error_overview": "Impossible de charger la vue d'ensemble des chemins d'attaque du parc."
   },
   "attack_surface": {
     "auth": {

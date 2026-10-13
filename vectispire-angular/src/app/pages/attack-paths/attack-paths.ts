@@ -13,6 +13,7 @@ import { ExposureApi } from '../../core/api/exposure.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
 import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository } from '../../core/api.models';
 import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 
@@ -49,6 +50,8 @@ export class AttackPaths implements OnInit {
     readonly overviewList = signal<AttackPathGraph[]>([]);
     readonly loading = signal<boolean>(false);
     readonly error = signal<string | null>(null);
+    /** The fleet overview's failure, said in its tab: an empty table there read as an estate with no path. */
+    readonly overviewError = signal<string | null>(null);
 
     readonly selectedNode = signal<AttackPathNode | null>(null);
     readonly nodeDetailsVisible = signal<boolean>(false);
@@ -103,14 +106,16 @@ export class AttackPaths implements OnInit {
                     this.loadGraph(repos[0].id);
                 }
             },
-            error: () => this.error.set(this.i18n.t('repositories.error_load'))
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('repositories.error_load')))
         });
     }
 
     loadOverview(): void {
+        this.overviewError.set(null);
         this.exposureApi.getAttackPathsOverview().subscribe({
             next: (list) => this.overviewList.set(list),
-            error: () => {}
+            error: (response: unknown) =>
+                this.overviewError.set(messageOf(response, this.i18n.t('attack_paths.error_overview')))
         });
     }
 
@@ -129,8 +134,11 @@ export class AttackPaths implements OnInit {
                 this.graph.set(g);
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('attack_paths.error_graph'));
+            error: (response: unknown) => {
+                // The previous repository's chain must not stay under the selector naming this one:
+                // it would attribute one target's exposure to another.
+                this.graph.set(null);
+                this.error.set(messageOf(response, this.i18n.t('attack_paths.error_graph')));
                 this.loading.set(false);
             }
         });

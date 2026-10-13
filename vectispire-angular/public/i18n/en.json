@@ -242,7 +242,8 @@
     "cvss_value": "CVSS {{value}}",
     "epss_value": "EPSS {{value}}",
     "col_action": "Action",
-    "inspect": "Inspect"
+    "inspect": "Inspect",
+    "error_overview": "Could not load the fleet overview of attack paths."
   },
   "attack_surface": {
     "auth": {
