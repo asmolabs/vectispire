@@ -104,6 +104,13 @@ public class ScimUsersController {
                 .body(ScimErrorResponse.of(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
     }
 
+    /** RFC 7644 §3.4.2.2: a filter the endpoint does not evaluate is {@code invalidFilter}, not every account. */
+    @ExceptionHandler(ScimProvisioningService.InvalidFilterException.class)
+    public ResponseEntity<ScimErrorResponse> handleInvalidFilter(ScimProvisioningService.InvalidFilterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ScimErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ScimErrorResponse.INVALID_FILTER, ex.getMessage()));
+    }
+
     /**
      * A refusal the provisioning service wrote for the directory, in SCIM's own error schema (RFC
      * 7644 §3.12) rather than a problem: a directory client parses {@code scimType} and {@code

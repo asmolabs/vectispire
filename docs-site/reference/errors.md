@@ -60,4 +60,4 @@ ERROR … Unexpected failure 6f1c2a9e-… on PATCH /api/v1/users/12
 
 `/scim/v2/Users` answers a refused value, and a protected account, in the error schema of
 [RFC 7644 §3.12](https://www.rfc-editor.org/rfc/rfc7644#section-3.12), because that is what a
-directory client parses. Every other refusal on the SCIM routes is a problem document as above.
+directory client parses; a filter it does not evaluate is `400` with `scimType` `invalidFilter`. Every other refusal on the SCIM routes is a problem document as above.

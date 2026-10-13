@@ -130,6 +130,17 @@ public class ScimProvisioningService {
         }
     }
 
+    /**
+     * A filter this endpoint does not evaluate: 400 with {@code scimType} {@code invalidFilter} (RFC 7644
+     * §3.4.2.2, §3.12), never the whole list.
+     */
+    public static final class InvalidFilterException extends InvalidInputException {
+        InvalidFilterException(String filter) {
+            super("Unsupported filter \"" + BoundedText.clip(filter, 200) + "\": only userName eq \"…\" and "
+                    + "externalId eq \"…\" are evaluated.");
+        }
+    }
+
     public sealed interface UserCreation {
         record Created(UserView user) implements UserCreation {}
 
@@ -322,20 +333,30 @@ public class ScimProvisioningService {
         }
     }
 
+    /**
+     * The two filters this endpoint answers: {@code userName eq "…"} and {@code externalId eq "…"}, the
+     * attribute and the operator in any case (RFC 7644 §3.4.2.2), the value a JSON string.
+     *
+     * <p><b>Anything else is refused, never answered with every account.</b> An unsupported filter fell
+     * back to the whole list: a directory asking {@code emails[value eq "a@example.org"]} or {@code userName
+     * eq "a" and active eq true} before creating an account read the first account of the list as the
+     * match, and could bind or overwrite the wrong one. RFC 7644 answers such a filter 400 {@code
+     * invalidFilter}, which tells the directory to look another way.
+     */
     private List<UserEntity> filterUsers(String filter) {
-        // Basic SCIM filter parser: supports `userName eq "val"` or `externalId eq "val"`
-        String[] parts = filter.split("\\s+eq\\s+", 2);
-        if (parts.length == 2) {
-            String attr = parts[0].trim().toLowerCase(Locale.ROOT);
-            String val = parts[1].trim().replaceAll("^\"|\"$", "");
-            if ("username".equals(attr)) {
-                return users.findByUsername(val.toLowerCase(Locale.ROOT)).map(List::of).orElse(List.of());
-            } else if ("externalid".equals(attr)) {
-                return users.findByKeycloakId(val).map(List::of).orElse(List.of());
-            }
+        java.util.regex.Matcher matched = SUPPORTED_FILTER.matcher(filter);
+        if (!matched.matches()) {
+            throw new InvalidFilterException(filter);
         }
-        return users.findAllByOrderByUsernameAsc();
+        String value = matched.group(2).replaceAll("\\\\(.)", "$1");
+        return "username".equalsIgnoreCase(matched.group(1))
+                ? users.findByUsername(value.toLowerCase(Locale.ROOT)).map(List::of).orElse(List.of())
+                : users.findByKeycloakId(value).map(List::of).orElse(List.of());
     }
+
+    /** {@code userName} or {@code externalId}, {@code eq}, and a quoted string whose escapes are a backslash and one character. */
+    private static final java.util.regex.Pattern SUPPORTED_FILTER = java.util.regex.Pattern.compile(
+            "(?i)(userName|externalId)\\s+eq\\s+\"((?:[^\"\\\\]|\\\\.)*)\"");
 
     /**
      * The role the directory asked for, if it may grant it.

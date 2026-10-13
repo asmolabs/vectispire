@@ -282,6 +282,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 #### Other changes
 
+- **SCIM answers an unsupported filter `400 invalidFilter`, no longer every account.** `GET /scim/v2/Users`
+  evaluates `userName eq "…"` and `externalId eq "…"`; any other filter — `emails[value eq "…"]`, an `and`,
+  `co`, an unquoted value — returned the whole list, which a directory looking an account up before creating
+  it read as its match. It now answers `400` in SCIM's error schema with `scimType: invalidFilter`
+  (RFC 7644 §3.4.2.2). A directory sending only those two filters, or none, sees no difference
+  ([single sign-on](../administration/sso.md#provisioning-from-the-directory-scim)).
 - **A triage can answer 409 `issue-changed-meanwhile`.** `POST /api/v1/issues/{id}/triage`,
   `POST /api/v1/issues/triage` and `POST /api/v1/exceptions/{issueId}/reviews` refuse a decision when a scan
   or another decision wrote the issue between the request's read and its write — the problem's `type` is

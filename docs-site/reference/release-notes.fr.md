@@ -308,6 +308,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 #### Autres changements
 
+- **SCIM répond à un filtre non pris en charge `400 invalidFilter`, plus par tous les comptes.**
+  `GET /scim/v2/Users` évalue `userName eq "…"` et `externalId eq "…"` ; tout autre filtre —
+  `emails[value eq "…"]`, un `and`, `co`, une valeur sans guillemets — renvoyait la liste entière, qu'un
+  annuaire cherchant un compte avant de le créer lisait comme sa correspondance. Il répond désormais `400`
+  dans le schéma d'erreur de SCIM avec `scimType: invalidFilter` (RFC 7644 §3.4.2.2). Un annuaire qui
+  n'envoie que ces deux filtres, ou aucun, ne voit aucune différence
+  ([authentification unique](../administration/sso.fr.md#provisioning-from-the-directory-scim)).
 - **Un triage peut recevoir 409 `issue-changed-meanwhile`.** `POST /api/v1/issues/{id}/triage`,
   `POST /api/v1/issues/triage` et `POST /api/v1/exceptions/{issueId}/reviews` refusent une décision quand un
   scan ou une autre décision a écrit l'issue entre la lecture et l'écriture de la requête — le `type` du

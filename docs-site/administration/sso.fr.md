@@ -98,6 +98,11 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
 - **Un compte créé par l'annuaire se connecte par le fournisseur.** Il reçoit un mot de passe que
   personne ne connaît et n'est pas invité à le changer.
 - **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
+- **`GET /scim/v2/Users` évalue deux filtres** : `userName eq "…"` et `externalId eq "…"` (attribut et
+  opérateur en toute casse, la valeur une chaîne entre guillemets). Tout autre — `emails[value eq "…"]`,
+  un `and` ou un `or`, `co`, une valeur sans guillemets — répond `400` avec `scimType` `invalidFilter`
+  (RFC 7644 §3.4.2.2) ; il renvoyait tous les comptes, ce qu'un annuaire qui cherche avant de créer
+  lisait comme une correspondance. Sans filtre, le point d'accès liste tous les comptes, comme avant.
 
 ## Le second facteur relève du fournisseur
 

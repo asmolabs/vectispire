@@ -275,4 +275,72 @@ class ScimUsersRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/auth/me"), session))
                 .andExpect(status().isUnauthorized());
     }
+
+    // --- Filters (RFC 7644 §3.4.2.2) ----------------------------------------------------------
+    //
+    // A filter the endpoint did not evaluate fell back to every account: a directory looking an account up
+    // by e-mail before creating one read the first account of the list as its match.
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "displayName eq \"Filter Person\"",
+        "userName eq \"scim-filtered\" and active eq true",
+        "emails[value eq \"filtered@example.org\"]",
+        "userName co \"scim\"",
+        "userName eq scim-filtered",
+        "userName eq \"scim-filtered\" or userName eq \"scim-other\"",
+        "(userName eq \"scim-filtered\")",
+    })
+    @DisplayName("an unsupported filter is 400 invalidFilter in SCIM's error schema, never the whole list")
+    void anUnsupportedFilterIsRefused(String filter) throws Exception {
+        tokenFor("scim-filtered", Role.USER, false);
+
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", filter), asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("400"))
+                .andExpect(jsonPath("$.scimType").value("invalidFilter"))
+                .andExpect(jsonPath("$.Resources").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("userName eq and externalId eq still find their account — any case of attribute and operator — and an absent one finds none")
+    void theSupportedFiltersStillAnswer() throws Exception {
+        tokenFor("scim-filtered", Role.USER, false);
+        tokenFor("scim-other", Role.USER, false);
+        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-bound-filter", "externalId", "subject \"quoted\""))))
+                .andExpect(status().isCreated());
+
+        for (String filter : List.of("userName eq \"scim-filtered\"", "USERNAME EQ \"Scim-Filtered\"")) {
+            mvc.perform(authenticated(get("/scim/v2/Users").param("filter", filter), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalResults").value(1))
+                    .andExpect(jsonPath("$.Resources[0].userName").value("scim-filtered"));
+        }
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "externalId eq \"subject \\\"quoted\\\"\""), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalResults").value(1))
+                .andExpect(jsonPath("$.Resources[0].userName").value("scim-bound-filter"));
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "userName eq \"nobody-here\""), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalResults").value(0));
+    }
+
+    @Test
+    @DisplayName("no filter, or a blank one, lists every account as before")
+    void noFilterListsEveryAccount() throws Exception {
+        tokenFor("scim-filtered", Role.USER, false);
+        tokenFor("scim-other", Role.USER, false);
+        String admin = asAdmin();
+        long accounts = users.count();
+
+        mvc.perform(authenticated(get("/scim/v2/Users"), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalResults").value(accounts));
+        mvc.perform(authenticated(get("/scim/v2/Users").param("filter", "  "), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalResults").value(accounts));
+    }
 }

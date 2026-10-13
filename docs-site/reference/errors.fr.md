@@ -63,5 +63,5 @@ ERROR … Unexpected failure 6f1c2a9e-… on PATCH /api/v1/users/12
 
 `/scim/v2/Users` répond à une valeur refusée, et à un compte protégé, dans le schéma d'erreur de la
 [RFC 7644 §3.12](https://www.rfc-editor.org/rfc/rfc7644#section-3.12), parce que c'est ce qu'un
-client d'annuaire sait lire. Tout autre refus sur les routes SCIM est un document « problem » comme
+client d'annuaire sait lire ; un filtre qu'il n'évalue pas reçoit `400` avec `scimType` `invalidFilter`. Tout autre refus sur les routes SCIM est un document « problem » comme
 ci-dessus.
