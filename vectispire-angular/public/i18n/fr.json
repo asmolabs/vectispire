@@ -905,8 +905,11 @@
       "grade_count_other": "{{grade}} : {{count}} cibles",
       "weakest": "Cible la plus faible",
       "no_weakest": "Aucune cible encore scannée.",
-      "open_risk": "Ouvert, en points de risque"
-    }
+      "open_risk": "Ouvert, en points de risque",
+      "load_failed": "Impossible de charger les notes du portefeuille."
+    },
+    "debt_load_failed": "Impossible de charger l'estimation de la dette de sécurité.",
+    "analytics_load_failed": "Impossible de charger le MTTR par sévérité et le scoreboard des cibles."
   },
   "delays": {
     "title": "Délais de correction",

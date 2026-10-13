@@ -125,7 +125,11 @@
                     <div class="text-sm text-muted-color mt-1">{{ meanCaption() }}</div>
                 </div>
 
-                @if (postureAnalytics(); as pa) {
+                @if (analyticsError(); as message) {
+                    <p-message data-testid="analytics-error" severity="warn" [closable]="false" styleClass="w-full">{{
+                        message
+                    }}</p-message>
+                } @else if (postureAnalytics(); as pa) {
                     <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex flex-col gap-2">
                         <div class="text-xs uppercase font-semibold text-muted-color">
                             {{ 'dashboard.mttr_by_severity' | translate }}
@@ -212,7 +216,11 @@
     </p-card>
 
     <!-- Estimated security debt & high-impact actions (optimised remediation) -->
-    @if (securityDebt(); as debt) {
+    @if (debtError(); as message) {
+        <p-message data-testid="security-debt-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+            message
+        }}</p-message>
+    } @else if (securityDebt(); as debt) {
         <div id="security-debt" class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
             <p-card styleClass="xl:col-span-1 border-l-4 border-l-primary-500 h-full">
                 <ng-template #title>
@@ -352,7 +360,11 @@
         weakest of them, and what is open. A list rather than a chart, so that each count is read with
         its grade by a screen reader as on screen.
     -->
-    @if (portfolio(); as estate) {
+    @if (portfolioError(); as message) {
+        <p-message data-testid="portfolio-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+            message
+        }}</p-message>
+    } @else if (portfolio(); as estate) {
         @if (estate.totalTargets > 0) {
             <p-card styleClass="mb-4">
                 <ng-template #title>

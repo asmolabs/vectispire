@@ -26,6 +26,7 @@ import { gradeSeverity } from '../../shared/scorecard';
 import { DATED_MARKER } from '../../shared/dated-marker';
 import { LatestRequest } from '../../core/latest-request';
 import { SEVERITY_TONES } from '../../shared/severity';
+import { messageOf } from '../../core/api-error';
 
 /** The severities in descending order, with their colour from the one scale every screen uses. A
  *  fixed order, not derived from the data: otherwise two successive loads could present them
@@ -123,6 +124,8 @@ export class Dashboard {
 
     readonly data = signal<DashboardOverview | null>(null);
     readonly securityDebt = signal<SecurityDebtReport | null>(null);
+    /** The debt panel's failure, said in its place: left blank, a failed estimate read as no debt at all. */
+    readonly debtError = signal<string | null>(null);
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
 
@@ -137,6 +140,8 @@ export class Dashboard {
     readonly trends = signal<Trends | null>(null);
     readonly postureAnalytics = signal<PostureTrendAnalytics | null>(null);
     readonly trendError = signal<string | null>(null);
+    /** The analytics' failure: the time to resolve by severity and the scoreboard are missing, and say why. */
+    readonly analyticsError = signal<string | null>(null);
     readonly window = signal(90);
     private readonly trendsLoad = new LatestRequest();
     private readonly analyticsLoad = new LatestRequest();
@@ -148,6 +153,7 @@ export class Dashboard {
      * Its own request: a failure leaves the panel out rather than the page.
      */
     readonly portfolio = signal<PortfolioScorecard | null>(null);
+    readonly portfolioError = signal<string | null>(null);
 
     /** The scale's order is the server's; each row's accessible name says grade and count together. */
     readonly portfolioGrades = computed(() => {
@@ -186,18 +192,20 @@ export class Dashboard {
                 this.data.set(overview);
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('dashboard.load_failed'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('dashboard.load_failed')));
                 this.loading.set(false);
             }
         });
         this.remediationApi.getSecurityDebt().subscribe({
             next: (debt) => this.securityDebt.set(debt),
-            error: () => {}
+            error: (response: unknown) =>
+                this.debtError.set(messageOf(response, this.i18n.t('dashboard.debt_load_failed')))
         });
         this.scorecardsApi.getPortfolioScorecard().subscribe({
             next: (portfolio) => this.portfolio.set(portfolio),
-            error: () => {}
+            error: (response: unknown) =>
+                this.portfolioError.set(messageOf(response, this.i18n.t('dashboard.portfolio.load_failed')))
         });
         this.loadTrends(this.window());
     }
@@ -213,15 +221,20 @@ export class Dashboard {
         this.window.set(days);
         this.trends.set(null);
         this.trendError.set(null);
+        this.analyticsError.set(null);
         this.trendsLoad.run(this.dashboardApi.trends(days), {
             next: (series) => this.trends.set(series),
-            error: () => this.trendError.set(this.i18n.t('dashboard.trend_load_failed'))
+            error: (response: unknown) =>
+                this.trendError.set(messageOf(response, this.i18n.t('dashboard.trend_load_failed')))
         });
 
         this.analyticsLoad.run(this.dashboardApi.getPostureAnalytics(days), {
             next: (analytics) => this.postureAnalytics.set(analytics),
             // The panel is left out rather than showing the previous window's figures under this one.
-            error: () => this.postureAnalytics.set(null)
+            error: (response: unknown) => {
+                this.postureAnalytics.set(null);
+                this.analyticsError.set(messageOf(response, this.i18n.t('dashboard.analytics_load_failed')));
+            }
         });
     }
 

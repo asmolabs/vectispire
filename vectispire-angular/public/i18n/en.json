@@ -905,8 +905,11 @@
       "grade_count_other": "{{grade}}: {{count}} targets",
       "weakest": "Weakest target",
       "no_weakest": "No target scanned yet.",
-      "open_risk": "Open, in risk points"
-    }
+      "open_risk": "Open, in risk points",
+      "load_failed": "Could not load the portfolio grades."
+    },
+    "debt_load_failed": "Could not load the estimated security debt.",
+    "analytics_load_failed": "Could not load the MTTR by severity and the target scoreboard."
   },
   "delays": {
     "title": "Time to fix",

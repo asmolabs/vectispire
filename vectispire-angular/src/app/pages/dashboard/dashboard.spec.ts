@@ -797,3 +797,107 @@ describe('the portfolio', () => {
         expect(page.querySelector('[data-testid="portfolio-distribution"]')).toBeNull();
     });
 });
+
+/**
+ * A panel whose request failed says so, in the server's words. Each one used to swallow its error
+ * (`error: () => {}`) and simply not appear: a failed debt estimate read as no debt, a failed
+ * portfolio as an estate with nothing to grade. RFC 7807 puts the explanation in `detail`.
+ */
+describe('a dashboard panel that fails to load', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const problem = (detail: string) => ({ type: 'about:blank', title: 'Internal Server Error', status: 500, detail });
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function overview(): void {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 1,
+                    kevCount: 0,
+                    neverScannedCount: 0,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+    }
+
+    it('shows the overview’s failure in the server’s words', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(problem('Database unavailable.'), failure);
+
+        expect(page().textContent).toContain('Database unavailable.');
+    });
+
+    it('says the security debt could not be estimated, with the detail, where the panel would be', () => {
+        overview();
+        http.expectOne((call) => call.url.startsWith('/api/v1/remediation/')).flush(
+            problem('The debt estimator timed out.'),
+            failure
+        );
+
+        expect(page().querySelector('[data-testid="security-debt-error"]')?.textContent).toContain(
+            'The debt estimator timed out.'
+        );
+    });
+
+    it('says the portfolio could not be read, and falls back to its own sentence without a detail', () => {
+        overview();
+        http.expectOne((call) => call.url === '/api/v1/scorecards/global').flush({}, failure);
+
+        expect(page().querySelector('[data-testid="portfolio-error"]')?.textContent).toContain(
+            'Could not load the portfolio grades.'
+        );
+    });
+
+    it('says the trend and the analytics failed, each in its own place', () => {
+        overview();
+        http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(
+            problem('Trend query refused.'),
+            failure
+        );
+        http.expectOne((call) => call.url === '/api/v1/dashboard/posture-analytics').flush(
+            problem('Analytics are being rebuilt.'),
+            failure
+        );
+
+        const shown = page();
+        expect(shown.textContent).toContain('Trend query refused.');
+        expect(shown.querySelector('[data-testid="analytics-error"]')?.textContent).toContain(
+            'Analytics are being rebuilt.'
+        );
+    });
+
+    it('says the panel failures in French to a French reader', () => {
+        useFrench();
+        overview();
+        http.expectOne((call) => call.url === '/api/v1/scorecards/global').flush({}, failure);
+
+        expect(page().querySelector('[data-testid="portfolio-error"]')?.textContent).toContain(
+            'Impossible de charger les notes du portefeuille.'
+        );
+    });
+});
