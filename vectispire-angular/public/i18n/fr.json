@@ -1722,7 +1722,7 @@
     "reviewed": "Revue le",
     "due": "prochaine le",
     "title": "Couverture de l'OWASP Top 10:2021, par règle",
-    "subtitle": "Les mêmes dix questions répondues à partir du seul type du constat — chaque correspondance est une phrase vérifiable. Là où aucune règle ne s'applique, la réponse est « aucun scanner ici », jamais une supposition. Le rapport ci-dessous est écrit par un modèle et ne sert pas de preuve.",
+    "subtitle": "Les mêmes dix questions répondues par règle — le type du constat le range, ou pour l'analyse de code la catégorie que déclare sa règle ; chaque correspondance est une phrase vérifiable. Là où aucune règle ne s'applique, la réponse est « aucun scanner ici », jamais une supposition. Le rapport ci-dessous est écrit par un modèle et ne sert pas de preuve.",
     "covered": "catégories qu'un scanner d'ici peut voir",
     "with_findings": "avec des constats ouverts",
     "unmeasured": "couvertes mais non mesurées",

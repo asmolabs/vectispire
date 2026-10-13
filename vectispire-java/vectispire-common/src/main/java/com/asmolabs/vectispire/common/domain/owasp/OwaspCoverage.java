@@ -22,8 +22,9 @@ import java.util.Set;
  * category that came out green last quarter and amber this one has told them nothing about the
  * estate.
  *
- * <p>So this maps findings to categories by rule, from the finding's type alone, and every
- * mapping below is one sentence an assessor can check. Where no rule applies the answer is
+ * <p>So this maps findings to categories by rule — by the finding's type, or for code analysis by
+ * the category its rule declares ({@link #placementOf}) — and every mapping below is one sentence an
+ * assessor can check. Where no rule applies the answer is
  * <em>not covered</em>, never a guess. A mapping that placed a finding by matching substrings in
  * a rule identifier would be reproducible and still a guess dressed as a rule.
  *
@@ -492,7 +493,18 @@ public final class OwaspCoverage {
     }
 
     /**
-     * One category of one grid, with the open findings whose triage is settled counted apart.
+     * One category of one grid, with the open findings whose triage is settled counted apart — the
+     * line the weekly record keeps per target ({@code t_owasp_weekly_coverage}).
+     *
+     * <p><b>V67's comment says both counts are zero unless the category was measured; that is not the
+     * rule.</b> The migration cannot be corrected (Flyway checks its checksum), so the rule is stated
+     * here. {@code open} is above zero exactly when the state is {@link State#FINDINGS}: an open finding
+     * counts wherever the settings measure its type or code analysis measures its declared category,
+     * whatever the target's latest scan examined. {@code settled} counts the same way with no regard to
+     * the state, so a {@link State#NO_FINDING} or a {@link State#NOT_MEASURED} line — a step absent, the
+     * target never scanned — may carry settled findings. Both are always zero where the category is
+     * {@link State#NOT_COVERED}, or unmeasured because the settings switch its detection off. Lines written before 0.11.0 also kept a never-scanned
+     * target {@link State#NOT_MEASURED} with open findings. {@link #acrossTargets} reads all of these.
      *
      * @param state the state the grid reports — the one read without the settled findings, which is
      *     the grid this product shows. A category whose every open finding is accepted reads

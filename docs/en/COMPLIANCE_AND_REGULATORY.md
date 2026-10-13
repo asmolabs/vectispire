@@ -121,7 +121,7 @@ every control of that category. Two consequences worth reading literally:
 
 ## 3. Assessment categories and scoring formulas
 
-Each control's score comes from its category:
+Each control's score comes from its category, one of these seven assessment categories:
 
 ### ① Vulnerability Management (`VULNERABILITY_MANAGEMENT`)
 Base score starts at **100 points**, with progressive deductions:

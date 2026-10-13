@@ -38,15 +38,20 @@ import org.springframework.web.server.ResponseStatusException;
  * which model answered, and a category green last quarter and amber this one has told them nothing
  * about the estate.
  *
- * <p>This route answers the same ten questions from the finding's type alone. Every mapping is one
- * sentence somebody can check, every line carries why it says what it says, and where no rule
- * applies the answer is <em>not covered</em> rather than a guess.
+ * <p>This route answers the same ten questions by rule ({@code OwaspCoverage}): a finding's type
+ * places it — infrastructure checks in A05, dependency vulnerabilities and components past support in
+ * A06, secrets in A07 — and a code-analysis finding goes where the rule that raised it declares
+ * ({@code metadata.owasp}), never by a guess from its identifier. Every line carries why it says what
+ * it says, and where no rule applies the answer is <em>not covered</em> rather than a guess.
  *
- * <h2>Three of ten, and that is the finding</h2>
+ * <h2>How many of ten is the deployment's, and the rest is the finding</h2>
  *
- * <p>Seven categories are covered by no scanner here. A grid showing them green would be claiming
- * a clean bill of health over an examination that never happened — which is the same defect the
- * freshness window removed from the compliance matrix and the banner removed from the quality
+ * <p>The types reach three categories; code analysis adds whichever the installed rules declare, and
+ * measures them once more than the rule this product ships is installed and a rule reaches the
+ * repository's languages — so the count is a property of the installation, not a number to write
+ * here. The categories nothing here reaches read <em>not covered</em>. A grid showing them green would be
+ * claiming a clean bill of health over an examination that never happened — which is the same defect
+ * the freshness window removed from the compliance matrix and the banner removed from the quality
  * screen, in the one place an auditor looks first.
  */
 @Tag(name = "OWASP coverage", description = "The OWASP Top 10:2021 by rule, with what this deployment cannot see")

@@ -1722,7 +1722,7 @@
     "reviewed": "Reviewed",
     "due": "next",
     "title": "OWASP Top 10:2021 coverage, by rule",
-    "subtitle": "The same ten questions answered from the finding's type alone — every mapping is one sentence you can check. Where no rule applies the answer is “covered by no scanner here”, never a guess. The report below is written by a model and is not evidence.",
+    "subtitle": "The same ten questions answered by rule — a finding's type places it, or for code analysis the category its rule declares; every mapping is one sentence you can check. Where no rule applies the answer is “covered by no scanner here”, never a guess. The report below is written by a model and is not evidence.",
     "covered": "categories any scanner here can see",
     "with_findings": "with open findings",
     "unmeasured": "covered but unmeasured",

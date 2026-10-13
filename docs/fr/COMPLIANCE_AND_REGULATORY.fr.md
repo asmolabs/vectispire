@@ -122,6 +122,8 @@ eux qui font foi.
 
 ## 3. Catégories d'évaluation et formules de score
 
+Le score de chaque contrôle vient de sa catégorie, l'une de ces sept catégories d'évaluation :
+
 ### ① Gestion des Vulnérabilités (`VULNERABILITY_MANAGEMENT`)
 Le score initial est de **100 points**, diminué par des pénalités cumulatives :
 $$\text{Score} = \max\Big(0,\; 100 - P_{\text{critique}} - P_{\text{kev}} - P_{\text{sla}} - P_{\text{high}}\Big)$$
