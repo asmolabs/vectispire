@@ -90,14 +90,15 @@ public class GateRegisterService {
                 .flatMap(from -> uuid(from.id()).map(id -> new RegisterCursor(from.at(), id.toString()))), capped);
 
         // Already within what the reader sees; kept as the second lock it was before the query had one.
-        List<GateVerdictEntity> visible = read.stream()
-                .filter(row -> allowed.permits(targetOf(row)))
+        List<GateVerdictView> visible = read.stream()
+                .map(GateVerdictView::of)
+                .filter(row -> allowed.permits(row.target()))
                 .toList();
 
         return new Page(
-                visible.stream().map(GateVerdictView::of).toList(),
-                visible.stream().filter(GateVerdictEntity::isPassed).count(),
-                visible.stream().filter(row -> !row.isPassed()).count(),
+                visible,
+                visible.stream().filter(GateVerdictView::passed).count(),
+                visible.stream().filter(row -> !row.passed()).count(),
                 nextCursor(read, capped));
     }
 
@@ -149,11 +150,5 @@ public class GateRegisterService {
         }
         GateVerdictEntity last = read.getLast();
         return new RegisterCursor(last.getDecidedAt(), last.getId().toString()).encoded();
-    }
-
-    private static ScanTarget targetOf(GateVerdictEntity row) {
-        return row.getRepoId() != null
-                ? new ScanTarget.Repository(row.getRepoId())
-                : new ScanTarget.Container(row.getContainerId());
     }
 }

@@ -56,12 +56,16 @@
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
                             <td class="py-3 pr-4">
                                 <div class="font-medium">
-                                    {{
-                                        row.target_kind === 'REPOSITORY'
-                                            ? ('gate_verdicts.kind.repository' | translate)
-                                            : ('gate_verdicts.kind.container' | translate)
-                                    }}
-                                    {{ row.target_id }}
+                                    @if (row.target_kind === null) {
+                                        —
+                                    } @else {
+                                        {{
+                                            row.target_kind === 'REPOSITORY'
+                                                ? ('gate_verdicts.kind.repository' | translate)
+                                                : ('gate_verdicts.kind.container' | translate)
+                                        }}
+                                        {{ row.target_id }}
+                                    }
                                 </div>
                             </td>
                             <td class="py-3 pr-4">

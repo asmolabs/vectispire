@@ -2055,7 +2055,8 @@ export type RegisteredVerdict = Refine<
     Schema<'RegisteredVerdict'>,
     {
         id: string;
-        target_kind: string;
+        /** `null`, with `target_id`, for a verdict that names no target — a row the gate never writes. */
+        target_kind: string | null;
         decided_at: string;
         counts_by_severity: Record<string, number>;
         target_id: number | null;

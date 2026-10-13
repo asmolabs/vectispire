@@ -6,7 +6,6 @@ import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.compliance.CertifiedScopeService;
 import com.asmolabs.vectispire.core.gate.GateRegisterService;
 import com.asmolabs.vectispire.core.gate.GateVerdictView;
@@ -158,7 +157,7 @@ public class ProcessEvidenceService {
         boolean truncated = read.size() >= VERDICT_READ_CAP;
 
         List<GateVerdictView> visible = read.stream()
-                .filter(row -> allowed.permits(targetOf(row)))
+                .filter(row -> allowed.permits(row.target()))
                 .toList();
 
         Map<String, long[]> byMonth = new TreeMap<>();
@@ -285,17 +284,13 @@ public class ProcessEvidenceService {
         return note.toString();
     }
 
-    private static ScanTarget targetOf(GateVerdictView row) {
-        return row.repoId() != null
-                ? new ScanTarget.Repository(row.repoId())
-                : new ScanTarget.Container(row.containerId());
-    }
-
     private static Refusal refusal(GateVerdictView row) {
+        // A verdict naming no target is listed with neither, never as a container with no id.
         boolean isRepository = row.repoId() != null;
+        boolean isContainer = !isRepository && row.containerId() != null;
         return new Refusal(
                 row.id().toString(),
-                isRepository ? "REPOSITORY" : "CONTAINER",
+                isRepository ? "REPOSITORY" : isContainer ? "CONTAINER" : null,
                 isRepository ? row.repoId() : row.containerId(),
                 row.evaluated(),
                 row.violations(),

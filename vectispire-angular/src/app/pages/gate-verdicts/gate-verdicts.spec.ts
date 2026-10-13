@@ -84,6 +84,16 @@ describe('le registre des verdicts', () => {
         expect(component.shown().map((r) => r.id)).toEqual(['b']);
     });
 
+    it('lists a verdict that names no target with no target, never as a container', async () => {
+        // The gate writes no such row, but the schema allows one; the server lists it with
+        // `target_kind` and `target_id` null rather than failing on it, and the cell has to say so.
+        await mount({ verdicts: [{ ...row('c', false), target_kind: null, target_id: null }], passed: 0, refused: 1 });
+        fixture.detectChanges();
+
+        const cell = (fixture.nativeElement as HTMLElement).querySelector('tbody tr td')!;
+        expect(cell.textContent?.trim()).toBe('—');
+    });
+
     it('shows only the severities that carry a count', () => {
         // A severity row where three read zero is noise and hides the fourth, which is the only one
         // saying why the gate refused.

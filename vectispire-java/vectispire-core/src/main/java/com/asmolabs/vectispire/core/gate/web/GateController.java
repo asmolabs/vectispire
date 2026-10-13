@@ -237,10 +237,13 @@ public class GateController {
     }
 
     private static RegisteredVerdict view(GateVerdictView row) {
+        // A verdict naming no target (see GateVerdictView.target) is listed with neither, never as a
+        // container with no id.
         boolean isRepository = row.repoId() != null;
+        boolean isContainer = !isRepository && row.containerId() != null;
         return new RegisteredVerdict(
                 row.id().toString(),
-                isRepository ? "REPOSITORY" : "CONTAINER",
+                isRepository ? "REPOSITORY" : isContainer ? "CONTAINER" : null,
                 isRepository ? row.repoId() : row.containerId(),
                 row.passed(),
                 row.evaluated(),
