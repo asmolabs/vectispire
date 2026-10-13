@@ -1289,7 +1289,8 @@
     "version_placeholder": "2.14.1",
     "search_failed": "La recherche n’a pas pu être exécutée.",
     "tab_diff": "Dérive et différentiel SBOM",
-    "diff_components_title": "Détail des composants détectés ({{count}})"
+    "diff_components_title": "Détail des composants détectés ({{count}})",
+    "targets_failed": "Impossible de charger les cibles à comparer."
   },
   "issues": {
     "weekly": {

@@ -71,6 +71,11 @@
         <p class="text-sm text-muted-color mt-0 mb-4">
             {{ 'inventory.diff_help_long' | translate }}
         </p>
+        @if (targetsError(); as message) {
+            <p-message data-testid="targets-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+                message
+            }}</p-message>
+        }
 
         <!--
             **The ordinary question first.** It is almost always asked like this: "what changed on
@@ -151,7 +156,9 @@
         </div>
 
         @if (diffError(); as err) {
-            <p-message severity="error" [closable]="false" styleClass="mt-4">{{ err }}</p-message>
+            <p-message data-testid="diff-error" severity="error" [closable]="false" styleClass="mt-4">{{
+                err
+            }}</p-message>
         }
 
         @if (diffReport(); as report) {

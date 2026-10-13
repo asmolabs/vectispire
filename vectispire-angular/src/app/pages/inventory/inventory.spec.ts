@@ -348,3 +348,73 @@ describe('the component search', () => {
         expect(tags).toEqual(['ADDED', 'REMOVED', 'VERSION', 'LICENSE', 'UNCHANGED']);
     });
 });
+
+/**
+ * A failed read says so in the server's words (RFC 7807 `detail`). The target lists of the
+ * comparison swallowed their errors, leaving a picker with nothing to pick and no reason; the
+ * search and the comparison showed a fixed sentence.
+ */
+describe('the inventory when a read fails', () => {
+    let fixture: ComponentFixture<Inventory>;
+    let http: HttpTestingController;
+
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+    const problem = (detail: string) => ({ title: 'Internal Server Error', status: 500, detail });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Inventory],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Inventory);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    });
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function click(label: string): void {
+        const button = Array.from(page().querySelectorAll('button')).find((b) => b.textContent.includes(label));
+        button!.click();
+    }
+
+    it('shows the search’s failure in the server’s words', async () => {
+        http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers')).forEach((r) => r.flush([]));
+        const name = page().querySelector<HTMLInputElement>('#name')!;
+        name.value = 'log4j-core';
+        name.dispatchEvent(new Event('input'));
+        await fixture.whenStable();
+        click('Search');
+        http.expectOne((r) => r.url.startsWith('/api/v1/inventory/search')).flush(
+            problem('The search index is being rebuilt.'),
+            failure
+        );
+
+        expect(page().textContent).toContain('The search index is being rebuilt.');
+    });
+
+    it('says the comparison has no target because the list failed', () => {
+        http.match((r) => r.url.includes('/repositories')).forEach((r) =>
+            r.flush(problem('Repositories offline.'), failure)
+        );
+        http.match((r) => r.url.includes('/containers')).forEach((r) => r.flush([]));
+        click('SBOM Drift & Diff Viewer');
+
+        expect(page().querySelector('[data-testid="targets-error"]')?.textContent).toContain('Repositories offline.');
+    });
+
+    it('shows why the scans of the chosen target could not be listed', () => {
+        http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers')).forEach((r) => r.flush([]));
+        click('SBOM Drift & Diff Viewer');
+        fixture.componentInstance.diffTarget = 'repo:5';
+        fixture.componentInstance.onTargetChosen();
+        http.expectOne((r) => r.url.includes('/api/v1/scans')).flush(problem('Scan history archived.'), failure);
+
+        expect(page().querySelector('[data-testid="diff-error"]')?.textContent).toContain('Scan history archived.');
+    });
+});
