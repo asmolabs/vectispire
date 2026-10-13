@@ -2322,6 +2322,7 @@
     "ticket_secret_label": "Inbound webhook secret",
     "ticket_secret_stored": "— stored",
     "ticket_secret_none": "— none stored",
+    "secret_state_failed": "the stored state could not be read",
     "ticket_secret_hint_before": "Authenticates the tracker calling",
     "ticket_secret_hint_us": "us",
     "ticket_secret_hint_after": ". The webhook route cannot hold a session — Jira has none — so this secret is its whole authentication: while it is empty the route refuses every call and tells the tracker it is not configured. Set the same value in the tracker. Encrypted at rest and never returned; saving an empty field clears it, and closes the route.",

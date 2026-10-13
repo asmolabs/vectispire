@@ -47,10 +47,15 @@ describe('the model review block of the settings page', () => {
     }
 
     /** Answers every read the page and its sections make; the ones this suite is not about with nothing. */
-    function answerReads(values: Record<string, string>, keyStored = false): void {
+    function answerReads(values: Record<string, string>, keyStored: boolean | 'unreadable' = false): void {
         http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((call) => call.flush(catalogue(values)));
         http.match({ method: 'GET', url: '/api/v1/settings/ai-openai-key' }).forEach((call) =>
-            call.flush({ configured: keyStored })
+            keyStored === 'unreadable'
+                ? call.flush(
+                      { title: 'Service Unavailable', status: 503, detail: 'The key store is locked.' },
+                      { status: 503, statusText: 'Service Unavailable' }
+                  )
+                : call.flush({ configured: keyStored })
         );
         for (const url of ['ticket-token', 'webhook-secret', 'ticket-webhook-secret']) {
             http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((call) =>
@@ -61,7 +66,10 @@ describe('the model review block of the settings page', () => {
         fixture.detectChanges();
     }
 
-    async function open(values: Record<string, string> = {}, keyStored = false): Promise<HTMLElement> {
+    async function open(
+        values: Record<string, string> = {},
+        keyStored: boolean | 'unreadable' = false
+    ): Promise<HTMLElement> {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Settings],
@@ -145,6 +153,16 @@ describe('the model review block of the settings page', () => {
         expect(text()).toContain('API key — stored');
         expect(text()).toContain('Settings saved.');
         expect((page().querySelector('#openai-key') as HTMLInputElement).value).toBe('');
+    });
+
+    it('says the key state could not be read rather than that no key is stored', async () => {
+        // A stored key whose state read failed looked absent, and invited a save over it.
+        await open({}, 'unreadable');
+
+        expect(page().querySelector('[data-testid="openai-key-state-failed"]')?.textContent).toContain(
+            'The key store is locked.'
+        );
+        expect(text()).not.toContain('none stored');
     });
 
     it("shows the server's reason when the key is refused", async () => {

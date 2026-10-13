@@ -190,3 +190,64 @@ describe('the tracker cards of the settings page', () => {
         ).toHaveLength(4);
     });
 });
+
+/**
+ * The cards when the stored states cannot be read: a token in place whose state read failed showed
+ * "none", which tells the operator it is missing and invites a save over it.
+ */
+describe('the tracker cards of the settings page, when the stored states cannot be read', () => {
+    let fixture: ComponentFixture<Settings>;
+    let http: HttpTestingController;
+
+    function answerReads(): void {
+        http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((call) =>
+            call.flush(asSchema('Catalog', { settings: [] }))
+        );
+        http.match({ method: 'GET', url: '/api/v1/settings/ticket-token' }).forEach((call) =>
+            call.flush(
+                { title: 'Service Unavailable', status: 503, detail: 'The token store is locked.' },
+                { status: 503, statusText: 'Service Unavailable' }
+            )
+        );
+        for (const url of ['webhook-secret', 'ticket-webhook-secret']) {
+            // No body: the screen's own sentence stands in for the server's.
+            http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((call) =>
+                call.flush(null, { status: 502, statusText: 'Bad Gateway' })
+            );
+        }
+        http.match({ method: 'GET' }).forEach((call) => call.flush(null, { status: 404, statusText: 'Not Found' }));
+        fixture.detectChanges();
+    }
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Settings],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        http = TestBed.inject(HttpTestingController);
+        fixture = TestBed.createComponent(Settings);
+        fixture.detectChanges();
+        answerReads();
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+            .find((one) => one.textContent.trim() === 'Integrations & SIEM')!
+            .click();
+        fixture.detectChanges();
+        answerReads();
+        await fixture.whenStable();
+    });
+
+    const page = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const failure = (testId: string): string | undefined =>
+        page().querySelector(`[data-testid="${testId}"]`)?.textContent.replace(/\s+/g, ' ').trim();
+
+    it("says each state could not be read, in the server's words when it gave one, never that none is stored", () => {
+        expect(failure('ticket-token-state-failed')).toBe('— The token store is locked.');
+        expect(failure('ticket-webhook-secret-state-failed')).toBe('— the stored state could not be read');
+        expect(failure('webhook-secret-state-failed')).toBe('— the stored state could not be read');
+        const text = page().textContent.replace(/\s+/g, ' ');
+        expect(text).not.toContain('Token — none');
+        expect(text).not.toContain('none stored');
+    });
+});

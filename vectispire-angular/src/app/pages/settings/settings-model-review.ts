@@ -62,6 +62,9 @@ export class SettingsModelReview {
     readonly state = inject(SettingsState);
 
     readonly openAiKeyConfigured = signal(false);
+    // Why the key's state could not be read, or null. A failed read used to show "none stored",
+    // which tells an operator whose key is in place that it is missing.
+    readonly openAiKeyStateError = signal<string | null>(null);
     readonly savingOpenAiKey = signal(false);
     openAiKeyInput = '';
 
@@ -131,6 +134,7 @@ export class SettingsModelReview {
             next: ({ configured }) => {
                 this.savingOpenAiKey.set(false);
                 this.openAiKeyConfigured.set(configured);
+                this.openAiKeyStateError.set(null);
                 // Cleared from the model at the same time as from the field, like the tracker
                 // token: keeping it would leave the key reachable in the open tab.
                 this.openAiKeyInput = '';
@@ -145,8 +149,14 @@ export class SettingsModelReview {
 
     private load(): void {
         this.settingsApi.openAiKeyState().subscribe({
-            next: ({ configured }) => this.openAiKeyConfigured.set(configured),
-            error: () => this.openAiKeyConfigured.set(false)
+            next: ({ configured }) => {
+                this.openAiKeyConfigured.set(configured);
+                this.openAiKeyStateError.set(null);
+            },
+            error: (response) => {
+                this.openAiKeyConfigured.set(false);
+                this.openAiKeyStateError.set(messageOf(response, this.i18n.t('settings.secret_state_failed')));
+            }
         });
     }
 }

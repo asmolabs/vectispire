@@ -43,6 +43,13 @@ export class SettingsTicketing {
      * first, since a refused token's date no longer matters.
      */
     readonly tokenState = signal<TicketTokenState | null>(null);
+
+    // Why reading each stored state failed, or null when it was read. A failed read used to fall
+    // back to "none stored", which tells an operator whose token is in place that it is missing —
+    // and invites a save over it.
+    readonly tokenStateError = signal<string | null>(null);
+    readonly ticketWebhookSecretStateError = signal<string | null>(null);
+    readonly webhookSecretStateError = signal<string | null>(null);
     readonly savingToken = signal(false);
     tokenInput = '';
 
@@ -71,6 +78,7 @@ export class SettingsTicketing {
                 this.savingToken.set(false);
                 this.tokenConfigured.set(state.configured);
                 this.tokenState.set(state);
+                this.tokenStateError.set(null);
                 // Cleared from the model at the same time as from the field: keeping it would
                 // leave the value reachable in the open tab, as for an API key.
                 this.tokenInput = '';
@@ -90,6 +98,7 @@ export class SettingsTicketing {
             next: ({ configured }) => {
                 this.savingTicketWebhookSecret.set(false);
                 this.ticketWebhookSecretConfigured.set(configured);
+                this.ticketWebhookSecretStateError.set(null);
                 this.ticketWebhookSecretInput = '';
                 this.state.saved.set(true);
             },
@@ -107,6 +116,7 @@ export class SettingsTicketing {
             next: ({ configured }) => {
                 this.savingWebhookSecret.set(false);
                 this.webhookSecretConfigured.set(configured);
+                this.webhookSecretStateError.set(null);
                 // Cleared from the model as well as from the field: this is the only thing that
                 // tells a receiver a message came from Vectispire, so anyone who reads it off the
                 // open tab can forge one.
@@ -143,25 +153,41 @@ export class SettingsTicketing {
     }
 
     private load(): void {
+        const unread = (response: unknown) => messageOf(response, this.i18n.t('settings.secret_state_failed'));
+
         this.settingsApi.ticketTokenState().subscribe({
             next: (state) => {
                 this.tokenConfigured.set(state.configured);
                 this.tokenState.set(state);
+                this.tokenStateError.set(null);
             },
-            error: () => {
+            error: (response) => {
                 this.tokenConfigured.set(false);
                 this.tokenState.set(null);
+                this.tokenStateError.set(unread(response));
             }
         });
 
         this.settingsApi.webhookSecretState().subscribe({
-            next: ({ configured }) => this.webhookSecretConfigured.set(configured),
-            error: () => this.webhookSecretConfigured.set(false)
+            next: ({ configured }) => {
+                this.webhookSecretConfigured.set(configured);
+                this.webhookSecretStateError.set(null);
+            },
+            error: (response) => {
+                this.webhookSecretConfigured.set(false);
+                this.webhookSecretStateError.set(unread(response));
+            }
         });
 
         this.settingsApi.ticketWebhookSecretState().subscribe({
-            next: ({ configured }) => this.ticketWebhookSecretConfigured.set(configured),
-            error: () => this.ticketWebhookSecretConfigured.set(false)
+            next: ({ configured }) => {
+                this.ticketWebhookSecretConfigured.set(configured);
+                this.ticketWebhookSecretStateError.set(null);
+            },
+            error: (response) => {
+                this.ticketWebhookSecretConfigured.set(false);
+                this.ticketWebhookSecretStateError.set(unread(response));
+            }
         });
     }
 }

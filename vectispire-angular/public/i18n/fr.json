@@ -2536,6 +2536,7 @@
     "ticket_secret_label": "Secret du webhook entrant",
     "ticket_secret_stored": "— enregistré",
     "ticket_secret_none": "— aucun enregistré",
+    "secret_state_failed": "l'état enregistré n'a pas pu être lu",
     "ticket_secret_hint_before": "Authentifie le gestionnaire de tickets qui",
     "ticket_secret_hint_us": "nous",
     "ticket_secret_hint_after": " appelle. La route du webhook ne peut pas porter de session — Jira n'en a pas —, ce secret est donc toute son authentification : tant qu'il est vide, la route refuse tout appel et répond au gestionnaire qu'elle n'est pas configurée. Saisissez la même valeur dans le gestionnaire. Chiffré au repos et jamais renvoyé ; enregistrer un champ vide l'efface, et ferme la route.",

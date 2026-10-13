@@ -5,7 +5,11 @@
             <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
                 <label for="ticket-token" class="font-medium min-w-0 flex-1">
                     {{ 'settings.token_label' | translate }}
-                    @if (tokenConfigured()) {
+                    @if (tokenStateError(); as failure) {
+                        <span class="text-red-600 text-sm font-normal" data-testid="ticket-token-state-failed"
+                            >— {{ failure }}</span
+                        >
+                    } @else if (tokenConfigured()) {
                         <span class="text-green-600 text-sm font-normal"
                             >— {{ 'settings.token_saved' | translate }}</span
                         >
@@ -82,7 +86,11 @@
             <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 mt-5">
                 <label for="ticket-webhook-secret" class="font-medium min-w-0 flex-1">
                     {{ 'settings.ticket_secret_label' | translate }}
-                    @if (ticketWebhookSecretConfigured()) {
+                    @if (ticketWebhookSecretStateError(); as failure) {
+                        <span class="text-red-600 text-sm font-normal" data-testid="ticket-webhook-secret-state-failed"
+                            >— {{ failure }}</span
+                        >
+                    } @else if (ticketWebhookSecretConfigured()) {
                         <span class="text-green-600 text-sm font-normal">{{
                             'settings.ticket_secret_stored' | translate
                         }}</span>
@@ -126,7 +134,11 @@
             <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
                 <label for="webhook-secret" class="font-medium min-w-0 flex-1">
                     {{ 'settings.webhook_signing_label' | translate }}
-                    @if (webhookSecretConfigured()) {
+                    @if (webhookSecretStateError(); as failure) {
+                        <span class="text-red-600 text-sm font-normal" data-testid="webhook-secret-state-failed"
+                            >— {{ failure }}</span
+                        >
+                    } @else if (webhookSecretConfigured()) {
                         <span class="text-green-600 text-sm font-normal"
                             >— {{ 'settings.token_saved' | translate }}</span
                         >
