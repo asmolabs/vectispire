@@ -11,6 +11,7 @@ import { saveDocument } from '@/app/core/download';
 import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { messageOf } from '@/app/core/api-error';
 import { PolicySourcePipe } from '@/app/shared/policy-source';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -47,11 +48,16 @@ export class Security {
 
     readonly overview = signal<SecurityOverview | null>(null);
     readonly error = signal<string | null>(null);
+    /**
+     * A failed export, shown above the table. It was written to `error`, which the page shows only
+     * when the overview is missing — so once the table had loaded, a failed download said nothing.
+     */
+    readonly exportError = signal<string | null>(null);
 
     constructor() {
         this.dashboardApi.securityOverview().subscribe({
             next: (data) => this.overview.set(data),
-            error: () => this.error.set(this.i18n.t('security.error_load'))
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('security.error_load')))
         });
     }
 
@@ -104,14 +110,16 @@ export class Security {
      */
     download(target: TargetPosture, document: string): void {
         this.downloading.set(target.targetId);
+        this.exportError.set(null);
         this.documentsApi.exportDocument(target.kind, target.targetId, document).subscribe({
             next: (response) => {
                 this.downloading.set(null);
                 saveDocument(response, document);
             },
-            error: () => {
+            // A Blob body, which messageOf cannot read synchronously: it answers with the fallback.
+            error: (response: unknown) => {
                 this.downloading.set(null);
-                this.error.set(this.i18n.t('security.error_export'));
+                this.exportError.set(messageOf(response, this.i18n.t('security.error_export')));
             }
         });
     }

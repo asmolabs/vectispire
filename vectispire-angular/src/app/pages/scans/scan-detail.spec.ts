@@ -264,6 +264,27 @@ describe('the scan detail', () => {
         expect(headers()).not.toContain('Constats');
     });
 
+    it('shows a failed read in the server’s words, and an unknown scan in its own', async () => {
+        await Promise.resolve();
+        http.expectOne('/api/v1/scans/34').flush(
+            { title: 'Internal Server Error', status: 500, detail: 'Scan store is read-only.' },
+            { status: 500, statusText: 'Internal Server Error' }
+        );
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent as string).toContain('Scan store is read-only.');
+
+        fixture.componentRef.setInput('id', '35');
+        fixture.detectChanges();
+        await Promise.resolve();
+        http.expectOne('/api/v1/scans/35').flush(
+            { title: 'Not Found', status: 404, detail: 'No scan 35.' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        fixture.detectChanges();
+        // A 404 reads as an absence, in the screen's sentence (no bundle is loaded here: the key).
+        expect(fixture.nativeElement.textContent as string).toContain('scans.error_not_found');
+    });
+
     it('reports a failure from the summary, not from the detail', async () => {
         await load({
             ...DETAIL,

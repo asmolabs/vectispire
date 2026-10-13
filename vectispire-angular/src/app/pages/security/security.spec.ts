@@ -78,4 +78,42 @@ describe('the security posture', () => {
             'team · v1'
         ]);
     }, 20_000);
+
+    it('says a failed export above the table it was asked from', async () => {
+        // The export wrote to the error the page shows only without an overview: once the table
+        // had loaded, a failed download said nothing at all.
+        await mount([target(1, 'global', 2)]);
+        useEnglish();
+        fixture.detectChanges();
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+            .find((button) => button.textContent.trim() === 'CSV')!
+            .click();
+        TestBed.inject(HttpTestingController)
+            .expectOne('/api/v1/targets/repository/1/issues.csv')
+            .flush(new Blob(['{}']), { status: 500, statusText: 'Internal Server Error' });
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('[data-testid="export-error"]')?.textContent
+        ).toContain('The export could not be produced.');
+    }, 20_000);
+
+    it('shows a failed overview in the server’s words', async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Security],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        fixture = TestBed.createComponent(Security);
+        fixture.detectChanges();
+        TestBed.inject(HttpTestingController)
+            .expectOne('/api/v1/security/overview')
+            .flush(
+                { title: 'Internal Server Error', status: 500, detail: 'Posture is being recomputed.' },
+                { status: 500, statusText: 'Internal Server Error' }
+            );
+        fixture.detectChanges();
+
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Posture is being recomputed.');
+    }, 20_000);
 });

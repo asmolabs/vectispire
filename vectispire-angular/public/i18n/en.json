@@ -2363,7 +2363,8 @@
     "token_refused": "The tracker refuses this token (HTTP {{status}}) since {{date}} UTC: no ticket is opened or closed until it is replaced.",
     "token_expiry_unknown": "Expiry unknown — GitLab and GitHub report it; for Jira or ServiceNow, set the token expiry date in the tracker settings.",
     "token_expires_on": "Expires on {{date}}",
-    "token_expiry_declared": "(declared by an administrator)"
+    "token_expiry_declared": "(declared by an administrator)",
+    "threat_intel_status_failed": "Could not read the state of the threat feeds."
   },
   "severities": {
     "critical": "Critical",

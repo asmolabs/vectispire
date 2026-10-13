@@ -207,4 +207,35 @@ describe('the threat feeds card', () => {
             'Catalogue: 1478 KEV. An EPSS synchronisation is in progress.'
         );
     });
+
+    it('says the status could not be read, and states no count and no "never" it did not read', () => {
+        fixture.detectChanges();
+        http.expectOne('/api/v1/threat-intel/status').flush(
+            { title: 'Service Unavailable', status: 503, detail: 'Threat intelligence store is offline.' },
+            { status: 503, statusText: 'Service Unavailable' }
+        );
+        fixture.detectChanges();
+        const page = fixture.nativeElement as HTMLElement;
+
+        expect(text(page, 'threat-intel-status-error')).toContain('Threat intelligence store is offline.');
+        expect(text(page, 'kev-synced-at')).toBe('—');
+        expect(text(page, 'epss-synced-at')).toBe('—');
+        expect(page.textContent).not.toContain('Never');
+        expect(page.textContent).not.toContain('0 CVEs');
+    });
+
+    it('shows a refused sync in the server’s words', () => {
+        loaded(synced);
+
+        fixture.componentInstance.syncThreatIntel();
+        http.expectOne({ method: 'POST', url: '/api/v1/threat-intel/sync' }).flush(
+            { title: 'Forbidden', status: 403, detail: 'Only an administrator can synchronise the feeds.' },
+            { status: 403, statusText: 'Forbidden' }
+        );
+        fixture.detectChanges();
+
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+            'Only an administrator can synchronise the feeds.'
+        );
+    });
 });

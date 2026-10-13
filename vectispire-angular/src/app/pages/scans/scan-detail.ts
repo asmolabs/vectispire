@@ -10,6 +10,7 @@ import { DocumentsApi } from '../../core/api/documents.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { LatestRequest } from '../../core/latest-request';
+import { messageOf } from '../../core/api-error';
 import { saveDocument } from '../../core/download';
 import type { PluginRefusal, ScanDetail, ScanSummary } from '../../core/api.models';
 import { keyFor } from '../../core/i18n/literal-keys';
@@ -182,11 +183,13 @@ export class ScanDetailPage {
         this.error.set(null);
         this.detailRequest.run(this.scansApi.scan(id), {
             next: (detail) => this.scan.set(detail),
-            error: (response) =>
+            // A 404 keeps the screen's own sentence — "no such scan" is the whole answer, and a
+            // refusal has to read as an absence; any other failure carries the server's detail.
+            error: (response: unknown) =>
                 this.error.set(
                     (response as { status?: number } | null)?.status === 404
                         ? this.i18n.t('scans.error_not_found')
-                        : this.i18n.t('scans.error_load')
+                        : messageOf(response, this.i18n.t('scans.error_load'))
                 )
         });
     }

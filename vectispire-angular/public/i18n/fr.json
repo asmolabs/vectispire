@@ -2577,7 +2577,8 @@
     "token_refused": "Le tracker refuse ce jeton (HTTP {{status}}) depuis le {{date}} UTC : aucun ticket n'est ouvert ni fermé tant qu'il n'est pas remplacé.",
     "token_expiry_unknown": "Expiration inconnue — GitLab et GitHub la donnent ; pour Jira ou ServiceNow, renseignez la date d'expiration du jeton dans les réglages du tracker.",
     "token_expires_on": "Expire le {{date}}",
-    "token_expiry_declared": "(déclarée par un administrateur)"
+    "token_expiry_declared": "(déclarée par un administrateur)",
+    "threat_intel_status_failed": "Impossible de lire l'état des flux de menaces."
   },
   "severities": {
     "critical": "Critique",

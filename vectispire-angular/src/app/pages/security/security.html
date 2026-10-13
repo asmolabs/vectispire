@@ -10,6 +10,9 @@
     <zs-rule-coverage-banner />
 
     @if (overview(); as data) {
+        @if (exportError(); as message) {
+            <p-message data-testid="export-error" severity="error" styleClass="w-full mb-4" [text]="message" />
+        }
         <div class="flex flex-wrap gap-6 mb-4">
             <div>
                 <span class="text-2xl font-medium" [class.text-red-500]="data.failingCount > 0">{{

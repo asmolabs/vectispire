@@ -124,6 +124,17 @@ describe('the quality view', () => {
         expect(figures()).toEqual([]);
     });
 
+    it("says why in the server's words when the server gives a reason", () => {
+        // RFC 7807 puts the explanation in `detail`; the view showed its own sentence whatever it said.
+        http.expectOne('/api/v1/quality/overview').flush(
+            { title: 'Internal Server Error', status: 500, detail: 'Quality index rebuilding.' },
+            { status: 500, statusText: 'Internal Server Error' }
+        );
+        fixture.detectChanges();
+
+        expect(page().querySelector('.p-message-error')?.textContent).toContain('Quality index rebuilding.');
+    });
+
     it('speaks French to a French reader, and says the findings never fail a build', () => {
         answer();
         useFrench();

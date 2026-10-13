@@ -1,5 +1,6 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { messageOf } from '../../core/api-error';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -35,7 +36,7 @@ export class Quality {
     constructor() {
         this.dashboardApi.qualityOverview().subscribe({
             next: (data) => this.overview.set(data),
-            error: () => this.error.set(this.i18n.t('quality.load_failed'))
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('quality.load_failed')))
         });
     }
 

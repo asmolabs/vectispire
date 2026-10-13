@@ -6,6 +6,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { IntelApi } from '../../core/api/intel.api';
 import type { ThreatIntelSyncStatus } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { messageOf } from '../../core/api-error';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SettingsState } from './settings-state';
 
@@ -34,6 +35,11 @@ export class SettingsThreatIntel {
     readonly threatIntelStatus = signal<ThreatIntelSyncStatus | null>(null);
     readonly syncingThreatIntel = signal(false);
     readonly threatIntelFeedback = signal<string | null>(null);
+    /**
+     * Why the status could not be read. Swallowed, the tiles fell to their defaults — "0 KEV CVEs",
+     * last synchronised "Never" — which states a fact about the feed that nobody had read.
+     */
+    readonly statusError = signal<string | null>(null);
 
     /**
      * The feed's state, as the control plane states it. It fell back to "SYNCED" when the status
@@ -85,9 +91,9 @@ export class SettingsThreatIntel {
                       : this.i18n.t('settings.error_epss_sync');
                 this.threatIntelFeedback.set(kev + ' ' + epss);
             },
-            error: () => {
+            error: (response: unknown) => {
                 this.syncingThreatIntel.set(false);
-                this.threatIntelFeedback.set(this.i18n.t('settings.error_threat_intel_sync'));
+                this.threatIntelFeedback.set(messageOf(response, this.i18n.t('settings.error_threat_intel_sync')));
             }
         });
     }
@@ -107,8 +113,14 @@ export class SettingsThreatIntel {
 
     private load(): void {
         this.intelApi.getThreatIntelStatus().subscribe({
-            next: (status) => this.threatIntelStatus.set(status),
-            error: () => this.threatIntelStatus.set(null)
+            next: (status) => {
+                this.threatIntelStatus.set(status);
+                this.statusError.set(null);
+            },
+            error: (response: unknown) => {
+                this.threatIntelStatus.set(null);
+                this.statusError.set(messageOf(response, this.i18n.t('settings.threat_intel_status_failed')));
+            }
         });
     }
 }
