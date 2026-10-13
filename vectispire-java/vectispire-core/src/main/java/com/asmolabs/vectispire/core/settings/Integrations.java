@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  * uses nothing but its own table, as this module must: every module reads its settings. The governor's
  * gesture — the audit entry, the SIEM signal — is {@code platform}'s, which may use {@code audit}.
  *
- * <p><b>A key without a row is disabled.</b> V83 seeded every integration that existed when the registry
+ * <p><b>A key without a row is disabled.</b> V92 seeded every integration that existed when the registry
  * was introduced, enabled; one added to an adapter's enum later has no row and reads off until a governor
  * enables it, so an upgrade never widens what an installation reaches (0040 §5). A row whose key no
  * integration has any more is ignored, as {@code t_setting} ignores a retired setting.
@@ -128,7 +128,7 @@ public class Integrations {
      * repeatable read the snapshot the owners' reads see is taken after it, so a configuration that
      * committed while this switch waited for the row is read, not the state from before.
      *
-     * <p>A key with no row — an integration that arrived after V83 — gets one when it is enabled. Two first
+     * <p>A key with no row — an integration that arrived after V92 — gets one when it is enabled. Two first
      * enablings of such a key at once would both insert and the second fail on the key; that is a gesture
      * made at human speed, once per adapter's lifetime, and the error is the honest answer.
      *

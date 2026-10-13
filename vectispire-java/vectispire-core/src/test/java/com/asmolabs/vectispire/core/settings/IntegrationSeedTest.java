@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Which integrations an installation starts with enabled (decision 0040 §5): every one V85 seeded, and no
+ * Which integrations an installation starts with enabled (decision 0040 §5): every one V92 seeded, and no
  * other. The migration is applied and its checksum checked on every start, so it can never learn a later
  * adapter — which is the point: a key it does not seed has no row and reads disabled.
  */
@@ -24,18 +24,18 @@ import org.junit.jupiter.api.Test;
 class IntegrationSeedTest {
 
     /**
-     * Integrations added after V85, each arriving disabled. A new value in an adapter's enum fails this test
+     * Integrations added after V92, each arriving disabled. A new value in an adapter's enum fails this test
      * until it is written here — the moment to decide, on purpose, that an upgrade does not switch it on.
      * Bitbucket (0037, D8) will be the first.
      */
     private static final Set<String> ARRIVED_DISABLED = Set.of();
 
     @Test
-    @DisplayName("V85 seeds, enabled, exactly the integrations that existed when the registry was introduced")
+    @DisplayName("V92 seeds, enabled, exactly the integrations that existed when the registry was introduced")
     void theSeedIsEveryIntegrationOfItsDay() throws IOException {
         String migration;
-        try (InputStream in = getClass().getResourceAsStream("/db/migration/common/V85__integration_registry.sql")) {
-            assertThat(in).as("V85 on the classpath").isNotNull();
+        try (InputStream in = getClass().getResourceAsStream("/db/migration/common/V92__integration_registry.sql")) {
+            assertThat(in).as("V92 on the classpath").isNotNull();
             migration = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         Set<String> seeded = new LinkedHashSet<>();
@@ -50,7 +50,7 @@ class IntegrationSeedTest {
         Set<String> unseeded = new TreeSet<>(known);
         unseeded.removeAll(seeded);
         assertThat(unseeded)
-                .as("integrations V85 does not seed — they read disabled; list each in ARRIVED_DISABLED on purpose")
+                .as("integrations V92 does not seed — they read disabled; list each in ARRIVED_DISABLED on purpose")
                 .isEqualTo(new TreeSet<>(ARRIVED_DISABLED));
     }
 }
