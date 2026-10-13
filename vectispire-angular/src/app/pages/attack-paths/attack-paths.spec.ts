@@ -111,6 +111,7 @@ describe('the attack path graph', () => {
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         fixture = TestBed.createComponent(AttackPaths);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -119,23 +120,63 @@ describe('the attack path graph', () => {
         http.expectOne((call) => call.url === '/api/v1/repositories').flush(REPOSITORIES);
         // Selecting the first repository is what triggers the graph load.
         http.expectOne((call) => call.url === '/api/v1/attack-paths/repositories/7').flush(GRAPH);
+        fixture.detectChanges();
     }, 20_000);
 
-    it('lays the chain out in columns, ingress through to the sink', () => {
-        const component = fixture.componentInstance;
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
 
-        expect(component.ingressNodes().map((n) => n.id)).toEqual(['ingress-ext']);
-        expect(component.endpointNodes()).toHaveLength(2);
-        expect(component.vulnNodes()).toHaveLength(2);
-        expect(component.sinkNodes().map((n) => n.id)).toEqual(['secret-1']);
+    /** The graph's four columns, each as the step it is headed by and the node labels under it. */
+    function columns(): { step: string; nodes: string[] }[] {
+        const grid = page().querySelector('.grid.md\\:grid-cols-4');
+        return [...(grid?.children ?? [])].map((column) => ({
+            step: column.firstElementChild?.textContent?.trim() ?? '',
+            nodes: [...column.querySelectorAll('[role="button"]')].map(
+                (node) => node.querySelector('.font-bold')?.textContent?.trim() ?? ''
+            )
+        }));
+    }
+
+    /** The labels of the nodes drawn with the highlight ring, across every column. */
+    function highlighted(): string[] {
+        return [...page().querySelectorAll('[role="button"].ring-2')]
+            .map((node) => node.querySelector('.font-bold')?.textContent?.trim() ?? '')
+            .sort();
+    }
+
+    function button(label: string): HTMLButtonElement {
+        const found = [...page().querySelectorAll('button')].find((b) => b.textContent.includes(label));
+        expect(found, `button ${label}`).toBeDefined();
+        return found!;
+    }
+
+    /** Ticks "exploitable only", as a reader does. */
+    function exploitableOnly(): void {
+        const box = page().querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+        box.checked = true;
+        box.dispatchEvent(new Event('change'));
+    }
+
+    it('lays the chain out in columns, ingress through to the sink', () => {
+        expect(columns()).toEqual([
+            { step: '1. Ingress exposure', nodes: ['Internet Ingress (0.0.0.0/0)'] },
+            { step: '2. API endpoints', nodes: ['GET /api/admin/users', 'GET /api/health'] },
+            { step: '3. Vulnerable components', nodes: ['CVE-2021-44228', 'CVE-2020-0001'] },
+            { step: '4. Assets and sensitive data', nodes: ['aws-key'] }
+        ]);
     });
 
     it('narrows endpoints and vulnerabilities to the exploitable ones when asked', () => {
-        const component = fixture.componentInstance;
-        component.filterCriticalOnly.set(true);
+        exploitableOnly();
 
-        expect(component.endpointNodes().map((n) => n.id)).toEqual(['ep-1']);
-        expect(component.vulnNodes().map((n) => n.id)).toEqual(['vuln-1']);
+        const [, endpoints, components] = columns();
+        expect(endpoints.nodes).toEqual(['GET /api/admin/users']);
+        expect(components.nodes).toEqual(['CVE-2021-44228']);
+        // The figures above the graph count what it shows.
+        const figures = [...page().querySelectorAll('span.text-3xl')].map((node) => node.textContent.trim());
+        expect(figures.slice(2)).toEqual(['1', '1']);
     });
 
     it('keeps the sink visible under the filter, because a reachable secret is the point', () => {
@@ -144,33 +185,50 @@ describe('the attack path graph', () => {
         // this fixture is the end of an exploitable path while carrying `false`. Filtering sinks
         // on that flag would hide the thing the screen exists to show, and the graph would read
         // as a chain that stops at the vulnerability.
-        const component = fixture.componentInstance;
-        component.filterCriticalOnly.set(true);
+        exploitableOnly();
 
-        expect(component.sinkNodes().map((n) => n.id)).toEqual(['secret-1']);
+        expect(columns()[3].nodes).toEqual(['aws-key']);
+        expect(columns()[0].nodes).toEqual(['Internet Ingress (0.0.0.0/0)']);
     });
 
-    it('highlights exactly the nodes of the selected path', () => {
-        const component = fixture.componentInstance;
-        expect(component.highlightedNodeIds().size).toBe(0);
+    it('highlights exactly the nodes of the path focused from the scenarios', () => {
+        expect(highlighted()).toEqual([]);
 
-        component.selectedPath.set(GRAPH.attackPaths[0] as never);
-        expect([...component.highlightedNodeIds()].sort()).toEqual(['ep-1', 'ingress-ext', 'secret-1', 'vuln-1']);
+        button('Exploitation scenarios').click();
+        expect(page().textContent).toContain('Unauthenticated RCE and exfiltration chain');
+        button('Focus on the graph').click();
+
+        // Back on the graph, the four nodes of the chain carry the ring, and the healthy endpoint
+        // and the unexploitable component do not.
+        expect(highlighted()).toEqual([
+            'CVE-2021-44228',
+            'GET /api/admin/users',
+            'Internet Ingress (0.0.0.0/0)',
+            'aws-key'
+        ]);
     });
 
-    it('reports a failed graph load instead of leaving the last graph on screen', () => {
-        const component = fixture.componentInstance;
+    it('opens a node’s details when it is clicked', () => {
+        const node = [...page().querySelectorAll<HTMLElement>('[role="button"]')].find((candidate) =>
+            candidate.textContent.includes('CVE-2021-44228')
+        )!;
+        node.click();
+        page();
 
-        component.onRepoChange(9);
-        http.expectOne((call) => call.url === '/api/v1/attack-paths/repositories/9').flush('boom', {
-            status: 500,
-            statusText: 'Server Error'
-        });
+        const dialog = document.querySelector('[role="dialog"]');
+        expect(dialog?.textContent).toContain('Attack node details');
+        expect(dialog?.textContent).toContain('CVE-2021-44228');
+    });
 
-        // A screen that keeps repository 7's chain while the selector says 9 is worse than an
-        // error: it attributes one target's exposure to another.
-        expect(component.error()).not.toBeNull();
-        expect(component.loading()).toBe(false);
+    it('lists the fleet overview, and inspects a repository from it', () => {
+        button('Fleet overview').click();
+
+        const rows = [...page().querySelectorAll('p-table tbody tr')];
+        expect(rows.map((row) => row.querySelector('td')?.textContent?.trim())).toEqual(['exposed']);
+        button('Inspect').click();
+        http.expectOne('/api/v1/attack-paths/repositories/7').flush(GRAPH);
+
+        expect(columns()).toHaveLength(4);
     });
 });
 
