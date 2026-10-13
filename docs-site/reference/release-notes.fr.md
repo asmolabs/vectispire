@@ -1,5 +1,31 @@
 # Notes de version
 
+## 0.11.1 — en préparation
+
+À la suite de la 0.11.0 ; pas encore publiée. Ce qui suit est ce que contiendra la 0.11.1, par rapport à la 0.11.0.
+
+### Nouveautés {#nouveautes-0111}
+
+- **Un administrateur lève l'obligation de changer de mot de passe d'un compte fédéré depuis l'écran
+  Utilisateurs** (`DELETE /api/v1/users/{id}/password-change-requirement`). C'est refusé pour un compte qui
+  se connecte avec son propre mot de passe, pour son propre compte, et pour celui d'un superutilisateur sauf
+  par un superutilisateur. Cela remplace l'instruction SQL que la section *Avant la mise à jour* de la 0.11.0
+  donnait pour les comptes créés par l'annuaire SCIM
+  ([utilisateurs et équipes](../administration/users-and-teams.md#lobligation-de-changer-de-mot-de-passe)).
+- **Le changement d'état d'un jeton est signalé une fois**, pour le jeton du gestionnaire de tickets et pour
+  chaque connexion de forge : une entrée d'audit (`INTEGRATION_TOKEN_EXPIRING`, `INTEGRATION_TOKEN_STOPPED`,
+  `INTEGRATION_TOKEN_RESTORED`), un événement SIEM (`VECTI-SEC-038` à 4, `VECTI-SEC-039` à 7, `VECTI-SEC-040`
+  à 2) et un message sur chaque canal de notification configuré — jamais le jeton lui-même. Remplacer un
+  jeton de gestionnaire de tickets refusé annonce qu'il fonctionne de nouveau
+  ([notifications](../integrations/notifications.md#integration-token-alerts),
+  [SIEM](../integrations/siem.md)).
+
+### Corrigé {#corrige-0111}
+
+- **Les titres, paragraphes, liens et cartes suivent désormais les tailles et espacements que leur donne
+  chaque écran** ; les styles globaux du gabarit les écrasaient. Les captures de la documentation française
+  montrent les champs de date au format jj/mm/aaaa.
+
 ## 0.11.0 — 25 octobre 2026
 
 La 0.11.0 note une cible sur ce qui est ouvert plutôt que sur son pire constat, analyse chaque cible chaque
