@@ -403,7 +403,7 @@ from a list in which none is true of an exposed product — and signed into the 
     pod is then admitted only if that namespace's Pod Security level allows it.
   - **What it refuses to render.** `trustedProxies` without `networkPolicy.enabled`, since any pod could
     otherwise call the pod directly and name any client address; agents without a pinned signing key,
-    with nothing in `agents.networkPolicy.excludeCidrs`, without a node selector and a toleration of
+    with nothing in `agents.networkPolicy.excludeCidrs` or with that policy turned off, without a node selector and a toleration of
     their own, or with a `controlPlaneUrl` that is not `https://`. Each has an explicit acknowledgement
     where a deployment needs it, but HTTPS. It also keeps the control plane off the node of every agent,
     of any release in any namespace, with a required anti-affinity, and excludes the cloud metadata

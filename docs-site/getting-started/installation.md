@@ -413,9 +413,9 @@ own container reaches that daemon, and through it the node. Give these pods:
   `agents.networkPolicy.excludeCidrs` what an escaped scanner must not reach: the cluster's pod,
   service **and node** ranges (the kubelets, and the API server's real address), and the database's
   subnet when it is outside them, as a managed MySQL usually is. Egress then reaches the outside world.
-  The chart refuses an empty list (`agents.networkPolicy.acknowledgeClusterReachable`
-  overrides), and excludes `169.254.0.0/16` — the cloud metadata endpoint — and the metadata addresses
-  outside it (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) whatever it says.
+  The chart refuses an empty list, and a policy turned off (`agents.networkPolicy.enabled: false`),
+  unless `agents.networkPolicy.acknowledgeClusterReachable` is set; it excludes `169.254.0.0/16` — the
+  cloud metadata endpoint — and the metadata addresses outside it (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) whatever it says.
   **Give the agents the Ingress back in `agents.networkPolicy.allowTo`**: kube-proxy translates the
   Ingress's LoadBalancer address to an ingress controller pod's, which lies in the excluded pod range.
   An entry is the controller's `namespaceSelector` and `podSelector` together with `ports: [{port: 443}]`;

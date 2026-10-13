@@ -126,7 +126,8 @@ Docker daemon of its own:
     single node the control plane stays Pending rather than share it;
   - the NetworkPolicy, with what an escaped scanner must not reach in `agents.networkPolicy.excludeCidrs`
     — the cluster's pod, service **and node** ranges, and the database's subnet when it is outside them.
-    Empty, the chart refuses to render (`agents.networkPolicy.acknowledgeClusterReachable` overrides).
+    Empty, or the policy turned off (`agents.networkPolicy.enabled: false`), the chart refuses to render
+    (`agents.networkPolicy.acknowledgeClusterReachable` overrides).
     `169.254.0.0/16`, the cloud metadata endpoint's range, and the metadata addresses outside it
     (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`) are excluded whatever the list says.
   - **the ingress controller back, in `agents.networkPolicy.allowTo`, on port 443 only.** The agent

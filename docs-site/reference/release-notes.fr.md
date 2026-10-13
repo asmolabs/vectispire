@@ -441,7 +441,8 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
     Security de ce namespace le permet.
   - **Ce qu'elle refuse de rendre.** `trustedProxies` sans `networkPolicy.enabled`, puisque n'importe
     quel pod pourrait sinon appeler le pod en direct et annoncer n'importe quelle adresse de client ; des
-    agents sans clé de signature épinglée, sans rien dans `agents.networkPolicy.excludeCidrs`, sans
+    agents sans clé de signature épinglée, sans rien dans `agents.networkPolicy.excludeCidrs` ou avec cette
+    règle désactivée, sans
     sélecteur de nœud et tolérance à eux, ou avec un `controlPlaneUrl` qui n'est pas en `https://`. Chacun
     a un acquittement explicite là où un déploiement en a besoin, sauf HTTPS. Elle tient aussi le control
     plane à l'écart du nœud de tout agent, de n'importe quelle release dans n'importe quel namespace, par

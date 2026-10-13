@@ -427,8 +427,9 @@ de son propre conteneur atteint ce démon, et par lui le nœud. Donnez à ces po
   `agents.networkPolicy.excludeCidrs` ce qu'un scanner échappé ne doit pas atteindre : les plages de
   pods, de services **et de nœuds** du cluster (les kubelets, et l'adresse réelle du serveur d'API), et
   le sous-réseau de la base s'il est en dehors, comme l'est d'ordinaire un MySQL managé. La sortie
-  n'atteint alors que le monde extérieur. La chart refuse une liste vide
-  (`agents.networkPolicy.acknowledgeClusterReachable` passe outre), et exclut `169.254.0.0/16` — le
+  n'atteint alors que le monde extérieur. La chart refuse une liste vide, et une règle désactivée
+  (`agents.networkPolicy.enabled: false`), sauf si `agents.networkPolicy.acknowledgeClusterReachable`
+  est posé ; elle exclut `169.254.0.0/16` — le
   point de métadonnées du cloud — ainsi que les adresses de métadonnées hors de cette plage
   (`100.100.100.200`, `192.0.0.192`, `168.63.129.16`), quoi qu'elle contienne.
   **Rendez l'Ingress aux agents dans `agents.networkPolicy.allowTo`** : kube-proxy traduit l'adresse

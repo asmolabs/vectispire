@@ -84,6 +84,9 @@ in a pod's log.
 {{- if not .Values.agents.signingKey.secretName -}}
 {{- fail "agents.signingKey.secretName is required: without a pinned signing key the control plane accepts the agent's results unattested." -}}
 {{- end -}}
+{{- if and (not .Values.agents.networkPolicy.enabled) (not .Values.agents.networkPolicy.acknowledgeClusterReachable) -}}
+{{- fail "agents.networkPolicy.enabled is false: the agents' pods would have no egress rule at all, and a scanner escaping its container would reach every pod, the nodes, the database and the cloud metadata endpoint. Keep the policy and list agents.networkPolicy.excludeCidrs, or set agents.networkPolicy.acknowledgeClusterReachable to render it without one." -}}
+{{- end -}}
 {{- if and .Values.agents.networkPolicy.enabled (not .Values.agents.networkPolicy.excludeCidrs) (not .Values.agents.networkPolicy.acknowledgeClusterReachable) -}}
 {{- fail "agents.networkPolicy.excludeCidrs is required: a scanner's traffic leaves through the agent's pod, and with nothing excluded it reaches the whole cluster. List the pod, service and node ranges and the database's subnet, or set agents.networkPolicy.acknowledgeClusterReachable." -}}
 {{- end -}}

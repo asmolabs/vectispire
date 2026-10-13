@@ -366,6 +366,8 @@ jobs:
           refused -f ci/no-agents-values.yaml --set networkPolicy.enabled=false
           refused -f ci/dind-privileged-values.yaml --set agents.signingKey.secretName=
           refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.excludeCidrs=null
+          # Turning the policy off is not a way round the list: it removes the metadata exclusions too.
+          refused -f ci/dind-privileged-values.yaml --set agents.networkPolicy.enabled=false
           # A privileged daemon on nodes of its own, and the agent's key never over plain HTTP.
           refused -f ci/dind-privileged-values.yaml --set agents.nodeSelector=null
           refused -f ci/dind-privileged-values.yaml --set agents.tolerations=null

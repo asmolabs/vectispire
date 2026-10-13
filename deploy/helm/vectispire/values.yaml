@@ -293,7 +293,8 @@ agents:
     # addresses outside it (100.100.100.200, 192.0.0.192, 168.63.129.16).
     enabled: true
     # **Required with agents.** Empty, the chart refuses to render: egress to 0.0.0.0/0 with nothing
-    # excluded is the whole cluster. `acknowledgeClusterReachable` renders it anyway.
+    # excluded is the whole cluster. `acknowledgeClusterReachable` renders it anyway — and is also what
+    # `enabled: false` requires, since no policy at all reaches further than an empty list.
     excludeCidrs: []
     acknowledgeClusterReachable: false
     #  - 10.244.0.0/16
