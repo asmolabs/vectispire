@@ -9,13 +9,16 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.validation.constraints.Positive;
 import java.time.Clock;
 import java.time.Duration;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * The beans the domain's pure rules need in order to be applied.
@@ -27,6 +30,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
  */
 @Configuration
 public class CoreConfiguration {
+
+    /** A duration bound's refusal, the same for each: the forgotten unit is the usual cause. */
+    static final String AT_LEAST_A_SECOND =
+            "must be at least one second; a bare number is read as milliseconds (write 60s, 20m or 12h)";
 
     /**
      * The JSON mapper, declared rather than auto-configured.
@@ -110,16 +117,29 @@ public class CoreConfiguration {
     }
 
     /**
+     * Both a second at least: a bare number binds as milliseconds, so {@code 60} with its unit
+     * forgotten would close every session before its first request — refused at start rather than
+     * found at the sign-in screen.
+     *
      * @param absoluteLifetime past this, a session ends however active it has been. It is what
      *     bounds a stolen token's usefulness, and no amount of activity may extend it
      * @param idleLifetime past this without a request, a session ends. It is what protects an
      *     unlocked screen, and it is deliberately much shorter
      */
+    @Validated
     @ConfigurationProperties("vectispire.session")
     public record SessionProperties(
-            @DefaultValue("12h") Duration absoluteLifetime, @DefaultValue("60m") Duration idleLifetime) {}
+            @DefaultValue("12h") @DurationMin(seconds = 1, message = AT_LEAST_A_SECOND)
+                    Duration absoluteLifetime,
+            @DefaultValue("60m") @DurationMin(seconds = 1, message = AT_LEAST_A_SECOND)
+                    Duration idleLifetime) {}
 
     /**
+     * Refused at start: a lease under a second (a bare number binds as milliseconds) lapses
+     * between two of the dispatcher's renewals, which run a second apart at the least; no attempt
+     * means no scan ever runs, and no claim attempt means none is ever claimed. A negative retry delay
+     * is refused by {@code ScanQueue.Policy} itself.
+     *
      * @param claimAttempts how many times a claim retries before giving up on a round.
      *     <b>Exists for MySQL</b>, which counts skipped rows against its {@code LIMIT}: ten
      *     concurrent claimants against a queue of twenty left six empty-handed. Nothing was ever
@@ -129,11 +149,14 @@ public class CoreConfiguration {
      *     reason, before another claim may take it: the first after the first attempt, the last for
      *     every attempt past the list. A permanent failure does not wait, it fails
      */
+    @Validated
     @ConfigurationProperties("vectispire.queue")
     public record QueueProperties(
-            @DefaultValue("20m") Duration lease,
-            @DefaultValue("3") int maxAttempts,
-            @DefaultValue("12") int claimAttempts,
+            @DefaultValue("20m") @DurationMin(seconds = 1, message = AT_LEAST_A_SECOND) Duration lease,
+            @DefaultValue("3") @Positive(message = "must be at least 1: with none, no scan ever runs")
+                    int maxAttempts,
+            @DefaultValue("12") @Positive(message = "must be at least 1: with none, no scan is ever claimed")
+                    int claimAttempts,
             @DefaultValue({"1m", "5m", "15m"}) java.util.List<Duration> retryDelays) {}
 
     /**

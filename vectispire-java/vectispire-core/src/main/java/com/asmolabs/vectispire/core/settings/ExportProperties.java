@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.settings;
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * What the exported documents say about their producer.
@@ -16,6 +17,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     means the build's — see {@link ProductVersion}. It defaulted to {@code 1.0.0}, a release that
  *     does not exist
  */
+@Validated
 @ConfigurationProperties("vectispire.exports")
 public record ExportProperties(
         Optional<String> publicUrl,

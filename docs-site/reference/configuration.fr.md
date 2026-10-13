@@ -68,8 +68,8 @@ Dès qu'un compte existe, les deux sont ignorés.
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuse une connexion SSO dont le jeton n'atteste aucun second facteur. Une connexion fédérée saute le TOTP local : le second facteur relève du fournisseur. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | Les valeurs `amr` (RFC 8176) qui valent second facteur. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *aucun* | Les niveaux `acr` qui en valent un, quand le fournisseur signale le MFA ainsi. |
-| `VECTISPIRE_SESSION_LIFETIME` | `12h` | Une session prend fin ce délai après son ouverture, quelle que soit son activité — ce qui borne l'utilité d'un jeton volé ; aucune activité ne la prolonge. |
-| `VECTISPIRE_SESSION_IDLE` | `60m` | Une session prend fin après ce délai sans requête — ce qui protège un écran resté déverrouillé. |
+| `VECTISPIRE_SESSION_LIFETIME` | `12h` | Une session prend fin ce délai après son ouverture, quelle que soit son activité — ce qui borne l'utilité d'un jeton volé ; aucune activité ne la prolonge. Une seconde au moins : un nombre seul se lit en millisecondes, et le démarrage est refusé. |
+| `VECTISPIRE_SESSION_IDLE` | `60m` | Une session prend fin après ce délai sans requête — ce qui protège un écran resté déverrouillé. Une seconde au moins : un nombre seul se lit en millisecondes, et le démarrage est refusé. |
 | `VECTISPIRE_BEARER_FAILURES_PER_WINDOW` | `60` | Les jetons porteurs refusés — sessions, clés d'agent et d'intégration, jeton SCIM — comptés ensemble par adresse, par /64 pour un appelant IPv6 ; au-delà, l'adresse est refusée jusqu'à la fin de la fenêtre et le journal d'audit le consigne. Seuls les échecs comptent : un agent qui interroge avec une clé valide ne dépense rien. Généreux à dessein : ces jetons sont longs et aléatoires, et l'essentiel de la valeur du contrôle est l'entrée d'audit, pas le refus. |
 | `VECTISPIRE_BEARER_FAILURE_WINDOW` | `PT5M` | La fenêtre du réglage ci-dessus, en durée ISO-8601. |
 | `VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE` | `600` | Requêtes par minute par [clé d'API d'intégration](../administration/api-keys.md) ; au-delà, `429` avec `Retry-After`. Les sessions et les agents ne sont pas comptés. |
@@ -139,7 +139,7 @@ sans quoi chaque analyseur reçoit un répertoire vide.
 | Variable | Défaut | Notes |
 |---|---|---|
 | `VECTISPIRE_EMBEDDED_WORKER` | `true` | `false` pour un plan de contrôle qui n'exécute lui-même aucune analyse : les analyses en file attendent un agent distant, et les plugins de rapport n'ont pas d'exécuteur. |
-| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Les analyses que le worker intégré de cette instance exécute en même temps. Pas celles d'un agent : voir plus bas. |
+| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Les analyses que le worker intégré de cette instance exécute en même temps. Pas celles d'un agent : voir plus bas. Au moins 1 : une valeur inférieure arrête le démarrage (elle était lue comme 2) ; pour couper le worker, `VECTISPIRE_EMBEDDED_WORKER=false`. |
 | `VECTISPIRE_WORKER_LABELS` | *aucun* | Les étiquettes auxquelles répond le worker intégré. Vide à dessein : il ne prend alors que le travail qui n'exige aucune étiquette. |
 | `VECTISPIRE_WORKER_INTERVAL` | `15s` | La fréquence à laquelle le worker intégré cherche du travail. |
 | `VECTISPIRE_SCHEDULER_INTERVAL` | `60s` | La fréquence à laquelle on cherche les cibles dues pour une analyse périodique. |

@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Which audit mirror this deployment has.
@@ -24,6 +25,7 @@ public class AuditMirrorConfiguration {
      *     database. Empty disables it, and {@code /audit-log/verify} reports that it is off — an
      *     integrity control whose state nobody can see is one nobody can rely on
      */
+    @Validated
     @ConfigurationProperties("vectispire.audit")
     public record AuditProperties(String mirrorPath) {}
 
