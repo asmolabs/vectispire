@@ -91,7 +91,7 @@
                             </td>
                             <td class="py-3 text-muted-color">
                                 @if (line.state !== 'NOT_COVERED') {
-                                    {{ line.because }}
+                                    {{ because(line) }}
                                 }
                                 <!--
                                     What the organisation states about a category no scanner here

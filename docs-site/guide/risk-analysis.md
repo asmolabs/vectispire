@@ -80,6 +80,12 @@ that scope's: a project never scanned reads *unmeasured* even where its neighbou
 you see only in part says so, and counts what you see. A count of open findings opens the backlog of
 that category in the same scope, settled triage left out as the grid leaves it out.
 
+Each row says **why** it reads what it reads — which scanner looked and found nothing, which detection is
+off, or how many targets of the scope were not examined and for what reason (never finished a scan, latest
+scan failed, the step did not complete…) — in the language the interface is shown in. The API sends that
+reason twice on each line: `because`, the English sentence, and `reason`, a code with the values the
+sentence is made of, which the interface translates.
+
 ### The OWASP Top 10:2021, week by week
 
 *OWASP Top 10:2021* → *By week* shows the same ten categories over 12, 26 or 52 weeks — or a range you

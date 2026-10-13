@@ -29,10 +29,13 @@ import type {
     Applicability,
     EvidenceSource,
     Implementation,
+    OwaspGap,
     OwaspGrid,
     OwaspCoverageLine,
+    OwaspReasonCode,
     OwaspState
 } from '@/app/core/api.models';
+import { findingTypeLabel } from './finding-types';
 
 /**
  * A state and a declaration in words, through literal keys (decision 0019): the cells used to build
@@ -45,6 +48,38 @@ export const OWASP_STATE_KEYS = {
     NOT_COVERED: 'owasp_grid.state.NOT_COVERED',
     NO_FINDING: 'owasp_grid.state.NO_FINDING'
 } as const satisfies Record<OwaspState, string>;
+
+/**
+ * Why a line reads what it reads, in the reader's language (decision 0019). The server's `because` is the
+ * same reason in English, written from the same code: it is what a code this client does not know shows.
+ * Plural keys take `count`, the number of targets not examined, and `applicable`, of how many.
+ */
+export const OWASP_REASON_KEYS = {
+    NO_SCANNER: 'owasp_grid.reason.NO_SCANNER',
+    CODE_ANALYSIS_OFF: 'owasp_grid.reason.CODE_ANALYSIS_OFF',
+    DETECTION_OFF: 'owasp_grid.reason.DETECTION_OFF',
+    DETECTION_AND_CODE_ANALYSIS_OFF: 'owasp_grid.reason.DETECTION_AND_CODE_ANALYSIS_OFF',
+    OPEN_FINDINGS: 'owasp_grid.reason.OPEN_FINDINGS',
+    NOTHING_SCANNED: 'owasp_grid.reason.NOTHING_SCANNED',
+    TARGET_KIND_NOT_EXAMINED: 'owasp_grid.reason.TARGET_KIND_NOT_EXAMINED',
+    CODE_ANALYSIS_READS_REPOSITORIES_ONLY: 'owasp_grid.reason.CODE_ANALYSIS_READS_REPOSITORIES_ONLY',
+    NO_EXAMINABLE_TARGET_IN_SCOPE: 'owasp_grid.reason.NO_EXAMINABLE_TARGET_IN_SCOPE',
+    NO_REPOSITORY_IN_SCOPE: 'owasp_grid.reason.NO_REPOSITORY_IN_SCOPE',
+    EXAMINED_NOTHING_OPEN: 'owasp_grid.reason.EXAMINED_NOTHING_OPEN',
+    CODE_EXAMINED_NOTHING_OPEN: 'owasp_grid.reason.CODE_EXAMINED_NOTHING_OPEN',
+    TARGETS_NOT_EXAMINED: 'owasp_grid.reason.TARGETS_NOT_EXAMINED',
+    REPOSITORIES_NOT_EXAMINED: 'owasp_grid.reason.REPOSITORIES_NOT_EXAMINED'
+} as const satisfies Record<OwaspReasonCode, string>;
+
+/** Why some targets were not examined, each a plural phrase on its own count. */
+export const OWASP_GAP_KEYS = {
+    NEVER_SCANNED: 'owasp_grid.gap.NEVER_SCANNED',
+    LAST_SCAN_FAILED: 'owasp_grid.gap.LAST_SCAN_FAILED',
+    UNRECORDED: 'owasp_grid.gap.UNRECORDED',
+    STEP_ABSENT: 'owasp_grid.gap.STEP_ABSENT',
+    LANGUAGES_UNRECORDED: 'owasp_grid.gap.LANGUAGES_UNRECORDED',
+    NO_RULE_FOR_ITS_LANGUAGES: 'owasp_grid.gap.NO_RULE_FOR_ITS_LANGUAGES'
+} as const satisfies Record<OwaspGap, string>;
 
 export const DECLARED_KEYS = {
     APPLICABLE: 'owasp_grid.declared.APPLICABLE',
@@ -256,6 +291,41 @@ export class OwaspGridComponent {
     /** The grey of "not covered" is not the green of "nothing found", and that is the whole point. */
     stateLabel(state: string): string {
         return this.labelOf(OWASP_STATE_KEYS, state);
+    }
+
+    /**
+     * The line's reason in the reader's words, its values put where the language puts them.
+     *
+     * **The server's sentence whenever this client cannot say all of it**: no reason sent, a code it does
+     * not know, or a gap it does not know. Half a sentence in French beside a figure the English one
+     * explains would be a different claim, not a translation.
+     */
+    because(line: OwaspCoverageLine): string {
+        const reason = line.reason;
+        const key = keyFor(OWASP_REASON_KEYS, reason?.code);
+        if (!reason || !key) {
+            return line.because;
+        }
+        const why: string[] = [];
+        for (const gap of reason.gaps ?? []) {
+            const gapKey = keyFor(OWASP_GAP_KEYS, gap.gap);
+            if (!gapKey) {
+                return line.because;
+            }
+            why.push(this.i18n.t(gapKey, { count: gap.targets }));
+        }
+        const lang = this.i18n.currentLang();
+        const types = (reason.types ?? []).map((type) => {
+            // A type's label starts a heading elsewhere; inside a sentence it reads lower-case.
+            const label = findingTypeLabel(this.i18n, type);
+            return label.charAt(0).toLocaleLowerCase(lang) + label.slice(1);
+        });
+        return this.i18n.t(key, {
+            types: types.join(', '),
+            count: reason.missing ?? 0,
+            applicable: reason.applicable ?? 0,
+            why: why.join(', ')
+        });
     }
 
     applicabilityLabel(applicability: string): string {

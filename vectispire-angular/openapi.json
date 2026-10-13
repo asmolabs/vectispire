@@ -2913,6 +2913,35 @@
         "required" : [ "linesCovered", "linesTotal" ],
         "type" : "object"
       },
+      "CoverageReason" : {
+        "properties" : {
+          "applicable" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "code" : {
+            "enum" : [ "NO_SCANNER", "CODE_ANALYSIS_OFF", "DETECTION_OFF", "DETECTION_AND_CODE_ANALYSIS_OFF", "OPEN_FINDINGS", "NOTHING_SCANNED", "TARGET_KIND_NOT_EXAMINED", "CODE_ANALYSIS_READS_REPOSITORIES_ONLY", "NO_EXAMINABLE_TARGET_IN_SCOPE", "NO_REPOSITORY_IN_SCOPE", "EXAMINED_NOTHING_OPEN", "CODE_EXAMINED_NOTHING_OPEN", "TARGETS_NOT_EXAMINED", "REPOSITORIES_NOT_EXAMINED" ],
+            "type" : "string"
+          },
+          "gaps" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GapCount"
+            },
+            "type" : "array"
+          },
+          "missing" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "types" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "CoverageScopeForm" : {
         "properties" : {
           "exclude" : {
@@ -3281,6 +3310,9 @@
           },
           "id" : {
             "type" : "string"
+          },
+          "reason" : {
+            "$ref" : "#/components/schemas/CoverageReason"
           },
           "state" : {
             "enum" : [ "FINDINGS", "NOT_MEASURED", "NOT_COVERED", "NO_FINDING" ],
@@ -4784,6 +4816,20 @@
             "$ref" : "#/components/schemas/ProductIdentificationHelper"
           }
         },
+        "type" : "object"
+      },
+      "GapCount" : {
+        "properties" : {
+          "gap" : {
+            "enum" : [ "NEVER_SCANNED", "LAST_SCAN_FAILED", "UNRECORDED", "STEP_ABSENT", "LANGUAGES_UNRECORDED", "NO_RULE_FOR_ITS_LANGUAGES" ],
+            "type" : "string"
+          },
+          "targets" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "targets" ],
         "type" : "object"
       },
       "GatePolicyView" : {
@@ -16123,7 +16169,7 @@
     },
     "/api/v1/owasp/coverage" : {
       "get" : {
-        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.",
+        "description" : "Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.",
         "operationId" : "grid",
         "parameters" : [ {
           "in" : "query",

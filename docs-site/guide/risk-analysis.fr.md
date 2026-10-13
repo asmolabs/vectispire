@@ -88,6 +88,12 @@ ses voisins sont couverts. Un périmètre que vous ne voyez qu'en partie le dit,
 voyez. Un nombre de constats ouverts ouvre le backlog de cette catégorie dans le même périmètre, le
 triage réglé laissé de côté comme la grille le laisse.
 
+Chaque ligne dit **pourquoi** elle se lit ainsi — quel scanner a regardé sans rien trouver, quelle
+détection est désactivée, ou combien de cibles du périmètre n'ont pas été examinées et pour quelle raison
+(jamais de scan terminé, dernier scan en échec, étape non terminée…) — dans la langue de l'interface. L'API
+envoie cette raison deux fois sur chaque ligne : `because`, la phrase en anglais, et `reason`, un code
+accompagné des valeurs dont la phrase est faite, que l'interface traduit.
+
 ### L'OWASP Top 10:2021, semaine par semaine
 
 *OWASP Top 10:2021* → *Par semaine* montre les mêmes dix catégories sur 12, 26 ou 52 semaines — ou un
