@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.maintenance.OneShotJobs;
 import com.asmolabs.vectispire.core.settings.FirstInstallDefaults;
 import java.time.Clock;
 import java.time.Instant;
@@ -14,7 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The first account, created at startup when the users table is empty.
@@ -38,25 +40,48 @@ import org.springframework.transaction.annotation.Transactional;
  * rather than from a listener of its own. Two beans each deciding for themselves whether the
  * database is fresh would race the account creation below and get opposite answers depending on
  * which {@code ApplicationReadyEvent} listener Spring happened to run first.
+ *
+ * <p><b>One transaction, opened here, and the database decides which instance creates.</b> The
+ * creation was a {@code @Transactional} method called from this class's own listener, so the proxy
+ * was bypassed: the count, the defaults and the insert each ran on their own, and two instances
+ * starting together on an empty table both counted none. A {@link TransactionTemplate} now holds the
+ * count, the defaults and the account together, and the account is created behind {@link
+ * OneShotJobs#claim}, in that transaction: the second instance's claim waits for the first to commit
+ * and fails, its work rolls back, and the committed row tells it the account is somebody else's —
+ * where the username's unique key would only have refused the same name, and an instance configured
+ * with another would have created a second SUPERUSER. The claim is taken only when an account is
+ * about to be created: an install started without credentials claims nothing, so its restart with
+ * them still creates the account. The cost accepted: the row outlives the account, so a users table
+ * emptied by hand does not re-arm the bootstrap — which is the back door the condition above exists
+ * to keep shut.
  */
 @Service
 public class BootstrapService {
 
     private static final Logger log = LoggerFactory.getLogger(BootstrapService.class);
 
+    /** The name {@link OneShotJobs} holds the first account's creation by. */
+    static final String JOB = "bootstrap-account";
+
     private final UserRepository users;
     private final BootstrapProperties properties;
     private final FirstInstallDefaults firstInstallDefaults;
+    private final OneShotJobs once;
+    private final TransactionTemplate transactions;
     private final Clock clock;
 
     public BootstrapService(
             UserRepository users,
             BootstrapProperties properties,
             FirstInstallDefaults firstInstallDefaults,
+            OneShotJobs once,
+            PlatformTransactionManager transactions,
             Clock clock) {
         this.users = users;
         this.properties = properties;
         this.firstInstallDefaults = firstInstallDefaults;
+        this.once = once;
+        this.transactions = new TransactionTemplate(transactions);
         this.clock = clock;
     }
 
@@ -65,9 +90,27 @@ public class BootstrapService {
         createFirstUser();
     }
 
-    /** The account created, or empty when there was nothing to do. */
-    @Transactional
+    /**
+     * The account created, or empty when there was nothing to do — another instance having created
+     * it included.
+     */
     public Optional<UserEntity> createFirstUser() {
+        try {
+            return transactions.execute(status -> createInTransaction());
+        } catch (RuntimeException failed) {
+            // Rolled back, claim and work together. Whether another instance created the account is
+            // the committed row's to say, never the exception's: a claim refused by a lock timeout or a
+            // dropped connection read as "theirs" would leave a fresh install with no account and a log
+            // saying somebody else made one.
+            if (once.hasRun(JOB)) {
+                log.info("The first account was created by another instance starting at the same time.");
+                return Optional.empty();
+            }
+            throw failed;
+        }
+    }
+
+    private Optional<UserEntity> createInTransaction() {
         if (users.count() > 0) {
             return Optional.empty();
         }
@@ -112,6 +155,7 @@ public class BootstrapService {
         // that value remaining the secret of a SUPERUSER account.
         user.setMustChangePassword(true);
 
+        once.claim(JOB);
         UserEntity created = users.save(user);
         log.info("SUPERUSER account \"{}\" created — password change required at first login.", username);
         return Optional.of(created);
