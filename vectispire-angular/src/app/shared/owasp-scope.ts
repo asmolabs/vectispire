@@ -86,3 +86,21 @@ export function scopeOptions(i18n: I18nService, tree: SolutionTree | null): Scop
     }
     return options;
 }
+
+/**
+ * The repositories a scope holds, as the tree files them — `null` where nothing narrows: the estate,
+ * or a tree that could not be read, which leaves every repository the reader sees rather than none.
+ * A scope the tree does not hold holds nothing; the grid already says it cannot read it.
+ */
+export function repositoriesIn(tree: SolutionTree | null, scope: OwaspScope): ReadonlySet<number> | null {
+    if (scope === null || tree === null) return null;
+    const ids = new Set<number>();
+    for (const solution of tree.solutions ?? []) {
+        for (const project of solution.projects ?? []) {
+            if (scope.kind === 'solution' ? solution.id === scope.id : project.id === scope.id) {
+                for (const repository of project.repositories ?? []) ids.add(repository.id);
+            }
+        }
+    }
+    return ids;
+}

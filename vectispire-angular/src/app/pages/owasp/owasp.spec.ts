@@ -494,8 +494,17 @@ describe('the current OWASP grid, over a project or a solution', () => {
     const page = () => harness.routeNativeElement as HTMLElement;
 
     const TREE = {
-        solutions: [{ id: 3, name: 'Payments', projects: [{ id: 12, name: 'Gateway' }] }],
-        unfiled: { repositoryCount: 0, containerCount: 0, repositories: [] }
+        solutions: [
+            {
+                id: 3,
+                name: 'Payments',
+                projects: [
+                    { id: 12, name: 'Gateway', repositories: [{ id: 5, name: 'gateway-api' }] },
+                    { id: 13, name: 'Ledger', repositories: [{ id: 6, name: 'ledger' }] }
+                ]
+            }
+        ],
+        unfiled: { repositoryCount: 1, containerCount: 0, repositories: [{ id: 7, name: 'tools' }] }
     };
 
     function grid(scope: Record<string, unknown> | null) {
@@ -533,7 +542,7 @@ describe('the current OWASP grid, over a project or a solution', () => {
      * Answers whatever the page asked; returns the parameters of each grid request, in order. The
      * grid answers `answer`, or fails with it when it is an `Error`.
      */
-    async function settle(answer: unknown): Promise<URLSearchParams[]> {
+    async function settle(answer: unknown, repositories: unknown[] = []): Promise<URLSearchParams[]> {
         // A scope picked is a navigation, and the grid asks only once it has rendered the new scope.
         await harness.fixture.whenStable();
         harness.detectChanges();
@@ -549,6 +558,8 @@ describe('the current OWASP grid, over a project or a solution', () => {
                 }
             } else if (url === '/api/v1/solutions') {
                 request.flush(TREE);
+            } else if (url === '/api/v1/repositories') {
+                request.flush(repositories);
             } else {
                 request.flush([]);
             }
@@ -558,9 +569,9 @@ describe('the current OWASP grid, over a project or a solution', () => {
         return asked;
     }
 
-    async function open(url: string, answer: unknown): Promise<URLSearchParams> {
+    async function open(url: string, answer: unknown, repositories: unknown[] = []): Promise<URLSearchParams> {
         await harness.navigateByUrl(url);
-        const asked = await settle(answer);
+        const asked = await settle(answer, repositories);
         expect(asked).toHaveLength(1);
         return asked[0];
     }
@@ -654,5 +665,80 @@ describe('the current OWASP grid, over a project or a solution', () => {
         expect(TestBed.inject(Router).url).toBe('/owasp');
         expect([...asked[0].keys()]).toEqual([]);
         expect(page().querySelector('[data-testid="grid-scope-error"]')).toBeNull();
+    });
+
+    const REPOSITORIES = (
+        [
+            [5, 'gateway-api'],
+            [6, 'ledger'],
+            [7, 'tools']
+        ] as const
+    ).map(([id, displayName]) =>
+        asSchema('RepositorySummary', {
+            id,
+            displayName,
+            url: `ssh://git@example.com/r/${displayName}.git`,
+            branch: 'main',
+            openIssues: 0,
+            scanManualOnly: false
+        })
+    );
+
+    /**
+     * What the report's repository picker offers, read from its open list. Opened once and left open:
+     * closing it runs the overlay's leave animation, and a reopening racing it found no list.
+     */
+    async function offered(): Promise<string[]> {
+        const select = page().querySelector<HTMLElement>('#repo')!.closest('p-select')!;
+        if (!select.querySelector('[role="listbox"]')) {
+            page().querySelector<HTMLElement>('#repo')!.click();
+            harness.detectChanges();
+            await harness.fixture.whenStable();
+        }
+        const list = select.querySelector('[role="listbox"]');
+        expect(list, 'the picker opened').not.toBeNull();
+        return [...list!.querySelectorAll('[role="option"]')].map((option) => option.textContent.trim());
+    }
+
+    it("offers the report only for the scope's repositories, and every one over the estate", async () => {
+        // The picker ignored the scope: a reader on one project's grid was offered every repository.
+        await open('/owasp?project_id=12', grid(GATEWAY), REPOSITORIES);
+        expect(await offered()).toEqual(['gateway-api']);
+
+        picker().picked('solution:3');
+        await settle(grid({ ...GATEWAY, kind: 'solution', id: 3, name: 'Payments' }));
+        expect(await offered()).toEqual(['gateway-api', 'ledger']);
+
+        picker().picked('estate');
+        await settle(grid(null));
+        expect(await offered()).toEqual(['gateway-api', 'ledger', 'tools']);
+    });
+
+    it('drops the chosen repository and its report when the scope picked no longer holds it', async () => {
+        await open('/owasp', grid(null), REPOSITORIES);
+        const owasp = harness.fixture.debugElement.query(By.directive(Owasp)).componentInstance as Owasp;
+        owasp.selected = 6;
+        owasp.loadLatest();
+        http.expectOne('/api/v1/repositories/6/owasp-review').flush(
+            asSchema('Report', {
+                id: 9,
+                status: 'completed',
+                model: 'm',
+                content: null,
+                blocks: [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'The ledger report.' }],
+                error: null,
+                scanId: 1,
+                createdAt: '2026-08-21T07:40:01Z'
+            })
+        );
+        harness.detectChanges();
+        expect(page().textContent).toContain('The ledger report.');
+
+        picker().picked('project:12');
+        await settle(grid(GATEWAY));
+
+        // Left on screen, the ledger's report would read as the Gateway project's.
+        expect(owasp.selected).toBeNull();
+        expect(page().textContent).not.toContain('The ledger report.');
     });
 });

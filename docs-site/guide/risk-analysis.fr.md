@@ -134,7 +134,9 @@ sévérité, critique en tête — le reste annoncé comme laissé de côté, et
 lui a été envoyé ; c'est une prose écrite par un modèle, pas une preuve, et rien de ce qu'il dit ne
 devient un ticket ni n'atteint une barrière. Un rapport encore en cours de rédaction — une autre demande
 attend le modèle — le dit, et la page le relit toutes les cinq secondes jusqu'à ce que le modèle ait
-répondu.
+répondu. Les dépôts proposés sont ceux de la solution ou du projet choisi au-dessus de la grille — tous
+ceux que vous voyez sur l'ensemble du parc — et choisir un périmètre qui ne contient pas le dépôt choisi
+le retire, avec son rapport.
 
 - **Les catégories sont celles de Vectispire, pas celles du modèle.** Chaque constat part avec la
   catégorie où la grille ci-dessus le place — contrôles d'infrastructure en A05, dépendances vulnérables

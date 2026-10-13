@@ -51,7 +51,7 @@
                 <label for="repo" class="text-sm text-muted-color">{{ 'owasp.repo_label' | translate }}</label>
                 <p-select
                     inputId="repo"
-                    [options]="repositories()"
+                    [options]="repositoryOptions()"
                     [(ngModel)]="selected"
                     optionLabel="displayName"
                     optionValue="id"

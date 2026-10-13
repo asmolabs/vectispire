@@ -120,7 +120,9 @@ triage and description, three hundred at most — those in the KEV catalogue fir
 first — the rest stated as left out, and the repository's OWASP grid. The report records the model, the scan it was built from and what it was sent; it is prose a model
 wrote, not evidence, and nothing it says becomes an issue or reaches a gate. A report still being written —
 another request waiting for the model — says so, and the page reads it again every five seconds until the
-model has answered.
+model has answered. The repositories offered are those of the solution or project chosen above the grid —
+every one you see over the whole estate — and choosing a scope that does not hold the repository picked
+clears it, with its report.
 
 - **The categories are Vectispire's, not the model's.** Each finding goes with the category the grid
   above places it in — infrastructure checks in A05, vulnerable dependencies and components past their

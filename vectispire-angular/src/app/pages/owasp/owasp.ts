@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -10,11 +10,12 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TargetsApi } from '../../core/api/targets.api';
+import { SolutionsApi } from '../../core/api/solutions.api';
 import { OwaspApi } from '../../core/api/owasp.api';
 import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
-import type { MonitoredRepository, OwaspBlock, OwaspReport } from '../../core/api.models';
+import type { MonitoredRepository, OwaspBlock, OwaspReport, SolutionTree } from '../../core/api.models';
 
 /**
  * The OWASP Top 10 posture report, written by the configured model.
@@ -34,7 +35,7 @@ import { LatestRequest } from '@/app/core/latest-request';
 import { pollWhile } from '@/app/core/poll-while';
 import { messageOf } from '@/app/core/api-error';
 import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
-import { OwaspScope, readScope, sameScope, scopeParams } from '@/app/shared/owasp-scope';
+import { OwaspScope, readScope, repositoriesIn, sameScope, scopeParams } from '@/app/shared/owasp-scope';
 import { OwaspWeekly } from './owasp-weekly';
 import { issueLinker, LinkedText, Segment } from './report-links';
 
@@ -73,6 +74,7 @@ export class Owasp {
     private readonly reportRequest = new LatestRequest();
 
     private readonly targetsApi = inject(TargetsApi);
+    private readonly solutionsApi = inject(SolutionsApi);
     private readonly owaspApi = inject(OwaspApi);
     private readonly documentsApi = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
@@ -110,6 +112,18 @@ export class Owasp {
     selected: number | null = null;
 
     readonly repositories = signal<MonitoredRepository[]>([]);
+    /** Where each repository is filed, to narrow the report's picker to the scope; null until read. */
+    private readonly tree = signal<SolutionTree | null>(null);
+    /**
+     * The repositories the report can be asked for: those of the scope picked above. The picker
+     * offered every repository whatever the scope, so a reader looking at one project's grid could
+     * open another project's report under it.
+     */
+    readonly repositoryOptions = computed(() => {
+        const inScope = repositoriesIn(this.tree(), this.scope());
+        const all = this.repositories();
+        return inScope === null ? all : all.filter((repository) => inScope.has(repository.id));
+    });
     readonly report = signal<OwaspReport | null>(null);
     /**
      * The repository the report shown describes, set with it: `selected` is a plain field that has
@@ -155,7 +169,20 @@ export class Owasp {
             next: (rows) => this.repositories.set(rows),
             error: () => this.error.set(this.i18n.t('owasp.repositories_load_failed'))
         });
+        // A failure leaves the picker unnarrowed: every repository the reader sees, as before scopes.
+        this.solutionsApi.solutionTree().subscribe({ next: (tree) => this.tree.set(tree), error: () => undefined });
         pollWhile(this.reportRunning, () => this.refreshRunning());
+
+        // A scope that no longer holds the chosen repository drops it, and its report with it.
+        effect(() => {
+            const options = this.repositoryOptions();
+            untracked(() => {
+                if (this.selected !== null && !options.some((repository) => repository.id === this.selected)) {
+                    this.selected = null;
+                    this.loadLatest();
+                }
+            });
+        });
     }
 
     /**
