@@ -68,7 +68,12 @@
     @if (data(); as coverage) {
         <p class="text-sm text-muted-color mb-3" data-testid="weekly-window-text">
             {{
-                'owasp_weekly.window_text' | translate: { from: coverage.from, to: sunday(weeks()[weeks().length - 1]) }
+                'owasp_weekly.window_text'
+                    | translate
+                        : {
+                              from: (coverage.from | date: 'dd/MM/yyyy') ?? coverage.from,
+                              to: (sunday(weeks()[weeks().length - 1]) | date: 'dd/MM/yyyy') ?? ''
+                          }
             }}
             @if (coverage.scope; as scope) {
                 · {{ scope.name }}
@@ -101,7 +106,11 @@
                                     class="zs-week-button"
                                     [class.zs-week-selected]="isSelected(week)"
                                     [attr.aria-pressed]="isSelected(week)"
-                                    [attr.aria-label]="'owasp_weekly.select_week' | translate: { week: week.weekStart }"
+                                    [attr.aria-label]="
+                                        'owasp_weekly.select_week'
+                                            | translate
+                                                : { week: (week.weekStart | date: 'dd/MM/yyyy') ?? week.weekStart }
+                                    "
                                     (click)="selectWeek(week)"
                                 >
                                     {{ week.weekStart | date: 'dd/MM' }}
@@ -191,7 +200,14 @@
                 [attr.aria-label]="'owasp_weekly.indicators' | translate"
             >
                 <div class="font-semibold mb-1">
-                    {{ 'owasp_weekly.week_of' | translate: { from: figures.week.weekStart, to: sunday(figures.week) } }}
+                    {{
+                        'owasp_weekly.week_of'
+                            | translate
+                                : {
+                                      from: (figures.week.weekStart | date: 'dd/MM/yyyy') ?? figures.week.weekStart,
+                                      to: (sunday(figures.week) | date: 'dd/MM/yyyy') ?? ''
+                                  }
+                    }}
                 </div>
                 <p class="text-sm text-muted-color mt-0 mb-3">
                     @if (figures.week.reconstructed) {
@@ -511,7 +527,7 @@
                     <tbody>
                         @for (week of weeks(); track week.weekStart) {
                             <tr class="border-b border-surface-100 dark:border-surface-800">
-                                <td class="py-1 pr-4 whitespace-nowrap">{{ week.weekStart }}</td>
+                                <td class="py-1 pr-4 whitespace-nowrap">{{ week.weekStart | date: 'dd/MM/yyyy' }}</td>
                                 <td class="py-1 pr-4">{{ week.open }}</td>
                                 <td class="py-1 pr-4 text-muted-color">{{ week.settled ?? '—' }}</td>
                                 <td class="py-1 pr-4">{{ week.opened }}</td>
@@ -539,7 +555,7 @@
         @if (anyReopenedUnknown()) {
             <p class="text-muted-color text-sm mt-2 mb-0" style="max-width: 74ch" data-testid="reopened-note">
                 @if (coverage.reopenedRecordedFrom; as since) {
-                    {{ 'owasp_weekly.reopened_note' | translate: { date: since } }}
+                    {{ 'owasp_weekly.reopened_note' | translate: { date: (since | date: 'dd/MM/yyyy') ?? since } }}
                 } @else {
                     {{ 'owasp_weekly.reopened_note_none' | translate }}
                 }

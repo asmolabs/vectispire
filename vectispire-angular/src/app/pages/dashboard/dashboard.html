@@ -103,8 +103,13 @@
                         />
                         <!-- The dated line, in words: a canvas says nothing to a screen reader. -->
                         @if (formulaChange(); as change) {
+                            <!-- A calendar day (`yyyy-MM-dd`), which the pipe reads as local midnight: no timezone,
+                                 or 'UTC' would print the day before east of Greenwich. -->
                             <p class="m-0 mt-2 text-xs text-muted-color" data-testid="score-formula-change">
-                                {{ 'dashboard.score_formula_changed_note' | translate: { date: change.day } }}
+                                {{
+                                    'dashboard.score_formula_changed_note'
+                                        | translate: { date: (change.day | date: 'dd/MM/yyyy') ?? change.day }
+                                }}
                             </p>
                         }
                     }

@@ -102,6 +102,24 @@ describe('the weekly OWASP view', () => {
         );
     });
 
+    /**
+     * Every day the view writes reads as every date on screen, 'dd/MM/yyyy': the weeks went into the
+     * sentences as the API sends them, and "Week of 2026-09-28 to 2026-10-04" stood among dates
+     * written the other way round. The links keep the ISO days the routes take.
+     */
+    it('writes the window, the weeks and their squares day first', async () => {
+        await open('/owasp?view=weekly');
+        expect(page().querySelector('[data-testid="weekly-window-text"]')?.textContent).toContain(
+            'Weeks from 14/09/2026 to 04/10/2026'
+        );
+        expect(cell(5, 1).querySelector('a')?.getAttribute('aria-label')).toContain('A06, week of 21/09/2026');
+        const firstColumn = [...page().querySelectorAll('[data-testid="weekly-table"] tbody tr')].map((row) =>
+            row.querySelector('td')?.textContent?.trim()
+        );
+        expect(firstColumn).toEqual(['14/09/2026', '21/09/2026', '28/09/2026']);
+        expect(page().textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    });
+
     it('opens an open count on the issues open at the week Sunday, in the same scope', async () => {
         await open('/owasp?view=weekly&solution_id=3');
         const recorded = new URL(cell(5, 1).querySelector('a')!.href);
@@ -125,17 +143,17 @@ describe('the weekly OWASP view', () => {
     it('shows the last week by default, and the week clicked in its grid, with its flows as links', async () => {
         await open('/owasp?view=weekly');
         const indicators = () => page().querySelector('[data-testid="week-indicators"]')!.textContent;
-        expect(indicators()).toContain('Week of 2026-09-28 to 2026-10-04');
+        expect(indicators()).toContain('Week of 28/09/2026 to 04/10/2026');
 
         const header = page().querySelectorAll<HTMLButtonElement>('[data-testid="owasp-heatmap"] thead button')[1];
-        expect(header.getAttribute('aria-label')).toBe('Show the week of 2026-09-21');
+        expect(header.getAttribute('aria-label')).toBe('Show the week of 21/09/2026');
         header.click();
         await harness.fixture.whenStable();
         harness.detectChanges();
         // Picking a week asks nothing new: the figures are already here.
         http.expectNone((call) => call.url === '/api/v1/owasp/coverage/weekly');
 
-        expect(indicators()).toContain('Week of 2026-09-21 to 2026-09-27');
+        expect(indicators()).toContain('Week of 21/09/2026 to 27/09/2026');
         const grid = page().querySelector('[data-testid="week-grid"]')!;
         const resolved = new URL(grid.querySelector<HTMLAnchorElement>('[data-testid="grid-resolved"]')!.href);
         expect(Object.fromEntries(resolved.searchParams)).toEqual({
@@ -235,7 +253,7 @@ describe('the weekly OWASP view', () => {
             reopened_to: '2026-10-04'
         });
         expect(page().querySelector('[data-testid="reopened-note"]')?.textContent).toContain(
-            'Reopenings are recorded from the week of 2026-09-21'
+            'Reopenings are recorded from the week of 21/09/2026'
         );
 
         page().querySelectorAll<HTMLButtonElement>('[data-testid="owasp-heatmap"] thead button')[0].click();

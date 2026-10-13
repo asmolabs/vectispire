@@ -812,13 +812,25 @@
                                                     <span class="text-muted-color">
                                                         {{
                                                             'project_checklist.evidence_performed'
-                                                                | translate: { day: proof.performedOn }
+                                                                | translate
+                                                                    : {
+                                                                          day:
+                                                                              (proof.performedOn
+                                                                                  | date: 'dd/MM/yyyy') ??
+                                                                              proof.performedOn
+                                                                      }
                                                         }}
                                                         @if (proof.validUntil) {
                                                             ·
                                                             {{
                                                                 'project_checklist.evidence_valid_until'
-                                                                    | translate: { day: proof.validUntil }
+                                                                    | translate
+                                                                        : {
+                                                                              day:
+                                                                                  (proof.validUntil
+                                                                                      | date: 'dd/MM/yyyy') ??
+                                                                                  proof.validUntil
+                                                                          }
                                                             }}
                                                         }
                                                         ·

@@ -1,5 +1,6 @@
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -76,9 +77,18 @@ import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 import { TargetKindPipe } from '@/app/shared/target-kind';
 
+/**
+ * A calendar day (`yyyy-MM-dd`) on the date axis, day first as every date on screen: `slice(5)` wrote
+ * "10-20", month first, to a French reader. The year is left out because the window says it.
+ */
+function dayAndMonth(day: string): string {
+    return `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+}
+
 @Component({
     selector: 'app-dashboard',
     imports: [
+        DatePipe,
         RouterLink,
         ButtonModule,
         CardModule,
@@ -273,7 +283,7 @@ export class Dashboard {
     readonly backlogChart = computed(() => {
         const points = this.trends()?.points ?? [];
         return {
-            labels: points.map((point) => point.day.slice(5)),
+            labels: points.map((point) => dayAndMonth(point.day)),
             datasets: [
                 {
                     label: this.i18n.t('dashboard.chart.open_backlog'),
@@ -293,7 +303,7 @@ export class Dashboard {
     readonly flowChart = computed(() => {
         const points = this.trends()?.points ?? [];
         return {
-            labels: points.map((point) => point.day.slice(5)),
+            labels: points.map((point) => dayAndMonth(point.day)),
             datasets: [
                 {
                     label: this.i18n.t('dashboard.chart.opened'),

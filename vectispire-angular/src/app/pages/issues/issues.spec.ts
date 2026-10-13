@@ -877,7 +877,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
 
         const banner = page().querySelector('[data-testid="weekly-banner"]')!;
         expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
-            'Issues A06 open on 2026-09-27 — from the weekly OWASP view'
+            'Issues A06 open on 27/09/2026 — from the weekly OWASP view'
         );
         // The count the banner shows is the server's total for that filter — the figure clicked.
         expect(banner.textContent).toContain(`1–${line.open} of ${line.open}`);
@@ -897,7 +897,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         expect(params.get('first_seen_to')).toBe('2026-10-04');
         expect(params.get('state')).toBe('open');
         expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
-            'Issues A06 first seen from 2026-09-28 to 2026-10-04'
+            'Issues A06 first seen from 28/09/2026 to 04/10/2026'
         );
     });
 
@@ -946,7 +946,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         expect(params.get('resolved_from')).toBe('2026-09-28');
         expect(params.get('resolved_to')).toBe('2026-10-04');
         const text = page().querySelector('[data-testid="weekly-banner-text"]')?.textContent;
-        expect(text).toContain('Issues of any OWASP category resolved from 2026-09-28 to 2026-10-04');
+        expect(text).toContain('Issues of any OWASP category resolved from 28/09/2026 to 04/10/2026');
         expect(text).not.toContain('any resolved');
     });
 
@@ -954,6 +954,10 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         await open('/issues?reopened_from=2026-09-30', 1);
         const back = page().querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!;
         expect(new URL(back.href).searchParams.get('week')).toBe('2026-09-28');
+        // The day as every date reads, the open end as an ellipsis rather than a formatted nothing.
+        expect(page().querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
+            'Issues reopened from 30/09/2026 to …'
+        );
     });
 
     it('names a lone any filter as the Top 10, not as a category called any', async () => {
@@ -993,7 +997,7 @@ describe('the backlog opened from a weekly OWASP figure', () => {
         expect(params.get('state')).toBe('all');
         const banner = page().querySelector('[data-testid="weekly-banner"]')!;
         expect(banner.querySelector('[data-testid="weekly-banner-text"]')?.textContent).toContain(
-            'Issues A06 reopened from 2026-09-28 to 2026-10-04'
+            'Issues A06 reopened from 28/09/2026 to 04/10/2026'
         );
         const back = new URL(banner.querySelector<HTMLAnchorElement>('[data-testid="weekly-back"]')!.href);
         expect(back.searchParams.get('week')).toBe('2026-09-28');

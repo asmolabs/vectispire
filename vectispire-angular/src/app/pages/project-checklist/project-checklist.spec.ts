@@ -518,6 +518,15 @@ describe('the project checklist screen', () => {
         expect(text('[data-testid="proof-900"]')).not.toContain('Withdraw ');
     });
 
+    // Calendar days, written as every date on screen: they went into the sentence as sent, year first.
+    it('writes the day a proof was performed and the day it stops being valid day first', async () => {
+        await start('USER');
+
+        const proof = text('[data-testid="proof-900"]');
+        expect(proof).toContain('performed on 01/09/2026');
+        expect(proof).toContain('valid until 01/09/2027');
+    });
+
     it('downloads a file proof through the client, under its own name, and never opens it in the page', async () => {
         await start('AUDITOR');
 

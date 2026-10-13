@@ -247,11 +247,14 @@ describe('the backlog trend', () => {
         });
 
         const page = fixture.componentInstance;
+        // The axis day first, as every date on screen; the year is the window's.
+        expect(page.backlogChart().labels).toEqual(['19/10', '20/10', '21/10']);
+        expect(page.flowChart().labels).toEqual(['19/10', '20/10', '21/10']);
         expect(page.backlogOptions().plugins.datedMarker).toMatchObject({ index: 1, label: 'Score formula changed' });
         // The lower chart repeats the line, not the label.
         expect(page.flowOptions().plugins.datedMarker).toMatchObject({ index: 1, label: undefined });
         const note = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="score-formula-change"]');
-        expect(note?.textContent).toContain('The scorecard formula changed on 2026-10-20 (0.11.0)');
+        expect(note?.textContent).toContain('The scorecard formula changed on 20/10/2026 (0.11.0)');
     });
 
     it('draws no line and says nothing when the change is outside the window, or never happened here', () => {

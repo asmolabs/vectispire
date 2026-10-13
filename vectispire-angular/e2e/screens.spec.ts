@@ -1158,7 +1158,7 @@ test.describe('documentation screenshots', () => {
             // The velocity line, by its figures — each edition in its own decimal mark: "55.3 %", "55,3 %".
             await expect(page.getByText(/55[.,]3\s?%/).first()).toBeVisible({ timeout: 15_000 });
             // The dated line in words, by its date: a canvas draws nothing a test can read.
-            await expect(page.getByTestId('score-formula-change')).toContainText('2026-09-15', { timeout: 15_000 });
+            await expect(page.getByTestId('score-formula-change')).toContainText('15/09/2026', { timeout: 15_000 });
             await shoot(page, 'dashboard', locale);
 
             // **The lower half, from the portfolio down.** The grade distribution, the weakest

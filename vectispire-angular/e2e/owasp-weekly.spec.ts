@@ -44,7 +44,7 @@ test.describe('the weekly OWASP view', () => {
         await expect(page).toHaveURL(/open_at=\d{4}-\d{2}-\d{2}/);
         const banner = page.getByTestId('weekly-banner');
         await expect(banner).toBeVisible({ timeout: 15_000 });
-        await expect(page.getByTestId('weekly-banner-text')).toContainText(/Issues A06 open on \d{4}-\d{2}-\d{2}/);
+        await expect(page.getByTestId('weekly-banner-text')).toContainText(/Issues A06 open on \d{2}\/\d{2}\/\d{4}/);
         await expect(page.getByTestId('weekly-banner-text')).toContainText('from the weekly OWASP view');
         // The list's own count, against the figure clicked.
         await expect(banner).toContainText(new RegExp(`of ${figure}\\b`));

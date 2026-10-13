@@ -1,8 +1,9 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, formatDate } from '@angular/common';
 import {
     Component,
     ElementRef,
     Injector,
+    LOCALE_ID,
     afterNextRender,
     computed,
     inject,
@@ -121,6 +122,7 @@ export class OwaspWeekly {
     private readonly injector = inject(Injector);
     private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
     readonly i18n = inject(I18nService);
+    private readonly locale = inject(LOCALE_ID);
 
     readonly view = signal<WeeklyView>(readView({ get: () => null }, new Date()));
     readonly data = signal<OwaspWeeklyCoverage | null>(null);
@@ -272,7 +274,7 @@ export class OwaspWeekly {
     cellText(category: string, week: OwaspWeek, cell: HeatCell): string {
         this.i18n.translations();
         const parts = [
-            this.i18n.t('owasp_weekly.cell_heading', { category, week: week.weekStart }),
+            this.i18n.t('owasp_weekly.cell_heading', { category, week: this.day(week.weekStart) }),
             cellLabel(this.i18n, cell.kind)
         ];
         if (cell.kind === 'findings' || cell.reconstructed) {
@@ -316,6 +318,15 @@ export class OwaspWeekly {
 
     sunday(week: OwaspWeek): string {
         return sundayOf(week.weekStart);
+    }
+
+    /**
+     * A week's day as every date on screen reads, 'dd/MM/yyyy'. The weeks are calendar days
+     * (`yyyy-MM-dd`), which Angular reads as local midnight: formatted with no timezone they come back
+     * as sent, where 'UTC' would print the Sunday before east of Greenwich.
+     */
+    private day(value: string): string {
+        return formatDate(value, 'dd/MM/yyyy', this.locale);
     }
 
     // ---- the curves -------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, formatDate } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, LOCALE_ID, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, ParamMap, Params, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -110,6 +110,7 @@ export class Issues {
     private readonly page = new LatestRequest();
 
     private readonly i18n = inject(I18nService);
+    private readonly locale = inject(LOCALE_ID);
     private readonly intelApi = inject(IntelApi);
     private readonly targetsApi = inject(TargetsApi);
     private readonly issuesApi = inject(IssuesApi);
@@ -288,19 +289,23 @@ export class Issues {
         // `any` is every category at once — a week's total — and is said so, never shown as a code.
         const category = asked === ANY_CATEGORY ? this.i18n.t('issues.weekly.any') : asked;
         const sentences: string[] = [];
+        // The URL's days are ISO (`yyyy-MM-dd`, what the route takes); the sentence writes them as every
+        // date on screen reads. No timezone: Angular reads a date-only string as local midnight, and
+        // 'UTC' would print the day before east of Greenwich. `…` is an open end of the range.
+        const day = (value: string | null) => (value === null ? '…' : formatDate(value, 'dd/MM/yyyy', this.locale));
         const openAt = this.openAt();
         if (openAt !== null) {
             sentences.push(
                 category !== null
-                    ? this.i18n.t('issues.weekly.open_at_category', { category, date: openAt })
-                    : this.i18n.t('issues.weekly.open_at', { date: openAt })
+                    ? this.i18n.t('issues.weekly.open_at_category', { category, date: day(openAt) })
+                    : this.i18n.t('issues.weekly.open_at', { date: day(openAt) })
             );
         }
         if (this.firstSeenFrom() !== null || this.firstSeenTo() !== null) {
             const range = {
                 category: category ?? '',
-                from: this.firstSeenFrom() ?? '…',
-                to: this.firstSeenTo() ?? '…'
+                from: day(this.firstSeenFrom()),
+                to: day(this.firstSeenTo())
             };
             sentences.push(
                 category !== null
@@ -309,7 +314,7 @@ export class Issues {
             );
         }
         if (this.resolvedFrom() !== null || this.resolvedTo() !== null) {
-            const range = { category: category ?? '', from: this.resolvedFrom() ?? '…', to: this.resolvedTo() ?? '…' };
+            const range = { category: category ?? '', from: day(this.resolvedFrom()), to: day(this.resolvedTo()) };
             sentences.push(
                 category !== null
                     ? this.i18n.t('issues.weekly.resolved_category', range)
@@ -317,7 +322,7 @@ export class Issues {
             );
         }
         if (this.reopenedFrom() !== null || this.reopenedTo() !== null) {
-            const range = { category: category ?? '', from: this.reopenedFrom() ?? '…', to: this.reopenedTo() ?? '…' };
+            const range = { category: category ?? '', from: day(this.reopenedFrom()), to: day(this.reopenedTo()) };
             sentences.push(
                 category !== null
                     ? this.i18n.t('issues.weekly.reopened_category', range)
