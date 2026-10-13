@@ -333,11 +333,22 @@ contrôleur.
 
 **Derrière un répartiteur de charge, gardez l'adresse du client jusqu'au contrôleur.** `trustedProxies`
 fait croire à l'application ce que le contrôleur écrit dans `X-Forwarded-For`, c'est-à-dire seulement ce
-que le contrôleur a vu. Avec son Service en `externalTrafficPolicy: Cluster`, la valeur par défaut, un
-nœud traduit la source à l'entrée et le contrôleur voit l'adresse d'un nœud : tous les clients partagent
-alors le compteur de débit de ce nœud, et chaque entrée d'audit nomme un nœud. Posez
-`externalTrafficPolicy: Local` sur le Service du contrôleur, ou le protocole PROXY entre le répartiteur et
-le contrôleur.
+que le contrôleur a vu : l'application retient l'adresse la plus à droite de cet en-tête que
+`trustedProxies` ne nomme pas. Avec le Service du contrôleur en `externalTrafficPolicy: Cluster`, la
+valeur par défaut, un nœud traduit la source à l'entrée (SNAT) et le contrôleur voit l'adresse d'un nœud.
+Tous les clients qui passent par ce nœud partagent alors un seul compteur de débit, et chaque entrée
+d'audit et chaque événement SIEM nomme le nœud — ou le contrôleur lui-même, quand `trustedProxies` couvre
+aussi la plage des nœuds. Ce qui rend l'adresse du client dépend du répartiteur :
+
+- un répartiteur qui laisse passer les paquets (répartiteur réseau) : `externalTrafficPolicy: Local` sur
+  le Service du contrôleur ;
+- un répartiteur qui ouvre sa propre connexion vers les nœuds : le protocole PROXY, activé ensemble sur
+  le répartiteur et sur le contrôleur (`use-proxy-protocol` pour ingress-nginx) ;
+- un répartiteur HTTP, qui écrit lui-même `X-Forwarded-For` : le contrôleur doit le transmettre
+  (`use-forwarded-headers` pour ingress-nginx, avec `proxy-real-ip-cidr` réglé sur les adresses du
+  répartiteur), et chaque proxy qui ajoute sa propre adresse à l'en-tête a sa place dans
+  `trustedProxies`. Seulement si le répartiteur est le seul chemin vers le contrôleur : sinon un client
+  écrit l'en-tête que le contrôleur transmet, et il est cru.
 
 **Deux réplicas** sont possibles, mais pas par défaut. Ils demandent :
 

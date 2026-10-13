@@ -82,7 +82,11 @@ what the bearer token already proved. A stolen API key can claim tasks; it canno
 clean.
 
 **A forwarded header is worth the peer that sent it.** `X-Forwarded-For` decides who is
-rate-limited and `X-Forwarded-Proto` decides whether a deployment key may travel to an agent, and
-both are honoured only from an address named in `vectispire.security.trusted-proxies`. Empty — the
-default — means only a genuinely encrypted connection counts, so an agent behind a TLS-terminating
-proxy is refused until an operator declares that proxy. The refusal is the safe direction.
+rate-limited and which address the audit log records, and `X-Forwarded-Proto` whether the single
+sign-on hand-off cookie is marked `Secure`; both are honoured only from an address named in
+`vectispire.security.trusted-proxies`. (`X-Forwarded-Proto` also decided whether a deployment key
+could travel to an agent, until decision 0031 sealed every delegated credential whatever the link.)
+Empty — the default — means the peer is the client and only a genuinely encrypted connection counts.
+The address believed is the rightmost entry of `X-Forwarded-For` the list does not name, and it is
+only what that proxy saw: behind a hop that translates the source (a Kubernetes node's SNAT), it is
+the hop's.

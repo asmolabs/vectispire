@@ -242,10 +242,13 @@ CEF:0|Vectispire|ASPM|<version>|VECTI-SEC-007|Sign-in failure ceiling reached|7|
 The device version is the product version, empty when the build states none.
 
 !!! note "`src` behind a load balancer"
-    Sign-in, MFA, bearer-token and gate events resolve the client address through
-    `vectispire.security.trusted-proxies` (see [Installation](../getting-started/installation.md)). Administrative changes — keys, settings, triage — record the
-    address the server saw, which behind a load balancer is the balancer's. That is how the audit log
-    records them today, and the event says what the audit log says.
+    An event carries the client address its audit entry recorded, resolved through
+    `vectispire.security.trusted-proxies` (see [Installation](../getting-started/installation.md)):
+    sign-in, MFA, bearer-token and gate events, and administrative changes — keys, settings, triage —
+    alike. With the list empty, or a proxy in front that it does not name, that address is the
+    proxy's. And it is only what the closest named proxy saw: behind a load balancer or a Kubernetes
+    node that translates the source address (SNAT), every event names that hop rather than the
+    client.
 
 Values are escaped as CEF requires — `\` and `=` in extensions, `\` and `|` in the header, line breaks
 as `\n` and `\r` — and every other control character becomes a space. A username typed as

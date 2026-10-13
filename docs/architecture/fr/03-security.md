@@ -86,8 +86,11 @@ clé que son signataire a publiée sur le même canal ne prouve que ce que le je
 déjà. Une clé API volée réclame des tâches ; elle ne déclare pas une cible propre.
 
 **Un en-tête transmis vaut le pair qui l'a envoyé.** `X-Forwarded-For` décide qui est plafonné et
-`X-Forwarded-Proto` décide si une clé de déploiement peut voyager vers un agent : les deux ne sont
-honorés que depuis une adresse nommée dans `vectispire.security.trusted-proxies`. Vide — le défaut —
-signifie que seule une connexion réellement chiffrée compte, donc un agent derrière un proxy qui
-termine TLS est refusé tant qu'un opérateur n'a pas déclaré ce proxy. Le refus est le bon sens de
-défaillance.
+quelle adresse le journal d'audit retient, et `X-Forwarded-Proto` si le cookie de passage de
+l'authentification unique est marqué `Secure` : les deux ne sont honorés que depuis une adresse
+nommée dans `vectispire.security.trusted-proxies`. (`X-Forwarded-Proto` décidait aussi si une clé de
+déploiement pouvait voyager vers un agent, jusqu'à ce que la décision 0031 scelle tout secret
+délégué quel que soit le lien.) Vide — le défaut — signifie que le pair est le client et que seule
+une connexion réellement chiffrée compte. L'adresse crue est l'entrée la plus à droite de
+`X-Forwarded-For` que la liste ne nomme pas, et elle n'est que ce que ce proxy a vu : derrière un
+relais qui traduit la source (le SNAT d'un nœud Kubernetes), c'est celle du relais.

@@ -90,10 +90,17 @@ words:
 - TLS.
 
 **Keep the client's address up to the controller.** `trustedProxies` believes the controller's
-`X-Forwarded-For`, which is only what the controller saw: behind a load balancer, with the controller's
-Service on `externalTrafficPolicy: Cluster` (the default), a node translates the source and every client
-shares one node's address — one rate-limit bucket, audit entries naming a node. Set
-`externalTrafficPolicy: Local`, or the PROXY protocol.
+`X-Forwarded-For`, which is only what the controller saw; the application takes the rightmost address in
+it that `trustedProxies` does not name. Behind a load balancer, with the controller's Service on
+`externalTrafficPolicy: Cluster` (the default), a node translates the source (SNAT) and every client
+arriving through it shares the node's address — one rate-limit bucket, audit entries and SIEM events
+naming the node, or the controller when `trustedProxies` covers the nodes too. A load balancer that passes
+packets through needs `externalTrafficPolicy: Local`; one that opens its own connection, the PROXY protocol
+at both ends; an HTTP load balancer, the controller passing its `X-Forwarded-For` on (ingress-nginx's
+`use-forwarded-headers` and `proxy-real-ip-cidr`) — only when it is the controller's sole way in, or a
+client writes that header — with every proxy that appends its address named in `trustedProxies`. The
+installation guide's [Ingress section](../../../docs-site/getting-started/installation.md#the-ingress)
+details the three.
 
 With `replicaCount: 2`:
 

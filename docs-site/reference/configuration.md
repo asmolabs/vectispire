@@ -19,7 +19,7 @@ The engine is read from the URL. There is no separate dialect setting.
 | Variable | Default | Notes |
 |---|---|---|
 | `VECTISPIRE_PORT` | `3180` | The HTTP port. The API, the interface and the agent protocol share it. |
-| `VECTISPIRE_TRUSTED_PROXIES` | *none* | Addresses or CIDR ranges, comma-separated, whose `X-Forwarded-For` is believed. Empty means nothing is in front: the header is ignored and the peer's address is what the rate limiters and the audit log record. Behind a load balancer or an ingress, name it — otherwise every request arrives from it and the whole estate shares one rate-limit bucket. |
+| `VECTISPIRE_TRUSTED_PROXIES` | *none* | Addresses or CIDR ranges, comma-separated, whose `X-Forwarded-For` is believed. Empty means nothing is in front: the header is ignored and the peer's address is what the rate limiters and the audit log record. Behind a load balancer or an ingress, name it — otherwise every request arrives from it and the whole estate shares one rate-limit bucket. The address believed is the rightmost one in `X-Forwarded-For` that the list does not name, and it is only what that proxy saw: a proxy reached through a translated source (SNAT, a Kubernetes node's on `externalTrafficPolicy: Cluster`) passes that address on — see [Kubernetes](../getting-started/installation.md#kubernetes). Name proxies alone: a caller inside a named range is believed about any address. |
 | `VECTISPIRE_PUBLIC_URL` | *none* | The base URL people reach this instance at. Named in a SARIF export's information URI and in a VEX document's identifier, so a document handed to somebody else says where it came from, and used for the links of e-mail notifications and project exports. |
 
 ## Encryption

@@ -318,10 +318,22 @@ chart anyway, for a range holding the controller alone.
 
 **Behind a load balancer, keep the client's address up to the controller.** `trustedProxies` makes the
 application believe what the controller writes in `X-Forwarded-For`, which is only what the controller
-saw. With its Service on `externalTrafficPolicy: Cluster`, the default, a node translates the source on
-the way in and the controller sees a node's address: every client then shares that node's rate-limit
-bucket, and every audit entry names a node. Set `externalTrafficPolicy: Local` on the controller's
-Service, or the PROXY protocol between the load balancer and the controller.
+saw: the application takes the rightmost address in that header that `trustedProxies` does not name. With
+the controller's Service on `externalTrafficPolicy: Cluster`, the default, a node translates the source on
+the way in (SNAT) and the controller sees a node's address. Every client arriving through that node then
+shares one rate-limit bucket, and every audit entry and SIEM event names the node — or the controller
+itself, when `trustedProxies` covers the nodes' range too. What restores the client's address depends on
+the load balancer:
+
+- one that passes packets through (a network load balancer): `externalTrafficPolicy: Local` on the
+  controller's Service;
+- one that opens its own connection to the nodes: the PROXY protocol, switched on at the load balancer
+  and at the controller (ingress-nginx's `use-proxy-protocol`) together;
+- an HTTP load balancer, which writes `X-Forwarded-For` itself: the controller must pass it on
+  (ingress-nginx's `use-forwarded-headers`, with `proxy-real-ip-cidr` set to the load balancer's
+  addresses), and every proxy that adds its own address to the header belongs in `trustedProxies`. Only
+  when the load balancer is the controller's sole way in: otherwise a client writes the header the
+  controller passes on, and is believed.
 
 **Two replicas** are possible but not the default. They need:
 

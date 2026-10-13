@@ -256,11 +256,13 @@ CEF:0|Vectispire|ASPM|<version>|VECTI-SEC-007|Sign-in failure ceiling reached|7|
 La version de l'équipement est la version du produit, vide quand la construction n'en déclare pas.
 
 !!! note "`src` derrière un répartiteur de charge"
-    Les événements de connexion, de MFA, de jetons bearer et de gate résolvent l'adresse du client
-    au travers de `vectispire.security.trusted-proxies` (voir l'[installation](../getting-started/installation.fr.md)).
-    Les changements d'administration — clés, réglages, triage — enregistrent l'adresse vue par le
-    serveur, qui derrière un répartiteur est celle du répartiteur. C'est ainsi que le journal d'audit
-    les enregistre aujourd'hui, et l'événement dit ce que dit le journal d'audit.
+    Un événement porte l'adresse du client que son entrée d'audit a enregistrée, résolue au travers
+    de `vectispire.security.trusted-proxies` (voir l'[installation](../getting-started/installation.fr.md)) :
+    les événements de connexion, de MFA, de jetons bearer et de gate comme les changements
+    d'administration — clés, réglages, triage. Liste vide, ou un proxy devant qu'elle ne nomme pas,
+    cette adresse est celle du proxy. Et elle n'est que ce que le proxy nommé le plus proche a vu :
+    derrière un répartiteur ou un nœud Kubernetes qui traduit l'adresse source (SNAT), chaque
+    événement nomme ce relais plutôt que le client.
 
 Les valeurs sont échappées comme CEF le demande — `\` et `=` dans les extensions, `\` et `|` dans
 l'en-tête, les sauts de ligne en `\n` et `\r` — et tout autre caractère de contrôle devient une
