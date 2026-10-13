@@ -950,6 +950,21 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Sans fournisseur d'identité, le rapport de conformité compte le TOTP local.** Les contrôles de
+  journalisation étaient plafonnés à 65 avec « aucun second facteur » dès qu'aucun fournisseur n'était
+  configuré, même quand chaque compte avait enrôlé le TOTP. Quand chaque compte actif qui a un mot de passe
+  l'a enrôlé, le plafond est de 85 — celui qui s'applique déjà à un fournisseur à côté d'un mot de passe
+  ouvert, puisque le TOTP se choisit compte par compte ; sinon il reste à 65 et le rapport dit combien de ces
+  comptes n'ont pas de second facteur.
+- **La grille OWASP et la référence REST disent comment une catégorie est vraiment couverte** : par le type
+  du constat ou, pour l'analyse de code, par la catégorie que déclare la règle — pas par le type seul, et pas
+  « trois catégories sur dix ». La référence liste désormais les routes du rapport OWASP
+  (`/repositories/{id}/owasp-review`, son PDF) et la déclaration de catégorie
+  (`PUT /owasp/coverage/{category}/declaration`).
+- **La fenêtre Imports d'un dépôt dit si un import de couverture a gardé ses comptes par paquet**, et sinon
+  pourquoi (trop de paquets, un chemin refusé, des chiffres incohérents, ou importé avant que les paquets
+  soient gardés). Le titre de la fenêtre d'une politique de barrière suit le changement de langue, et les
+  filtres des constats et de la surface d'attaque gardent un nom accessible une fois une valeur choisie.
 - **Un écran n'affiche plus la réponse d'une requête précédente.** Changer la fenêtre du tableau de bord,
   chercher une deuxième CVE sur la page EPSS, ouvrir un autre dossier dans l'historique ou choisir un autre
   paquet dans le rayon d'impact pouvait laisser à l'écran la réponse plus lente de la demande précédente,

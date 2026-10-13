@@ -869,6 +869,19 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Without an identity provider, the compliance report counts local TOTP.** The audit-logging controls were
+  capped at 65 with "no second factor" whenever no provider was configured, even with TOTP enrolled on every
+  account. Once every active account holding a password has enrolled, the cap is 85 — the one already applied
+  to a provider beside an open password, since TOTP is chosen per account; otherwise it stays at 65 and the
+  report says how many of those accounts have no second factor.
+- **The OWASP grid and the REST reference say how a category is really covered**: by the finding's type, or,
+  for code analysis, by the category the rule declares — not by the type alone, and not "three categories out
+  of ten". The reference now lists the OWASP report routes (`/repositories/{id}/owasp-review`, its PDF) and
+  the category declaration (`PUT /owasp/coverage/{category}/declaration`).
+- **A repository's Imports window says whether a coverage import kept its counts per package**, and why not
+  (too many packages, a path refused, inconsistent figures, or imported before packages were kept). The
+  gate-policy dialog's title follows a language switch, and the issue and attack-surface filters keep an
+  accessible name once a value is chosen.
 - **A screen no longer shows the answer to an earlier request.** Switching the dashboard's window, searching
   a second CVE on the EPSS page, opening another dossier in the history or picking another package in the
   blast radius could leave the slower, earlier answer on screen under the new label — one CVE's AI
