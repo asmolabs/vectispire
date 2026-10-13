@@ -1,9 +1,13 @@
 # Notes de version
 
-## 0.11.0 — en préparation
+## 0.11.0 — 25 octobre 2026
 
-Les versions candidates `v0.11.0-rc.1`, `v0.11.0-rc.2` et `v0.11.0-rc.3` ont été étiquetées le 6, le 12 et le
-13 octobre 2026 ; la 0.11.0 elle-même n'est pas encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 0.10.0.
+La 0.11.0 note une cible sur ce qui est ouvert plutôt que sur son pire constat, analyse chaque cible chaque
+semaine, refuse à la barrière une cible que rien n'a examinée, découvre et importe les dépôts d'une forge,
+produit des rapports par des plugins signés, et s'installe sur Kubernetes avec une chart Helm. Trois versions
+candidates l'ont précédée — `v0.11.0-rc.1`, `rc.2` et `rc.3`, étiquetées le 6, le 12 et le 13 octobre 2026.
+Ce qui suit est par rapport à la 0.10.0 ; la 0.10.x n'est plus suivie
+([politique de sécurité](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md#versions-suivies)).
 
 ### Avant la mise à jour
 
@@ -85,7 +89,8 @@ aussi, puis la seconde.
 Depuis `v0.11.0-rc.1`, en plus :
 
 - **Les migrations V84 à V90 s'exécutent** — V83 et V85 ne sont pas utilisées ; la sauvegarde ci-dessus
-  vaut. Depuis `v0.11.0-rc.2`, V89 et V90 s'exécutent.
+  vaut. Depuis `v0.11.0-rc.2`, V89 et V90 s'exécutent. Depuis `v0.11.0-rc.3`, aucune migration ne
+  s'exécute.
 - **Chart Helm avec des agents dans le cluster : complétez les valeurs, sinon `helm upgrade` refuse de la
   rendre.** Ajoutez `ports` à chaque entrée de `agents.networkPolicy.allowTo` — `[{port: 443}]` pour le
   contrôleur d'ingress ; donnez aux agents un sélecteur de nœud (ou une affinité de nœud obligatoire) et
@@ -96,6 +101,20 @@ Depuis `v0.11.0-rc.1`, en plus :
   avec la clé de la plateforme sur des octets écrits par un plugin (*Le fichier d'un plugin de rapport
   n'est plus signé brut*, plus bas). Et les documents de rapport produits avant cette version n'ont
   enregistré aucune cible : seul les lit qui voit tout.
+
+Depuis `v0.11.0-rc.3`, deux changements peuvent refuser ce que rc.3 acceptait :
+
+- **Un import depuis une forge refuse un dépôt dont l'URL de clonage n'est pas sur l'hôte de la
+  connexion.** Si les clones SSH de la forge passent par un autre hôte que son adresse web, importez en
+  HTTPS, sinon l'aperçu liste ces dépôts comme refusés (*Un import depuis une forge ne clone que depuis
+  l'hôte de sa connexion*, plus bas).
+- **Dans un pod, une destination qu'un administrateur règle se voit refuser les ports 6443 et 10250 sur
+  toute adresse.** Une forge, un webhook, un serveur d'IA ou un collecteur SIEM joint sur l'un d'eux ne
+  répond plus (*Kubernetes : dans un pod…*, plus bas).
+
+Et la composition nomme désormais MySQL et Keycloak par empreinte — les serveurs que désignaient `mysql:8` et
+`26.0`, tirés une fois ; lisez l'entrée avant de la démarrer sur un hôte qui gardait un `mysql:8` plus ancien
+(*La composition nomme son MySQL et son Keycloak par empreinte*, plus bas).
 
 ### Changements visibles d'une intégration
 
@@ -841,6 +860,14 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   arguments, que `ps` montre à tout utilisateur du conteneur et de l'hôte. Il le lit désormais dans un fichier
   d'options lisible par son seul propriétaire, écrit par une commande interne du shell et supprimé après
   chaque ping. Concerne `docker-compose.yml` ; la chart Helm ne fait tourner aucune base.
+- **La composition nomme son MySQL et son Keycloak par empreinte.** `mysql:8` et
+  `quay.io/keycloak/keycloak:26.0` étaient des étiquettes qu'un registre peut republier, et les données de la
+  base sont entre les mains de la première image ; ce sont désormais `mysql:8.4.11@sha256:…` et
+  `keycloak:26.0.8@sha256:…`, ce que les deux étiquettes désignaient le 15 octobre 2026, et
+  `docker compose up` les tire une fois. Un volume créé par un serveur 8.4 — ce que `mysql:8` désigne depuis
+  2024 — passe à 8.4.11 sans rien à faire. Un volume créé par un `mysql:8` plus ancien que l'hôte gardait
+  d'ailleurs, de 8.0 à 8.3, est mis à niveau sur place au premier démarrage et ne s'ouvre plus avec ce
+  serveur : sauvegardez-le d'abord. Le Keycloak d'évaluation ne garde rien d'un redémarrage à l'autre.
 - **Les identifiants de l'agent et le Keycloak d'évaluation ne sont plus à portée de `docker inspect` ni
   d'une valeur par défaut publiée.** Le profil `with-agent` de la composition passait `VECTISPIRE_AGENT_TOKEN`
   et `VECTISPIRE_AGENT_SIGNING_KEY` dans l'environnement, que tout client du démon — les deux proxys de socket

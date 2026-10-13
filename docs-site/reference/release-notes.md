@@ -1,9 +1,12 @@
 # Release notes
 
-## 0.11.0 — in preparation
+## 0.11.0 — 2026-10-25
 
-The release candidates `v0.11.0-rc.1`, `v0.11.0-rc.2` and `v0.11.0-rc.3` were tagged on 2026-10-06, 2026-10-12 and 2026-10-13; 0.11.0 itself is not released yet.
-What follows is what 0.11.0 will contain, against 0.10.0.
+0.11.0 grades a target by what is open rather than by its worst finding, scans every target weekly,
+refuses at the gate a target nothing has examined, discovers and imports repositories from a forge,
+produces reports through signed plugins, and installs on Kubernetes with a Helm chart. Three release
+candidates preceded it — `v0.11.0-rc.1`, `rc.2` and `rc.3`, tagged on 2026-10-06, 2026-10-12 and
+2026-10-13. What follows is against 0.10.0; 0.10.x is no longer supported ([security policy](https://github.com/asmolabs/vectispire/blob/main/SECURITY.md#supported-versions)).
 
 ### Before you upgrade
 
@@ -76,7 +79,7 @@ is for every installation coming from 0.10.0; one running `v0.11.0-rc.1` reads i
 From `v0.11.0-rc.1`, in addition:
 
 - **Migrations V84 to V90 run** — V83 and V85 are not used; the backup above applies. From
-  `v0.11.0-rc.2`, V89 and V90 run.
+  `v0.11.0-rc.2`, V89 and V90 run. From `v0.11.0-rc.3`, no migration runs.
 - **Helm chart with in-cluster agents: complete the values, or `helm upgrade` refuses to render.** Add
   `ports` to each `agents.networkPolicy.allowTo` entry — `[{port: 443}]` for the ingress controller; give
   the agents a node selector (or a required node affinity) and tolerations of their own, or set
@@ -87,6 +90,19 @@ From `v0.11.0-rc.1`, in addition:
   platform's key over bytes a plugin wrote (*A report plugin's file is no longer signed raw*, below). And
   the report documents produced before this release recorded no targets: they are read only by somebody
   who sees everything.
+
+From `v0.11.0-rc.3`, two changes can refuse what rc.3 accepted:
+
+- **A forge import refuses a repository whose clone URL is not on the connection's host.** Where the
+  forge's SSH clones go through another host than its web address, import over HTTPS, or the preview
+  lists those repositories as refused (*A forge import clones only from its connection's host*, below).
+- **In a pod, a destination an administrator sets is refused ports 6443 and 10250 on every address.** A
+  forge, webhook, AI server or SIEM collector reached on one of them stops answering (*Kubernetes: in a
+  pod…*, below).
+
+And the composition now names MySQL and Keycloak by digest — the servers `mysql:8` and `26.0` resolved to,
+pulled once; read the entry before starting it on a host that held an older `mysql:8` (*The composition names
+its MySQL and Keycloak by digest*, below).
 
 ### Changes an integration can see
 
@@ -772,6 +788,13 @@ from a list in which none is true of an exposed product — and signed into the 
   every user of the container and of the host. It now reads the password from an option file only its owner
   can read, written by a shell builtin and removed after each ping. Applies to `docker-compose.yml`; the Helm
   chart runs no database.
+- **The composition names its MySQL and Keycloak by digest.** `mysql:8` and `quay.io/keycloak/keycloak:26.0`
+  were tags a registry can republish, and the database's data is in the first image's hands; they are now
+  `mysql:8.4.11@sha256:…` and `keycloak:26.0.8@sha256:…`, what both tags resolved to on 2026-10-15, and
+  `docker compose up` pulls them once. A volume an 8.4 server created — what `mysql:8` has named since 2024 —
+  moves to 8.4.11 with nothing to do. One created by an older `mysql:8` the host had kept from elsewhere, 8.0
+  to 8.3, is upgraded in place at the first start and no longer opens with that server: back it up first.
+  The evaluation Keycloak keeps nothing between restarts.
 - **Agent credentials and the evaluation Keycloak no longer sit in reach of `docker inspect` or a published
   default.** The composition's `with-agent` profile passed `VECTISPIRE_AGENT_TOKEN` and
   `VECTISPIRE_AGENT_SIGNING_KEY` as environment, which every client of the daemon — both socket proxies
