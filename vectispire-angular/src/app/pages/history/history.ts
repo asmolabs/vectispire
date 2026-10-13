@@ -12,6 +12,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { triageStatusLabel } from '../../shared/triage-status';
 import { saveDocument, saveJson } from '../../core/download';
 import { LatestRequest } from '../../core/latest-request';
+import { messageOf } from '../../core/api-error';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
 
 /**
@@ -100,9 +101,9 @@ export class History {
                     this.open(rows[0]);
                 }
             },
-            error: () => {
+            error: (response: unknown) => {
                 this.loadingList.set(false);
-                this.error.set(this.i18n.t('history.load_failed'));
+                this.error.set(messageOf(response, this.i18n.t('history.load_failed')));
             }
         });
     }
@@ -110,7 +111,8 @@ export class History {
     open(repository: HistoryRepository): void {
         this.dossierLoad.run(this.scansApi.historyDossier(repository.id), {
             next: (file) => this.dossier.set(ranked(file)),
-            error: () => this.error.set(this.i18n.t('history.dossier_load_failed'))
+            error: (response: unknown) =>
+                this.error.set(messageOf(response, this.i18n.t('history.dossier_load_failed')))
         });
     }
 
@@ -123,7 +125,8 @@ export class History {
         // lives in memory and only the interceptor puts it on a request.
         this.documentsApi.downloadDocument(`/api/v1/history/repositories/${id}/export.${format}`).subscribe({
             next: (response) => saveDocument(response, `vectispire-history-${id}.${format}`),
-            error: () => this.error.set(this.i18n.t('history.export_failed'))
+            // A Blob body: messageOf answers with the fallback, which is what can be said here.
+            error: (response: unknown) => this.error.set(messageOf(response, this.i18n.t('history.export_failed')))
         });
     }
 
@@ -132,7 +135,8 @@ export class History {
             next: (vexDoc) => {
                 saveJson(vexDoc, `scan-${scanId}-openvex.json`);
             },
-            error: () => this.error.set(this.i18n.t('history.vex_download_failed'))
+            error: (response: unknown) =>
+                this.error.set(messageOf(response, this.i18n.t('history.vex_download_failed')))
         });
     }
 

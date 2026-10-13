@@ -83,6 +83,11 @@
 <h2 class="text-lg font-semibold mt-6 mb-2">{{ 'attestation.frameworks' | translate }}</h2>
 <p class="text-muted-color text-sm mt-0 mb-3">{{ 'attestation.frameworks_note' | translate }}</p>
 
+@if (complianceError(); as message) {
+    <p-message data-testid="compliance-error" severity="warn" [closable]="false" styleClass="w-full">{{
+        message
+    }}</p-message>
+}
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
     @for (f of frameworks(); track f.framework) {
         <div class="rounded-lg border p-3 flex flex-col gap-1" style="border-color: var(--surface-border)">
@@ -108,7 +113,9 @@
             >
         </div>
     } @empty {
-        <div class="col-span-full text-muted-color">{{ 'attestation.no_compliance' | translate }}</div>
+        @if (!complianceError()) {
+            <div class="col-span-full text-muted-color">{{ 'attestation.no_compliance' | translate }}</div>
+        }
     }
 </div>
 

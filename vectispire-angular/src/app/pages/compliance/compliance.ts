@@ -134,8 +134,8 @@ export class Compliance {
                 }
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('compliance.error_load'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('compliance.error_load')));
                 this.loading.set(false);
             }
         });
@@ -159,8 +159,10 @@ export class Compliance {
                 );
                 this.exporting.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('compliance.error_export_pdf'));
+            // A blob request's error body is a Blob, which messageOf cannot read synchronously: it
+            // answers with the fallback, as it should.
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('compliance.error_export_pdf')));
                 this.exporting.set(false);
             }
         });
@@ -173,8 +175,8 @@ export class Compliance {
                 saveDocument(response, 'vectispire-audit-evidence-bundle.zip');
                 this.exportingBundle.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('compliance.error_export_bundle'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('compliance.error_export_bundle')));
                 this.exportingBundle.set(false);
             }
         });
@@ -187,8 +189,8 @@ export class Compliance {
                 saveJson(vexDoc, 'vectispire-aggregate-openvex.json');
                 this.exportingVex.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('compliance.error_export_vex'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('compliance.error_export_vex')));
                 this.exportingVex.set(false);
             }
         });
@@ -201,8 +203,8 @@ export class Compliance {
                 saveJson(csafDoc, 'vectispire-aggregate-csaf.json');
                 this.exportingCsaf.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('compliance.error_export_csaf'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('compliance.error_export_csaf')));
                 this.exportingCsaf.set(false);
             }
         });
@@ -215,8 +217,8 @@ export class Compliance {
                 saveJson(cdxDoc, 'vectispire-aggregate-cyclonedx-vex.json');
                 this.exportingCycloneDx.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('compliance.error_export_cyclonedx'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('compliance.error_export_cyclonedx')));
                 this.exportingCycloneDx.set(false);
             }
         });
@@ -281,6 +283,8 @@ export class Compliance {
                 saveBlob(new Blob([pem], { type: 'application/x-pem-file' }), 'vectispire-signing-key.pub');
                 this.downloadingPubKey.set(false);
             },
+            // The key is asked for as text, so a refusal arrives as the problem document's raw JSON:
+            // messageOf would print it as is. The screen's sentence is the readable answer here.
             error: () => {
                 this.error.set(this.i18n.t('compliance.error_public_key'));
                 this.downloadingPubKey.set(false);
@@ -298,6 +302,8 @@ export class Compliance {
 
         this.documentsApi.getCosignCliHelper().subscribe({
             next: (info) => this.cosignCliInfo.set(info),
+            // Left silent on purpose: the helper only adds the equivalent cosign command under the
+            // verifier, which works the same without it. A missing hint is not a missing answer.
             error: () => {}
         });
     }

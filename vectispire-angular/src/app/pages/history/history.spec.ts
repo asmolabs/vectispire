@@ -241,4 +241,25 @@ describe('the history screen', () => {
         expect(pdf.request.responseType).toBe('blob');
         pdf.flush(new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
     });
+
+    it('shows a failed list in the server’s words, not the generic sentence', () => {
+        http.expectOne('/api/v1/history/repositories').flush(
+            { title: 'Internal Server Error', status: 500, detail: 'History index is being rebuilt.' },
+            { status: 500, statusText: 'Internal Server Error' }
+        );
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('History index is being rebuilt.');
+    });
+
+    it('shows a failed dossier in the server’s words', () => {
+        http.expectOne('/api/v1/history/repositories').flush([REPOSITORY]);
+        http.expectOne('/api/v1/history/repositories/5').flush(
+            { title: 'Not Found', status: 404, detail: 'Repository 5 is no longer monitored.' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('Repository 5 is no longer monitored.');
+    });
 });

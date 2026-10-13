@@ -7,6 +7,7 @@ import { AuditApi } from '@/app/core/api/audit.api';
 import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { messageOf } from '@/app/core/api-error';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 import { saveDocument } from '@/app/core/download';
@@ -40,6 +41,8 @@ export class Attestation {
     readonly compliance = signal<ComplianceSummary | null>(null);
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
+    /** The frameworks' failure, said in their place: the grid's empty state read "no compliance data". */
+    readonly complianceError = signal<string | null>(null);
     readonly downloading = signal(false);
     readonly rechecking = signal(false);
 
@@ -81,16 +84,20 @@ export class Attestation {
                 this.chain.set(v);
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('attestation.error_chain'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('attestation.error_chain')));
                 this.loading.set(false);
             }
         });
+        this.complianceError.set(null);
         this.complianceApi.complianceSummary().subscribe({
             next: (s) => this.compliance.set(s),
             // Deliberately separate: unavailable compliance must not erase a verified chain, which
             // is the demonstrable part of this page.
-            error: () => this.compliance.set(null)
+            error: (response: unknown) => {
+                this.compliance.set(null);
+                this.complianceError.set(messageOf(response, this.i18n.t('attestation.error_compliance')));
+            }
         });
     }
 
@@ -101,8 +108,8 @@ export class Attestation {
                 this.chain.set(v);
                 this.rechecking.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('attestation.error_chain'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('attestation.error_chain')));
                 this.rechecking.set(false);
             }
         });
@@ -115,8 +122,10 @@ export class Attestation {
                 saveDocument(response, 'vectispire-evidence.zip');
                 this.downloading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('attestation.error_bundle'));
+            // A blob request's error body is a Blob, which messageOf cannot read synchronously: it
+            // answers with the fallback.
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('attestation.error_bundle')));
                 this.downloading.set(false);
             }
         });
