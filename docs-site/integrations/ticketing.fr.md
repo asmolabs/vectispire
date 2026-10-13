@@ -32,7 +32,8 @@ Sous [Réglages](../administration/settings.md) : le type de tracker, son URL, l
 cible, et un jeton. L'URL, le projet et le compte Jira reviennent à un administrateur, comme le
 jeton : le jeton agit là où ils le dirigent. Un projet GitHub s'écrit `propriétaire/dépôt` et rien
 d'autre — un chemin après lui est refusé à l'enregistrement, et de nouveau à l'envoi pour une valeur
-enregistrée avant. L'URL est l'adresse seule : celle qui porte un nom d'utilisateur ou un jeton
+enregistrée avant. Un tracker dont l'intégration est désactivée ne peut pas être choisi
+([plus bas](#tracker-suspended)). L'URL est l'adresse seule : celle qui porte un nom d'utilisateur ou un jeton
 (`https://utilisateur:…@hôte`) est refusée à l'enregistrement — le jeton a son propre champ, qui le chiffre.
 
 Donnez au jeton la portée la plus étroite permettant de créer et de lire des tickets dans le
@@ -143,6 +144,12 @@ Désactiver le tracker pour lequel l'installation est configurée le **suspend**
   ferme aucun ticket, la vérification quotidienne du jeton ne demande rien, et enregistrer un jeton le
   stocke sans interroger le tracker à son sujet. Le balayage le dit une fois dans le journal du
   serveur, quand la suspension commence, et une fois quand elle finit — pas toutes les heures.
+- **Il n'est pas choisi non plus.** Enregistrer `ticket_provider` en nommant un tracker dont
+  l'intégration est désactivée est refusé 409 `integration-disabled` — l'écran des réglages affiche la
+  phrase du refus — et rien de cet enregistrement n'est écrit. `none` s'enregistre toujours. Le tracker
+  déjà configuré, suspendu, s'enregistre de nouveau inchangé, pour que le projet, les libellés ou la CA
+  à côté puissent toujours être enregistrés : il est suspendu à dessein, et refuser sa propre valeur
+  bloquerait le reste de la section.
 - **Un ticket ne se rattache pas non plus à la main.** `PUT /api/v1/issues/{id}/ticket` et
   `POST /api/v1/issues/{issueId}/tickets` nommant ce tracker répondent 409 `integration-disabled`, sa
   clé dans `integration` ([causes d'un 409](../reference/errors.fr.md#causes-dun-409)).

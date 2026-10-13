@@ -39,6 +39,10 @@ the trackers' part of the sixth.
   integration is disabled — and `integration`, the key that resumes it (`tracker.jira`…); both are `null`
   while no tracker is chosen. `PUT /api/v1/issues/{id}/ticket` and `POST /api/v1/issues/{issueId}/tickets`
   answer 409 `integration-disabled` for a suspended tracker, where they answered 200 and 201.
+- **`PUT /api/v1/settings` refuses a disabled tracker.** Saving `ticket_provider` naming a tracker whose
+  integration is disabled answers 409 `integration-disabled`, naming it in `integration`, and writes
+  nothing of the save, where it answered 200. `none`, and the tracker already configured sent back
+  unchanged, are saved as before.
 - **The ticket webhook of a disabled tracker answers 200 and applies nothing.** An authenticated delivery
   to `POST /api/v1/tickets/webhook/{provider}` while that tracker's integration is disabled is answered
   `200`, `matched: false`, with `actionTaken` beginning `ignored_integration_disabled`; a delivery without
@@ -81,9 +85,10 @@ the trackers' part of the sixth.
   integration off, nothing reaches it and its token does not leave its row: the hourly sweep opens and
   closes no ticket and says so once in the log, not every hour; the daily token check asks nothing and
   announces nothing — a tracker switched off is not a token that stopped working; saving a token stores it
-  without asking the tracker. Attaching a ticket by hand to that tracker answers 409
-  `integration-disabled`. Its inbound webhook is still authenticated, then answered and ignored: no triage
-  is queued from it, and the server log says so once per suspension rather than at every delivery. The
+  without asking the tracker. Attaching a ticket by hand to that tracker, or choosing it in the settings,
+  answers 409 `integration-disabled`. Its inbound webhook is still authenticated, then answered and
+  ignored: no triage is queued from it, and the server log says so once per suspension rather than at
+  every delivery. The
   token, the settings, the pinned CA and the issues' references are kept, the tracker card reads
   *Suspended — integration disabled*, and switching it back on resumes everything as it was
   ([tickets](../integrations/ticketing.md#tracker-suspended)).

@@ -31,7 +31,8 @@ Under [Settings](../administration/settings.md): the tracker type, its URL, the 
 target, and a token. The URL, the project and the Jira account are an administrator's, like the
 token: the token acts wherever they point it. A GitHub project is `owner/repository` and nothing
 else — a path after it is refused when saved, and refused again at the send for a value stored
-before. The URL is the address alone: one carrying a user name or a token (`https://user:…@host`) is
+before. A tracker whose integration is disabled cannot be chosen
+([below](#tracker-suspended)). The URL is the address alone: one carrying a user name or a token (`https://user:…@host`) is
 refused when saved — the token has a field of its own, which encrypts it.
 
 Give the token the narrowest scope that can create and read issues in the target project.
@@ -137,6 +138,11 @@ Switching off the tracker this installation is configured for **suspends** it, a
   ticket and closes none, the daily token check asks nothing, and saving a token stores it without
   asking the tracker about it. The sweep says so once in the server log, when the suspension begins,
   and once when it ends — not every hour.
+- **It is not chosen either.** Saving `ticket_provider` naming a tracker whose integration is disabled
+  is refused 409 `integration-disabled` — the settings screen shows the refusal's sentence — and
+  nothing of that save is written. `none` is always saved. The tracker already configured, suspended,
+  is saved again unchanged, so that the project, the labels or the CA beside it can still be saved:
+  it is suspended on purpose, and refusing its own value would lock the rest of the section.
 - **A ticket is not attached by hand either.** `PUT /api/v1/issues/{id}/ticket` and
   `POST /api/v1/issues/{issueId}/tickets` naming that tracker answer 409 `integration-disabled`, with
   its key in `integration` ([409 causes](../reference/errors.md#409-causes)).

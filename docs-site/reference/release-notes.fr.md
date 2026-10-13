@@ -43,6 +43,10 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   `null` tant qu'aucun tracker n'est choisi. `PUT /api/v1/issues/{id}/ticket` et
   `POST /api/v1/issues/{issueId}/tickets` répondent 409 `integration-disabled` pour un tracker suspendu, là
   où ils répondaient 200 et 201.
+- **`PUT /api/v1/settings` refuse un tracker désactivé.** Enregistrer `ticket_provider` en nommant un
+  tracker dont l'intégration est désactivée répond 409 `integration-disabled`, le nommant dans
+  `integration`, et n'écrit rien de l'enregistrement, là où il répondait 200. `none`, et le tracker déjà
+  configuré renvoyé inchangé, s'enregistrent comme avant.
 - **Le webhook de tickets d'un tracker désactivé répond 200 et n'applique rien.** Une livraison
   authentifiée sur `POST /api/v1/tickets/webhook/{provider}` tant que l'intégration de ce tracker est
   désactivée reçoit `200`, `matched: false`, avec un `actionTaken` qui commence par
@@ -90,7 +94,8 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   le balayage horaire n'ouvre ni ne ferme aucun ticket et le dit une fois dans le journal, pas toutes les
   heures ; la vérification quotidienne du jeton ne demande ni n'annonce rien — un tracker désactivé n'est
   pas un jeton qui ne fonctionne plus ; enregistrer un jeton le stocke sans interroger le tracker.
-  Rattacher à la main un ticket de ce tracker répond 409 `integration-disabled`. Son webhook entrant est
+  Rattacher à la main un ticket de ce tracker répond 409 `integration-disabled`, et le choisir dans les
+  réglages aussi. Son webhook entrant est
   toujours authentifié, puis accepté et ignoré : aucun triage n'en est mis en file, et le journal du
   serveur le dit une fois par suspension plutôt qu'à chaque livraison. Le jeton, les réglages,
   la CA épinglée et les références des issues sont gardés, la carte du tracker affiche *Suspendu —

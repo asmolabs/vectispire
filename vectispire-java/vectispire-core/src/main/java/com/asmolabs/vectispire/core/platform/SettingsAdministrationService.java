@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -16,6 +17,7 @@ import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.asmolabs.vectispire.core.tickets.TrackerTokenState;
@@ -65,6 +67,7 @@ public class SettingsAdministrationService {
     private final TicketService tickets;
     private final NotificationService notifications;
     private final AuditLogService audit;
+    private final Integrations integrations;
     private final Clock clock;
 
     public SettingsAdministrationService(
@@ -74,6 +77,7 @@ public class SettingsAdministrationService {
             TicketService tickets,
             NotificationService notifications,
             AuditLogService audit,
+            Integrations integrations,
             Clock clock) {
         this.settings = settings;
         this.aiReview = aiReview;
@@ -81,6 +85,7 @@ public class SettingsAdministrationService {
         this.tickets = tickets;
         this.notifications = notifications;
         this.audit = audit;
+        this.integrations = integrations;
         this.clock = clock;
     }
 
@@ -150,6 +155,9 @@ public class SettingsAdministrationService {
      *
      * <p>All validated before any is written: a partial write would leave the configuration
      * half-way between two intended states.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException 409 {@code
+     *     integration-disabled} when {@code ticket_provider} moves to a tracker whose integration is disabled
      */
     public Applied update(Map<String, String> body, Optional<UserView> writer, RequestActor actor) {
         if (body == null || body.isEmpty()) {
@@ -253,6 +261,21 @@ public class SettingsAdministrationService {
             // unchanged by a screen saving the section, is the calls' to refuse, not this save's.
             if (setting == Setting.TICKET_CA && !value.isEmpty() && !value.equals(settings.get(setting).trim())) {
                 tickets.caToPin(value);
+            }
+            // **A tracker whose integration is disabled is not chosen** (decision 0040 §1): 409
+            // `integration-disabled`, naming it, as every other gesture that would start using it is refused.
+            // `none` is always saved — it uses nothing. Only on a change of tracker: the configured one switched
+            // off is *suspended* (0040 §3), a state the governor's switch makes on purpose and that keeps
+            // everything, and refusing its value sent back unchanged — by a client saving the whole section —
+            // would refuse the project, the labels and the CA beside it for a tracker this save does not move.
+            // Checked, not held as the SIEM transport is: a switch that lands between this check and the write
+            // leaves a configured tracker suspended, which is the state the switch exists to make, not a loss.
+            if (setting == Setting.TICKET_PROVIDER) {
+                TicketProvider chosen = TicketProvider.fromWireName(value).orElse(TicketProvider.NONE);
+                if (chosen.isEnabled()
+                        && chosen != TicketProvider.fromWireName(settings.get(setting)).orElse(TicketProvider.NONE)) {
+                    integrations.requireEnabled(Integration.of(chosen));
+                }
             }
             // A date the screen announces from, so a typo is refused here rather than read as "unknown".
             if (setting == Setting.TICKET_TOKEN_EXPIRES_ON && !value.isEmpty()
