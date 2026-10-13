@@ -5,8 +5,21 @@ import { messageOf } from '../core/api-error';
 import { ReportImportsApi } from '../core/api/report-imports.api';
 import type { CoverageImport, TestReportImport } from '../core/api.models';
 import { I18nService } from '../core/i18n/i18n.service';
+import { keyFor } from '../core/i18n/literal-keys';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { LatestRequest } from '../core/latest-request';
+
+/**
+ * Whether the import kept its counts per package, or why not (decision 0019: literal keys). The
+ * window showed nothing for it, so "packages not kept" read the same as "no package in the report",
+ * and a reader could not tell why a rule scoped to packages had nothing to measure.
+ */
+export const PACKAGES_STATE_KEYS = {
+    kept: 'report_imports.packages_state.kept',
+    too_many: 'report_imports.packages_state.too_many',
+    path_refused: 'report_imports.packages_state.path_refused',
+    inconsistent: 'report_imports.packages_state.inconsistent'
+} as const satisfies Record<NonNullable<CoverageImport['packagesState']>, string>;
 
 /**
  * A repository's latest coverage report and latest test report (decision 0032 §7), as its declared
@@ -48,6 +61,8 @@ import { LatestRequest } from '../core/latest-request';
                                 <span class="text-muted-color">{{ 'report_imports.no_branches' | translate }}</span>
                             }
                         </dd>
+                        <dt class="text-muted-color">{{ 'report_imports.packages' | translate }}</dt>
+                        <dd class="m-0" data-testid="coverage-packages">{{ packagesLabel(report.packagesState) }}</dd>
                         <dt class="text-muted-color">{{ 'report_imports.format' | translate }}</dt>
                         <dd class="m-0 font-mono">
                             {{ report.format }}
@@ -146,6 +161,16 @@ export class ReportImports {
         if (total <= 0) return '—';
         const percent = this.i18n.percent((covered / total) * 100);
         return this.i18n.t('report_imports.ratio', { percent, covered, total });
+    }
+
+    /**
+     * Null is an import accepted before packages were kept — not an empty report, so it says what a
+     * scoped rule needs. A state this client does not know is shown as sent.
+     */
+    packagesLabel(state: string | null | undefined): string {
+        if (state == null) return this.i18n.t('report_imports.packages_unrecorded');
+        const key = keyFor(PACKAGES_STATE_KEYS, state);
+        return key ? this.i18n.t(key) : state;
     }
 
     private load(repositoryId: number): void {

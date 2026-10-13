@@ -2924,7 +2924,15 @@
     "skipped": "Skipped",
     "no_coverage": "No coverage report was imported for this repository.",
     "no_tests": "No test report was imported for this repository.",
-    "error_load": "Could not load the reports."
+    "error_load": "Could not load the reports.",
+    "packages": "Packages",
+    "packages_unrecorded": "Not recorded: imported before packages were kept. Import the report again for a rule scoped to packages.",
+    "packages_state": {
+      "kept": "Kept per package",
+      "too_many": "Not kept: more than 10,000 packages",
+      "path_refused": "Not kept: a package path was too long or held a control character",
+      "inconsistent": "Not kept: the packages did not add up to the report's totals"
+    }
   },
   "checklist_templates": {
     "title": "Checklist templates",

@@ -3138,7 +3138,15 @@
     "skipped": "Ignorés",
     "no_coverage": "Aucun rapport de couverture n'a été importé pour ce dépôt.",
     "no_tests": "Aucun rapport de tests n'a été importé pour ce dépôt.",
-    "error_load": "Impossible de charger les rapports."
+    "error_load": "Impossible de charger les rapports.",
+    "packages": "Paquets",
+    "packages_unrecorded": "Non enregistrés : importé avant la conservation des paquets. Importez à nouveau le rapport pour une règle limitée à des paquets.",
+    "packages_state": {
+      "kept": "Conservés par paquet",
+      "too_many": "Non conservés : plus de 10 000 paquets",
+      "path_refused": "Non conservés : un chemin de paquet était trop long ou contenait un caractère de contrôle",
+      "inconsistent": "Non conservés : les paquets ne s'additionnaient pas aux totaux du rapport"
+    }
   },
   "checklist_templates": {
     "title": "Modèles de checklists",

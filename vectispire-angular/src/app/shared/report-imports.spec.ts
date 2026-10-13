@@ -4,7 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
-import { ReportImports } from './report-imports';
+import { missingFromBundles } from '@/app/core/testing/bundles';
+import { PACKAGES_STATE_KEYS, ReportImports } from './report-imports';
 
 /**
  * A repository's latest coverage and test report (decision 0032 §7): figures a checklist reads,
@@ -127,6 +128,39 @@ describe("a repository's latest coverage and test report", () => {
 
         expect(text('[data-testid="coverage-lines"]')).toBe('50% (1 / 2)');
         expect(text('[data-testid="coverage-branches"]')).toBe('Not counted by the report');
+    });
+
+    // The window showed nothing for packagesState: "not kept" and "imported before packages were kept"
+    // both read as a report with no package, and a scoped rule's empty measure had no explanation.
+    it('says whether the packages were kept, and why not', () => {
+        answer([{ ...COVERAGE[0], packagesState: 'too_many' }], []);
+
+        expect(text('[data-testid="coverage-packages"]')).toBe('Not kept: more than 10,000 packages');
+    });
+
+    it('says the packages were kept, in French too', () => {
+        useFrench();
+        answer([{ ...COVERAGE[0], packagesState: 'kept' }], []);
+
+        expect(text('[data-testid="coverage-packages"]')).toBe('Conservés par paquet');
+    });
+
+    it('reads an import from before packages were kept as unrecorded, not as none', () => {
+        answer([{ ...COVERAGE[0], packagesState: null }], []);
+
+        expect(text('[data-testid="coverage-packages"]')).toContain('Not recorded');
+    });
+
+    it('shows a state this client does not know as sent, never as a key', () => {
+        answer([{ ...COVERAGE[0], packagesState: 'truncated' }], []);
+
+        expect(text('[data-testid="coverage-packages"]')).toBe('truncated');
+    });
+
+    it('spells every packages state with keys both bundles hold', () => {
+        expect(
+            missingFromBundles([...Object.values(PACKAGES_STATE_KEYS), 'report_imports.packages_unrecorded'])
+        ).toEqual([]);
     });
 
     it('shows the newest test report as the view counts it', () => {
