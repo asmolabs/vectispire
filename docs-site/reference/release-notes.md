@@ -1,5 +1,29 @@
 # Release notes
 
+## 0.11.1 — in preparation
+
+To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, against 0.11.0.
+
+### New {#new-0111}
+
+- **Administrators lift a federated account's password-change requirement from the Users screen**
+  (`DELETE /api/v1/users/{id}/password-change-requirement`). It is refused for an account that signs in
+  with its own password, for one's own account, and for a superuser's unless by a superuser. It replaces
+  the SQL statement 0.11.0's *Before you upgrade* gave for the accounts the SCIM directory created
+  ([users and teams](../administration/users-and-teams.md#the-password-change-requirement)).
+- **A token's change of state is pushed once**, for the tracker token and for each forge connection: an
+  audit entry (`INTEGRATION_TOKEN_EXPIRING`, `INTEGRATION_TOKEN_STOPPED`, `INTEGRATION_TOKEN_RESTORED`), a
+  SIEM event (`VECTI-SEC-038` at 4, `VECTI-SEC-039` at 7, `VECTI-SEC-040` at 2) and a message on every
+  configured notification channel — never the token itself. Replacing a refused tracker token announces
+  it working again ([notifications](../integrations/notifications.md#integration-token-alerts),
+  [SIEM](../integrations/siem.md)).
+
+### Fixed {#fixed-0111}
+
+- **Headings, paragraphs, links and cards follow the sizes and spacing their screens give them**; the
+  template's global styles had overridden them. French documentation screenshots show date fields as
+  dd/mm/yyyy.
+
 ## 0.11.0 — in preparation
 
 The release candidates `v0.11.0-rc.1`, `v0.11.0-rc.2` and `v0.11.0-rc.3` were tagged on 2026-10-06, 2026-10-12 and 2026-10-13; 0.11.0 itself is not released yet.
