@@ -26,7 +26,10 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
     Le démon désigné par `DOCKER_HOST` et chaque hôte de l'URL JDBC sont **réservés** : aucun
     webhook, serveur d'IA, collecteur SIEM ou connexion forge ne peut les viser, quelle que soit la
     politique. Dans un pod Kubernetes, le service d'API du cluster l'est aussi
-    (`KUBERNETES_SERVICE_HOST` et `KUBERNETES_SERVICE_PORT`, donnés à chaque pod). Le
+    (`KUBERNETES_SERVICE_HOST` et `KUBERNETES_SERVICE_PORT`, donnés à chaque pod), ainsi que les
+    ports 6443 et 10250 sur toute adresse — ceux du serveur d'API et des kubelets eux-mêmes, sur des
+    adresses de nœuds qu'aucune variable ne nomme ([Kubernetes](#kubernetes) dit ce qui en revient
+    à la NetworkPolicy). Le
     plan de contrôle **refuse donc de démarrer** s'il ne sait pas lire ces hôtes — un
     `DOCKER_HOST` qui n'est ni `unix://`, ni `npipe://`, ni `tcp://`, `http://` ou `https://`, ou
     une URL JDBC dont les hôtes ne figurent pas dans la chaîne (`jdbc:mysql+srv://`). Les URL à
@@ -290,6 +293,20 @@ de la chart.
   jeton de compte de service ;
 - des sondes sur `/actuator/health/liveness` et `/actuator/health/readiness` ; la disponibilité inclut
   la base.
+
+**Tenez aussi le serveur d'API hors d'atteinte par son adresse.** Les réglages qui envoient des
+requêtes — une connexion forge sur le réseau interne, un webhook, un serveur d'IA — se voient refuser le
+service d'API du cluster et, sur toute adresse, les ports 6443 (le port habituel du serveur d'API) et
+10250 (celui du kubelet). L'adresse du service n'est pas le seul chemin vers le serveur d'API :
+kube-proxy la traduit vers ses points de terminaison réels, des adresses de nœuds ou du plan de contrôle
+du cluster que l'application ne peut pas connaître sans l'accès à l'API qu'elle n'a pas. Un cluster
+managé qui publie son serveur d'API sur 443 ne peut pas être refusé par le port sans refuser toute
+destination HTTPS : celui-là revient à la NetworkPolicy. Avec `networkPolicy.restrictEgress`, la chart
+laisse le plan de contrôle joindre le DNS et ce que liste `networkPolicy.egress` : gardez hors de cette
+liste les adresses des points de terminaison du serveur d'API
+(`kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes`) et la plage des nœuds.
+Sans elle, la sortie est ouverte, et seule l'absence de jeton de compte de service dans le pod garde une
+telle requête anonyme.
 
 ### L'Ingress
 

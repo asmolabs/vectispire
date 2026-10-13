@@ -169,7 +169,9 @@ networkPolicy:
         matchLabels:
           kubernetes.io/metadata.name: ingress-nginx
   # Restricting egress means listing every destination: the database, the forges, the OIDC issuer, the
-  # SIEM collector, the trackers and the threat-intelligence feeds. DNS is added for you.
+  # SIEM collector, the trackers and the threat-intelligence feeds. DNS is added for you. Never the
+  # Kubernetes API server's endpoints or the nodes' range: the application refuses the API service and
+  # ports 6443 and 10250 on any address, and a managed API server on 443 only this list can keep out.
   restrictEgress: false
   egress: []
   #  - to:

@@ -29,6 +29,12 @@ public final class ReservedEndpoints {
     private static final String DATABASE = "the database";
     private static final String KUBERNETES = "the Kubernetes API";
 
+    /** The API server's secure port where the cluster's installer chose the default. */
+    public static final int KUBERNETES_API_SERVER_PORT = 6443;
+
+    /** The kubelet's authenticated API, on every node. */
+    public static final int KUBELET_PORT = 10250;
+
     /**
      * The cluster's API service, from the {@code KUBERNETES_SERVICE_HOST} and {@code KUBERNETES_SERVICE_PORT}
      * every pod is given (even with {@code enableServiceLinks: false}): nothing outside a cluster.
@@ -38,6 +44,15 @@ public final class ReservedEndpoints {
      * have the control plane send it requests carrying a token. The pod mounts no service-account token, so
      * nothing is granted today; the reservation keeps it that way if one is ever mounted. Matched by
      * address, so {@code kubernetes.default.svc} is refused with it.
+     *
+     * <p><b>The service address is not the only way in.</b> kube-proxy translates it to the API server's
+     * real endpoints — a control-plane node's address, on {@code 6443} under kubeadm, k3s and most clusters
+     * one installs — and a URL naming that address directly reached the server the reservation was meant to
+     * keep out of reach; so does a node's kubelet, on {@code 10250}. Neither address is in any variable a
+     * pod is given, and reading the endpoints takes the API access this pod does not have, so both
+     * <em>ports</em> are refused on every host. A managed cluster that publishes its API server on
+     * {@code 443} cannot be refused by port without refusing every HTTPS destination: that one is the
+     * NetworkPolicy's, and the installation guide says so.
      *
      * @throws IllegalArgumentException when the variables are set and cannot be read
      */
@@ -49,7 +64,9 @@ public final class ReservedEndpoints {
         HostPort endpoint = hostPort(host.trim().contains(":") && !host.trim().startsWith("[")
                 ? "[" + host.trim() + "]" : host.trim(), 443, source);
         int servicePort = port == null || port.isBlank() ? endpoint.port() : port(source, port);
-        return List.of(new ReservedEndpoint(endpoint.host(), servicePort, KUBERNETES));
+        return List.of(new ReservedEndpoint(endpoint.host(), servicePort, KUBERNETES),
+                ReservedEndpoint.onEveryHost(KUBERNETES_API_SERVER_PORT, "the Kubernetes API server"),
+                ReservedEndpoint.onEveryHost(KUBELET_PORT, "the kubelet"));
     }
 
     /**

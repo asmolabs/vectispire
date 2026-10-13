@@ -56,6 +56,27 @@ class OutboundGuardWiringTest {
     }
 
     @Test
+    @DisplayName("in a Kubernetes pod, refuses the API server's and the kubelet's ports on any address; outside one, not")
+    void reservesTheApiServerBehindTheService() {
+        // kube-proxy translates the service to the API server's real endpoint, a node address no variable
+        // names: reached directly, the service's reservation was walked around.
+        var inAPod = new OutboundGuardConfiguration().outboundUrlGuard("", "127.0.0.9", "443");
+
+        for (String url : new String[] {"https://10.0.0.5:6443/api", "https://node-1.cluster.example:6443/",
+                "https://10.0.0.7:10250/pods"}) {
+            assertThatThrownBy(() -> inAPod.validate(url, OutboundPolicy.INTERNAL_ALLOWED, "Forge connection"))
+                    .as(url)
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("in a Kubernetes cluster");
+        }
+        inAPod.validate("https://10.0.0.5:8443/", OutboundPolicy.INTERNAL_ALLOWED, "Forge connection");
+
+        var outside = new OutboundGuardConfiguration().outboundUrlGuard("", "", "");
+        outside.validate("https://10.0.0.5:6443/", OutboundPolicy.INTERNAL_ALLOWED, "Forge connection");
+        outside.validate("https://10.0.0.7:10250/", OutboundPolicy.INTERNAL_ALLOWED, "Forge connection");
+    }
+
+    @Test
     @DisplayName("an address whose hosts cannot be read stops the application instead of reserving nothing")
     void anUnreadableAddressIsRefused() {
         assertThatThrownBy(() -> OutboundGuardConfiguration.guard("", "jdbc:mysql+srv://_mysql._tcp.example.com/v"))

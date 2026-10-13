@@ -100,6 +100,22 @@ With `replicaCount: 2`:
 - set `ingress.stickySessions`: single sign-on keeps its state in the servlet session;
 - set `auditMirror.accessMode: ReadWriteMany`.
 
+## The control plane's NetworkPolicy
+
+`networkPolicy.enabled` keeps port 3180 to `networkPolicy.ingressFrom`, the ingress controller.
+`networkPolicy.restrictEgress` also limits what the control plane reaches to DNS and the destinations
+`networkPolicy.egress` lists — the database, the forges, the OIDC issuer, the SIEM collector, the trackers,
+the threat-intelligence feeds.
+
+**Leave the Kubernetes API server out of that list.** The application refuses the cluster's API service
+and, on every address, ports 6443 and 10250 — the API server's usual port and the kubelet's — to every
+setting that sends requests. It cannot refuse what it cannot name: kube-proxy translates the service to
+the API server's real endpoints, node or control-plane addresses, and a managed cluster that publishes them
+on 443 cannot be refused by port. Those addresses
+(`kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes`) and the nodes' range are
+the policy's to keep out. Without `restrictEgress` egress is open; the pod mounts no service-account token,
+so a request that reaches the API server is anonymous.
+
 ## Scan agents
 
 **Outside the cluster (recommended).** The chart deploys nothing for this. Run the agent on a Docker

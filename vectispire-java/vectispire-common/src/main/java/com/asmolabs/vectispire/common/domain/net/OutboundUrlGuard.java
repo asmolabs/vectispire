@@ -75,9 +75,26 @@ public final class OutboundUrlGuard {
      * <p>Read from the Docker host and the datasource URL by {@link ReservedEndpoints}, which refuses
      * what it cannot read rather than reserving nothing.
      *
+     * @param host a name or an address, or {@link #EVERY_HOST} for a port refused whatever the host
      * @param what how the refusal names it to whoever set the URL
      */
-    public record ReservedEndpoint(String host, int port, String what) {}
+    public record ReservedEndpoint(String host, int port, String what) {
+
+        /** The host of a port reserved on every address — never resolved. */
+        public static final String EVERY_HOST = "*";
+
+        /**
+         * A port refused on every host: for a service whose addresses cannot be known from here — the
+         * Kubernetes API server's real endpoints and the kubelets sit on node addresses no variable names.
+         */
+        public static ReservedEndpoint onEveryHost(int port, String what) {
+            return new ReservedEndpoint(EVERY_HOST, port, what);
+        }
+
+        boolean everyHost() {
+            return EVERY_HOST.equals(host);
+        }
+    }
 
     private final HostResolver resolver;
     private final List<ReservedEndpoint> reserved;
@@ -255,11 +272,15 @@ public final class OutboundUrlGuard {
             if (endpoint.port() != port) {
                 continue;
             }
-            boolean sameHost = endpoint.host().equalsIgnoreCase(hostname);
+            boolean sameHost = endpoint.everyHost() || endpoint.host().equalsIgnoreCase(hostname);
             if (!sameHost) {
                 List<byte[]> own = resolver.resolve(endpoint.host());
                 sameHost = addresses.stream().anyMatch(address -> own.stream().anyMatch(o -> Arrays.equals(o, address)
                         || IpAddresses.isLoopback(o) && IpAddresses.isLoopback(address)));
+            }
+            if (sameHost && endpoint.everyHost()) {
+                throw new UnsafeUrlException(label + ": " + hostname + ":" + port + " is refused — in a Kubernetes "
+                        + "cluster, port " + port + " is " + endpoint.what() + "'s, which no setting may send requests to.");
             }
             if (sameHost) {
                 throw new UnsafeUrlException(label + ": " + hostname + ":" + port + " is " + endpoint.what()

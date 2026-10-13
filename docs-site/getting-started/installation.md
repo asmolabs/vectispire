@@ -26,7 +26,9 @@ install needs neither the agent nor any agent configuration.
     The daemon named by `DOCKER_HOST` and every host of the JDBC URL are **reserved**: no
     webhook, AI server, SIEM collector or forge connection may be pointed at them, whatever the
     policy. In a Kubernetes pod, so is the cluster's API service (`KUBERNETES_SERVICE_HOST` and
-    `KUBERNETES_SERVICE_PORT`, which every pod is given). So the
+    `KUBERNETES_SERVICE_PORT`, which every pod is given), and so are ports 6443 and 10250 on every
+    address — the API server's and the kubelets' own, on node addresses no variable names
+    ([Kubernetes](#kubernetes) says what that leaves to the NetworkPolicy). So the
     control plane **refuses to start** when it cannot read those hosts — a `DOCKER_HOST` that is
     not `unix://`, `npipe://`, `tcp://`, `http://` or `https://`, or a JDBC URL whose hosts are
     not in the string (`jdbc:mysql+srv://`). Multi-host and replication URLs, MySQL's
@@ -279,6 +281,18 @@ in the chart's [README](https://github.com/asmolabs/vectispire/blob/main/deploy/
 - the pod: uid 1000, read-only root filesystem, every capability dropped, no service-account token;
 - probes on `/actuator/health/liveness` and `/actuator/health/readiness`; readiness includes the
   database.
+
+**Keep the API server out of reach by address, too.** Settings that send requests — a forge connection
+on the internal network, a webhook, an AI server — are refused the cluster's API service and, on any
+address, ports 6443 (the API server's usual port) and 10250 (the kubelet's). The service address is not
+the only way to the API server: kube-proxy translates it to the server's real endpoints, node or
+control-plane addresses that the application cannot know without the API access it does not have. A
+managed cluster that publishes its API server on 443 cannot be refused by port without refusing every
+HTTPS destination, so that one is the NetworkPolicy's. With `networkPolicy.restrictEgress`, the chart
+lets the control plane reach DNS and what `networkPolicy.egress` lists: keep the API server's endpoint
+addresses (`kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes`) and the nodes'
+range out of that list. Without it, egress is open, and only the pod's lack of a service-account token
+keeps such a request anonymous.
 
 ### The Ingress
 
