@@ -21,6 +21,9 @@
     @if (error()) {
         <p-message severity="error" [text]="error()!"></p-message>
     }
+    @if (targetsError(); as message) {
+        <p-message data-testid="targets-error" severity="warn" [closable]="false">{{ message }}</p-message>
+    }
 
     <!-- KPI Summary Row -->
     @if (summary(); as sum) {
@@ -237,7 +240,9 @@
                     </div>
                 }
             } @else {
-                <span class="text-muted-color">{{ 'licenses.policy_unavailable' | translate }}</span>
+                <span data-testid="policy-unavailable" class="text-muted-color">{{
+                    policyLoadError() ?? ('licenses.policy_unavailable' | translate)
+                }}</span>
             }
         </p-card>
 
@@ -363,53 +368,62 @@
                 <ng-template #title>
                     <div class="flex items-center justify-between">
                         <span>{{ 'licenses.conflicts_title' | translate }} ({{ conflicts().length }})</span>
-                        <p-tag
-                            [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'"
-                            [value]="
-                                blockingConflictsCount() > 0
-                                    ? blockingConflictsCount() +
-                                      ' ' +
-                                      ('licenses.blocking_conflicts' | translate: { count: blockingConflictsCount() })
-                                    : ('licenses.no_blocking_conflict' | translate)
-                            "
-                        />
+                        <!-- No verdict, green or red, over a list that could not be read. -->
+                        @if (conflictsError() === null) {
+                            <p-tag
+                                [severity]="blockingConflictsCount() > 0 ? 'danger' : 'success'"
+                                [value]="
+                                    blockingConflictsCount() > 0
+                                        ? blockingConflictsCount() +
+                                          ' ' +
+                                          ('licenses.blocking_conflicts'
+                                              | translate: { count: blockingConflictsCount() })
+                                        : ('licenses.no_blocking_conflict' | translate)
+                                "
+                            />
+                        }
                     </div>
                 </ng-template>
 
-                <p-table [value]="conflicts()" styleClass="p-datatable-sm" [paginator]="true" [rows]="10">
-                    <ng-template #header>
-                        <tr>
-                            <th>{{ 'licenses.dependency' | translate }}</th>
-                            <th>{{ 'licenses.licence' | translate }}</th>
-                            <th>{{ 'licenses.compatibility' | translate }}</th>
-                            <th>{{ 'licenses.target' | translate }}</th>
-                            <th>{{ 'licenses.legal_explanation' | translate }}</th>
-                            <th>{{ 'licenses.remediation_advice' | translate }}</th>
-                        </tr>
-                    </ng-template>
-                    <ng-template #body let-conflict>
-                        <tr
-                            [class.bg-red-50]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'"
-                            [class.dark:bg-red-950/20]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'"
-                        >
-                            <td class="font-mono text-xs font-bold">
-                                {{ conflict.packageName }}
-                                <span class="text-muted-color font-normal">({{ conflict.packageVersion }})</span>
-                            </td>
-                            <td>
-                                <p-tag
-                                    [value]="conflict.licenseExpression"
-                                    [severity]="riskSeverity(conflict.riskCategory)"
-                                />
-                            </td>
-                            <td>
-                                <p-tag
-                                    [value]="conflict.compatibility"
-                                    [severity]="compatSeverity(conflict.compatibility)"
-                                />
-                            </td>
-                            <td class="text-xs">{{ conflict.targetName }}</td>
-                            <!--
+                @if (conflictsError(); as message) {
+                    <p-message data-testid="conflicts-error" severity="error" [closable]="false" styleClass="w-full">{{
+                        message
+                    }}</p-message>
+                } @else {
+                    <p-table [value]="conflicts()" styleClass="p-datatable-sm" [paginator]="true" [rows]="10">
+                        <ng-template #header>
+                            <tr>
+                                <th>{{ 'licenses.dependency' | translate }}</th>
+                                <th>{{ 'licenses.licence' | translate }}</th>
+                                <th>{{ 'licenses.compatibility' | translate }}</th>
+                                <th>{{ 'licenses.target' | translate }}</th>
+                                <th>{{ 'licenses.legal_explanation' | translate }}</th>
+                                <th>{{ 'licenses.remediation_advice' | translate }}</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-conflict>
+                            <tr
+                                [class.bg-red-50]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'"
+                                [class.dark:bg-red-950/20]="conflict.compatibility === 'INCOMPATIBLE_BLOCKING'"
+                            >
+                                <td class="font-mono text-xs font-bold">
+                                    {{ conflict.packageName }}
+                                    <span class="text-muted-color font-normal">({{ conflict.packageVersion }})</span>
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="conflict.licenseExpression"
+                                        [severity]="riskSeverity(conflict.riskCategory)"
+                                    />
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="conflict.compatibility"
+                                        [severity]="compatSeverity(conflict.compatibility)"
+                                    />
+                                </td>
+                                <td class="text-xs">{{ conflict.targetName }}</td>
+                                <!--
                                 **Two sentences from one token, translated here.** They arrived from
                                 the server as French prose and were printed as they stood, beneath
                                 the two headers directly above — which do go through the bundle. The
@@ -419,77 +433,78 @@
                                 Literal keys under a `@switch`, because `check-i18n-keys` reads only
                                 those: a key built from the token would ship as an unresolved key.
                             -->
-                            <td class="text-xs max-w-xs text-surface-700 dark:text-surface-300">
-                                @switch (conflict.verdict) {
-                                    @case ('FORBIDDEN_LICENCE') {
-                                        {{
-                                            'licenses.verdict_forbidden'
-                                                | translate: { licence: conflict.licenseExpression }
-                                        }}
+                                <td class="text-xs max-w-xs text-surface-700 dark:text-surface-300">
+                                    @switch (conflict.verdict) {
+                                        @case ('FORBIDDEN_LICENCE') {
+                                            {{
+                                                'licenses.verdict_forbidden'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_PROPRIETARY') {
+                                            {{
+                                                'licenses.verdict_strong_copyleft_proprietary'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_RECIPROCAL') {
+                                            {{
+                                                'licenses.verdict_strong_copyleft_reciprocal'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('WEAK_COPYLEFT') {
+                                            {{
+                                                'licenses.verdict_weak_copyleft'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('PERMISSIVE') {
+                                            {{
+                                                'licenses.verdict_permissive'
+                                                    | translate: { licence: conflict.licenseExpression }
+                                            }}
+                                        }
+                                        @case ('UNKNOWN_LICENCE') {
+                                            {{ 'licenses.verdict_unknown' | translate }}
+                                        }
                                     }
-                                    @case ('STRONG_COPYLEFT_PROPRIETARY') {
-                                        {{
-                                            'licenses.verdict_strong_copyleft_proprietary'
-                                                | translate: { licence: conflict.licenseExpression }
-                                        }}
+                                </td>
+                                <td class="text-xs font-medium text-purple-700 dark:text-purple-300 max-w-xs">
+                                    <i class="pi pi-arrow-circle-right text-xs mr-1"></i>
+                                    @switch (conflict.verdict) {
+                                        @case ('FORBIDDEN_LICENCE') {
+                                            {{ 'licenses.advice_forbidden' | translate }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_PROPRIETARY') {
+                                            {{ 'licenses.advice_strong_copyleft_proprietary' | translate }}
+                                        }
+                                        @case ('STRONG_COPYLEFT_RECIPROCAL') {
+                                            {{ 'licenses.advice_strong_copyleft_reciprocal' | translate }}
+                                        }
+                                        @case ('WEAK_COPYLEFT') {
+                                            {{ 'licenses.advice_weak_copyleft' | translate }}
+                                        }
+                                        @case ('PERMISSIVE') {
+                                            {{ 'licenses.advice_permissive' | translate }}
+                                        }
+                                        @case ('UNKNOWN_LICENCE') {
+                                            {{ 'licenses.advice_unknown' | translate }}
+                                        }
                                     }
-                                    @case ('STRONG_COPYLEFT_RECIPROCAL') {
-                                        {{
-                                            'licenses.verdict_strong_copyleft_reciprocal'
-                                                | translate: { licence: conflict.licenseExpression }
-                                        }}
-                                    }
-                                    @case ('WEAK_COPYLEFT') {
-                                        {{
-                                            'licenses.verdict_weak_copyleft'
-                                                | translate: { licence: conflict.licenseExpression }
-                                        }}
-                                    }
-                                    @case ('PERMISSIVE') {
-                                        {{
-                                            'licenses.verdict_permissive'
-                                                | translate: { licence: conflict.licenseExpression }
-                                        }}
-                                    }
-                                    @case ('UNKNOWN_LICENCE') {
-                                        {{ 'licenses.verdict_unknown' | translate }}
-                                    }
-                                }
-                            </td>
-                            <td class="text-xs font-medium text-purple-700 dark:text-purple-300 max-w-xs">
-                                <i class="pi pi-arrow-circle-right text-xs mr-1"></i>
-                                @switch (conflict.verdict) {
-                                    @case ('FORBIDDEN_LICENCE') {
-                                        {{ 'licenses.advice_forbidden' | translate }}
-                                    }
-                                    @case ('STRONG_COPYLEFT_PROPRIETARY') {
-                                        {{ 'licenses.advice_strong_copyleft_proprietary' | translate }}
-                                    }
-                                    @case ('STRONG_COPYLEFT_RECIPROCAL') {
-                                        {{ 'licenses.advice_strong_copyleft_reciprocal' | translate }}
-                                    }
-                                    @case ('WEAK_COPYLEFT') {
-                                        {{ 'licenses.advice_weak_copyleft' | translate }}
-                                    }
-                                    @case ('PERMISSIVE') {
-                                        {{ 'licenses.advice_permissive' | translate }}
-                                    }
-                                    @case ('UNKNOWN_LICENCE') {
-                                        {{ 'licenses.advice_unknown' | translate }}
-                                    }
-                                }
-                            </td>
-                        </tr>
-                    </ng-template>
-                    <ng-template #emptymessage>
-                        <tr>
-                            <td colspan="6" class="text-center text-muted-color py-8">
-                                <i class="pi pi-check-circle text-emerald-500 text-3xl mb-2"></i>
-                                <p class="font-semibold">{{ 'licenses.no_conflict' | translate }}</p>
-                            </td>
-                        </tr>
-                    </ng-template>
-                </p-table>
+                                </td>
+                            </tr>
+                        </ng-template>
+                        <ng-template #emptymessage>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted-color py-8">
+                                    <i class="pi pi-check-circle text-emerald-500 text-3xl mb-2"></i>
+                                    <p class="font-semibold">{{ 'licenses.no_conflict' | translate }}</p>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                }
             </p-card>
         </div>
     }
@@ -532,6 +547,11 @@
                 </div>
             </div>
 
+            @if (matrixError(); as message) {
+                <p-message data-testid="matrix-error" severity="error" [closable]="false" styleClass="w-full">{{
+                    message
+                }}</p-message>
+            }
             <p-table [value]="matrixRules()" styleClass="p-datatable-sm">
                 <ng-template #header>
                     <tr>

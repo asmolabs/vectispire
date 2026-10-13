@@ -1564,7 +1564,10 @@
     "empty_filtered": "No open source licenses match these filters.",
     "analysis_mode": "Legal analysis mode & viral contamination",
     "permissive_group": "Permissive (MIT, Apache 2.0, BSD)",
-    "strong_copyleft_group": "Strong copyleft / Viral (GPL, AGPL, SSPL)"
+    "strong_copyleft_group": "Strong copyleft / Viral (GPL, AGPL, SSPL)",
+    "targets_load_failed": "Could not load the targets to narrow the view to; the page covers every target.",
+    "conflicts_load_failed": "Could not load the licence conflicts.",
+    "matrix_load_failed": "Could not load the compatibility rules."
   },
   "menu": {
     "administration": "Administration",

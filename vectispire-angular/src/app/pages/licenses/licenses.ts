@@ -61,6 +61,13 @@ export class Licenses {
     readonly containers = signal<MonitoredContainer[]>([]);
     readonly loading = signal<boolean>(true);
     readonly error = signal<string | null>(null);
+    /** Why the scope picker offers no target: without it, a failed read looked like an empty estate. */
+    readonly targetsError = signal<string | null>(null);
+    /** Why the policy is not shown — the server's reason, not only "unavailable". */
+    readonly policyLoadError = signal<string | null>(null);
+    /** The conflicts' failure: an empty table here reads as "no conflict", the verdict nobody checked. */
+    readonly conflictsError = signal<string | null>(null);
+    readonly matrixError = signal<string | null>(null);
 
     readonly activeTab = signal<'inventory' | 'conflicts' | 'matrix'>('inventory');
     readonly proprietaryMode = signal<boolean>(true);
@@ -113,13 +120,16 @@ export class Licenses {
     }
 
     loadTargets(): void {
+        this.targetsError.set(null);
         this.targetsApi.repositories().subscribe({
             next: (r) => this.repos.set(r),
-            error: () => {}
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('licenses.targets_load_failed')))
         });
         this.targetsApi.containers().subscribe({
             next: (c) => this.containers.set(c),
-            error: () => {}
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('licenses.targets_load_failed')))
         });
     }
 
@@ -223,12 +233,15 @@ export class Licenses {
 
         this.summaryRequest.run(this.licensesApi.getLicenseSummary(repoId, containerId), {
             next: (s) => this.summary.set(s),
-            error: () => this.error.set(this.i18n.t('licenses.summary_load_failed'))
+            error: (response: unknown) =>
+                this.error.set(messageOf(response, this.i18n.t('licenses.summary_load_failed')))
         });
 
+        this.policyLoadError.set(null);
         this.licensesApi.getLicensePolicy().subscribe({
             next: (p) => this.policy.set(p),
-            error: () => {}
+            error: (response: unknown) =>
+                this.policyLoadError.set(messageOf(response, this.i18n.t('licenses.policy_unavailable')))
         });
 
         this.inventoryRequest.run(this.licensesApi.getLicenseInventory(repoId, containerId), {
@@ -236,8 +249,8 @@ export class Licenses {
                 this.inventory.set(inv);
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('licenses.inventory_load_failed'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('licenses.inventory_load_failed')));
                 this.loading.set(false);
             }
         });
@@ -255,16 +268,23 @@ export class Licenses {
             containerId = Number(target.substring(10));
         }
 
+        this.conflictsError.set(null);
         this.licensesApi.getLicenseConflicts(repoId, containerId, this.proprietaryMode()).subscribe({
             next: (c) => this.conflicts.set(c),
-            error: () => {}
+            error: (response: unknown) => {
+                // The previous scope's conflicts must not stay under this scope's error.
+                this.conflicts.set([]);
+                this.conflictsError.set(messageOf(response, this.i18n.t('licenses.conflicts_load_failed')));
+            }
         });
     }
 
     loadMatrixRules(): void {
+        this.matrixError.set(null);
         this.licensesApi.getLicenseCompatibilityMatrix().subscribe({
             next: (rules) => this.matrixRules.set(rules),
-            error: () => {}
+            error: (response: unknown) =>
+                this.matrixError.set(messageOf(response, this.i18n.t('licenses.matrix_load_failed')))
         });
     }
 

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Licenses } from './licenses';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { useEnglish } from '@/app/core/testing/english';
 
 /**
  * The licence screen, and the three places it decides rather than displays.
@@ -267,5 +268,84 @@ describe('the licence inventory screen', () => {
         // The server requires the security lead; offering the button to anybody else would be
         // offering a door it closes.
         expect(fixture.componentInstance.canEditPolicy()).toBe(false);
+    });
+});
+
+/**
+ * Each read that fails says so where its panel would be, in the server's words (RFC 7807 `detail`).
+ * The targets, the policy, the conflicts and the matrix swallowed their errors: the conflicts tab
+ * then said "no conflict" in green over a list nobody had read.
+ */
+describe('the licence screen when a read fails', () => {
+    let fixture: ComponentFixture<Licenses>;
+    let http: HttpTestingController;
+
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+    const problem = (detail: string) => ({ title: 'Internal Server Error', status: 500, detail });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Licenses],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Licenses);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function fail(url: string, detail: string): void {
+        http.match((call) => call.url === url).forEach((call) => call.flush(problem(detail), failure));
+    }
+
+    function tab(label: string): void {
+        const button = Array.from(page().querySelectorAll('button')).find((b) => b.textContent.includes(label));
+        button!.click();
+    }
+
+    it('shows the summary’s and the policy’s failures in the server’s words', () => {
+        fail('/api/v1/licenses/summary', 'Summary store offline.');
+        fail('/api/v1/licenses/policy', 'Policy table locked.');
+
+        const shown = page();
+        expect(shown.textContent).toContain('Summary store offline.');
+        expect(shown.querySelector('[data-testid="policy-unavailable"]')?.textContent).toContain(
+            'Policy table locked.'
+        );
+    });
+
+    it('says the scope picker has no target because the list failed, not because there is none', () => {
+        fail('/api/v1/repositories', 'Repository list unavailable.');
+
+        expect(page().querySelector('[data-testid="targets-error"]')?.textContent).toContain(
+            'Repository list unavailable.'
+        );
+    });
+
+    it('says the conflicts could not be read, and gives no verdict over them', () => {
+        fail('/api/v1/licenses/conflicts', 'Conflict analysis timed out.');
+        tab('Licence conflicts & copyleft');
+
+        const shown = page();
+        expect(shown.querySelector('[data-testid="conflicts-error"]')?.textContent).toContain(
+            'Conflict analysis timed out.'
+        );
+        expect(shown.textContent).not.toContain('No blocking conflict');
+        expect(shown.textContent).not.toContain('No licence conflict');
+    });
+
+    it('says the compatibility rules could not be read, with its own sentence when the server gives none', () => {
+        tab('Legal compatibility matrix');
+        http.expectOne('/api/v1/licenses/matrix').flush({}, failure);
+
+        expect(page().querySelector('[data-testid="matrix-error"]')?.textContent).toContain(
+            'Could not load the compatibility rules.'
+        );
     });
 });
