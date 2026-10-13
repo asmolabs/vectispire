@@ -14,7 +14,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository } from '../../core/api.models';
-import { SeverityLabelPipe } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 
 @Component({
     selector: 'app-attack-paths',
@@ -166,19 +166,8 @@ export class AttackPaths implements OnInit {
         }
     }
 
-    getSeverityBadge(sev: string): 'danger' | 'warn' | 'info' | 'success' | 'secondary' {
-        switch (sev?.toUpperCase()) {
-            case 'CRITICAL':
-                return 'danger';
-            case 'HIGH':
-                return 'warn';
-            case 'MEDIUM':
-                return 'info';
-            case 'LOW':
-                return 'success';
-            default:
-                return 'secondary';
-        }
+    getSeverityBadge(sev: string): SeverityTone {
+        return severityTone(sev);
     }
 
     getRiskScoreColor(score: number): string {

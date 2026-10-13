@@ -37,6 +37,39 @@ export function severityLabel(i18n: Pick<I18nService, 't'>, severity: string | n
     return key ? i18n.t(key) : severity;
 }
 
+/** The tag colours a severity can take. */
+export type SeverityTone = 'danger' | 'warn' | 'info' | 'secondary';
+
+/**
+ * A severity's colour, **one scale for every screen**.
+ *
+ * Eight screens each had their own: `high` was red on the backlog, the issue, the scan, the history
+ * and the solutions, orange on the dashboard, the exceptions and the attack paths; `low` was blue,
+ * grey or — on the attack paths — green, the colour of good news. A reader moving from the
+ * dashboard to the backlog saw the same finding change colour.
+ *
+ * <p><b>Why `high` is orange and not red, though red was the more common choice.</b> The dashboard
+ * is where the colours are introduced, in a legend — the backlog tiles and the time-to-resolve
+ * panel paint critical red, high amber, medium blue — and that legend only reads if each level has
+ * its own colour. Red for both made a critical and a high finding look alike on the backlog, where
+ * telling them apart is the triage order. Four levels, four colours; `low` and below grey, never
+ * green: a low finding is still a finding.
+ */
+export const SEVERITY_TONES = {
+    critical: 'danger',
+    high: 'warn',
+    medium: 'info',
+    low: 'secondary',
+    negligible: 'secondary',
+    unknown: 'secondary'
+} as const satisfies Record<Severity, SeverityTone>;
+
+/** A severity's colour, read in lower case like {@link severityLabel}; one the client does not know is grey. */
+export function severityTone(severity: string | null | undefined): SeverityTone {
+    const key = (severity ?? '').toLowerCase();
+    return Object.hasOwn(SEVERITY_TONES, key) ? SEVERITY_TONES[key as Severity] : 'secondary';
+}
+
 @Pipe({
     name: 'severityLabel',
     // Impure like `translate`: the text changes when the language does.

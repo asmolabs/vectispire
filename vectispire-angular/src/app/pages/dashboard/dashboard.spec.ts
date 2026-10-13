@@ -389,6 +389,28 @@ describe('the failing targets table', () => {
         }
     });
 
+    // The legend the other screens' colours are read against: medium was grey here and blue in the
+    // time-to-resolve panel beside it, high orange here and red on the backlog it links to.
+    it('paints each severity tile in the colour every screen gives that severity', () => {
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+
+        const tiles = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('a[href*="unsettled=true"]')
+        ).map((link) => ({
+            severity: new URLSearchParams(link.getAttribute('href')!.split('?')[1]).get('severity'),
+            tone: Array.from(link.parentElement!.querySelector('.p-tag')!.classList).find((c) =>
+                /^p-tag-(danger|warn|info|secondary|success)$/.test(c)
+            )
+        }));
+        expect(tiles).toEqual([
+            { severity: 'critical', tone: 'p-tag-danger' },
+            { severity: 'high', tone: 'p-tag-warn' },
+            { severity: 'medium', tone: 'p-tag-info' },
+            { severity: 'low', tone: 'p-tag-secondary' }
+        ]);
+    });
+
     // A scan's count is of issues; the scan it links to lists occurrences, and under one word the two
     // read as a figure the page contradicts.
     it("heads the recent scans' count as issues, not findings", () => {

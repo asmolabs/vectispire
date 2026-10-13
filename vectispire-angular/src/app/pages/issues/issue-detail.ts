@@ -16,15 +16,6 @@ import { triageStatusLabel } from '../../shared/triage-status';
 import type { IssueDetail } from '../../core/api.models';
 import { findingTypeLabel } from '../../shared/finding-types';
 
-const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
-    critical: 'danger',
-    high: 'danger',
-    medium: 'warn',
-    low: 'secondary',
-    negligible: 'secondary',
-    unknown: 'secondary'
-};
-
 /**
  * One issue, with what a row in the backlog cannot carry.
  *
@@ -36,7 +27,7 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
  * release we shipped" and "why is this dismissed".
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { SeverityLabelPipe } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 import { IssueStatePipe } from '@/app/shared/scan-status';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
@@ -97,8 +88,8 @@ export class IssueDetailPage {
         });
     }
 
-    severityOf(severity: string | null): 'danger' | 'warn' | 'secondary' {
-        return SEVERITY_SEVERITY[severity ?? 'unknown'] ?? 'secondary';
+    severityOf(severity: string | null): SeverityTone {
+        return severityTone(severity);
     }
 
     triageLabel(status: string | null): string {

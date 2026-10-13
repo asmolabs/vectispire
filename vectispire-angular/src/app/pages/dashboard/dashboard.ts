@@ -24,15 +24,17 @@ import { RiskPointsPipe } from '../../shared/risk-points';
 import { gradeSeverity } from '../../shared/scorecard';
 import { DATED_MARKER } from '../../shared/dated-marker';
 import { LatestRequest } from '../../core/latest-request';
+import { SEVERITY_TONES } from '../../shared/severity';
 
-/** The severities in descending order, with their colour. A fixed order, not derived from the
- *  data: otherwise two successive loads could present them differently. The label key is spelt
- *  out rather than built from `key`, so the i18n check reads it (decision 0019). */
+/** The severities in descending order, with their colour from the one scale every screen uses. A
+ *  fixed order, not derived from the data: otherwise two successive loads could present them
+ *  differently. The label key is spelt out rather than built from `key`, so the i18n check reads it
+ *  (decision 0019). */
 const SEVERITY_TILES = [
-    { key: 'critical', labelKey: 'severities.critical', severity: 'danger' as const },
-    { key: 'high', labelKey: 'severities.high', severity: 'warn' as const },
-    { key: 'medium', labelKey: 'severities.medium', severity: 'secondary' as const },
-    { key: 'low', labelKey: 'severities.low', severity: 'secondary' as const }
+    { key: 'critical', labelKey: 'severities.critical', severity: SEVERITY_TONES.critical },
+    { key: 'high', labelKey: 'severities.high', severity: SEVERITY_TONES.high },
+    { key: 'medium', labelKey: 'severities.medium', severity: SEVERITY_TONES.medium },
+    { key: 'low', labelKey: 'severities.low', severity: SEVERITY_TONES.low }
 ];
 
 /**

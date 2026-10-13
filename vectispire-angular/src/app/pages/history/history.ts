@@ -14,15 +14,6 @@ import { saveDocument, saveJson } from '../../core/download';
 import { LatestRequest } from '../../core/latest-request';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
 
-const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
-    critical: 'danger',
-    high: 'danger',
-    medium: 'warn',
-    low: 'secondary',
-    negligible: 'secondary',
-    unknown: 'secondary'
-};
-
 /**
  * Severity as a rank, in the order the issues screen already uses.
  *
@@ -59,7 +50,7 @@ type RankedIssue = HistoryIssue & { severityRank: number };
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LocalNumberPipe } from '../../core/i18n/local-number.pipe';
-import { SeverityLabelPipe } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 import { IssueStatePipe, ScanStatusPipe } from '@/app/shared/scan-status';
 
 @Component({
@@ -145,8 +136,8 @@ export class History {
         });
     }
 
-    severityOf(severity: string | null): 'danger' | 'warn' | 'secondary' {
-        return SEVERITY_SEVERITY[severity ?? 'unknown'] ?? 'secondary';
+    severityOf(severity: string | null): SeverityTone {
+        return severityTone(severity);
     }
 
     triageLabel(status: string | null): string {

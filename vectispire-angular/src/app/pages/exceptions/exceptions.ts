@@ -12,7 +12,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/core/api.models';
-import { SeverityLabelPipe } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 import { triageStatusLabel } from '@/app/shared/triage-status';
 
 /** The decisions that are an exemption in force once granted. */
@@ -214,16 +214,7 @@ export class Exceptions {
         });
     }
 
-    severityOf(entry: ExceptionEntry): 'danger' | 'warn' | 'info' | 'secondary' {
-        switch ((entry.severity ?? '').toLowerCase()) {
-            case 'critical':
-                return 'danger';
-            case 'high':
-                return 'warn';
-            case 'medium':
-                return 'info';
-            default:
-                return 'secondary';
-        }
+    severityOf(entry: ExceptionEntry): SeverityTone {
+        return severityTone(entry.severity);
     }
 }

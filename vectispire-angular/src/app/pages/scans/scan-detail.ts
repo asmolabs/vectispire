@@ -18,17 +18,8 @@ import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
 import { findingTypeLabel, findingTypeOptions, isToolProvenance } from '../../shared/finding-types';
 import type { FindingTypeOption } from '../../shared/finding-types';
 
-const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
-    critical: 'danger',
-    high: 'danger',
-    medium: 'warn',
-    low: 'secondary',
-    negligible: 'secondary',
-    unknown: 'secondary'
-};
-
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { SeverityLabelPipe } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
@@ -134,8 +125,8 @@ export class ScanDetailPage {
         };
     }
 
-    severityOf(severity: string): 'danger' | 'warn' | 'secondary' {
-        return SEVERITY_SEVERITY[severity] ?? 'secondary';
+    severityOf(severity: string): SeverityTone {
+        return severityTone(severity);
     }
 
     downloadSbom(id: number): void {

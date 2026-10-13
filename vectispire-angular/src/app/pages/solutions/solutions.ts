@@ -31,6 +31,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
 import { DetectedLanguages } from '../../shared/detected-languages';
+import { SEVERITY_TONES, type SeverityTone } from '../../shared/severity';
 
 /** How a plugin's declared languages meet a project's detected ones. */
 interface PluginFit {
@@ -154,17 +155,15 @@ export class Solutions {
      * The severities, worst first, with their label. Literal keys, so the i18n check sees each one
      * and a severity cannot ship as a raw key.
      */
-    readonly severities = computed<
-        { field: Severity; label: string; colour: 'danger' | 'warn' | 'info' | 'secondary' }[]
-    >(() => {
+    readonly severities = computed<{ field: Severity; label: string; colour: SeverityTone }[]>(() => {
         this.i18n.translations();
         return [
-            { field: 'critical', label: this.i18n.t('severities.critical'), colour: 'danger' },
-            { field: 'high', label: this.i18n.t('severities.high'), colour: 'danger' },
-            { field: 'medium', label: this.i18n.t('severities.medium'), colour: 'warn' },
-            { field: 'low', label: this.i18n.t('severities.low'), colour: 'info' },
-            { field: 'negligible', label: this.i18n.t('severities.negligible'), colour: 'secondary' },
-            { field: 'unknown', label: this.i18n.t('severities.unknown'), colour: 'secondary' }
+            { field: 'critical', label: this.i18n.t('severities.critical'), colour: SEVERITY_TONES.critical },
+            { field: 'high', label: this.i18n.t('severities.high'), colour: SEVERITY_TONES.high },
+            { field: 'medium', label: this.i18n.t('severities.medium'), colour: SEVERITY_TONES.medium },
+            { field: 'low', label: this.i18n.t('severities.low'), colour: SEVERITY_TONES.low },
+            { field: 'negligible', label: this.i18n.t('severities.negligible'), colour: SEVERITY_TONES.negligible },
+            { field: 'unknown', label: this.i18n.t('severities.unknown'), colour: SEVERITY_TONES.unknown }
         ];
     });
 

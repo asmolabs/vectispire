@@ -81,7 +81,7 @@ function reviewDaysLeft(expiresAt: string | null | undefined, now: number = Date
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
-import { SeverityLabelPipe } from '@/app/shared/severity';
+import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
 
 @Component({
     selector: 'zs-issues',
@@ -683,11 +683,8 @@ export class Issues {
         return findingTypeLabel(this.i18n, type);
     }
 
-    severityColour(severity: string | null): 'danger' | 'warn' | 'info' | 'secondary' {
-        if (severity === 'critical' || severity === 'high') return 'danger';
-        if (severity === 'medium') return 'warn';
-        if (severity === 'low') return 'info';
-        return 'secondary';
+    severityColour(severity: string | null): SeverityTone {
+        return severityTone(severity);
     }
 
     /**

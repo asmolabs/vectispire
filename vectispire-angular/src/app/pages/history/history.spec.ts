@@ -110,6 +110,14 @@ describe('the history screen', () => {
         expect(fixture.nativeElement.textContent).toContain('Arm Libs Spring');
     });
 
+    // Red here, orange on the dashboard: the same high finding changed colour between two screens.
+    it('paints a high finding in the colour every screen gives it', () => {
+        load();
+        const tag = (fixture.nativeElement as HTMLElement).querySelector('tbody p-tag .p-tag, tbody .p-tag');
+        expect(tag?.textContent).toContain('High');
+        expect(tag?.classList.contains('p-tag-warn')).toBe(true);
+    });
+
     // The dossier opened by itself answered after the one the reader clicked, and replaced it: the
     // card, and the exports that follow it, then described a target nobody had chosen.
     it("shows the dossier clicked last when the previous one's answer comes last", () => {
