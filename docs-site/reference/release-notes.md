@@ -878,6 +878,9 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **The tracker token's expiry and refusal dates, and the forge screens' dates, are written dd/MM/yyyy** like
+  every other date, instead of year first (`2026-09-29`): the Settings screen's tracker card, and the forge
+  connection, discovery, selection and import screens.
 - **The gate's verdict register no longer fails on a verdict that names no target.** One such row — restored
   or written by hand, since the application never records one — made the whole register and section 09 of
   the evidence bundle answer 500; it is now listed with no target, to whole-estate readers only. The register

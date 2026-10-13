@@ -959,6 +959,9 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Les dates d'expiration et de refus du jeton du tracker, et celles des écrans des forges, s'écrivent
+  jj/mm/aaaa** comme toutes les autres, au lieu de commencer par l'année (`2026-09-29`) : la carte du tracker
+  dans les Paramètres, et les écrans de connexion, de découverte, de sélection et d'import des forges.
 - **Le registre des verdicts de la barrière ne tombe plus sur un verdict qui ne nomme aucune cible.** Une
   seule ligne de ce genre — restaurée ou écrite à la main, l'application n'en enregistre jamais — faisait
   répondre 500 au registre entier et à la section 09 du paquet de preuves ; elle est désormais listée sans
