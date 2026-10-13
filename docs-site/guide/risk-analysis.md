@@ -116,8 +116,8 @@ the window, the scope and the selected week, so a link reproduces the view.
 *Security* → *OWASP Top 10:2021*, a repository picked, **Run the analysis** asks the configured model ([Settings](../administration/settings.md#ai-review))
 for one repository's posture report against the Top 10:2021, from its latest scan. **The model is sent the
 repository's open findings, never its source**: type, category, severity, identifier, component, location,
-triage and description, three hundred at most, the rest stated as left out — and the repository's OWASP
-grid. The report records the model, the scan it was built from and what it was sent; it is prose a model
+triage and description, three hundred at most — those in the KEV catalogue first, then by severity, critical
+first — the rest stated as left out, and the repository's OWASP grid. The report records the model, the scan it was built from and what it was sent; it is prose a model
 wrote, not evidence, and nothing it says becomes an issue or reaches a gate.
 
 - **The categories are Vectispire's, not the model's.** Each finding goes with the category the grid

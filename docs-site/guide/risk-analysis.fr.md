@@ -129,8 +129,8 @@ porte la fenêtre, le périmètre et la semaine sélectionnée : un lien reprodu
 *Sécurité* → *OWASP Top 10:2021*, un dépôt choisi, **Lancer l'analyse IA** demande au modèle configuré ([Réglages](../administration/settings.md#revue-par-ia))
 le rapport de posture d'un dépôt au regard du Top 10:2021, à partir de son dernier scan. **Le modèle reçoit
 les constats ouverts du dépôt, jamais son code source** : type, catégorie, sévérité, identifiant,
-composant, emplacement, triage et description, trois cents au plus, le reste annoncé comme laissé de
-côté — et la grille OWASP du dépôt. Le rapport enregistre le modèle, le scan dont il est tiré et ce qui
+composant, emplacement, triage et description, trois cents au plus — ceux du catalogue KEV d'abord, puis par
+sévérité, critique en tête — le reste annoncé comme laissé de côté, et la grille OWASP du dépôt. Le rapport enregistre le modèle, le scan dont il est tiré et ce qui
 lui a été envoyé ; c'est une prose écrite par un modèle, pas une preuve, et rien de ce qu'il dit ne
 devient un ticket ni n'atteint une barrière.
 

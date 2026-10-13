@@ -133,6 +133,55 @@ class OwaspReportTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("samples by risk: a known exploit and a critical survive a flood of an alphabetically earlier type")
+        void theSampleKeepsTheWorst() {
+            long scanId = seedScan("1.17.6");
+            // Three hundred low code findings fill the sample on their own; `sast` sorts before
+            // `vulnerability`, so a cut in the read order (type first) kept every one of them and
+            // dropped both vulnerabilities below.
+            List<IssueEntity> flood = new java.util.ArrayList<>();
+            for (int i = 0; i < 300; i++) {
+                flood.add(issue(scanId, FindingType.SAST, "rule.low-" + i, Severity.LOW, false));
+            }
+            issues.saveAll(flood);
+            issues.save(issue(scanId, FindingType.VULNERABILITY, "CVE-2026-9001", Severity.CRITICAL, false));
+            issues.save(issue(scanId, FindingType.VULNERABILITY, "CVE-2026-9002", Severity.MEDIUM, true));
+            Mockito.when(models.reviewCode(Mockito.anyString(), Mockito.anyString())).thenReturn("## A06");
+
+            service.run(repository);
+
+            ArgumentCaptor<String> captured = ArgumentCaptor.forClass(String.class);
+            Mockito.verify(models).reviewCode(captured.capture(), Mockito.anyString());
+            String digest = captured.getValue();
+            assertThat(digest).contains("NOTE: 300 of 302 findings are listed below.");
+            int kev = digest.indexOf("| medium | CVE-2026-9002");
+            int critical = digest.indexOf("| critical | CVE-2026-9001");
+            assertThat(kev).as("the known exploit is in the sample").isPositive();
+            assertThat(critical).as("the critical is in the sample").isPositive();
+            assertThat(kev).as("a known exploit before severity").isLessThan(critical);
+            assertThat(critical).as("the critical before the low findings").isLessThan(digest.indexOf("rule.low-"));
+            // Two low findings are left out, and a tie between them is broken the same way every time.
+            assertThat(digest).contains("rule.low-0 ").doesNotContain("rule.low-98 ").doesNotContain("rule.low-99 ");
+        }
+
+        private IssueEntity issue(long scanId, FindingType type, String identifier, Severity severity, boolean kev) {
+            IssueEntity issue = new IssueEntity();
+            issue.setRepoId(repository.id());
+            issue.setFingerprint("fp-" + identifier);
+            issue.setType(type.wireName());
+            issue.setIdentifier(identifier);
+            issue.setSeverity(severity.wireName());
+            issue.setIsKev(kev);
+            issue.setState(IssueState.OPEN.wireName());
+            issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
+            issue.setFirstSeenAt(NOW);
+            issue.setLastSeenAt(NOW);
+            issue.setLastSeenScanId(scanId);
+            issue.setTimesSeen(1);
+            return issue;
+        }
+
+        @Test
         @DisplayName("sends the backlog as data and stores what the model answered")
         void theReportIsStored() {
             long scanId = seedScan("1.17.6");

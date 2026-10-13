@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -19,6 +20,7 @@ import com.asmolabs.vectispire.core.targets.RepositoryView;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,22 @@ public class OwaspReviewService {
      * sample and says so.
      */
     private static final int MAX_EVIDENCE = 300;
+
+    /**
+     * The order the sample is cut in: known exploitation first, then severity worst first, then the
+     * order the backlog is read in — type, identifier, id — so a report built twice reads the same.
+     *
+     * <p><b>The cut used to follow the read order alone</b>, which is alphabetical by type: a backlog
+     * of three hundred low {@code license} or {@code sast} findings left every {@code vulnerability}
+     * out of the sample, a critical one in the catalogue of known exploits included, and the report
+     * described the estate without them. {@link Severity#of} ranks a label nobody anticipated last.
+     */
+    static final Comparator<IssueView> BY_RISK = Comparator.comparing(IssueView::isKev)
+            .reversed()
+            .thenComparing(issue -> Severity.of(issue.severity()))
+            .thenComparing(IssueView::type, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(IssueView::identifier, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(IssueView::id, Comparator.nullsLast(Comparator.naturalOrder()));
 
     /**
      * How long past the model's own timeout a running review is still waited for.
@@ -212,7 +230,8 @@ public class OwaspReviewService {
     /** The first transaction: what the model will be shown, recorded as a review under way. */
     private AiReviewResultEntity request(RepositoryView repository, ScanView scan, Duration timeout) {
         List<IssueView> open = issues.ofRepositoryInState(repository.id(), IssueState.OPEN.wireName());
-        List<OwaspReview.Evidence> evidence = open.stream().map(OwaspReviewService::evidenceOf).toList();
+        List<OwaspReview.Evidence> evidence =
+                open.stream().sorted(BY_RISK).map(OwaspReviewService::evidenceOf).toList();
         String digest = OwaspReview.digest(
                 new OwaspReview.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
