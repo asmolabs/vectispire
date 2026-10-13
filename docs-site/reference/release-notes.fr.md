@@ -54,6 +54,14 @@
   ou `VECTISPIRE_AGENT_HEARTBEAT` sort de sa plage** (1s–5m, 1s–5m, 5s–10m), en nommant la variable et la
   valeur retenue à sa place. Un nombre nu comme `30` se lit en millisecondes et est relevé au plancher. Le
   comportement est inchangé ; seul le silence disparaît.
+- **Un panneau qui ne peut pas se charger le dit désormais, avec la raison donnée par le serveur**, au lieu
+  de rester vide — le tableau de bord, la comparaison de SBOM, les agents, l'attestation, l'historique, le
+  journal d'audit et la conformité.
+- **Les listes de dépôts et d'images se rafraîchissent en arrière-plan pendant un scan**, sans clignoter et
+  sans effacer une erreur ; elles sont paginées par 20, et la page en cours est conservée d'un
+  rafraîchissement à l'autre.
+- **Sur l'écran des politiques de gate, une dérogation dont la cible n'a plus de nom affiche son type dans
+  la langue du lecteur** (« Dépôt n° 12 »).
 
 ## 0.11.0 — en préparation
 

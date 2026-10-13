@@ -52,6 +52,12 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   `VECTISPIRE_AGENT_HEARTBEAT` is outside its range** (1s–5m, 1s–5m, 5s–10m), naming the variable and the
   value it uses instead. A bare number such as `30` is read as milliseconds and raised to the floor. The
   behaviour is unchanged; only the silence is gone.
+- **When a panel cannot load, it now says so and shows the server's reason**, instead of staying empty —
+  the dashboard, SBOM comparison, agents, attestation, history, audit log and compliance.
+- **The repository and image lists refresh in the background while a scan runs**, without flashing and
+  without erasing an error; they are paged by 20, and the current page is kept across refreshes.
+- **On the gate policies screen, an override whose target has no name shows its kind in the reader's
+  language** ("Repository #12").
 
 ## 0.11.0 — in preparation
 
