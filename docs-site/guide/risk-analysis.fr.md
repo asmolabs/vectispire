@@ -132,7 +132,9 @@ les constats ouverts du dépôt, jamais son code source** : type, catégorie, s�
 composant, emplacement, triage et description, trois cents au plus — ceux du catalogue KEV d'abord, puis par
 sévérité, critique en tête — le reste annoncé comme laissé de côté, et la grille OWASP du dépôt. Le rapport enregistre le modèle, le scan dont il est tiré et ce qui
 lui a été envoyé ; c'est une prose écrite par un modèle, pas une preuve, et rien de ce qu'il dit ne
-devient un ticket ni n'atteint une barrière.
+devient un ticket ni n'atteint une barrière. Un rapport encore en cours de rédaction — une autre demande
+attend le modèle — le dit, et la page le relit toutes les cinq secondes jusqu'à ce que le modèle ait
+répondu.
 
 - **Les catégories sont celles de Vectispire, pas celles du modèle.** Chaque constat part avec la
   catégorie où la grille ci-dessus le place — contrôles d'infrastructure en A05, dépendances vulnérables

@@ -31,6 +31,7 @@ import type { MonitoredRepository, OwaspBlock, OwaspReport } from '../../core/ap
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { OwaspGridComponent } from '@/app/shared/owasp-grid';
 import { LatestRequest } from '@/app/core/latest-request';
+import { pollWhile } from '@/app/core/poll-while';
 import { messageOf } from '@/app/core/api-error';
 import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
 import { OwaspScope, readScope, sameScope, scopeParams } from '@/app/shared/owasp-scope';
@@ -143,10 +144,32 @@ export class Owasp {
     readonly running = signal(false);
     readonly error = signal<string | null>(null);
 
+    /**
+     * A report recorded while another request still waits for the model. It used to stay "being
+     * written" until the reader reloaded the page, although the model had long answered.
+     */
+    private readonly reportRunning = computed(() => this.report()?.status === 'running');
+
     constructor() {
         this.targetsApi.repositories().subscribe({
             next: (rows) => this.repositories.set(rows),
             error: () => this.error.set(this.i18n.t('owasp.repositories_load_failed'))
+        });
+        pollWhile(this.reportRunning, () => this.refreshRunning());
+    }
+
+    /**
+     * Reads the running report again, keeping it on screen meanwhile: clearing it as a fresh load
+     * does would flash the card away every five seconds. In the same slot as a load, so choosing
+     * another repository drops a refresh in flight rather than letting it land under the new one.
+     */
+    private refreshRunning(): void {
+        const id = this.reportRepository();
+        if (id === null || !this.reportRunning()) return;
+        this.reportRequest.run(this.owaspApi.owaspReport(id), {
+            next: (report) => this.show(report, id),
+            // A failed tick is retried by the next one; the report shown is still the last one read.
+            error: () => undefined
         });
     }
 
@@ -200,6 +223,8 @@ export class Owasp {
         }
         this.running.set(true);
         this.error.set(null);
+        // A refresh of the running report still in flight would land after this run's answer.
+        this.reportRequest.cancel();
 
         this.owaspApi.runOwaspReport(id).subscribe({
             next: (report) => {

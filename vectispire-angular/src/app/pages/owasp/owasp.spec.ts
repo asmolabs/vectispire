@@ -5,7 +5,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Owasp } from './owasp';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
@@ -142,6 +142,52 @@ describe('the OWASP report screen', () => {
 
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('Another request is waiting for the model');
+    });
+
+    it('a review being written is read again until the model has answered, then no more', () => {
+        // It stayed "being written" until the reader reloaded the page.
+        TestBed.inject(I18nService).translations.set({
+            owasp: { running_notice: 'Another request is waiting for the model to write this report.' }
+        });
+        vi.useFakeTimers();
+        try {
+            const review = (status: string, blocks: unknown[]) =>
+                asSchema('Report', {
+                    id: 4,
+                    status,
+                    model: 'gemma4:e4b',
+                    content: null,
+                    blocks,
+                    error: null,
+                    scanId: 34,
+                    createdAt: '2026-08-21T07:40:01Z'
+                });
+            const page = (): string => (fixture.nativeElement as HTMLElement).textContent;
+
+            fixture.componentInstance.selected = 5;
+            fixture.componentInstance.loadLatest();
+            http.expectOne({ method: 'GET', url: '/api/v1/repositories/5/owasp-review' }).flush(review('running', []));
+            fixture.detectChanges();
+            expect(page()).toContain('Another request is waiting for the model');
+
+            vi.advanceTimersByTime(5000);
+            const refresh = http.expectOne({ method: 'GET', url: '/api/v1/repositories/5/owasp-review' });
+            fixture.detectChanges();
+            // Kept on screen while it is read again: no card flashing away every five seconds.
+            expect(page()).toContain('Another request is waiting for the model');
+
+            refresh.flush(
+                review('completed', [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'Written at last.' }])
+            );
+            fixture.detectChanges();
+            expect(page()).toContain('Written at last.');
+            expect(page()).not.toContain('Another request is waiting for the model');
+
+            vi.advanceTimersByTime(30_000);
+            http.expectNone({ method: 'GET', url: '/api/v1/repositories/5/owasp-review' });
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('offers the PDF only for a report that exists', () => {

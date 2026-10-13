@@ -118,7 +118,9 @@ for one repository's posture report against the Top 10:2021, from its latest sca
 repository's open findings, never its source**: type, category, severity, identifier, component, location,
 triage and description, three hundred at most — those in the KEV catalogue first, then by severity, critical
 first — the rest stated as left out, and the repository's OWASP grid. The report records the model, the scan it was built from and what it was sent; it is prose a model
-wrote, not evidence, and nothing it says becomes an issue or reaches a gate.
+wrote, not evidence, and nothing it says becomes an issue or reaches a gate. A report still being written —
+another request waiting for the model — says so, and the page reads it again every five seconds until the
+model has answered.
 
 - **The categories are Vectispire's, not the model's.** Each finding goes with the category the grid
   above places it in — infrastructure checks in A05, vulnerable dependencies and components past their
