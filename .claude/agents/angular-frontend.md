@@ -105,6 +105,11 @@ wrote the browser's month-first format, a hard-coded `'fr-BE'` a two-digit year,
 English month names to a French reader, since the pipe's locale is en-US. A percentage goes through
 `I18nService.percent` or the `localPercent` pipe — "50%" in English, "50 %" with a no-break space in
 French — never a `%` glued in a template. `check-i18n-keys.mjs` refuses both classes.
+A date-only value (`format: date`) goes through the pipe or `formatDate` **with no timezone**: Angular reads
+`'2026-09-15'` as local midnight, and `'UTC'` shows it a day early east of Greenwich — a mutation CI's UTC
+clock cannot catch. And a date put into a sentence as a parameter is formatted first: the tracker card, the
+forge screens, the dashboard's formula note and the weekly OWASP view all printed `2026-09-28` that way until
+2026-10-13; the check now refuses a pattern not ordered day, month, year, but cannot see a date with none.
 
 **A finding type has one list: `shared/finding-types.ts`.** Three screens spelt it, none alike — the
 scan detail built `issues.types.${type}`, the issue detail translated `sast` alone — so a new type
