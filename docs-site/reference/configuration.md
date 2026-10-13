@@ -246,9 +246,9 @@ client of the daemon reads back with `docker inspect`.
 |---|---|
 | `VECTISPIRE_URL` | The control plane the agent polls. |
 | `VECTISPIRE_AGENT_TOKEN` | An API key with the `agent` scope, shown once at creation. |
-| `VECTISPIRE_AGENT_WAIT` | How long one poll waits for work, `30s` by default; the server holds the request, so a queued scan leaves within the second. |
-| `VECTISPIRE_AGENT_RETRY` | How long the agent waits before polling again after a failed poll, `10s`. |
-| `VECTISPIRE_AGENT_HEARTBEAT` | How often a running scan's lease is renewed, `60s` — well under the lease, so one missed beat does not expire a scan that is progressing. |
+| `VECTISPIRE_AGENT_WAIT` | How long one poll waits for work, `30s` by default; the server holds the request, so a queued scan leaves within the second. Between `1s` and `5m`. |
+| `VECTISPIRE_AGENT_RETRY` | How long the agent waits before polling again after a failed poll, `10s`. Between `1s` and `5m`. |
+| `VECTISPIRE_AGENT_HEARTBEAT` | How often a running scan's lease is renewed, `60s` — well under the lease, so one missed beat does not expire a scan that is progressing. Between `5s` and `10m`. A value outside its range is replaced by the bound it crossed, and the agent says so at start in a warning naming the property and the value it uses — a bare number is read as milliseconds, so `30` is `30ms` and becomes `1s`; write the unit. |
 | `VECTISPIRE_IMAGE_SYFT` … `VECTISPIRE_IMAGE_SEMGREP` | The scanner images on this agent, as for the control plane [above](#scanners). An agent on a closed network is where they usually point at an internal registry. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | The internal registry plugin images are pulled from on this agent — host relocated, path and digest kept. Blank pulls each from its own registry, which an agent on a closed network cannot reach: the plugin is then absent from the scan and its issues stay as they were. |

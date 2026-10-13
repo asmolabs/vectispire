@@ -252,9 +252,9 @@ composition et le chart Helm — plutôt que comme des variables, que tout clien
 |---|---|
 | `VECTISPIRE_URL` | Le plan de contrôle que l'agent interroge. |
 | `VECTISPIRE_AGENT_TOKEN` | Une clé d'API avec la portée `agent`, affichée une seule fois à la création. |
-| `VECTISPIRE_AGENT_WAIT` | Combien de temps une interrogation attend du travail, `30s` par défaut ; le serveur tient la requête, si bien qu'une analyse en file part dans la seconde. |
-| `VECTISPIRE_AGENT_RETRY` | Combien de temps l'agent attend avant d'interroger de nouveau après un échec, `10s`. |
-| `VECTISPIRE_AGENT_HEARTBEAT` | La fréquence à laquelle le bail d'une analyse en cours est renouvelé, `60s` — bien en deçà du bail, pour qu'un battement manqué n'expire pas une analyse qui progresse. |
+| `VECTISPIRE_AGENT_WAIT` | Combien de temps une interrogation attend du travail, `30s` par défaut ; le serveur tient la requête, si bien qu'une analyse en file part dans la seconde. Entre `1s` et `5m`. |
+| `VECTISPIRE_AGENT_RETRY` | Combien de temps l'agent attend avant d'interroger de nouveau après un échec, `10s`. Entre `1s` et `5m`. |
+| `VECTISPIRE_AGENT_HEARTBEAT` | La fréquence à laquelle le bail d'une analyse en cours est renouvelé, `60s` — bien en deçà du bail, pour qu'un battement manqué n'expire pas une analyse qui progresse. Entre `5s` et `10m`. Une valeur hors de sa plage est remplacée par la borne qu'elle franchit, et l'agent le dit au démarrage dans un avertissement qui nomme la propriété et la valeur retenue — un nombre nu se lit en millisecondes, si bien que `30` vaut `30ms` et devient `1s` ; écrivez l'unité. |
 | `VECTISPIRE_IMAGE_SYFT` … `VECTISPIRE_IMAGE_SEMGREP` | Les images des scanners sur cet agent, comme pour le plan de contrôle [plus haut](#scanners). Un agent sur un réseau fermé est là où elles pointent d'ordinaire vers un registre interne. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | Le registre interne depuis lequel cet agent tire les images de plugins — hôte relogé, chemin et digest conservés. Vide, chacune est tirée de son propre registre, qu'un agent sur réseau fermé ne peut pas atteindre : le plugin est alors absent du scan et ses issues restent telles quelles. |
