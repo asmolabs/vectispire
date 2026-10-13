@@ -28,6 +28,8 @@ import org.mockito.ArgumentCaptor;
 class AgentProtocolTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final java.time.Clock CLOCK =
+            java.time.Clock.fixed(java.time.Instant.parse("2026-10-13T12:00:00Z"), java.time.ZoneOffset.UTC);
     private static final String PRIVATE_KEY = "test-agent-mock-private-key-material";
 
     private final SealedEnvelope envelopes = new SealedEnvelope();
@@ -39,7 +41,7 @@ class AgentProtocolTest {
     @BeforeEach
     void wire() {
         http = mock(AgentHttp.class);
-        protocol = new AgentProtocol(http, JSON, keyPair);
+        protocol = new AgentProtocol(http, JSON, keyPair, CLOCK);
     }
 
     @Test
@@ -143,7 +145,7 @@ class AgentProtocolTest {
     @Test
     @DisplayName("a clear key passes through for an agent that announced no sealing key")
     void aClearKeyIsNotTouchedWithoutSealing() throws Exception {
-        AgentProtocol unsealed = new AgentProtocol(http, JSON, null);
+        AgentProtocol unsealed = new AgentProtocol(http, JSON, null, CLOCK);
         answers(200, JSON.writeValueAsString(assignedWith(PRIVATE_KEY)));
 
         ScanTask task = unsealed.claim(Duration.ofSeconds(1)).task().orElseThrow().task();
@@ -276,7 +278,7 @@ class AgentProtocolTest {
     @DisplayName("a report is signed with the pinned key, over the bytes sent, as a failure and not as a result")
     void aFailureReportIsSigned() throws Exception {
         var signing = com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.generate();
-        AgentProtocol signed = new AgentProtocol(http, JSON, keyPair, signing.privateKey());
+        AgentProtocol signed = new AgentProtocol(http, JSON, keyPair, signing.privateKey(), CLOCK);
         reportAnswers(200, "{\"retried\":true}");
 
         signed.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "clone refused", PERMANENT);
