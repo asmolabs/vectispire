@@ -1289,7 +1289,8 @@
     "version_placeholder": "2.14.1",
     "search_failed": "The search could not be run.",
     "tab_diff": "SBOM Drift & Diff Viewer",
-    "diff_components_title": "Components found ({{count}})"
+    "diff_components_title": "Components found ({{count}})",
+    "targets_failed": "Could not load the targets to compare."
   },
   "issues": {
     "weekly": {

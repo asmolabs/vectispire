@@ -20,6 +20,7 @@ import type {
 } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-inventory',
@@ -84,6 +85,8 @@ export class Inventory {
     readonly diffReport = signal<SbomDiffReport | null>(null);
     readonly diffLoading = signal(false);
     readonly diffError = signal<string | null>(null);
+    /** Why the target picker is empty: a failed list otherwise read as an estate with nothing to compare. */
+    readonly targetsError = signal<string | null>(null);
 
     /** The comparable targets, repositories and images together: the question is not asked otherwise. */
     readonly targets = signal<{ label: string; value: string }[]>([]);
@@ -101,7 +104,8 @@ export class Inventory {
                         value: `repo:${repository.id}`
                     }))
                 ),
-            error: () => {}
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('inventory.targets_failed')))
         });
         this.targetsApi.containers().subscribe({
             next: (containers: MonitoredContainer[]) =>
@@ -111,7 +115,8 @@ export class Inventory {
                         value: `container:${container.id}`
                     }))
                 ),
-            error: () => {}
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('inventory.targets_failed')))
         });
     }
 
@@ -133,9 +138,9 @@ export class Inventory {
                 this.searched.set(true);
                 this.loading.set(false);
             },
-            error: () => {
+            error: (response: unknown) => {
                 this.loading.set(false);
-                this.error.set(this.i18n.t('inventory.search_failed'));
+                this.error.set(messageOf(response, this.i18n.t('inventory.search_failed')));
             }
         });
     }
@@ -178,9 +183,9 @@ export class Inventory {
                         this.diffError.set(this.i18n.t('inventory.diff_needs_two_scans'));
                     }
                 },
-                error: () => {
+                error: (response: unknown) => {
                     this.scansLoading.set(false);
-                    this.diffError.set(this.i18n.t('inventory.diff_failed'));
+                    this.diffError.set(messageOf(response, this.i18n.t('inventory.diff_failed')));
                 }
             }
         );
@@ -222,8 +227,8 @@ export class Inventory {
                 this.diffReport.set(report);
                 this.diffLoading.set(false);
             },
-            error: () => {
-                this.diffError.set(this.i18n.t('inventory.diff_failed'));
+            error: (response: unknown) => {
+                this.diffError.set(messageOf(response, this.i18n.t('inventory.diff_failed')));
                 this.diffLoading.set(false);
             }
         });
