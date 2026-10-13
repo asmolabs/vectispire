@@ -1,12 +1,15 @@
 package com.asmolabs.vectispire.core.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
 import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReportLinks;
@@ -20,6 +23,7 @@ import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 /**
@@ -43,6 +47,7 @@ public class OwaspReportService {
     private final IssueCatalog issues;
     private final AuditLogService audit;
     private final BrandingProperties branding;
+    private final OwaspCoverageService coverage;
     private final Clock clock;
 
     public OwaspReportService(
@@ -53,6 +58,7 @@ public class OwaspReportService {
             IssueCatalog issues,
             AuditLogService audit,
             BrandingProperties branding,
+            OwaspCoverageService coverage,
             Clock clock) {
         this.reviews = reviews;
         this.links = links;
@@ -61,6 +67,7 @@ public class OwaspReportService {
         this.issues = issues;
         this.audit = audit;
         this.branding = branding;
+        this.coverage = coverage;
         this.clock = clock;
     }
 
@@ -98,15 +105,24 @@ public class OwaspReportService {
     }
 
     /**
-     * The last report as a PDF.
+     * The last report as a PDF, in the requester's language, with the repository's coverage grid.
      *
      * <p><b>A failed run has no PDF.</b> Rendering "the model could not be reached" onto a cover
      * page with an OWASP title would produce an artefact that looks like a report and says
      * nothing — and unlike the screen, a file gets forwarded away from the context that explains
      * it. Refused with {@link OwaspReviewService.ReviewRefusedException}, 409 rather than 404: the
      * report exists, it just is not a document.
+     *
+     * <p><b>The grid is the repository's as the rules read it now</b>, through the same visibility as the
+     * screen's grid narrowed to this repository — not the states the model was handed with the scan, which
+     * the report's body already reflects. The page says which it is.
+     *
+     * @param language the requester's, by its code as the AI explanations take it ({@link AdviceLanguage#parse}):
+     *     English when none is given, refused when it is not one the interface is read in. Only the
+     *     document's own words follow it — the model's text is printed as written
      */
-    public byte[] pdf(long repositoryId, Visibility allowed) {
+    public byte[] pdf(long repositoryId, Visibility allowed, String language) {
+        AdviceLanguage asked = AdviceLanguage.parse(language);
         RepositoryView repository = visible(repositoryId, allowed);
         AiReviewResultEntity row =
                 reviews.latest(repositoryId).orElseThrow(() -> new NotFoundException(NO_REPORT));
@@ -122,6 +138,7 @@ public class OwaspReportService {
         }
 
         ScanView scan = scans.scan(result.scanId()).orElse(null);
+        OwaspCoverage.Grid grid = coverage.grid(Visibility.only(Set.of(new ScanTarget.Repository(repositoryId))));
         return OwaspReportPdf.render(
                 new OwaspReportPdf.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
@@ -134,7 +151,9 @@ public class OwaspReportService {
                         issues.countByStateAndRepository(IssueState.OPEN.wireName(), repositoryId),
                         branding.name(),
                         OwaspReview.placedByRule(result.inputs())),
-                result.response());
+                result.response(),
+                grid,
+                asked);
     }
 
     /** The review with the backlog's figures and the cited issues, as {@code allowed} sees them now. */

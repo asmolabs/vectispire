@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.compliance.internal;
 
+import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
 import com.asmolabs.vectispire.core.reporting.ReportCursor;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
@@ -31,6 +33,13 @@ import org.apache.pdfbox.pdmodel.PDDocument;
  * it, from which scan, on which version, has a security report with no way to judge its age or
  * its author — and the caveat that a model wrote it is the first thing an auditor needs, not a
  * detail at the bottom.
+ *
+ * <h2>The reader's language, and the grid beside the prose</h2>
+ *
+ * <p>The document was English whoever asked for it, and carried the model's prose alone. Its own words
+ * now follow the requester's language ({@link OwaspReportWords}); the model's text is printed as written.
+ * And it carries the coverage grid the screen shows above the report: the prose is commentary, the grid is
+ * what the rules say, and a file forwarded without the second asks its reader to trust the first.
  */
 public final class OwaspReportPdf {
 
@@ -92,15 +101,21 @@ public final class OwaspReportPdf {
         }
     }
 
-    public static byte[] render(Subject subject, String markdown) {
+    /**
+     * @param coverage the repository's coverage grid as the rules read it now — the screen's grid, beside
+     *     the model's prose, so a forwarded document carries the evidence and not only the commentary
+     * @param language the requester's: the document's own words are written in it, the model's text is not
+     */
+    public static byte[] render(Subject subject, String markdown, OwaspCoverage.Grid coverage, AdviceLanguage language) {
         try (PDDocument document = new PDDocument();
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
 
             ReportCursor cursor = new ReportCursor(document);
-            cover(cursor, subject);
-            body(cursor, markdown);
+            cover(cursor, subject, language);
+            grid(cursor, coverage, language);
+            body(cursor, markdown, language);
             String brand = subject.brandName() == null || subject.brandName().isBlank() ? "Vectispire" : subject.brandName();
-            cursor.close(brand + " — OWASP Top 10:2021 report — " + subject.targetName());
+            cursor.close(OwaspReportWords.FOOTER.in(language, brand, subject.targetName()));
 
             document.save(bytes);
             return bytes.toByteArray();
@@ -109,8 +124,8 @@ public final class OwaspReportPdf {
         }
     }
 
-    private static void cover(ReportCursor cursor, Subject subject) {
-        cursor.text("OWASP Top 10:2021 — posture report", ReportCursor.HELVETICA_BOLD_16, INK);
+    private static void cover(ReportCursor cursor, Subject subject, AdviceLanguage language) {
+        cursor.text(OwaspReportWords.TITLE.in(language), ReportCursor.HELVETICA_BOLD_16, INK);
         cursor.rule(ACCENT);
         cursor.gap();
 
@@ -119,44 +134,74 @@ public final class OwaspReportPdf {
                 subject.branch()
                         + (subject.projectVersion() == null || subject.projectVersion().isBlank()
                                 ? ""
-                                : "  ·  version " + subject.projectVersion()),
+                                : "  ·  " + OwaspReportWords.VERSION.in(language, subject.projectVersion())),
                 ReportCursor.HELVETICA_10,
                 MUTED);
         cursor.gap();
 
         cursor.band(ReportCursor.LINE * 4.4f, BAND);
-        cursor.text("Open findings at the time of writing: " + subject.openIssues(), ReportCursor.HELVETICA_10, INK);
+        cursor.text(OwaspReportWords.OPEN_FINDINGS.in(language, subject.openIssues()), ReportCursor.HELVETICA_10, INK);
         cursor.text(
-                "Built from scan #" + subject.scanId()
-                        + (subject.scanAt() == null ? "" : " of " + STAMP.format(subject.scanAt())),
+                OwaspReportWords.BUILT_FROM.in(language, subject.scanId())
+                        + (subject.scanAt() == null ? "" : OwaspReportWords.SCANNED_AT.in(language, STAMP.format(subject.scanAt()))),
                 ReportCursor.HELVETICA_10,
                 INK);
-        cursor.text("Written by " + subject.model(), ReportCursor.HELVETICA_10, INK);
-        cursor.text("Generated " + STAMP.format(subject.generatedAt()), ReportCursor.HELVETICA_10, INK);
+        cursor.text(OwaspReportWords.WRITTEN_BY.in(language, subject.model()), ReportCursor.HELVETICA_10, INK);
+        cursor.text(OwaspReportWords.GENERATED.in(language, STAMP.format(subject.generatedAt())), ReportCursor.HELVETICA_10, INK);
         cursor.gap();
         cursor.gap();
 
         // **The caveat before the content, and in the document rather than beside it.** This page
         // outlives the screen that carried the warning. A reader who takes model prose for
         // scanner output will act on a sentence nobody verified.
-        cursor.text("How to read this", ReportCursor.HELVETICA_BOLD_10, INK);
+        cursor.text(OwaspReportWords.HOW_TO_READ.in(language), ReportCursor.HELVETICA_BOLD_10, INK);
         // **"No finding" is not one sentence.** This page used to say a category with no finding meant no
         // scanner here looked for it, which the OWASP grid contradicts: a category can be examined and come
         // back clean. Neither reading is a clean bill of health, and the page now says both.
         cursor.paragraph(
-                "Every fact below comes from an automated scanner. "
+                OwaspReportWords.READ_FACTS.in(language)
                         + (subject.placedByRule()
-                                ? "Each finding sits under the OWASP category Vectispire's own rules place it in — "
-                                        + "the same placement as the OWASP coverage grid — and a finding they place "
-                                        + "nowhere is listed apart. A language model grouped them and wrote the prose; "
-                                : "A language model grouped those findings under the OWASP categories and wrote the "
-                                        + "prose; ")
-                        + "it detected nothing itself, and nothing it says becomes an issue or reaches a build gate. "
-                        + "A category with no finding is not a clean bill of health: either no scanner here can "
-                        + "examine it, or none is set to, or one examined the part it can see and found nothing "
-                        + "open. The OWASP coverage grid says which.",
+                                ? OwaspReportWords.READ_PLACED_BY_RULE.in(language)
+                                : OwaspReportWords.READ_PLACED_BY_MODEL.in(language))
+                        + OwaspReportWords.READ_CAVEAT.in(language),
                 ReportCursor.HELVETICA_9,
                 0);
+        // **The labels follow the reader; the model's text does not.** Translating it would be putting
+        // words in the model's mouth, so a reader whose labels are not English is told the prose below is
+        // as the model wrote it — in whatever language that was, which nothing recorded.
+        if (language != AdviceLanguage.ENGLISH) {
+            cursor.gap();
+            cursor.paragraph(OwaspReportWords.BODY_AS_WRITTEN.in(language), ReportCursor.HELVETICA_9, 0);
+        }
+        cursor.gap();
+        cursor.rule(MUTED);
+        cursor.gap();
+    }
+
+    /**
+     * The ten categories by rule, before the model's prose: what the scanners here can say of each, and
+     * why, in the reader's language. The model was handed these states; printing them lets a reader check
+     * its "Not evidenced" section against the evidence instead of taking it on trust.
+     */
+    private static void grid(ReportCursor cursor, OwaspCoverage.Grid coverage, AdviceLanguage language) {
+        cursor.text(OwaspReportWords.GRID_TITLE.in(language), ReportCursor.HELVETICA_BOLD_12, INK);
+        cursor.rule(MUTED);
+        cursor.paragraph(OwaspReportWords.GRID_INTRO.in(language), ReportCursor.HELVETICA_9, 0);
+        cursor.paragraph(
+                OwaspReportWords.GRID_FIGURES.in(language, coverage.covered(), coverage.withFindings(), coverage.unmeasured()),
+                ReportCursor.HELVETICA_9,
+                0);
+        cursor.gap();
+        for (OwaspCoverage.CoverageLine line : coverage.lines()) {
+            cursor.tableRow2(
+                    line.id() + "  " + line.title(),
+                    OwaspReportWords.state(line, language) + " — " + OwaspReportWords.reason(line, language),
+                    160,
+                    ReportCursor.HELVETICA_BOLD_9,
+                    ReportCursor.HELVETICA_9,
+                    INK,
+                    INK);
+        }
         cursor.gap();
         cursor.rule(MUTED);
         cursor.gap();
@@ -167,10 +212,10 @@ public final class OwaspReportPdf {
      * same report, and the first version read the Markdown twice in two languages — two answers
      * to "what is a heading", drifting on the first construct one of them learned to handle.
      */
-    private static void body(ReportCursor cursor, String markdown) {
+    private static void body(ReportCursor cursor, String markdown, AdviceLanguage language) {
         List<OwaspMarkdown.Block> blocks = OwaspMarkdown.parse(markdown);
         if (blocks.isEmpty()) {
-            cursor.paragraph("The model returned an empty report.", ReportCursor.HELVETICA_10, 0);
+            cursor.paragraph(OwaspReportWords.EMPTY_REPORT.in(language), ReportCursor.HELVETICA_10, 0);
             return;
         }
 

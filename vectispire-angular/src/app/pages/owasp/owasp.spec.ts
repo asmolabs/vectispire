@@ -236,8 +236,32 @@ describe('the OWASP report screen', () => {
         // The defect this pins: `window.location.href` is not a request the interceptor sees, so
         // the session token never travels, the server answers 401 and the browser writes the
         // empty error body to disk as a zero-byte file.
-        const request = http.expectOne('/api/v1/repositories/5/owasp-review/export.pdf');
+        const request = http.expectOne('/api/v1/repositories/5/owasp-review/export.pdf?language=en');
         expect(request.request.responseType).toBe('blob');
+        request.flush(new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
+    });
+
+    /**
+     * The document was English whoever asked for it. The screen now sends the language it is shown in,
+     * and the server writes the document's own words — the grid's reasons included — in it.
+     */
+    it("asks for the PDF in the reader's language", () => {
+        runProducing({
+            id: 6,
+            status: 'completed',
+            model: 'm',
+            content: 'x',
+            blocks: [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'x' }],
+            error: null,
+            scanId: 34,
+            createdAt: '2026-08-21T07:57:53Z'
+        });
+        TestBed.inject(I18nService).currentLang.set('fr');
+
+        fixture.componentInstance.downloadPdf();
+
+        const request = http.expectOne((call) => call.url === '/api/v1/repositories/5/owasp-review/export.pdf');
+        expect(request.request.params.get('language')).toBe('fr');
         request.flush(new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
     });
 

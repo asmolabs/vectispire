@@ -327,7 +327,7 @@ class OwaspReportTest extends ApiTestBase {
             // Refused, and refused as "not yet" rather than as the last run's failure: an empty
             // response rendered onto an OWASP cover page would be a document that says nothing.
             assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> reports.pdf(
-                            repository.id(), com.asmolabs.vectispire.common.domain.access.Visibility.everything())))
+                            repository.id(), com.asmolabs.vectispire.common.domain.access.Visibility.everything(), null)))
                     .isInstanceOf(OwaspReviewService.ReviewRefusedException.class)
                     .hasMessageContaining("still being written");
         }
@@ -430,6 +430,61 @@ class OwaspReportTest extends ApiTestBase {
         // The assertion that a 0-byte download would have caught: bytes, and a PDF's own header.
         assertThat(pdf).isNotEmpty();
         assertThat(new String(pdf, 0, 5, java.nio.charset.StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+    }
+
+    /**
+     * The document follows the language the screen sends, by the AI explanations' {@code language}, and
+     * carries the repository's grid: the ten categories, each with its state. Without the parameter it is
+     * English, as it always was, and a language the interface is not read in is refused in words.
+     */
+    @Test
+    @DisplayName("the PDF export follows the requested language, carries the ten categories, and is English by default")
+    void theExportFollowsTheLanguage() throws Exception {
+        long scanId = seedScan("1.17.6");
+        AiReviewResultEntity stored = new AiReviewResultEntity();
+        stored.setScanId(scanId);
+        stored.setRepoId(repository.id());
+        stored.setModel("gemma4:e4b");
+        stored.setPrompt("p");
+        stored.setResponse("## A03 — Injection\n\nA finding worth reporting.");
+        stored.setStatus("completed");
+        stored.setCreatedAt(NOW);
+        results.save(stored);
+        String route = "/api/v1/repositories/" + repository.id() + "/owasp-review/export.pdf";
+
+        String french = pdfText(route + "?language=fr");
+        assertThat(french).contains("rapport de posture", "Comment le lire", "Couverture de l'OWASP Top 10:2021, par règle",
+                "Aucun scanner de ce déploiement ne produit de constat dans cette catégorie.",
+                "A finding worth reporting.");
+        for (var category : com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage.CATEGORIES.entrySet()) {
+            assertThat(french).as(category.getKey()).contains(category.getKey() + " " + category.getValue());
+        }
+        assertThat(french).doesNotContain("How to read this");
+
+        String english = pdfText(route);
+        assertThat(english).contains("posture report", "How to read this", "OWASP Top 10:2021 coverage, by rule",
+                "No scanner in this deployment produces a finding in this category.");
+        assertThat(english).doesNotContain("Comment le lire");
+
+        String refused = detailOf(mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(route + "?language=de"),
+                        asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andReturn());
+        assertThat(refused).isEqualTo("language must be one of en, fr.");
+    }
+
+    /** The PDF a route answers, as its text with line breaks collapsed. */
+    private String pdfText(String route) throws Exception {
+        byte[] pdf = mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(route), asAdmin()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+        try (var document = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            return new org.apache.pdfbox.text.PDFTextStripper().getText(document).replaceAll("\\s+", " ");
+        }
     }
 
     @Test

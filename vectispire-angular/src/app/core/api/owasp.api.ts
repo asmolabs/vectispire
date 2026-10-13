@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
     ControlDeclaration,
@@ -10,6 +10,7 @@ import {
     OwaspWeeklyCoverage,
     OwaspWeeklyQuery
 } from '../api.models';
+import { SupportedLanguage } from '../i18n/i18n.service';
 
 /**
  * OWASP: the fleet-wide coverage grid and its declarations, and one repository's review.
@@ -26,6 +27,21 @@ export class OwaspApi {
 
     owaspReport(repositoryId: number): Observable<OwaspReport> {
         return this.http.get<OwaspReport>(`/api/v1/repositories/${repositoryId}/owasp-review`);
+    }
+
+    /**
+     * The last report as a PDF, with the repository's coverage grid. `language` is the one the screen is
+     * shown in: the document's own words — the grid's reasons included — follow it, the model's text is
+     * printed as written. Without it the server writes English.
+     *
+     * Through `HttpClient`, never a navigation: the token travels only on requests the interceptor sees.
+     */
+    owaspReportPdf(repositoryId: number, language: SupportedLanguage): Observable<HttpResponse<Blob>> {
+        return this.http.get(`/api/v1/repositories/${repositoryId}/owasp-review/export.pdf`, {
+            params: new HttpParams().set('language', language),
+            responseType: 'blob',
+            observe: 'response'
+        });
     }
 
     runOwaspReport(repositoryId: number): Observable<OwaspReport> {

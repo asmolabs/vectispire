@@ -3279,6 +3279,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * OWASP report as a PDF
+         * @description The repository's last completed OWASP report as a PDF: its provenance, the coverage grid of the ten categories as the rules read the repository now — each category's state and why — and the model's text as written. language (en or fr, English by default) is the language of the document's own words, the grid's included; the model's text is not translated, and a document not in English says so. Another language answers 400. 404 for a repository the caller does not see or one never reviewed; 409 while the report is being written or when the last run failed.
+         */
         get: operations["pdf_1"];
         put?: never;
         post?: never;
@@ -13848,7 +13852,9 @@ export interface operations {
     };
     pdf_1: {
         parameters: {
-            query?: never;
+            query?: {
+                language?: string;
+            };
             header?: never;
             path: {
                 id: number;
@@ -13857,7 +13863,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description PDF returned */
             200: {
                 headers: {
                     [name: string]: unknown;
