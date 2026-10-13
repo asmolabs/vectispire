@@ -436,7 +436,7 @@
 >
     @if (sarifVisible() && sarifRepo(); as repo) {
         <app-report-imports [repositoryId]="repo.id" />
-        <h3 class="sarif-imports-title">{{ 'repositories.sarif_imports_title' | translate }}</h3>
+        <h3 class="text-base font-semibold mt-6 mb-2">{{ 'repositories.sarif_imports_title' | translate }}</h3>
         <app-sarif-imports [repositoryId]="repo.id" />
     }
 </p-dialog>

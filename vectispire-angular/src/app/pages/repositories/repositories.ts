@@ -126,16 +126,7 @@ const CLI_SIGNER = `https://github.com/asmolabs/vectispire/.github/workflows/rel
         ReportImports
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
-    templateUrl: './repositories.html',
-    // Sized here and not by utilities, which the template's unlayered global `h3` overrides — see
-    // `report-imports.ts`, the component this title sits under in the same dialog.
-    styles: `
-        .sarif-imports-title {
-            margin: 1.5rem 0 0.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-    `
+    templateUrl: './repositories.html'
 })
 export class Repositories {
     private readonly i18n = inject(I18nService);
