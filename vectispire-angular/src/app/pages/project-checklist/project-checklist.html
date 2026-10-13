@@ -1149,7 +1149,7 @@
                                     @if (historyOpen(line)) {
                                         <div class="mt-3 text-sm" [attr.data-testid]="'history-' + line.position">
                                             @if (histories()[line.itemId]; as history) {
-                                                <h5 class="font-semibold mt-0 mb-1">
+                                                <h5 class="text-sm font-semibold mt-0 mb-1">
                                                     {{ 'project_checklist.history_answers' | translate }}
                                                 </h5>
                                                 @if (history.answers.length === 0 && history.evidence.length === 0) {
@@ -1213,7 +1213,7 @@
                                                     }
                                                 </ol>
                                                 @if (history.evidence.length > 0) {
-                                                    <h5 class="font-semibold mt-2 mb-1">
+                                                    <h5 class="text-sm font-semibold mt-2 mb-1">
                                                         {{ 'project_checklist.history_evidence' | translate }}
                                                     </h5>
                                                     <ol class="m-0 pl-5">
