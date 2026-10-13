@@ -252,7 +252,7 @@ class IssueTriageServiceTest {
     @DisplayName("the same refusal on a bulk decision that would grant one of its requests as something else")
     void aBulkApprovalCannotGrantAnotherStatus() {
         IssueEntity asked = pendingRequestFor(TriageStatus.FIXED);
-        when(issues.findById(1L)).thenReturn(Optional.of(asked));
+        when(issues.findAllById(List.of(1L))).thenReturn(List.of(asked));
 
         assertThatThrownBy(() -> service.triageAll(List.of(1L), new Triage.Request(
                         TriageStatus.WILL_NOT_FIX, "carol_champion", null, null, Period.ofDays(30)), true))

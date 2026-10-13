@@ -162,13 +162,11 @@ public class IssueDecisionService {
 
         String actor = caller.actor();
         boolean canApprove = canApprove(caller);
-        List<String> previous = new java.util.ArrayList<>(ids.size());
-        for (Long id : ids) {
-            previous.add(String.valueOf(
-                    RowVisibility.requireVisibleIssue(issues.findById(id).orElse(null), IssueEntity::target, caller.visibility()).getTriageStatus()));
-        }
-
-        List<IssueEntity> triaged = triage.triageAll(ids, decision.toRequest(actor), canApprove);
+        // Checked, read and written in one statement and one transaction — see `triageVisible`.
+        IssueTriageService.BulkTriage bulk =
+                triage.triageVisible(ids, decision.toRequest(actor), canApprove, caller.visibility());
+        List<String> previous = bulk.previous();
+        List<IssueEntity> triaged = bulk.triaged();
 
         // **One entry for the action, not one per issue.** The audit log is never purged, and a
         // single dismissal of six hundred issues would bury every other entry around it. What is
