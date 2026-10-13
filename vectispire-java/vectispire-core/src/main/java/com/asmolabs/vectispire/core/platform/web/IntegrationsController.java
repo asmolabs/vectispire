@@ -22,6 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
  * The integrations' registry (decision 0040): read by every account, switched by the platform governor.
  * In {@code platform} because the registry is the foundation's ({@code settings}), and a foundation module
  * keeps no controller — its routes need {@code access}'s markers, and {@code access} uses the foundation.
+ *
+ * <p>Both operations name their id. Left to springdoc, {@code list} and {@code setEnabled} collide with
+ * routes of other modules and take a numbered suffix in the order the paths are walked: the first build of
+ * this controller took {@code list_21} and moved the audit log's and the gate policies' published ids one
+ * place along, breaking every client generated from {@code openapi.json} with no route of theirs changed
+ * (decision 0043, §1). {@code PublishedOperationIdsTest} fails on that.
  */
 @Tag(name = "Integrations", description = "The outside systems this installation may talk to, switched on and off")
 @RestController
@@ -37,7 +43,8 @@ public class IntegrationsController {
     /** @param enabled whether the installation may talk to the integration — required */
     public record IntegrationEnabled(Boolean enabled) {}
 
-    @Operation(summary = "List integrations", description = "Every integration this version knows — forge kinds, "
+    @Operation(operationId = "listIntegrations", summary = "List integrations", description =
+            "Every integration this version knows — forge kinds, "
             + "SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any "
             + "account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor "
             + "has switched it; updatedBy is null too for a reader who does not read governance.")
@@ -47,7 +54,8 @@ public class IntegrationsController {
         return integrations.list(principal.requireUser());
     }
 
-    @Operation(summary = "Enable or disable integration", description = "Platform governor only. 404 for a key no "
+    @Operation(operationId = "setIntegrationEnabled", summary = "Enable or disable integration",
+            description = "Platform governor only. 404 for a key no "
             + "integration has; 400 without enabled. The same state again changes and records nothing. Audited "
             + "INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration "
             + "uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it "

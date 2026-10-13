@@ -25,6 +25,8 @@ Vectispire peut parler.
   plateforme : 404 pour une clé inconnue, 400 sans `enabled`, et le même état redemandé ne change ni
   n'enregistre rien
   ([référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
+  Leurs identifiants d'opération dans `openapi.json` sont `listIntegrations` et `setIntegrationEnabled` ;
+  chaque identifiant que publient 0.11.0 et 0.11.1 garde son nom.
 - **Deux causes de 409**, chacune nommant la clé dans le membre `integration` :
   `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée, et
   `urn:vectispire:problem:integration-in-use` sur la bascule du gouverneur, pour le transport SIEM par
@@ -37,9 +39,6 @@ Vectispire peut parler.
 - **Une nouvelle opération d'audit, `INTEGRATION_ENABLED_CHANGED`**, envoyée au SIEM comme
   `VECTI-SEC-019`, le changement de paramètre de sécurité
   ([catalogue des événements SIEM](../integrations/siem.fr.md#catalogue-des-evenements)).
-- **Des identifiants d'opération générés ont bougé.** `list_21` est désormais la liste des intégrations ;
-  celle du journal d'audit est `list_23` et celle des politiques de barrière `list_22`. Un client généré
-  depuis `openapi.json` qui les appelle par leur nom est à régénérer.
 
 ### Nouveautés {#nouveautes-0120}
 

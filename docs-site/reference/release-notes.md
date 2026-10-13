@@ -22,6 +22,8 @@ under which the platform governor switches each outside system Vectispire may ta
   `PUT /api/v1/integrations/{key}/enabled` with `{"enabled": true|false}` is the platform governor's
   alone: 404 for an unknown key, 400 without `enabled`, and the same state again changes and records
   nothing ([REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
+  Their operation ids in `openapi.json` are `listIntegrations` and `setIntegrationEnabled`; every id
+  0.11.0 and 0.11.1 publish keeps its name.
 - **Two 409 causes**, each naming the key in the member `integration`:
   `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration, and
   `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
@@ -33,9 +35,6 @@ under which the platform governor switches each outside system Vectispire may ta
   know.
 - **A new audit operation, `INTEGRATION_ENABLED_CHANGED`**, sent to the SIEM as `VECTI-SEC-019`, the
   security setting change ([SIEM event catalogue](../integrations/siem.md#event-catalogue)).
-- **Generated operation ids moved.** `list_21` is now the integrations' list; the audit log's list is
-  `list_23` and the gate policies' `list_22`. A client generated from `openapi.json` that calls these by
-  name is regenerated.
 
 ### New {#new-0120}
 

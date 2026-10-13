@@ -427,7 +427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_23"];
+        get: operations["list_22"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1711,7 +1711,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_22"];
+        get: operations["list_21"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1883,7 +1883,7 @@ export interface paths {
          * List integrations
          * @description Every integration this version knows — forge kinds, SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor has switched it; updatedBy is null too for a reader who does not read governance.
          */
-        get: operations["list_21"];
+        get: operations["listIntegrations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1904,7 +1904,7 @@ export interface paths {
          * Enable or disable integration
          * @description Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it in the member integration, nothing changed and nothing recorded: change that configuration first. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.
          */
-        put: operations["setEnabled_3"];
+        put: operations["setIntegrationEnabled"];
         post?: never;
         delete?: never;
         options?: never;
@@ -10048,7 +10048,7 @@ export interface operations {
             };
         };
     };
-    list_23: {
+    list_22: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -11831,7 +11831,7 @@ export interface operations {
             };
         };
     };
-    list_22: {
+    list_21: {
         parameters: {
             query?: never;
             header?: never;
@@ -12103,7 +12103,7 @@ export interface operations {
             };
         };
     };
-    list_21: {
+    listIntegrations: {
         parameters: {
             query?: never;
             header?: never;
@@ -12123,7 +12123,7 @@ export interface operations {
             };
         };
     };
-    setEnabled_3: {
+    setIntegrationEnabled: {
         parameters: {
             query?: never;
             header?: never;

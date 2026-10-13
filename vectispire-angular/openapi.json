@@ -13049,7 +13049,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_23",
+        "operationId" : "list_22",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -15508,7 +15508,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_22",
+        "operationId" : "list_21",
         "responses" : {
           "200" : {
             "content" : {
@@ -15865,7 +15865,7 @@
     "/api/v1/integrations" : {
       "get" : {
         "description" : "Every integration this version knows — forge kinds, SIEM transports, AI providers, notification channels, trackers — with whether it is enabled. Any account: the screens filter their forms with it. updatedAt and updatedBy are null while no governor has switched it; updatedBy is null too for a reader who does not read governance.",
-        "operationId" : "list_21",
+        "operationId" : "listIntegrations",
         "responses" : {
           "200" : {
             "content" : {
@@ -15888,7 +15888,7 @@
     "/api/v1/integrations/{key}/enabled" : {
       "put" : {
         "description" : "Platform governor only. 404 for a key no integration has; 400 without enabled. The same state again changes and records nothing. Audited INTEGRATION_ENABLED_CHANGED, and signalled to the SIEM as VECTI-SEC-019. Disabling one a configuration uses — the SIEM transport an enabled export sends over — is refused 409 integration-in-use, naming it in the member integration, nothing changed and nothing recorded: change that configuration first. A route of a disabled integration answers 409 integration-disabled, naming it in the member integration.",
-        "operationId" : "setEnabled_3",
+        "operationId" : "setIntegrationEnabled",
         "parameters" : [ {
           "in" : "path",
           "name" : "key",
