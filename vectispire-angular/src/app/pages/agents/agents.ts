@@ -99,6 +99,12 @@ export class Agents implements OnInit {
     readonly resetSealingVisible = signal(false);
     readonly pendingResetSealing = signal<AgentSummary | null>(null);
     readonly notice = signal<string | null>(null);
+    /**
+     * Why the running and waiting scans are not shown. Swallowed, a failed read left the figures out
+     * and read as an idle fleet; set on each failure and cleared by the next answer, so a poll that
+     * recovers says so too.
+     */
+    readonly activityError = signal<string | null>(null);
 
     form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
@@ -154,11 +160,16 @@ export class Agents implements OnInit {
     }
 
     refreshActivity(): void {
-        this.agentsApi.getAgentActivity().subscribe({
-            next: (act) => this.activity.set(act),
-            error: () => {}
-        });
+        this.agentsApi.getAgentActivity().subscribe(this.activityObserver);
     }
+
+    private readonly activityObserver = {
+        next: (act: AgentActivitySummary) => {
+            this.activity.set(act);
+            this.activityError.set(null);
+        },
+        error: (response: unknown) => this.activityError.set(messageOf(response, this.i18n.t('agents.activity_failed')))
+    };
 
     reload(preserveError = false): void {
         this.loading.set(true);
@@ -173,10 +184,7 @@ export class Agents implements OnInit {
             error: () => this.credentialedBacklog.set(null)
         });
 
-        this.agentsApi.getAgentActivity().subscribe({
-            next: (act) => this.activity.set(act),
-            error: () => {}
-        });
+        this.agentsApi.getAgentActivity().subscribe(this.activityObserver);
 
         this.agentsApi.agents().subscribe({
             next: (agents) => {
@@ -184,8 +192,8 @@ export class Agents implements OnInit {
                 if (!preserveError) this.error.set(null);
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('agents.error_load'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('agents.error_load')));
                 this.loading.set(false);
             }
         });

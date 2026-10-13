@@ -124,7 +124,8 @@
     "reset_sealing_confirm": "Forget the key",
     "reset_sealing_notice": "The sealing key of {{name}} is forgotten. It receives no delegated credential until it proves a new one.",
     "error_reset_sealing": "Could not forget the sealing key.",
-    "error_not_found": "This agent no longer exists."
+    "error_not_found": "This agent no longer exists.",
+    "activity_failed": "Could not load the running and waiting scans."
   },
   "ai": {
     "exposure_not_assessed": "Exposure not assessed: Vectispire does not analyse whether your code calls this component. Check whether any user flow reaches this library's functions.",

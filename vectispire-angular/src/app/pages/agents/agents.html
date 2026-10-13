@@ -44,6 +44,12 @@
     }
 }
 
+@if (activityError(); as message) {
+    <p-message data-testid="activity-error" severity="warn" [closable]="false" styleClass="mb-4 w-full">{{
+        message
+    }}</p-message>
+}
+
 <!-- KPI Cards -->
 @if (activity()?.stats; as stats) {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
