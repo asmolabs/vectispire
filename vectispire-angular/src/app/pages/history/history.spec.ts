@@ -110,6 +110,29 @@ describe('the history screen', () => {
         expect(fixture.nativeElement.textContent).toContain('Arm Libs Spring');
     });
 
+    // The dossier opened by itself answered after the one the reader clicked, and replaced it: the
+    // card, and the exports that follow it, then described a target nobody had chosen.
+    it("shows the dossier clicked last when the previous one's answer comes last", () => {
+        const OTHER = { ...REPOSITORY, id: 6, name: 'Billing Gateway' };
+        http.expectOne('/api/v1/history/repositories').flush([REPOSITORY, OTHER]);
+        fixture.detectChanges();
+        const slow = http.expectOne('/api/v1/history/repositories/5');
+
+        const openButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody button'));
+        (openButtons[1] as HTMLButtonElement).click();
+        fixture.detectChanges();
+        http.expectOne('/api/v1/history/repositories/6').flush({ ...dossier([]), repository: OTHER });
+        // A request still open would deliver the old dossier now; a cancelled one cannot.
+        if (!slow.cancelled) slow.flush(dossier([]));
+        fixture.detectChanges();
+
+        const cards = (fixture.nativeElement as HTMLElement).querySelectorAll('p-card');
+        const card = cards[cards.length - 1].textContent;
+        expect(card).toContain('Billing Gateway');
+        expect(card).not.toContain('Arm Libs Spring');
+        expect(fixture.componentInstance.selectedId()).toBe(6);
+    });
+
     // A scan's count is of issues, one per fingerprint; its occurrences are another figure, shown on
     // the scan's own page. Called "findings" here, it disagreed with the list that page opens on.
     it("names a scan's count as issues", () => {

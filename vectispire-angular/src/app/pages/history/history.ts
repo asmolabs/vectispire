@@ -11,6 +11,7 @@ import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { triageStatusLabel } from '../../shared/triage-status';
 import { saveDocument, saveJson } from '../../core/download';
+import { LatestRequest } from '../../core/latest-request';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
@@ -93,6 +94,10 @@ export class History {
 
     readonly selectedId = computed(() => this.dossier()?.repository.id ?? null);
 
+    /** Latest click wins: a slow dossier replaced the one opened after it, and the exports then
+     *  followed the dossier on screen rather than the row the reader had chosen. */
+    private readonly dossierLoad = new LatestRequest();
+
     constructor() {
         this.scansApi.historyRepositories().subscribe({
             next: (rows) => {
@@ -112,7 +117,7 @@ export class History {
     }
 
     open(repository: HistoryRepository): void {
-        this.scansApi.historyDossier(repository.id).subscribe({
+        this.dossierLoad.run(this.scansApi.historyDossier(repository.id), {
             next: (file) => this.dossier.set(ranked(file)),
             error: () => this.error.set(this.i18n.t('history.dossier_load_failed'))
         });
