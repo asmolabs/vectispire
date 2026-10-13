@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.scanning.internal;
 
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * What the control plane decides about scanning, as opposed to what an executor decides.
@@ -12,6 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     because it is a decision about <em>what we want scanned</em>, not about the machine that
  *     runs the scan
  */
+@Validated
 @ConfigurationProperties("vectispire.scanning")
 public record ScanningProperties(Optional<String> imagePlatform) {
 

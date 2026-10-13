@@ -553,8 +553,14 @@ class ArchitectureTest {
                                 Stream.of(layer("", ".internal..")),
                                 Stream.of(layer(".web..")))
                         .toArray(String[]::new))
-                .should().dependOnClassesThat()
-                .resideInAnyPackage("java.sql..", "javax.sql..", "org.hibernate..")
+                // Hibernate Validator is the Bean Validation engine, not the ORM: its constraints
+                // (`@DurationMin` on a configuration property) say nothing about SQL.
+                .should().dependOnClassesThat(DescribedPredicate.describe(
+                        "classes in java.sql, javax.sql or Hibernate ORM",
+                        (JavaClass type) -> Stream.of("java.sql", "javax.sql", "org.hibernate")
+                                        .anyMatch(root -> type.getPackageName().equals(root)
+                                                || type.getPackageName().startsWith(root + "."))
+                                && !type.getPackageName().startsWith("org.hibernate.validator")))
                 .check(classes);
     }
 
@@ -822,6 +828,19 @@ class ArchitectureTest {
         ArchRuleDefinition.noClasses()
                 .should().callMethod(String.class, "toUpperCase")
                 .orShould().callMethod(String.class, "toLowerCase")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("every configuration properties type is validated")
+    void configurationPropertiesAreValidated() {
+        // A constraint on a properties type Spring does not validate is read by nobody: `@Positive` on
+        // an unvalidated record binds a zero as happily as a two, and the annotation reads as a
+        // guarantee in review. None of the twelve carried `@Validated` until 2026-10-13, so the one
+        // bound that existed was a silent coercion in a constructor instead.
+        ArchRuleDefinition.classes()
+                .that().areAnnotatedWith(org.springframework.boot.context.properties.ConfigurationProperties.class)
+                .should().beAnnotatedWith(org.springframework.validation.annotation.Validated.class)
                 .check(classes);
     }
 

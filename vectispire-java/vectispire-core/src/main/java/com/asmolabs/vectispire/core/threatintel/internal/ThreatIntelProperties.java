@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.threatintel.EpssFile;
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Where the CISA KEV catalogue and FIRST's EPSS file are read from.
@@ -24,6 +25,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param epssUrl the EPSS file's URL; blank reads FIRST's own ({@link EpssFile#DEFAULT_URL})
  * @param epssAllowPrivate the same as {@code kevAllowPrivate}, for {@code epssUrl}
  */
+@Validated
 @ConfigurationProperties("vectispire.threat-intel")
 public record ThreatIntelProperties(
         Optional<String> kevUrl, boolean kevAllowPrivate, Optional<String> epssUrl, boolean epssAllowPrivate) {

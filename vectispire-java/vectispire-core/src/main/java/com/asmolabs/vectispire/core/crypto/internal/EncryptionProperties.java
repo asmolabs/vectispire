@@ -6,10 +6,12 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Where the encryption secrets and KMS settings come from.
  */
+@Validated
 @ConfigurationProperties("vectispire.encryption")
 public record EncryptionProperties(
         Optional<String> key,

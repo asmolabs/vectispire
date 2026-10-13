@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.settings;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * The brand identity of this Vectispire deployment.
@@ -10,6 +11,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param gitlabUrl the upstream repository URL displayed in the footer — GitHub since the 2026-08-27
  *                  move; the field name predates it and is part of the public branding response
  */
+@Validated
 @ConfigurationProperties("vectispire.branding")
 public record BrandingProperties(
         @DefaultValue("Vectispire") String name,

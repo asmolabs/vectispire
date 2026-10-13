@@ -4,10 +4,12 @@ import com.asmolabs.vectispire.core.crypto.SecretFile;
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * SCIM 2.0 configuration properties.
  */
+@Validated
 @ConfigurationProperties("vectispire.scim")
 public record ScimProperties(
         boolean enabled,

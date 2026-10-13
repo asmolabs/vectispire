@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.access.internal;
 
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * The credentials of the very first account.
@@ -9,6 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>Read once, on an empty users table, and ignored ever after — see {@code
  * BootstrapService} for why that condition is the whole safety of the mechanism.
  */
+@Validated
 @ConfigurationProperties("vectispire.bootstrap")
 public record BootstrapProperties(Optional<String> username, Optional<String> password) {
 

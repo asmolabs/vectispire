@@ -67,8 +67,8 @@ Once any account exists, both are ignored.
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuses a single sign-on whose token states no second factor. A federated sign-in skips the local TOTP: the provider owns the second factor. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | The RFC 8176 `amr` values that count as a second factor. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *none* | `acr` levels that count as one, when the provider signals MFA that way. |
-| `VECTISPIRE_SESSION_LIFETIME` | `12h` | A session ends this long after it began, however active it has been — what bounds a stolen token's usefulness; no activity extends it. |
-| `VECTISPIRE_SESSION_IDLE` | `60m` | A session ends after this long without a request — what protects an unlocked screen. |
+| `VECTISPIRE_SESSION_LIFETIME` | `12h` | A session ends this long after it began, however active it has been — what bounds a stolen token's usefulness; no activity extends it. At least one second: a bare number is read as milliseconds, and the start is refused. |
+| `VECTISPIRE_SESSION_IDLE` | `60m` | A session ends after this long without a request — what protects an unlocked screen. At least one second: a bare number is read as milliseconds, and the start is refused. |
 | `VECTISPIRE_BEARER_FAILURES_PER_WINDOW` | `60` | Refused bearer tokens — sessions, agent and integration keys, the SCIM token — counted together per address — per /64 for an IPv6 caller; past it, the address is refused for the rest of the window and the audit log records it. Only failures count, so an agent polling with a valid key spends nothing. Generous on purpose: these tokens are long and random, and most of the control's value is the audit entry, not the refusal. |
 | `VECTISPIRE_BEARER_FAILURE_WINDOW` | `PT5M` | The window of the setting above, as an ISO-8601 duration. |
 | `VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE` | `600` | Requests per minute per [integration API key](../administration/api-keys.md); beyond it, `429` with `Retry-After`. Sessions and agents are not counted. |
@@ -136,7 +136,7 @@ host directory mounted at the **same absolute path**, or every scanner receives 
 | Variable | Default | Notes |
 |---|---|---|
 | `VECTISPIRE_EMBEDDED_WORKER` | `true` | `false` for a control plane that runs no scan itself: queued scans wait for a remote agent, and report plugins have no executor. |
-| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Scans this instance's built-in worker runs at once. Not an agent's: see below. |
+| `VECTISPIRE_SCAN_MAX_CONCURRENT` | `2` | Scans this instance's built-in worker runs at once. Not an agent's: see below. At least 1: a lower value stops the start (it was read as 2); to switch the worker off, set `VECTISPIRE_EMBEDDED_WORKER=false`. |
 | `VECTISPIRE_WORKER_LABELS` | *none* | Labels the built-in worker answers to. Empty on purpose: it then takes only work that requires no label. |
 | `VECTISPIRE_WORKER_INTERVAL` | `15s` | How often the built-in worker looks for work. |
 | `VECTISPIRE_SCHEDULER_INTERVAL` | `60s` | How often targets due for a periodic scan are looked for. |
