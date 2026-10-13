@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.tickets;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -10,6 +11,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.time.Clock;
@@ -39,12 +41,16 @@ public class TicketLinkService {
     private final IssueTicketRepository tickets;
     private final AuditLogService audit;
     private final Clock clock;
+    private final Integrations integrations;
 
-    public TicketLinkService(IssueCatalog issues, IssueTicketRepository tickets, AuditLogService audit, Clock clock) {
+    public TicketLinkService(
+            IssueCatalog issues, IssueTicketRepository tickets, AuditLogService audit, Clock clock,
+            Integrations integrations) {
         this.issues = issues;
         this.tickets = tickets;
         this.audit = audit;
         this.clock = clock;
+        this.integrations = integrations;
     }
 
     /** The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike. */
@@ -71,6 +77,11 @@ public class TicketLinkService {
      * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException for a field missing,
      *     for a provider that is not a {@link TicketingProvider}, and for a key or URL that is blank or
      *     longer than its column
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException 409 {@code
+     *     integration-disabled} when the provider's tracker is switched off (decision 0040 §3): a ticket of a
+     *     suspended tracker is not opened, by the sweep or by hand — after the visibility, so that a hidden issue
+     *     still reads as absent, and before the key and URL are judged, as a forge's refusal comes before a form's
+     *     other words
      */
     public IssueTicketView attach(
             long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
@@ -81,6 +92,7 @@ public class TicketLinkService {
         }
         TicketingProvider parsed = TicketingProvider.parse(
                 BoundedText.required(provider, MAX_PROVIDER_LENGTH, "The provider"));
+        integrations.requireEnabled(Integration.of(parsed.tracker()));
         // Both columns are non-null and bounded, and both were written as sent: a blank key stored a
         // link to nothing, and a key past 128 or a URL past 512 characters was refused by the
         // database at the write, as a 500.

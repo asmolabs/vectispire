@@ -11427,6 +11427,9 @@
           "expirySource" : {
             "type" : "string"
           },
+          "integration" : {
+            "type" : "string"
+          },
           "refusedSince" : {
             "format" : "date-time",
             "type" : "string"
@@ -11434,6 +11437,9 @@
           "refusedStatus" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
           }
         },
         "required" : [ "configured" ],

@@ -1436,6 +1436,10 @@ export type TicketTokenState = Refine<
         refusedStatus: number | null;
         refusedSince: string | null;
         checkedAt: string | null;
+        /** `suspended` while the platform governor has the tracker's integration switched off (decision 0040 §3); null with no tracker chosen. */
+        state: 'active' | 'suspended' | null;
+        /** The registry's key of the chosen tracker, `tracker.jira`; null with no tracker chosen. */
+        integration: string | null;
     }
 >;
 

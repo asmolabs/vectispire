@@ -2621,7 +2621,9 @@
     "token_expiry_unknown": "Expiration inconnue — GitLab et GitHub la donnent ; pour Jira ou ServiceNow, renseignez la date d'expiration du jeton dans les réglages du tracker.",
     "token_expires_on": "Expire le {{date}}",
     "token_expiry_declared": "(déclarée par un administrateur)",
-    "threat_intel_status_failed": "Impossible de lire l'état des flux de menaces."
+    "threat_intel_status_failed": "Impossible de lire l'état des flux de menaces.",
+    "tracker_suspended_tag": "Suspendu — intégration désactivée",
+    "tracker_suspended": "Le gouverneur de la plateforme a désactivé l'intégration {{integration}}. Le jeton et les réglages sont gardés ; aucun ticket n'est ouvert ni fermé et rien n'est envoyé au tracker tant que l'intégration n'est pas réactivée, et il reprend alors tel quel."
   },
   "severities": {
     "critical": "Critique",

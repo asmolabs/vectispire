@@ -4,7 +4,8 @@
 
 Not released yet. What follows is what 0.12.0 will contain, against 0.11.2: the first three lots of
 [decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md),
-under which the platform governor switches each outside system Vectispire may talk to on or off.
+under which the platform governor switches each outside system Vectispire may talk to on or off, and
+the trackers' part of the sixth.
 
 ### Before you upgrade {#before-you-upgrade-0120}
 
@@ -30,6 +31,11 @@ under which the platform governor switches each outside system Vectispire may ta
   export sends over ([409 causes](errors.md#409-causes)).
 - **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
   disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
+- **The tracker token's state carries `state` and `integration`.** `GET` and
+  `PUT /api/v1/settings/ticket-token` answer `state` — `active`, or `suspended` while the tracker's
+  integration is disabled — and `integration`, the key that resumes it (`tracker.jira`…); both are `null`
+  while no tracker is chosen. `PUT /api/v1/issues/{id}/ticket` and `POST /api/v1/issues/{issueId}/tickets`
+  answer 409 `integration-disabled` for a suspended tracker, where they answered 200 and 201.
 - **A new no-data reason, `forge_integration_disabled`**, in a checklist measurement's `reason` and
   everywhere that list of reasons is answered; a client switching over the reasons meets one it did not
   know.
@@ -44,8 +50,8 @@ under which the platform governor switches each outside system Vectispire may ta
   channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
   (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
   later — Bitbucket first — arrives disabled. The switch is through the API for now; there is no screen
-  yet. **Only the forges and the SIEM transports act on it in this release**: switching off an AI
-  provider, a notification channel or a tracker is recorded and audited, and stops nothing yet.
+  yet. **The forges, the SIEM transports and the trackers act on it in this release**: switching off an
+  AI provider or a notification channel is recorded and audited, and stops nothing yet.
 - **A forge whose integration is disabled suspends its connections, never deletes them.** Each keeps its
   row, its encrypted token, its snapshot, its import links and its change-review readings, and reads
   *Suspended — integration disabled* on the forge connections screen. Nothing goes to that forge:
@@ -63,6 +69,14 @@ under which the platform governor switches each outside system Vectispire may ta
   same — a row changed by hand — its events wait in the outbox, pending, no attempt counted, offered again
   every five minutes, and leave once it is enabled again
   ([SIEM](../integrations/siem.md#each-transport-is-an-integration)).
+- **A tracker whose integration is disabled is suspended, never deleted.** With the configured tracker's
+  integration off, nothing reaches it and its token does not leave its row: the hourly sweep opens and
+  closes no ticket and says so once in the log, not every hour; the daily token check asks nothing and
+  announces nothing — a tracker switched off is not a token that stopped working; saving a token stores it
+  without asking the tracker. Attaching a ticket by hand to that tracker answers 409
+  `integration-disabled`. The token, the settings, the pinned CA and the issues' references are kept, the
+  tracker card reads *Suspended — integration disabled*, and switching it back on resumes everything as
+  it was ([tickets](../integrations/ticketing.md#tracker-suspended)).
 
 ## 0.11.2 — 2026-10-27
 

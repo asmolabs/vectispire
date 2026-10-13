@@ -125,6 +125,33 @@ nothing. The server log keeps its line at `WARN`. `GET /api/v1/settings/ticket-t
 
 ![The tracker token, saved, announced as expiring in eleven days.](../assets/screens/en/settings-ticket-token.png)
 
+## When the tracker's integration is disabled {#tracker-suspended}
+
+Each tracker is an integration the platform governor switches on and off — `tracker.gitlab`,
+`tracker.github`, `tracker.jira`, `tracker.servicenow`, all enabled to begin with — through
+`PUT /api/v1/integrations/{key}/enabled`; there is no screen for it in this release
+([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Switching off the tracker this installation is configured for **suspends** it, and deletes nothing:
+
+- **Nothing reaches the tracker and the token does not leave its row.** The hourly sweep opens no
+  ticket and closes none, the daily token check asks nothing, and saving a token stores it without
+  asking the tracker about it. The sweep says so once in the server log, when the suspension begins,
+  and once when it ends — not every hour.
+- **A ticket is not attached by hand either.** `PUT /api/v1/issues/{id}/ticket` and
+  `POST /api/v1/issues/{issueId}/tickets` naming that tracker answer 409 `integration-disabled`, with
+  its key in `integration` ([409 causes](../reference/errors.md#409-causes)).
+- **What is known is kept.** The token, the settings, the pinned CA and the references the issues
+  carry stay as they were. Nothing is announced about the token while it is suspended: a tracker
+  switched off is not a token that *stopped working*.
+- **The tracker card says it** — *Suspended — integration disabled*, naming the integration;
+  `GET` and `PUT /api/v1/settings/ticket-token` answer `state` (`active` or `suspended`) and
+  `integration` (`tracker.gitlab`…), both `null` while no tracker is chosen.
+
+Switched back on, everything resumes as it was: the next sweep opens the tickets that are due and
+closes those whose issue was resolved meanwhile, and the next check asks about the token. The inbound
+webhook is not affected by the switch: what a tracker sends is still read, with the secret it must
+carry.
+
 ## What lands in the ticket
 
 Enough to act without opening Vectispire: the component and version, the identifier, the

@@ -2403,7 +2403,9 @@
     "token_expiry_unknown": "Expiry unknown — GitLab and GitHub report it; for Jira or ServiceNow, set the token expiry date in the tracker settings.",
     "token_expires_on": "Expires on {{date}}",
     "token_expiry_declared": "(declared by an administrator)",
-    "threat_intel_status_failed": "Could not read the state of the threat feeds."
+    "threat_intel_status_failed": "Could not read the state of the threat feeds.",
+    "tracker_suspended_tag": "Suspended — integration disabled",
+    "tracker_suspended": "The platform governor disabled the {{integration}} integration. The token and the settings are kept; no ticket is opened or closed and nothing is sent to the tracker until the integration is enabled again, and then it resumes as it was."
   },
   "severities": {
     "critical": "Critical",

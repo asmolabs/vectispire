@@ -196,6 +196,8 @@ public class IssueDecisionService {
      *
      * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException absent and hidden alike
      * @throws InvalidTicketException a reference missing or too long, a URL too long
+     * @throws com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException 409 while the
+     *     configured tracker is suspended — see {@link TicketReferences#refusal}
      */
     public IssueView attachTicket(long id, String rawReference, String rawUrl, Caller caller) {
         IssueEntity issue = RowVisibility.requireVisibleIssue(issues.findById(id).orElse(null), IssueEntity::target, caller.visibility());

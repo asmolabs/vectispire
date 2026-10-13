@@ -9089,10 +9089,12 @@ export interface components {
             /** Format: date-time */
             expiresAt?: string;
             expirySource?: string;
+            integration?: string;
             /** Format: date-time */
             refusedSince?: string;
             /** Format: int32 */
             refusedStatus?: number;
+            state?: string;
         };
         TokenRequest: {
             token?: string;

@@ -131,6 +131,33 @@ serveur garde sa ligne au niveau `WARN`. `GET /api/v1/settings/ticket-token` ré
 
 ![Le jeton du tracker, enregistré, annoncé comme expirant dans onze jours.](../assets/screens/fr/settings-ticket-token.png)
 
+## Quand l'intégration du tracker est désactivée {#tracker-suspended}
+
+Chaque tracker est une intégration que le gouverneur de la plateforme active et désactive —
+`tracker.gitlab`, `tracker.github`, `tracker.jira`, `tracker.servicenow`, toutes activées au départ —
+par `PUT /api/v1/integrations/{key}/enabled` ; aucun écran ne le fait dans cette version
+([décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md)).
+Désactiver le tracker pour lequel l'installation est configurée le **suspend**, et ne supprime rien :
+
+- **Rien n'atteint le tracker et le jeton ne quitte pas sa ligne.** Le balayage horaire n'ouvre ni ne
+  ferme aucun ticket, la vérification quotidienne du jeton ne demande rien, et enregistrer un jeton le
+  stocke sans interroger le tracker à son sujet. Le balayage le dit une fois dans le journal du
+  serveur, quand la suspension commence, et une fois quand elle finit — pas toutes les heures.
+- **Un ticket ne se rattache pas non plus à la main.** `PUT /api/v1/issues/{id}/ticket` et
+  `POST /api/v1/issues/{issueId}/tickets` nommant ce tracker répondent 409 `integration-disabled`, sa
+  clé dans `integration` ([causes d'un 409](../reference/errors.fr.md#causes-dun-409)).
+- **Ce qui est connu est gardé.** Le jeton, les réglages, la CA épinglée et les références que portent
+  les issues restent tels quels. Rien n'est annoncé du jeton pendant la suspension : un tracker
+  désactivé n'est pas un jeton qui *ne fonctionne plus*.
+- **La carte du tracker le dit** — *Suspendu — intégration désactivée*, en nommant l'intégration ;
+  `GET` et `PUT /api/v1/settings/ticket-token` répondent `state` (`active` ou `suspended`) et
+  `integration` (`tracker.gitlab`…), tous deux `null` tant qu'aucun tracker n'est choisi.
+
+Réactivé, tout reprend tel quel : le balayage suivant ouvre les tickets dus et ferme ceux dont l'issue
+a été résolue entre-temps, et la vérification suivante interroge le tracker sur le jeton. Le webhook
+entrant n'est pas concerné par la bascule : ce qu'envoie un tracker est toujours lu, avec le secret
+qu'il doit porter.
+
 ## Ce qui atterrit dans le ticket
 
 De quoi agir sans ouvrir Vectispire : le composant et sa version, l'identifiant, la gravité,

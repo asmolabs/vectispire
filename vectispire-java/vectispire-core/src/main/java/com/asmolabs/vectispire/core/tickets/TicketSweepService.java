@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.text.LogText;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.ActiveGatePolicies;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
@@ -21,6 +22,7 @@ import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,11 @@ import org.springframework.stereotype.Service;
  * backlog and opening a ticket per violation would be the same query, but an issue's ticket
  * would then depend on which <em>other</em> issues happen to be open — and "why does this one
  * have a ticket and that one not" has to have an answer about the issue itself.
+ *
+ * <p><b>A suspended tracker is said once, not every hour</b> (decision 0040 §3). While the governor has the
+ * configured tracker's integration switched off, the pass opens nothing and closes nothing — the issues keep
+ * their references, and those resolved meanwhile are closed when it is switched back on — and the log says so
+ * when the suspension begins and when it ends, never on every pass that finds it unchanged.
  */
 @Service
 public class TicketSweepService {
@@ -53,6 +60,9 @@ public class TicketSweepService {
     private final TargetNaming names;
     private final TicketService tickets;
     private final AuditLogService audit;
+
+    /** The integration the last pass found suspended, empty when none: so that only a change is logged. */
+    private final AtomicReference<String> suspension = new AtomicReference<>("");
 
     public TicketSweepService(
             IssueCatalog issues,
@@ -86,6 +96,9 @@ public class TicketSweepService {
      * deadlocked against itself — found by running it.
      */
     public int sweep(int limit) {
+        if (suspended()) {
+            return 0;
+        }
         if (!tickets.isEnabled()) {
             return 0;
         }
@@ -188,6 +201,26 @@ public class TicketSweepService {
             log.info("{} resolved ticket(s) automatically closed on tracker.", closed);
         }
         return closed;
+    }
+
+    /** Whether the configured tracker is suspended, logged when that changes since the last pass. */
+    private boolean suspended() {
+        String now = tickets.standing()
+                .filter(standing -> standing.state() == TrackerState.SUSPENDED)
+                .map(standing -> standing.integration().key())
+                .orElse("");
+        String before = suspension.getAndSet(now);
+        if (!now.equals(before)) {
+            if (!now.isEmpty()) {
+                log.info("Ticket sweep: the {} integration is disabled. No ticket is opened or closed, and nothing is "
+                        + "sent to the tracker; its token, its settings and the issues' tickets are kept, and the sweep "
+                        + "resumes when a platform governor re-enables it.", now);
+            } else if (!before.isEmpty()) {
+                log.info("Ticket sweep: the {} integration is enabled again; tickets are opened and closed again.",
+                        before);
+            }
+        }
+        return !now.isEmpty();
     }
 
     /**

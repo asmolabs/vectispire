@@ -6,7 +6,7 @@ Pas encore publiée. Ce qui suit est ce que contiendra la 0.12.0, par rapport à
 premiers lots de la
 [décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md),
 par laquelle le gouverneur de la plateforme active ou désactive chaque système extérieur auquel
-Vectispire peut parler.
+Vectispire peut parler, et la part du sixième qui touche les gestionnaires de tickets.
 
 ### Avant la mise à jour {#avant-la-mise-a-jour-0120}
 
@@ -33,6 +33,12 @@ Vectispire peut parler.
   lequel un export activé envoie ([causes d'un 409](errors.fr.md#causes-dun-409)).
 - **Une connexion de forge porte `state`** — `active`, ou `suspended` tant que l'intégration de sa forge
   est désactivée — **et `integration`**, `forge.gitlab` ou `forge.github`, la clé qui la reprend.
+- **L'état du jeton du tracker porte `state` et `integration`.** `GET` et
+  `PUT /api/v1/settings/ticket-token` répondent `state` — `active`, ou `suspended` tant que l'intégration
+  du tracker est désactivée — et `integration`, la clé qui le reprend (`tracker.jira`…) ; tous deux valent
+  `null` tant qu'aucun tracker n'est choisi. `PUT /api/v1/issues/{id}/ticket` et
+  `POST /api/v1/issues/{issueId}/tickets` répondent 409 `integration-disabled` pour un tracker suspendu, là
+  où ils répondaient 200 et 201.
 - **Une nouvelle raison d'absence de données, `forge_integration_disabled`**, dans le `reason` d'une
   mesure de checklist et partout où cette liste de raisons est répondue ; un client qui aiguille sur les
   raisons en rencontre une qu'il ne connaissait pas.
@@ -48,9 +54,9 @@ Vectispire peut parler.
   `ai.openai`), les canaux de notification (`notification.webhook`, `.teams`, `.slack`, `.discord`,
   `.mail`) et les gestionnaires de tickets (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Toutes
   commencent activées ; une intégration ajoutée plus tard — Bitbucket d'abord — arrive désactivée. La
-  bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Seuls les forges et les
-  transports SIEM en tiennent compte dans cette version** : désactiver un fournisseur d'IA, un canal de
-  notification ou un gestionnaire de tickets est enregistré et audité, et n'arrête encore rien.
+  bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Les forges, les transports
+  SIEM et les gestionnaires de tickets en tiennent compte dans cette version** : désactiver un
+  fournisseur d'IA ou un canal de notification est enregistré et audité, et n'arrête encore rien.
 - **Une forge dont l'intégration est désactivée suspend ses connexions, sans jamais les supprimer.**
   Chacune garde sa ligne, son jeton chiffré, son instantané, ses liens d'import et ses lectures de revues
   des changements, et se lit *Suspendue — intégration désactivée* sur l'écran des connexions de forge.
@@ -70,6 +76,15 @@ Vectispire peut parler.
   dans l'outbox, en attente, sans tentative comptée, proposés de nouveau toutes les cinq minutes, et
   partent une fois le transport réactivé
   ([SIEM](../integrations/siem.fr.md#chaque-transport-est-une-integration)).
+- **Un gestionnaire de tickets dont l'intégration est désactivée est suspendu, jamais supprimé.**
+  L'intégration du tracker configuré désactivée, rien ne l'atteint et son jeton ne quitte pas sa ligne :
+  le balayage horaire n'ouvre ni ne ferme aucun ticket et le dit une fois dans le journal, pas toutes les
+  heures ; la vérification quotidienne du jeton ne demande ni n'annonce rien — un tracker désactivé n'est
+  pas un jeton qui ne fonctionne plus ; enregistrer un jeton le stocke sans interroger le tracker.
+  Rattacher à la main un ticket de ce tracker répond 409 `integration-disabled`. Le jeton, les réglages,
+  la CA épinglée et les références des issues sont gardés, la carte du tracker affiche *Suspendu —
+  intégration désactivée*, et le réactiver reprend tout tel quel
+  ([tickets](../integrations/ticketing.fr.md#tracker-suspended)).
 
 ## 0.11.2 — 27 octobre 2026
 

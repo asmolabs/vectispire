@@ -2,17 +2,21 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.forges.TokenExpiry;
+import com.asmolabs.vectispire.common.domain.integrations.Integration;
+import com.asmolabs.vectispire.common.domain.integrations.IntegrationDisabledException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.PinnedCa;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
+import com.asmolabs.vectispire.common.domain.tickets.TrackerState;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbound.PinnedHttpSender;
 import com.asmolabs.vectispire.core.outbound.PinnedHttpSender.Method;
+import com.asmolabs.vectispire.core.settings.Integrations;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,6 +53,12 @@ import org.springframework.stereotype.Service;
  * was ever opened and the hourly sweep retried in silence. The pinned CA replaces that store for the
  * tracker, as a forge connection's does (decision 0037) — one call left on the runtime's store would fail
  * the same way, which is why the trust is read once per gesture and handed to each call.
+ *
+ * <p><b>A tracker whose integration is disabled is suspended, not unconfigured</b> (decision 0040 §3). Its
+ * token, its settings and the links between issues and tickets are kept; {@link #isEnabled} reads false, so
+ * no ticket is opened or closed and no token is checked — and {@link #token}, which every call to the tracker
+ * reads its credential through, refuses, so that no path added later hands the token out either. Switched
+ * back on, everything resumes as it was: nothing was written when it was switched off.
  */
 @Service
 public class TicketService {
@@ -65,6 +75,7 @@ public class TicketService {
     private final ObjectMapper json;
     private final Clock clock;
     private final TrackerTokenState tokenState;
+    private final Integrations integrations;
 
     /** How the pinned CA's refusals name the field — the same rule as a forge's, in the tracker's words. */
     public static final PinnedCa.Subject CA = new PinnedCa.Subject("The tracker CA", "the tracker");
@@ -76,7 +87,8 @@ public class TicketService {
             OutboundJson lookup,
             ObjectMapper json,
             Clock clock,
-            TrackerTokenState tokenState) {
+            TrackerTokenState tokenState,
+            Integrations integrations) {
         this.settings = settings;
         this.encryption = encryption;
         this.post = post;
@@ -84,6 +96,7 @@ public class TicketService {
         this.json = json;
         this.clock = clock;
         this.tokenState = tokenState;
+        this.integrations = integrations;
     }
 
     /**
@@ -146,8 +159,60 @@ public class TicketService {
         return settings.get(Setting.TICKET_PROJECT).trim();
     }
 
+    /** Whether a tracker is chosen and everything a call needs is set: an address, a project, a readable token. */
+    public boolean isConfigured() {
+        return provider().isEnabled() && !baseUrl().isEmpty() && !project().isEmpty() && hasToken();
+    }
+
+    /**
+     * Whether tickets are opened and closed now: the tracker is configured and its integration is not suspended.
+     * What every entry that calls the tracker asks first.
+     */
     public boolean isEnabled() {
-        return provider().isEnabled() && !baseUrl().isEmpty() && !project().isEmpty() && !token().isEmpty();
+        return isConfigured() && !suspended();
+    }
+
+    /**
+     * The configured tracker as the integrations' registry knows it: its key and whether it is suspended. Empty
+     * while no tracker is chosen — {@link TicketProvider#NONE} is no integration.
+     *
+     * @param integration the registry's key a governor re-enables it by, {@code tracker.jira}
+     */
+    public record Standing(Integration integration, TrackerState state) {}
+
+    public Optional<Standing> standing() {
+        TicketProvider provider = provider();
+        if (!provider.isEnabled()) {
+            return Optional.empty();
+        }
+        Integration integration = Integration.of(provider);
+        return Optional.of(new Standing(integration, TrackerState.of(integrations.isEnabled(integration))));
+    }
+
+    /** Whether the configured tracker's integration is switched off (decision 0040 §3). */
+    public boolean suspended() {
+        return standing().map(standing -> standing.state() == TrackerState.SUSPENDED).orElse(false);
+    }
+
+    /** Whether a token is stored that this installation can read — the screen's "configured", never the token. */
+    public boolean hasToken() {
+        return !storedToken().isEmpty();
+    }
+
+    /**
+     * The decrypted token, or an empty string when none is stored — refused while the tracker is suspended.
+     *
+     * <p><b>The refusal is the backstop, not the gate.</b> The entries ask {@link #isEnabled} first and do
+     * nothing; this is what keeps a suspended tracker's token in its row whatever path reads it, as a forge's
+     * token is not handed out while its integration is off (decision 0040 §2).
+     *
+     * @throws IntegrationDisabledException while the configured tracker's integration is disabled
+     */
+    public String token() {
+        standing().filter(standing -> standing.state() == TrackerState.SUSPENDED).ifPresent(standing -> {
+            throw new IntegrationDisabledException(standing.integration());
+        });
+        return storedToken();
     }
 
     /**
@@ -157,7 +222,7 @@ public class TicketService {
      * disable ticket creation, not break the maintenance tick that calls this and that also
      * carries the purge and triage expiry.
      */
-    public String token() {
+    private String storedToken() {
         String stored = settings.get(Setting.TICKET_TOKEN).trim();
         if (stored.isEmpty()) {
             return stored;
@@ -245,10 +310,17 @@ public class TicketService {
      * tokens' expiry — and announced when that changed something. Called when the token is saved.
      *
      * <p>Never throws, like the sweep: a tracker that does not answer leaves what was known as it was.
+     *
+     * <p><b>A suspended tracker is not asked, and nothing is announced</b>: the token is stored all the same, and
+     * what is known of it is what was known before. Announcing would tell of a token nobody can use until a
+     * governor re-enables the tracker; the first check after that says what there is to say.
      */
     public TrackerTokenState.Health checkTokenNow() {
         Instant now = clock.instant();
         try {
+            if (suspended()) {
+                return tokenState.read();
+            }
             if (isEnabled()) {
                 askTheTracker(now);
             }
@@ -263,10 +335,16 @@ public class TicketService {
      * The daily check, from the hourly tick: the tracker is asked when it last answered a day ago or more, and
      * what there is to say is announced whatever it answered — an expiry entering its fourteen days changes no
      * stored value, only the date.
+     *
+     * <p>Skipped whole while the tracker is suspended: no call, and no announcement — a tracker switched off is
+     * not a token that stopped working. The ticket sweep says once that it is suspended.
      */
     public void checkTokenIfDue() {
         Instant now = clock.instant();
         try {
+            if (suspended()) {
+                return;
+            }
             boolean due = tokenState.checkedAt().map(at -> !now.isBefore(at.plus(TOKEN_CHECK_INTERVAL))).orElse(true);
             if (isEnabled() && due) {
                 askTheTracker(now);
