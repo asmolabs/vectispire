@@ -132,6 +132,24 @@ describe('the attack surface screen', () => {
         expect(page.filteredEndpoints().map((e) => e.id)).toEqual([1]);
     });
 
+    it('names each filter of the route list by what it filters', async () => {
+        // The three selects had no name but their value ("All methods"), and the search box only
+        // its placeholder, which is gone as soon as somebody types.
+        useEnglish();
+        const page = fixture.componentInstance;
+        page.onSelectRepo(7);
+        http.expectOne((call) => call.url === '/api/v1/repositories/7/apis').flush(REPO_OVERVIEW);
+        page.filterMethod.set('GET');
+        await fixture.whenStable();
+
+        const search = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[type="text"]');
+        expect(search?.getAttribute('aria-label')).toBe('Filter the routes');
+        const toolbar = search?.closest('.flex-wrap');
+        const boxes = Array.from(toolbar?.querySelectorAll('p-select [role="combobox"]') ?? []);
+        expect(boxes[0].textContent?.trim()).toBe('GET');
+        expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual(['Method', 'Visibility', 'Authentication']);
+    });
+
     it('searches the path, and does not ask the server to do it', () => {
         const page = fixture.componentInstance;
         page.onSelectRepo(7);

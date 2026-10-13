@@ -272,6 +272,7 @@
                         <input
                             type="text"
                             [placeholder]="'attack_surface.search_placeholder' | translate"
+                            [attr.aria-label]="'attack_surface.search_label' | translate"
                             [ngModel]="searchQuery()"
                             (ngModelChange)="searchQuery.set($event)"
                             class="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-surface-300 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 text-surface-900 dark:text-surface-0 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -280,6 +281,7 @@
 
                     <p-select
                         [options]="methodOptions()"
+                        [ariaLabel]="'attack_surface.col_method' | translate"
                         optionLabel="label"
                         optionValue="value"
                         [ngModel]="filterMethod()"
@@ -289,6 +291,7 @@
 
                     <p-select
                         [options]="visibilityOptions()"
+                        [ariaLabel]="'attack_surface.col_visibility' | translate"
                         optionLabel="label"
                         optionValue="value"
                         [ngModel]="filterVisibility()"
@@ -298,6 +301,7 @@
 
                     <p-select
                         [options]="authOptions()"
+                        [ariaLabel]="'attack_surface.col_auth' | translate"
                         optionLabel="label"
                         optionValue="value"
                         [ngModel]="filterAuth()"

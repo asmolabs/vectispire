@@ -129,6 +129,31 @@ describe('the issue backlog', () => {
         expect(text).toContain('Imported (declared by CI)');
     });
 
+    it('names every filter by what it filters, after a value is chosen too', async () => {
+        // Named by their placeholder alone, the selects lost their name once a value replaced it:
+        // a screen reader announced "High, combobox" with nothing saying which filter that was.
+        firstPage(1);
+        fixture.componentInstance.severity = 'high';
+        fixture.componentInstance.type = 'imported';
+        fixture.componentRef.changeDetectorRef.markForCheck();
+        await fixture.whenStable();
+
+        const dom = fixture.nativeElement as HTMLElement;
+        const boxes = Array.from(dom.querySelectorAll('p-select [role="combobox"]'));
+        // The value shows where the placeholder was — the case where the name used to go.
+        const high = fixture.componentInstance.severities().find((option) => option.value === 'high')?.label;
+        expect(boxes[1].textContent?.trim()).toBe(high);
+        expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual([
+            'State',
+            'Severity',
+            'Type',
+            'Target',
+            'Triage'
+        ]);
+        const search = dom.querySelector('p-iconfield input');
+        expect(search?.getAttribute('aria-label')).toBe('Search the issues');
+    });
+
     it('sends the chosen type to the server', () => {
         firstPage(1);
         fixture.componentInstance.type = 'imported';
