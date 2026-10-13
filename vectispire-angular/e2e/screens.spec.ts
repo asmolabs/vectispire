@@ -371,7 +371,9 @@ const edition = (name: string) => (name === 'screens-fr' ? 'fr' : 'en');
  */
 const AUDIT_CHAIN = {
     intact: true, broken: null, total: 1284, verified: 1240, unverifiable: 44,
-    mirrored: true, missingFromMirror: 0, missingFromTable: 0
+    mirrored: true, missingFromMirror: 0, missingFromTable: 0,
+    // The attestation dates itself by the server's check; the frozen clock's instant keeps its capture as it was.
+    checkedAt: FROZEN.toISOString()
 };
 
 /**

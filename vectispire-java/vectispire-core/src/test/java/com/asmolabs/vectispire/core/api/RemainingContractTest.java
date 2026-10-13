@@ -135,7 +135,10 @@ class RemainingContractTest extends ApiTestBase {
                 .andExpect(jsonPath("$.total").isNumber())
                 .andExpect(jsonPath("$.unverifiable").isNumber())
                 .andExpect(jsonPath("$.verified").isNumber())
-                .andExpect(jsonPath("$.intact").value(true));
+                .andExpect(jsonPath("$.intact").value(true))
+                // When the server ran the check, as an instant: what the attestation screen dates itself by.
+                .andExpect(jsonPath("$.checkedAt").value(org.hamcrest.Matchers.matchesPattern(
+                        "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z")));
     }
 
     @Test

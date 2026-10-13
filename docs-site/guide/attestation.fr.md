@@ -13,6 +13,11 @@ porte d'heure**.
 Un auditeur ne demande pas « où en êtes-vous ». Il demande « où en étiez-vous le jour où j'ai
 regardé », et un écran sans heure ne peut pas y répondre.
 
+L'heure est celle du serveur : l'instant où la vérification de la chaîne a tourné, à l'horloge du plan
+de contrôle, et une revérification se date de sa propre réponse. C'était l'horloge du navigateur —
+l'heure à laquelle la page s'était ouverte sur la machine du lecteur, que son propriétaire peut régler
+sur n'importe quel jour — affichée à côté d'un verdict comme l'heure où l'état avait été établi.
+
 ## La chaîne d'abord, parce que c'est la seule preuve de cette page
 
 Tout le reste est une mesure. La chaîne d'audit est la seule affirmation qui se démontre sur-le-champ :

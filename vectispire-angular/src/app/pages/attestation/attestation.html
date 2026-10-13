@@ -2,8 +2,10 @@
     <div>
         <h1 class="text-2xl font-semibold m-0">{{ 'attestation.title' | translate }}</h1>
         <p class="text-muted-color mt-1 mb-0">
-            {{ 'attestation.established' | translate }}
-            <strong>{{ establishedAt() | date: 'dd/MM/yyyy HH:mm' }}</strong>
+            @if (establishedAt(); as at) {
+                {{ 'attestation.established' | translate }}
+                <strong>{{ at | date: 'dd/MM/yyyy HH:mm' }}</strong>
+            }
             @if (establishedBy()) {
                 · {{ establishedBy() }}
             }

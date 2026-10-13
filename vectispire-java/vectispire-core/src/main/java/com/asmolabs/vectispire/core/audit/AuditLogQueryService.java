@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -28,11 +29,14 @@ public class AuditLogQueryService {
     private final AuditLogRepository entries;
     private final AuditLogService log;
     private final ApplicationEventPublisher events;
+    private final Clock clock;
 
-    public AuditLogQueryService(AuditLogRepository entries, AuditLogService log, ApplicationEventPublisher events) {
+    public AuditLogQueryService(
+            AuditLogRepository entries, AuditLogService log, ApplicationEventPublisher events, Clock clock) {
         this.entries = entries;
         this.log = log;
         this.events = events;
+        this.clock = clock;
     }
 
     /** @param limit and {@code offset} as actually applied, after clamping */
@@ -47,7 +51,8 @@ public class AuditLogQueryService {
             String broken,
             boolean mirrored,
             int missingFromTable,
-            int missingFromMirror) {}
+            int missingFromMirror,
+            Instant checkedAt) {}
 
     /**
      * {@code limit}/{@code offset} as on {@code /issues}.
@@ -155,7 +160,8 @@ public class AuditLogQueryService {
                 result.broken(),
                 mirror.configured(),
                 mirror.missingFromTable(),
-                mirror.missingFromMirror());
+                mirror.missingFromMirror(),
+                clock.instant());
     }
 
     private static String blankToNull(String value) {

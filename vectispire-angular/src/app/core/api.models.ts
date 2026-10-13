@@ -931,7 +931,8 @@ export interface AuditFilters {
  * counts the reverse: written before the mirror existed, written while it could not be reached, or
  * inserted by somebody who had the database and not the file.
  */
-export type AuditVerification = Refine<Schema<'Verification'>, { broken: string | null }>;
+/** `checkedAt` is when the server ran the check, by its clock — the attestation's date, never the browser's. */
+export type AuditVerification = Refine<Schema<'Verification'>, { broken: string | null; checkedAt: string }>;
 
 /** What the dashboard shows. None of these figures is its own: the posture comes from the
  *  same construction as the Security screen and POST /gate. */

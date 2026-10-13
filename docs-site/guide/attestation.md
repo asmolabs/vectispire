@@ -12,6 +12,11 @@ compliance summary, the gate policy, the evidence bundle — and **not one of th
 An auditor is not asking "where are you". They are asking "where were you on the day I looked",
 and a screen with no hour cannot answer that.
 
+The hour is the server's: the instant the chain check ran, by the control plane's clock, and a
+recheck dates itself by its own answer. It used to be the browser's clock — the hour the page was
+opened on the reader's machine, which its owner can set to any day — printed beside a verdict as
+the hour the state was established.
+
 ## The chain check leads, because it is the only proof here
 
 Everything else on this page is a measurement. The audit chain is the one claim that demonstrates

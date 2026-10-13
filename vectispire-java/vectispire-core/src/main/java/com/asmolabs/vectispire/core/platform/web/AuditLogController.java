@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.platform.web;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.audit.AuditEntryView;
 import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,6 +36,9 @@ public class AuditLogController {
      * @param missingFromMirror entries this table holds and the mirror does not: written before
      *     the mirror existed, written while it could not be reached, or inserted by somebody who
      *     had the database and not the file
+     * @param checkedAt when this server ran the check, by its own clock. <b>The attestation screen's
+     *     date</b>: it showed the browser's clock, which says when a page was opened on somebody's
+     *     machine — set to any day its owner likes — and not when the chain was found intact
      */
     public record Verification(
             long total,
@@ -44,7 +48,8 @@ public class AuditLogController {
             String broken,
             boolean mirrored,
             int missingFromTable,
-            int missingFromMirror) {}
+            int missingFromMirror,
+            Instant checkedAt) {}
 
     /** {@code limit}/{@code offset} as on {@code /issues}, clamped by the service. */
     @GetMapping
@@ -83,6 +88,7 @@ public class AuditLogController {
                 integrity.broken(),
                 integrity.mirrored(),
                 integrity.missingFromTable(),
-                integrity.missingFromMirror());
+                integrity.missingFromMirror(),
+                integrity.checkedAt());
     }
 }

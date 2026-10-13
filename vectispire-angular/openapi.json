@@ -11635,6 +11635,10 @@
           "broken" : {
             "type" : "string"
           },
+          "checkedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
           "intact" : {
             "type" : "boolean"
           },

@@ -1,3 +1,4 @@
+import { formatDate } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -53,7 +54,7 @@ describe('the attestation', () => {
         fixture.detectChanges();
     }, 20_000);
 
-    function chain(intact: boolean, broken: string | null = null): void {
+    function chain(intact: boolean, broken: string | null = null, checkedAt = '2026-03-02T12:04:00Z'): void {
         http.expectOne('/api/v1/audit-log/verify').flush(
             // `mirrorConfigured` does not exist: the field is called `mirrored`, and three counters
             // the server always sends were missing. This screen reads none of them — the fixture
@@ -66,7 +67,8 @@ describe('the attestation', () => {
                 broken,
                 mirrored: true,
                 missingFromTable: 0,
-                missingFromMirror: 0
+                missingFromMirror: 0,
+                checkedAt
             })
         );
     }
@@ -99,6 +101,27 @@ describe('the attestation', () => {
         expect(text).toContain("Chaîne d'audit intacte");
         expect(text).toContain('48219');
         expect(text).toContain('46');
+    });
+
+    it("dates the state by the server's check, never by the browser's clock", () => {
+        // The page printed `new Date()` — the hour it was opened on this machine — beside the verdict.
+        // The date pipe writes the instant in the reader's zone, so the expectation is formatted alike.
+        const shown = (at: string) => formatDate(at, 'dd/MM/yyyy HH:mm', 'en-US');
+        const header = () => (fixture.nativeElement as HTMLElement).querySelector('h1 + p')!.textContent ?? '';
+        expect(header()).not.toContain('État établi le');
+
+        chain(true, null, '2026-03-02T12:04:00Z');
+        compliance();
+        fixture.detectChanges();
+        expect(header()).toContain('État établi le');
+        expect(header()).toContain(shown('2026-03-02T12:04:00Z'));
+        expect(header()).not.toContain(shown(new Date().toISOString()));
+
+        // A recheck is dated by its own answer.
+        fixture.componentInstance.recheck();
+        chain(true, null, '2026-03-05T16:40:00Z');
+        fixture.detectChanges();
+        expect(header()).toContain(shown('2026-03-05T16:40:00Z'));
     });
 
     it('a broken chain is impossible to miss, and names where it broke', () => {

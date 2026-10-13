@@ -8854,6 +8854,8 @@ export interface components {
         };
         Verification: {
             broken?: string;
+            /** Format: date-time */
+            checkedAt?: string;
             intact: boolean;
             mirrored: boolean;
             /** Format: int32 */

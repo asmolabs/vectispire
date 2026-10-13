@@ -43,8 +43,15 @@ export class Attestation {
     readonly downloading = signal(false);
     readonly rechecking = signal(false);
 
-    /** Frozen when the page loads, not read from the clock on each change detection. */
-    readonly establishedAt = signal(new Date());
+    /**
+     * When the server found the chain as shown, by its clock — absent until it has answered.
+     *
+     * <p>It was the browser's clock, frozen at load and reset by a recheck: the hour a page was opened
+     * on somebody's machine, set to whatever its owner likes, printed beside a verdict as the hour the
+     * state was established. Nothing the browser holds is sent or signed — the bundle is dated by the
+     * server — but a screenshot of this page is what an auditor files.
+     */
+    readonly establishedAt = computed(() => this.chain()?.checkedAt ?? null);
     readonly establishedBy = computed(() => this.session.user()?.username ?? '');
 
     /**
@@ -92,7 +99,6 @@ export class Attestation {
         this.auditApi.verifyAuditChain().subscribe({
             next: (v) => {
                 this.chain.set(v);
-                this.establishedAt.set(new Date());
                 this.rechecking.set(false);
             },
             error: () => {
