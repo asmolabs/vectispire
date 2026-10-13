@@ -100,7 +100,7 @@ public class AgentRunner implements ApplicationRunner {
                 properties.signingKey(),
                 // The pair's generation: the control plane keeps the newest it accepted, so a
                 // restarted agent's key replaces the last one and a replayed older one does not.
-                clock.millis());
+                clock);
         if (properties.signingKey().isEmpty()) {
             // Said once, at start, because the alternative is an operator who believes their
             // results are attested. The control plane cannot say it for them: an agent with no

@@ -87,6 +87,22 @@ class AgentSealingKeyAnnouncementTest {
                 .isTrue();
     }
 
+    @Test
+    @DisplayName("the generation is read from the injected clock, the one the runner hands over")
+    @SuppressWarnings("unchecked")
+    void theGenerationComesFromTheClock() {
+        var clock = java.time.Clock.fixed(java.time.Instant.ofEpochMilli(GENERATION + 1), java.time.ZoneOffset.UTC);
+        protocol = new AgentProtocol(http, JSON, keyPair, signing.privateKey(), clock);
+        answer(SEALING, 204, "");
+        hello();
+
+        protocol.announceSealingKey();
+
+        ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
+        verify(http).call(eq(SEALING), eq("POST"), body.capture(), any());
+        assertThat((Map<String, Object>) body.getValue()).containsEntry("generation", GENERATION + 1);
+    }
+
     /** Each answer is a different step for the operator, and none of them stops the agent. */
     @ParameterizedTest
     @CsvSource({"204, ACCEPTED", "404, NOT_SUPPORTED", "412, NOT_PINNED", "403, REFUSED", "409, STALE"})

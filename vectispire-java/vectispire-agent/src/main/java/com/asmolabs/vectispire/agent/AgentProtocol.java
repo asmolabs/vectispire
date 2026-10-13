@@ -14,6 +14,7 @@ import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -201,12 +202,20 @@ public class AgentProtocol {
     /** The last announcement's outcome; {@link #claim} announces again only after an acceptance. */
     private volatile SealingKeyOutcome sealing = SealingKeyOutcome.UNSIGNABLE;
 
-    public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair) {
-        this(http, json, keyPair, "");
+    public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, Clock clock) {
+        this(http, json, keyPair, "", clock);
     }
 
-    public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey) {
-        this(http, json, keyPair, signingKey, System.currentTimeMillis());
+    /**
+     * The pair's generation read from {@code clock}, the moment the pair is handed over.
+     *
+     * <p><b>The injected clock, not the wall clock.</b> This read {@code System.currentTimeMillis()}
+     * while the runner passed {@code clock.millis()}: two sources for one value, and the one no test
+     * could fix was the one every convenience caller took.
+     */
+    public AgentProtocol(
+            AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey, Clock clock) {
+        this(http, json, keyPair, signingKey, clock.millis());
     }
 
     /** @param keyPairGeneration when {@code keyPair} was made, in epoch milliseconds */
