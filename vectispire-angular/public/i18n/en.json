@@ -1879,7 +1879,10 @@
     "targets": "targets",
     "title": "Remediation plan",
     "whole_estate": "Whole estate",
-    "plan_failed": "The remediation plan could not be computed."
+    "plan_failed": "The remediation plan could not be computed.",
+    "targets_failed": "Could not load the targets to choose from; the plan covers the whole estate.",
+    "debt_failed": "Could not load the security debt for this scope.",
+    "coverage_failed": "Could not load what this plan leaves out."
   },
   "repositories": {
     "add_btn": "Add Repository",

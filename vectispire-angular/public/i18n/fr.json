@@ -1879,7 +1879,10 @@
     "targets": "cibles",
     "title": "Plan de remédiation",
     "whole_estate": "Tout le parc",
-    "plan_failed": "Le plan de remédiation n’a pas pu être calculé."
+    "plan_failed": "Le plan de remédiation n’a pas pu être calculé.",
+    "targets_failed": "Impossible de charger les cibles à choisir ; le plan couvre tout le parc.",
+    "debt_failed": "Impossible de charger la dette de sécurité pour ce périmètre.",
+    "coverage_failed": "Impossible de charger ce que ce plan ne referme pas."
   },
   "repositories": {
     "add_btn": "Ajouter un dépôt",

@@ -7,6 +7,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import type { HighImpactFix, RemediationCoverage } from '@/app/core/api.models';
 import { Remediation } from './remediation';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish } from '@/app/core/testing/english';
 
 /**
  * The work order.
@@ -273,5 +274,82 @@ describe('the remediation plan', () => {
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('Rien à monter de version.');
         expect(text).toContain('4');
+    });
+});
+
+/**
+ * The plan's context, when it fails, says so beside the plan in the server's words (RFC 7807
+ * `detail`). The debt, the admission and the target list swallowed their errors: the debt of the
+ * previous scope stayed on screen under the new one, and a missing admission read as "nothing left out".
+ */
+describe('the remediation plan when a read fails', () => {
+    let fixture: ComponentFixture<Remediation>;
+    let http: HttpTestingController;
+
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+    const problem = (detail: string) => ({ title: 'Internal Server Error', status: 500, detail });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Remediation],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        http = TestBed.inject(HttpTestingController);
+        fixture = TestBed.createComponent(Remediation);
+        fixture.detectChanges();
+    });
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function answer(part: string, body: object, options?: { status: number; statusText: string }): void {
+        http.match((request) => request.url.includes(part)).forEach((request) => request.flush(body, options));
+    }
+
+    it('shows the plan’s failure in the server’s words', () => {
+        answer('/remediation/high-impact-fixes', problem('Ranking is being recomputed.'), failure);
+
+        expect(page().textContent).toContain('Ranking is being recomputed.');
+    });
+
+    it('says the debt, the admission and the target list failed, and keeps the plan', () => {
+        answer('/remediation/high-impact-fixes', []);
+        answer('/remediation/debt', problem('Debt estimator unavailable.'), failure);
+        answer('/remediation/coverage', problem('Coverage query timed out.'), failure);
+        answer('/repositories', problem('Repository list unavailable.'), failure);
+        answer('/containers', []);
+
+        const shown = page();
+        expect(shown.querySelector('[data-testid="debt-error"]')?.textContent).toContain('Debt estimator unavailable.');
+        expect(shown.querySelector('[data-testid="coverage-error"]')?.textContent).toContain(
+            'Coverage query timed out.'
+        );
+        expect(shown.querySelector('[data-testid="targets-error"]')?.textContent).toContain(
+            'Repository list unavailable.'
+        );
+    });
+
+    it('does not keep the previous scope’s debt under a scope whose debt failed', () => {
+        answer('/remediation/high-impact-fixes', []);
+        answer('/remediation/debt', { totalOpenIssues: 4242, criticalIssues: 0, totalEstimatedPersonDays: 1 });
+        answer('/remediation/coverage', {}, failure);
+        answer('/repositories', []);
+        answer('/containers', []);
+        expect(page().textContent).toContain('4242');
+
+        fixture.componentInstance.changeScope();
+        answer('/remediation/high-impact-fixes', []);
+        answer('/remediation/debt', {}, failure);
+        answer('/remediation/coverage', {}, failure);
+
+        const shown = page();
+        expect(shown.textContent).not.toContain('4242');
+        expect(shown.querySelector('[data-testid="debt-error"]')?.textContent).toContain(
+            'Could not load the security debt for this scope.'
+        );
     });
 });

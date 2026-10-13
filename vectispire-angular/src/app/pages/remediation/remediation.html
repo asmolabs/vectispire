@@ -26,6 +26,21 @@
     @if (error()) {
         <p-message severity="error" [closable]="false" styleClass="w-full mb-4">{{ error() }}</p-message>
     }
+    @if (targetsError(); as message) {
+        <p-message data-testid="targets-error" severity="warn" [closable]="false" styleClass="w-full mb-4">{{
+            message
+        }}</p-message>
+    }
+    @if (debtError(); as message) {
+        <p-message data-testid="debt-error" severity="warn" [closable]="false" styleClass="w-full mb-4">{{
+            message
+        }}</p-message>
+    }
+    @if (coverageError(); as message) {
+        <p-message data-testid="coverage-error" severity="warn" [closable]="false" styleClass="w-full mb-4">{{
+            message
+        }}</p-message>
+    }
 
     <!--
         **The scale before the list.** A work order with no total reads like an infinite list;

@@ -17,6 +17,7 @@ import type {
     SecurityDebtReport
 } from '@/app/core/api.models';
 import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
 import { LocalNumberPipe } from '@/app/core/i18n/local-number.pipe';
 
 /**
@@ -76,6 +77,14 @@ export class Remediation {
     readonly coverage = signal<RemediationCoverage | null>(null);
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
+    /**
+     * The context's failures, each said beside the plan rather than instead of it: the debt, the
+     * admission and the target list are not the page's subject, but a silent gap read as "no debt",
+     * "nothing left out" and "no target to choose".
+     */
+    readonly debtError = signal<string | null>(null);
+    readonly coverageError = signal<string | null>(null);
+    readonly targetsError = signal<string | null>(null);
     readonly expanded = signal<string | null>(null);
 
     /**
@@ -126,7 +135,8 @@ export class Remediation {
                         value: `repo:${repository.id}`
                     }))
                 ),
-            error: () => {}
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('remediation.targets_failed')))
         });
         this.targetsApi.containers().subscribe({
             next: (containers: MonitoredContainer[]) =>
@@ -136,7 +146,8 @@ export class Remediation {
                         value: `container:${container.id}`
                     }))
                 ),
-            error: () => {}
+            error: (response: unknown) =>
+                this.targetsError.set(messageOf(response, this.i18n.t('remediation.targets_failed')))
         });
     }
 
@@ -158,25 +169,32 @@ export class Remediation {
                 this.fixes.set(fixes);
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('remediation.plan_failed'));
+            error: (response: unknown) => {
+                this.error.set(messageOf(response, this.i18n.t('remediation.plan_failed')));
                 this.loading.set(false);
             }
         });
 
         // Separately: an unavailable debt figure must not erase a work order that did arrive. It is
         // the page's context, not its subject.
+        this.debtError.set(null);
         this.debtRequest.run(this.remediationApi.getSecurityDebt(repoId, containerId), {
             next: (debt) => this.debt.set(debt),
-            error: () => {}
+            error: (response: unknown) => {
+                // The previous scope's figures must not stay on screen under this one.
+                this.debt.set(null);
+                this.debtError.set(messageOf(response, this.i18n.t('remediation.debt_failed')));
+            }
         });
 
         // And the admission likewise: not knowing what the plan leaves out beats not seeing the
         // plan. Reset first, so that one scope does not keep the other's admission.
         this.coverage.set(null);
+        this.coverageError.set(null);
         this.coverageRequest.run(this.remediationApi.getRemediationCoverage(repoId, containerId), {
             next: (coverage) => this.coverage.set(coverage),
-            error: () => {}
+            error: (response: unknown) =>
+                this.coverageError.set(messageOf(response, this.i18n.t('remediation.coverage_failed')))
         });
     }
 
