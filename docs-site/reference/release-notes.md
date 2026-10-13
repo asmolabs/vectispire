@@ -1,5 +1,70 @@
 # Release notes
 
+## 0.12.0 — in preparation
+
+Not released yet. What follows is what 0.12.0 will contain, against 0.11.2: the first three lots of
+[decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md),
+under which the platform governor switches each outside system Vectispire may talk to on or off.
+
+### Before you upgrade {#before-you-upgrade-0120}
+
+- **Migration V92 runs at startup.** It creates the integrations' registry, `t_integration`, and seeds
+  the seventeen integrations of today enabled, so an upgrade changes nothing until a governor acts. Back
+  up the database first, as for any migration
+  ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
+  Nothing else is asked of an operator.
+
+### Changes an integration can see {#changes-an-integration-can-see-0120}
+
+- **Two routes.** `GET /api/v1/integrations`, for any account, lists every integration with `key`,
+  `family`, `name`, `enabled`, `updatedAt` and `updatedBy` — the last two `null` until a governor switches
+  it, and `updatedBy` `null` too for a reader without a governance role.
+  `PUT /api/v1/integrations/{key}/enabled` with `{"enabled": true|false}` is the platform governor's
+  alone: 404 for an unknown key, 400 without `enabled`, and the same state again changes and records
+  nothing ([REST API reference](https://github.com/asmolabs/vectispire/blob/main/docs/en/api/rest_api_reference.md)).
+- **Two 409 causes**, each naming the key in the member `integration`:
+  `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration, and
+  `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
+  export sends over ([409 causes](errors.md#409-causes)).
+- **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
+  disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
+- **A new no-data reason, `forge_integration_disabled`**, in a checklist measurement's `reason` and
+  everywhere that list of reasons is answered; a client switching over the reasons meets one it did not
+  know.
+- **A new audit operation, `INTEGRATION_ENABLED_CHANGED`**, sent to the SIEM as `VECTI-SEC-019`, the
+  security setting change ([SIEM event catalogue](../integrations/siem.md#event-catalogue)).
+- **Generated operation ids moved.** `list_21` is now the integrations' list; the audit log's list is
+  `list_23` and the gate policies' `list_22`. A client generated from `openapi.json` that calls these by
+  name is regenerated.
+
+### New {#new-0120}
+
+- **The integrations' registry.** Each outside system is an integration keyed `<family>.<name>`: the
+  forges (`forge.github`, `forge.gitlab`), the SIEM transports (`siem.webhook`, `siem.syslog_udp`,
+  `siem.syslog_tcp`, `siem.syslog_tls`), the AI providers (`ai.ollama`, `ai.openai`), the notification
+  channels (`notification.webhook`, `.teams`, `.slack`, `.discord`, `.mail`) and the trackers
+  (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Every one of them starts enabled; one added
+  later — Bitbucket first — arrives disabled. The switch is through the API for now; there is no screen
+  yet. **Only the forges and the SIEM transports act on it in this release**: switching off an AI
+  provider, a notification channel or a tracker is recorded and audited, and stops nothing yet.
+- **A forge whose integration is disabled suspends its connections, never deletes them.** Each keeps its
+  row, its encrypted token, its snapshot, its import links and its change-review readings, and reads
+  *Suspended — integration disabled* on the forge connections screen. Nothing goes to that forge:
+  creating a connection of that kind, a discovery, an import's preview and the import, a new token and a
+  new network statement or CA answer 409 `integration-disabled`; renaming, deleting and reading still
+  work. A discovery queued before the switch waits, `pending` and uncounted. A `change_review` line it
+  fed reads no data with `forge_integration_disabled` — never a pass, even over a reading that passed
+  before. Switching the forge back on resumes everything as it was
+  ([forge connections](../administration/forge-connections.md#when-the-forges-integration-is-disabled)).
+- **The SIEM transport in use cannot be disabled, and a disabled one sends nothing and loses nothing.**
+  The governor's switch of the transport an enabled export sends over answers 409 `integration-in-use`:
+  point the export elsewhere, or switch it off, first. `PUT /api/v1/siem/config` with `enabled: true`
+  over a disabled transport, and `POST /api/v1/siem/test` of one, answer 409 `integration-disabled`;
+  switching the export off is always saved. Should a transport be off under an enabled export all the
+  same — a row changed by hand — its events wait in the outbox, pending, no attempt counted, offered again
+  every five minutes, and leave once it is enabled again
+  ([SIEM](../integrations/siem.md#each-transport-is-an-integration)).
+
 ## 0.11.2 — 2026-10-27
 
 0.11.2 runs scans on a Kubernetes cluster that has no Docker. With `agents.executor: kubernetes`, the

@@ -1,5 +1,77 @@
 # Notes de version
 
+## 0.12.0 — en préparation
+
+Pas encore publiée. Ce qui suit est ce que contiendra la 0.12.0, par rapport à la 0.11.2 : les trois
+premiers lots de la
+[décision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0040-integrations-are-switched-on-not-installed.md),
+par laquelle le gouverneur de la plateforme active ou désactive chaque système extérieur auquel
+Vectispire peut parler.
+
+### Avant la mise à jour {#avant-la-mise-a-jour-0120}
+
+- **La migration V92 s'exécute au démarrage.** Elle crée le registre des intégrations, `t_integration`,
+  et y inscrit activées les dix-sept intégrations d'aujourd'hui : une mise à jour ne change rien tant
+  qu'un gouverneur n'agit pas. Sauvegardez la base d'abord, comme pour toute migration
+  ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
+  Rien d'autre n'est demandé à un opérateur.
+
+### Changements visibles d'une intégration {#changements-visibles-dune-integration-0120}
+
+- **Deux routes.** `GET /api/v1/integrations`, pour tout compte, liste chaque intégration avec `key`,
+  `family`, `name`, `enabled`, `updatedAt` et `updatedBy` — ces deux derniers `null` tant qu'aucun
+  gouverneur ne l'a basculée, et `updatedBy` `null` aussi pour un lecteur sans rôle de gouvernance.
+  `PUT /api/v1/integrations/{key}/enabled` avec `{"enabled": true|false}` est réservée au gouverneur de la
+  plateforme : 404 pour une clé inconnue, 400 sans `enabled`, et le même état redemandé ne change ni
+  n'enregistre rien
+  ([référence de l'API REST](https://github.com/asmolabs/vectispire/blob/main/docs/fr/api/rest_api_reference.md)).
+- **Deux causes de 409**, chacune nommant la clé dans le membre `integration` :
+  `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée, et
+  `urn:vectispire:problem:integration-in-use` sur la bascule du gouverneur, pour le transport SIEM par
+  lequel un export activé envoie ([causes d'un 409](errors.fr.md#causes-dun-409)).
+- **Une connexion de forge porte `state`** — `active`, ou `suspended` tant que l'intégration de sa forge
+  est désactivée — **et `integration`**, `forge.gitlab` ou `forge.github`, la clé qui la reprend.
+- **Une nouvelle raison d'absence de données, `forge_integration_disabled`**, dans le `reason` d'une
+  mesure de checklist et partout où cette liste de raisons est répondue ; un client qui aiguille sur les
+  raisons en rencontre une qu'il ne connaissait pas.
+- **Une nouvelle opération d'audit, `INTEGRATION_ENABLED_CHANGED`**, envoyée au SIEM comme
+  `VECTI-SEC-019`, le changement de paramètre de sécurité
+  ([catalogue des événements SIEM](../integrations/siem.fr.md#catalogue-des-evenements)).
+- **Des identifiants d'opération générés ont bougé.** `list_21` est désormais la liste des intégrations ;
+  celle du journal d'audit est `list_23` et celle des politiques de barrière `list_22`. Un client généré
+  depuis `openapi.json` qui les appelle par leur nom est à régénérer.
+
+### Nouveautés {#nouveautes-0120}
+
+- **Le registre des intégrations.** Chaque système extérieur est une intégration de clé
+  `<famille>.<nom>` : les forges (`forge.github`, `forge.gitlab`), les transports SIEM (`siem.webhook`,
+  `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`), les fournisseurs d'IA (`ai.ollama`,
+  `ai.openai`), les canaux de notification (`notification.webhook`, `.teams`, `.slack`, `.discord`,
+  `.mail`) et les gestionnaires de tickets (`tracker.gitlab`, `.github`, `.jira`, `.servicenow`). Toutes
+  commencent activées ; une intégration ajoutée plus tard — Bitbucket d'abord — arrive désactivée. La
+  bascule passe par l'API pour l'instant ; il n'y a pas encore d'écran. **Seuls les forges et les
+  transports SIEM en tiennent compte dans cette version** : désactiver un fournisseur d'IA, un canal de
+  notification ou un gestionnaire de tickets est enregistré et audité, et n'arrête encore rien.
+- **Une forge dont l'intégration est désactivée suspend ses connexions, sans jamais les supprimer.**
+  Chacune garde sa ligne, son jeton chiffré, son instantané, ses liens d'import et ses lectures de revues
+  des changements, et se lit *Suspendue — intégration désactivée* sur l'écran des connexions de forge.
+  Rien ne part vers cette forge : créer une connexion de ce type, une découverte, la prévisualisation d'un
+  import et l'import, un nouveau jeton, une nouvelle déclaration de réseau ou AC répondent 409
+  `integration-disabled` ; renommer, supprimer et lire restent possibles. Une découverte mise en file
+  avant la bascule attend, `pending` et non comptée. Une ligne `change_review` qu'elle alimentait se lit
+  *pas de données* avec `forge_integration_disabled` — jamais une réussite, même sur une lecture qui
+  passait avant. Réactiver la forge reprend tout tel quel
+  ([connexions de forge](../administration/forge-connections.fr.md#quand-lintegration-de-la-forge-est-desactivee)).
+- **Le transport SIEM utilisé ne peut pas être désactivé, et un transport désactivé n'envoie rien et ne
+  perd rien.** La bascule par le gouverneur du transport par lequel un export activé envoie répond 409
+  `integration-in-use` : pointez d'abord l'export ailleurs, ou désactivez-le. `PUT /api/v1/siem/config`
+  avec `enabled: true` sur un transport désactivé, et `POST /api/v1/siem/test` d'un tel transport,
+  répondent 409 `integration-disabled` ; désactiver l'export est toujours enregistré. Si un transport est
+  malgré tout désactivé sous un export activé — une ligne modifiée à la main — ses événements attendent
+  dans l'outbox, en attente, sans tentative comptée, proposés de nouveau toutes les cinq minutes, et
+  partent une fois le transport réactivé
+  ([SIEM](../integrations/siem.fr.md#chaque-transport-est-une-integration)).
+
 ## 0.11.2 — 27 octobre 2026
 
 La 0.11.2 exécute les scans sur un cluster Kubernetes sans Docker. Avec `agents.executor: kubernetes`,
