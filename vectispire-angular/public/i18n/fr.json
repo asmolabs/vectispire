@@ -1760,7 +1760,39 @@
       "NO_FINDING": "Rien trouvé"
     },
     "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code place ses constats par la catégorie que chaque règle déclare dans ses propres métadonnées — donc une case dépend de ce qui est installé ici, et une catégorie qu'aucun scanner ne mesure peut être déclarée plutôt que laissée grise.",
-    "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc."
+    "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc.",
+    "reason": {
+      "NO_SCANNER": "Aucun scanner de ce déploiement ne produit de constat dans cette catégorie.",
+      "CODE_ANALYSIS_OFF": "L'analyse de code est désactivée, ou seule la règle livrée avec ce produit est installée.",
+      "DETECTION_OFF": "La détection est désactivée pour {{types}} : cette catégorie n'est donc pas mesurée.",
+      "DETECTION_AND_CODE_ANALYSIS_OFF": "La détection est désactivée pour {{types}}, et l'analyse de code est désactivée ou seule la règle livrée avec ce produit est installée : cette catégorie n'est donc pas mesurée.",
+      "OPEN_FINDINGS": "Des constats ouverts sont placés ici par règle.",
+      "NOTHING_SCANNED": "Rien n'a encore été scanné : aucun constat de cette catégorie ne pouvait exister.",
+      "TARGET_KIND_NOT_EXAMINED": "Rien ici n'examine ce type de cible pour {{types}} : le scan d'une image ne lit que ses dépendances.",
+      "CODE_ANALYSIS_READS_REPOSITORIES_ONLY": "Seule l'analyse de code place des constats ici, et elle lit les dépôts, pas les images.",
+      "NO_EXAMINABLE_TARGET_IN_SCOPE": "Aucune cible de ce périmètre ne peut être examinée pour {{types}} : le scan d'une image ne lit que ses dépendances, et ce périmètre ne contient aucun dépôt.",
+      "NO_REPOSITORY_IN_SCOPE": "Seule l'analyse de code place des constats ici, et ce périmètre ne contient aucun dépôt à lire.",
+      "EXAMINED_NOTHING_OPEN": "Examinée par {{types}} — le dernier scan de chaque cible concernée l'a examinée — sans rien d'ouvert.",
+      "CODE_EXAMINED_NOTHING_OPEN": "Examinée par l'analyse de code — le dernier scan de chaque dépôt concerné l'a examinée — sans rien d'ouvert.",
+      "TARGETS_NOT_EXAMINED_one": "{{count}} des cibles concernées par cette catégorie ({{applicable}} au total) n'a pas été examinée pour elle par {{types}} ({{why}}) : un zéro ici ne serait pas un résultat.",
+      "TARGETS_NOT_EXAMINED_other": "{{count}} des cibles concernées par cette catégorie ({{applicable}} au total) n'ont pas été examinées pour elle par {{types}} ({{why}}) : un zéro ici ne serait pas un résultat.",
+      "REPOSITORIES_NOT_EXAMINED_one": "{{count}} des dépôts concernés par cette catégorie ({{applicable}} au total) n'a pas été examiné pour elle par l'analyse de code ({{why}}) : un zéro ici ne serait pas un résultat.",
+      "REPOSITORIES_NOT_EXAMINED_other": "{{count}} des dépôts concernés par cette catégorie ({{applicable}} au total) n'ont pas été examinés pour elle par l'analyse de code ({{why}}) : un zéro ici ne serait pas un résultat."
+    },
+    "gap": {
+      "NEVER_SCANNED_one": "{{count}} n'a jamais terminé de scan",
+      "NEVER_SCANNED_other": "{{count}} n'ont jamais terminé de scan",
+      "LAST_SCAN_FAILED_one": "{{count}} dont le dernier scan a échoué",
+      "LAST_SCAN_FAILED_other": "{{count}} dont le dernier scan a échoué",
+      "UNRECORDED_one": "{{count}} dont le dernier scan précède l'enregistrement de ce qu'il a examiné",
+      "UNRECORDED_other": "{{count}} dont le dernier scan précède l'enregistrement de ce qu'il a examiné",
+      "STEP_ABSENT_one": "{{count}} dont le dernier scan n'a pas terminé cette étape",
+      "STEP_ABSENT_other": "{{count}} dont le dernier scan n'a pas terminé cette étape",
+      "LANGUAGES_UNRECORDED_one": "{{count}} dont le dernier scan n'a pas enregistré ses langages, ni ceux de ses règles",
+      "LANGUAGES_UNRECORDED_other": "{{count}} dont le dernier scan n'a pas enregistré ses langages, ni ceux de ses règles",
+      "NO_RULE_FOR_ITS_LANGUAGES_one": "{{count}} dans les langages desquels aucune règle installée ne déclare cette catégorie",
+      "NO_RULE_FOR_ITS_LANGUAGES_other": "{{count}} dans les langages desquels aucune règle installée ne déclare cette catégorie"
+    }
   },
   "owasp_weekly": {
     "views": "Vues OWASP",

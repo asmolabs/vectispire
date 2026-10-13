@@ -285,8 +285,11 @@ public final class OwaspCoverage {
     /**
      * Why one target was not examined for a category, for the sentence that says how many were not.
      * Declared in the order the sentence names them.
+     *
+     * <p>Published beside that sentence ({@link CoverageReason#gaps}), so a reader in another language is
+     * told the same reasons in theirs rather than the English words below (decision 0019).
      */
-    private enum Gap {
+    public enum Gap {
         NEVER_SCANNED("never finished a scan"),
         LAST_SCAN_FAILED("whose latest scan failed"),
         UNRECORDED("whose latest scan predates the record of what it examined"),
@@ -442,12 +445,153 @@ public final class OwaspCoverage {
         }
     }
 
+    /** How many of the targets a category applies to were not examined for it, for one reason. */
+    public record GapCount(Gap gap, long targets) {}
+
+    /**
+     * Why a line reads what it reads, as a token rather than a sentence (decision 0019).
+     *
+     * <p><b>The English sentence is a rendering of this, not a second source.</b> {@link
+     * CoverageReason#sentence} writes {@link CoverageLine#because} from the code and its values, so the
+     * sentence an export quotes and the token a screen translates cannot say two different things. A
+     * screen in another language renders the code with its own words; a code it does not know falls back
+     * on the sentence.
+     */
+    public enum ReasonCode {
+        /** {@link State#NOT_COVERED}: no type places a finding here and no installed rule declares it. */
+        NO_SCANNER,
+        /** {@link State#NOT_MEASURED}: only code analysis reaches it, and code analysis is off or unconfigured. */
+        CODE_ANALYSIS_OFF,
+        /**
+         * {@link State#NOT_MEASURED}: every type placing findings here is switched off ({@code types}). No
+         * category is placed by switchable types alone today — end of life shares A06 with the
+         * vulnerabilities — so this answers a switch added later, not one that exists.
+         */
+        DETECTION_OFF,
+        /** As {@link #DETECTION_OFF}, with code analysis off as well for a category a rule also declares. */
+        DETECTION_AND_CODE_ANALYSIS_OFF,
+        /** {@link State#FINDINGS}. */
+        OPEN_FINDINGS,
+        /** {@link State#NOT_MEASURED}: no target at all in scope — not even one never scanned. */
+        NOTHING_SCANNED,
+        /** A target's own line ({@link #assessTarget}), {@link State#NOT_COVERED}: an image, for {@code types}. */
+        TARGET_KIND_NOT_EXAMINED,
+        /** A target's own line, {@link State#NOT_COVERED}: an image, for a category only code analysis reaches. */
+        CODE_ANALYSIS_READS_REPOSITORIES_ONLY,
+        /** {@link State#NOT_MEASURED}: a scope of images only, for {@code types} no image's scan reads. */
+        NO_EXAMINABLE_TARGET_IN_SCOPE,
+        /** {@link State#NOT_COVERED}: a scope of images only, for a category only code analysis reaches. */
+        NO_REPOSITORY_IN_SCOPE,
+        /** {@link State#NO_FINDING}, examined by {@code types}. */
+        EXAMINED_NOTHING_OPEN,
+        /** {@link State#NO_FINDING}, examined by code analysis. */
+        CODE_EXAMINED_NOTHING_OPEN,
+        /** {@link State#NOT_MEASURED}: {@code missing} of {@code applicable} targets not examined by {@code types}. */
+        TARGETS_NOT_EXAMINED,
+        /** {@link State#NOT_MEASURED}: {@code missing} of {@code applicable} repositories not examined by code analysis. */
+        REPOSITORIES_NOT_EXAMINED
+    }
+
+    /**
+     * The reason of one line, with the values its sentence is made of — never inside a sentence, where a
+     * translation could not reorder them.
+     *
+     * @param types the finding types the reason names, by their wire names ({@code eol}, {@code secret}),
+     *     in the order the sentence names them; empty for a code that names none
+     * @param missing how many targets were not examined; null unless the code is {@link
+     *     ReasonCode#TARGETS_NOT_EXAMINED} or {@link ReasonCode#REPOSITORIES_NOT_EXAMINED}
+     * @param applicable how many targets of the scope the category applies to; null on the same terms
+     * @param gaps why those were not, one count per reason, in {@link Gap}'s order; their counts sum to
+     *     {@code missing}. Empty for every other code
+     */
+    public record CoverageReason(ReasonCode code, List<String> types, Long missing, Long applicable, List<GapCount> gaps) {
+
+        public CoverageReason {
+            java.util.Objects.requireNonNull(code, "code");
+            types = types == null ? List.of() : List.copyOf(types);
+            gaps = gaps == null ? List.of() : List.copyOf(gaps);
+        }
+
+        static CoverageReason of(ReasonCode code) {
+            return new CoverageReason(code, List.of(), null, null, List.of());
+        }
+
+        static CoverageReason naming(ReasonCode code, List<FindingType> types) {
+            return new CoverageReason(code, wireNames(types), null, null, List.of());
+        }
+
+        static CoverageReason unexamined(ReasonCode code, List<FindingType> types, int applicable, Map<Gap, Long> gaps) {
+            List<GapCount> counts = gaps.entrySet().stream()
+                    .map(gap -> new GapCount(gap.getKey(), gap.getValue()))
+                    .toList();
+            long missing = counts.stream().mapToLong(GapCount::targets).sum();
+            return new CoverageReason(code, wireNames(types), missing, (long) applicable, counts);
+        }
+
+        /**
+         * The reason in English — {@link CoverageLine#because}, which exports and every consumer that does not
+         * translate quote as it stands.
+         */
+        public String sentence() {
+            String what = String.join(", ", types);
+            return switch (code) {
+                case NO_SCANNER -> "No scanner in this deployment produces a finding in this category.";
+                case CODE_ANALYSIS_OFF -> capitalise(CODE_OFF) + ".";
+                case DETECTION_OFF -> "Detection is switched off for " + what + ", so this category is not measured.";
+                case DETECTION_AND_CODE_ANALYSIS_OFF -> "Detection is switched off for " + what + ", and " + CODE_OFF
+                        + ", so this category is not measured.";
+                case OPEN_FINDINGS -> "Open findings placed here by rule.";
+                case NOTHING_SCANNED -> "Nothing has been scanned yet, so no finding of this category could exist.";
+                case TARGET_KIND_NOT_EXAMINED -> "Nothing here examines this kind of target for " + what
+                        + ": an image's scan reads its dependencies only.";
+                case CODE_ANALYSIS_READS_REPOSITORIES_ONLY ->
+                        "Only code analysis places findings here, and it reads repositories, not images.";
+                case NO_EXAMINABLE_TARGET_IN_SCOPE -> "No target in this scope can be examined for " + what
+                        + ": an image's scan reads its dependencies only, and this scope holds no repository.";
+                case NO_REPOSITORY_IN_SCOPE ->
+                        "Only code analysis places findings here, and this scope holds no repository for it to read.";
+                case EXAMINED_NOTHING_OPEN -> nothingOpen(what);
+                case CODE_EXAMINED_NOTHING_OPEN -> nothingOpen("code analysis");
+                case TARGETS_NOT_EXAMINED -> unexaminedSentence(what, "target", "targets");
+                case REPOSITORIES_NOT_EXAMINED -> unexaminedSentence("code analysis", "repository", "repositories");
+            };
+        }
+
+        private static String nothingOpen(String what) {
+            return "Scanned by " + what + " — the latest scan of every target it applies to examined it — with nothing open.";
+        }
+
+        /**
+         * "2 of 3 targets…", and why each was not — the sentence an assessor quotes when a category reads not
+         * measured over a scope that was scanned.
+         */
+        private String unexaminedSentence(String what, String one, String many) {
+            String why = gaps.stream()
+                    .map(gap -> gap.targets() + " " + gap.gap().words)
+                    .collect(java.util.stream.Collectors.joining(", "));
+            return missing + " of " + applicable + " " + (applicable == 1 ? one : many) + " this category applies to "
+                    + (missing == 1 ? "was" : "were") + " not examined for it by " + what + " (" + why + "), so a "
+                    + "zero here would not be a result.";
+        }
+
+        private static List<String> wireNames(List<FindingType> types) {
+            return types.stream().map(FindingType::wireName).toList();
+        }
+    }
+
     /**
      * @param findings how many open findings this category holds; zero unless {@code state} is
      *     {@link State#FINDINGS}
-     * @param because one sentence saying why the state is what it is, meant to be quoted
+     * @param because one sentence saying why the state is what it is, meant to be quoted — {@code reason},
+     *     in English
+     * @param reason the same, as a code and its values, for a reader who does not read English
      */
-    public record CoverageLine(String id, String title, State state, long findings, String because) {}
+    public record CoverageLine(String id, String title, State state, long findings, String because, CoverageReason reason) {
+
+        static CoverageLine of(String id, String title, State state, long findings, CoverageReason reason) {
+            return new CoverageLine(id, title, state, findings, reason.sentence(), reason);
+        }
+    }
 
     /**
      * @param covered how many of the ten any scanner here can speak to at all. <b>Read this
@@ -549,8 +693,7 @@ public final class OwaspCoverage {
         boolean declared = measurement.declaredByRules().contains(id);
 
         if (types.isEmpty() && !declared) {
-            return new CoverageLine(id, title, State.NOT_COVERED, 0,
-                    "No scanner in this deployment produces a finding in this category.");
+            return CoverageLine.of(id, title, State.NOT_COVERED, 0, CoverageReason.of(ReasonCode.NO_SCANNER));
         }
 
         // **A type that is switched off measures nothing, and its zero is not a result.** End of
@@ -561,7 +704,7 @@ public final class OwaspCoverage {
         boolean codeMeasured = declared && measurement.codeAnalysisEnabled();
 
         if (measured.isEmpty() && !codeMeasured) {
-            return new CoverageLine(id, title, State.NOT_MEASURED, 0, whyUnmeasured(types, declared));
+            return CoverageLine.of(id, title, State.NOT_MEASURED, 0, whyUnmeasured(types, declared));
         }
 
         // **An open finding is a fact, whatever examined the target since.** A secret found last week
@@ -574,60 +717,43 @@ public final class OwaspCoverage {
                 + (codeMeasured ? measurement.openByCategory().getOrDefault(id, 0L) : 0L);
 
         if (findings > 0) {
-            return new CoverageLine(id, title, State.FINDINGS, findings, "Open findings placed here by rule.");
+            return CoverageLine.of(id, title, State.FINDINGS, findings, CoverageReason.of(ReasonCode.OPEN_FINDINGS));
         }
 
         // A category a type places is examined by those types — the code rules declaring it too add
         // their findings to the count, not a second condition to its examination.
         Source source = measured.isEmpty() ? new Source.Code(id) : new Source.Types(measured);
-        String what = source instanceof Source.Types placed ? names(placed.types()) : "code analysis";
+        boolean byTypes = source instanceof Source.Types;
 
         if (measurement.targets().isEmpty()) {
-            return new CoverageLine(id, title, State.NOT_MEASURED, 0,
-                    "Nothing has been scanned yet, so no finding of this category could exist.");
+            return CoverageLine.of(id, title, State.NOT_MEASURED, 0, CoverageReason.of(ReasonCode.NOTHING_SCANNED));
         }
         List<Evidence> applicable = measurement.targets().stream()
                 .filter(evidence -> source.appliesTo(evidence.target()))
                 .toList();
         if (applicable.isEmpty()) {
             if (oneTarget) {
-                return new CoverageLine(id, title, State.NOT_COVERED, 0, source instanceof Source.Types
-                        ? "Nothing here examines this kind of target for " + what + ": an image's scan reads its "
-                                + "dependencies only."
-                        : "Only code analysis places findings here, and it reads repositories, not images.");
+                return CoverageLine.of(id, title, State.NOT_COVERED, 0, byTypes
+                        ? CoverageReason.naming(ReasonCode.TARGET_KIND_NOT_EXAMINED, measured)
+                        : CoverageReason.of(ReasonCode.CODE_ANALYSIS_READS_REPOSITORIES_ONLY));
             }
-            return source instanceof Source.Types
-                    ? new CoverageLine(id, title, State.NOT_MEASURED, 0, "No target in this scope can be examined for "
-                            + what + ": an image's scan reads its dependencies only, and this scope holds no repository.")
-                    : new CoverageLine(id, title, State.NOT_COVERED, 0,
-                            "Only code analysis places findings here, and this scope holds no repository for it to read.");
+            return byTypes
+                    ? CoverageLine.of(id, title, State.NOT_MEASURED, 0,
+                            CoverageReason.naming(ReasonCode.NO_EXAMINABLE_TARGET_IN_SCOPE, measured))
+                    : CoverageLine.of(id, title, State.NOT_COVERED, 0, CoverageReason.of(ReasonCode.NO_REPOSITORY_IN_SCOPE));
         }
 
         Map<Gap, Long> gaps = new java.util.EnumMap<>(Gap.class);
         applicable.forEach(evidence -> source.gapOf(evidence)
                 .ifPresent(gap -> gaps.merge(gap, 1L, Long::sum)));
         if (gaps.isEmpty()) {
-            return new CoverageLine(id, title, State.NO_FINDING, 0, "Scanned by " + what
-                    + " — the latest scan of every target it applies to examined it — with nothing open.");
+            return CoverageLine.of(id, title, State.NO_FINDING, 0, byTypes
+                    ? CoverageReason.naming(ReasonCode.EXAMINED_NOTHING_OPEN, measured)
+                    : CoverageReason.of(ReasonCode.CODE_EXAMINED_NOTHING_OPEN));
         }
-        return new CoverageLine(id, title, State.NOT_MEASURED, 0, unexamined(source, what, applicable.size(), gaps));
-    }
-
-    /**
-     * "2 of 3 targets…", and why each was not — the sentence an assessor quotes when a category reads not
-     * measured over a scope that was scanned.
-     */
-    private static String unexamined(Source source, String what, int applicable, Map<Gap, Long> gaps) {
-        long missing = gaps.values().stream().mapToLong(Long::longValue).sum();
-        String noun = source instanceof Source.Types
-                ? (applicable == 1 ? "target" : "targets")
-                : (applicable == 1 ? "repository" : "repositories");
-        String why = gaps.entrySet().stream()
-                .map(gap -> gap.getValue() + " " + gap.getKey().words)
-                .collect(java.util.stream.Collectors.joining(", "));
-        return missing + " of " + applicable + " " + noun + " this category applies to "
-                + (missing == 1 ? "was" : "were") + " not examined for it by " + what + " (" + why + "), so a "
-                + "zero here would not be a result.";
+        return CoverageLine.of(id, title, State.NOT_MEASURED, 0, byTypes
+                ? CoverageReason.unexamined(ReasonCode.TARGETS_NOT_EXAMINED, measured, applicable.size(), gaps)
+                : CoverageReason.unexamined(ReasonCode.REPOSITORIES_NOT_EXAMINED, List.of(), applicable.size(), gaps));
     }
 
     private static boolean measures(FindingType type, Measurement measurement) {
@@ -643,24 +769,20 @@ public final class OwaspCoverage {
      * <p>Both halves can be off at once, and saying only one of them would send somebody to
      * switch on a detector that was already running.
      */
-    private static String whyUnmeasured(List<FindingType> types, boolean declared) {
+    private static CoverageReason whyUnmeasured(List<FindingType> types, boolean declared) {
         // **Both causes named.** On a fresh instance the commonest is the second — only the shipped
         // rule is installed — and naming just one would send somebody to switch back on a detector
         // that was already running. Whether a rule reaches a target's languages is not said here: it is
         // the evidence's, target by target, and a scope the rules do not reach says so in its own words.
-        String code = "code analysis is off, or only the rule this product ships is installed";
         if (types.isEmpty()) {
-            return capitalise(code) + ".";
+            return CoverageReason.of(ReasonCode.CODE_ANALYSIS_OFF);
         }
-        String detectors = "detection is switched off for " + names(types);
-        return capitalise(declared ? detectors + ", and " + code : detectors) + ", so this category is not measured.";
+        return CoverageReason.naming(declared ? ReasonCode.DETECTION_AND_CODE_ANALYSIS_OFF : ReasonCode.DETECTION_OFF, types);
     }
+
+    private static final String CODE_OFF = "code analysis is off, or only the rule this product ships is installed";
 
     private static String capitalise(String sentence) {
         return Character.toUpperCase(sentence.charAt(0)) + sentence.substring(1);
-    }
-
-    private static String names(List<FindingType> types) {
-        return String.join(", ", types.stream().map(FindingType::wireName).toList());
     }
 }

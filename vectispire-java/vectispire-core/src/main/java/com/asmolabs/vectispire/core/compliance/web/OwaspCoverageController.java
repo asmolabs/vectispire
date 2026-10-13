@@ -94,6 +94,10 @@ public class OwaspCoverageController {
      *     static analysis — insecure design cannot be read out of code, and a missing log leaves,
      *     by definition, no trace. Leaving them grey is honest and carries no review; declaring
      *     them says who asserts it, on what evidence, and when it is looked at again.
+     * @param because the reason in English, kept for every reader that does not translate — an export, a
+     *     script, a client older than {@code reason}
+     * @param reason the same reason as a code and the values its sentence is made of, which a screen
+     *     renders in its reader's language (decision 0019). Added beside {@code because}, never in its place
      */
     public record DeclaredCoverageLine(
             String id,
@@ -101,11 +105,12 @@ public class OwaspCoverageController {
             OwaspCoverage.State state,
             long findings,
             String because,
+            OwaspCoverage.CoverageReason reason,
             Declaration declaration) {
 
         static DeclaredCoverageLine of(OwaspCoverage.CoverageLine line, Declaration declaration) {
             return new DeclaredCoverageLine(
-                    line.id(), line.title(), line.state(), line.findings(), line.because(), declaration);
+                    line.id(), line.title(), line.state(), line.findings(), line.because(), line.reason(), declaration);
         }
     }
 
@@ -126,7 +131,10 @@ public class OwaspCoverageController {
      * refusals included, are the weekly route's — one resolver serves both.
      */
     @Operation(summary = "OWASP Top 10:2021 coverage", description = "Each category's state — findings, nothing found, "
-            + "unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, "
+            + "unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as "
+            + "a code (one of reason.code's values) and the values the sentence is made of: the finding types it names "
+            + "(types), and for a scope examined in part how many targets were not examined (missing), of how many "
+            + "(applicable), and why (gaps). project_id or solution_id narrows every figure — findings, "
             + "whether anything was scanned, the code findings by category — to the scope's targets the caller sees; "
             + "both answer 400. A project or a solution that does not exist and one the caller sees nothing of both "
             + "answer 404; one seen in part is computed over its visible targets and says partial. The declarations "

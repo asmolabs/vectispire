@@ -3,10 +3,18 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DECLARED_KEYS, GRID_IMPLEMENTATION_KEYS, OWASP_STATE_KEYS, OwaspGridComponent } from './owasp-grid';
+import {
+    DECLARED_KEYS,
+    GRID_IMPLEMENTATION_KEYS,
+    OWASP_GAP_KEYS,
+    OWASP_REASON_KEYS,
+    OWASP_STATE_KEYS,
+    OwaspGridComponent
+} from './owasp-grid';
 import { missingFromBundles } from '@/app/core/testing/bundles';
-import { useEnglish } from '@/app/core/testing/english';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 import english from '../../../public/i18n/en.json';
+import french from '../../../public/i18n/fr.json';
 import type { OwaspGrid } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
@@ -273,6 +281,139 @@ describe('la grille OWASP', () => {
             // them in the browser would make a second implementation of them.
             http.expectOne((call) => call.url === '/api/v1/owasp/coverage').flush(GRID);
             expect(component.editing()).toBeNull();
+        });
+    });
+    /**
+     * **The reason in the reader's language** (decision 0019). The grid's `because` is built in English on
+     * the server, and the French screen printed it as it stood. The code and its values travel beside it;
+     * the screen writes the sentence, putting the counts, the types and the reasons where French puts them.
+     */
+    describe('the reason, as a code', () => {
+        const reasoned = asSchema('DeclaredGrid', {
+            lines: [
+                {
+                    id: 'A06',
+                    title: 'Vulnerable and Outdated Components',
+                    state: 'NO_FINDING',
+                    findings: 0,
+                    because:
+                        'Scanned by vulnerability, eol — the latest scan of every target it applies to examined it — with nothing open.',
+                    reason: {
+                        code: 'EXAMINED_NOTHING_OPEN',
+                        types: ['vulnerability', 'eol'],
+                        missing: null,
+                        applicable: null,
+                        gaps: []
+                    }
+                },
+                {
+                    id: 'A07',
+                    title: 'Identification and Authentication Failures',
+                    state: 'NOT_MEASURED',
+                    findings: 0,
+                    because: 'two of three targets were not examined (in English).',
+                    reason: {
+                        code: 'TARGETS_NOT_EXAMINED',
+                        types: ['secret'],
+                        missing: 2,
+                        applicable: 3,
+                        gaps: [
+                            { gap: 'NEVER_SCANNED', targets: 1 },
+                            { gap: 'LAST_SCAN_FAILED', targets: 1 }
+                        ]
+                    }
+                },
+                {
+                    id: 'A03',
+                    title: 'Injection',
+                    state: 'NOT_MEASURED',
+                    findings: 0,
+                    because: 'One repository was not examined (in English).',
+                    reason: {
+                        code: 'REPOSITORIES_NOT_EXAMINED',
+                        types: [],
+                        missing: 1,
+                        applicable: 1,
+                        gaps: [{ gap: 'NO_RULE_FOR_ITS_LANGUAGES', targets: 1 }]
+                    }
+                }
+            ],
+            covered: 3,
+            withFindings: 0,
+            unmeasured: 2
+        });
+
+        function reasons(): string[] {
+            return [...fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(4)')].map((cell: Element) =>
+                cell.textContent.trim()
+            );
+        }
+
+        it('writes the French sentence, with its counts, types and reasons, to a French reader', () => {
+            useFrench();
+            fixture.componentInstance.grid.set(reasoned as OwaspGrid);
+            fixture.detectChanges();
+
+            expect(reasons()).toEqual([
+                'Examinée par vulnérabilité, fin de support — le dernier scan de chaque cible concernée ' +
+                    "l'a examinée — sans rien d'ouvert.",
+                '2 des cibles concernées par cette catégorie (3 au total) ' +
+                    "n'ont pas été examinées pour elle par secret exposé (1 n'a jamais terminé de scan, " +
+                    '1 dont le dernier scan a échoué) : un zéro ici ne serait pas un résultat.',
+                '1 des dépôts concernés par cette catégorie (1 au total) ' +
+                    "n'a pas été examiné pour elle par l'analyse de code (1 dans les langages desquels aucune " +
+                    'règle installée ne déclare cette catégorie) : un zéro ici ne serait pas un résultat.'
+            ]);
+        });
+
+        it('writes the English one to an English reader', () => {
+            useEnglish();
+            fixture.componentInstance.grid.set(reasoned as OwaspGrid);
+            fixture.detectChanges();
+
+            expect(reasons()[0]).toBe(
+                'Scanned by vulnerability, end of life — the latest scan of every target it applies to examined ' +
+                    'it — with nothing open.'
+            );
+            expect(reasons()[1]).toBe(
+                '2 of the targets this category applies to (3 in all) were not examined for it by exposed secret ' +
+                    '(1 never finished a scan, 1 whose latest scan failed), so a zero here would not be a result.'
+            );
+        });
+
+        /**
+         * A newer server can send a code, or a gap, this client has no words for: the server's English sentence
+         * is shown whole rather than a key path, an empty cell, or half a sentence in French around it.
+         */
+        it("falls back on the server's sentence for a code or a gap it does not know, and for no reason at all", () => {
+            useFrench();
+            const [first, second, third] = reasoned.lines;
+            fixture.componentInstance.grid.set({
+                ...reasoned,
+                lines: [
+                    { ...first, reason: { ...first.reason, code: 'PARTLY_EXAMINED' } },
+                    { ...second, reason: { ...second.reason, gaps: [{ gap: 'SCANNER_ON_STRIKE', targets: 2 }] } },
+                    { ...third, reason: undefined }
+                ]
+            } as unknown as OwaspGrid);
+            fixture.detectChanges();
+
+            expect(reasons()).toEqual([first.because, second.because, third.because]);
+        });
+
+        it('has every code and every reason in both bundles', () => {
+            const plural = (key: string) => [`${key}_one`, `${key}_other`];
+            // The two that count targets are plural pairs, read with the count of those not examined.
+            const counted: string[] = [
+                OWASP_REASON_KEYS.TARGETS_NOT_EXAMINED,
+                OWASP_REASON_KEYS.REPOSITORIES_NOT_EXAMINED
+            ];
+            const reasonKeys = Object.values(OWASP_REASON_KEYS).flatMap((key) =>
+                counted.includes(key) ? plural(key) : [key]
+            );
+            expect(missingFromBundles([...reasonKeys, ...Object.values(OWASP_GAP_KEYS).flatMap(plural)])).toEqual([]);
+            // The French sentence is not the English one copied over: one assertion that the bundles differ.
+            expect(french.owasp_grid.reason.NO_SCANNER).not.toBe(english.owasp_grid.reason.NO_SCANNER);
         });
     });
 });

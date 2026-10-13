@@ -1760,7 +1760,39 @@
       "NO_FINDING": "Nothing found"
     },
     "footnote": "A category with nothing found and a category nothing looks at produce the same green, which is why there are four states and not two. Code analysis places its findings by the category each rule declares in its own metadata, so a square depends on what is installed here — and a category no scanner measures can be declared rather than left grey.",
-    "not_covered_note": "“No scanner here” means no scanner in this deployment produces a finding in that category at all — it is a property of the product, not a verdict on the estate."
+    "not_covered_note": "“No scanner here” means no scanner in this deployment produces a finding in that category at all — it is a property of the product, not a verdict on the estate.",
+    "reason": {
+      "NO_SCANNER": "No scanner in this deployment produces a finding in this category.",
+      "CODE_ANALYSIS_OFF": "Code analysis is off, or only the rule this product ships is installed.",
+      "DETECTION_OFF": "Detection is switched off for {{types}}, so this category is not measured.",
+      "DETECTION_AND_CODE_ANALYSIS_OFF": "Detection is switched off for {{types}}, and code analysis is off, or only the rule this product ships is installed, so this category is not measured.",
+      "OPEN_FINDINGS": "Open findings placed here by rule.",
+      "NOTHING_SCANNED": "Nothing has been scanned yet, so no finding of this category could exist.",
+      "TARGET_KIND_NOT_EXAMINED": "Nothing here examines this kind of target for {{types}}: an image's scan reads its dependencies only.",
+      "CODE_ANALYSIS_READS_REPOSITORIES_ONLY": "Only code analysis places findings here, and it reads repositories, not images.",
+      "NO_EXAMINABLE_TARGET_IN_SCOPE": "No target in this scope can be examined for {{types}}: an image's scan reads its dependencies only, and this scope holds no repository.",
+      "NO_REPOSITORY_IN_SCOPE": "Only code analysis places findings here, and this scope holds no repository for it to read.",
+      "EXAMINED_NOTHING_OPEN": "Scanned by {{types}} — the latest scan of every target it applies to examined it — with nothing open.",
+      "CODE_EXAMINED_NOTHING_OPEN": "Scanned by code analysis — the latest scan of every target it applies to examined it — with nothing open.",
+      "TARGETS_NOT_EXAMINED_one": "{{count}} of the targets this category applies to ({{applicable}} in all) was not examined for it by {{types}} ({{why}}), so a zero here would not be a result.",
+      "TARGETS_NOT_EXAMINED_other": "{{count}} of the targets this category applies to ({{applicable}} in all) were not examined for it by {{types}} ({{why}}), so a zero here would not be a result.",
+      "REPOSITORIES_NOT_EXAMINED_one": "{{count}} of the repositories this category applies to ({{applicable}} in all) was not examined for it by code analysis ({{why}}), so a zero here would not be a result.",
+      "REPOSITORIES_NOT_EXAMINED_other": "{{count}} of the repositories this category applies to ({{applicable}} in all) were not examined for it by code analysis ({{why}}), so a zero here would not be a result."
+    },
+    "gap": {
+      "NEVER_SCANNED_one": "{{count}} never finished a scan",
+      "NEVER_SCANNED_other": "{{count}} never finished a scan",
+      "LAST_SCAN_FAILED_one": "{{count}} whose latest scan failed",
+      "LAST_SCAN_FAILED_other": "{{count}} whose latest scan failed",
+      "UNRECORDED_one": "{{count}} whose latest scan predates the record of what it examined",
+      "UNRECORDED_other": "{{count}} whose latest scan predates the record of what it examined",
+      "STEP_ABSENT_one": "{{count}} whose latest scan did not complete that step",
+      "STEP_ABSENT_other": "{{count}} whose latest scan did not complete that step",
+      "LANGUAGES_UNRECORDED_one": "{{count}} whose latest scan did not record its languages, or its rules'",
+      "LANGUAGES_UNRECORDED_other": "{{count}} whose latest scan did not record its languages, or its rules'",
+      "NO_RULE_FOR_ITS_LANGUAGES_one": "{{count}} in whose languages no installed rule declares this category",
+      "NO_RULE_FOR_ITS_LANGUAGES_other": "{{count}} in whose languages no installed rule declares this category"
+    }
   },
   "owasp_weekly": {
     "views": "OWASP views",

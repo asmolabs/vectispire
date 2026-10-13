@@ -2238,6 +2238,30 @@ export type ScopeView = Refine<
 
 export type OwaspState = 'FINDINGS' | 'NOT_MEASURED' | 'NOT_COVERED' | 'NO_FINDING';
 
+/** Why a grid line reads what it reads, as the token a screen translates (decision 0019). */
+export type OwaspReasonCode = NonNullable<Schema<'CoverageReason'>['code']>;
+
+/** Why one target was not examined for a category. */
+export type OwaspGap = NonNullable<Schema<'GapCount'>['gap']>;
+
+export type OwaspGapCount = Refine<Schema<'GapCount'>, { gap: OwaspGap }>;
+
+/**
+ * A line's reason with the values its sentence is made of: the finding types it names (wire names,
+ * `secret`, `eol`), and — for a scope examined in part — how many targets were not examined, of how
+ * many, and why. `missing` and `applicable` are `null` for every other code.
+ */
+export type OwaspCoverageReason = Refine<
+    Schema<'CoverageReason'>,
+    {
+        code: OwaspReasonCode;
+        types: string[];
+        missing: number | null;
+        applicable: number | null;
+        gaps: OwaspGapCount[];
+    }
+>;
+
 /**
  * One row of the grid, and what the organisation states about it.
  *
@@ -2252,7 +2276,9 @@ export type OwaspCoverageLine = Refine<
         id: string;
         title: string;
         state: OwaspState;
+        /** The reason in English, shown as it stands when `reason` is absent or carries a code this client does not know. */
         because: string;
+        reason?: OwaspCoverageReason;
         declaration: ControlDeclaration | null;
     }
 >;

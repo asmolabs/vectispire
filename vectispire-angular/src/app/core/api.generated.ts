@@ -2119,7 +2119,7 @@ export interface paths {
         };
         /**
          * OWASP Top 10:2021 coverage
-         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here. project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.
+         * @description Each category's state — findings, nothing found, unmeasured, or covered by no scanner here — with why: because, an English sentence, and reason, the same as a code (one of reason.code's values) and the values the sentence is made of: the finding types it names (types), and for a scope examined in part how many targets were not examined (missing), of how many (applicable), and why (gaps). project_id or solution_id narrows every figure — findings, whether anything was scanned, the code findings by category — to the scope's targets the caller sees; both answer 400. A project or a solution that does not exist and one the caller sees nothing of both answer 404; one seen in part is computed over its visible targets and says partial. The declarations are per category and do not depend on the scope.
          */
         get: operations["grid"];
         put?: never;
@@ -5602,6 +5602,16 @@ export interface components {
             sourceSlug?: string;
             toolVersion?: string;
         };
+        CoverageReason: {
+            /** Format: int64 */
+            applicable?: number;
+            /** @enum {string} */
+            code?: "NO_SCANNER" | "CODE_ANALYSIS_OFF" | "DETECTION_OFF" | "DETECTION_AND_CODE_ANALYSIS_OFF" | "OPEN_FINDINGS" | "NOTHING_SCANNED" | "TARGET_KIND_NOT_EXAMINED" | "CODE_ANALYSIS_READS_REPOSITORIES_ONLY" | "NO_EXAMINABLE_TARGET_IN_SCOPE" | "NO_REPOSITORY_IN_SCOPE" | "EXAMINED_NOTHING_OPEN" | "CODE_EXAMINED_NOTHING_OPEN" | "TARGETS_NOT_EXAMINED" | "REPOSITORIES_NOT_EXAMINED";
+            gaps?: components["schemas"]["GapCount"][];
+            /** Format: int64 */
+            missing?: number;
+            types?: string[];
+        };
         CoverageScopeForm: {
             exclude?: string[];
             include?: string[];
@@ -5733,6 +5743,7 @@ export interface components {
             /** Format: int64 */
             findings: number;
             id?: string;
+            reason?: components["schemas"]["CoverageReason"];
             /** @enum {string} */
             state?: "FINDINGS" | "NOT_MEASURED" | "NOT_COVERED" | "NO_FINDING";
             title?: string;
@@ -6287,6 +6298,12 @@ export interface components {
             name?: string;
             product_id?: string;
             product_identification_helper?: components["schemas"]["ProductIdentificationHelper"];
+        };
+        GapCount: {
+            /** @enum {string} */
+            gap?: "NEVER_SCANNED" | "LAST_SCAN_FAILED" | "UNRECORDED" | "STEP_ABSENT" | "LANGUAGES_UNRECORDED" | "NO_RULE_FOR_ITS_LANGUAGES";
+            /** Format: int64 */
+            targets: number;
         };
         GatePolicyView: {
             created_at?: string;
