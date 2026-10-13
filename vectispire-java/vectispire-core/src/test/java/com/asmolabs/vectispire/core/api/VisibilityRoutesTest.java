@@ -550,7 +550,8 @@ class VisibilityRoutesTest extends ApiTestBase {
         IssueEntity theirIssue = issues.findById(issue(theirs, "CVE-2026-9")).orElseThrow();
         theirIssue.setPackageName("neighbour-private-lib");
         theirIssue.setPackageVersion("4.2.0");
-        issues.save(theirIssue);
+        // The saved copy, carrying the revision the save gave it: deleting the stale one is refused (V89).
+        theirIssue = issues.save(theirIssue);
         String reader = assignedReader(mine);
         String route = "/api/v1/ai-advisor/explain/cve/CVE-2026-9";
 

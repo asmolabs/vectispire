@@ -39,6 +39,12 @@ toujours comptée, jusqu'à ce qu'un approbateur l'accorde. La ligne dit ce qui 
 approbateur qui l'ouvre trouve ce statut et la date de réexamen proposée déjà choisis : la demande est
 accordée telle quelle ou refusée, jamais accordée comme autre chose.
 
+Une décision n'est jamais écrite par-dessus ce qui a changé depuis que vous avez ouvert l'issue. Si un
+scan l'a reprise, ou si quelqu'un d'autre a décidé, entre votre lecture et votre enregistrement, la
+décision est refusée avec *l'issue a changé entre-temps* et rien n'est consigné : rouvrez-la et décidez
+sur ce qu'elle dit maintenant. Un scan qui écrit pendant que vous décidez ne défait pas non plus votre
+décision — il relit l'issue et la garde.
+
 ### Accepter un risque {#accepting-a-risk}
 
 **Ne sera pas corrigé — risque accepté** sert pour une vulnérabilité qui s'applique bel et bien et

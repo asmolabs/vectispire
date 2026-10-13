@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -76,6 +77,9 @@ public class SarifImportService {
 
     /** How many imports a repository's history route answers. */
     static final int HISTORY = 50;
+
+    /** How many times an import is folded when an issue changes under it, the first included. */
+    static final int FOLD_ATTEMPTS = 5;
 
     private final SarifSourceRepository sources;
     private final SarifImportRepository imports;
@@ -188,29 +192,42 @@ public class SarifImportService {
         String tools = BoundedText.clip(String.join(", ", new LinkedHashSet<>(described)), 1000);
         int resultsCount = results;
         Instant now = clock.instant();
-        SarifImportEntity saved = transactions.execute(status -> {
-            List<ObservedFinding> all = byTool.values().stream().flatMap(List::stream).toList();
-            IssueSyncService.SyncResult folded = issues.syncImport(
-                    new ScanTarget.Repository(repositoryId), source.getSlug(), byTool.keySet(), all);
-            SarifImportEntity row = new SarifImportEntity();
-            row.setSourceId(source.getId());
-            row.setSourceSlug(source.getSlug());
-            row.setRepoId(repositoryId);
-            row.setTools(tools);
-            row.setToolKeys(String.join(",", new java.util.TreeSet<>(byTool.keySet())));
-            row.setDocumentSha256(sha256);
-            row.setResultsCount(resultsCount);
-            row.setCreatedCount(folded.created());
-            row.setResolvedCount(folded.resolved());
-            row.setReopenedCount(folded.reopened());
-            row.setImportedAt(now);
-            row.setImportedBy(caller.actor() == null || caller.actor().username() == null
-                    ? "key:" + caller.keyName() : caller.actor().username());
-            row.setApiKeyId(caller.keyId());
-            SarifImportEntity imported = imports.save(row);
-            reported.announce(repositoryId);
-            return imported;
-        });
+        // Folded again when an issue changed under the fold — a person's triage committed meanwhile, which
+        // the issue's revision (V89) refuses to overwrite: the import reads what is committed and goes on,
+        // as a scan does, rather than failing the pipeline that sent it.
+        SarifImportEntity saved;
+        for (int attempt = 1; ; attempt++) {
+            try {
+                saved = transactions.execute(status -> {
+                    List<ObservedFinding> all = byTool.values().stream().flatMap(List::stream).toList();
+                    IssueSyncService.SyncResult folded = issues.syncImport(
+                            new ScanTarget.Repository(repositoryId), source.getSlug(), byTool.keySet(), all);
+                    SarifImportEntity row = new SarifImportEntity();
+                    row.setSourceId(source.getId());
+                    row.setSourceSlug(source.getSlug());
+                    row.setRepoId(repositoryId);
+                    row.setTools(tools);
+                    row.setToolKeys(String.join(",", new java.util.TreeSet<>(byTool.keySet())));
+                    row.setDocumentSha256(sha256);
+                    row.setResultsCount(resultsCount);
+                    row.setCreatedCount(folded.created());
+                    row.setResolvedCount(folded.resolved());
+                    row.setReopenedCount(folded.reopened());
+                    row.setImportedAt(now);
+                    row.setImportedBy(caller.actor() == null || caller.actor().username() == null
+                            ? "key:" + caller.keyName() : caller.actor().username());
+                    row.setApiKeyId(caller.keyId());
+                    SarifImportEntity imported = imports.save(row);
+                    reported.announce(repositoryId);
+                    return imported;
+                });
+                break;
+            } catch (OptimisticLockingFailureException changed) {
+                if (attempt >= FOLD_ATTEMPTS) {
+                    throw changed;
+                }
+            }
+        }
 
         audit.record(caller.actor().entry(AuditOperation.SARIF_IMPORTED, String.valueOf(repositoryId),
                 "SARIF from source \"" + source.getSlug() + "\" (" + tools + ") imported into repository " + repositoryId

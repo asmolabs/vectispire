@@ -11,7 +11,7 @@ Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la no
 première liste vaut pour toute installation venant de la 0.10.0 ; une installation en `v0.11.0-rc.1` la lit
 aussi, puis la seconde.
 
-- **Sauvegardez la base.** Les migrations V65 à V88 s'exécutent au démarrage et n'ont pas de retour
+- **Sauvegardez la base.** Les migrations V65 à V89 s'exécutent au démarrage et n'ont pas de retour
   arrière : revenir à 0.10.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
   ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
 - **Mettez à jour chaque agent `delegated` avec le plan de contrôle.** Les secrets sont désormais
@@ -84,7 +84,7 @@ aussi, puis la seconde.
 
 Depuis `v0.11.0-rc.1`, en plus :
 
-- **Les migrations V84 à V88 s'exécutent** — V83 et V85 ne sont pas utilisées ; la sauvegarde ci-dessus
+- **Les migrations V84 à V89 s'exécutent** — V83 et V85 ne sont pas utilisées ; la sauvegarde ci-dessus
   vaut.
 - **Chart Helm avec des agents dans le cluster : complétez les valeurs, sinon `helm upgrade` refuse de la
   rendre.** Ajoutez `ports` à chaque entrée de `agents.networkPolicy.allowTo` — `[{port: 443}]` pour le
@@ -308,6 +308,11 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 #### Autres changements
 
+- **Un triage peut recevoir 409 `issue-changed-meanwhile`.** `POST /api/v1/issues/{id}/triage`,
+  `POST /api/v1/issues/triage` et `POST /api/v1/exceptions/{issueId}/reviews` refusent une décision quand un
+  scan ou une autre décision a écrit l'issue entre la lecture et l'écriture de la requête — le `type` du
+  problème est `urn:vectispire:problem:issue-changed-meanwhile`, et rien n'est consigné. Relisez l'issue et
+  refaites la décision (*Un triage fait pendant un scan n'est plus perdu*, plus bas).
 - **`VECTI-SEC-030` (délai de remédiation dépassé) est aussi sévère que le constat en retard** : sévérité
   CEF 8 pour un constat critique, 7 pour un élevé, 5 pour un moyen, 3 pour un faible — dans l'en-tête CEF
   comme dans la priorité syslog, et c'est elle que la sévérité minimale compare. Elle valait 6, sous le
@@ -942,6 +947,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 - **Une sévérité a une seule couleur sur tous les écrans** : critique rouge, élevée orange, moyenne bleue,
   faible grise. Élevée était rouge sur la liste des constats et les solutions, orange sur les exceptions,
   les chemins d'attaque et le tableau de bord.
+- **Un triage fait pendant un scan n'est plus perdu.** Un scan lisait les issues de la cible au début de
+  l'écriture de ses résultats et les enregistrait entières à la fin ; une décision validée entre-temps — un
+  triage, une approbation, une revue, un ticket attaché — était ramenée à ce que le scan avait lu, sans
+  erreur ni ligne de journal. Chaque issue porte désormais une révision (migration V89) : un scan qui trouve
+  une issue modifiée sous lui la relit et l'intègre de nouveau, la décision gardée, et un import SARIF de
+  même ; une décision dont un scan a modifié l'issue sous elle est refusée par 409
+  `issue-changed-meanwhile` au lieu d'effacer les changements du scan.
 - **Un tracker derrière une CA interne est joint : sa CA peut être épinglée, comme celle d'une connexion de
   forge.** Chaque appel au tracker — ouvrir un ticket sur GitLab, GitHub, Jira ou ServiceNow, le fermer, la
   recherche des transitions de Jira, celle de l'incident sur ServiceNow — était vérifié contre le seul

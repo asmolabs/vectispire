@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,7 +72,7 @@ public class IssueTriageService {
         IssueEntity issue = issues.findById(issueId)
                 .orElseThrow(() -> new InvalidTriageException("Issue not found."));
 
-        return issues.save(apply(issue, decision));
+        return written(() -> issues.saveAndFlush(apply(issue, decision)));
     }
 
     /**
@@ -102,7 +103,7 @@ public class IssueTriageService {
                     .orElseThrow(() -> new InvalidTriageException("Issue " + issueId + " not found."));
             triaged.add(apply(issue, decision));
         }
-        return issues.saveAll(triaged);
+        return written(() -> issues.saveAllAndFlush(triaged));
     }
 
     /**
@@ -367,7 +368,23 @@ public class IssueTriageService {
                 now,
                 issue.getTriageExpiresAt()));
 
-        return issues.save(issue);
+        return written(() -> issues.saveAndFlush(issue));
+    }
+
+    /**
+     * A person's decision written now, in its own words if the issue changed since it was read.
+     *
+     * <p><b>Flushed here, not at the commit</b>, so the refusal is raised where it can be named: the
+     * issue's revision (V89) refuses a write naming one a scan or another decision has since replaced,
+     * and at the commit the same refusal reached the caller as a 500. The decision rolls back whole, its
+     * history row with it.
+     */
+    private static <T> T written(java.util.function.Supplier<T> write) {
+        try {
+            return write.get();
+        } catch (OptimisticLockingFailureException changed) {
+            throw new IssueChangedMeanwhileException();
+        }
     }
 
     /**

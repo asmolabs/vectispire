@@ -10,7 +10,7 @@ What follows is what 0.11.0 will contain, against 0.10.0.
 Each point is written out in full below; this is what to do before the new image starts. The first list
 is for every installation coming from 0.10.0; one running `v0.11.0-rc.1` reads it too, then the second.
 
-- **Back up the database.** Migrations V65 to V88 run at startup and have no way back: going back to
+- **Back up the database.** Migrations V65 to V89 run at startup and have no way back: going back to
   0.10.0 means restoring that backup and the previous image digest
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
 - **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
@@ -75,7 +75,7 @@ is for every installation coming from 0.10.0; one running `v0.11.0-rc.1` reads i
 
 From `v0.11.0-rc.1`, in addition:
 
-- **Migrations V84 to V88 run** — V83 and V85 are not used; the backup above applies.
+- **Migrations V84 to V89 run** — V83 and V85 are not used; the backup above applies.
 - **Helm chart with in-cluster agents: complete the values, or `helm upgrade` refuses to render.** Add
   `ports` to each `agents.networkPolicy.allowTo` entry — `[{port: 443}]` for the ingress controller; give
   the agents a node selector (or a required node affinity) and tolerations of their own, or set
@@ -282,6 +282,11 @@ from a list in which none is true of an exposed product — and signed into the 
 
 #### Other changes
 
+- **A triage can answer 409 `issue-changed-meanwhile`.** `POST /api/v1/issues/{id}/triage`,
+  `POST /api/v1/issues/triage` and `POST /api/v1/exceptions/{issueId}/reviews` refuse a decision when a scan
+  or another decision wrote the issue between the request's read and its write — the problem's `type` is
+  `urn:vectispire:problem:issue-changed-meanwhile`, and nothing is recorded. Read the issue again and repeat
+  the decision (*A triage made while a scan ran is no longer lost*, below).
 - **`VECTI-SEC-030` (remediation deadline passed) is as severe as the late issue**: CEF severity 8 for
   a critical issue, 7 for a high, 5 for a medium, 3 for a low — in the CEF header and in the syslog
   priority, and the minimum severity is compared with that. It was a fixed 6, under the default minimum
@@ -859,6 +864,12 @@ from a list in which none is true of an exposed product — and signed into the 
   attack-surface pages say when a list failed to load instead of staying empty.
 - **A severity has one colour on every screen**: critical red, high orange, medium blue, low grey. High was
   red on the issue list and the solutions, orange on the exceptions, the attack paths and the dashboard.
+- **A triage made while a scan ran is no longer lost.** A scan read the target's issues when it began
+  writing its results and saved them whole at the end; a decision committed in between — a triage, an
+  approval, a review, a ticket attached — was put back to what the scan had read, with no error and no log
+  line. Each issue now carries a revision (migration V89): a scan that finds an issue changed under it reads
+  it again and folds once more, the decision kept, and so does a SARIF import; a decision whose issue a scan
+  changed under it is refused with 409 `issue-changed-meanwhile` rather than writing the scan's changes away.
 - **A tracker behind an internal CA is reached: its CA can be pinned, as a forge connection's is.** Every
   call to the tracker — opening a ticket on GitLab, GitHub, Jira or ServiceNow, closing it, Jira's
   transitions lookup, ServiceNow's incident lookup — was verified against the Java runtime's trust store

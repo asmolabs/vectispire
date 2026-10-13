@@ -42,6 +42,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -634,14 +635,33 @@ public class ScanDispatcher {
         if (prepared.isEmpty()) {
             return false;
         }
-        return Boolean.TRUE.equals(transactions.execute(status -> {
-            boolean written = write(scanId, worker, artifacts, prepared.get());
-            if (written) {
-                alongside.run();
+        // **Folded again, never failed, when a person wrote an issue meanwhile.** The backlog reads the
+        // target's issues when the write begins and saves them at its end; a triage committed in between
+        // used to be put back to what the scan had read. The issue's revision (V89) now refuses that
+        // save, the transaction rolls back whole, and the next attempt reads what is committed — the
+        // person's decision included. A scan is not failed because somebody triaged: only a conflict
+        // repeated past the attempts below leaves, and then as any write failure does, transient.
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return Boolean.TRUE.equals(transactions.execute(status -> {
+                    boolean written = write(scanId, worker, artifacts, prepared.get());
+                    if (written) {
+                        alongside.run();
+                    }
+                    return written;
+                }));
+            } catch (OptimisticLockingFailureException changed) {
+                if (attempt >= WRITE_ATTEMPTS) {
+                    throw changed;
+                }
+                log.info("Scan {}: an issue it folds changed while its results were written; folding again ({}/{}).",
+                        scanId, attempt + 1, WRITE_ATTEMPTS);
             }
-            return written;
-        }));
+        }
     }
+
+    /** How many times a scan's results are folded when an issue changes under them, the first included. */
+    static final int WRITE_ATTEMPTS = 5;
 
     /**
      * Tells the module above that a repository's scan completed — <b>in the scan's transaction</b>, here

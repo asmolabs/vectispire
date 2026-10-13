@@ -258,14 +258,15 @@ public interface IssueRepository
      */
     @Transactional
     @Modifying(clearAutomatically = true)
-    @Query("update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url where i.id = :id")
+    @Query("update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.revision = i.revision + 1 where i.id = :id")
     int attachTicket(@Param("id") Long id, @Param("reference") String reference, @Param("url") String url);
 
     /** Records a reference a person attached, and who: Vectispire will not close that ticket. */
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
-            update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.ticketAttachedBy = :by
+            update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.ticketAttachedBy = :by,
+                   i.revision = i.revision + 1
              where i.id = :id""")
     int attachTicketBy(
             @Param("id") Long id,

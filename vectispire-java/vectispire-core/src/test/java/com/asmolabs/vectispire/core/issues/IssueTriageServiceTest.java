@@ -38,6 +38,8 @@ class IssueTriageServiceTest {
         service = new IssueTriageService(issues, events, Clock.fixed(NOW, ZoneOffset.UTC));
         when(issues.save(any())).thenAnswer(call -> call.getArgument(0));
         when(issues.saveAll(any())).thenAnswer(call -> call.getArgument(0));
+        when(issues.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+        when(issues.saveAllAndFlush(any())).thenAnswer(call -> call.getArgument(0));
         when(events.save(any())).thenAnswer(call -> call.getArgument(0));
     }
 

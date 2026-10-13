@@ -37,6 +37,11 @@ only requests them — the issue waits in `pending approval`, still counted, unt
 The row says what was asked for, and an approver opening it finds that status and the proposed review
 date already chosen: the request is granted as asked or turned down, never granted as something else.
 
+A decision is never written over what changed since you opened the issue. If a scan folded the issue, or
+somebody else decided, between your reading and your saving, the decision is refused with *the issue
+changed meanwhile* and nothing is recorded: open it again and decide on what it says now. A scan
+writing while you decide does not undo your decision either — it reads the issue again and keeps it.
+
 ### Accepting a risk
 
 **Will not fix — risk accepted** is for a vulnerability that does apply and that the team has decided

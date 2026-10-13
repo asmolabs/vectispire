@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -218,6 +219,23 @@ public class IssueEntity {
     /** Who attached the reference by hand; null when Vectispire opened the ticket itself. */
     @Column(name = "ticket_attached_by", length = 255)
     private String ticketAttachedBy;
+
+    /**
+     * The revision a write names, so that the second of two writers is refused rather than winning (V89).
+     *
+     * <p>A scan reads a target's issues when its ingestion begins and saves them whole when it ends; a
+     * triage committed in between was put back to what the scan had read, silently. A refused triage
+     * answers 409 ({@code IssueChangedMeanwhileException}); a refused scan folds again from what is
+     * committed ({@code ScanDispatcher}). A bulk statement that writes a person's gesture — a ticket
+     * attached — raises it too; the feeds' own columns do not, or every scan ingesting while a feed
+     * synchronises would be refused for a column it does not decide.
+     *
+     * <p>Primitive and without a getter: no view publishes it, and Spring Data keeps telling a new row
+     * by its identifier.
+     */
+    @Version
+    @Column(name = "revision", nullable = false)
+    private long revision;
 
     public Long getId() {
         return id;
