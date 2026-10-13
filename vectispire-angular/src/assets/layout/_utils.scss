@@ -5,14 +5,18 @@
     clear: both;
 }
 
-.card {
-    background: var(--surface-card);
-    padding: 2rem;
-    margin-bottom: 2rem;
-    border-radius: var(--content-border-radius);
+/* In `components`, so that a utility on a card (`mb-4`, `p-0`) wins over its defaults; unlayered,
+ * the card's own margin and padding beat every one of them — see `_typography.scss`. */
+@layer components {
+    .card {
+        background: var(--surface-card);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-radius: var(--content-border-radius);
 
-    &:last-child {
-        margin-bottom: 0;
+        &:last-child {
+            margin-bottom: 0;
+        }
     }
 }
 

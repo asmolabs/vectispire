@@ -5,7 +5,13 @@
  * first came from Sakai's `cetincakiroglu/sakai-assets` submodule; Sparked's copy was
  * already the same, line for line, apart from formatting.
  *
- * Two departures from the original, both deliberate:
+ * Three departures from the original, all deliberate:
+ *
+ *  - the template's element rules (headings, paragraphs, links) and `.card` sit in Tailwind's
+ *    `base` and `components` layers rather than in none, so a utility on the element wins over
+ *    them; this file is therefore listed after `tailwind.css` in `angular.json`, since within
+ *    `base` the later rule wins and preflight would otherwise reset every heading's size — see
+ *    `layout/_typography.scss`;
  *
  *  - `demo/demo.scss` is not taken: it only styles the component showcase, which was
  *    removed along with the demonstration pages;

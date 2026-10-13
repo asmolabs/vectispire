@@ -4,8 +4,9 @@ html {
     line-height: 1.2;
 }
 
+/* No `font-family` here: the template's 'Lato' was never loaded (the CSP refuses its CDN) and
+ * `styles.scss` sets Inter on `body` after this file anyway. */
 body {
-    font-family: 'Lato', sans-serif;
     color: var(--text-color);
     background-color: var(--surface-ground);
     margin: 0;
@@ -15,8 +16,11 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-    text-decoration: none;
+/* Layered so that `underline` on a link wins — see `_typography.scss`. */
+@layer base {
+    a {
+        text-decoration: none;
+    }
 }
 
 .layout-wrapper {
