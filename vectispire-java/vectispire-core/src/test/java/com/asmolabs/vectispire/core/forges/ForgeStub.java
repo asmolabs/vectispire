@@ -94,8 +94,12 @@ public final class ForgeStub implements AutoCloseable {
     private static ForgeStub start(GeneralName... names) throws Exception {
         KeyPair caKeys = keys();
         X500Name ca = new X500Name("CN=Forge Test CA");
+        // Valid from long before today: a test that fixes its clock on a past date — the tracker token
+        // check's starts on 2026-10-12 — reads the pinned CA as current only if its validity began earlier.
+        // A day before `now` turned that test red on the next day.
+        Date validFrom = Date.from(Instant.now().minus(Duration.ofDays(400)));
         X509v3CertificateBuilder root = new X509v3CertificateBuilder(ca, BigInteger.valueOf(System.nanoTime()),
-                Date.from(Instant.now().minus(Duration.ofDays(1))), Date.from(Instant.now().plus(Duration.ofDays(365))),
+                validFrom, Date.from(Instant.now().plus(Duration.ofDays(365))),
                 ca, SubjectPublicKeyInfo.getInstance(caKeys.getPublic().getEncoded()));
         root.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));
         root.addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign));
@@ -103,7 +107,7 @@ public final class ForgeStub implements AutoCloseable {
 
         KeyPair leafKeys = keys();
         X509v3CertificateBuilder leaf = new X509v3CertificateBuilder(ca, BigInteger.valueOf(System.nanoTime()),
-                Date.from(Instant.now().minus(Duration.ofDays(1))), Date.from(Instant.now().plus(Duration.ofDays(30))),
+                validFrom, Date.from(Instant.now().plus(Duration.ofDays(30))),
                 new X500Name("CN=forge"), SubjectPublicKeyInfo.getInstance(leafKeys.getPublic().getEncoded()));
         leaf.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(names));
         byte[] leafDer = sign(leaf, caKeys);
