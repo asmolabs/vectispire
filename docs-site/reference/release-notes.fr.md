@@ -827,6 +827,15 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Sécurité
 
+- **Kubernetes : dans un pod, une destination qu'un administrateur règle se voit aussi refuser les ports 6443
+  et 10250 sur toute adresse** — ceux du serveur d'API et des kubelets — à côté du service d'API du cluster :
+  kube-proxy renvoie le service vers des adresses qu'aucun réglage ne nomme. Sont concernés les connexions
+  forge, les webhooks, le serveur d'IA et le collecteur SIEM. Un serveur d'API publié sur 443 par un cluster
+  managé revient à la NetworkPolicy, comme le disent désormais le guide d'installation et le README de la chart.
+- **Un import depuis une forge ne clone que depuis l'hôte de sa connexion.** Un dépôt dont l'URL de clonage —
+  HTTPS, ou SSH quand une clé est choisie — n'est pas sur l'hôte de la connexion est refusé par l'aperçu et par
+  l'import, et aucun identifiant de cet hôte ne lui est proposé : la liste de la forge ne décide plus d'où une
+  cible est clonée. Un GitLab dont les clones SSH passent par un hôte à part importe en HTTPS.
 - **Le contrôle de santé de la base de la composition ne met plus le mot de passe root de MySQL sur une ligne
   de commande.** `mysqladmin ping -p"…"` tournait toutes les dix secondes avec le mot de passe parmi ses
   arguments, que `ps` montre à tout utilisateur du conteneur et de l'hôte. Il le lit désormais dans un fichier
@@ -950,6 +959,19 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Le registre des verdicts de la barrière ne tombe plus sur un verdict qui ne nomme aucune cible.** Une
+  seule ligne de ce genre — restaurée ou écrite à la main, l'application n'en enregistre jamais — faisait
+  répondre 500 au registre entier et à la section 09 du paquet de preuves ; elle est désormais listée sans
+  cible, aux seuls lecteurs de tout le parc. Le registre **nomme aussi chaque cible** (`target_name`) au lieu
+  d'afficher « Dépôt 5 », et seulement les cibles que le lecteur peut voir.
+- **L'attestation est datée par la vérification de la chaîne d'audit faite par le serveur** (`checkedAt` sur
+  `GET /api/v1/audit-log/verify`), et non plus par l'horloge du navigateur.
+- **L'échantillon de 300 constats du rapport OWASP rédigé par l'IA garde les plus risqués** — KEV d'abord,
+  puis par sévérité — au lieu des premiers types de constat par ordre alphabétique, qui pouvaient écarter
+  toutes les vulnérabilités.
+- **La documentation dit quelle adresse cliente `trustedProxies` croit** derrière un répartiteur de charge ou
+  un nœud Kubernetes qui traduit l'adresse source, et comment la rétablir selon le répartiteur ; la note du
+  guide SIEM sur `src` derrière un répartiteur n'était plus à jour.
 - **Sans fournisseur d'identité, le rapport de conformité compte le TOTP local.** Les contrôles de
   journalisation étaient plafonnés à 65 avec « aucun second facteur » dès qu'aucun fournisseur n'était
   configuré, même quand chaque compte avait enrôlé le TOTP. Quand chaque compte actif qui a un mot de passe

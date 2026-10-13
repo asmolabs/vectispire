@@ -758,6 +758,15 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Security
 
+- **Kubernetes: in a pod, a destination an administrator sets is also refused ports 6443 and 10250 on every
+  address** — the API server's and the kubelets' — beside the cluster's API service: kube-proxy forwards the
+  service to addresses no setting names. Forge connections, webhooks, the AI server and the SIEM collector are
+  concerned. An API server a managed cluster publishes on 443 is the NetworkPolicy's to keep out, as the
+  installation guide and the chart's README now say.
+- **A forge import clones only from its connection's host.** A repository whose clone URL — the HTTPS one, or
+  the SSH one when a key is chosen — is not on the connection's host is refused by the preview and the import,
+  and no credential of that host is proposed for it: the forge's listing no longer decides where a target is
+  cloned from. A GitLab whose SSH clones go through a separate host imports over HTTPS.
 - **The composition's database health check no longer puts the MySQL root password on a command line.**
   `mysqladmin ping -p"…"` ran every ten seconds with the password among its arguments, which `ps` shows to
   every user of the container and of the host. It now reads the password from an option file only its owner
@@ -869,6 +878,19 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **The gate's verdict register no longer fails on a verdict that names no target.** One such row — restored
+  or written by hand, since the application never records one — made the whole register and section 09 of
+  the evidence bundle answer 500; it is now listed with no target, to whole-estate readers only. The register
+  also **names each target** (`target_name`) instead of showing "Repository 5", and only targets the reader
+  may see.
+- **The attestation is dated by the server's check of the audit chain** (`checkedAt` on
+  `GET /api/v1/audit-log/verify`), no longer by the browser's clock.
+- **The AI-written OWASP report's 300-finding sample keeps the riskiest findings** — KEV first, then by
+  severity — instead of the first finding types in alphabetical order, which could leave every vulnerability
+  out.
+- **The documentation says which client address `trustedProxies` believes** behind a load balancer or a
+  Kubernetes node that translates the source address, and how to restore it for each kind of load balancer;
+  the SIEM guide's note on `src` behind a load balancer was out of date.
 - **Without an identity provider, the compliance report counts local TOTP.** The audit-logging controls were
   capped at 65 with "no second factor" whenever no provider was configured, even with TOTP enrolled on every
   account. Once every active account holding a password has enrolled, the cap is 85 — the one already applied
