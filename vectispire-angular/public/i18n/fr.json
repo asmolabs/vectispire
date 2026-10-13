@@ -1143,6 +1143,11 @@
       "repository": "Dépôt",
       "container": "Image"
     },
+    "policy_source": {
+      "target": "Politique de la cible",
+      "global": "Politique globale",
+      "built_in": "Défaut intégré"
+    },
     "passed": "passé",
     "refused_one": "refusé",
     "nothing_to_judge": "rien à juger",
@@ -2204,7 +2209,6 @@
     "csv_btn": "CSV",
     "vex_btn": "VEX",
     "csaf_btn": "CSAF",
-    "default_policy": "défaut",
     "repository": "Dépôt Git",
     "container": "Conteneur",
     "error_load": "Impossible de charger la posture de sécurité.",

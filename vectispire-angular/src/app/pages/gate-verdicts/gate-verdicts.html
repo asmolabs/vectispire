@@ -108,7 +108,7 @@
                                     <strong>{{ row.fail_on_severity | severityLabel }}</strong>
                                 </div>
                                 <div class="text-muted-color text-xs">
-                                    {{ row.policy_source ?? '—' }}
+                                    {{ row.policy_source | policySource }}
                                     @if (row.policy_version) {
                                         <span> · v{{ row.policy_version }}</span>
                                     }

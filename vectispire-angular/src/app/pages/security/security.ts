@@ -11,6 +11,7 @@ import { saveDocument } from '@/app/core/download';
 import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { PolicySourcePipe } from '@/app/shared/policy-source';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
@@ -27,7 +28,16 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
  */
 @Component({
     selector: 'zs-security',
-    imports: [TableModule, TagModule, ButtonModule, MessageModule, RouterLink, TranslatePipe, RuleCoverageBanner],
+    imports: [
+        TableModule,
+        TagModule,
+        ButtonModule,
+        MessageModule,
+        RouterLink,
+        TranslatePipe,
+        PolicySourcePipe,
+        RuleCoverageBanner
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './security.html'
 })

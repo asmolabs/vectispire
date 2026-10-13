@@ -73,11 +73,10 @@
                     </td>
                     <td>{{ target.verdict.evaluated }}</td>
                     <td class="text-muted-color">
-                        {{
-                            target.policy.source === 'built-in'
-                                ? ('security.default_policy' | translate)
-                                : target.policy.source + ' v' + target.policy.version
-                        }}
+                        {{ target.policy.source | policySource }}
+                        @if (target.policy.version !== null) {
+                            <span> · v{{ target.policy.version }}</span>
+                        }
                     </td>
                     <td class="text-muted-color">{{ formatDate(target.lastScanAt) }}</td>
                     <td>

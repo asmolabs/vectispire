@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GateVerdicts } from './gate-verdicts';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The verdict register, and the number it must not invent.
@@ -115,6 +116,45 @@ describe('le registre des verdicts', () => {
 
         const cell = (fixture.nativeElement as HTMLElement).querySelector('tbody tr td')!;
         expect(cell.textContent?.replace(/\s+/g, ' ').trim()).toBe('gate_verdicts.kind.repository 7');
+    });
+
+    /**
+     * The policy column printed the stored source as it is stored: "built-in" on the French
+     * screenshots, `BUILT_IN` from a server. Each reader gets it in words; one this client does not
+     * know is shown as sent.
+     */
+    it("names the policy that decided in the reader's language", async () => {
+        await mount({
+            verdicts: [
+                { ...row('e', true), policy_source: 'BUILT_IN', policy_version: null },
+                { ...row('f', true), policy_source: 'GLOBAL', policy_version: 2 },
+                row('g', false),
+                { ...row('h', true), policy_source: 'PROJECT', policy_version: 1 }
+            ],
+            passed: 3,
+            refused: 1
+        });
+        const policies = () =>
+            [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')].map((line) =>
+                line
+                    .querySelectorAll('td')[3]
+                    ?.querySelector('.text-muted-color')
+                    ?.textContent?.replace(/\s+/g, ' ')
+                    .trim()
+            );
+
+        useEnglish();
+        fixture.detectChanges();
+        expect(policies().slice(0, 2)).toEqual(['Built-in default', 'Global policy · v2']);
+
+        useFrench();
+        fixture.detectChanges();
+        expect(policies()).toEqual([
+            'Défaut intégré',
+            'Politique globale · v2',
+            'Politique de la cible · v4',
+            'PROJECT · v1'
+        ]);
     });
 
     it('shows only the severities that carry a count', () => {

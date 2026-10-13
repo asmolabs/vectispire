@@ -1467,7 +1467,7 @@ test.describe('documentation screenshots', () => {
                 id: `0195f3a1-8a2b-7c4d-9e1f-${id}`, target_kind: kind, target_id: targetId,
                 target_name: names[`${kind}:${targetId}`],
                 passed, evaluated, violations, fail_on_severity: 'high',
-                policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
+                policy_source: 'BUILT_IN', policy_version: null, relaxations_ignored: false,
                 counts_by_severity: counts, decided_at: decidedAt, decided_by: 'ci'
             });
             await stub(page, '**/api/v1/gate/verdicts*', {

@@ -9,6 +9,7 @@ import { GateApi } from '@/app/core/api/gate.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
+import { PolicySourcePipe } from '@/app/shared/policy-source';
 import { SeverityLabelPipe } from '@/app/shared/severity';
 import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
 
@@ -28,6 +29,7 @@ import { LocalPercentPipe } from '@/app/core/i18n/local-percent.pipe';
     selector: 'zs-gate-verdicts',
     imports: [
         DatePipe,
+        PolicySourcePipe,
         FormsModule,
         ButtonModule,
         MessageModule,

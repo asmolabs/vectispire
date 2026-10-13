@@ -1143,6 +1143,11 @@
       "repository": "Repository",
       "container": "Image"
     },
+    "policy_source": {
+      "target": "Target policy",
+      "global": "Global policy",
+      "built_in": "Built-in default"
+    },
     "passed": "passed",
     "refused_one": "refused",
     "nothing_to_judge": "nothing to judge",
@@ -2204,7 +2209,6 @@
     "csv_btn": "CSV",
     "vex_btn": "VEX",
     "csaf_btn": "CSAF",
-    "default_policy": "default",
     "repository": "Repository",
     "container": "Container",
     "error_load": "Could not load the security posture.",

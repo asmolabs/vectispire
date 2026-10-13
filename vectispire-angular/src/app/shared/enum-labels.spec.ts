@@ -13,6 +13,7 @@ import {
     frameworkLabel,
     gateStatusLabel
 } from './compliance-labels';
+import { POLICY_SOURCE_KEYS, policySourceLabel } from './policy-source';
 import { ISSUE_STATE_KEYS, SCAN_STATUS_KEYS, issueStateLabel, scanStatusLabel } from './scan-status';
 import { SEVERITY_KEYS, severityLabel } from './severity';
 import { TARGET_KIND_KEYS, targetKindLabel } from './target-kind';
@@ -42,7 +43,8 @@ describe('server vocabularies in words', () => {
             GATE_STATUS_KEYS,
             SCAN_STATUS_KEYS,
             ISSUE_STATE_KEYS,
-            TARGET_KIND_KEYS
+            TARGET_KIND_KEYS,
+            POLICY_SOURCE_KEYS
         ];
         expect(missingFromBundles(maps.flatMap((map) => Object.values(map)))).toEqual([]);
     });
@@ -107,5 +109,17 @@ describe('server vocabularies in words', () => {
         expect(targetKindLabel(i18n, 'repository')).toBe('Dépôt');
         expect(targetKindLabel(i18n, 'CONTAINER')).toBe('Image');
         expect(targetKindLabel(i18n, 'helm_chart')).toBe('helm_chart');
+    });
+
+    it('names the policy that decided, as the register stores it and as the overview sends it', () => {
+        useEnglish();
+        expect(policySourceLabel(i18n, 'BUILT_IN')).toBe('Built-in default');
+        expect(policySourceLabel(i18n, 'global')).toBe('Global policy');
+        useFrench();
+        expect(policySourceLabel(i18n, 'built-in')).toBe('Défaut intégré');
+        expect(policySourceLabel(i18n, 'TARGET')).toBe('Politique de la cible');
+        expect(policySourceLabel(i18n, 'GLOBAL')).toBe('Politique globale');
+        expect(policySourceLabel(i18n, 'PROJECT')).toBe('PROJECT');
+        expect(policySourceLabel(i18n, null)).toBe('—');
     });
 });
