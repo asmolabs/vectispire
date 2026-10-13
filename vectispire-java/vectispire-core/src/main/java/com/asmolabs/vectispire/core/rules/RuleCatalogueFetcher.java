@@ -13,6 +13,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -84,6 +85,12 @@ public class RuleCatalogueFetcher {
     private Preview preview;
     private java.time.Instant previewedAt;
 
+    private final Clock clock;
+
+    public RuleCatalogueFetcher(Clock clock) {
+        this.clock = clock;
+    }
+
     /**
      * The catalogue's terms and contents, cloned at most once every ten minutes.
      *
@@ -94,7 +101,7 @@ public class RuleCatalogueFetcher {
      * fetched at that moment, whatever this held.
      */
     public synchronized Preview preview() {
-        java.time.Instant now = java.time.Instant.now();
+        java.time.Instant now = clock.instant();
         if (preview == null || previewedAt.plus(PREVIEW_LIFETIME).isBefore(now)) {
             Fetched fetched = fetch();
             preview = new Preview(

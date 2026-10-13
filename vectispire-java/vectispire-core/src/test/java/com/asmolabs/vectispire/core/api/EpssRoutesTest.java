@@ -155,6 +155,7 @@ class EpssRoutesTest extends ApiTestBase {
         ThreatIntelEntity listed = new ThreatIntelEntity();
         listed.setCveId("CVE-2021-44228");
         listed.setKev(true);
+        listed.setUpdatedAt(Instant.now());
         listed.setDateAdded(Instant.parse("2021-12-10T00:00:00Z"));
         intel.save(listed);
         // The score from the stored EPSS file — the generation the sync row names — and the flag from

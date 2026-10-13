@@ -269,8 +269,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
         exportTo("127.0.0.1:9");
 
         events.publishEvent(new com.asmolabs.vectispire.common.domain.siem.SecurityEventRaisedApart(
-                com.asmolabs.vectispire.common.domain.siem.CefEvent.builder(
-                                com.asmolabs.vectispire.common.domain.siem.SecurityEventType.SECURITY_GATE_FAILED)
+                com.asmolabs.vectispire.common.domain.siem.CefEvent.builder(com.asmolabs.vectispire.common.domain.siem.SecurityEventType.SECURITY_GATE_FAILED, java.time.Instant.now())
                         .message("raised apart")
                         .build()));
 

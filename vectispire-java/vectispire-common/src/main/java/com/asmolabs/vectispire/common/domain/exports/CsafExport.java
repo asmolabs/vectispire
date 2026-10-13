@@ -35,7 +35,9 @@ public final class CsafExport {
                 ? null
                 : options.toolVersion();
         String namespace = options.namespace() == null || options.namespace().isBlank() ? "https://vectispire.internal" : options.namespace();
-        Instant now = options.generatedAt() == null ? Instant.now() : options.generatedAt();
+        // The caller's clock, never the wall clock read here: a signed document dated by a second time
+        // source is one no test can pin and no caller can reproduce.
+        Instant now = java.util.Objects.requireNonNull(options.generatedAt(), "generatedAt");
 
         // 1. Build Document Metadata
         String docId = "CSAF-" + now.getEpochSecond() + "-" + Math.abs(target.hashCode());

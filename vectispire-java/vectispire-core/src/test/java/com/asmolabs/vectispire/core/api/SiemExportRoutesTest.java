@@ -300,7 +300,7 @@ class SiemExportRoutesTest extends ApiTestBase {
     }
 
     private static CefEvent kev(String cve) {
-        return CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED).identifier(cve).build();
+        return CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED, java.time.Instant.now()).identifier(cve).build();
     }
 
     private static List<String> receive(DatagramSocket collector, int waitMillis) throws Exception {

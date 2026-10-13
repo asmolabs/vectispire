@@ -27,11 +27,14 @@ public class DiscordNotificationChannel implements NotificationChannel, AlertCha
     private final SettingsService settings;
     private final OutboundPost post;
     private final ExportProperties deployment;
+    private final java.time.Clock clock;
 
-    public DiscordNotificationChannel(SettingsService settings, OutboundPost post, ExportProperties deployment) {
+    public DiscordNotificationChannel(
+            SettingsService settings, OutboundPost post, ExportProperties deployment, java.time.Clock clock) {
         this.settings = settings;
         this.post = post;
         this.deployment = deployment;
+        this.clock = clock;
     }
 
     @Override
@@ -52,7 +55,7 @@ public class DiscordNotificationChannel implements NotificationChannel, AlertCha
 
         post.postJson(
                 url(),
-                DiscordEmbed.of(payload, deployment.publicUrl().orElse(null)),
+                DiscordEmbed.of(payload, deployment.publicUrl().orElse(null), clock.instant()),
                 policy,
                 "Discord webhook URL");
 

@@ -275,6 +275,7 @@ public class ThreatIntelFeedService {
                 entity.setCveId(cve);
                 entity.setKev(true);
                 entity.setDateAdded(added);
+                entity.setUpdatedAt(now);
                 stored.put(cve, entity);
                 return;
             }
@@ -371,7 +372,7 @@ public class ThreatIntelFeedService {
                         issue.identifier());
                 // Queued in this transaction, sent after it commits: a page that rolls back announces
                 // nothing, and no collector holds this sync's locks while it answers.
-                events.publishEvent(new SecurityEventRaised(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
+                events.publishEvent(new SecurityEventRaised(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED, clock.instant())
                         .message("Vulnerability " + issue.identifier()
                                 + " promoted to CISA Known Exploited Vulnerability (KEV)")
                         .target(targetOf(issue.repoId(), issue.containerId()))

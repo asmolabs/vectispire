@@ -135,6 +135,7 @@ public class SiemExporterService {
                 .orElseGet(() -> {
                     SiemConfigEntity fresh = new SiemConfigEntity();
                     fresh.setId(SiemConfigEntity.SINGLETON_ID);
+                    fresh.setCreatedAt(clock.instant());
                     return fresh;
                 });
         // Read before the row changes: the collector being left is the one configured now.
@@ -172,7 +173,7 @@ public class SiemExporterService {
         }
         // Stored in capitals, as the screen sends it and the default has always been written.
         entity.setMinSeverity(threshold.name());
-        entity.setUpdatedAt(Instant.now());
+        entity.setUpdatedAt(clock.instant());
         SiemConfigEntity saved = repository.save(entity);
 
         // The collector being left hears it, before the silence: a feed that stops is otherwise
@@ -241,7 +242,7 @@ public class SiemExporterService {
      * the feed went.
      */
     private String announceStop(Collector previous, boolean redirected, RequestActor actor) {
-        CefEvent stopped = CefEvent.builder(SecurityEventType.SIEM_EXPORT_STOPPED)
+        CefEvent stopped = CefEvent.builder(SecurityEventType.SIEM_EXPORT_STOPPED, clock.instant())
                 .message(redirected
                         ? "The SIEM export was pointed at another collector: this one will receive no further events."
                         : "The SIEM export was switched off: no further events will be sent until it is switched back on.")
@@ -328,7 +329,7 @@ public class SiemExporterService {
             return new TestResult(false, refused.getMessage(), 0);
         }
         try {
-            CefEvent ping = CefEvent.builder(SecurityEventType.PING_TEST)
+            CefEvent ping = CefEvent.builder(SecurityEventType.PING_TEST, clock.instant())
                     .message("Vectispire SIEM health check")
                     .build();
             sender.send(destination, parsed.carriesHeaders() ? authHeader : null, pinned, ping);

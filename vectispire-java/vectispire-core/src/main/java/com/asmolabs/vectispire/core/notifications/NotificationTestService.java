@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,10 +24,12 @@ public class NotificationTestService {
 
     private final List<NotificationChannel> channels;
     private final SettingsService settings;
+    private final Clock clock;
 
-    public NotificationTestService(List<NotificationChannel> channels, SettingsService settings) {
+    public NotificationTestService(List<NotificationChannel> channels, SettingsService settings, Clock clock) {
         this.channels = channels;
         this.settings = settings;
+        this.clock = clock;
     }
 
     public record NotificationChannelStatus(
@@ -88,12 +91,12 @@ public class NotificationTestService {
                 .findFirst();
 
         if (match.isEmpty()) {
-            return new NotificationTestResult(type, false, "Unknown notification channel type: " + type, Instant.now());
+            return new NotificationTestResult(type, false, "Unknown notification channel type: " + type, clock.instant());
         }
 
         NotificationChannel channel = match.get();
         if (!channel.isConfigured()) {
-            return new NotificationTestResult(channel.type(), false, "Channel is not configured with a destination URL/recipient.", Instant.now());
+            return new NotificationTestResult(channel.type(), false, "Channel is not configured with a destination URL/recipient.", clock.instant());
         }
 
         NotificationPayload testPayload = new NotificationPayload(
@@ -117,7 +120,7 @@ public class NotificationTestService {
                         "2.17.1",
                         null)),
                 0,
-                "test-msg-" + Instant.now().toEpochMilli());
+                "test-msg-" + clock.millis());
 
         // **Delivered or not, and nothing of why.** The answer quoted the sender's own words to the
         // security lead who pressed the button — "Connection refused", a timeout, "HTTP 404", and with
@@ -127,10 +130,10 @@ public class NotificationTestService {
         // export's test does.
         try {
             channel.deliver(testPayload);
-            return new NotificationTestResult(channel.type(), true, "Test payload successfully dispatched to " + channel.type(), Instant.now());
+            return new NotificationTestResult(channel.type(), true, "Test payload successfully dispatched to " + channel.type(), clock.instant());
         } catch (Exception e) {
             log.warn("Notification test failed for {}: {}", channel.type(), e.getMessage());
-            return new NotificationTestResult(channel.type(), false, NOT_DELIVERED, Instant.now());
+            return new NotificationTestResult(channel.type(), false, NOT_DELIVERED, clock.instant());
         }
     }
 

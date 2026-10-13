@@ -69,7 +69,7 @@ class SettingsCredentialWriteTest {
                 new com.asmolabs.vectispire.core.platform.SettingsAdministrationService(
                         settings, aiReview, new com.asmolabs.vectispire.core.access.TriageApprovers(users),
                         mock(TicketService.class), mock(NotificationService.class),
-                        mock(AuditLogService.class)),
+                        mock(AuditLogService.class), java.time.Clock.systemUTC()),
                 mock(TicketService.class), aiReview, mock(NotificationService.class));
 
         when(settings.get(any(Setting.class))).thenReturn("");

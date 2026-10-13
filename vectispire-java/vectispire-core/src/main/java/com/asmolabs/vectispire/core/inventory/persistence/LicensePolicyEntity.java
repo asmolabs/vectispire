@@ -26,7 +26,7 @@ public class LicensePolicyEntity {
     private String disallowedLicenses = "";
 
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt = Instant.now();
+    private Instant updatedAt;
 
     public Long getId() {
         return id;

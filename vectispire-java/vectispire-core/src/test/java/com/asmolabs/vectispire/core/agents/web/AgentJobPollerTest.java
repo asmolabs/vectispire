@@ -87,6 +87,8 @@ class AgentJobPollerTest {
     }
 
     private AgentJobPoller poller() {
+        // A mock answers null for the interface's default clock; the poller reads its deadline on it.
+        when(scheduler.getClock()).thenReturn(java.time.Clock.systemUTC());
         when(scheduler.schedule(any(Runnable.class), any(Instant.class))).thenAnswer(call -> {
             recheck.set(call.getArgument(0));
             return null;

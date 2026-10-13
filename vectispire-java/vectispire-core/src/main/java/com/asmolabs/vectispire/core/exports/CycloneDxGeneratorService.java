@@ -17,7 +17,7 @@ import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,13 +43,16 @@ public class CycloneDxGeneratorService {
     private final IssueCatalog issuesRepo;
     private final ConsolidatedInventoryService inventory;
     private final String toolVersion;
+    private final Clock clock;
 
     public CycloneDxGeneratorService(
             ScanCatalog scansRepo,
             ScanDocumentService documents,
             IssueCatalog issuesRepo,
             ConsolidatedInventoryService inventory,
-            ProductVersion version) {
+            ProductVersion version,
+            Clock clock) {
+        this.clock = clock;
         this.scansRepo = scansRepo;
         this.documents = documents;
         this.issuesRepo = issuesRepo;
@@ -153,7 +156,7 @@ public class CycloneDxGeneratorService {
         Component root = new Component(
                 "urn:vectispire:project:" + project.id(), "application", null, project.name(), null, null, null);
         Metadata metadata = new Metadata(
-                Instant.now(), List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)), root, List.copyOf(facts));
+                clock.instant(), List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)), root, List.copyOf(facts));
         boolean whole = consolidated.complete() && !project.partial();
 
         return new CycloneDxDocument(
@@ -217,7 +220,7 @@ public class CycloneDxGeneratorService {
                 null);
 
         Metadata metadata = new Metadata(
-                Instant.now(),
+                clock.instant(),
                 List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)),
                 rootApp);
 
@@ -277,7 +280,7 @@ public class CycloneDxGeneratorService {
                 null);
 
         Metadata metadata = new Metadata(
-                scan.createdAt() != null ? scan.createdAt() : Instant.now(),
+                scan.createdAt() != null ? scan.createdAt() : clock.instant(),
                 List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)),
                 scanTarget);
 

@@ -93,7 +93,7 @@ class RuleCatalogueFetcherTest {
         // Each GET cloned GitHub into a temporary checkout, and any governance reader could ask
         // in a loop.
         java.util.concurrent.atomic.AtomicInteger clones = new java.util.concurrent.atomic.AtomicInteger();
-        RuleCatalogueFetcher counting = new RuleCatalogueFetcher() {
+        RuleCatalogueFetcher counting = new RuleCatalogueFetcher(java.time.Clock.systemUTC()) {
             @Override
             public Fetched fetch() {
                 clones.incrementAndGet();

@@ -221,7 +221,7 @@ public class GateService {
     private void record(ScanTarget target, Decision decision, Caller caller) {
         Optional<CefEvent> refusal = decision.verdict().passed()
                 ? Optional.empty()
-                : Optional.of(CefEvent.builder(SecurityEventType.SECURITY_GATE_FAILED)
+                : Optional.of(CefEvent.builder(SecurityEventType.SECURITY_GATE_FAILED, clock.instant())
                         .message(decision.verdict().violations().size() + " violation(s) against the "
                                 + decision.policy().source().name().toLowerCase(java.util.Locale.ROOT) + " policy")
                         .user(caller.principal())

@@ -25,7 +25,7 @@ public class ThreatIntelEntity {
     private Instant dateAdded;
 
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt = Instant.now();
+    private Instant updatedAt;
 
     public String getCveId() {
         return cveId;

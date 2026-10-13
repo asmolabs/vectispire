@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -73,6 +73,7 @@ public class EvidenceVaultService {
     private final StatementOfApplicabilityService soa;
     private final ComplianceHistoryService complianceHistory;
     private final ObjectMapper json;
+    private final Clock clock;
 
     public EvidenceVaultService(
             ComplianceService compliance,
@@ -88,8 +89,10 @@ public class EvidenceVaultService {
             SigningKeyService signingKeyService,
             ProcessEvidenceService processEvidence,
             StatementOfApplicabilityService soa,
-            ComplianceHistoryService complianceHistory) {
+            ComplianceHistoryService complianceHistory,
+            Clock clock) {
         this.compliance = compliance;
+        this.clock = clock;
         this.auditService = auditService;
         this.auditLogRepo = auditLogRepo;
         this.issuesRepo = issuesRepo;
@@ -320,7 +323,7 @@ public class EvidenceVaultService {
             // produced it, rather than looking incomplete.
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
                     "1.4",
-                    Instant.now(),
+                    clock.instant(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
                     auditEntryCount,

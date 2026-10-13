@@ -26,7 +26,7 @@ class DiscordEmbedTest {
                 0,
                 "msg-456");
 
-        Map<String, Object> discordPayload = DiscordEmbed.of(payload, "https://vectispire.corp.com");
+        Map<String, Object> discordPayload = DiscordEmbed.of(payload, "https://vectispire.corp.com", java.time.Instant.parse("2026-10-13T08:00:00Z"));
 
         assertThat(discordPayload).containsKey("embeds");
         List<?> embeds = (List<?>) discordPayload.get("embeds");
