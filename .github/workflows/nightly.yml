@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
-      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.62.1. Playwright
+      # **Must match `@playwright/test` in `package-lock.json`** — currently 1.63.0. Playwright
       # ships its browsers in this image and refuses to launch one it did not build; the tag
       # inherited from an earlier workflow had drifted thirteen minor versions, which nobody could
       # know because that workflow never ran.

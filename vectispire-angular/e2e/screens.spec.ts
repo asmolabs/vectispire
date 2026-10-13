@@ -295,6 +295,9 @@ async function enterApp(page: Page, locale: 'en' | 'fr'): Promise<void> {
     await page.clock.install({ time: FROZEN });
 }
 
+/** The sidebar entry the test last opened, so that `placeSidebar` can find it again. */
+let lastMenuPath: string | null = null;
+
 /**
  * Opens a screen the way a reader does, and proves the entry exists.
  *
@@ -302,8 +305,114 @@ async function enterApp(page: Page, locale: 'en' | 'fr'): Promise<void> {
  * the menu's words would only ever work in one of them.
  */
 async function openScreen(page: Page, path: string): Promise<void> {
+    lastMenuPath = path;
     await page.locator(`a[href="${path}"]`).first().click();
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}(\\?|$)`), { timeout: 15_000 });
+}
+
+/**
+ * Waits until nothing on the page is still moving, so that what is measured next is the end state.
+ *
+ * <p><b>Two runs of an unchanged tree differed on up to eight images, and none of them was a
+ * change.</b> The rule sets page came out scrolled thirteen pixels apart: its test scrolls the
+ * impact panel into place while the page is still moving, so the offset depended on how far the
+ * motion had got. Waiting for every finite animation to end — CSS animations and transitions both
+ * appear in `getAnimations()` — removes the race rather than shortening it; an infinite one (a
+ * spinner) is never going to end and is left to the stylesheet `shoot` adds.
+ *
+ * <p><b>Waited for, never cut short.</b> Stopping an animation in its tracks is what froze the SBOM
+ * picker open (see that test): a leave animation that never ends never removes its element.
+ *
+ * <p>Call it before any programmatic scroll a test makes, not only before the shot: a scroll taken
+ * against a layout still in motion lands wherever the layout was.
+ */
+async function settle(page: Page): Promise<void> {
+    await expect
+        .poll(
+            () =>
+                page.evaluate(
+                    () =>
+                        document
+                            .getAnimations()
+                            .filter((animation) => animation.playState === 'running')
+                            .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity).length
+                ),
+            { message: 'animations still running', timeout: 15_000 }
+        )
+        .toBe(0);
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    // Two frames: the first lets a layout the animations' end triggered be computed, the second
+    // lets it be painted.
+    await page.evaluate(
+        () => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
+    );
+}
+
+/**
+ * Draws every chart at its final state, once.
+ *
+ * <p><b>The dashboard's curves were caught mid-flight.</b> Chart.js animates a line in over a
+ * second of `requestAnimationFrame` and `Date.now()`; the dashboard draws its charts right after
+ * sign-in, while `enterApp` swaps the real clock for the frozen one — so the backlog line was
+ * photographed a pixel or two from its place, differently each run. CSS cannot reach a canvas, so the charts are told directly: stopped, animation off,
+ * redrawn in mode `none`, which paints the end state synchronously.
+ *
+ * <p><b>From here and not from the application.</b> The development server the suite runs against
+ * exposes Angular's debugging API (`ng.getComponent`), which hands back the `p-chart` component and
+ * its Chart.js instance; nothing in the product learns that a capture is being taken. A chart that
+ * cannot be reached fails the capture rather than being photographed in motion.
+ */
+async function stillCharts(page: Page): Promise<void> {
+    const unreachable = await page.evaluate(() => {
+        type Drawn = { stop(): void; update(mode: string): void; options: { animation: unknown } };
+        const debug = (window as unknown as { ng?: { getComponent(element: Element): { chart?: Drawn } | null } }).ng;
+        let missing = 0;
+        for (const host of Array.from(document.querySelectorAll('p-chart'))) {
+            const chart = debug?.getComponent(host)?.chart;
+            if (!chart) {
+                missing++;
+                continue;
+            }
+            chart.stop();
+            chart.options.animation = false;
+            chart.update('none');
+        }
+        return missing;
+    });
+    expect(unreachable, 'charts whose Chart.js instance could not be reached to stop its animation').toBe(0);
+}
+
+/**
+ * Puts the sidebar at one position for a given screen, whatever the click that opened it did.
+ *
+ * <p><b>The sidebar scrolls on its own, and it was a different picture from run to run.</b>
+ * Clicking an entry leaves it aligned to the top of the sidebar, but the offset is taken when the
+ * click lands, against whatever the menu measured at that instant: on the statement of
+ * applicability the entry ends up eight pixels from where the final layout puts it, and on another
+ * machine seven captures came out with the menu at another offset from one run to the next.
+ *
+ * <p>So the position is decided here, from the final layout: the active entry — or, on a screen
+ * that is not an entry of its own (a project, a forge connection), the entry the test opened to
+ * reach it — aligned to the top of the sidebar, as far as the sidebar scrolls. That is the picture
+ * the clicks produce when nothing moves under them. The exception is the dashboard: sign-in lands
+ * there, so clicking its entry scrolls nothing, and the screens reached from it (code quality, a
+ * scan) inherit a sidebar at the top.
+ */
+async function placeSidebar(page: Page): Promise<void> {
+    await page.evaluate((opened) => {
+        const sidebar = document.querySelector<HTMLElement>('.layout-sidebar');
+        if (!sidebar) return;
+        sidebar.scrollTop = 0;
+        if (opened === '/dashboard') return;
+        const active =
+            sidebar.querySelector<HTMLElement>('a.active-route') ??
+            (opened ? sidebar.querySelector<HTMLElement>(`a[href="${opened}"]`) : null);
+        if (!active) return;
+        // Measured from the scrollport's edge, the border's inner side; the browser clamps what
+        // lies beyond the last entry, as `scrollIntoView` would.
+        const offset = active.getBoundingClientRect().top - sidebar.getBoundingClientRect().top - sidebar.clientTop;
+        sidebar.scrollTop = Math.round(offset);
+    }, lastMenuPath);
 }
 
 /**
@@ -348,9 +457,20 @@ async function shoot(page: Page, name: string, locale: string): Promise<void> {
     });
     expect(leaks, 'text rendered from a value the stub never sent').toEqual([]);
 
+    await settle(page);
+    await stillCharts(page);
+    await placeSidebar(page);
+    // **The pointer is put somewhere that hovers nothing.** It stays where the last click left it,
+    // usually on the sidebar entry; once the sidebar is placed, whichever entry slid under it was
+    // painted hovered or not depending on whether Chromium had refreshed the hover state yet — the
+    // attestation capture came out with and without a grey bar on its entry. The empty middle of
+    // the top bar is under no control and no tooltip.
+    await page.mouse.move(640, 2);
+    await settle(page);
     await page.addStyleTag({
         content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
     });
+    await settle(page);
     await page.screenshot({ path: `../docs-site/assets/screens/${locale}/${name}.png` });
 }
 
@@ -826,6 +946,7 @@ test.describe('documentation screenshots', () => {
     let pageErrors: string[] = [];
     test.beforeEach(({ page }) => {
         pageErrors = [];
+        lastMenuPath = null;
         fellThrough.length = 0;
         contractProblems.length = 0;
         page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -1167,6 +1288,7 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByTestId('portfolio-weakest')).toContainText('helios-portal', { timeout: 15_000 });
             // With a margin the height of the top bar, which stays fixed over the page: aligned to
             // the very top, the card's title scrolled underneath it.
+            await settle(page);
             await page.getByTestId('portfolio-distribution').evaluate((node) => {
                 const card = node.closest('p-card') as HTMLElement | null;
                 if (!card) return;
@@ -1756,6 +1878,7 @@ test.describe('documentation screenshots', () => {
             // about what a row says — the credentials mode, whether results are attested, an agent
             // that has never announced. A capture that stopped at the fold would illustrate the
             // paragraph above it and none of the ones it is attached to.
+            await settle(page);
             await page.getByText('lab-runner').first().scrollIntoViewIfNeeded();
 
             await expect(page.getByText('lab-runner').first()).toBeVisible({ timeout: 15_000 });
@@ -1819,6 +1942,7 @@ test.describe('documentation screenshots', () => {
             // scrolls here is not `body`; and `block: 'end'` on the card missed, because the
             // `p-card` host measures 207px and does not enclose its projected content. Putting the
             // figure at the top of the viewport leaves the whole panel below it.
+            await settle(page);
             await page.getByText('317').first().evaluate((node) =>
                 node.scrollIntoView({ block: 'start', behavior: 'instant' }));
 
@@ -1843,9 +1967,14 @@ test.describe('documentation screenshots', () => {
             await page.getByRole('button', { name: new RegExp(`^(Edit|Modifier) ${ORION_GATEWAY.url}$`) }).click();
             await expect(page.locator('#url')).toHaveValue(ORION_GATEWAY.url, { timeout: 15_000 });
             // The dialog scrolls on its own; the credential is in its lower half, so it is brought up.
+            // **Once the dialog has finished arriving, not before.** It focuses its first field when it
+            // has opened, and that focus scrolls the dialog back to its top: one run in three was
+            // captured on the URL field instead of the credential.
             const token = page.getByRole('dialog').locator('p-select', { has: page.locator('#https-token') });
-            await token.evaluate((node) => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
             await expect(token).toContainText('gitlab-read (git.example.org)');
+            await expect(page.locator('#url')).toBeFocused();
+            await settle(page);
+            await token.evaluate((node) => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
             await shoot(page, 'repository-form', locale);
         });
 
@@ -1996,6 +2125,7 @@ test.describe('documentation screenshots', () => {
             await expect(page).toHaveURL(/\/projects\/11(\?|#|$)/, { timeout: 15_000 });
 
             await expect(page.getByTestId(`run-${PRODUCED_REPORT.id}`)).toBeVisible({ timeout: 15_000 });
+            await settle(page);
             await page.getByTestId('project-reports').evaluate((node) => {
                 (node as HTMLElement).style.scrollMarginTop = '5rem';
                 node.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -2188,6 +2318,7 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByTestId('tick').first()).toBeChecked({ timeout: 15_000 });
             // From the operations down: the filters above them fill the first screenful, and the
             // table is what an operator reads before going on.
+            await settle(page);
             await page.getByTestId('op-proposed').evaluate((node) => {
                 const row = (node.parentElement ?? node) as HTMLElement;
                 row.style.scrollMarginTop = '5rem';
@@ -2200,6 +2331,7 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByTestId('visible-to')).toHaveCount(2, { timeout: 15_000 });
             // Centred on the plan — each repository with its address, credential and filing — which
             // sits below the placement and the credentials an operator may still change.
+            await settle(page);
             await page.getByTestId('visible-to').first().evaluate((node) =>
                 node.scrollIntoView({ block: 'center', behavior: 'instant' }));
             await shoot(page, 'forge-import', locale);
@@ -2277,6 +2409,7 @@ test.describe('documentation screenshots', () => {
             // rows: the same token on two lines, the same rule on three.
             const occurrences = page.locator('p-card').filter({ has: page.locator('p-table') }).last();
             await expect(occurrences).toContainText('LegacyQueryBuilder.java');
+            await settle(page);
             await occurrences.evaluate((node) => {
                 (node as HTMLElement).style.scrollMarginTop = '5rem';
                 node.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -2391,17 +2524,20 @@ test.describe('documentation screenshots', () => {
             await page.locator('a[href="/settings?tab=integrations"]').first().click();
             await expect(page).toHaveURL(/\/settings\?tab=integrations$/, { timeout: 15_000 });
 
-            const showFromTop = async (testId: string) =>
-                page.getByTestId(testId).evaluate((node) => {
+            const showFromTop = async (testId: string) => {
+                await settle(page);
+                await page.getByTestId(testId).evaluate((node) => {
                     const card = (node.closest('p-card') ?? node) as HTMLElement;
                     card.style.scrollMarginTop = '5rem';
                     card.scrollIntoView({ block: 'start', behavior: 'instant' });
                 });
+            };
 
             // **Aligned on the CA's foot, not on the card's top.** The French help texts make the card
             // taller than the viewport, and aligned on its title the line saying what the pinned CA
             // is — the thing this capture is for — fell below the fold in one edition only.
             await expect(page.getByTestId('ticket-ca-pinned')).toContainText('CN=Example Internal Root CA', { timeout: 15_000 });
+            await settle(page);
             await page.getByTestId('ticket-ca-pinned').evaluate((node) => {
                 (node as HTMLElement).style.scrollMarginBottom = '2rem';
                 node.scrollIntoView({ block: 'end', behavior: 'instant' });
@@ -2453,6 +2589,7 @@ test.describe('documentation screenshots', () => {
                 await page.locator('p-checkbox', { has: page.locator(`#lang-${language}`) }).click();
             }
             await expect(page.getByTestId('gitleaks-duplicates')).toContainText('38', { timeout: 15_000 });
+            await settle(page);
             await page.getByTestId('gitleaks-duplicates').evaluate((node) => {
                 const card = node.closest('p-card') as HTMLElement | null;
                 if (!card) return;

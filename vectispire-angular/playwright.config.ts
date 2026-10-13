@@ -77,6 +77,18 @@ export default defineConfig({
     // timestamp is rendered in the browser's zone: captures taken on a machine in Brussels showed
     // every time two hours later than the same run in the Playwright image, so regenerating them
     // anywhere else rewrote every image that shows a time.
+    //
+    // **And the pixel density, which a preset only implies.** `Desktop Chrome` happens to carry a
+    // scale factor of 1 today; written out, a preset that changes it — or a reader wondering why a
+    // capture is blurred on a Retina screen — finds the decision here rather than in Playwright.
+    //
+    // **And every tile drawn whole.** With partial raster, Chromium repaints only the part of a
+    // tile that changed, over the pixels it had drawn there before; a rounded corner then blends
+    // with whatever the page showed a moment earlier, and the same button came out one shade
+    // apart from run to run — the "Create" buttons of users, teams and keys, two variants each, by
+    // byte. Rastering the tile whole makes a pixel depend on the final page alone (five runs out of
+    // five identical, against two variants in five without it). The flag changes how the browser
+    // draws, never what the application does.
     {
       name: 'screens-en',
       testMatch: /(^|\/)screens\.spec\.ts$/,
@@ -84,7 +96,9 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         locale: 'en-US',
         timezoneId: 'UTC',
-        viewport: { width: 1280, height: 860 }
+        viewport: { width: 1280, height: 860 },
+        deviceScaleFactor: 1,
+        launchOptions: { args: ['--disable-partial-raster'] }
       }
     },
     {
@@ -94,7 +108,9 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         locale: 'fr-FR',
         timezoneId: 'UTC',
-        viewport: { width: 1280, height: 860 }
+        viewport: { width: 1280, height: 860 },
+        deviceScaleFactor: 1,
+        launchOptions: { args: ['--disable-partial-raster'] }
       }
     }
   ],
