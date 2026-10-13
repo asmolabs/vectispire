@@ -8,6 +8,9 @@ import java.util.Map;
  * §1): 409 of type {@code urn:vectispire:problem:integration-disabled}, with the integration's key in the
  * member {@code integration}, so that a screen names it in its own language without parsing the sentence.
  *
+ * <p><b>The sentence names the route, not a screen.</b> It named <em>Administration → Integrations</em>, which no
+ * release has yet: a reader was sent to look for a page that does not exist. The route is what enables it today.
+ *
  * <p>A conflict, not a 403: the caller may well be allowed to do this, and the same request succeeds
  * unchanged once a governor enables the integration. Not a 404 either — the adapter exists, and saying so
  * discloses nothing a caller of the registry's list does not already read.
@@ -20,8 +23,9 @@ public class IntegrationDisabledException extends ConflictException {
     private final transient Integration integration;
 
     public IntegrationDisabledException(Integration integration) {
-        super("The integration \"" + integration.key() + "\" is disabled on this installation; the platform governor "
-                + "enables it under Administration → Integrations.", CAUSE, Map.of("integration", integration.key()));
+        super("The integration \"" + integration.key() + "\" is disabled on this installation; a platform governor "
+                + "enables it with PUT /api/v1/integrations/" + integration.key() + "/enabled.", CAUSE,
+                Map.of("integration", integration.key()));
         this.integration = integration;
     }
 

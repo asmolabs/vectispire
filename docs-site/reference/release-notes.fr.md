@@ -30,7 +30,11 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
 - **Deux causes de 409**, chacune nommant la clé dans le membre `integration` :
   `urn:vectispire:problem:integration-disabled` sur un geste qui a besoin d'une intégration désactivée, et
   `urn:vectispire:problem:integration-in-use` sur la bascule du gouverneur, pour le transport SIEM par
-  lequel un export activé envoie ([causes d'un 409](errors.fr.md#causes-dun-409)).
+  lequel un export activé envoie ([causes d'un 409](errors.fr.md#causes-dun-409)). Le `detail` de
+  `integration-disabled`, et la raison que porte une ligne de checklist alimentée par une connexion de
+  forge suspendue, nomment la route qui active l'intégration, `PUT /api/v1/integrations/{key}/enabled`,
+  plutôt qu'un écran que cette version n'a pas ; le type et le membre sont ce que lit un client, et ils
+  sont tels qu'indiqués.
 - **Une connexion de forge porte `state`** — `active`, ou `suspended` tant que l'intégration de sa forge
   est désactivée — **et `integration`**, `forge.gitlab` ou `forge.github`, la clé qui la reprend.
 - **L'état du jeton du tracker porte `state` et `integration`.** `GET` et

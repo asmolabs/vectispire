@@ -264,7 +264,9 @@ class ChangeReviewRoutesTest extends ApiTestBase {
             assertThat(suspended.at("/reason").asText()).isEqualTo("forge_integration_disabled");
             assertThat(suspended.at("/evidence/repositories")).hasSize(2).allSatisfy(look -> {
                 assertThat(look.at("/status").asText()).isEqualTo("forge_integration_disabled");
-                assertThat(look.at("/detail").asText()).contains("forge.gitlab integration is disabled");
+                assertThat(look.at("/detail").asText()).contains("forge.gitlab integration is disabled")
+                        .contains("re-enables it with PUT /api/v1/integrations/forge.gitlab/enabled")
+                        .doesNotContain("Administration");
             });
             assertThat(suspended.at("/evidence/summary").asText()).contains("forge.gitlab integration is disabled");
 

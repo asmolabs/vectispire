@@ -28,7 +28,10 @@ the trackers' part of the sixth.
 - **Two 409 causes**, each naming the key in the member `integration`:
   `urn:vectispire:problem:integration-disabled` on a gesture that needs a disabled integration, and
   `urn:vectispire:problem:integration-in-use` on the governor's switch, for the SIEM transport an enabled
-  export sends over ([409 causes](errors.md#409-causes)).
+  export sends over ([409 causes](errors.md#409-causes)). The `integration-disabled` detail, and the
+  reason a checklist line fed by a suspended forge connection carries, name the route that enables the
+  integration, `PUT /api/v1/integrations/{key}/enabled`, rather than a screen this release does not have;
+  the type and the member are what a client reads, and they are as stated.
 - **A forge connection carries `state`** — `active`, or `suspended` while its forge's integration is
   disabled — **and `integration`**, `forge.gitlab` or `forge.github`, the key that resumes it.
 - **The tracker token's state carries `state` and `integration`.** `GET` and

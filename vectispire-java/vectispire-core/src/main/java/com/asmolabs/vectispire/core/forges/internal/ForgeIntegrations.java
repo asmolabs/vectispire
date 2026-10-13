@@ -59,9 +59,13 @@ public class ForgeIntegrations {
         return kinds.stream().map(kind -> Integration.of(kind).key()).collect(Collectors.joining(", "));
     }
 
-    /** Why a line fed by a connection of this kind has no data, in the words its evidence carries. */
+    /**
+     * Why a line fed by a connection of this kind has no data, in the words its evidence carries — naming the route
+     * that re-enables it, since the screen decision 0040 plans is not in this release.
+     */
     public static String suspension(ForgeKind kind) {
-        return "the " + Integration.of(kind).key() + " integration is disabled: the forge connection is suspended and "
-                + "its change reviews are not read; a platform governor re-enables it in Administration, Integrations";
+        String key = Integration.of(kind).key();
+        return "the " + key + " integration is disabled: the forge connection is suspended and its change reviews are "
+                + "not read; a platform governor re-enables it with PUT /api/v1/integrations/" + key + "/enabled";
     }
 }

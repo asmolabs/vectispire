@@ -189,7 +189,8 @@ class TrackerSuspensionRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.type").value(DISABLED))
                 .andExpect(jsonPath("$.integration").value("tracker.gitlab"))
                 .andReturn();
-        assertThat(detailOf(refused)).contains("tracker.gitlab");
+        assertThat(detailOf(refused)).isEqualTo("The integration \"tracker.gitlab\" is disabled on this installation; a "
+                + "platform governor enables it with PUT /api/v1/integrations/tracker.gitlab/enabled.");
         assertThat(issues.findById(id).orElseThrow().getTicketRef()).isNull();
 
         enable();

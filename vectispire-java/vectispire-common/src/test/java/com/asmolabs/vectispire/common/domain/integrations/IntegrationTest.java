@@ -79,7 +79,8 @@ class IntegrationTest {
         assertThat(refused).isInstanceOf(ConflictException.class);
         assertThat(refused.conflictCause()).contains("integration-disabled");
         assertThat(refused.members()).containsExactlyEntriesOf(java.util.Map.of("integration", "ai.openai"));
-        assertThat(refused.getMessage()).contains("\"ai.openai\"").contains("disabled");
+        assertThat(refused.getMessage()).isEqualTo("The integration \"ai.openai\" is disabled on this installation; a "
+                + "platform governor enables it with PUT /api/v1/integrations/ai.openai/enabled.");
     }
 
     @Test
