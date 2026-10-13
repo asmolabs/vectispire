@@ -184,6 +184,52 @@ describe('the backlog trend', () => {
     });
 
     /**
+     * Clearing the series was not enough: the previous window's answer still arrived, after the new
+     * one, and its mean and its time-to-resolve sat under the "30 days" button. The answers below come
+     * back in the wrong order on purpose.
+     */
+    it("shows the chosen window's figures when the previous window's answers come last", () => {
+        fixture.detectChanges();
+        const button = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(
+            (b) => b.textContent.trim() === '30 days'
+        );
+        expect(button).toBeDefined();
+        button!.click();
+        fixture.detectChanges();
+
+        const trends = http.match((call) => call.url === '/api/v1/dashboard/trends');
+        const analytics = http.match((call) => call.url === '/api/v1/dashboard/posture-analytics');
+        expect(trends.map((call) => call.request.params.get('days'))).toEqual(['90', '30']);
+        expect(analytics.map((call) => call.request.params.get('days'))).toEqual(['90', '30']);
+
+        const series = (mean: number) =>
+            asSchema('Trends', { points: [], mean_days_to_resolve: mean, resolved_in_window: 1 });
+        const posture = (critical: number, windowDays: number) =>
+            asSchema('PostureTrendAnalytics', {
+                mttrBySeverity: { CRITICAL: critical },
+                dailySeries: [],
+                overallMttrDays: null,
+                netResolutionRatePercentage: 0,
+                totalOpenedInWindow: 0,
+                totalResolvedInWindow: 0,
+                windowDays,
+                targetScoreboard: []
+            });
+        trends[1].flush(series(3));
+        analytics[1].flush(posture(4, 30));
+        // A request still open would deliver the old window's answer now; a cancelled one cannot.
+        if (!trends[0].cancelled) trends[0].flush(series(77));
+        if (!analytics[0].cancelled) analytics[0].flush(posture(88, 90));
+        fixture.detectChanges();
+
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.querySelector('#mean-days-to-resolve')?.textContent.trim()).toBe('3.0 days');
+        expect(page.textContent).toContain('4 d');
+        expect(page.textContent).not.toContain('88 d');
+        expect(trends[0].cancelled && analytics[0].cancelled).toBe(true);
+    });
+
+    /**
      * The day the scorecard formula changed here (decision 0036). The curves are the backlog's, which
      * the formula does not move; the line is for whoever sets a grade beside them, and the page says
      * the same in words, since a canvas says nothing to a screen reader.

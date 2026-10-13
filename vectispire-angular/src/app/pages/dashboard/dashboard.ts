@@ -23,6 +23,7 @@ import { GradeLabelPipe, gradeLabel } from '../../shared/grade-label';
 import { RiskPointsPipe } from '../../shared/risk-points';
 import { gradeSeverity } from '../../shared/scorecard';
 import { DATED_MARKER } from '../../shared/dated-marker';
+import { LatestRequest } from '../../core/latest-request';
 
 /** The severities in descending order, with their colour. A fixed order, not derived from the
  *  data: otherwise two successive loads could present them differently. The label key is spelt
@@ -125,6 +126,8 @@ export class Dashboard {
     readonly postureAnalytics = signal<PostureTrendAnalytics | null>(null);
     readonly trendError = signal<string | null>(null);
     readonly window = signal(90);
+    private readonly trendsLoad = new LatestRequest();
+    private readonly analyticsLoad = new LatestRequest();
 
     /**
      * The estate's grades, with no grade of its own (decision 0036): a single grade over an estate is
@@ -187,21 +190,26 @@ export class Dashboard {
         this.loadTrends(this.window());
     }
 
-    /** The series for one window. Cleared before the request, so a slow answer cannot leave the
-     *  old curve under a new window's label — a chart labelled 30 days showing a year is a lie
-     *  nobody would suspect. */
+    /**
+     * The series for one window. Clearing before the request is not enough on its own: the answer
+     * for the previous window still arrives, and landed under the new window's label — a chart
+     * labelled 30 days showing a year is a lie nobody would suspect. Each stream holds its own
+     * {@link LatestRequest}, so choosing a window cancels the request still in flight for the last
+     * one, the analytics included.
+     */
     loadTrends(days: number): void {
         this.window.set(days);
         this.trends.set(null);
         this.trendError.set(null);
-        this.dashboardApi.trends(days).subscribe({
+        this.trendsLoad.run(this.dashboardApi.trends(days), {
             next: (series) => this.trends.set(series),
             error: () => this.trendError.set(this.i18n.t('dashboard.trend_load_failed'))
         });
 
-        this.dashboardApi.getPostureAnalytics(days).subscribe({
+        this.analyticsLoad.run(this.dashboardApi.getPostureAnalytics(days), {
             next: (analytics) => this.postureAnalytics.set(analytics),
-            error: () => {}
+            // The panel is left out rather than showing the previous window's figures under this one.
+            error: () => this.postureAnalytics.set(null)
         });
     }
 
