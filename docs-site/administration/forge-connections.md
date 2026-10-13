@@ -351,6 +351,12 @@ host, the default schedule and the first scans.
   bound to it when there is exactly one**, none otherwise. A private repository imported with no credential is
   allowed and warned about — its scans will fail with *requires authentication*. **The connection's own token
   never clones**: it can list the organisation, it is not sent to agents.
+- **Cloned from the connection's host only.** The clone URL the import would use — HTTPS, or SSH with a key — must
+  name the host of the connection's address (`github.com` for github.com, whose API answers on `api.github.com`).
+  A repository the forge lists with a clone URL on any other host is refused, named in the preview, and no
+  credential of that host is proposed for it: the listing is the forge's answer, and it decides neither where
+  Vectispire clones nor which host's token goes there. A GitLab whose SSH clones go through a host of their own
+  imports over HTTPS; add such a repository by hand to clone it over SSH.
 - **Branch**: the forge's default branch at the discovery. A later change of default branch shows as *changed* in the
   next discovery; the target is not altered.
 - **Schedule**: none of its own, so the installation's default applies — and each new target takes it **at its own

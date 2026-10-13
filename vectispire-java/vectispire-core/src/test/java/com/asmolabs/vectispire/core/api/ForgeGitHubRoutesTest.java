@@ -77,8 +77,9 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
                 + fullName + "\",\"owner\":{\"login\":\"" + owner + "\"},\"private\":" + !"public".equals(visibility)
                 + ",\"visibility\":\"" + visibility + "\",\"fork\":" + fork + ",\"archived\":" + archived
                 + ",\"default_branch\":\"main\",\"pushed_at\":\"2026-09-20T10:00:00Z\",\"language\":\"Go\",\"size\":4,"
-                + "\"clone_url\":\"https://git.example.org/" + fullName + ".git\",\"ssh_url\":\"git@git.example.org:"
-                + fullName + ".git\",\"html_url\":\"https://git.example.org/" + fullName + "\"}";
+                // Cloned from the stub's own host, as an Enterprise Server clones from its own.
+                + "\"clone_url\":\"https://127.0.0.1/" + fullName + ".git\",\"ssh_url\":\"git@127.0.0.1:"
+                + fullName + ".git\",\"html_url\":\"https://127.0.0.1/" + fullName + "\"}";
     }
 
     private static String orgRepos(String org) {
@@ -316,7 +317,7 @@ class ForgeGitHubRoutesTest extends ApiTestBase {
         assertThat(result.at("/solutionsCreated")).extracting(JsonNode::asText).containsExactly("acme");
         RepositoryEntity imported = repositories.findById(byForgeId(result.at("/created"), "101").at("/repositoryId")
                 .asLong()).orElseThrow();
-        assertThat(imported.getUrl()).isEqualTo("https://git.example.org/acme/api.git");
+        assertThat(imported.getUrl()).isEqualTo("https://127.0.0.1/acme/api.git");
         assertThat(imported.getBranch()).isEqualTo("main");
         assertThat(imported.getProjectId()).isNotNull();
         assertThat(links.count()).isEqualTo(2);

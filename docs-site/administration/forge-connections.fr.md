@@ -366,6 +366,12 @@ défaut et les premiers scans.
   jeton HTTPS lié à cet hôte quand il y en a exactement un**, aucun sinon. Un dépôt privé importé sans identifiant
   est permis et signalé — ses scans échoueront avec *requires authentication*. **Le jeton de la connexion ne clone
   jamais** : il peut lister l'organisation, il n'est pas envoyé aux agents.
+- **Cloné depuis l'hôte de la connexion seulement.** L'URL de clonage que l'import utiliserait — HTTPS, ou SSH avec
+  une clé — doit nommer l'hôte de l'adresse de la connexion (`github.com` pour github.com, dont l'API répond sur
+  `api.github.com`). Un dépôt que la forge liste avec une URL de clonage sur un autre hôte est refusé, nommé dans
+  l'aperçu, et aucun identifiant de cet hôte ne lui est proposé : la liste est la réponse de la forge, et elle ne
+  décide ni d'où Vectispire clone ni quel jeton d'hôte y part. Un GitLab dont les clones SSH passent par un hôte
+  à part importe en HTTPS ; ajoutez un tel dépôt à la main pour le cloner en SSH.
 - **Branche** : la branche par défaut de la forge à la découverte. Un changement ultérieur de branche par défaut
   apparaît comme *changed* à la découverte suivante ; la cible n'est pas modifiée.
 - **Planification** : aucune qui lui soit propre, la planification par défaut de l'installation s'applique donc — et

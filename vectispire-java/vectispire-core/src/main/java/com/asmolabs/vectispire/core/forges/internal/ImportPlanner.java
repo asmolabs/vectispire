@@ -355,6 +355,7 @@ public class ImportPlanner {
         Map<String, HostUse> hosts = new LinkedHashMap<>();
         Set<String> identities = new HashSet<>();
         Map<String, List<TokenOption>> tokensByHost = tokensByHost();
+        String forgeHost = connectionHost(source.connection());
         Map<UUID, String> keyNames = keys.list().stream()
                 .collect(Collectors.toMap(SshKeyAdministrationService.KeyView::id, SshKeyAdministrationService.KeyView::name));
 
@@ -379,6 +380,11 @@ public class ImportPlanner {
             if (url == null) {
                 skipped.add(new ForgeSkippedImport(repository.getForgeId(), repository.getFullPath(),
                         ImportSkip.NO_CLONE_URL, List.of()));
+                continue;
+            }
+            Optional<String> elsewhere = elsewhere(url, forgeHost);
+            if (elsewhere.isPresent()) {
+                refused.add(new ForgeRefusedImport(repository.getForgeId(), repository.getFullPath(), elsewhere.get()));
                 continue;
             }
             ForgeCredentialView credential = credentialView(choice, keyNames, tokensByHost);
@@ -600,19 +606,49 @@ public class ImportPlanner {
     }
 
     /**
+     * The host a connection's repositories are cloned from: its web address's. Every edition clones there — github.com
+     * and a data-residency subdomain answer their API on {@code api.} and clone on the web host, a self-hosted forge does
+     * both on the address typed — so that is the one host an import may name.
+     */
+    private static String connectionHost(ForgeConnectionEntity connection) {
+        return RepositoryUrl.host(connection.getBaseUrl()).map(ImportPlanner::normalized).orElse("");
+    }
+
+    /**
+     * Why a clone URL may not be imported from this connection, or empty: its host is not the connection's.
+     *
+     * <p><b>The clone URL is the forge's answer, not the administrator's choice.</b> The credential for a host is
+     * proposed from the clone URL's host — the one HTTPS token bound to it — so a listing naming another host,
+     * whether the forge was compromised or merely misconfigured, decided where a target cloned from and with which
+     * credential. A forge answering for its own host only is what the connection was trusted for. A URL whose host cannot be read is refused with it. A forge that clones
+     * from a host of its own — GitLab with a separate SSH host — is refused too: its repositories are added by hand.
+     */
+    private static Optional<String> elsewhere(String url, String forgeHost) {
+        Optional<String> host = RepositoryUrl.host(url).map(ImportPlanner::normalized);
+        if (host.isPresent() && !forgeHost.isEmpty() && host.get().equals(forgeHost)) {
+            return Optional.empty();
+        }
+        return Optional.of("The forge gives a clone URL on " + host.map(found -> BoundedText.clip(found, 100))
+                .orElse("a host that cannot be read") + ", not on " + forgeHost + ", this connection's host: an import "
+                + "clones only from the forge it was discovered on. Add the repository by hand if that host is meant.");
+    }
+
+    private static String normalized(String host) {
+        String lower = host.toLowerCase(Locale.ROOT);
+        while (lower.endsWith(".")) {
+            lower = lower.substring(0, lower.length() - 1);
+        }
+        return lower;
+    }
+
+    /**
      * The host the repository is cloned from, as a token is bound to it: its HTTPS clone URL's, or its SSH URL's
      * when the forge gave no HTTPS one.
      */
     private static String hostOf(ForgeRepositoryEntity repository) {
         return RepositoryUrl.host(repository.getHttpUrl())
                 .or(() -> RepositoryUrl.host(repository.getSshUrl()))
-                .map(host -> {
-                    String lower = host.toLowerCase(Locale.ROOT);
-                    while (lower.endsWith(".")) {
-                        lower = lower.substring(0, lower.length() - 1);
-                    }
-                    return lower;
-                })
+                .map(ImportPlanner::normalized)
                 .orElse("");
     }
 

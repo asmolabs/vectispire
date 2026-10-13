@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.api;
 import static com.asmolabs.vectispire.core.api.ForgeDiscoveriesRoutesTest.GROUPS;
 import static com.asmolabs.vectispire.core.api.ForgeDiscoveriesRoutesTest.PROJECTS;
 import static com.asmolabs.vectispire.core.api.ForgeDiscoveriesRoutesTest.TOKEN;
-import static com.asmolabs.vectispire.core.api.ForgeDiscoveriesRoutesTest.project;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -66,6 +65,12 @@ import org.springframework.test.web.servlet.ResultActions;
 class ForgeImportsRoutesTest extends ApiTestBase {
 
     private static final String RECENT = "2026-09-20T10:00:00Z";
+
+    /**
+     * The host the stub forge answers on, and so the host its clone URLs name — a forge clones from its own host, and
+     * an import refuses a clone URL on any other.
+     */
+    private static final String FORGE_HOST = "127.0.0.1";
 
     @Autowired
     private DiscoveryWorker worker;
@@ -139,6 +144,13 @@ class ForgeImportsRoutesTest extends ApiTestBase {
     }
 
     // ---- Helpers.
+
+    /** The discovery suite's GitLab project, cloned from the stub's own host. */
+    private static String project(int id, String path, String namespaceKind, String branch, boolean archived,
+            Long size, boolean fork, String activity) {
+        return ForgeDiscoveriesRoutesTest.project(id, path, namespaceKind, branch, archived, size, fork, activity)
+                .replace("git.example.org", FORGE_HOST);
+    }
 
     private String connection() throws Exception {
         Map<String, Object> body = new HashMap<>();
@@ -353,9 +365,9 @@ class ForgeImportsRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("already present by identity, whatever the spelling, the branch or the sub-path: shown, not selectable, skipped")
     void presentByIdentity() throws Exception {
-        long sshSpelled = repository("git@git.example.org:Acme/Backend/Payments/API", null);
-        long monorepoA = repository("https://git.example.org/acme/tools.git", "services/a");
-        long monorepoB = repository("https://GIT.example.org/acme/tools/", "services/b");
+        long sshSpelled = repository("git@" + FORGE_HOST + ":Acme/Backend/Payments/API", null);
+        long monorepoA = repository("https://" + FORGE_HOST + "/acme/tools.git", "services/a");
+        long monorepoB = repository("https://" + FORGE_HOST + "/ACME/Tools/", "services/b");
 
         JsonNode page = candidates("");
         JsonNode api = byForgeId(page.at("/items"), "11");
@@ -421,7 +433,7 @@ class ForgeImportsRoutesTest extends ApiTestBase {
         assertThat(repositories.count()).isEqualTo(5);
         RepositoryEntity api = repositories.findById(byForgeId(result.at("/created"), "11").at("/repositoryId").asLong())
                 .orElseThrow();
-        assertThat(api.getUrl()).isEqualTo("https://git.example.org/acme/backend/payments/api.git");
+        assertThat(api.getUrl()).isEqualTo("https://" + FORGE_HOST + "/acme/backend/payments/api.git");
         assertThat(api.getBranch()).isEqualTo("main");
         assertThat(api.getName()).isEqualTo("acme/backend/payments/api");
         assertThat(api.getProjectId()).isNotNull();
@@ -482,7 +494,7 @@ class ForgeImportsRoutesTest extends ApiTestBase {
             row.setNamespacePath("bulk");
             row.setName("repo-" + i);
             row.setDefaultBranch("main");
-            row.setHttpUrl("https://git.example.org/bulk/repo-" + i + ".git");
+            row.setHttpUrl("https://" + FORGE_HOST + "/bulk/repo-" + i + ".git");
             row.setFirstSeenBy(discoveryId);
             row.setFirstSeenAt(Instant.now());
             row.setLastSeenBy(discoveryId);
@@ -554,10 +566,10 @@ class ForgeImportsRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("the credential per host: the one token bound to the host proposed, an SSH key over the SSH URL, never the connection's token")
     void credentialsPerHost() throws Exception {
-        String token = gitToken("git.example.org");
+        String token = gitToken(FORGE_HOST);
         JsonNode proposed = preview(request(List.of("11")));
         JsonNode host = proposed.at("/credentials/0");
-        assertThat(host.at("/host").asText()).isEqualTo("git.example.org");
+        assertThat(host.at("/host").asText()).isEqualTo(FORGE_HOST);
         assertThat(host.at("/credential/kind").asText()).isEqualTo("https_token");
         assertThat(host.at("/credential/id").asText()).isEqualTo(token);
         assertThat(host.at("/proposed").asBoolean()).isTrue();
@@ -570,15 +582,15 @@ class ForgeImportsRoutesTest extends ApiTestBase {
 
         String key = sshKey();
         Map<String, Object> withKey = request(List.of("12"));
-        withKey.put("credentials", List.of(Map.of("host", "GIT.example.org", "sshKeyId", key)));
+        withKey.put("credentials", List.of(Map.of("host", FORGE_HOST, "sshKeyId", key)));
         JsonNode ssh = importing(withKey);
         RepositoryEntity overSsh = repositories.findById(ssh.at("/created/0/repositoryId").asLong()).orElseThrow();
-        assertThat(overSsh.getUrl()).isEqualTo("git@git.example.org:acme/backend/payments/worker.git");
+        assertThat(overSsh.getUrl()).isEqualTo("git@" + FORGE_HOST + ":acme/backend/payments/worker.git");
         assertThat(overSsh.getSshKeyId().toString()).isEqualTo(key);
         assertThat(overSsh.getHttpsTokenId()).isNull();
 
         Map<String, Object> none = request(List.of("13"));
-        none.put("credentials", List.of(Map.of("host", "git.example.org")));
+        none.put("credentials", List.of(Map.of("host", FORGE_HOST)));
         JsonNode anonymous = preview(none);
         assertThat(anonymous.at("/credentials/0/credential/kind").asText()).isEqualTo("none");
         assertThat(anonymous.at("/credentials/0/proposed").asBoolean()).isFalse();
@@ -587,11 +599,11 @@ class ForgeImportsRoutesTest extends ApiTestBase {
 
         String elsewhere = gitToken("gitlab.other.example");
         Map<String, Object> wrongHost = request(List.of("13"));
-        wrongHost.put("credentials", List.of(Map.of("host", "git.example.org", "httpsTokenId", elsewhere)));
+        wrongHost.put("credentials", List.of(Map.of("host", FORGE_HOST, "httpsTokenId", elsewhere)));
         assertThat(detailOf(postJson(base() + "/imports", wrongHost, asAdmin()).andExpect(status().isBadRequest())
                 .andReturn())).contains("issued for another host");
 
-        gitToken("git.example.org");
+        gitToken(FORGE_HOST);
         JsonNode twoTokens = preview(request(List.of("13")));
         assertThat(twoTokens.at("/credentials/0/credential/kind").asText())
                 .as("two tokens bound to the host: nothing is proposed").isEqualTo("none");
@@ -671,6 +683,42 @@ class ForgeImportsRoutesTest extends ApiTestBase {
         JsonNode half = preview(halfMapped);
         assertThat(half.at("/refused/0/refusal").asText()).contains("name the solution");
         postJson(base() + "/imports", halfMapped, asAdmin()).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("a clone URL on another host than the connection's is refused, and that host's credential never proposed")
+    void cloneUrlOnAnotherHost() throws Exception {
+        // The forge's answer names the clone URL; the one token bound to a host is proposed for it. A listing
+        // pointing at another host would have filed a target cloning there with that host's token.
+        String foreignToken = gitToken("git.elsewhere.example");
+        ForgeRepositoryEntity tools = snapshot.findAll().stream().filter(row -> row.getForgeId().equals("13"))
+                .findFirst().orElseThrow();
+        tools.setHttpUrl("https://git.elsewhere.example/victim/private.git");
+        snapshot.saveAndFlush(tools);
+
+        JsonNode preview = preview(request(List.of("11", "13")));
+        assertThat(forgeIds(preview.at("/targets"))).containsExactly("11");
+        assertThat(byForgeId(preview.at("/refused"), "13").at("/refusal").asText())
+                .contains("git.elsewhere.example").contains(FORGE_HOST).contains("this connection's host");
+        assertThat(list(preview.at("/credentials"))).extracting(host -> host.at("/host").asText())
+                .as("no credential is chosen for a host the import does not clone from").containsExactly(FORGE_HOST);
+        assertThat(preview.toString()).doesNotContain(foreignToken);
+        assertThat(detailOf(postJson(base() + "/imports", request(List.of("11", "13")), asAdmin())
+                .andExpect(status().isBadRequest()).andReturn())).startsWith("1 of the selected repositories would be "
+                        + "refused");
+        assertThat(repositories.count()).isZero();
+
+        // Over SSH, the URL the key is presented to is the one judged.
+        ForgeRepositoryEntity worker = snapshot.findAll().stream().filter(row -> row.getForgeId().equals("12"))
+                .findFirst().orElseThrow();
+        worker.setSshUrl("git@git.elsewhere.example:victim/private.git");
+        snapshot.saveAndFlush(worker);
+        Map<String, Object> overSsh = request(List.of("12"));
+        overSsh.put("credentials", List.of(Map.of("host", FORGE_HOST, "sshKeyId", sshKey())));
+        assertThat(byForgeId(preview(overSsh).at("/refused"), "12").at("/refusal").asText())
+                .contains("git.elsewhere.example");
+        assertThat(forgeIds(preview(request(List.of("12"))).at("/targets")))
+                .as("over HTTPS the SSH URL is not used, and the forge's own HTTPS URL is imported").containsExactly("12");
     }
 
     @Test
