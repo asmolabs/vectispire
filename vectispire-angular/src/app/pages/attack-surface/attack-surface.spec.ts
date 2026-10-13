@@ -375,8 +375,9 @@ describe('the attack surface screen', () => {
 
             vi.advanceTimersByTime(3000);
             http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('completed'));
-            // The reload after the scan is a background one: the tables do not blank under the reader.
-            expect(busy().refreshBusy).toBe(false);
+            // The reload after the scan is a background one: the tables do not blank under the reader,
+            // and the route table is not masked while its own routes are read again.
+            expect(busy()).toEqual({ refreshBusy: false, tableMasked: false });
             expect(routes()).toHaveLength(3);
             http.expectOne((call) => call.url === '/api/v1/attack-surface').flush({ ...GLOBAL, totalEndpoints: 43 });
             http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('completed'));
