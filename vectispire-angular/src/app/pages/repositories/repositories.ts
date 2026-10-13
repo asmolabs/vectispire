@@ -34,6 +34,8 @@ import { SarifImports } from '../../shared/sarif-imports';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
+import { LatestRequest } from '@/app/core/latest-request';
+import { PAGE_SIZE, pageHolding } from '@/app/shared/list-paging';
 import { version as RELEASE } from '../../../../package.json';
 
 /**
@@ -290,8 +292,26 @@ export class Repositories {
      */
     private readonly scanInFlight = computed(() => anyScanRunning(this.repositories().map((row) => row.lastScan)));
 
+    /**
+     * The list's request, latest wins: a poll tick and the reload after a save can be in flight
+     * together, and the older answer landing last put rows back that the newer one had changed.
+     */
+    private readonly listRequest = new LatestRequest();
+    /** The list's own failure, told apart from an action's: a poll that recovers clears only its own. */
+    private listError: string | null = null;
+
+    /**
+     * Client-side pages, and the one the reader is on. A forge import registers hundreds of
+     * repositories at once, and one card each made a page nobody could scroll to the end of. The
+     * page is kept across the refreshes, which replace the list underneath it.
+     */
+    readonly pageSize = PAGE_SIZE;
+    readonly first = signal(0);
+
     constructor() {
-        pollWhile(this.scanInFlight, () => this.reload());
+        // In the background: no overlay. Raised every five seconds while a scan ran, it flashed
+        // over the whole list and swallowed the clicks of whoever was reading it.
+        pollWhile(this.scanInFlight, () => this.reload(true));
         this.reload();
         // A failure here leaves the list empty rather than blocking the form: the operator can
         // still edit everything else, and "no key" stays selectable.
@@ -306,16 +326,20 @@ export class Repositories {
         }
     }
 
-    reload(): void {
-        this.loading.set(true);
-        this.targetsApi.repositories().subscribe({
+    reload(background = false): void {
+        if (!background) this.loading.set(true);
+        this.listRequest.run(this.targetsApi.repositories(), {
             next: (repositories) => {
                 this.repositories.set(repositories);
-                this.error.set(null);
+                this.first.set(pageHolding(this.first(), repositories.length));
+                // A refresh nobody asked for leaves an action's error in place; it clears its own.
+                if (!background || this.error() === this.listError) this.error.set(null);
+                this.listError = null;
                 this.loading.set(false);
             },
-            error: () => {
-                this.error.set(this.i18n.t('repositories.error_load'));
+            error: (response: unknown) => {
+                this.listError = messageOf(response, this.i18n.t('repositories.error_load'));
+                this.error.set(this.listError);
                 this.loading.set(false);
             }
         });

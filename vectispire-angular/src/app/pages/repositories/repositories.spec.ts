@@ -2,7 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Repositories } from './repositories';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
@@ -617,5 +617,149 @@ describe('the repository list', () => {
             typeUrl('https://gitlab.example.com/group/app.git');
             expect(screen.urlCarriesSecret()).toBe(false);
         });
+    });
+});
+
+/**
+ * The list while a scan runs, and after a forge import of hundreds.
+ *
+ * <p>The screen reloads every five seconds while a scan is unsettled. Each reload raised the loading
+ * overlay over the whole list, and nothing cancelled a reload still in flight; the list had no
+ * pages, so an import of three hundred repositories made one page of three hundred cards.
+ */
+describe('the repository list, refreshed and paged', () => {
+    let fixture: ComponentFixture<Repositories>;
+    let http: HttpTestingController;
+
+    const repository = (id: number, status = 'completed') =>
+        asSchema('RepositorySummary', {
+            id,
+            url: `ssh://git@example.invalid/repo-${id}.git`,
+            branch: 'main',
+            name: `repo-${id}`,
+            displayName: `repo-${id}`,
+            subPath: null,
+            scanIntervalMinutes: null,
+            scanCron: null,
+            openIssues: 0,
+            scanManualOnly: false,
+            lastScan: { id: 1000 + id, status, createdAt: '2026-08-21T05:03:00Z', error: null }
+        });
+
+    /** Forty-five rows, the first one still scanning so the screen keeps polling. */
+    const MANY = Array.from({ length: 45 }, (_, index) => repository(index + 1, index === 0 ? 'pending' : 'completed'));
+
+    beforeEach(async () => {
+        vi.useFakeTimers();
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Repositories],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Repositories);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    function page(): HTMLElement {
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function answer(rows: unknown[]): void {
+        for (const request of http.match(() => true)) {
+            request.flush(request.request.url.endsWith('/repositories') ? rows : []);
+        }
+        fixture.detectChanges();
+    }
+
+    /** The names on the cards shown, in order. */
+    function shown(): string[] {
+        return [...page().querySelectorAll('[data-testid="repository-languages"]')].map(
+            (card) => card.parentElement?.querySelector('.font-medium')?.textContent?.trim() ?? ''
+        );
+    }
+
+    function overlay(): Element | null {
+        return page().querySelector('.p-dataview-loading');
+    }
+
+    it('shows the overlay on the first load, and none on a poll tick', () => {
+        expect(overlay()).not.toBeNull();
+        answer(MANY);
+        expect(overlay()).toBeNull();
+
+        vi.advanceTimersByTime(5000);
+        const tick = http.expectOne('/api/v1/repositories');
+        // The tick is in flight: the list is still the reader's, with no overlay over it.
+        expect(overlay()).toBeNull();
+        expect(shown()).toHaveLength(20);
+        tick.flush(MANY);
+        expect(overlay()).toBeNull();
+    });
+
+    it('pages a long list by twenty, and shows no paginator for a short one', () => {
+        answer(MANY);
+        expect(shown()).toEqual(MANY.slice(0, 20).map((row) => row.displayName));
+        expect(page().querySelectorAll('.p-paginator-page')).toHaveLength(3);
+        expect(page().querySelector<HTMLElement>('p-paginator')?.style.display).not.toBe('none');
+
+        fixture.componentInstance.reload();
+        answer(MANY.slice(0, 3));
+        expect(shown()).toEqual(['repo-1', 'repo-2', 'repo-3']);
+        // Rendered but hidden: the paginator hides its own host when there is a single page.
+        expect(page().querySelector<HTMLElement>('p-paginator')?.style.display).toBe('none');
+    });
+
+    it('keeps the page the reader is on across a refresh', () => {
+        answer(MANY);
+        page().querySelectorAll<HTMLButtonElement>('.p-paginator-page')[1].click();
+        expect(shown()[0]).toBe('repo-21');
+
+        vi.advanceTimersByTime(5000);
+        http.expectOne('/api/v1/repositories').flush(MANY);
+        expect(shown()[0]).toBe('repo-21');
+    });
+
+    it('falls back to the last page when the list shrinks under the one shown', () => {
+        answer(MANY);
+        page().querySelectorAll<HTMLButtonElement>('.p-paginator-page')[2].click();
+        expect(shown()[0]).toBe('repo-41');
+
+        vi.advanceTimersByTime(5000);
+        http.expectOne('/api/v1/repositories').flush(MANY.slice(0, 30));
+        expect(shown()[0]).toBe('repo-21');
+    });
+
+    it('lets the latest request win: a reload cancels the tick still in flight', () => {
+        answer(MANY);
+        vi.advanceTimersByTime(5000);
+        const tick = http.expectOne('/api/v1/repositories');
+
+        fixture.componentInstance.reload();
+        expect(tick.cancelled).toBe(true);
+        http.expectOne('/api/v1/repositories').flush(MANY);
+    });
+
+    it('keeps an action’s error through a poll tick, and clears its own failure when a tick answers', () => {
+        answer(MANY);
+        fixture.componentInstance.error.set('The scan could not be queued.');
+        vi.advanceTimersByTime(5000);
+        http.expectOne('/api/v1/repositories').flush(MANY);
+        expect(page().textContent).toContain('The scan could not be queued.');
+
+        vi.advanceTimersByTime(5000);
+        http.expectOne('/api/v1/repositories').flush(
+            { title: 'Service Unavailable', status: 503, detail: 'Inventory is being reindexed.' },
+            { status: 503, statusText: 'Service Unavailable' }
+        );
+        expect(page().textContent).toContain('Inventory is being reindexed.');
+
+        vi.advanceTimersByTime(5000);
+        http.expectOne('/api/v1/repositories').flush(MANY);
+        expect(page().textContent).not.toContain('Inventory is being reindexed.');
     });
 });

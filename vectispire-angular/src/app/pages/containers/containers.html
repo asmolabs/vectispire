@@ -15,7 +15,16 @@
     <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 
-<p-dataview [value]="containers()" [loading]="loading()" layout="list">
+<p-dataview
+    [value]="containers()"
+    [loading]="loading()"
+    layout="list"
+    [paginator]="true"
+    [rows]="pageSize"
+    [first]="first()"
+    (onPage)="first.set($event.first)"
+    [alwaysShowPaginator]="false"
+>
     <ng-template #list let-items>
         <!--
             Cards rather than rows, as on the repository list and for the same reason: these are
