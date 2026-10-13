@@ -57,7 +57,7 @@
                                                         : {
                                                               date:
                                                                   (target.firstScanNotBefore
-                                                                      | date: 'yyyy-MM-dd HH:mm') ?? ''
+                                                                      | date: 'dd/MM/yyyy HH:mm') ?? ''
                                                           }
                                             }}</a
                                         >
@@ -368,8 +368,8 @@
                                     : {
                                           count: scans.count,
                                           spacing: scans.spacingSeconds,
-                                          from: (scans.firstAt | date: 'yyyy-MM-dd HH:mm') ?? '',
-                                          to: (scans.lastAt | date: 'yyyy-MM-dd HH:mm') ?? ''
+                                          from: (scans.firstAt | date: 'dd/MM/yyyy HH:mm') ?? '',
+                                          to: (scans.lastAt | date: 'dd/MM/yyyy HH:mm') ?? ''
                                       }
                         }}
                     } @else {

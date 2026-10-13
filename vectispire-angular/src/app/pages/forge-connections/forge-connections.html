@@ -115,7 +115,7 @@
                             }
                             @case ('expired') {
                                 <p-tag severity="danger" [value]="'forges.connections.expired' | translate" />
-                                {{ connection.tokenExpiresAt | date: 'yyyy-MM-dd' }}
+                                {{ connection.tokenExpiresAt | date: 'dd/MM/yyyy' }}
                             }
                             @case ('soon') {
                                 <p-tag
@@ -124,10 +124,10 @@
                                         'forges.connections.expires_soon' | translate: { count: daysLeft(connection) }
                                     "
                                 />
-                                {{ connection.tokenExpiresAt | date: 'yyyy-MM-dd' }}
+                                {{ connection.tokenExpiresAt | date: 'dd/MM/yyyy' }}
                             }
                             @default {
-                                {{ connection.tokenExpiresAt | date: 'yyyy-MM-dd' }}
+                                {{ connection.tokenExpiresAt | date: 'dd/MM/yyyy' }}
                             }
                         }
                     </dd>
@@ -160,7 +160,7 @@
                             {{ connection.caSubject }}
                             <span class="block text-sm text-muted-color">{{
                                 'forges.connections.ca_until'
-                                    | translate: { date: (connection.caNotAfter | date: 'yyyy-MM-dd') ?? '' }
+                                    | translate: { date: (connection.caNotAfter | date: 'dd/MM/yyyy') ?? '' }
                             }}</span>
                         } @else {
                             <span class="text-muted-color">{{ 'forges.connections.ca_none' | translate }}</span>
@@ -177,7 +177,7 @@
                                     last.state === 'failed' ? 'danger' : last.state === 'partial' ? 'warn' : 'info'
                                 "
                             />
-                            {{ last.requestedAt | date: 'yyyy-MM-dd HH:mm' }}
+                            {{ last.requestedAt | date: 'dd/MM/yyyy HH:mm' }}
                         } @else {
                             <span class="text-muted-color">{{
                                 'forges.connections.never_discovered' | translate

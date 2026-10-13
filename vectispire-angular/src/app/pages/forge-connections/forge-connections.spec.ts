@@ -105,9 +105,9 @@ describe('the forge connections screen', () => {
         expect(text('[data-testid="connection-address"]', card)).toBe('https://gitlab.example.internal');
         expect(text('[data-testid="connection-token"]', card)).toBe('GitLab group or project token (read_api)');
         expect(text('[data-testid="connection-can-write"]', card)).toBe('Read-only');
-        expect(text('[data-testid="connection-expiry"]', card)).toBe('2027-03-01');
+        expect(text('[data-testid="connection-expiry"]', card)).toBe('01/03/2027');
         expect(text('[data-testid="connection-network"]', card)).toBe('Internal network');
-        expect(text('[data-testid="connection-ca"]', card)).toBe('CN=Example Internal Root CA valid until 2030-01-01');
+        expect(text('[data-testid="connection-ca"]', card)).toBe('CN=Example Internal Root CA valid until 01/01/2030');
         expect(text('[data-testid="connection-last-discovery"]', card)).toContain('Completed');
         expect(text('[data-testid="connection-imported"]', card)).toBe('5');
         expect(card.querySelector('[data-testid="connection-discover"]')?.getAttribute('href')).toBe(

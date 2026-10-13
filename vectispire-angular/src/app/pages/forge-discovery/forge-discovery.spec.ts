@@ -112,7 +112,7 @@ describe('the discovery page', () => {
 
         expect(text('[data-testid="discovery-state"]')).toBe('Partial');
         expect(text('[data-testid="reason"]')).toContain('rate limit asked for a longer wait');
-        expect(text('[data-testid="reset-at"]')).toMatch(/^The limit lifts at 2026-10-03 \d\d:30/);
+        expect(text('[data-testid="reset-at"]')).toMatch(/^The limit lifts at 03\/10\/2026 \d\d:30/);
         expect(text('[data-testid="reason"]')).toContain('Nothing is marked gone');
         expect(has('[data-testid="count-gone"]')).toBe(false);
         expect(text('[data-testid="gone-not-counted"]')).toContain('only a completed discovery');

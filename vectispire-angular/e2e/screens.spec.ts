@@ -2408,7 +2408,7 @@ test.describe('documentation screenshots', () => {
             });
             await shoot(page, 'settings-tickets', locale);
 
-            await expect(page.getByTestId('ticket-token-health')).toContainText('2026-09-29');
+            await expect(page.getByTestId('ticket-token-health')).toContainText('29/09/2026');
             await showFromTop('ticket-token-health');
             await shoot(page, 'settings-ticket-token', locale);
 

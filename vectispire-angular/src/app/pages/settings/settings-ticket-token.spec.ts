@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import english from '../../../../public/i18n/en.json';
+import french from '../../../../public/i18n/fr.json';
 import { SettingsState } from './settings-state';
 import { SettingsTicketing } from './settings-ticketing';
 
@@ -70,7 +72,7 @@ describe('the tracker token, its expiry and its refusal', () => {
 
         expect(health(page)).toContain('Stopped working');
         expect(health(page)).toContain('HTTP 401');
-        expect(health(page)).toContain('2026-10-12');
+        expect(health(page)).toContain('since 12/10/2026 08:00');
         expect(health(page)).not.toContain('In 5 days');
     });
 
@@ -94,6 +96,60 @@ describe('the tracker token, its expiry and its refusal', () => {
         expect(health(page)).toContain('Expired');
         expect(health(page)).toContain('(declared)');
     });
+
+    // The date the tracker reported was printed year first — "Expire dans 11 jours 2026-09-29" — the one
+    // date on the card a French reader had to decode. Written as every other date of the interface, the
+    // same in both languages, by UTC day as the server stores it. The shipped bundles, not stand-ins, so
+    // the sentence is the one the screen shows.
+    const IN_ELEVEN_DAYS = new Date(Date.now() + 11 * DAY - 60_000);
+    const day = (at: Date): string =>
+        `${String(at.getUTCDate()).padStart(2, '0')}/${String(at.getUTCMonth() + 1).padStart(2, '0')}/${at.getUTCFullYear()}`;
+    for (const [lang, bundle, far, soon, past] of [
+        ['en', english, 'Expires on 29/09/2027', 'Expires in 11 days', 'Expired'],
+        ['fr', french, 'Expire le 29/09/2027', 'Expire dans 11 jours', 'Expiré']
+    ] as const) {
+        describe(`in ${lang}`, () => {
+            beforeEach(() => {
+                const i18n = TestBed.inject(I18nService);
+                i18n.currentLang.set(lang);
+                i18n.translations.set(bundle);
+            });
+
+            it('writes a far expiry dd/MM/yyyy', async () => {
+                const page = await loaded({
+                    configured: true,
+                    expiresAt: '2027-09-29T00:00:00Z',
+                    expirySource: 'reported'
+                });
+
+                expect(health(page)).toContain(far);
+                expect(health(page)).not.toContain('2027-09-29');
+            });
+
+            it('writes a near expiry dd/MM/yyyy beside its countdown', async () => {
+                const page = await loaded({
+                    configured: true,
+                    expiresAt: IN_ELEVEN_DAYS.toISOString(),
+                    expirySource: 'reported'
+                });
+
+                expect(health(page)).toContain(soon);
+                expect(health(page)).toContain(day(IN_ELEVEN_DAYS));
+            });
+
+            it('writes a past expiry dd/MM/yyyy', async () => {
+                const page = await loaded({
+                    configured: true,
+                    expiresAt: '2026-01-05T00:00:00Z',
+                    expirySource: 'declared'
+                });
+
+                expect(health(page)).toContain(past);
+                expect(health(page)).toContain('05/01/2026');
+                expect(health(page)).not.toContain('2026-01-05');
+            });
+        });
+    }
 
     it('says the expiry is unknown rather than nothing', async () => {
         const page = await loaded({ configured: true, expiresAt: null, expirySource: 'unknown' });

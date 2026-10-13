@@ -116,7 +116,7 @@
                                     | translate
                                         : {
                                               id: run.id,
-                                              date: (run.requestedAt | date: 'yyyy-MM-dd HH:mm') ?? '',
+                                              date: (run.requestedAt | date: 'dd/MM/yyyy HH:mm') ?? '',
                                               who: run.requestedBy ?? '—'
                                           }
                             }}</span>
@@ -181,7 +181,7 @@
                                     <span class="block mt-1" data-testid="reset-at">{{
                                         'forges.discovery.reset_at'
                                             | translate
-                                                : { date: (run.rateLimitResetAt | date: 'yyyy-MM-dd HH:mm') ?? '' }
+                                                : { date: (run.rateLimitResetAt | date: 'dd/MM/yyyy HH:mm') ?? '' }
                                     }}</span>
                                 }
                                 @if (run.state === 'partial') {
@@ -309,7 +309,7 @@
                                                         </td>
                                                         <td class="py-2 pr-3">
                                                             @if (repository.lastActivityAt) {
-                                                                {{ repository.lastActivityAt | date: 'yyyy-MM-dd' }}
+                                                                {{ repository.lastActivityAt | date: 'dd/MM/yyyy' }}
                                                             } @else {
                                                                 {{ 'common.unknown' | translate }}
                                                             }
@@ -404,7 +404,7 @@
                                                 }}</span>
                                             }
                                         </td>
-                                        <td class="py-2 pr-3">{{ run.requestedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
+                                        <td class="py-2 pr-3">{{ run.requestedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
                                         <td class="py-2 pr-3 text-right">{{ run.repositoriesSeen }}</td>
                                         <td class="py-2 pr-3 text-right">
                                             <p-button

@@ -308,7 +308,7 @@
                             </td>
                             <td class="py-2 pr-3">
                                 @if (candidate.repository.lastActivityAt) {
-                                    {{ candidate.repository.lastActivityAt | date: 'yyyy-MM-dd' }}
+                                    {{ candidate.repository.lastActivityAt | date: 'dd/MM/yyyy' }}
                                 } @else {
                                     {{ 'common.unknown' | translate }}
                                 }

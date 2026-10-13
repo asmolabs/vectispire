@@ -39,7 +39,7 @@
                                 | translate
                                     : {
                                           status: token.refusedStatus,
-                                          date: (token.refusedSince | date: 'yyyy-MM-dd HH:mm' : 'UTC') ?? ''
+                                          date: (token.refusedSince | date: 'dd/MM/yyyy HH:mm' : 'UTC') ?? ''
                                       }
                         }}</span>
                     } @else {
@@ -51,19 +51,19 @@
                             }
                             @case ('expired') {
                                 <p-tag severity="danger" [value]="'forges.connections.expired' | translate" />
-                                {{ token.expiresAt | date: 'yyyy-MM-dd' : 'UTC' }}
+                                {{ token.expiresAt | date: 'dd/MM/yyyy' : 'UTC' }}
                             }
                             @case ('soon') {
                                 <p-tag
                                     severity="warn"
                                     [value]="'forges.connections.expires_soon' | translate: { count: tokenDaysLeft() }"
                                 />
-                                {{ token.expiresAt | date: 'yyyy-MM-dd' : 'UTC' }}
+                                {{ token.expiresAt | date: 'dd/MM/yyyy' : 'UTC' }}
                             }
                             @default {
                                 <span>{{
                                     'settings.token_expires_on'
-                                        | translate: { date: (token.expiresAt | date: 'yyyy-MM-dd' : 'UTC') ?? '' }
+                                        | translate: { date: (token.expiresAt | date: 'dd/MM/yyyy' : 'UTC') ?? '' }
                                 }}</span>
                             }
                         }
