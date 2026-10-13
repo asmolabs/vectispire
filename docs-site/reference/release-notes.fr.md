@@ -11,7 +11,7 @@ Chaque point est détaillé plus bas ; voici ce qu'il faut faire avant que la no
 première liste vaut pour toute installation venant de la 0.10.0 ; une installation en `v0.11.0-rc.1` la lit
 aussi, puis la seconde.
 
-- **Sauvegardez la base.** Les migrations V65 à V89 s'exécutent au démarrage et n'ont pas de retour
+- **Sauvegardez la base.** Les migrations V65 à V90 s'exécutent au démarrage et n'ont pas de retour
   arrière : revenir à 0.10.0, c'est restaurer cette sauvegarde et le digest de l'image précédente
   ([sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md)).
 - **Mettez à jour chaque agent `delegated` avec le plan de contrôle.** Les secrets sont désormais
@@ -84,8 +84,8 @@ aussi, puis la seconde.
 
 Depuis `v0.11.0-rc.1`, en plus :
 
-- **Les migrations V84 à V89 s'exécutent** — V83 et V85 ne sont pas utilisées ; la sauvegarde ci-dessus
-  vaut.
+- **Les migrations V84 à V90 s'exécutent** — V83 et V85 ne sont pas utilisées ; la sauvegarde ci-dessus
+  vaut. Depuis `v0.11.0-rc.2`, V89 et V90 s'exécutent.
 - **Chart Helm avec des agents dans le cluster : complétez les valeurs, sinon `helm upgrade` refuse de la
   rendre.** Ajoutez `ports` à chaque entrée de `agents.networkPolicy.allowTo` — `[{port: 443}]` pour le
   contrôleur d'ingress ; donnez aux agents un sélecteur de nœud (ou une affinité de nœud obligatoire) et
@@ -1243,6 +1243,10 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Performances
 
+- **Deux colonnes des issues sont indexées (migration V90).** `t_issue.ticket_ref`, que le webhook des
+  tickets cherche à chaque livraison et que le balayage des tickets lit pour les issues qui n'en portent
+  aucune, et `t_issue.triage_expires_at`, que le tic de maintenance lit pour les dates de réexamen passées :
+  les deux lisaient toute la table.
 - **Le classement de maturité du tableau de bord ne relit plus les SBOM de tout le parc à chaque
   affichage.** Son terme de licences — cinq points par licence refusée, comme sur la fiche de score de
   chaque cible — était compté sur tout l'inventaire des licences à chaque ouverture de la page : le SBOM

@@ -114,8 +114,10 @@ class SchemaParityIntegrationTest {
                 .as("the gate reads one target's open issues on every build, and the compliance "
                         + "summary groups the open backlog — both lead with `state`; the "
                         + "fingerprint is looked up once per ingested finding; and the CycloneDX "
-                        + "generator matches on `identifier` inside a loop over CVEs")
-                .contains("state", "fingerprint", "identifier");
+                        + "generator matches on `identifier` inside a loop over CVEs; the tracker's "
+                        + "webhook looks its issues up by `ticket_ref` at every delivery; and the "
+                        + "maintenance tick asks for the review dates passed, on `triage_expires_at` (V90)")
+                .contains("state", "fingerprint", "identifier", "ticket_ref", "triage_expires_at");
 
         assertThat(indexedFirstColumns("t_finding"))
                 .as("the join every finding read follows, and the group key of the blast-radius "

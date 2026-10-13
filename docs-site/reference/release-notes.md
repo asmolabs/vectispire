@@ -10,7 +10,7 @@ What follows is what 0.11.0 will contain, against 0.10.0.
 Each point is written out in full below; this is what to do before the new image starts. The first list
 is for every installation coming from 0.10.0; one running `v0.11.0-rc.1` reads it too, then the second.
 
-- **Back up the database.** Migrations V65 to V89 run at startup and have no way back: going back to
+- **Back up the database.** Migrations V65 to V90 run at startup and have no way back: going back to
   0.10.0 means restoring that backup and the previous image digest
   ([backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md)).
 - **Update every `delegated` agent with the control plane.** Credentials are now sealed bound to what
@@ -75,7 +75,8 @@ is for every installation coming from 0.10.0; one running `v0.11.0-rc.1` reads i
 
 From `v0.11.0-rc.1`, in addition:
 
-- **Migrations V84 to V89 run** — V83 and V85 are not used; the backup above applies.
+- **Migrations V84 to V90 run** — V83 and V85 are not used; the backup above applies. From
+  `v0.11.0-rc.2`, V89 and V90 run.
 - **Helm chart with in-cluster agents: complete the values, or `helm upgrade` refuses to render.** Add
   `ports` to each `agents.networkPolicy.allowTo` entry — `[{port: 443}]` for the ingress controller; give
   the agents a node selector (or a required node affinity) and tolerations of their own, or set
@@ -1122,6 +1123,9 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Performance
 
+- **Two issue columns are indexed (migration V90).** `t_issue.ticket_ref`, which the tracker webhook looks
+  up at every delivery and the ticket sweep reads for issues carrying none, and `t_issue.triage_expires_at`,
+  which the maintenance tick reads for the review dates passed: both read the whole table before.
 - **The dashboard's maturity ranking no longer reads the estate's SBOMs at every load.** Its licence
   term — five points a refused licence, the same as on each target's scorecard — was counted from the
   whole licence inventory each time the page opened: every scan's SBOM parsed and every component row
