@@ -9,6 +9,7 @@ Vectispire provides an automated bidirectional synchronization engine between it
 1. **Automatic Ticket Creation**:
    * When a critical or blocking vulnerability is discovered (per active Quality Gate policy), Vectispire automatically opens a ticket with full remediation context, CVSS/EPSS scores, evidence links, and file locations.
    * The ticket reference and URL are permanently linked to the Vectispire issue (`ticketRef`, `ticketUrl`).
+   * **A reference a person attached is never overwritten.** If one is attached while the sweep is opening a ticket for the same issue, the issue keeps it, and the ticket just opened is named in the log and its `TICKET_CREATED` audit entry as not recorded on the issue — it exists in the tracker, and may need closing there.
 
 2. **Automatic Ticket Closure on Resolution**:
    * As soon as a subsequent security scan verifies that the vulnerability has been fixed (issue state transitions to `RESOLVED`), Vectispire calls the tracker API to automatically close the ticket with a resolution note: *"✅ Issue resolved by Vectispire security scan"*.
@@ -21,6 +22,7 @@ Vectispire provides an automated bidirectional synchronization engine between it
      * **An explicit false positive** — *False Positive*, *Cannot Reproduce*, *Not an Issue*, or the words "false positive" in a GitHub or GitLab issue — is a claim about exposure, and only it is proposed as **`not_affected`**, with the justification `vulnerable_code_not_in_execute_path`.
    * Either way the decision is **queued for approval by a second person**, not applied: the issue moves to `pending_approval`, and the exported documents show it as under investigation until someone approves it. A tracker is neither a person nor authenticated as one, and what is granted travels as it stands into the signed CycloneDX, OpenVEX and CSAF documents. The event is recorded in the hash-chained audit log under `TICKET_SYNCED`.
    * **A decision a person settled is not moved by a ticket.** On an issue already `not_affected`, `will_not_fix` or `fixed`, the tracker's word is recorded in the audit log and nothing changes. When it disagrees with the settled status — *Won't Fix* on an issue cleared as not affected, say — the entry is `TRIAGE_CONTRADICTED_BY_TRACKER`, sent to the SIEM as `VECTI-SEC-037`: one of the two is wrong, and only a person can say which.
+   * **One ticket may stand for several issues.** Every issue carrying the reference — attached to several findings, or a GitLab or GitHub number stored with or without its `#` — is synced, each with its own history and audit entry; the answer lists them in `issueIds`, oldest first, and `issueId` is the first. Until 0.11.0 two such issues answered `500` at every delivery.
 
 ---
 

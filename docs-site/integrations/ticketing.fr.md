@@ -21,6 +21,11 @@ Ainsi, une panne du tracker donne lieu à une reprise plutôt qu'à une perte, e
 retrouve la référence existante sans ouvrir un second ticket. La même issue vue sur cinquante
 scans nocturnes consécutifs, c'est un ticket.
 
+Une référence attachée à la main n'est jamais écrasée : si elle arrive pendant que le balayage
+ouvre un ticket pour la même issue, l'issue garde celle de la personne, et le ticket tout juste
+ouvert est nommé dans le journal et dans son entrée d'audit `TICKET_CREATED` comme non
+enregistré sur l'issue — il existe dans le tracker, et peut devoir y être fermé.
+
 ## Configurer
 
 Sous [Réglages](../administration/settings.md) : le type de tracker, son URL, le projet ou la
@@ -190,6 +195,13 @@ affectée, un faux positif sur un risque accepté —, l'entrée est `TRIAGE_CON
 signalée au SIEM comme [`VECTI-SEC-037`](siem.md#catalogue-des-evenements) : l'un des deux se
 trompe, et seule une personne peut dire lequel. Un tracker qui est d'accord est audité, pas
 signalé.
+
+**Un ticket peut valoir pour plusieurs issues.** Une référence attachée à plus d'un constat — un
+ticket pour une CVE présente dans plusieurs dépôts — et un numéro GitLab ou GitHub enregistré avec
+ou sans son `#` correspondent tous : chaque issue qui la porte est synchronisée, avec son propre
+historique et sa propre entrée d'audit, et la réponse les liste dans `issueIds`, de la plus ancienne
+à la plus récente (`issueId` est la première). Jusqu'à la 0.11.0, deux telles issues recevaient `500`
+à chaque livraison.
 
 Les livraisons sont limitées par adresse d'appelant (`VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW`, voir
 [Configuration](../reference/configuration.md)).

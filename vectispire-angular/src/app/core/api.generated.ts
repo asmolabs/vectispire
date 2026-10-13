@@ -8925,6 +8925,7 @@ export interface components {
             actionTaken?: string;
             /** Format: int64 */
             issueId?: number;
+            issueIds?: number[];
             matched: boolean;
             ticketRef?: string;
         };

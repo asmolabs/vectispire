@@ -282,6 +282,12 @@ from a list in which none is true of an exposed product — and signed into the 
 
 #### Other changes
 
+- **The ticket webhook syncs every issue carrying the ticket, and answers `issueIds`.** A reference on
+  two issues — one ticket attached to several findings, or a GitLab or GitHub number stored with and
+  without its `#` — made `POST /api/v1/tickets/webhook/{provider}` answer `500` at every delivery. Every
+  such issue is now synced, and the answer gains `issueIds`, every issue synced, oldest first; `issueId`
+  stays, the first of them
+  ([inbound webhook](../integrations/ticketing.md#inbound-webhook)).
 - **SCIM answers an unsupported filter `400 invalidFilter`, no longer every account.** `GET /scim/v2/Users`
   evaluates `userName eq "…"` and `externalId eq "…"`; any other filter — `emails[value eq "…"]`, an `and`,
   `co`, an unquoted value — returned the whole list, which a directory looking an account up before creating
@@ -870,6 +876,11 @@ from a list in which none is true of an exposed product — and signed into the 
   attack-surface pages say when a list failed to load instead of staying empty.
 - **A severity has one colour on every screen**: critical red, high orange, medium blue, low grey. High was
   red on the issue list and the solutions, orange on the exceptions, the attack paths and the dashboard.
+- **The ticket sweep no longer overwrites a reference a person attached while it opened a ticket.** The
+  sweep reads its candidates, then calls the tracker; a reference attached in between was replaced by the
+  one just opened, and the person's ticket lost its link. The issue now keeps the person's, and the
+  ticket opened is named in the log and in its audit entry as not recorded on the issue. Marking a ticket
+  closed likewise touches only an issue still carrying that reference.
 - **The SBOM diff no longer invents licences.** A component that declared none was given one guessed
   from its name — `MIT` for anything containing "mit" (`commit-graph`, `summit-ui`), `Apache-2.0` for
   `spring-` and `commons-`, `GPL-3.0` for "gpl" — and the first declared licence only of the others, so

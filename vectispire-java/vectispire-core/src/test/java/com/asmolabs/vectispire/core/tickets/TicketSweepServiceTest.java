@@ -66,6 +66,33 @@ class TicketSweepServiceTest {
     }
 
     @Test
+    @DisplayName("a ticket opened for an issue a person attached one to meanwhile is said to be unrecorded, not dropped")
+    void aTicketTheIssueNoLongerTakes() {
+        candidates(issue(Severity.CRITICAL));
+        // The conditional statement wrote nothing: a reference was attached while the tracker answered.
+        when(issues.attachTicket(anyLong(), anyString(), anyString())).thenReturn(0);
+
+        assertThat(sweep.sweep(20)).isEqualTo(1);
+        org.mockito.ArgumentCaptor<AuditLogService.Record> entry = org.mockito.ArgumentCaptor.forClass(AuditLogService.Record.class);
+        verify(audit).record(entry.capture());
+        assertThat(entry.getValue().description())
+                .contains("Ticket #12 opened")
+                .contains("not recorded on the issue");
+    }
+
+    @Test
+    @DisplayName("a ticket recorded on its issue says nothing of the kind")
+    void aTicketRecorded() {
+        candidates(issue(Severity.CRITICAL));
+        when(issues.attachTicket(anyLong(), anyString(), anyString())).thenReturn(1);
+
+        sweep.sweep(20);
+        org.mockito.ArgumentCaptor<AuditLogService.Record> entry = org.mockito.ArgumentCaptor.forClass(AuditLogService.Record.class);
+        verify(audit).record(entry.capture());
+        assertThat(entry.getValue().description()).doesNotContain("not recorded");
+    }
+
+    @Test
     @DisplayName("an issue below the bar gets no ticket and no marker")
     void leavesAHarmlessIssueAlone() {
         candidates(issue(Severity.LOW));

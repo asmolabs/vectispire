@@ -9,6 +9,7 @@ Vectispire propose un moteur de synchronisation bidirectionnelle transparent ent
 1. **Création Automatique de Tickets** :
    * Lors de la découverte d'une vulnérabilité critique ou bloquante (selon la politique de Quality Gate), Vectispire ouvre automatiquement un ticket avec la description exhaustive, le score CVSS/EPSS, le lien vers la preuve et le chemin du fichier affecté.
    * La référence et l'URL du ticket sont liées de manière permanente à l'issue dans Vectispire (`ticketRef`, `ticketUrl`).
+   * **Une référence rattachée par une personne n'est jamais écrasée.** Si elle l'est pendant que le balayage ouvre un ticket pour la même issue, l'issue la garde, et le ticket tout juste ouvert est nommé dans le journal et dans son entrée d'audit `TICKET_CREATED` comme non enregistré sur l'issue — il existe dans le traqueur, et peut devoir y être fermé.
 
 2. **Fermeture Automatique lors de la Résolution** :
    * Dès qu'une nouvelle analyse de sécurité confirme que la vulnérabilité n'est plus présente (passage de l'issue à l'état `RESOLVED`), Vectispire appelle l'API du gestionnaire de tickets pour fermer automatiquement le ticket associé avec le commentaire : *"✅ Issue resolved by Vectispire security scan"*.
@@ -21,6 +22,7 @@ Vectispire propose un moteur de synchronisation bidirectionnelle transparent ent
      * **Un faux positif explicite** — *False Positive*, *Cannot Reproduce*, *Not an Issue*, ou les mots « false positive » dans une issue GitHub ou GitLab — est une affirmation sur l'exposition, et lui seul est proposé comme **`not_affected`**, avec la justification `vulnerable_code_not_in_execute_path`.
    * Dans les deux cas, la décision est **mise en file pour approbation par une seconde personne**, pas appliquée : l'issue passe en `pending_approval`, et les documents exportés la montrent en cours d'investigation jusqu'à ce que quelqu'un l'approuve. Un gestionnaire de tickets n'est pas une personne, ni authentifié comme telle, et ce qui est accordé part tel quel dans les documents CycloneDX, OpenVEX et CSAF signés. L'événement est tracé dans le journal d'audit chaîné par empreintes sous l'opération `TICKET_SYNCED`.
    * **Une décision qu'une personne a réglée ne bouge pas sur un ticket.** Sur une issue déjà `not_affected`, `will_not_fix` ou `fixed`, la parole du traqueur est inscrite au journal d'audit et rien ne change. Quand elle contredit le statut réglé — un *Won't Fix* sur une issue déclarée non affectée, par exemple —, l'entrée est `TRIAGE_CONTRADICTED_BY_TRACKER`, signalée au SIEM comme `VECTI-SEC-037` : l'un des deux se trompe, et seule une personne peut dire lequel.
+   * **Un ticket peut valoir pour plusieurs issues.** Chaque issue qui porte la référence — rattachée à plusieurs constats, ou un numéro GitLab ou GitHub enregistré avec ou sans son `#` — est synchronisée, avec son propre historique et sa propre entrée d'audit ; la réponse les liste dans `issueIds`, de la plus ancienne à la plus récente, et `issueId` est la première. Jusqu'à la 0.11.0, deux telles issues recevaient `500` à chaque livraison.
 
 ---
 

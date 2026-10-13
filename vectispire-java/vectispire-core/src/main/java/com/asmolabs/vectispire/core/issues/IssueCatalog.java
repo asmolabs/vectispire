@@ -363,14 +363,24 @@ public class IssueCatalog {
         return issues.findResolvedWithOpenTicket(Limit.of(limit)).stream().map(IssueView::of).toList();
     }
 
-    public Optional<IssueView> withTicket(String reference) {
-        return issues.findByTicketRefOrIid(reference).map(IssueView::of);
+    /** Every issue carrying this tracker reference, oldest first — one ticket may stand for several. */
+    public List<IssueView> withTicket(String reference) {
+        return issues.findByTicketRefOrIid(reference).stream().map(IssueView::of).toList();
     }
 
-    /** Records the ticket a sweep opened — or closed — for an issue: {@code tickets}' decision. */
+    /**
+     * Records the ticket a sweep opened for an issue: {@code tickets}' decision. 1, or 0 when the issue
+     * already carries a reference — one a person attached meanwhile, which is kept.
+     */
     @Transactional
     public int attachTicket(long issueId, String reference, String url) {
         return issues.attachTicket(issueId, reference, url);
+    }
+
+    /** Records that the sweep closed this ticket: 1, or 0 when the issue carries another reference now. */
+    @Transactional
+    public int markTicketClosed(long issueId, String reference) {
+        return issues.markTicketClosed(issueId, reference);
     }
 
     // ------------------------------------------------------------------ threat intelligence

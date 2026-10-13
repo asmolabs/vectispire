@@ -107,9 +107,74 @@ class TicketingRoutesTest extends ApiTestBase {
         // therefore not remain a conclusion. The justification is still recorded:
         // what changes is not what the tracker says but who publishes it. See
         // `TicketWebhookCannotSettleTest` for the property itself.
-        IssueEntity updated = issues.findByTicketRefOrIid("SEC-99").orElseThrow();
+        IssueEntity updated = issues.findByTicketRefOrIid("SEC-99").getFirst();
         org.junit.jupiter.api.Assertions.assertEquals("pending_approval", updated.getTriageStatus());
         org.junit.jupiter.api.Assertions.assertEquals("vulnerable_code_not_in_execute_path", updated.getTriageJustification());
+    }
+
+    @Test
+    @DisplayName("syncs every issue carrying the ticket — one Jira key on two findings — rather than answering 500")
+    void syncsEveryIssueCarryingTheTicket() throws Exception {
+        long first = carrying("SEC-77", "fp-shared-ticket-1").getId();
+        long second = carrying("SEC-77", "fp-shared-ticket-2").getId();
+        String payload = """
+                {"webhookEvent":"jira:issue_updated",
+                 "issue":{"key":"SEC-77","fields":{"status":{"name":"Closed"},"resolution":{"name":"False Positive"}}},
+                 "user":{"displayName":"Security Lead Dev"},
+                 "comment":{"body":"Not reachable in either service."}}""";
+
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_WEBHOOK_SECRET, "jira-shared");
+        mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", "jira-shared")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matched").value(true))
+                .andExpect(jsonPath("$.issueId").value(first))
+                .andExpect(jsonPath("$.issueIds.length()").value(2))
+                .andExpect(jsonPath("$.issueIds[0]").value(first))
+                .andExpect(jsonPath("$.issueIds[1]").value(second));
+
+        for (long id : new long[] {first, second}) {
+            IssueEntity queued = issues.findById(id).orElseThrow();
+            org.junit.jupiter.api.Assertions.assertEquals("pending_approval", queued.getTriageStatus());
+            org.junit.jupiter.api.Assertions.assertEquals("not_affected", queued.getTriageRequestedStatus());
+        }
+    }
+
+    @Test
+    @DisplayName("a GitLab iid matches the reference stored with and without its #, both synced")
+    void anIidMatchesBothSpellings() throws Exception {
+        long hashed = carrying("#205", "fp-iid-hashed").getId();
+        long bare = carrying("205", "fp-iid-bare").getId();
+        String payload = """
+                {"object_kind":"issue","user":{"username":"dev"},
+                 "object_attributes":{"iid":205,"state":"closed","title":"False positive: not used","description":""}}""";
+
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_WEBHOOK_SECRET, "gitlab-shared");
+        mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+                        .header("X-Gitlab-Token", "gitlab-shared")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.issueIds.length()").value(2))
+                .andExpect(jsonPath("$.issueIds[0]").value(hashed))
+                .andExpect(jsonPath("$.issueIds[1]").value(bare));
+    }
+
+    private IssueEntity carrying(String ticketRef, String fingerprint) {
+        IssueEntity issue = new IssueEntity();
+        issue.setFingerprint(fingerprint);
+        issue.setIdentifier("CVE-2026-7777");
+        issue.setType("vulnerability");
+        issue.setSeverity("HIGH");
+        issue.setState("open");
+        issue.setTriageStatus("under_review");
+        issue.setTicketRef(ticketRef);
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        return issues.save(issue);
     }
 
     @Test
@@ -153,7 +218,7 @@ class TicketingRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.matched").value(true))
                 .andExpect(jsonPath("$.ticketRef").value("105"));
 
-        IssueEntity updated = issues.findByTicketRefOrIid("105").orElseThrow();
+        IssueEntity updated = issues.findByTicketRefOrIid("105").getFirst();
         org.junit.jupiter.api.Assertions.assertEquals("pending_approval", updated.getTriageStatus());
     }
 }

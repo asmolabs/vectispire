@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.text.LogText;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.ActiveGatePolicies;
@@ -129,15 +130,24 @@ public class TicketSweepService {
                 continue;
             }
 
-            issues.attachTicket(issue.id(), ticket.get().reference(), ticket.get().url());
             created++;
+            // **Only onto an issue that still carries no reference.** One a person attached while the
+            // tracker answered is kept; the ticket just opened exists all the same, and is said to,
+            // in the log and in the audit entry, for whoever has to close it.
+            boolean recorded = issues.attachTicket(issue.id(), ticket.get().reference(), ticket.get().url()) == 1;
+            if (!recorded) {
+                log.warn("Ticket {} was opened on the tracker for issue {}, which carries another reference attached "
+                        + "meanwhile: the new ticket is not recorded on the issue and may need closing by hand.",
+                        LogText.of(ticket.get().reference()), issue.id());
+            }
 
             audit.record(AuditLogService.Record.of(
                     AuditOperation.TICKET_CREATED,
                     String.valueOf(issue.id()),
                     "Ticket " + ticket.get().reference() + " opened for "
                             + (issue.identifier() == null ? issue.type() : issue.identifier())
-                            + " (" + resolved.describeSource() + ")",
+                            + " (" + resolved.describeSource() + ")"
+                            + (recorded ? "" : "; not recorded on the issue, which carries a reference attached meanwhile"),
                     null));
         }
 
@@ -160,7 +170,10 @@ public class TicketSweepService {
         for (IssueView issue : resolvedIssues) {
             boolean success = tickets.closeTicket(issue.ticketRef(), "Resolved by clean security scan");
             if (success) {
-                issues.attachTicket(issue.id(), "CLOSED:" + issue.ticketRef(), issue.ticketUrl());
+                if (issues.markTicketClosed(issue.id(), issue.ticketRef()) == 0) {
+                    log.warn("Ticket {} was closed on the tracker, but issue {} now carries another reference: left "
+                            + "as it is.", LogText.of(issue.ticketRef()), issue.id());
+                }
                 closed++;
 
                 audit.record(AuditLogService.Record.of(

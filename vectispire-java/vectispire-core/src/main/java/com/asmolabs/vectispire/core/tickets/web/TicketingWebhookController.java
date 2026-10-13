@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,16 @@ public class TicketingWebhookController {
         this.webhooks = webhooks;
     }
 
-    public record WebhookSyncResult(boolean matched, Long issueId, String ticketRef, String actionTaken) {}
+    /**
+     * @param issueId the first issue carrying the reference — kept for the integrations that read it
+     * @param issueIds every issue carrying it, oldest first: one ticket may stand for several findings
+     */
+    public record WebhookSyncResult(boolean matched, Long issueId, List<Long> issueIds, String ticketRef, String actionTaken) {
+
+        static WebhookSyncResult unmatched(String ticketRef, String actionTaken) {
+            return new WebhookSyncResult(false, null, List.of(), ticketRef, actionTaken);
+        }
+    }
 
     @Operation(
             summary = "Handle incoming ticketing webhook",
@@ -56,7 +66,7 @@ public class TicketingWebhookController {
 
         Optional<TicketProvider> provider = TicketProvider.fromWireName(providerStr);
         if (provider.isEmpty()) {
-            return ResponseEntity.badRequest().body(new WebhookSyncResult(false, null, null, "Unsupported provider: " + providerStr));
+            return ResponseEntity.badRequest().body(WebhookSyncResult.unmatched(null, "Unsupported provider: " + providerStr));
         }
 
         TicketingWebhookService.Outcome outcome = webhooks.handle(
@@ -68,23 +78,23 @@ public class TicketingWebhookController {
         return switch (outcome) {
             // No detail: a caller learning *which* header was wrong learns which tracker we expect.
             case TicketingWebhookService.Outcome.Rejected rejected -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new WebhookSyncResult(false, null, null, "Webhook authentication failed"));
+                    .body(WebhookSyncResult.unmatched(null, "Webhook authentication failed"));
             // Said plainly: it lands in the tracker's delivery log, which is where whoever set up
             // the integration looks when triage stops arriving.
             case TicketingWebhookService.Outcome.NotConfigured notConfigured -> ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new WebhookSyncResult(false, null, null,
+                    .body(WebhookSyncResult.unmatched(null,
                             "The ticket webhook is not configured on this instance: an administrator has to set its secret first"));
             case TicketingWebhookService.Outcome.Malformed malformed ->
-                    ResponseEntity.badRequest().body(new WebhookSyncResult(false, null, null, "Malformed JSON body"));
+                    ResponseEntity.badRequest().body(WebhookSyncResult.unmatched(null, "Malformed JSON body"));
             // 200: the tracker's own redelivery lands here too, and an error would make it retry.
             case TicketingWebhookService.Outcome.AlreadyProcessed seen ->
-                    ResponseEntity.ok(new WebhookSyncResult(false, null, null, "Delivery already processed"));
+                    ResponseEntity.ok(WebhookSyncResult.unmatched(null, "Delivery already processed"));
             case TicketingWebhookService.Outcome.NoReference none ->
-                    ResponseEntity.ok(new WebhookSyncResult(false, null, null, "No ticket reference extracted from payload"));
+                    ResponseEntity.ok(WebhookSyncResult.unmatched(null, "No ticket reference extracted from payload"));
             case TicketingWebhookService.Outcome.NoMatchingIssue(String ticketRef) ->
-                    ResponseEntity.ok(new WebhookSyncResult(false, null, ticketRef, "No matching Vectispire issue found"));
-            case TicketingWebhookService.Outcome.Synced(Long issueId, String ticketRef, String actionTaken) ->
-                    ResponseEntity.ok(new WebhookSyncResult(true, issueId, ticketRef, actionTaken));
+                    ResponseEntity.ok(WebhookSyncResult.unmatched(ticketRef, "No matching Vectispire issue found"));
+            case TicketingWebhookService.Outcome.Synced(List<Long> issueIds, String ticketRef, String actionTaken) ->
+                    ResponseEntity.ok(new WebhookSyncResult(true, issueIds.getFirst(), issueIds, ticketRef, actionTaken));
         };
     }
 }

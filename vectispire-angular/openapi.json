@@ -11827,6 +11827,13 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "issueIds" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
           "matched" : {
             "type" : "boolean"
           },

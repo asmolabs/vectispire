@@ -20,6 +20,11 @@ So a tracker outage is retried rather than lost, and the retry finds the existin
 and does not open a second ticket. The same issue seen on fifty consecutive nightly scans
 is one ticket.
 
+A reference somebody attached by hand is never overwritten: if it arrives while the sweep is
+opening a ticket for the same issue, the issue keeps the person's, and the ticket just opened is
+named in the log and in its `TICKET_CREATED` audit entry as not recorded on the issue — it
+exists in the tracker, and may need closing there.
+
 ## Configuring
 
 Under [Settings](../administration/settings.md): the tracker type, its URL, the project or
@@ -180,6 +185,12 @@ it disagrees with the settled status — *Won't Fix* on an issue cleared as not 
 positive on an accepted risk — the entry is `TRIAGE_CONTRADICTED_BY_TRACKER`, sent to the SIEM as
 [`VECTI-SEC-037`](siem.md#event-catalogue): one of the two is wrong, and only a person can say which.
 A tracker that agrees is audited, not signalled.
+
+**One ticket may stand for several issues.** A reference attached to more than one finding — one
+ticket for a CVE across several repositories — and a GitLab or GitHub number stored with or without
+its `#` all match: every issue carrying it is synced, each with its own history and audit entry, and
+the answer lists them in `issueIds`, oldest first (`issueId` is the first). Until 0.11.0 two such issues
+answered `500` at every delivery.
 
 Deliveries are limited per caller address (`VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW`, see
 [Configuration](../reference/configuration.md)).

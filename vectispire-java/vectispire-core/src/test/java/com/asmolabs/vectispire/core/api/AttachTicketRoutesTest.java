@@ -62,8 +62,7 @@ class AttachTicketRoutesTest extends ApiTestBase {
         // The field, not the second table: it is the one `findByTicketRefOrIid` searches.
         assertThat(issues.findByTicketRefOrIid("SEC-1234"))
                 .as("the tracker's webhook must be able to find this finding by its reference")
-                .isPresent()
-                .get()
+                .singleElement()
                 .satisfies(issue -> assertThat(issue.getId()).isEqualTo(id));
     }
 
@@ -168,6 +167,35 @@ class AttachTicketRoutesTest extends ApiTestBase {
             settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "none");
             settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "");
         }
+    }
+
+    @Test
+    @DisplayName("the sweep's reference never overwrites one a person attached while the tracker answered")
+    void theSweepNeverOverwritesAPersonsReference() {
+        long id = seedIssue();
+        issues.attachTicketBy(id, "SEC-600", "https://tracker.invalid/SEC-600", "developer");
+
+        assertThat(issues.attachTicket(id, "#9", "https://tracker.invalid/9")).isZero();
+
+        IssueEntity kept = issues.findById(id).orElseThrow();
+        assertThat(kept.getTicketRef()).isEqualTo("SEC-600");
+        assertThat(kept.getTicketAttachedBy()).isEqualTo("developer");
+        assertThat(issues.attachTicket(seedIssue(), "#10", null)).as("an issue without one takes it").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("the sweep marks closed only the reference it closed, not one a person put in its place")
+    void theSweepMarksClosedOnlyItsOwnReference() {
+        long closed = seedIssue();
+        issues.attachTicket(closed, "SEC-601", null);
+        assertThat(issues.markTicketClosed(closed, "SEC-601")).isEqualTo(1);
+        assertThat(issues.findById(closed).orElseThrow().getTicketRef()).isEqualTo("CLOSED:SEC-601");
+
+        long replaced = seedIssue();
+        issues.attachTicket(replaced, "SEC-602", null);
+        issues.attachTicketBy(replaced, "SEC-603", null, "developer");
+        assertThat(issues.markTicketClosed(replaced, "SEC-602")).isZero();
+        assertThat(issues.findById(replaced).orElseThrow().getTicketRef()).isEqualTo("SEC-603");
     }
 
     @Test

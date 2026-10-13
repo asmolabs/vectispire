@@ -234,8 +234,17 @@ public interface IssueRepository
     List<IssueEntity> findActionableWithoutTicket(
             @Param("state") String state, @Param("excluded") Collection<String> excluded, Limit limit);
 
-    @Query("select i from IssueEntity i where i.ticketRef = :ref or i.ticketRef = concat('#', :ref)")
-    Optional<IssueEntity> findByTicketRefOrIid(@Param("ref") String ref);
+    /**
+     * Every issue carrying a tracker's reference, as stored or behind the {@code #} GitLab and GitHub
+     * references are kept with — oldest first.
+     *
+     * <p><b>A list, not an optional.</b> A reference is not unique: a person may attach one ticket to
+     * several findings — one CVE across forty repositories is one ticket — and {@code 12} and {@code #12}
+     * both match. As an {@code Optional}, two rows were an {@code IncorrectResultSizeDataAccessException}:
+     * the anonymous webhook answered 500 for that ticket, at every delivery.
+     */
+    @Query("select i from IssueEntity i where i.ticketRef = :ref or i.ticketRef = concat('#', :ref) order by i.id")
+    List<IssueEntity> findByTicketRefOrIid(@Param("ref") String ref);
 
     /**
      * Resolved findings whose ticket Vectispire opened and has not yet closed.
@@ -251,15 +260,32 @@ public interface IssueRepository
     List<IssueEntity> findResolvedWithOpenTicket(Limit limit);
 
     /**
-     * Records the ticket a sweep opened.
+     * Records the ticket a sweep opened — <b>only on an issue that carries none</b>, so 0 when one was
+     * attached meanwhile.
      *
      * <p>Set once and never cleared: it is what stops a ticket rising from the dead on every
-     * rescan, and it is the sweep's deduplication key.
+     * rescan, and it is the sweep's deduplication key. The sweep reads its candidates, then calls the
+     * tracker, for seconds: a reference a person attached in between was overwritten by the one the
+     * sweep had just opened, and the person's ticket lost its link. The condition keeps theirs; the
+     * caller says what became of the ticket it opened.
      */
     @Transactional
     @Modifying(clearAutomatically = true)
-    @Query("update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.revision = i.revision + 1 where i.id = :id")
+    @Query("""
+            update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.revision = i.revision + 1
+             where i.id = :id and i.ticketRef is null""")
     int attachTicket(@Param("id") Long id, @Param("reference") String reference, @Param("url") String url);
+
+    /**
+     * Marks the ticket a sweep closed — {@code CLOSED:} before its reference — while the issue still carries
+     * that reference; 0 when a person replaced it meanwhile, whose ticket this does not describe.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update IssueEntity i set i.ticketRef = concat('CLOSED:', :reference), i.revision = i.revision + 1
+             where i.id = :id and i.ticketRef = :reference""")
+    int markTicketClosed(@Param("id") Long id, @Param("reference") String reference);
 
     /** Records a reference a person attached, and who: Vectispire will not close that ticket. */
     @Transactional

@@ -20,6 +20,8 @@ import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -90,7 +92,8 @@ public class TicketingWebhookService {
 
         record NoMatchingIssue(String ticketRef) implements Outcome {}
 
-        record Synced(Long issueId, String ticketRef, String actionTaken) implements Outcome {}
+        /** @param issueIds every issue carrying the reference, oldest first — never empty */
+        record Synced(List<Long> issueIds, String ticketRef, String actionTaken) implements Outcome {}
     }
 
     /**
@@ -166,8 +169,11 @@ public class TicketingWebhookService {
             return new Outcome.NoReference();
         }
 
-        Optional<IssueView> matchingIssue = issues.withTicket(event.ticketRef());
-        if (matchingIssue.isEmpty()) {
+        // **Every issue carrying the reference, not one.** A person may attach one ticket to several
+        // findings, and "12" and "#12" both match: read as one, two rows answered 500 for that ticket at
+        // every delivery. Each is synced as a lone one was, its own history and audit entry included.
+        List<IssueView> matching = issues.withTicket(event.ticketRef());
+        if (matching.isEmpty()) {
             // Through LogText: the key is the tracker's, and a line break in it would write a second,
             // forged entry into this log.
             log.info("Received webhook for ticket {} from {} but no corresponding Vectispire issue found.",
@@ -175,7 +181,16 @@ public class TicketingWebhookService {
             return new Outcome.NoMatchingIssue(event.ticketRef());
         }
 
-        IssueView issue = matchingIssue.get();
+        List<String> actions = new ArrayList<>();
+        for (IssueView issue : matching) {
+            String action = sync(issue, event, provider, origin);
+            actions.add(matching.size() == 1 ? action : "issue " + issue.id() + ": " + action);
+        }
+        return new Outcome.Synced(matching.stream().map(IssueView::id).toList(), event.ticketRef(), String.join("; ", actions));
+    }
+
+    /** What one issue carrying the ticket becomes, as the tracker's event says; answers what was done. */
+    private String sync(IssueView issue, ExtractedTicketEvent event, TicketProvider provider, RequestActor origin) {
         String actionTaken;
 
         if (event.isRefusedOrFalsePositive()) {
@@ -223,7 +238,7 @@ public class TicketingWebhookService {
                         author,
                         origin.ipAddress(),
                         origin.userAgent()));
-                return new Outcome.Synced(issue.id(), event.ticketRef(), actionTaken);
+                return actionTaken;
             }
 
             // **`false`, and that is the whole fix.** This boolean was `true`: a tracker's
@@ -276,7 +291,7 @@ public class TicketingWebhookService {
                     origin.userAgent()));
         }
 
-        return new Outcome.Synced(issue.id(), event.ticketRef(), actionTaken);
+        return actionTaken;
     }
 
     private record ExtractedTicketEvent(

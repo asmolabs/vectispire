@@ -308,6 +308,12 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 #### Autres changements
 
+- **Le webhook des tickets synchronise chaque issue qui porte le ticket, et répond `issueIds`.** Une
+  référence sur deux issues — un ticket attaché à plusieurs constats, ou un numéro GitLab ou GitHub
+  enregistré avec et sans son `#` — faisait répondre `500` à `POST /api/v1/tickets/webhook/{provider}` à
+  chaque livraison. Chacune est désormais synchronisée, et la réponse gagne `issueIds`, toutes les issues
+  synchronisées, de la plus ancienne à la plus récente ; `issueId` reste, la première d'entre elles
+  ([webhook entrant](../integrations/ticketing.fr.md#inbound-webhook)).
 - **SCIM répond à un filtre non pris en charge `400 invalidFilter`, plus par tous les comptes.**
   `GET /scim/v2/Users` évalue `userName eq "…"` et `externalId eq "…"` ; tout autre filtre —
   `emails[value eq "…"]`, un `and`, `co`, une valeur sans guillemets — renvoyait la liste entière, qu'un
@@ -954,6 +960,12 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 - **Une sévérité a une seule couleur sur tous les écrans** : critique rouge, élevée orange, moyenne bleue,
   faible grise. Élevée était rouge sur la liste des constats et les solutions, orange sur les exceptions,
   les chemins d'attaque et le tableau de bord.
+- **Le balayage des tickets n'écrase plus une référence attachée par une personne pendant qu'il ouvrait un
+  ticket.** Le balayage lit ses candidates, puis appelle le tracker ; une référence attachée entre-temps
+  était remplacée par celle du ticket tout juste ouvert, et le ticket de la personne perdait son lien.
+  L'issue garde désormais celle de la personne, et le ticket ouvert est nommé dans le journal et dans son
+  entrée d'audit comme non enregistré sur l'issue. Marquer un ticket fermé ne touche de même qu'une issue
+  qui porte encore cette référence.
 - **Le différentiel de SBOM n'invente plus de licences.** Un composant qui n'en déclarait aucune en
   recevait une devinée d'après son nom — `MIT` pour tout ce qui contient « mit » (`commit-graph`,
   `summit-ui`), `Apache-2.0` pour `spring-` et `commons-`, `GPL-3.0` pour « gpl » — et des autres seule la
