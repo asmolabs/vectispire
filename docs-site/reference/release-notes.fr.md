@@ -2,8 +2,8 @@
 
 ## 0.11.0 — en préparation
 
-Les versions candidates `v0.11.0-rc.1` et `v0.11.0-rc.2` ont été étiquetées le 6 et le 12 octobre 2026 ; la
-0.11.0 elle-même n'est pas encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 0.10.0.
+Les versions candidates `v0.11.0-rc.1`, `v0.11.0-rc.2` et `v0.11.0-rc.3` ont été étiquetées le 6, le 12 et le
+13 octobre 2026 ; la 0.11.0 elle-même n'est pas encore publiée. Ce qui suit est ce que contiendra la 0.11.0, par rapport à la 0.10.0.
 
 ### Avant la mise à jour
 

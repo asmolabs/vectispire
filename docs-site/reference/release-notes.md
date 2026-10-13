@@ -2,7 +2,7 @@
 
 ## 0.11.0 — in preparation
 
-The release candidates `v0.11.0-rc.1` and `v0.11.0-rc.2` were tagged on 2026-10-06 and 2026-10-12; 0.11.0 itself is not released yet.
+The release candidates `v0.11.0-rc.1`, `v0.11.0-rc.2` and `v0.11.0-rc.3` were tagged on 2026-10-06, 2026-10-12 and 2026-10-13; 0.11.0 itself is not released yet.
 What follows is what 0.11.0 will contain, against 0.10.0.
 
 ### Before you upgrade
