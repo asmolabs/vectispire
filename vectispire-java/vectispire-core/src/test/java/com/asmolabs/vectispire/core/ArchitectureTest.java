@@ -824,4 +824,26 @@ class ArchitectureTest {
                 .orShould().callMethod(String.class, "toLowerCase")
                 .check(classes);
     }
+
+    @Test
+    @DisplayName("the time is read from a Clock, never from the wall clock")
+    void timeIsReadFromAClock() {
+        // The control plane's clock is `CoreConfiguration.clock`, injected: it ticks in microseconds,
+        // the precision both engines keep, and a test can pin it. Twenty-odd calls read the wall clock
+        // instead — the signed CSAF, OpenVEX and CycloneDX documents among them, dated at a precision
+        // the rest of the record did not have and by a time no test could fix. `now(clock)` is the
+        // spelling allowed; the domain takes its moment as a parameter. No exception is listed: the one
+        // reader of the system clock is the bean that wraps it, through `Clock.systemUTC()`, which this
+        // rule does not name.
+        ArchRuleDefinition.noClasses()
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "now() on a java.time type without a Clock, or System.currentTimeMillis()",
+                        call -> (call.getName().equals("now")
+                                        && call.getTargetOwner().getPackageName().equals("java.time")
+                                        && call.getTarget().getRawParameterTypes().stream()
+                                                .noneMatch(type -> type.isEquivalentTo(java.time.Clock.class)))
+                                || (call.getName().equals("currentTimeMillis")
+                                        && call.getTargetOwner().isEquivalentTo(System.class))))
+                .check(classes);
+    }
 }

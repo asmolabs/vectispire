@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,9 +43,15 @@ public class CsafGeneratorService {
     private final ScanDocumentService documents;
     private final IssueCatalog issuesRepo;
     private final ProductVersion version;
+    private final Clock clock;
 
     public CsafGeneratorService(
-            ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo, ProductVersion version) {
+            ScanCatalog scansRepo,
+            ScanDocumentService documents,
+            IssueCatalog issuesRepo,
+            ProductVersion version,
+            Clock clock) {
+        this.clock = clock;
         this.scansRepo = scansRepo;
         this.documents = documents;
         this.issuesRepo = issuesRepo;
@@ -143,7 +150,7 @@ public class CsafGeneratorService {
                     null));
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         return new CsafDocument(
                 metadata("Vectispire Aggregate Security Advisory", "VECTISPIRE-AGGREGATE-CSAF", now),
                 new CsafDocument.ProductTree(new ArrayList<>(productMap.values())),
@@ -199,7 +206,7 @@ public class CsafGeneratorService {
                     null));
         }
 
-        Instant timestamp = scan.createdAt() != null ? scan.createdAt() : Instant.now();
+        Instant timestamp = scan.createdAt() != null ? scan.createdAt() : clock.instant();
         return new CsafDocument(
                 metadata(
                         "Vectispire Scan #" + scan.id() + " Security Advisory",

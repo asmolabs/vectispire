@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -83,10 +84,13 @@ public class SiemEvents implements AuditLogService.Listener {
      * still join the one that has just committed.
      */
     private final TransactionTemplate separately;
+    private final Clock clock;
 
-    public SiemEvents(SiemConfigRepository configs, OutboxService outbox, PlatformTransactionManager transactions) {
+    public SiemEvents(
+            SiemConfigRepository configs, OutboxService outbox, PlatformTransactionManager transactions, Clock clock) {
         this.configs = configs;
         this.outbox = outbox;
+        this.clock = clock;
         this.separately = new TransactionTemplate(transactions);
         this.separately.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -195,8 +199,7 @@ public class SiemEvents implements AuditLogService.Listener {
         Optional<SecurityEventType> signalled = entry.signal() != null
                 ? Optional.of(entry.signal())
                 : SecurityEventType.signalledBy(entry.operation());
-        return signalled.map(type -> CefEvent.builder(type)
-                .timestamp(at)
+        return signalled.map(type -> CefEvent.builder(type, at)
                 .message(bounded(entry.description()))
                 .user(entry.userId())
                 .sourceIp(entry.ipAddress())
@@ -216,7 +219,7 @@ public class SiemEvents implements AuditLogService.Listener {
      */
     @EventListener
     public void auditChainBroken(AuditChainBroken broken) {
-        publish(CefEvent.builder(SecurityEventType.AUDIT_CHAIN_BROKEN)
+        publish(CefEvent.builder(SecurityEventType.AUDIT_CHAIN_BROKEN, clock.instant())
                 .message(broken.describe())
                 .action("AUDIT_VERIFIED")
                 .target(broken.brokenAt())

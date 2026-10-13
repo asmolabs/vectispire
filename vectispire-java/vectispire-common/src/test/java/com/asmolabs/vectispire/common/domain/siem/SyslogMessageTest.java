@@ -25,9 +25,8 @@ class SyslogMessageTest {
     @Test
     @DisplayName("the priority is the event's severity, not its type's: a critical issue's breach is an error, not a warning")
     void priorityFollowsTheEvent() {
-        CefEvent breach = CefEvent.builder(SecurityEventType.SLA_BREACHED)
+        CefEvent breach = CefEvent.builder(SecurityEventType.SLA_BREACHED, TS)
                 .issueSeverity(Severity.CRITICAL)
-                .timestamp(TS)
                 .build();
 
         // CEF 8 → syslog 3: 80 + 3. At the type's 6 it would have been 84.
@@ -88,6 +87,6 @@ class SyslogMessageTest {
     }
 
     private static CefEvent event(SecurityEventType type) {
-        return CefEvent.builder(type).timestamp(TS).build();
+        return CefEvent.builder(type, TS).build();
     }
 }

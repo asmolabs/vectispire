@@ -33,7 +33,8 @@ public record OpenVexDocument(
                 documentUri,
                 "Vectispire ASPM Control Plane",
                 "Document Creator",
-                timestamp != null ? timestamp : Instant.now(),
+                // The caller's clock or the scan's date, never a wall clock read here.
+                java.util.Objects.requireNonNull(timestamp, "timestamp"),
                 1,
                 // **The name every exported document carries.** It announced a "Reachability &
                 // Exploitability Engine" although the reachability correlation matches texts

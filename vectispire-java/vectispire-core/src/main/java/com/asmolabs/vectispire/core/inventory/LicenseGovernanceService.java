@@ -26,6 +26,7 @@ import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,6 +64,7 @@ public class LicenseGovernanceService {
     private final ObjectMapper objectMapper;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
+    private final Clock clock;
 
     /**
      * Each target's licences, counted — see {@link #violationsByTarget}. Kept per target for every
@@ -77,7 +79,9 @@ public class LicenseGovernanceService {
             TargetCatalog targets,
             ObjectMapper objectMapper,
             AuditLogService audit,
-            TransactionTemplate transactions) {
+            TransactionTemplate transactions,
+            Clock clock) {
+        this.clock = clock;
         this.policyRepo = policyRepo;
         this.componentsRepo = componentsRepo;
         this.scansRepo = scansRepo;
@@ -141,7 +145,7 @@ public class LicenseGovernanceService {
         entity.setDisallowedCategories(disallowedCats);
         entity.setAllowedLicenses(String.join(",", policy.explicitlyAllowedLicenses()));
         entity.setDisallowedLicenses(String.join(",", policy.explicitlyDisallowedLicenses()));
-        entity.setUpdatedAt(Instant.now());
+        entity.setUpdatedAt(clock.instant());
 
         policyRepo.save(entity);
         return policy;

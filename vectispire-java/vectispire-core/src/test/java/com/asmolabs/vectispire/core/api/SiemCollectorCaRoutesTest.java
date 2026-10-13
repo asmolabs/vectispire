@@ -107,6 +107,8 @@ class SiemCollectorCaRoutesTest extends ApiTestBase {
         CollectorPki lapsed = CollectorPki.create(
                 "Lapsed Root", Instant.now().minus(Duration.ofDays(400)), Instant.now().minus(Duration.ofDays(1)));
         SiemConfigEntity row = new SiemConfigEntity();
+        row.setCreatedAt(Instant.now());
+        row.setUpdatedAt(Instant.now());
         row.setEnabled(true);
         row.setProtocol("SYSLOG_TLS");
         row.setEndpoint("127.0.0.1:6514");
@@ -188,7 +190,7 @@ class SiemCollectorCaRoutesTest extends ApiTestBase {
 
     /** A queued event as the outbox row holds it, through the real mapper. */
     private String payload() throws Exception {
-        CefEvent event = CefEvent.builder(SecurityEventType.SECURITY_SETTING_CHANGED).message("probe").build();
+        CefEvent event = CefEvent.builder(SecurityEventType.SECURITY_SETTING_CHANGED, java.time.Instant.now()).message("probe").build();
         return json.writeValueAsString(new SiemEvents.QueuedEvent(
                 event.eventType().name(), event.timestamp().toEpochMilli(), event.message(), event.extensions(),
                 event.cefSeverity()));

@@ -19,7 +19,7 @@ import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.asmolabs.vectispire.core.tickets.TrackerTokenState;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -65,6 +65,7 @@ public class SettingsAdministrationService {
     private final TicketService tickets;
     private final NotificationService notifications;
     private final AuditLogService audit;
+    private final Clock clock;
 
     public SettingsAdministrationService(
             SettingsService settings,
@@ -72,13 +73,15 @@ public class SettingsAdministrationService {
             TriageApprovers approvers,
             TicketService tickets,
             NotificationService notifications,
-            AuditLogService audit) {
+            AuditLogService audit,
+            Clock clock) {
         this.settings = settings;
         this.aiReview = aiReview;
         this.approvers = approvers;
         this.tickets = tickets;
         this.notifications = notifications;
         this.audit = audit;
+        this.clock = clock;
     }
 
     /**
@@ -318,7 +321,7 @@ public class SettingsAdministrationService {
                 && !pending.get(Setting.AI_REVIEW_ALLOW_REMOTE).equals(previousAcknowledgement)) {
             if (remoteAfter) {
                 aiReview.recordRiskAcknowledgement(
-                        writer.map(user -> user.username()).orElse(""), Instant.now());
+                        writer.map(user -> user.username()).orElse(""), clock.instant());
             } else {
                 aiReview.clearRiskAcknowledgement();
             }

@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -37,7 +37,11 @@ public class VexGeneratorService {
     private final ScanDocumentService documents;
     private final IssueCatalog issuesRepo;
 
-    public VexGeneratorService(ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo) {
+    private final Clock clock;
+
+    public VexGeneratorService(
+            ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo, Clock clock) {
+        this.clock = clock;
         this.scansRepo = scansRepo;
         this.documents = documents;
         this.issuesRepo = issuesRepo;
@@ -67,7 +71,7 @@ public class VexGeneratorService {
 
         return OpenVexDocument.create(
                 "https://vectispire.internal/api/v1/vex/aggregate/openvex.json",
-                Instant.now(),
+                clock.instant(),
                 statements);
     }
 
@@ -84,7 +88,7 @@ public class VexGeneratorService {
         }
 
         String uri = "https://vectispire.internal/api/v1/vex/scans/" + scan.id() + "/openvex.json";
-        return OpenVexDocument.create(uri, scan.createdAt() != null ? scan.createdAt() : Instant.now(), statements);
+        return OpenVexDocument.create(uri, scan.createdAt() != null ? scan.createdAt() : clock.instant(), statements);
     }
 
     private OpenVexStatement createStatementFromFinding(ScanFindingView finding) {

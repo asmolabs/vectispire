@@ -89,11 +89,11 @@ class TokenAlertChannelsTest {
         when(settings.isEnabled(Setting.TEAMS_ENABLED)).thenReturn(true);
         ExportProperties deployment = new ExportProperties(Optional.of("https://vectispire.example.com"), "Vectispire", "0");
 
-        webhook = new NotificationService(settings, post, mock(TeamChannels.class), mock(EncryptionService.class),
-                Clock.fixed(Instant.parse("2026-10-27T01:00:00Z"), ZoneOffset.UTC));
+        Clock clock = Clock.fixed(Instant.parse("2026-10-27T01:00:00Z"), ZoneOffset.UTC);
+        webhook = new NotificationService(settings, post, mock(TeamChannels.class), mock(EncryptionService.class), clock);
         slack = new SlackNotificationChannel(settings, post, deployment);
         teams = new TeamsNotificationChannel(settings, post, deployment);
-        discord = new DiscordNotificationChannel(settings, post, deployment);
+        discord = new DiscordNotificationChannel(settings, post, deployment, clock);
         mail = new MailNotificationChannel(settings, Optional.of(mailer), deployment, "vectispire@example.com");
     }
 

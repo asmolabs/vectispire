@@ -132,6 +132,7 @@ class AiAdvisorRoutesTest extends ApiTestBase {
         ThreatIntelEntity listed = new ThreatIntelEntity();
         listed.setCveId("CVE-2021-44228");
         listed.setKev(true);
+        listed.setUpdatedAt(Instant.now());
         listed.setDateAdded(Instant.parse("2021-12-10T00:00:00Z"));
         intel.save(listed);
         long generation = 7;
@@ -207,6 +208,7 @@ class AiAdvisorRoutesTest extends ApiTestBase {
         ThreatIntelEntity listed = new ThreatIntelEntity();
         listed.setCveId("CVE-2021-44228");
         listed.setKev(true);
+        listed.setUpdatedAt(Instant.now());
         intel.save(listed);
         ThreatIntelSyncEntity sync = new ThreatIntelSyncEntity();
         sync.setLastSyncedAt(Instant.now());

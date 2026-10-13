@@ -142,6 +142,7 @@ same name; decision records written before that date keep the names they had.
 | Deleting a target takes every row that names it and nobody else's, children before parents, atomically | `TargetDeletionTest`, `TargetPurgeOrderTest`, `TargetDeletionIntegrationTest` (MySQL, PostgreSQL) |
 | Production carries Spring Modulith's annotations and nothing else — no runtime, no moments, no ArchUnit — and no Modulith bean activates | `ModulithRuntimeInertTest` |
 | No controller names a persistence type — an entity, a repository or a published query record — the principal included; services answer with `…View` records | `ArchitectureTest` |
+| The time is read from the injected clock (`CoreConfiguration.clock`, microseconds) — no `now()` without a `Clock` and no `System.currentTimeMillis()` in the control plane or the common module; the domain takes its moment as a parameter, the signed exports included | `ArchitectureTest.timeIsReadFromAClock` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, and concurrent writers — threads of one instance, or several instances with clocks apart — never fork it: each entry takes the chain's lock (V66) and is dated after the head it chains onto | `AuditChainTest`, `AuditChainConcurrencyIntegrationTest` (MySQL, PostgreSQL) |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |

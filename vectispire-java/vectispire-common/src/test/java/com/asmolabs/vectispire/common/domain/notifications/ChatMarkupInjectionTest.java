@@ -57,7 +57,7 @@ class ChatMarkupInjectionTest {
     @Test
     @DisplayName("Discord: no masked link, no mass mention, and no mention allowed at all")
     void discord() throws Exception {
-        var payload = DiscordEmbed.of(HOSTILE, null);
+        var payload = DiscordEmbed.of(HOSTILE, null, java.time.Instant.EPOCH);
         String posted = JSON.writeValueAsString(payload);
 
         assertThat(posted)

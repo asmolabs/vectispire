@@ -55,7 +55,8 @@ class AiEndpointAcknowledgementTest {
                         settings, aiReview,
                         new com.asmolabs.vectispire.core.access.TriageApprovers(
                                 mock(com.asmolabs.vectispire.core.access.persistence.UserRepository.class)),
-                        mock(TicketService.class), mock(NotificationService.class), mock(AuditLogService.class)),
+                        mock(TicketService.class), mock(NotificationService.class), mock(AuditLogService.class),
+                        java.time.Clock.systemUTC()),
                 mock(TicketService.class), aiReview, mock(NotificationService.class));
 
         // Nothing configured yet: every setting reads as its stored-empty state.

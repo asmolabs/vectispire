@@ -18,7 +18,8 @@ public final class DiscordEmbed {
 
     private DiscordEmbed() {}
 
-    public static Map<String, Object> of(NotificationPayload payload, String publicUrl) {
+    /** @param at the embed's timestamp, by the sender's clock */
+    public static Map<String, Object> of(NotificationPayload payload, String publicUrl, Instant at) {
         // Color calculation (Red: 0xDC2626, Amber: 0xD97706, Green: 0x059669)
         int color = 0x059669;
         if (payload.kevCount() > 0 || payload.issues().stream().anyMatch(i -> "critical".equalsIgnoreCase(i.severity()))) {
@@ -31,7 +32,7 @@ public final class DiscordEmbed {
         embed.put("title", "🛡️ Vectispire: " + ChatText.discord(payload.target()) + " (Scan #" + payload.scanId() + ")");
         embed.put("description", ChatText.discord(payload.text()));
         embed.put("color", color);
-        embed.put("timestamp", Instant.now().toString());
+        embed.put("timestamp", at.toString());
 
         if (publicUrl != null && !publicUrl.isBlank()) {
             embed.put("url", publicUrl.replaceAll("/+$", "") + "/issues");

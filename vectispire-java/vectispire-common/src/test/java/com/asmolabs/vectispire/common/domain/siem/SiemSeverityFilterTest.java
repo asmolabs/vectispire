@@ -72,10 +72,10 @@ class SiemSeverityFilterTest {
     }
 
     private static CefEvent breachOf(Severity issueSeverity) {
-        return CefEvent.builder(SecurityEventType.SLA_BREACHED).issueSeverity(issueSeverity).build();
+        return CefEvent.builder(SecurityEventType.SLA_BREACHED, java.time.Instant.EPOCH).issueSeverity(issueSeverity).build();
     }
 
     private static boolean admits(SecurityEventType type, String stored) {
-        return SiemSeverityFilter.admits(CefEvent.builder(type).build(), stored);
+        return SiemSeverityFilter.admits(CefEvent.builder(type, java.time.Instant.EPOCH).build(), stored);
     }
 }

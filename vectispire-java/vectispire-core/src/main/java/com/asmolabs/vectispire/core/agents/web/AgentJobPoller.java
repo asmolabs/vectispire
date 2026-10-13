@@ -88,7 +88,9 @@ public class AgentJobPoller {
             return result;
         }
 
-        schedule(result, agent, limit, Instant.now().plus(bounded));
+        // On the scheduler's own clock: it is the one that fires the re-checks, so a deadline read on
+        // any other could come before the first of them or after the last.
+        schedule(result, agent, limit, Instant.now(scheduler.getClock()).plus(bounded));
         return result;
     }
 
@@ -115,7 +117,7 @@ public class AgentJobPoller {
                             if (!result.setResult(job(task.get(), limit))) {
                                 dispatcher.returnUndelivered(task.get().scanId(), agent);
                             }
-                        } else if (Instant.now().isAfter(deadline)) {
+                        } else if (Instant.now(scheduler.getClock()).isAfter(deadline)) {
                             metrics.agentPolled(false);
                             result.setResult(noJob(limit));
                         } else {
@@ -128,7 +130,7 @@ public class AgentJobPoller {
                         result.setErrorResult(failed);
                     }
                 },
-                Instant.now().plus(POLL_INTERVAL));
+                Instant.now(scheduler.getClock()).plus(POLL_INTERVAL));
     }
 
     /**

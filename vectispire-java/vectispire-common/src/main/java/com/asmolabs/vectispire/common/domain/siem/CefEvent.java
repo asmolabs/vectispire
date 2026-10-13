@@ -52,7 +52,10 @@ public record CefEvent(
 
     public CefEvent {
         if (eventType == null) throw new IllegalArgumentException("eventType is required");
-        if (timestamp == null) timestamp = Instant.now();
+        // Required, never "now": the moment is the caller's — the audit entry's, the issue's, the
+        // control plane's clock — and a domain record reading the wall clock was a second time source
+        // no test could pin.
+        if (timestamp == null) throw new IllegalArgumentException("timestamp is required");
         if (cefSeverity < 0 || cefSeverity > 10) {
             throw new IllegalArgumentException("A CEF severity is 0 to 10, not " + cefSeverity);
         }
@@ -65,8 +68,9 @@ public record CefEvent(
         this(eventType, timestamp, message, extensions, requireType(eventType).cefSeverity());
     }
 
-    public static Builder builder(SecurityEventType eventType) {
-        return new Builder(eventType);
+    /** @param timestamp when it happened, by the caller's clock */
+    public static Builder builder(SecurityEventType eventType, Instant timestamp) {
+        return new Builder(eventType, timestamp);
     }
 
     /**
@@ -137,13 +141,14 @@ public record CefEvent(
 
     public static class Builder {
         private final SecurityEventType eventType;
-        private Instant timestamp = Instant.now();
+        private final Instant timestamp;
         private String message;
         private final Map<String, String> extensions = new LinkedHashMap<>();
         private int cefSeverity;
 
-        public Builder(SecurityEventType eventType) {
+        public Builder(SecurityEventType eventType, Instant timestamp) {
             this.eventType = requireType(eventType);
+            this.timestamp = timestamp;
             this.cefSeverity = eventType.cefSeverity();
         }
 
@@ -159,11 +164,6 @@ public record CefEvent(
                 throw new IllegalStateException(eventType + " has a fixed CEF severity");
             }
             this.cefSeverity = SecurityEventType.cefSeverityOf(issueSeverity);
-            return this;
-        }
-
-        public Builder timestamp(Instant timestamp) {
-            this.timestamp = timestamp;
             return this;
         }
 

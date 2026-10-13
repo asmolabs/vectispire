@@ -33,8 +33,7 @@ final class IssueSignals {
 
     static CefEvent secretLeak(IssueEntity issue) {
         String path = issue.getFilePath() == null ? "" : " in " + issue.getFilePath();
-        return CefEvent.builder(SecurityEventType.SECRET_LEAK_DETECTED)
-                .timestamp(issue.getFirstSeenAt())
+        return CefEvent.builder(SecurityEventType.SECRET_LEAK_DETECTED, issue.getFirstSeenAt())
                 .message("Secret matching rule " + issue.getIdentifier() + " found" + path + " (issue " + issue.getId()
                         + ")")
                 .target(targetOf(issue))
@@ -47,9 +46,8 @@ final class IssueSignals {
      *     not when the hourly turn noticed it
      */
     static CefEvent slaBreach(IssueEntity issue, Severity severity, Duration window, Instant dueAt) {
-        return CefEvent.builder(SecurityEventType.SLA_BREACHED)
+        return CefEvent.builder(SecurityEventType.SLA_BREACHED, dueAt)
                 .issueSeverity(severity)
-                .timestamp(dueAt)
                 .message(severity.name() + " issue " + issue.getId() + " (" + issue.getIdentifier() + ") passed its "
                         + window.toDays() + "-day remediation deadline, open since " + issue.getFirstSeenAt())
                 .target(targetOf(issue))
