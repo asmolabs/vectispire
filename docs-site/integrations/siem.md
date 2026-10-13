@@ -96,9 +96,10 @@ listening server, which would make the button a scanner of every network the exp
 
 ### Each transport is an integration
 
-The four transports are integrations the platform governor switches on and off under
-*Administration → Integrations* — `siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`,
-`siem.syslog_tls`, all enabled to begin with ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
+The four transports are integrations the platform governor switches on and off —
+`siem.webhook`, `siem.syslog_udp`, `siem.syslog_tcp`, `siem.syslog_tls`, all enabled to begin with
+— through the API, `PUT /api/v1/integrations/{key}/enabled` with `{"enabled": false}`. There is no
+screen for it in this release; *Administration → Integrations* comes in a later one ([decision 0040](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0040-integrations-are-switched-on-not-installed.md)).
 An enabled export is not saved over a disabled transport, nor is a disabled transport tested: both
 answer 409 `integration-disabled`. Switching the export off is always saved, whatever its protocol.
 
