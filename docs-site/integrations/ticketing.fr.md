@@ -152,11 +152,21 @@ Désactiver le tracker pour lequel l'installation est configurée le **suspend**
 - **La carte du tracker le dit** — *Suspendu — intégration désactivée*, en nommant l'intégration ;
   `GET` et `PUT /api/v1/settings/ticket-token` répondent `state` (`active` ou `suspended`) et
   `integration` (`tracker.gitlab`…), tous deux `null` tant qu'aucun tracker n'est choisi.
+- **Le webhook entrant est accepté et ignoré.** Une livraison d'un tracker dont l'intégration est
+  désactivée — celui que nomme la route, `/api/v1/tickets/webhook/{provider}` — est d'abord
+  authentifiée, comme toujours : sans le secret, elle est refusée `401` ou `403`, suspendue ou non.
+  Authentifiée, elle reçoit `200` avec un `actionTaken` qui commence par
+  `ignored_integration_disabled`, et rien n'en est appliqué — aucun triage mis en file, aucun état de
+  ticket enregistré, et le corps n'est pas gardé pour le contrôle de rejeu : une livraison que le
+  tracker renvoie après la réactivation est traitée une fois. Un `200` plutôt qu'un `409`, parce
+  qu'un tracker réessaie une livraison en échec et que GitLab désactive un webhook après des échecs
+  répétés : le webhook serait cassé au moment où le tracker est réactivé. Le journal du serveur le dit
+  une fois à la première livraison ignorée et une fois à la première de nouveau appliquée, pas à
+  chaque livraison.
 
 Réactivé, tout reprend tel quel : le balayage suivant ouvre les tickets dus et ferme ceux dont l'issue
-a été résolue entre-temps, et la vérification suivante interroge le tracker sur le jeton. Le webhook
-entrant n'est pas concerné par la bascule : ce qu'envoie un tracker est toujours lu, avec le secret
-qu'il doit porter.
+a été résolue entre-temps, la vérification suivante interroge le tracker sur le jeton, et la livraison
+suivante est appliquée.
 
 ## Ce qui atterrit dans le ticket
 
@@ -228,6 +238,11 @@ qui a été lue — appariée, sans issue correspondante, déjà traitée — ga
 **Une livraison n'est traitée qu'une fois.** L'empreinte de chaque corps accepté est gardée trente
 jours ; le même corps reçu de nouveau dans cette fenêtre — un rejeu, ou la redélivrance du tracker
 lui-même — reçoit `200` *« Delivery already processed »* et ne change rien.
+
+**La livraison d'un tracker désactivé est ignorée, pas refusée.** Tant que le gouverneur de la
+plateforme a désactivé l'intégration du tracker, une livraison authentifiée reçoit `200`
+*« ignored_integration_disabled: … »* et ne change rien
+([quand l'intégration du tracker est désactivée](#tracker-suspended)).
 
 **Une décision est mise en file, jamais appliquée.** L'issue passe en `pending_approval` avec le
 statut proposé et sa justification, et reste *en cours d'investigation* dans les documents VEX

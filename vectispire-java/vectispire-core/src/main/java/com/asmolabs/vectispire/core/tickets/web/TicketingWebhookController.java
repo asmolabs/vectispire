@@ -43,6 +43,12 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/tickets")
 public class TicketingWebhookController {
 
+    /**
+     * How {@code actionTaken} begins for a delivery ignored because the tracker's integration is disabled: a token a
+     * tracker's delivery log can be searched for, followed by the sentence a person reads.
+     */
+    static final String IGNORED_INTEGRATION_DISABLED = "ignored_integration_disabled";
+
     private final TicketingWebhookService webhooks;
 
     public TicketingWebhookController(TicketingWebhookService webhooks) {
@@ -113,6 +119,13 @@ public class TicketingWebhookController {
             // 200: the tracker's own redelivery lands here too, and an error would make it retry.
             case TicketingWebhookService.Outcome.AlreadyProcessed seen ->
                     ResponseEntity.ok(WebhookSyncResult.unmatched(null, "Delivery already processed"));
+            // 200, not 409: a tracker retries an error, and GitLab disables a webhook after repeated failures —
+            // the webhook would then be broken by the time the integration is switched back on.
+            case TicketingWebhookService.Outcome.IgnoredIntegrationDisabled(var integration) ->
+                    ResponseEntity.ok(WebhookSyncResult.unmatched(null, IGNORED_INTEGRATION_DISABLED + ": the "
+                            + integration.key() + " integration is disabled on this installation and nothing was "
+                            + "applied; a platform governor enables it with PUT /api/v1/integrations/"
+                            + integration.key() + "/enabled"));
             case TicketingWebhookService.Outcome.NoReference none ->
                     ResponseEntity.ok(WebhookSyncResult.unmatched(null, "No ticket reference extracted from payload"));
             case TicketingWebhookService.Outcome.NoMatchingIssue(String ticketRef) ->

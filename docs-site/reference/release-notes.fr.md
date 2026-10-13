@@ -39,6 +39,11 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   `null` tant qu'aucun tracker n'est choisi. `PUT /api/v1/issues/{id}/ticket` et
   `POST /api/v1/issues/{issueId}/tickets` répondent 409 `integration-disabled` pour un tracker suspendu, là
   où ils répondaient 200 et 201.
+- **Le webhook de tickets d'un tracker désactivé répond 200 et n'applique rien.** Une livraison
+  authentifiée sur `POST /api/v1/tickets/webhook/{provider}` tant que l'intégration de ce tracker est
+  désactivée reçoit `200`, `matched: false`, avec un `actionTaken` qui commence par
+  `ignored_integration_disabled` ; une livraison sans le secret est refusée `401` ou `403` comme avant.
+  Pas un 409 : le tracker réessaierait, et GitLab désactive un webhook après des échecs répétés.
 - **Une nouvelle raison d'absence de données, `forge_integration_disabled`**, dans le `reason` d'une
   mesure de checklist et partout où cette liste de raisons est répondue ; un client qui aiguille sur les
   raisons en rencontre une qu'il ne connaissait pas.
@@ -81,7 +86,9 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   le balayage horaire n'ouvre ni ne ferme aucun ticket et le dit une fois dans le journal, pas toutes les
   heures ; la vérification quotidienne du jeton ne demande ni n'annonce rien — un tracker désactivé n'est
   pas un jeton qui ne fonctionne plus ; enregistrer un jeton le stocke sans interroger le tracker.
-  Rattacher à la main un ticket de ce tracker répond 409 `integration-disabled`. Le jeton, les réglages,
+  Rattacher à la main un ticket de ce tracker répond 409 `integration-disabled`. Son webhook entrant est
+  toujours authentifié, puis accepté et ignoré : aucun triage n'en est mis en file, et le journal du
+  serveur le dit une fois par suspension plutôt qu'à chaque livraison. Le jeton, les réglages,
   la CA épinglée et les références des issues sont gardés, la carte du tracker affiche *Suspendu —
   intégration désactivée*, et le réactiver reprend tout tel quel
   ([tickets](../integrations/ticketing.fr.md#tracker-suspended)).
