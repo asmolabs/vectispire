@@ -959,6 +959,13 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Un jeton du gestionnaire de tickets, un secret de webhook ou une clé d'API IA enregistrés dont l'état n'a
+  pas pu être lu le disent**, avec la raison du serveur, au lieu de « aucun enregistré ».
+- **Le rapport rédigé par un modèle, sur la page OWASP, se rafraîchit seul** toutes les cinq secondes pendant
+  sa rédaction, et son sélecteur de dépôt ne propose plus que les dépôts de la solution ou du projet choisi
+  au-dessus de la grille — le dépôt choisi et son rapport sont retirés quand le périmètre ne les contient plus.
+- **Le sélecteur de dépôt de la surface d'attaque est annoncé par son libellé**, et non plus par son texte
+  d'invite ou le dépôt affiché.
 - **Les écrans n'affirment plus ce qu'ils n'ont pas lu.** Un échec de lecture des conflits de licences
   affichait « Aucun conflit bloquant » sur une liste que personne n'avait lue ; un état illisible des flux de
   menaces affichait « 0 CVE KEV » et « Jamais » ; le plan de remédiation et les chemins d'attaque gardaient les

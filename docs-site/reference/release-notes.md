@@ -878,6 +878,13 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **A stored tracker token, webhook secret or AI API key whose state could not be read says so**, with the
+  server's reason, instead of "none stored".
+- **The OWASP page's model-written report refreshes on its own** every five seconds while it is being
+  written, and its repository picker offers only the repositories of the solution or project chosen above
+  the grid — a chosen repository and its report are dropped when the scope no longer holds them.
+- **The attack-surface repository picker is announced by its label**, not by its placeholder or the
+  repository shown.
 - **Screens no longer state what they did not read.** A failed read of the licence conflicts showed "No
   blocking conflict" over a list nobody had read; an unreadable threat-feed status showed "0 KEV CVEs" and
   "Never"; the remediation plan and the attack paths kept the previous scope's or repository's figures under
