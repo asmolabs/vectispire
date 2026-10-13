@@ -206,6 +206,31 @@ describe('Compliance Page', () => {
             expect(saved[0].blob.type).toBe('application/x-pem-file');
             expect(await saved[0].blob.text()).toBe('-----BEGIN PUBLIC KEY-----');
         });
+
+        it('says why an export was refused, in the server’s words', () => {
+            click('compliance.export_vex');
+            http.expectOne('/api/v1/vex/aggregate.json').flush(
+                { title: 'Forbidden', status: 403, detail: 'Exports are reserved to the security lead.' },
+                { status: 403, statusText: 'Forbidden' }
+            );
+            fixture.detectChanges();
+
+            expect(saved).toEqual([]);
+            expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+                'Exports are reserved to the security lead.'
+            );
+        });
+    });
+
+    it('shows a failed summary in the server’s words', () => {
+        fixture.detectChanges();
+        http.expectOne('/api/v1/compliance/summary').flush(
+            { title: 'Internal Server Error', status: 500, detail: 'Compliance evaluation timed out.' },
+            { status: 500, statusText: 'Internal Server Error' }
+        );
+        fixture.detectChanges();
+
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Compliance evaluation timed out.');
     });
 
     /**

@@ -348,7 +348,8 @@
     "bundle": "Paquet de preuves",
     "bundle_desc": "La clé publique de vérification, les six référentiels évalués, le journal d'audit complet, les décisions de triage et leurs justifications, les attestations in-toto en enveloppe DSSE, les avis OpenVEX et CSAF signés, la conformité des licences et le CycloneDX signé.",
     "error_chain": "La vérification de la chaîne d'audit a échoué.",
-    "error_bundle": "Le paquet de preuves n'a pas pu être produit."
+    "error_bundle": "Le paquet de preuves n'a pas pu être produit.",
+    "error_compliance": "Impossible de charger la conformité aux référentiels ; la chaîne d'audit ci-dessus n'est pas affectée."
   },
   "audit_log": {
     "title": "Journal d'audit à altération détectable",

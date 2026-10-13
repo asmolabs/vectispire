@@ -132,6 +132,7 @@ const PAGE_SIZE = 50;
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-audit-log',
@@ -183,11 +184,11 @@ export class AuditLog {
                 this.verification.set(result);
                 this.verifying.set(false);
             },
-            error: () => {
+            error: (response: unknown) => {
                 this.verifying.set(false);
                 // Distinct from a broken chain: not knowing is not knowing that it is broken,
                 // and showing "broken" on a network failure would be a lie.
-                this.error.set(this.i18n.t('audit_log.error_verify'));
+                this.error.set(messageOf(response, this.i18n.t('audit_log.error_verify')));
             }
         });
 
@@ -195,6 +196,8 @@ export class AuditLog {
             // Checked, not trusted: read inside a computed the template renders, a value that is
             // not a list broke the whole screen — the log included — instead of just the filter.
             next: (types) => this.operationTypes.set(Array.isArray(types) ? types : []),
+            // Left silent on purpose: the list only fills the operation filter, and the log, its
+            // search and its other filters work the same without it.
             error: () => this.operationTypes.set([])
         });
     }
@@ -241,8 +244,8 @@ export class AuditLog {
                     this.total.set(page.total);
                     this.loading.set(false);
                 },
-                error: () => {
-                    this.error.set(this.i18n.t('audit_log.error_load'));
+                error: (response: unknown) => {
+                    this.error.set(messageOf(response, this.i18n.t('audit_log.error_load')));
                     this.loading.set(false);
                 }
             }

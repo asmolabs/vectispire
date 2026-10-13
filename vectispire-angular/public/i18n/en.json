@@ -348,7 +348,8 @@
     "bundle": "Evidence bundle",
     "bundle_desc": "The verification public key, the six evaluated frameworks, the complete audit log, triage decisions with their justifications, in-toto attestations in DSSE envelopes, signed OpenVEX and CSAF advisories, licence compliance and the signed CycloneDX.",
     "error_chain": "Verifying the audit chain failed.",
-    "error_bundle": "The evidence bundle could not be produced."
+    "error_bundle": "The evidence bundle could not be produced.",
+    "error_compliance": "Could not load the frameworks' compliance; the audit chain above is unaffected."
   },
   "audit_log": {
     "title": "Tamper-evident audit log",

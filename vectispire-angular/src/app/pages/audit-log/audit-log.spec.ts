@@ -113,3 +113,56 @@ describe('the audit chain verdict', () => {
         expect(verdict(english, 4, 2)).toBe('Chain intact — 4 entries verified, 2 predating the chaining.');
     });
 });
+
+/**
+ * The log and its verification, when the server fails, say so in its words (RFC 7807 `detail`)
+ * rather than in the screen's generic sentence.
+ */
+describe('the audit log when a read fails', () => {
+    let http: HttpTestingController;
+
+    const failure = { status: 500, statusText: 'Internal Server Error' };
+    const problem = (detail: string) => ({ title: 'Internal Server Error', status: 500, detail });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [AuditLog],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        TestBed.inject(I18nService).translations.set(english);
+        http = TestBed.inject(HttpTestingController);
+    }, 20_000);
+
+    function open(verify: [object, typeof failure?], log: [object, typeof failure?]): string {
+        const fixture = TestBed.createComponent(AuditLog);
+        fixture.detectChanges();
+        http.expectOne('/api/v1/audit-log/verify').flush(...verify);
+        http.expectOne((call) => call.url === '/api/v1/audit-log').flush(...log);
+        http.expectOne((call) => call.url === '/api/v1/audit-log/operation-types').flush([]);
+        fixture.detectChanges();
+        return (fixture.nativeElement as HTMLElement).textContent;
+    }
+
+    it('shows a failed verification in the server’s words', () => {
+        expect(open([problem('The audit mirror is unreachable.'), failure], [{ items: [], total: 0 }])).toContain(
+            'The audit mirror is unreachable.'
+        );
+    });
+
+    it('shows a failed page of the log in the server’s words', () => {
+        const verified = asSchema('Verification', {
+            intact: true,
+            broken: null,
+            mirrored: false,
+            missingFromMirror: 0,
+            missingFromTable: 0,
+            total: 1,
+            unverifiable: 0,
+            verified: 1
+        });
+        expect(open([verified], [problem('Audit table is locked for archiving.'), failure])).toContain(
+            'Audit table is locked for archiving.'
+        );
+    });
+});

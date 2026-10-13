@@ -159,6 +159,34 @@ describe('the attestation', () => {
         expect(fixture.componentInstance.compliance()).toBeNull();
     });
 
+    it('says the frameworks could not be read, in the server’s words, where the grid would be', () => {
+        // Swallowed, the failure left the grid's empty state: "no compliance data", on a page an
+        // auditor files.
+        chain(true);
+        http.expectOne((c) => c.url === '/api/v1/compliance/summary').flush(
+            { title: 'Internal Server Error', status: 500, detail: 'Compliance evaluation timed out.' },
+            { status: 500, statusText: 'Server Error' }
+        );
+        fixture.detectChanges();
+
+        const page = fixture.nativeElement as HTMLElement;
+        expect(page.querySelector('[data-testid="compliance-error"]')?.textContent).toContain(
+            'Compliance evaluation timed out.'
+        );
+        expect(page.textContent).toContain("Chaîne d'audit intacte");
+    });
+
+    it('shows a failed chain check in the server’s words', () => {
+        http.expectOne('/api/v1/audit-log/verify').flush(
+            { title: 'Service Unavailable', status: 503, detail: 'The audit mirror is unreachable.' },
+            { status: 503, statusText: 'Service Unavailable' }
+        );
+        compliance();
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('The audit mirror is unreachable.');
+    });
+
     it('names each framework and its verdict in words, never as the server spells them', () => {
         chain(true);
         compliance();
