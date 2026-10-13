@@ -110,7 +110,17 @@ export default defineConfig({
                 timezoneId: 'UTC',
                 viewport: { width: 1280, height: 860 },
                 deviceScaleFactor: 1,
-                launchOptions: { args: ['--disable-partial-raster'] }
+                // **`locale` does not reach a native date field.** It sets `navigator.language` and the
+                // `Accept-Language` header, but Chromium draws `<input type="date">` in the language its
+                // process started in — the Playwright image's English — so French captures showed
+                // mm/dd/yyyy. On Linux that language comes from the environment, not from `--lang`, which
+                // was tried first and changed nothing in the image: `LANGUAGE` does, and it is read even
+                // under the image's `LC_ALL=C.UTF-8`, where `LANG` is not. `--lang` stays for a run on
+                // macOS or Windows, where it is the switch that works.
+                launchOptions: {
+                    args: ['--disable-partial-raster', '--lang=fr-FR'],
+                    env: { ...process.env, LANGUAGE: 'fr_FR:fr' }
+                }
             }
         }
     ],
