@@ -959,6 +959,12 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Les écrans n'affirment plus ce qu'ils n'ont pas lu.** Un échec de lecture des conflits de licences
+  affichait « Aucun conflit bloquant » sur une liste que personne n'avait lue ; un état illisible des flux de
+  menaces affichait « 0 CVE KEV » et « Jamais » ; le plan de remédiation et les chemins d'attaque gardaient les
+  chiffres du périmètre ou du dépôt précédent sous la nouvelle sélection. Chacun dit désormais que la lecture a
+  échoué, avec la raison donnée par le serveur — comme les autres panneaux des écrans licences, remédiation,
+  posture de sécurité, qualité, détail d'un scan et chemins d'attaque, qui restaient vides.
 - **Les jours insérés dans une phrase s'écrivent jj/mm/aaaa comme toutes les autres dates** : la note de
   changement de formule du score et les axes des graphiques du tableau de bord, la vue OWASP hebdomadaire
   (fenêtre, semaine, cases, tableau des chiffres, note sur les réouvertures), le bandeau du backlog ouvert

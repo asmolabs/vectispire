@@ -878,6 +878,11 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Screens no longer state what they did not read.** A failed read of the licence conflicts showed "No
+  blocking conflict" over a list nobody had read; an unreadable threat-feed status showed "0 KEV CVEs" and
+  "Never"; the remediation plan and the attack paths kept the previous scope's or repository's figures under
+  the new selection. Each now says the read failed, with the server's reason — as do the other panels of the
+  licences, remediation, security posture, quality, scan detail and attack-paths screens, which stayed empty.
 - **Days shown inside a sentence read dd/MM/yyyy like every other date**: the dashboard's score-formula note
   and its chart axes, the weekly OWASP view (window, week, squares, figures table, reopenings note), the
   backlog's weekly drill-down banner, and a checklist proof's "performed on" and "valid until" dates. The
