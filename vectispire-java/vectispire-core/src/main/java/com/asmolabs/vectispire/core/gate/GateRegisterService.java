@@ -5,8 +5,10 @@ import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
@@ -24,9 +26,11 @@ public class GateRegisterService {
     private static final int MAX_VERDICTS = 500;
 
     private final GateVerdictRepository verdicts;
+    private final TargetNaming naming;
 
-    public GateRegisterService(GateVerdictRepository verdicts) {
+    public GateRegisterService(GateVerdictRepository verdicts, TargetNaming naming) {
         this.verdicts = verdicts;
+        this.naming = naming;
     }
 
     /**
@@ -64,12 +68,22 @@ public class GateRegisterService {
     }
 
     /**
-     * @param visible the rows of this page the reader may see
+     * @param visible the rows of this page the reader may see, each with its target's name
      * @param passed how many of {@code visible} passed, and {@code refused} likewise — of this
      *     page, never of the register, which would mean reading the whole of it
      * @param nextCursor where the next page starts, or null when the read reached the end
      */
-    public record Page(List<GateVerdictView> visible, long passed, long refused, String nextCursor) {}
+    public record Page(List<Registered> visible, long passed, long refused, String nextCursor) {}
+
+    /**
+     * A verdict and what its target is called.
+     *
+     * @param targetName the target's name as every screen writes it ({@link TargetNaming}), named only
+     *     for a target the reader may see — the row itself is shown to nobody else, and the name is the
+     *     second thing it would give away. Null for a verdict that names no target. The register showed
+     *     "Repository 5" before: an identifier an assessor can do nothing with
+     */
+    public record Registered(GateVerdictView verdict, String targetName) {}
 
     /**
      * One page of the register.
@@ -95,8 +109,15 @@ public class GateRegisterService {
                 .filter(row -> allowed.permits(row.target()))
                 .toList();
 
+        // Named in one lookup for the page, and only the rows that survived the lock above.
+        TargetNaming.Names names = naming.forIds(
+                visible.stream().map(GateVerdictView::repoId).filter(Objects::nonNull).distinct().toList(),
+                visible.stream().map(GateVerdictView::containerId).filter(Objects::nonNull).distinct().toList());
+
         return new Page(
-                visible,
+                visible.stream()
+                        .map(row -> new Registered(row, nameOf(row, names, allowed)))
+                        .toList(),
                 visible.stream().filter(GateVerdictView::passed).count(),
                 visible.stream().filter(row -> !row.passed()).count(),
                 nextCursor(read, capped));
@@ -124,6 +145,12 @@ public class GateRegisterService {
         return after.map(from -> verdicts.pageAfterWithin(
                         repoIds, containerIds, from.at(), UUID.fromString(from.id()), Limit.of(limit)))
                 .orElseGet(() -> verdicts.firstPageWithin(repoIds, containerIds, Limit.of(limit)));
+    }
+
+    /** Package-private for its test: the rows a reader may not see never reach it, so no route can show it holds. */
+    static String nameOf(GateVerdictView row, TargetNaming.Names names, Visibility allowed) {
+        ScanTarget target = row.target();
+        return target == null || !allowed.permits(target) ? null : names.of(row.repoId(), row.containerId());
     }
 
     /** An identifier no target has, so that neither list is ever empty: `in ()` is not valid everywhere. */

@@ -7819,6 +7819,9 @@
           "target_kind" : {
             "type" : "string"
           },
+          "target_name" : {
+            "type" : "string"
+          },
           "violations" : {
             "format" : "int32",
             "type" : "integer"

@@ -113,6 +113,7 @@ class GateVerdictsWithoutTargetRoutesTest extends ApiTestBase {
         assertThat(row).as("the row is listed").isNotNull();
         assertThat(row.path("target_kind").isNull()).as("not a container with no id").isTrue();
         assertThat(row.path("target_id").isNull()).isTrue();
+        assertThat(row.path("target_name").isNull()).as("named nothing, not \"deleted target\"").isTrue();
         assertThat(row.path("passed").asBoolean()).isFalse();
     }
 

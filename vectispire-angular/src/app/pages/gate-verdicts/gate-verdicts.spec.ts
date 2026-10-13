@@ -23,6 +23,7 @@ describe('le registre des verdicts', () => {
             id,
             target_kind: 'REPOSITORY',
             target_id: 7,
+            target_name: 'helios-portal',
             passed,
             evaluated: passed ? 0 : 412,
             violations: passed ? 0 : 3,
@@ -87,11 +88,33 @@ describe('le registre des verdicts', () => {
     it('lists a verdict that names no target with no target, never as a container', async () => {
         // The gate writes no such row, but the schema allows one; the server lists it with
         // `target_kind` and `target_id` null rather than failing on it, and the cell has to say so.
-        await mount({ verdicts: [{ ...row('c', false), target_kind: null, target_id: null }], passed: 0, refused: 1 });
+        await mount({
+            verdicts: [{ ...row('c', false), target_kind: null, target_id: null, target_name: null }],
+            passed: 0,
+            refused: 1
+        });
         fixture.detectChanges();
 
         const cell = (fixture.nativeElement as HTMLElement).querySelector('tbody tr td')!;
         expect(cell.textContent?.trim()).toBe('—');
+    });
+
+    it('names each target as the server names it, and says what kind it is', () => {
+        // It printed "Repository 7": an identifier an assessor can do nothing with.
+        fixture.detectChanges();
+        const cell = (fixture.nativeElement as HTMLElement).querySelector('tbody tr td')!;
+
+        expect(cell.querySelector('.font-medium')?.textContent?.trim()).toBe('helios-portal');
+        expect(cell.textContent).toContain('gate_verdicts.kind.repository');
+        expect(cell.textContent).not.toContain('7');
+    });
+
+    it('falls back to the kind and the identifier when no name came', async () => {
+        await mount({ verdicts: [{ ...row('d', true), target_name: null }], passed: 1, refused: 0 });
+        fixture.detectChanges();
+
+        const cell = (fixture.nativeElement as HTMLElement).querySelector('tbody tr td')!;
+        expect(cell.textContent?.replace(/\s+/g, ' ').trim()).toBe('gate_verdicts.kind.repository 7');
     });
 
     it('shows only the severities that carry a count', () => {

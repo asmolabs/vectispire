@@ -164,11 +164,17 @@ public class GateController {
                 decision.policy().ignoredRelaxations());
     }
 
-    /** What the caller may read of the gate's answers. */
+    /**
+     * What the caller may read of the gate's answers.
+     *
+     * @param targetName what the target is called, as the rest of the interface calls it; null for a
+     *     verdict that names no target. A row is only ever listed to a reader who may see its target
+     */
     public record RegisteredVerdict(
             String id,
             @JsonProperty("target_kind") String targetKind,
             @JsonProperty("target_id") Long targetId,
+            @JsonProperty("target_name") String targetName,
             boolean passed,
             int evaluated,
             int violations,
@@ -230,13 +236,15 @@ public class GateController {
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()), limit, cursor);
 
         return new VerdictRegister(
-                page.visible().stream().map(GateController::view).toList(),
+                page.visible().stream()
+                        .map(named -> view(named.verdict(), named.targetName()))
+                        .toList(),
                 page.passed(),
                 page.refused(),
                 page.nextCursor());
     }
 
-    private static RegisteredVerdict view(GateVerdictView row) {
+    private static RegisteredVerdict view(GateVerdictView row, String targetName) {
         // A verdict naming no target (see GateVerdictView.target) is listed with neither, never as a
         // container with no id.
         boolean isRepository = row.repoId() != null;
@@ -245,6 +253,7 @@ public class GateController {
                 row.id().toString(),
                 isRepository ? "REPOSITORY" : isContainer ? "CONTAINER" : null,
                 isRepository ? row.repoId() : row.containerId(),
+                targetName,
                 row.passed(),
                 row.evaluated(),
                 row.violations(),

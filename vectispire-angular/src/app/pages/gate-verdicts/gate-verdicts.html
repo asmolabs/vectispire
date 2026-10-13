@@ -58,6 +58,8 @@
                                 <div class="font-medium">
                                     @if (row.target_kind === null) {
                                         —
+                                    } @else if (row.target_name) {
+                                        {{ row.target_name }}
                                     } @else {
                                         {{
                                             row.target_kind === 'REPOSITORY'
@@ -67,6 +69,15 @@
                                         {{ row.target_id }}
                                     }
                                 </div>
+                                @if (row.target_kind !== null && row.target_name) {
+                                    <div class="text-muted-color text-xs">
+                                        {{
+                                            row.target_kind === 'REPOSITORY'
+                                                ? ('gate_verdicts.kind.repository' | translate)
+                                                : ('gate_verdicts.kind.container' | translate)
+                                        }}
+                                    </div>
+                                }
                             </td>
                             <td class="py-3 pr-4">
                                 @if (row.passed) {

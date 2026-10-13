@@ -2061,6 +2061,8 @@ export type RegisteredVerdict = Refine<
         decided_at: string;
         counts_by_severity: Record<string, number>;
         target_id: number | null;
+        /** The target's name; `null` for a verdict that names no target. Only a target the caller sees is listed. */
+        target_name: string | null;
         fail_on_severity: string | null;
         policy_source: string | null;
         policy_version: number | null;

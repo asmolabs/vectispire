@@ -1457,9 +1457,15 @@ test.describe('documentation screenshots', () => {
             //
             // The never-scanned target is refused on zero examined issues, its one violation the
             // `observation` rule; the clean image passes on zero, which the footnote calls out.
+            // Named as every other capture names these targets: the register showed "Repository 5".
+            const names: Record<string, string> = {
+                'REPOSITORY:5': 'helios-portal', 'REPOSITORY:6': 'basalt-libs', 'REPOSITORY:7': 'billing-legacy',
+                'CONTAINER:3': 'registry.example/api:1.4', 'CONTAINER:4': 'registry.example/nginx-edge'
+            };
             const verdict = (id: string, kind: string, targetId: number, passed: boolean, evaluated: number,
                              violations: number, counts: Record<string, number>, decidedAt: string) => ({
                 id: `0195f3a1-8a2b-7c4d-9e1f-${id}`, target_kind: kind, target_id: targetId,
+                target_name: names[`${kind}:${targetId}`],
                 passed, evaluated, violations, fail_on_severity: 'high',
                 policy_source: 'built-in', policy_version: null, relaxations_ignored: false,
                 counts_by_severity: counts, decided_at: decidedAt, decided_by: 'ci'

@@ -7411,6 +7411,7 @@ export interface components {
             /** Format: int64 */
             target_id?: number;
             target_kind?: string;
+            target_name?: string;
             /** Format: int32 */
             violations: number;
         };
