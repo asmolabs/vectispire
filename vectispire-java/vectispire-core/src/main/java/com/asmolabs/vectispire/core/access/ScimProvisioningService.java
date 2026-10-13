@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamMembership;
 import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
@@ -444,11 +445,16 @@ public class ScimProvisioningService {
 
     // --- Groups --------------------------------------------------------------------------------
 
+    /**
+     * Every team with its members: two statements whatever the number of teams — the memberships are
+     * read once, with their usernames, and grouped here.
+     */
     public List<GroupView> groups() {
         List<TeamEntity> allTeams = teams.findAll();
-        Map<Long, UserEntity> userMap = userMap();
+        Map<Long, List<TeamMembership>> byTeam = members.findAllMemberships().stream()
+                .collect(Collectors.groupingBy(TeamMembership::teamId));
         return allTeams.stream()
-                .map(t -> viewOf(t, members.findByTeamId(t.getId()), userMap))
+                .map(t -> viewOf(t, byTeam.getOrDefault(t.getId(), List.of())))
                 .toList();
     }
 
@@ -457,8 +463,7 @@ public class ScimProvisioningService {
         if (found.isEmpty()) {
             return Optional.empty();
         }
-        Map<Long, UserEntity> userMap = userMap();
-        return Optional.of(viewOf(found.get(), members.findByTeamId(id), userMap));
+        return Optional.of(viewOf(found.get(), members.findMembershipsOf(id)));
     }
 
     /** @param memberValues each member's SCIM {@code value}: an account id, or a username */
@@ -487,8 +492,7 @@ public class ScimProvisioningService {
                 }
             }
 
-            Map<Long, UserEntity> userMap = userMap();
-            return new GroupCreation.Created(viewOf(saved, members.findByTeamId(saved.getId()), userMap));
+            return new GroupCreation.Created(viewOf(saved, members.findMembershipsOf(saved.getId())));
         });
 
         if (outcome instanceof GroupCreation.Created) {
@@ -522,8 +526,7 @@ public class ScimProvisioningService {
                 }
             }
 
-            Map<Long, UserEntity> userMap = userMap();
-            return Optional.of(viewOf(team, members.findByTeamId(id), userMap));
+            return Optional.of(viewOf(team, members.findMembershipsOf(id)));
         });
 
         replaced.ifPresent(group ->
@@ -551,8 +554,7 @@ public class ScimProvisioningService {
                 }
             }
 
-            Map<Long, UserEntity> userMap = userMap();
-            return Optional.of(viewOf(team, members.findByTeamId(id), userMap));
+            return Optional.of(viewOf(team, members.findMembershipsOf(id)));
         });
 
         patched.ifPresent(group ->
@@ -619,18 +621,12 @@ public class ScimProvisioningService {
         }
     }
 
-    private Map<Long, UserEntity> userMap() {
-        return users.findAll().stream().collect(Collectors.toMap(UserEntity::getId, u -> u));
-    }
-
-    private static GroupView viewOf(TeamEntity team, List<TeamMemberEntity> teamMembers, Map<Long, UserEntity> userMap) {
-        List<GroupMember> memberViews = new ArrayList<>();
-        if (teamMembers != null) {
-            for (TeamMemberEntity tm : teamMembers) {
-                UserEntity u = userMap.get(tm.getId().userId());
-                String display = u != null ? u.getUsername() : String.valueOf(tm.getId().userId());
-                memberViews.add(new GroupMember(tm.getId().userId(), display));
-            }
+    private static GroupView viewOf(TeamEntity team, List<TeamMembership> teamMembers) {
+        List<GroupMember> memberViews = new ArrayList<>(teamMembers.size());
+        for (TeamMembership membership : teamMembers) {
+            String display = membership.username() != null
+                    ? membership.username() : String.valueOf(membership.userId());
+            memberViews.add(new GroupMember(membership.userId(), display));
         }
         return new GroupView(team.getId(), team.getName(), team.getCreatedAt(), memberViews);
     }

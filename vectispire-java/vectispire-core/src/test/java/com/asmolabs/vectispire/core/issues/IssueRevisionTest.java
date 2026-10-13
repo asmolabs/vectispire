@@ -3,12 +3,15 @@ package com.asmolabs.vectispire.core.issues;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +42,9 @@ class IssueRevisionTest extends VectispireContextTest {
     @Autowired
     private TransactionTemplate transactions;
 
+    @Autowired
+    private TriageEventRepository events;
+
     private final ExecutorService sweep = Executors.newSingleThreadExecutor();
 
     @AfterEach
@@ -66,6 +72,36 @@ class IssueRevisionTest extends VectispireContextTest {
         IssueEntity stored = issues.findById(id).orElseThrow();
         assertThat(stored.getTicketRef()).isEqualTo("ENG-43");
         assertThat(stored.getTicketAttachedBy()).isEqualTo("bob");
+    }
+
+    @Test
+    @DisplayName("on a bulk decision: one issue changed under it refuses the whole batch, history included")
+    void aBulkDecision() {
+        long changed = issue();
+        long untouched = issue();
+
+        // The bulk decision reads its issues once, checks them and writes those very rows: an issue
+        // changed after that read is the row the write names, and the revision refuses it — the batch
+        // with it, since a partial decision is the one outcome a bulk triage must never report.
+        assertThatThrownBy(() -> transactions.executeWithoutResult(status -> {
+            issues.findAllById(List.of(changed, untouched));
+            try {
+                sweep.submit(() -> issues.attachTicket(changed, "ENG-44", "https://tracker.example/ENG-44"))
+                        .get(1, TimeUnit.MINUTES);
+            } catch (Exception failed) {
+                throw new IllegalStateException("The attachment beside the triage failed.", failed);
+            }
+            triage.triageVisible(
+                    List.of(changed, untouched),
+                    new Triage.Request(TriageStatus.AFFECTED, "alice", null, null, null),
+                    true,
+                    Visibility.everything());
+        })).isInstanceOf(IssueChangedMeanwhileException.class);
+
+        assertThat(issues.findAllById(List.of(changed, untouched)))
+                .allSatisfy(issue -> assertThat(issue.getTriageStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName()));
+        assertThat(issues.findById(changed).orElseThrow().getTicketRef()).isEqualTo("ENG-44");
+        assertThat(events.findByIssueIdOrderByOccurredAtAscIdAsc(untouched)).isEmpty();
     }
 
     /** A triage whose transaction read the issue before {@code attach} committed on another thread. */

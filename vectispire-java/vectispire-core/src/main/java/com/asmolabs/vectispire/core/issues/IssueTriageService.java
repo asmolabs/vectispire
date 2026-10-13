@@ -1,10 +1,12 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageOrigin;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
@@ -13,6 +15,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,13 +102,60 @@ public class IssueTriageService {
     public List<IssueEntity> triageAll(List<Long> issueIds, Triage.Request request, boolean canApprove) {
         Queued decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
 
+        Map<Long, IssueEntity> read = readAll(issueIds);
         List<IssueEntity> triaged = new ArrayList<>(issueIds.size());
         for (Long issueId : issueIds) {
-            IssueEntity issue = issues.findById(issueId)
-                    .orElseThrow(() -> new InvalidTriageException("Issue " + issueId + " not found."));
+            IssueEntity issue = read.get(issueId);
+            if (issue == null) {
+                throw new InvalidTriageException("Issue " + issueId + " not found.");
+            }
             triaged.add(apply(issue, decision));
         }
         return written(() -> issues.saveAllAndFlush(triaged));
+    }
+
+    /** What a bulk decision wrote, and the status each issue had before it — in the order asked. */
+    public record BulkTriage(List<String> previous, List<IssueEntity> triaged) {}
+
+    /**
+     * The same decision on several issues a caller named, each refused as absent when it may not see
+     * it — every one checked before the first is written.
+     *
+     * <p><b>One read, one transaction.</b> The route read each issue by its id to check it, then this
+     * class read each one again to write it, in another transaction: a thousand statements for 500
+     * issues, and a check made on a row the write did not hold. The issues are read in one statement
+     * here, and the rows checked are the rows written — so a scan or a person writing one of them
+     * between the check and the write is refused by the revision (409 {@code issue-changed-meanwhile}),
+     * the whole batch with it, where it went unseen when it fell before the second read.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException absent and hidden alike,
+     *     before the decision itself is judged — as the route always answered
+     */
+    @Transactional
+    public BulkTriage triageVisible(
+            List<Long> issueIds, Triage.Request request, boolean canApprove, Visibility visibility) {
+        Map<Long, IssueEntity> read = readAll(issueIds);
+        List<String> previous = new ArrayList<>(issueIds.size());
+        for (Long issueId : issueIds) {
+            previous.add(String.valueOf(RowVisibility.requireVisibleIssue(read.get(issueId), IssueEntity::target, visibility)
+                    .getTriageStatus()));
+        }
+
+        Queued decision = queueIfNotApprover(Triage.decide(request, clock.instant()), canApprove);
+        List<IssueEntity> triaged = new ArrayList<>(issueIds.size());
+        for (Long issueId : issueIds) {
+            triaged.add(apply(read.get(issueId), decision));
+        }
+        return new BulkTriage(previous, written(() -> issues.saveAllAndFlush(triaged)));
+    }
+
+    /**
+     * The issues named, by id, in one statement — at most the backlog page's 500, well inside every
+     * engine's bind limit. A repeated id is one row, applied as often as it was named, as it was.
+     */
+    private Map<Long, IssueEntity> readAll(List<Long> issueIds) {
+        return issues.findAllById(issueIds).stream()
+                .collect(Collectors.toMap(IssueEntity::getId, Function.identity()));
     }
 
     /**
