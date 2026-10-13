@@ -338,9 +338,12 @@ public class TicketService {
     /**
      * A call failed: when the tracker refused the token — {@code 401}, or {@code 403} on a call the integration
      * needs — that is recorded, and announced once. The status is read from the failure's type, never its words.
+     * A {@code 403} that is GitHub's rate limit is not a refusal: recording it would tell the administrator to
+     * replace a token that works, and the next hour's sweep, once the limit resets, would clear it again.
      */
     private void noteFailure(RuntimeException failed) {
         if (failed instanceof OutboundJson.OutboundStatusException refused
+                && !refused.rateLimited()
                 && (refused.status() == 401 || refused.status() == 403)) {
             try {
                 tokenState.recordRefused(refused.status(), clock.instant());

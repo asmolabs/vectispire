@@ -88,7 +88,9 @@ The tracker card under **Settings → Integrations** now shows the token's life,
   rather than nothing.
 - **That it stopped working.** When the tracker answers a call of the sweep with `401` or `403` — an
   expired, revoked or under-privileged token — or the daily check with `401`, the card says *Stopped
-  working* with the status and since when, before any date. It goes back to normal at the next call
+  working* with the status and since when, before any date. GitHub's rate limit, which also answers
+  `403`, is not a refusal: a `403` carrying `x-ratelimit-remaining: 0` or `retry-after`, and any `429`,
+  leave the card as it was, and the next hour's sweep tries again. It goes back to normal at the next call
   the tracker accepts, or when a new token is saved, which forgets everything known of the previous
   one.
 

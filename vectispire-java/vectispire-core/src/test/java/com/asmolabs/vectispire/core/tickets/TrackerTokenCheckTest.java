@@ -185,6 +185,28 @@ class TrackerTokenCheckTest {
     }
 
     @Test
+    @DisplayName("GitHub's rate limit answers 403, and is not read as a token that stopped working")
+    void aRateLimitIsNotARefusal() {
+        rows.put(Setting.TICKET_PROVIDER.key(), TicketProvider.GITHUB.wireName());
+        // The primary limit: the hour's calls spent.
+        tracker.route("/repos/team/service/issues", Reply.status(403).with("x-ratelimit-remaining", "0"));
+        assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
+        // A secondary limit: too many calls at once.
+        tracker.route("/repos/team/service/issues", Reply.status(403).with("retry-after", "60"));
+        assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
+        tracker.route("/repos/team/service/issues", Reply.status(429));
+        assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
+
+        assertThat(service.tokenHealth().refused()).isEmpty();
+        verify(settings, times(0)).setInternal(TrackerTokenState.ANNOUNCED, "refused");
+
+        // A 403 with calls left is the token lacking the permission: still a refusal.
+        tracker.route("/repos/team/service/issues", Reply.status(403).with("x-ratelimit-remaining", "4999"));
+        assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
+        assertThat(service.tokenHealth().refused()).hasValueSatisfying(refusal -> assertThat(refusal.status()).isEqualTo(403));
+    }
+
+    @Test
     @DisplayName("a refusal met by the daily check is recorded as one met by the sweep")
     void theCheckMeetsARefusalToo() {
         tracker.route(SELF, Reply.status(401));

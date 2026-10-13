@@ -111,7 +111,7 @@ public class OutboundJson {
             return Optional.empty();
         }
         if (response.status() / 100 != 2) {
-            throw new OutboundStatusException(label, response.status());
+            throw OutboundStatusException.of(label, response);
         }
         try {
             return Optional.of(json.readTree(response.body()));
@@ -199,14 +199,39 @@ public class OutboundJson {
         private static final long serialVersionUID = 1L;
 
         private final int status;
+        private final boolean rateLimited;
 
-        public OutboundStatusException(String label, int status) {
-            super(label + ": HTTP " + status + ".");
+        private OutboundStatusException(String label, int status, boolean rateLimited) {
+            super(label + ": HTTP " + status + (rateLimited ? ", rate-limited." : "."));
             this.status = status;
+            this.rateLimited = rateLimited;
+        }
+
+        /**
+         * The failure an answer describes, read with its headers: GitHub answers a caller over its rate limit
+         * {@code 403} — the status of a token without the permission — and only its headers tell the two apart.
+         */
+        public static OutboundStatusException of(String label, PinnedHttpSender.Response response) {
+            return new OutboundStatusException(label, response.status(), isRateLimited(response));
+        }
+
+        private static boolean isRateLimited(PinnedHttpSender.Response response) {
+            if (response.status() == 429) {
+                return true;
+            }
+            // GitHub's primary limit spends x-ratelimit-remaining; its secondary limits send retry-after.
+            return response.status() == 403
+                    && (response.header("x-ratelimit-remaining").map(String::strip).filter("0"::equals).isPresent()
+                            || response.header("retry-after").isPresent());
         }
 
         public int status() {
             return status;
+        }
+
+        /** The destination said "slow down", not "no": nothing about the credential follows from it. */
+        public boolean rateLimited() {
+            return rateLimited;
         }
     }
 

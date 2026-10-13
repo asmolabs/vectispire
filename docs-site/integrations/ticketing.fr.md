@@ -93,7 +93,10 @@ La carte du tracker sous **Réglages → Intégrations** montre désormais la vi
   plutôt que rien.
 - **Qu'il a cessé de fonctionner.** Quand le tracker répond à un appel du balayage par `401` ou `403` —
   un jeton expiré, révoqué ou sans le droit nécessaire — ou à la vérification quotidienne par `401`, la
-  carte dit *Ne fonctionne plus* avec le statut et depuis quand, avant toute date. Elle revient à la
+  carte dit *Ne fonctionne plus* avec le statut et depuis quand, avant toute date. La limite de débit de
+  GitHub, qui répond aussi `403`, n'est pas un refus : un `403` portant `x-ratelimit-remaining: 0` ou
+  `retry-after`, et tout `429`, laissent la carte telle quelle, et le balayage de l'heure suivante
+  réessaie. Elle revient à la
   normale au prochain appel que le tracker accepte, ou quand un nouveau jeton est enregistré, ce qui
   oublie tout ce qu'on savait du précédent.
 

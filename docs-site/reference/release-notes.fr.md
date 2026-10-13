@@ -945,7 +945,8 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
   la CA épinglée), une date peut être déclarée pour Jira et ServiceNow (`ticket_token_expires_on`, réservée
   à un administrateur), et la carte du tracker l'annonce quatorze jours à l'avance comme la liste des
   connexions de forge, *Expiration inconnue* quand rien n'est connu ; un `401` ou un `403` rencontré par le
-  balayage (un `401` par la vérification quotidienne) affiche *Ne fonctionne plus* jusqu'à ce qu'un appel
+  balayage (un `401` par la vérification quotidienne) affiche *Ne fonctionne plus* — mais pas la limite de
+  débit de GitHub, un `403` portant `x-ratelimit-remaining: 0` ou `retry-after` — jusqu'à ce qu'un appel
   soit de nouveau accepté ou qu'un nouveau jeton soit enregistré. Chaque changement est journalisé une fois
   au niveau `WARN`, pas chaque heure. `GET` et `PUT /api/v1/settings/ticket-token` répondent `expiresAt`,
   `expirySource`, `refusedStatus`, `refusedSince` et `checkedAt` à côté de `configured` ([quand le jeton
