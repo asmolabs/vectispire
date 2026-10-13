@@ -120,7 +120,19 @@ export class GatePolicies {
     });
 
     scope: Scope = { kind: 'global', id: null };
-    scopeLabel = this.i18n.t('gate_policies.scope_global');
+    /**
+     * The dialog's scope in words, translated when read: it was translated once into a field, so a
+     * dialog opened before a language switch kept its title in the old language. A key for the
+     * global policy and a new override; an override's target is named as the server names it.
+     */
+    private readonly scopeName = signal<
+        { key: 'gate_policies.scope_global' | 'gate_policies.scope_new' } | { text: string }
+    >({ key: 'gate_policies.scope_global' });
+    readonly scopeLabel = computed(() => {
+        this.i18n.translations();
+        const name = this.scopeName();
+        return 'key' in name ? this.i18n.t(name.key) : name.text;
+    });
     draft: Draft = blank();
     /** `kind:id`, because a select carries one value and a scope is two. */
     chosenTarget: string | null = null;
@@ -138,7 +150,7 @@ export class GatePolicies {
 
     editGlobal(): void {
         this.scope = { kind: 'global', id: null };
-        this.scopeLabel = this.i18n.t('gate_policies.scope_global');
+        this.scopeName.set({ key: 'gate_policies.scope_global' });
         this.chosenTarget = null;
         // Pre-filled with what currently applies — the stored policy, or the built-in it would
         // depart from. A form opening on blanks would make "keep what we have" a retyping
@@ -150,7 +162,7 @@ export class GatePolicies {
 
     editOverride(policy: GatePolicy): void {
         this.scope = { kind: policy.kind as 'repository' | 'container', id: policy.target_id };
-        this.scopeLabel = `${policy.target_name ?? policy.kind} #${policy.target_id}`;
+        this.scopeName.set({ text: `${policy.target_name ?? policy.kind} #${policy.target_id}` });
         this.chosenTarget = null;
         this.draft = draftOf(policy);
         this.error.set(null);
@@ -166,7 +178,7 @@ export class GatePolicies {
      */
     addOverride(): void {
         this.scope = { kind: 'repository', id: null };
-        this.scopeLabel = this.i18n.t('gate_policies.scope_new');
+        this.scopeName.set({ key: 'gate_policies.scope_new' });
         this.chosenTarget = null;
         this.draft = draftOf(this.globalPolicy() ?? this.builtIn());
         this.error.set(null);

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GatePolicies, THRESHOLD_KEYS } from './gate-policies';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
  * The screen that decides what fails a build.
@@ -236,6 +237,22 @@ describe('the gate policy screen', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.overrides().length).toBe(0);
+    });
+
+    it("titles the dialog in the reader's language, after a switch too", () => {
+        // The scope was translated once into a plain field: a dialog opened in English kept
+        // "the global policy" in its French title after the reader switched language.
+        useEnglish();
+        load([]);
+        fixture.componentInstance.editGlobal();
+        fixture.detectChanges();
+        const title = () => document.body.querySelector('[role="dialog"] .p-dialog-title')?.textContent?.trim();
+        expect(title()).toBe('Policy for the global policy');
+
+        useFrench();
+        fixture.detectChanges();
+
+        expect(title()).toBe('Politique pour la politique globale');
     });
 
     it('keeps the server refusal on screen instead of a generic failure', () => {

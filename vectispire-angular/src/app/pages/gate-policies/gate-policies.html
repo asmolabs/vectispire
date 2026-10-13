@@ -213,7 +213,7 @@
     [(visible)]="dialogVisible"
     [modal]="true"
     [style]="{ width: '34rem' }"
-    [header]="'gate_policies.header_policy_for' | translate: { scope: scopeLabel }"
+    [header]="'gate_policies.header_policy_for' | translate: { scope: scopeLabel() }"
 >
     <div class="flex flex-col gap-4">
         @if (error()) {
