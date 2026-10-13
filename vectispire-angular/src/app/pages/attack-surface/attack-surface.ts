@@ -1,5 +1,5 @@
 import { DatePipe, NgClass } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -16,6 +16,7 @@ import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
+import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 import type {
     ApiEndpointView,
     GlobalAttackSurface,
@@ -41,14 +42,28 @@ import type {
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attack-surface.html'
 })
-export class AttackSurface implements OnInit, OnDestroy {
+export class AttackSurface implements OnInit {
     private readonly repoRequest = new LatestRequest();
+    /** The estate's figures and the repository list, each latest-wins: a purge's reload, or the one
+     *  that follows a scan, sent two more requests while the first two could still be running. */
+    private readonly surfaceRequest = new LatestRequest();
+    private readonly repositoriesRequest = new LatestRequest();
 
     private readonly exposureApi = inject(ExposureApi);
     private readonly targetsApi = inject(TargetsApi);
     private readonly scansApi = inject(ScansApi);
     readonly i18n = inject(I18nService);
-    private pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    /**
+     * The scans launched from this screen, with the status last read for each.
+     *
+     * <p>The screen used to poll its own figures every three seconds and stop at the first tick that
+     * found an endpoint — so on an estate that already had some, it stopped at once and announced
+     * "discovery complete" for a scan that was only queued. What ends the wait is the scan's own
+     * status, read from the repository list (one request for every scan launched, not one each).
+     */
+    private readonly watchedScans = signal<readonly { repositoryId: number; id: number; status: string }[]>([]);
+    private readonly scanInFlight = computed(() => anyScanRunning(this.watchedScans()));
 
     readonly loading = signal<boolean>(true);
     readonly repoLoading = signal<boolean>(false);
@@ -134,18 +149,35 @@ export class AttackSurface implements OnInit, OnDestroy {
         ];
     });
 
+    constructor() {
+        pollWhile(this.scanInFlight, () => this.refreshScans(), 3000);
+    }
+
     ngOnInit(): void {
         this.loadData();
     }
 
-    loadData(): void {
-        this.loading.set(true);
-        this.error.set(null);
+    /**
+     * The estate's figures and the repository list. `background` reloads them once the scans launched
+     * here have finished: no loading state then — the tables blanking under the reader for an
+     * answer that only adds rows is noise — and, when every scan completed, the count announced is
+     * the one just read.
+     */
+    loadData(background: 'quiet' | 'announce' | null = null): void {
+        if (!background) {
+            this.loading.set(true);
+            this.error.set(null);
+        }
 
-        this.exposureApi.getAttackSurface().subscribe({
+        this.surfaceRequest.run(this.exposureApi.getAttackSurface(), {
             next: (global) => {
                 this.globalData.set(global);
                 this.loading.set(false);
+                if (background === 'announce') {
+                    this.scanSuccess.set(
+                        this.i18n.t('attack_surface.discovery_complete', { count: global.totalEndpoints })
+                    );
+                }
             },
             error: (err) => {
                 this.error.set(messageOf(err, this.i18n.t('attack_surface.error_load')));
@@ -153,12 +185,47 @@ export class AttackSurface implements OnInit, OnDestroy {
             }
         });
 
-        this.targetsApi.repositories().subscribe({
+        this.repositoriesRequest.run(this.targetsApi.repositories(), {
+            next: (repos) => this.repositories.set(repos),
+            // Swallowed, it left the repository picker empty with no reason given.
+            error: (err) => this.error.set(messageOf(err, this.i18n.t('repositories.error_load')))
+        });
+    }
+
+    /** One tick of the wait: the repository list carries each repository's latest scan and status. */
+    private refreshScans(): void {
+        this.repositoriesRequest.run(this.targetsApi.repositories(), {
             next: (repos) => {
                 this.repositories.set(repos);
+                const watched = this.watchedScans().map((scan) => {
+                    const latest = repos.find((repo) => repo.id === scan.repositoryId)?.lastScan;
+                    // A repository gone from the list has nothing left to wait for; a newer scan of
+                    // the same repository is what its routes now depend on, so its status stands.
+                    if (!latest) return { ...scan, status: 'cancelled' };
+                    return latest.id >= scan.id ? { ...scan, status: latest.status } : scan;
+                });
+                this.watchedScans.set(watched);
+                if (!anyScanRunning(watched)) {
+                    this.scansSettled(watched);
+                }
             },
+            // A tick that fails is retried by the next one; the wait goes on.
             error: () => {}
         });
+    }
+
+    /** Discovery is complete only when every scan completed: a failed one found no route at all. */
+    private scansSettled(scans: readonly { status: string }[]): void {
+        const failed = scans.filter((scan) => scan.status.toLowerCase() !== 'completed').length;
+        if (failed > 0) {
+            this.scanSuccess.set(null);
+            this.error.set(this.i18n.t('attack_surface.scan_failed', { count: failed }));
+        }
+        this.loadData(failed > 0 ? 'quiet' : 'announce');
+        const selected = this.selectedRepoId();
+        if (selected) {
+            this.onSelectRepo(selected);
+        }
     }
 
     onSelectRepo(repoId: string | number | null): void {
@@ -273,10 +340,6 @@ export class AttackSurface implements OnInit, OnDestroy {
         });
     }
 
-    ngOnDestroy(): void {
-        this.stopPolling();
-    }
-
     triggerScan(): void {
         const repoId = this.selectedRepoId();
         if (!repoId) return;
@@ -292,10 +355,10 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.scanSuccess.set(null);
 
         this.scansApi.triggerRepositoryScan(id).subscribe({
-            next: () => {
+            next: (queued) => {
                 this.scanningRepo.set(false);
                 this.scanSuccess.set(this.i18n.t('attack_surface.scan_scheduled'));
-                this.startPolling();
+                this.watchedScans.set([{ repositoryId: id, id: queued.id, status: queued.status }]);
             },
             error: (err) => {
                 this.scanningRepo.set(false);
@@ -318,7 +381,13 @@ export class AttackSurface implements OnInit, OnDestroy {
                 next: (results) => {
                     this.scanningRepo.set(false);
                     this.scanSuccess.set(this.i18n.t('attack_surface.scan_scheduled_all', { count: results.length }));
-                    this.startPolling();
+                    this.watchedScans.set(
+                        results.map((queued, i) => ({
+                            repositoryId: repos[i].id,
+                            id: queued.id,
+                            status: queued.status
+                        }))
+                    );
                 },
                 error: (err) => {
                     this.scanningRepo.set(false);
@@ -326,37 +395,6 @@ export class AttackSurface implements OnInit, OnDestroy {
                 }
             });
         });
-    }
-
-    private startPolling(): void {
-        this.stopPolling();
-        let attempts = 0;
-        this.pollInterval = setInterval(() => {
-            attempts++;
-            this.loadData();
-            if (this.selectedRepoId()) {
-                this.onSelectRepo(this.selectedRepoId());
-            }
-            const currentCount = this.repoOverview()?.endpoints?.length ?? 0;
-            const globalCount = this.globalData()?.totalEndpoints ?? 0;
-            if (currentCount > 0 || globalCount > 0 || attempts >= 25) {
-                if (currentCount > 0 || globalCount > 0) {
-                    this.scanSuccess.set(
-                        this.i18n.t('attack_surface.discovery_complete', { count: globalCount || currentCount })
-                    );
-                    this.stopPolling();
-                } else if (attempts >= 25) {
-                    this.stopPolling();
-                }
-            }
-        }, 3000);
-    }
-
-    private stopPolling(): void {
-        if (this.pollInterval) {
-            clearInterval(this.pollInterval);
-            this.pollInterval = null;
-        }
     }
 
     getMethodSeverity(method: string): 'info' | 'success' | 'warn' | 'danger' | 'secondary' {

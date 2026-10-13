@@ -320,6 +320,8 @@
     "error_scan_all": "Could not start the scan of all repositories.",
     "discovery_complete_one": "API discovery complete ({{count}} route listed).",
     "discovery_complete_other": "API discovery complete ({{count}} routes listed).",
+    "scan_failed_one": "{{count}} scan did not complete: the routes it would have found are not listed.",
+    "scan_failed_other": "{{count}} scans did not complete: the routes they would have found are not listed.",
     "purge_inventory": "Purge the inventory",
     "auth_required": "Required",
     "auth_none": "Public / None",

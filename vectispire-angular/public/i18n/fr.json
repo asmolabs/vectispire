@@ -320,6 +320,8 @@
     "error_scan_all": "Impossible de lancer l'analyse de l'ensemble des dépôts.",
     "discovery_complete_one": "Découverte d'API terminée ({{count}} route répertoriée).",
     "discovery_complete_other": "Découverte d'API terminée ({{count}} routes répertoriées).",
+    "scan_failed_one": "{{count}} analyse n'a pas abouti : les routes qu'elle aurait trouvées ne sont pas répertoriées.",
+    "scan_failed_other": "{{count}} analyses n'ont pas abouti : les routes qu'elles auraient trouvées ne sont pas répertoriées.",
     "purge_inventory": "Purger l'inventaire",
     "auth_required": "Requis",
     "auth_none": "Public / Aucun",

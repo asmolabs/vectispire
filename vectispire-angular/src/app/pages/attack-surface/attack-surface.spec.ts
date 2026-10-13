@@ -2,7 +2,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useEnglish } from '@/app/core/testing/english';
 import { AttackSurface } from './attack-surface';
 import { asSchema } from '@/app/core/testing/contract';
 
@@ -152,5 +153,120 @@ describe('the attack surface screen', () => {
         expect(page.repoOverview()).toBeNull();
         expect(page.repoLoading()).toBe(false);
         http.expectNone(() => true);
+    });
+
+    function clickRefresh(): void {
+        const refresh = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((b) =>
+            b.textContent.includes('Refresh')
+        );
+        expect(refresh).toBeDefined();
+        refresh!.click();
+        fixture.detectChanges();
+    }
+
+    it("says why the repository list is missing, in the server's words", () => {
+        useEnglish();
+        fixture.detectChanges();
+        clickRefresh();
+        http.expectOne((call) => call.url === '/api/v1/attack-surface').flush(GLOBAL);
+        http.expectOne((call) => call.url === '/api/v1/repositories').flush(
+            { detail: 'The inventory is being rebuilt.', status: 503 },
+            { status: 503, statusText: 'Service Unavailable' }
+        );
+        fixture.detectChanges();
+
+        // Swallowed, it left the picker empty and the reader with no reason.
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('The inventory is being rebuilt.');
+    });
+
+    it('a second load cancels the first instead of racing it', () => {
+        // The refresh button disables itself while loading; a purge reloads whatever is in flight.
+        fixture.componentInstance.loadData();
+        fixture.componentInstance.loadData();
+
+        const surfaces = http.match((call) => call.url === '/api/v1/attack-surface');
+        const lists = http.match((call) => call.url === '/api/v1/repositories');
+        expect(surfaces.map((call) => call.cancelled)).toEqual([true, false]);
+        expect(lists.map((call) => call.cancelled)).toEqual([true, false]);
+        surfaces[1].flush(GLOBAL);
+        lists[1].flush([]);
+    });
+
+    /**
+     * The wait after a scan is launched. It used to poll the figures every three seconds and stop at
+     * the first tick that found an endpoint: on an estate that already had forty, at once, announcing
+     * "discovery complete" for a scan that was only queued — and every tick sent two requests and
+     * blanked the tables. What ends it now is the scan's status, read from the repository list.
+     *
+     * <p>Through the component: no button on this screen calls `triggerScan` today, so there is no
+     * DOM path to the launch; what the reader sees afterwards is read from the DOM.
+     */
+    describe('after a scan is launched', () => {
+        const repositoryWith = (status: string) => [
+            {
+                id: 7,
+                name: 'ours',
+                displayName: 'Ours',
+                url: 'ssh://git@example.invalid/ours.git',
+                branch: 'main',
+                lastScan: { id: 90, status, createdAt: '2026-10-13T08:00:00Z', error: null }
+            }
+        ];
+        const text = () => (fixture.nativeElement as HTMLElement).textContent;
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+            useEnglish();
+            fixture.componentInstance.onSelectRepo(7);
+            http.expectOne((call) => call.url === '/api/v1/repositories/7/apis').flush(REPO_OVERVIEW);
+            fixture.componentInstance.triggerScan();
+            http.expectOne((call) => call.url === '/api/v1/repositories/7/scan').flush({ id: 90, status: 'pending' });
+            fixture.detectChanges();
+        });
+
+        afterEach(() => vi.useRealTimers());
+
+        it('waits for the scan to finish before announcing anything, without reloading the figures meanwhile', () => {
+            vi.advanceTimersByTime(3000);
+            http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('scanning'));
+            fixture.detectChanges();
+
+            // Forty endpoints were already listed: the old loop stopped here and announced success.
+            expect(text()).not.toContain('API discovery complete');
+            expect(text()).toContain('Scan scheduled');
+            http.expectNone((call) => call.url === '/api/v1/attack-surface');
+            expect(fixture.componentInstance.loading()).toBe(false);
+
+            vi.advanceTimersByTime(3000);
+            http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('completed'));
+            fixture.detectChanges();
+            // The reload after the scan is a background one: the tables do not blank under the reader.
+            expect(fixture.componentInstance.loading()).toBe(false);
+            http.expectOne((call) => call.url === '/api/v1/attack-surface').flush({ ...GLOBAL, totalEndpoints: 43 });
+            http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('completed'));
+            http.expectOne((call) => call.url === '/api/v1/repositories/7/apis').flush(REPO_OVERVIEW);
+            fixture.detectChanges();
+
+            expect(text()).toContain('API discovery complete (43 routes listed).');
+
+            // Settled: the timer stops by itself.
+            vi.advanceTimersByTime(30_000);
+            http.expectNone(() => true);
+        });
+
+        it('says the scan failed rather than announcing a discovery', () => {
+            vi.advanceTimersByTime(3000);
+            http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('failed'));
+            fixture.detectChanges();
+            http.expectOne((call) => call.url === '/api/v1/attack-surface').flush(GLOBAL);
+            http.expectOne((call) => call.url === '/api/v1/repositories').flush(repositoryWith('failed'));
+            http.expectOne((call) => call.url === '/api/v1/repositories/7/apis').flush(REPO_OVERVIEW);
+            fixture.detectChanges();
+
+            expect(text()).toContain('1 scan did not complete');
+            expect(text()).not.toContain('API discovery complete');
+            vi.advanceTimersByTime(30_000);
+            http.expectNone(() => true);
+        });
     });
 });
