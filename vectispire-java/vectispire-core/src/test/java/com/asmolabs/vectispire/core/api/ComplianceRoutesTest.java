@@ -1,12 +1,15 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.access.TotpService;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +22,9 @@ class ComplianceRoutesTest extends ApiTestBase {
 
     @Autowired
     private AuditLogRepository auditEntries;
+
+    @Autowired
+    private TotpService secondFactor;
 
     @Test
     @DisplayName("returns compliance summary across all frameworks")
@@ -45,6 +51,25 @@ class ComplianceRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.framework").value("SOC_2"))
                 .andExpect(jsonPath("$.controls").isArray())
                 .andExpect(jsonPath("$.controls.length()").value(4));
+    }
+
+    /**
+     * The suite runs with no identity provider, so the logging controls carry the identity ceiling, and
+     * it must read the accounts the database holds — the engine's own test cannot see whether anything
+     * hands it the counts.
+     */
+    @Test
+    @DisplayName("without a provider, the audit trail's ceiling counts the password accounts with no second factor")
+    void theIdentityCeilingReadsTheAccounts() throws Exception {
+        String admin = asAdmin();
+        TotpService.Enrolment enrolment = secondFactor.enrolment();
+        assertThat(enrolment.withoutSecondFactor()).as("the administrator just created has no TOTP").isPositive();
+
+        mvc.perform(authenticated(get("/api/v1/compliance/frameworks/dora"), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.controls[?(@.control.id == 'DORA-ART16-INCIDENT')].details", hasItem(containsString(
+                        enrolment.withoutSecondFactor() + " of the " + enrolment.passwordAccounts()
+                                + " active account(s) holding a local password have no second factor"))));
     }
 
     @Test

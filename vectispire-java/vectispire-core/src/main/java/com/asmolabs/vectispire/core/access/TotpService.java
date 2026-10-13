@@ -58,6 +58,23 @@ public class TotpService {
 
     public record EnableResponse(boolean success, List<String> backupCodes) {}
 
+    /**
+     * @param passwordAccounts the active accounts holding a local password
+     * @param withoutSecondFactor of those, the ones with no TOTP enrolled
+     */
+    public record Enrolment(long passwordAccounts, long withoutSecondFactor) {}
+
+    /**
+     * How far the local second factor reaches — what the compliance report's identity ceiling reads
+     * when no provider is configured. Two statements, which READ COMMITTED does not read from one
+     * snapshot: an account created between them is clamped out rather than reported as "3 of 2".
+     */
+    @Transactional(readOnly = true)
+    public Enrolment enrolment() {
+        long accounts = users.countActiveWithPassword();
+        return new Enrolment(accounts, Math.min(accounts, users.countActiveWithPasswordAndNoSecondFactor()));
+    }
+
     public SetupResponse setup(UserView user) {
         String secret = Totp.generateSecret();
         String issuer = "Vectispire";

@@ -40,6 +40,20 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
             @Param("adminRoles") List<String> adminRoles, @Param("excluding") Long excluding);
 
     /**
+     * How many active accounts hold a local password — the ones that sign in by it while no provider
+     * is configured. A SCIM-provisioned account holds one nobody knows and is counted all the same:
+     * the count errs towards "no second factor", never towards a factor nobody enrolled.
+     */
+    @Query("select count(u) from UserEntity u where u.isActive = true and u.password is not null")
+    long countActiveWithPassword();
+
+    /** Of {@link #countActiveWithPassword}'s accounts, how many have no TOTP second factor enrolled. */
+    @Query("""
+            select count(u) from UserEntity u
+             where u.isActive = true and u.password is not null and u.mfaEnabled = false""")
+    long countActiveWithPasswordAndNoSecondFactor();
+
+    /**
      * Sets a new password and clears the forced-change flag.
      *
      * <p>A targeted update rather than a save: the caller holds a user it read through the

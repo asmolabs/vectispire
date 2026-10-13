@@ -237,7 +237,8 @@ setting to change. Several caps on one control keep the lowest ceiling.
 |---|---|---|
 | No encryption key (`ENCRYPTION_KEY` / `ENCRYPTION_KEY_FILE`): credentials Vectispire stores cannot be encrypted at rest | 60 | ③ secrets: `NIS2-ART21-CRYPTO`, `ISO-A.5.15`, `DORA-ART13-SECRETS`, `PCI-REQ-6.5`, `SOC2-CC6.6` |
 | No audit mirror (`vectispire.audit.mirror-path`): deleting the newest audit entry is undetectable (§5.1) | 70 | ⑦ audit: `DORA-ART16-INCIDENT`, `PCI-REQ-10.2`, `SOC2-CC7.2` |
-| No identity provider (`VECTISPIRE_OIDC_ISSUER`): every account signs in with a local password and no second factor, so the name on an audit entry is only as good as that password | 65 | ⑦ audit: same three controls |
+| No identity provider (`VECTISPIRE_OIDC_ISSUER`), and an active account holding a local password has no TOTP second factor: the name on an audit entry is only as good as that password. The detail counts them | 65 | ⑦ audit: same three controls |
+| No identity provider, and every active account holding a local password has enrolled TOTP: each account chooses it, so nothing requires it of the next account or keeps one from switching it off | 85 | ⑦ audit: same three controls |
 | An identity provider is configured and local password sign-in is still open beside it (`VECTISPIRE_PASSWORD_LOGIN` not `false`): the realm's second factor can be walked around | 85 | ⑦ audit: same three controls |
 | Four-eyes approval off (`triage_four_eyes_required`): whoever raises an exemption can grant it | 75 | ⑥ governance: `NIS2-ART21-GOV` |
 

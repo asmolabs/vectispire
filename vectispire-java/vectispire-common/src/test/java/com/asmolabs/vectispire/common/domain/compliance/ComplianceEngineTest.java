@@ -16,6 +16,9 @@ class ComplianceEngineTest {
             10,
             true);
 
+    /** The local accounts, for a posture with a provider: the identity ceiling does not read them then. */
+    private static final ComplianceEngine.PasswordAccounts WITH_A_PROVIDER = new ComplianceEngine.PasswordAccounts(0, 0);
+
     private static ComplianceEvaluation.ControlAssessment control(
             List<ComplianceEvaluation> results, ComplianceControl.Category category) {
         return results.stream()
@@ -108,7 +111,7 @@ class ComplianceEngineTest {
                 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0,
                 true);
-        ComplianceEngine.PlatformPosture noKey = new ComplianceEngine.PlatformPosture(false, false, true, true, true, false);
+        ComplianceEngine.PlatformPosture noKey = new ComplianceEngine.PlatformPosture(false, false, true, true, true, false, WITH_A_PROVIDER);
 
         ComplianceEvaluation.ControlAssessment secrets = control(
                 ComplianceEngine.evaluateAll(empty, noKey), ComplianceControl.Category.SECRETS_MANAGEMENT);
@@ -231,7 +234,7 @@ class ComplianceEngineTest {
         // configured at all — reported "Zero exposed plaintext credentials" and scored 100. The
         // finding was true and the conclusion was not.
         ComplianceEngine.PlatformPosture noKey =
-                new ComplianceEngine.PlatformPosture(false, false, true, true, true, false);
+                new ComplianceEngine.PlatformPosture(false, false, true, true, true, false, WITH_A_PROVIDER);
 
         var assessment = control(
                 ComplianceEngine.evaluateAll(CLEAN, noKey),
@@ -253,7 +256,7 @@ class ComplianceEngineTest {
         // one nobody descends from — the last one written. An assessor who finds that out
         // themselves discounts everything else in the report.
         ComplianceEngine.PlatformPosture noMirror =
-                new ComplianceEngine.PlatformPosture(true, true, false, true, true, false);
+                new ComplianceEngine.PlatformPosture(true, true, false, true, true, false, WITH_A_PROVIDER);
 
         var assessment = control(
                 ComplianceEngine.evaluateAll(CLEAN, noMirror),
@@ -269,7 +272,7 @@ class ComplianceEngineTest {
     @DisplayName("governance is not satisfied by passing gates alone when four-eyes is off")
     void governanceControlDependsOnFourEyes() {
         ComplianceEngine.PlatformPosture noFourEyes =
-                new ComplianceEngine.PlatformPosture(true, true, true, false, true, false);
+                new ComplianceEngine.PlatformPosture(true, true, true, false, true, false, WITH_A_PROVIDER);
 
         var assessment = control(
                 ComplianceEngine.evaluateAll(CLEAN, noFourEyes),
@@ -293,7 +296,7 @@ class ComplianceEngineTest {
                 true);
 
         var assessment = control(
-                ComplianceEngine.evaluateAll(leaking, new ComplianceEngine.PlatformPosture(false, false, true, true, true, false)),
+                ComplianceEngine.evaluateAll(leaking, new ComplianceEngine.PlatformPosture(false, false, true, true, true, false, WITH_A_PROVIDER)),
                 ComplianceControl.Category.SECRETS_MANAGEMENT);
 
         assertThat(assessment.status()).isEqualTo(ComplianceControl.Status.NON_COMPLIANT);
@@ -304,7 +307,7 @@ class ComplianceEngineTest {
     @DisplayName("a local password with no provider caps accountability, whatever the chain says")
     void noProviderCapsAuditability() {
         ComplianceEngine.PlatformPosture passwordOnly =
-                new ComplianceEngine.PlatformPosture(true, true, true, true, false, true);
+                new ComplianceEngine.PlatformPosture(true, true, true, true, false, true, new ComplianceEngine.PasswordAccounts(3, 3));
 
         // **The hole this closes.** The posture had no opinion about authentication: a deployment
         // could be declared compliant with PCI DSS and SOC 2 — both of which require a second factor
@@ -319,12 +322,53 @@ class ComplianceEngineTest {
     }
 
     @Test
+    @DisplayName("with no provider, a local TOTP on every password account is a second factor, and still not enforced")
+    void aLocalSecondFactorOnEveryAccountCounts() {
+        // **The statement this corrects.** Without a provider the ceiling said "every account signs in
+        // with a local password and no second factor", while each account can enrol TOTP and sign-in
+        // then demands the code — it told an estate whose every account had enrolled to go and get a
+        // factor it already had. Enrolled by every account, it lifts the ceiling to the one a second
+        // factor that can be walked around takes; chosen per account, it never lifts it altogether.
+        ComplianceEngine.PlatformPosture everyAccountEnrolled = new ComplianceEngine.PlatformPosture(
+                true, true, true, true, false, true, new ComplianceEngine.PasswordAccounts(3, 0));
+
+        assertThat(auditControls(everyAccountEnrolled))
+                .allSatisfy(control -> {
+                    assertThat(control.status()).isEqualTo(ComplianceControl.Status.PARTIAL);
+                    assertThat(control.scorePercentage()).isEqualTo(85);
+                    assertThat(control.details())
+                            .contains("Every one of the 3 active account(s) holding a local password has enrolled a "
+                                    + "TOTP second factor")
+                            .doesNotContain("no second factor");
+                });
+    }
+
+    @Test
+    @DisplayName("with no provider, one password account without a second factor keeps the lower ceiling, and is counted")
+    void oneAccountWithoutASecondFactorKeepsTheCap() {
+        ComplianceEngine.PlatformPosture oneMissing = new ComplianceEngine.PlatformPosture(
+                true, true, true, true, false, true, new ComplianceEngine.PasswordAccounts(3, 1));
+
+        assertThat(auditControls(oneMissing))
+                .allSatisfy(control -> {
+                    assertThat(control.scorePercentage()).isEqualTo(65);
+                    assertThat(control.details())
+                            .contains("1 of the 3 active account(s) holding a local password have no second factor");
+                });
+
+        // No password account at all is no evidence of a second factor: the lower ceiling stays.
+        assertThat(auditControls(new ComplianceEngine.PlatformPosture(
+                        true, true, true, true, false, true, new ComplianceEngine.PasswordAccounts(0, 0))))
+                .allSatisfy(control -> assertThat(control.scorePercentage()).isEqualTo(65));
+    }
+
+    @Test
     @DisplayName("a provider beside an open password is better, and still not what it claims")
     void anOpenPasswordBesideAProviderIsStillABypass() {
         // The state that gets missed: the provider is there, and so is the door next to it. The
         // realm's second factor is bypassed through it.
         ComplianceEngine.PlatformPosture both =
-                new ComplianceEngine.PlatformPosture(true, true, true, true, true, true);
+                new ComplianceEngine.PlatformPosture(true, true, true, true, true, true, WITH_A_PROVIDER);
 
         assertThat(auditControls(both))
                 .allSatisfy(control -> {

@@ -241,7 +241,8 @@ détail nomme le réglage à changer. Plusieurs plafonds sur un même contrôle 
 |---|---|---|
 | Aucune clé de chiffrement (`ENCRYPTION_KEY` / `ENCRYPTION_KEY_FILE`) : les identifiants que Vectispire conserve ne peuvent pas être chiffrés au repos | 60 | ③ secrets : `NIS2-ART21-CRYPTO`, `ISO-A.5.15`, `DORA-ART13-SECRETS`, `PCI-REQ-6.5`, `SOC2-CC6.6` |
 | Aucun miroir d'audit (`vectispire.audit.mirror-path`) : la suppression de la dernière entrée d'audit est indétectable (§5.1) | 70 | ⑦ audit : `DORA-ART16-INCIDENT`, `PCI-REQ-10.2`, `SOC2-CC7.2` |
-| Aucun fournisseur d'identité (`VECTISPIRE_OIDC_ISSUER`) : chaque compte se connecte par mot de passe local sans second facteur, et le nom porté par une entrée d'audit ne vaut que ce mot de passe | 65 | ⑦ audit : les trois mêmes contrôles |
+| Aucun fournisseur d'identité (`VECTISPIRE_OIDC_ISSUER`), et un compte actif doté d'un mot de passe local n'a pas de second facteur TOTP : le nom porté par une entrée d'audit ne vaut que ce mot de passe. Le détail les compte | 65 | ⑦ audit : les trois mêmes contrôles |
+| Aucun fournisseur d'identité, et chaque compte actif doté d'un mot de passe local a enrôlé un TOTP : chaque compte le choisit, rien ne l'exige donc du compte suivant ni n'empêche un compte de le retirer | 85 | ⑦ audit : les trois mêmes contrôles |
 | Un fournisseur d'identité est configuré et la connexion par mot de passe local reste ouverte à côté (`VECTISPIRE_PASSWORD_LOGIN` différent de `false`) : le second facteur du royaume peut être contourné | 85 | ⑦ audit : les trois mêmes contrôles |
 | Approbation à quatre yeux désactivée (`triage_four_eyes_required`) : qui demande une dérogation peut l'accorder | 75 | ⑥ gouvernance : `NIS2-ART21-GOV` |
 

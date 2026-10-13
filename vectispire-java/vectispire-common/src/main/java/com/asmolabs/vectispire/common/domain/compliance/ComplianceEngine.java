@@ -79,6 +79,10 @@ public final class ComplianceEngine {
      * @param passwordLoginOpen a local password is still exchangeable for a session. Beside a
      *     configured provider this is not neutral: it is a way around whatever second factor the
      *     realm enforces, which is the reason {@code VECTISPIRE_PASSWORD_LOGIN=false} exists
+     * @param passwordAccounts the accounts that sign in with a local password, and how many of them
+     *     have no TOTP second factor. <b>Without a provider this is what decides the identity
+     *     ceiling</b>: the ceiling used to say "no second factor" for every such deployment, while
+     *     each account can enrol one and sign-in then demands it
      */
     public record PlatformPosture(
             boolean encryptionConfigured,
@@ -86,15 +90,22 @@ public final class ComplianceEngine {
             boolean auditMirrorConfigured,
             boolean fourEyesRequired,
             boolean singleSignOnConfigured,
-            boolean passwordLoginOpen) {
+            boolean passwordLoginOpen,
+            PasswordAccounts passwordAccounts) {
 
         /**
          * Everything on. Named rather than written as four literals so a test that does not care
          * about the platform says so, and a test that does care is impossible to misread.
          */
         public static final PlatformPosture FULLY_ENABLED =
-                new PlatformPosture(true, true, true, true, true, false);
+                new PlatformPosture(true, true, true, true, true, false, new PasswordAccounts(0, 0));
     }
+
+    /**
+     * @param accounts the active accounts holding a local password
+     * @param withoutSecondFactor of those, the ones with no TOTP second factor enrolled
+     */
+    public record PasswordAccounts(long accounts, long withoutSecondFactor) {}
 
     /**
      * Evaluates all supported regulatory frameworks.
@@ -243,23 +254,39 @@ public final class ComplianceEngine {
     /**
      * The ceiling that identity puts on accountability.
      *
-     * <p>Three states, and the middle one is the one people miss. No provider at all is the
-     * weakest: whoever signs the report is vouching for a local password with no second factor.
-     * A provider <em>beside</em> an open password is better and still not what it claims — the
-     * realm's second factor is bypassable by the door next to it, which is the whole reason
-     * {@code VECTISPIRE_PASSWORD_LOGIN=false} exists. Both doors closed but one is the state the
-     * control describes, and it is left alone.
+     * <p>No provider and an account signing in with a password alone is the weakest: whoever signs
+     * the report is vouching for that password. <b>A local TOTP second factor counts</b> — sign-in
+     * demands the code of every account that enrolled one — so a deployment whose every password
+     * account has enrolled is not "no second factor", which this ceiling used to say of every
+     * deployment without a provider, sending its reader to a provider for a factor they already had.
+     * It is still not the state the control describes, because each account chooses it: nothing
+     * requires it of the next account, or keeps one from switching it off. That is the weakness of a
+     * provider <em>beside</em> an open password — a second factor that can be walked around, the whole
+     * reason {@code VECTISPIRE_PASSWORD_LOGIN=false} exists — and it takes the same ceiling. Both doors
+     * closed but one is the state the control describes, and it is left alone.
      */
     private static ComplianceEvaluation.ControlAssessment authenticationCap(
             ComplianceEvaluation.ControlAssessment assessment, PlatformPosture platform) {
 
         if (!platform.singleSignOnConfigured()) {
+            PasswordAccounts local = platform.passwordAccounts();
+            if (local.accounts() > 0 && local.withoutSecondFactor() == 0) {
+                return capped(assessment, 85,
+                        "No identity provider is configured. Every one of the " + local.accounts() + " active "
+                                + "account(s) holding a local password has enrolled a TOTP second factor, "
+                                + "but each account chooses it: nothing here requires it of the next account, or "
+                                + "keeps one from switching it off",
+                        "Set VECTISPIRE_OIDC_ISSUER so the organisation's own authentication policy — "
+                                + "including its second factor — stands behind every entry in this log.");
+            }
             return capped(assessment, 65,
-                    "No identity provider is configured, so every account signs in with a local "
-                            + "password and no second factor. The audit chain proves an entry was not "
-                            + "altered; it cannot prove the name on it belongs to the person who acted",
+                    "No identity provider is configured, and " + local.withoutSecondFactor() + " of the "
+                            + local.accounts() + " active account(s) holding a local password have no "
+                            + "second factor. The audit chain proves an entry was not altered; it cannot prove "
+                            + "the name on it belongs to the person who acted",
                     "Set VECTISPIRE_OIDC_ISSUER so the organisation's own authentication policy — "
-                            + "including its second factor — stands behind every entry in this log.");
+                            + "including its second factor — stands behind every entry in this log, or have "
+                            + "every account enrol a TOTP second factor under Account.");
         }
         if (platform.passwordLoginOpen()) {
             return capped(assessment, 85,

@@ -61,6 +61,42 @@ class TotpServiceTest extends VectispireContextTest {
         return new Enrolled(users.findById(user.getId()).orElseThrow(), secret, codes, now);
     }
 
+    /**
+     * The counts the compliance report's identity ceiling reads without a provider. Read as differences,
+     * since the other tests of this context leave accounts behind.
+     */
+    @Test
+    @DisplayName("counts the active password accounts, and those of them with no second factor")
+    void enrolmentCountsWhatSignInDemands() {
+        TotpService.Enrolment before = totp.enrolment();
+
+        enrolled();
+        account(true, true);
+        account(false, true);
+        account(true, false);
+
+        TotpService.Enrolment after = totp.enrolment();
+        assertThat(after.passwordAccounts() - before.passwordAccounts())
+                .as("the enrolled account and the one without TOTP; neither the deactivated one nor the one with no password")
+                .isEqualTo(2);
+        assertThat(after.withoutSecondFactor() - before.withoutSecondFactor())
+                .as("the active password account without TOTP alone")
+                .isEqualTo(1);
+    }
+
+    private void account(boolean active, boolean withPassword) {
+        Instant now = clock.instant();
+        UserEntity user = new UserEntity();
+        user.setUsername("no-totp-" + System.nanoTime());
+        user.setPassword(withPassword ? PasswordHasher.hash("correct horse battery staple") : null);
+        user.setRole(Role.USER.name());
+        user.setIsActive(active);
+        user.setMustChangePassword(false);
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+        users.save(user);
+    }
+
     @Test
     @DisplayName("a code opens once: presented again inside its window, it is refused")
     void aCodeIsNotReplayed() {

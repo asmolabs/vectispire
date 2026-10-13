@@ -16,6 +16,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.trends.MttrCalculator;
 import com.asmolabs.vectispire.core.access.SignInMethodPolicy;
+import com.asmolabs.vectispire.core.access.TotpService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.gate.GateService;
@@ -49,6 +50,7 @@ public class ComplianceService {
     private final SettingsService settings;
     /** Lue pour une seule question : par quelle porte entre-t-on, et y en a-t-il deux ? */
     private final SignInMethodPolicy signIn;
+    private final TotpService secondFactor;
     private final InventoryQueryService components;
     private final Clock clock;
 
@@ -60,6 +62,7 @@ public class ComplianceService {
             EncryptionService encryption,
             SettingsService settings,
             SignInMethodPolicy signIn,
+            TotpService secondFactor,
             InventoryQueryService components,
             Clock clock) {
         this.gate = gate;
@@ -69,6 +72,7 @@ public class ComplianceService {
         this.encryption = encryption;
         this.settings = settings;
         this.signIn = signIn;
+        this.secondFactor = secondFactor;
         this.components = components;
         this.clock = clock;
     }
@@ -145,7 +149,7 @@ public class ComplianceService {
      *
      * <p>Not cached: these are settings an administrator changes, and a compliance report built
      * from a cached copy of them would be a report about a configuration that no longer exists.
-     * All three are cheap — two field reads and one settings lookup.
+     * All are cheap — field reads, one settings lookup and, without a provider, two counts of accounts.
      */
     private ComplianceEngine.PlatformPosture platformPosture() {
         // `mirrorConfigured()` and not `verifyAgainstMirror()`: the latter reads the entire
@@ -160,7 +164,17 @@ public class ComplianceService {
                 // Two field reads: the sign-in policy is settled at start-up rather than by a
                 // setting, so it cannot have changed since.
                 signIn.singleSignOnAvailable(),
-                signIn.passwordAllowed());
+                signIn.passwordAllowed(),
+                passwordAccounts());
+    }
+
+    /** Two counts, read only where they decide something: with a provider, the ceiling does not read them. */
+    private ComplianceEngine.PasswordAccounts passwordAccounts() {
+        if (signIn.singleSignOnAvailable()) {
+            return new ComplianceEngine.PasswordAccounts(0, 0);
+        }
+        TotpService.Enrolment enrolment = secondFactor.enrolment();
+        return new ComplianceEngine.PasswordAccounts(enrolment.passwordAccounts(), enrolment.withoutSecondFactor());
     }
 
     /**

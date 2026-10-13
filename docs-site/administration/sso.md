@@ -125,8 +125,10 @@ file under `/run/secrets/`.
 ### What the compliance report says about it
 
 The audit log's controls are **capped while authentication is weaker than the report claims**. No
-provider at all caps them at 65 %: the hash chain proves an entry was not altered, it cannot prove
-the name on it belongs to whoever acted. A provider *beside* an open password caps them at 85 % —
+provider at all caps them at 65 % while an account holding a local password has no TOTP second
+factor: the hash chain proves an entry was not altered, it cannot prove the name on it belongs to
+whoever acted. Once every such account has enrolled TOTP the cap is 85 %, because each account
+chooses it and nothing requires it of the next one. A provider *beside* an open password caps them at 85 % —
 the realm's second factor can be walked around through the other door.
 
 This is deliberately a number rather than a refusal. PCI DSS and SOC 2 both require a second

@@ -133,9 +133,11 @@ conteneur en fichier sous `/run/secrets/`.
 ### Ce que le rapport de conformité en dit
 
 Les contrôles de journalisation sont **plafonnés tant que l'authentification est plus faible que
-le rapport ne le laisse croire**. Aucun fournisseur les plafonne à 65 % : la chaîne d'empreintes
-prouve qu'une entrée n'a pas été altérée, elle ne prouve pas que le nom qu'elle porte est celui de
-la personne qui a agi. Un fournisseur *à côté* d'un mot de passe ouvert les plafonne à 85 % — le
+le rapport ne le laisse croire**. Aucun fournisseur les plafonne à 65 % tant qu'un compte doté d'un mot
+de passe local n'a pas de second facteur TOTP : la chaîne d'empreintes prouve qu'une entrée n'a pas
+été altérée, elle ne prouve pas que le nom qu'elle porte est celui de la personne qui a agi. Quand
+chacun de ces comptes a enrôlé un TOTP, le plafond est de 85 %, parce que chaque compte le choisit
+et que rien ne l'exige du suivant. Un fournisseur *à côté* d'un mot de passe ouvert les plafonne à 85 % — le
 second facteur du realm se contourne par l'autre porte.
 
 C'est délibérément un chiffre et non un refus. PCI DSS et SOC 2 exigent tous deux un second
