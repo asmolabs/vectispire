@@ -224,11 +224,12 @@ export class AttackSurface implements OnInit {
         this.loadData(failed > 0 ? 'quiet' : 'announce');
         const selected = this.selectedRepoId();
         if (selected) {
-            this.onSelectRepo(selected);
+            this.onSelectRepo(selected, true);
         }
     }
 
-    onSelectRepo(repoId: string | number | null): void {
+    /** `background` reloads the routes of the repository already shown: no mask over its table then. */
+    onSelectRepo(repoId: string | number | null, background = false): void {
         if (!repoId || repoId === 'ALL' || repoId === '0') {
             this.repoRequest.cancel();
             this.selectedRepoId.set(null);
@@ -239,7 +240,7 @@ export class AttackSurface implements OnInit {
 
         const id = Number(repoId);
         this.selectedRepoId.set(String(id));
-        this.repoLoading.set(true);
+        if (!background) this.repoLoading.set(true);
 
         this.repoRequest.run(this.exposureApi.getRepositoryApis(id), {
             next: (data) => {
