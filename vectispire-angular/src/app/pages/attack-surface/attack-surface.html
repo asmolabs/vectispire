@@ -226,11 +226,18 @@
         <!-- Target Repository Selector -->
         @if (activeTab() !== 'highrisk') {
             <div class="flex items-center gap-3">
-                <label for="attack-surface-repo" class="text-sm font-medium text-surface-600 dark:text-surface-300">
+                <!-- The select puts inputId on a span with role combobox, which a label's for cannot
+                     name: the combobox took its name from the placeholder or the chosen repository. -->
+                <label
+                    id="attack-surface-repo-label"
+                    for="attack-surface-repo"
+                    class="text-sm font-medium text-surface-600 dark:text-surface-300"
+                >
                     {{ 'attack_surface.target_repository' | translate }}:
                 </label>
                 <p-select
                     inputId="attack-surface-repo"
+                    ariaLabelledBy="attack-surface-repo-label"
                     [options]="repoOptions()"
                     optionLabel="label"
                     optionValue="value"

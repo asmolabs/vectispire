@@ -150,6 +150,28 @@ describe('the attack surface screen', () => {
         expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual(['Method', 'Visibility', 'Authentication']);
     });
 
+    it('names the repository picker by its label, whatever it shows', async () => {
+        // The label's `for` pointed at the select's combobox, a span no label can name: the picker
+        // was announced as its placeholder, then as the repository chosen.
+        useEnglish();
+        fixture.componentInstance.onSelectRepo(7);
+        http.expectOne((call) => call.url === '/api/v1/repositories/7/apis').flush(REPO_OVERVIEW);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const page = fixture.nativeElement as HTMLElement;
+        const picker = page.querySelector('#attack-surface-repo');
+        expect(picker?.getAttribute('role')).toBe('combobox');
+        expect(picker?.textContent.trim()).toBe('Ours');
+        // The accessible name: aria-labelledby wins over aria-label, which holds the value shown.
+        const name = (picker?.getAttribute('aria-labelledby') ?? '')
+            .split(/\s+/)
+            .map((id) => page.querySelector(`#${id}`)?.textContent.trim() ?? '')
+            .join(' ')
+            .trim();
+        expect(name).toBe('Repository:');
+    });
+
     it('searches the path, and does not ask the server to do it', () => {
         const page = fixture.componentInstance;
         page.onSelectRepo(7);
