@@ -878,6 +878,13 @@ from a list in which none is true of an exposed product — and signed into the 
 
 ### Fixed
 
+- **Days shown inside a sentence read dd/MM/yyyy like every other date**: the dashboard's score-formula note
+  and its chart axes, the weekly OWASP view (window, week, squares, figures table, reopenings note), the
+  backlog's weekly drill-down banner, and a checklist proof's "performed on" and "valid until" dates. The
+  interface's i18n check now refuses a date pattern not written day, month, year.
+- **The verdict register and the security posture name the policy that decided in the reader's language** —
+  "Built-in default", "Global policy", "Target policy" with its version — instead of the stored value
+  (`BUILT_IN`, "global v2").
 - **The tracker token's expiry and refusal dates, and the forge screens' dates, are written dd/MM/yyyy** like
   every other date, instead of year first (`2026-09-29`): the Settings screen's tracker card, and the forge
   connection, discovery, selection and import screens.

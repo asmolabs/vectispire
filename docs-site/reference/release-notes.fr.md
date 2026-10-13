@@ -959,6 +959,14 @@ ne pas la corriger.** Un risque accepté n'avait pas de statut à lui et s'enreg
 
 ### Corrigé
 
+- **Les jours insérés dans une phrase s'écrivent jj/mm/aaaa comme toutes les autres dates** : la note de
+  changement de formule du score et les axes des graphiques du tableau de bord, la vue OWASP hebdomadaire
+  (fenêtre, semaine, cases, tableau des chiffres, note sur les réouvertures), le bandeau du backlog ouvert
+  depuis la vue hebdomadaire, et les dates « réalisé le » et « valable jusqu'au » d'une preuve de checklist.
+  La vérification i18n de l'interface refuse désormais un format de date qui n'est pas jour, mois, année.
+- **Le registre des verdicts et la posture de sécurité nomment la politique qui a décidé dans la langue du
+  lecteur** — « Défaut intégré », « Politique globale », « Politique de la cible » avec sa version — au lieu
+  de la valeur stockée (`BUILT_IN`, « global v2 »).
 - **Les dates d'expiration et de refus du jeton du tracker, et celles des écrans des forges, s'écrivent
   jj/mm/aaaa** comme toutes les autres, au lieu de commencer par l'année (`2026-09-29`) : la carte du tracker
   dans les Paramètres, et les écrans de connexion, de découverte, de sélection et d'import des forges.
