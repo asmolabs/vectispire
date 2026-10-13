@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert.Notice;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
@@ -34,10 +36,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -62,11 +66,18 @@ class TrackerTokenCheckTest {
     private SettingsService settings;
     private MovableClock clock;
     private TicketService service;
+    private EncryptionService encryption;
+
+    /** What was published, in order: the alerts {@code notifications} turns into an entry, an event and messages. */
+    private final List<TokenAlert> published = new ArrayList<>();
+
+    /** When set, the next conditional update finds the row moved — another instance said it first. */
+    private final AtomicBoolean anotherInstanceFirst = new AtomicBoolean();
 
     @BeforeEach
     void start() throws Exception {
         tracker = ForgeStub.start();
-        EncryptionService encryption =
+        encryption =
                 new EncryptionService(new EncryptionProperties(Optional.of(EncryptionKey.generate()), List.of()));
         settings = mock(SettingsService.class);
         when(settings.get(any())).thenAnswer(call -> {
@@ -76,6 +87,16 @@ class TrackerTokenCheckTest {
         when(settings.isEnabled(any())).thenAnswer(call -> "true".equals(settings.get(call.getArgument(0))));
         when(settings.internalValue(anyString())).thenAnswer(call -> Optional.ofNullable(rows.get(call.<String>getArgument(0))));
         doAnswer(call -> rows.put(call.getArgument(0), call.getArgument(1))).when(settings).setInternal(anyString(), anyString());
+        when(settings.storeInternalIfAbsent(anyString(), anyString()))
+                .thenAnswer(call -> rows.putIfAbsent(call.getArgument(0), call.getArgument(1)) == null);
+        // The conditional update, as the table answers it: moved only from the value its caller read.
+        when(settings.replaceInternal(anyString(), anyString(), anyString())).thenAnswer(call -> {
+            if (anotherInstanceFirst.getAndSet(false)) {
+                rows.put(call.getArgument(0), call.getArgument(2));
+                return false;
+            }
+            return rows.replace(call.getArgument(0), call.getArgument(1), call.getArgument(2));
+        });
         doAnswer(call -> rows.put(call.<Setting>getArgument(0).key(), call.getArgument(1)))
                 .when(settings).set(any(), anyString());
 
@@ -91,7 +112,9 @@ class TrackerTokenCheckTest {
         OutboundUrlGuard guard = new OutboundUrlGuard();
         PinnedHttpSender sender = new PinnedHttpSender();
         service = new TicketService(settings, encryption, new OutboundPost(sender, guard, json),
-                new OutboundJson(sender, guard, json), json, clock, new TrackerTokenState(settings));
+                new OutboundJson(sender, guard, json), json, clock,
+                new TrackerTokenState(settings, event -> published.add((TokenAlert) event),
+                        org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
     }
 
     @AfterEach
@@ -140,7 +163,15 @@ class TrackerTokenCheckTest {
         // Asked once a day, not once an hour.
         assertThat(tracker.count(SELF)).isEqualTo(2);
         assertThat(rows).containsEntry(TrackerTokenState.ANNOUNCED, "expires_soon");
-        verify(settings, times(1)).setInternal(TrackerTokenState.ANNOUNCED, "expires_soon");
+        verify(settings, times(1)).replaceInternal(TrackerTokenState.ANNOUNCED, "", "expires_soon");
+        assertThat(published).singleElement().satisfies(alert -> {
+            assertThat(alert.notice()).isEqualTo(Notice.EXPIRES_SOON);
+            assertThat(alert.previous()).isEqualTo(Notice.NONE);
+            assertThat(alert.credential()).isEqualTo(TokenAlert.Credential.TRACKER_TOKEN);
+            assertThat(alert.expiresAt()).isEqualTo(LocalDate.ofInstant(START.plus(Duration.ofDays(10)), ZoneOffset.UTC)
+                    .atStartOfDay(ZoneOffset.UTC).toInstant());
+            assertThat(alert.where()).isEqualTo("GitLab at " + tracker.baseUrl());
+        });
     }
 
     @Test
@@ -157,7 +188,9 @@ class TrackerTokenCheckTest {
         clock.advance(Duration.ofHours(1));
         service.checkTokenIfDue();
 
-        verify(settings, times(1)).setInternal(TrackerTokenState.ANNOUNCED, "expired");
+        verify(settings, times(1)).replaceInternal(TrackerTokenState.ANNOUNCED, "expires_soon", "expired");
+        assertThat(published).extracting(TokenAlert::notice).containsExactly(Notice.EXPIRES_SOON, Notice.EXPIRED);
+        assertThat(published.getLast().previous()).isEqualTo(Notice.EXPIRES_SOON);
     }
 
     @Test
@@ -175,13 +208,21 @@ class TrackerTokenCheckTest {
             // Dated when it began, not when it was last met.
             assertThat(refusal.since()).isEqualTo(START);
         });
-        verify(settings, times(1)).setInternal(TrackerTokenState.ANNOUNCED, "refused");
+        verify(settings, times(1)).replaceInternal(TrackerTokenState.ANNOUNCED, "", "refused");
+        assertThat(published).singleElement().satisfies(alert -> {
+            assertThat(alert.notice()).isEqualTo(Notice.REFUSED);
+            assertThat(alert.refusedStatus()).isEqualTo(401);
+            assertThat(alert.refusedSince()).isEqualTo(START);
+        });
 
         tracker.route("/api/v4/projects/team%2Fservice/issues", Reply.json("{\"iid\":7,\"web_url\":\"x\"}"));
         assertThat(service.createForIssue(issue(), "team/service")).isPresent();
 
         assertThat(service.tokenHealth().refused()).isEmpty();
         assertThat(rows).containsEntry(TrackerTokenState.ANNOUNCED, "none");
+        assertThat(published).extracting(TokenAlert::notice).containsExactly(Notice.REFUSED, Notice.NONE);
+        assertThat(published.getLast().previous()).isEqualTo(Notice.REFUSED);
+        assertThat(published.getLast().sentence()).endsWith("works again.");
     }
 
     @Test
@@ -198,7 +239,7 @@ class TrackerTokenCheckTest {
         assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
 
         assertThat(service.tokenHealth().refused()).isEmpty();
-        verify(settings, times(0)).setInternal(TrackerTokenState.ANNOUNCED, "refused");
+        verify(settings, times(0)).replaceInternal(anyString(), anyString(), org.mockito.ArgumentMatchers.eq("refused"));
 
         // A 403 with calls left is the token lacking the permission: still a refusal.
         tracker.route("/repos/team/service/issues", Reply.status(403).with("x-ratelimit-remaining", "4999"));
@@ -243,6 +284,68 @@ class TrackerTokenCheckTest {
 
         assertThat(service.tokenHealth().refused()).isEmpty();
         assertThat(service.tokenHealth().checkedAt()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a refused token replaced by one that works is said to work again, once — the end of the alert")
+    void aReplacedTokenIsSaidToWorkAgain() {
+        tracker.route(SELF, Reply.status(401));
+        service.checkTokenNow();
+
+        service.setToken("glpat-replacement");
+        tracker.route(SELF, Reply.json("{\"active\":true,\"expires_at\":\"2027-06-30\"}"));
+        service.checkTokenNow();
+        clock.advance(Duration.ofDays(1));
+        service.checkTokenIfDue();
+
+        assertThat(published).extracting(TokenAlert::notice).containsExactly(Notice.REFUSED, Notice.NONE);
+        assertThat(published.getLast().previous()).isEqualTo(Notice.REFUSED);
+        assertThat(published.getLast().operation())
+                .isEqualTo(com.asmolabs.vectispire.common.domain.audit.AuditOperation.INTEGRATION_TOKEN_RESTORED);
+    }
+
+    @Test
+    @DisplayName("a removed token says nothing: it neither expires nor works again")
+    void aRemovedTokenSaysNothing() {
+        tracker.route(SELF, Reply.status(401));
+        service.checkTokenNow();
+
+        service.setToken("");
+        service.checkTokenNow();
+        clock.advance(Duration.ofDays(2));
+        service.checkTokenIfDue();
+
+        assertThat(published).extracting(TokenAlert::notice).containsExactly(Notice.REFUSED);
+    }
+
+    @Test
+    @DisplayName("of two instances noticing the same change, the one whose conditional update lost says nothing")
+    void theInstanceThatLostSaysNothing() {
+        tracker.route(SELF, Reply.status(401));
+        anotherInstanceFirst.set(true);
+
+        service.checkTokenNow();
+        clock.advance(Duration.ofHours(1));
+        service.checkTokenIfDue();
+
+        assertThat(published).isEmpty();
+        assertThat(rows).containsEntry(TrackerTokenState.ANNOUNCED, "refused");
+    }
+
+    @Test
+    @DisplayName("no alert carries the token, nor the header it is sent in")
+    void noAlertCarriesTheToken() {
+        tracker.route(SELF, Reply.status(401));
+        service.checkTokenNow();
+        service.setToken("glpat-replacement");
+        tracker.route(SELF, Reply.json("{\"active\":true,\"expires_at\":\"2026-10-15\"}"));
+        service.checkTokenNow();
+
+        assertThat(published).hasSize(2).allSatisfy(alert -> {
+            String said = alert.sentence() + alert.headline() + alert.where() + alert.name() + alert.reference();
+            assertThat(said).doesNotContain("glpat").doesNotContainIgnoringCase("private-token")
+                    .doesNotContain(rows.get(Setting.TICKET_TOKEN.key()));
+        });
     }
 
     private static TicketableIssue issue() {

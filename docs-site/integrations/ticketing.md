@@ -99,10 +99,25 @@ The tracker card under **Settings → Integrations** now shows the token's life,
   the tracker accepts, or when a new token is saved, which forgets everything known of the previous
   one.
 
-Each change is written **once** to the server log at `WARN` — entering the fourteen days, expiring,
-being refused, accepted again — never once an hour while nothing changes. Nothing is sent to a
-notification channel or the SIEM, as for a forge connection's token: the screen and the log are where
-it is said. `GET /api/v1/settings/ticket-token` answers `expiresAt`, `expirySource` (`reported`,
+Each change is said **once** — entering the fourteen days, expiring, being refused, working again —
+never once an hour while nothing changes, and since 0.11.1 it is pushed, as a forge connection's token's
+is:
+
+| The change | Audit entry | SIEM event | Channels |
+|---|---|---|---|
+| Fourteen days from the expiry | `INTEGRATION_TOKEN_EXPIRING` | `VECTI-SEC-038` (4) | yes |
+| Expired, or refused by the tracker | `INTEGRATION_TOKEN_STOPPED` | `VECTI-SEC-039` (7) | yes |
+| Working again — accepted again, or replaced — or no longer about to expire | `INTEGRATION_TOKEN_RESTORED` | `VECTI-SEC-040` (2) | yes |
+
+The entry names the tracker and its address (resource `ticket_token`, no actor: nobody did it), says
+the date or the status and since when — **never the token**, nor a header — and is forwarded to the
+SIEM by the [usual hook](siem.md#event-catalogue); a SIEM at the factory minimum (High) receives the
+`039` alone. The message reaches every [notification channel](notifications.md#integration-token-alerts)
+configured for the installation — the global webhook, Slack, Teams, Discord, mail — under the same
+private-address switch, through the outbox. What was said is kept in the database: a restart says
+nothing again, and of several instances one says it. A new token is measured against what was said of
+the previous one, so replacing a refused token announces it working again; removing the token says
+nothing. The server log keeps its line at `WARN`. `GET /api/v1/settings/ticket-token` answers `expiresAt`, `expirySource` (`reported`,
 `declared` or `unknown`), `refusedStatus`, `refusedSince` and `checkedAt` beside `configured`, and
 `PUT` answers the same once the tracker has been asked.
 

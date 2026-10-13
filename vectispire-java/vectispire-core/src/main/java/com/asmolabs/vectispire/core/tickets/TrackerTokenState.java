@@ -2,7 +2,10 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.forges.TokenExpiry;
 import com.asmolabs.vectispire.common.domain.forges.TokenExpiry.Standing;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert.Notice;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -10,7 +13,13 @@ import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * What is known of the tracker token's life: the expiry the tracker reported, the one an administrator
@@ -24,8 +33,15 @@ import org.springframework.stereotype.Service;
  * ahead, an expired or refused token said so.
  *
  * <p><b>Announced once per change, not once per hour.</b> The standing last announced is kept beside the
- * rest, and the server log is written when it changes — entering the notice window, expiring, being refused,
- * being accepted again — never on every pass that finds it unchanged.
+ * rest, and a change — entering the notice window, expiring, being refused, being accepted again — is announced
+ * when it happens, never on every pass that finds it unchanged: a line in the server log, and a {@link TokenAlert}
+ * published in the transaction that records it as said, which {@code notifications} turns into an audit entry (and
+ * through it a SIEM event) and a message on each configured channel. The record is moved by a conditional update
+ * ({@link SettingsService#replaceInternal}), so of two instances noticing the same change one announces it.
+ *
+ * <p><b>Measured against what was last said, whichever token it was said of.</b> A new token forgets what was
+ * known of the previous one but not what was announced: a refused token replaced by one that works is announced as
+ * working again — the end of the alert somebody received — and a token removed announces nothing.
  *
  * <p>Rows of their own, outside the catalog ({@link SettingsService#setInternal}): what the tracker said is
  * not a setting anybody writes.
@@ -47,10 +63,35 @@ public class TrackerTokenState {
     /** The standing last announced, so that it is announced once. */
     static final String ANNOUNCED = "ticket_token_announced";
 
-    private final SettingsService settings;
+    /** What {@code TokenAlert#reference} names for the tracker: its token's setting. */
+    static final String REFERENCE = Setting.TICKET_TOKEN.key();
 
-    public TrackerTokenState(SettingsService settings) {
+    private final SettingsService settings;
+    private final ApplicationEventPublisher events;
+
+    /**
+     * {@code REQUIRES_NEW}: the record that the change was said and what it causes commit together, apart from
+     * whatever the caller is doing — the sweep's call to the tracker is no transaction, and must not become one.
+     */
+    private final TransactionOperations separately;
+
+    @Autowired
+    public TrackerTokenState(
+            SettingsService settings, ApplicationEventPublisher events, PlatformTransactionManager transactions) {
+        this(settings, events, requiresNew(transactions));
+    }
+
+    /** With the boundary supplied — {@link TransactionOperations#withoutTransaction()} for a test with no database. */
+    public TrackerTokenState(SettingsService settings, ApplicationEventPublisher events, TransactionOperations separately) {
         this.settings = settings;
+        this.events = events;
+        this.separately = separately;
+    }
+
+    private static TransactionTemplate requiresNew(PlatformTransactionManager transactions) {
+        TransactionTemplate template = new TransactionTemplate(transactions);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template;
     }
 
     /** Where the known expiry comes from. */
@@ -80,24 +121,8 @@ public class TrackerTokenState {
             Optional<Instant> expiresAt, ExpirySource expirySource, Optional<Refusal> refused, Optional<Instant> checkedAt) {
 
         /** What the screen and the log say, the refusal first: a refused token's date no longer matters. */
-        public Announcement announcement(Instant now) {
-            if (refused.isPresent()) {
-                return Announcement.REFUSED;
-            }
-            return switch (Standing.of(expiresAt, now)) {
-                case SOON -> Announcement.EXPIRES_SOON;
-                case EXPIRED -> Announcement.EXPIRED;
-                case UNKNOWN, VALID -> Announcement.NONE;
-            };
-        }
-    }
-
-    /** What there is to say about the token; {@link #NONE} when nothing is wrong or nothing is known. */
-    public enum Announcement {
-        NONE, EXPIRES_SOON, EXPIRED, REFUSED;
-
-        String wireName() {
-            return name().toLowerCase(Locale.ROOT);
+        public Notice announcement(Instant now) {
+            return Notice.of(refused.isPresent(), Standing.of(expiresAt, now));
         }
     }
 
@@ -144,11 +169,12 @@ public class TrackerTokenState {
     }
 
     /**
-     * A new token, or none: what was known of the previous one says nothing of it. The announcement is forgotten
-     * too, so that the new token's own standing is announced.
+     * A new token, or none: what was known of the previous one says nothing of it. What was announced is kept: the
+     * next announcement is measured against it, so that the replacement of a token said to have stopped working is
+     * said to work again. Forgetting it, as this did, left the alert somebody received without its end.
      */
     void reset() {
-        for (String key : new String[] {REPORTED_EXPIRY, REFUSED, CHECKED_AT, ANNOUNCED}) {
+        for (String key : new String[] {REPORTED_EXPIRY, REFUSED, CHECKED_AT}) {
             if (settings.internalValue(key).isPresent()) {
                 settings.setInternal(key, "");
             }
@@ -156,19 +182,47 @@ public class TrackerTokenState {
     }
 
     /**
-     * Writes the server log when what there is to say has changed since it was last said, and records that it
-     * was. Called after every change of state, and by the daily check: an expiry that enters the notice window
-     * changes nothing stored, only the date.
+     * Announces what there is to say when it has changed since it was last said, and records that it was. Called
+     * after every change of state, and by the daily check: an expiry that enters the notice window changes nothing
+     * stored, only the date.
      *
-     * @return what was announced, or empty when it had been already
+     * <p>Nothing is said while no token is configured: a removed token neither expires nor works again, and the next
+     * one is measured against what was said before it.
+     *
+     * @return what was announced, or empty when it had been already — here or by another instance
      */
-    Optional<Announcement> announce(Instant now) {
-        Health health = read();
-        Announcement current = health.announcement(now);
-        if (current.wireName().equals(internal(ANNOUNCED).isEmpty() ? Announcement.NONE.wireName() : internal(ANNOUNCED))) {
+    Optional<Notice> announce(Instant now) {
+        if (settings.get(Setting.TICKET_TOKEN).isBlank()) {
             return Optional.empty();
         }
-        settings.setInternal(ANNOUNCED, current.wireName());
+        Health health = read();
+        Notice current = health.announcement(now);
+        Optional<String> stored = settings.internalValue(ANNOUNCED);
+        if (stored.isEmpty()) {
+            // The conditional update needs a row to arbitrate on; whoever inserts it, it starts as "nothing said".
+            settings.storeInternalIfAbsent(ANNOUNCED, "");
+            stored = settings.internalValue(ANNOUNCED);
+        }
+        String expected = stored.orElse("");
+        Notice previous = Notice.read(expected);
+        if (previous == current) {
+            return Optional.empty();
+        }
+        TokenAlert alert = new TokenAlert(TokenAlert.Credential.TRACKER_TOKEN, REFERENCE, providerLabel(), where(),
+                current, previous, health.expiresAt().orElse(null),
+                health.refused().map(Refusal::status).orElse(null), health.refused().map(Refusal::since).orElse(null),
+                now);
+        boolean said = Boolean.TRUE.equals(separately.execute(status -> {
+            if (!settings.replaceInternal(ANNOUNCED, expected, current.wireName())) {
+                // Another instance said it first, or something else moved since the read: the next turn reads again.
+                return false;
+            }
+            events.publishEvent(alert);
+            return true;
+        }));
+        if (!said) {
+            return Optional.empty();
+        }
         switch (current) {
             case EXPIRES_SOON -> log.warn("The tracker token expires on {} ({}): replace it before then, or no ticket "
                     + "will be opened or closed.", health.expiresAt().orElseThrow(), health.expirySource().wireName());
@@ -180,6 +234,22 @@ public class TrackerTokenState {
             case NONE -> log.info("The tracker token is no longer refused nor about to expire.");
         }
         return Optional.of(current);
+    }
+
+    private String providerLabel() {
+        return switch (TicketProvider.fromWireName(settings.get(Setting.TICKET_PROVIDER)).orElse(TicketProvider.NONE)) {
+            case GITLAB -> "GitLab";
+            case GITHUB -> "GitHub";
+            case JIRA -> "Jira";
+            case SERVICENOW -> "ServiceNow";
+            case NONE -> "no tracker";
+        };
+    }
+
+    /** The tracker, for a reader: its kind and its address — never the token, nor the account it acts as. */
+    private String where() {
+        String url = settings.get(Setting.TICKET_BASE_URL).trim();
+        return url.isEmpty() ? providerLabel() : providerLabel() + " at " + url;
     }
 
     private String internal(String key) {

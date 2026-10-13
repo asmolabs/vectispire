@@ -192,6 +192,27 @@ Une AC qui expire arrête la connexion ; remplacez-la par un `PATCH`, qui sonde 
   autre. Ses découvertes, son instantané et la provenance des cibles importées par elle partent avec elle ;
   les cibles restent, et cessent seulement de dire d'où elles viennent.
 
+## Quand le jeton expire {#token-expiry}
+
+L'expiration que la forge a déclarée au sondage du jeton est comparée à l'horloge toutes les heures, et
+depuis la 0.11.1 chaque changement de ce qu'il y a à en dire est **poussé, une fois** — pas seulement
+affiché dans la liste :
+
+| Le changement | Entrée d'audit | Événement SIEM | Canaux |
+|---|---|---|---|
+| À quatorze jours de l'expiration | `INTEGRATION_TOKEN_EXPIRING` | `VECTI-SEC-038` (4) | oui |
+| Expiré | `INTEGRATION_TOKEN_STOPPED` | `VECTI-SEC-039` (7, échec) | oui |
+| Le jeton remplacé — une expiration plus lointaine, ou aucune déclarée — après l'un des deux | `INTEGRATION_TOKEN_RESTORED` | `VECTI-SEC-040` (2) | oui |
+
+La ressource de l'entrée est l'identifiant de la connexion, sans acteur — personne ne l'a fait ; l'entrée
+et le message nomment la connexion, la forge et son adresse et la date, **jamais le jeton**. Le message
+atteint chaque [canal de notification](../integrations/notifications.md#integration-token-alerts)
+configuré pour l'installation, par l'outbox. Ce qui a été dit est gardé par connexion en base
+(`forge_token_announced:<id>`, hors du catalogue des réglages, supprimé avec la connexion) : un
+redémarrage ne redit rien et, de plusieurs instances, une seule le dit. Un jeton dont la forge n'a pas
+déclaré d'expiration n'est jamais annoncé. Un jeton que la forge refuse avant sa date n'est pas surveillé
+ici : la découverte qui le rencontre échoue avec `token_rejected`, dans la liste.
+
 ## Découvrir les dépôts
 
 `POST /api/v1/forge-connections/{id}/discoveries` demande une découverte et répond aussitôt, **202**, avec
@@ -442,6 +463,7 @@ la clé courante.
 | Une découverte arrêtée par une page suivante sur une autre origine, ou une adresse que la garde refuse | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, échec) |
 | Un import : chaque cible, solution et projet créé | `SETTING_UPDATED` (*Repository added: … — imported from connection …*), `SOLUTION_UPDATED`, `PROJECT_UPDATED` | — |
 | Un import, une fois, résumé : comptes, dépôts écartés, premiers scans, identifiants par hôte | `FORGE_IMPORT_APPLIED` | `VECTI-SEC-035` (5) quand il a créé quelque chose |
+| Le jeton à quatorze jours de son expiration, expiré, ou remplacé après l'un des deux ([plus haut](#token-expiry)) | `INTEGRATION_TOKEN_EXPIRING`, `_STOPPED`, `_RESTORED` | `VECTI-SEC-038` (4), `039` (7, échec), `040` (2) |
 
 Les entrées nomment la forge, l'adresse, le propriétaire, le type de jeton, ses portées et s'il peut
 écrire ; jamais le jeton. Voir le [catalogue SIEM](../integrations/siem.fr.md#catalogue-des-evenements).

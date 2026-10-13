@@ -186,6 +186,26 @@ through the new CA before keeping it.
   discoveries, its snapshot and the provenance of the targets imported through it go with it; the targets
   stay, and only stop saying where they came from.
 
+## When the token expires {#token-expiry}
+
+The expiry the forge reported when the token was probed is compared with the clock every hour, and since
+0.11.1 each change of what there is to say about it is **pushed, once** — not only shown on the list:
+
+| The change | Audit entry | SIEM event | Channels |
+|---|---|---|---|
+| Fourteen days from the expiry | `INTEGRATION_TOKEN_EXPIRING` | `VECTI-SEC-038` (4) | yes |
+| Expired | `INTEGRATION_TOKEN_STOPPED` | `VECTI-SEC-039` (7, failure) | yes |
+| The token replaced — a later expiry, or none reported — after either | `INTEGRATION_TOKEN_RESTORED` | `VECTI-SEC-040` (2) | yes |
+
+The entry's resource is the connection's id, with no actor — nobody did it; it and the message name the
+connection, the forge and its address and the date, **never the token**. The message reaches each
+[notification channel](../integrations/notifications.md#integration-token-alerts) configured for the
+installation, through the outbox. What was said is kept per connection in the database
+(`forge_token_announced:<id>`, outside the settings catalogue, deleted with the connection), so a
+restart says nothing again and, of several instances, one says it. A token whose expiry the forge did not
+report is never announced. A token the forge refuses before its date is not watched here: the discovery
+that meets it fails with `token_rejected`, on the list.
+
 ## Discovering repositories
 
 `POST /api/v1/forge-connections/{id}/discoveries` asks for a discovery and answers at once, **202**, with the
@@ -424,6 +444,7 @@ another row does not decrypt. It is never returned by any route, written in the 
 | A discovery stopped by a next page on another origin, or an address the guard refuses | `FORGE_CONNECTION_REFUSED` | `VECTI-SEC-036` (5, failure) |
 | An import: each target, solution and project created | `SETTING_UPDATED` (*Repository added: … — imported from connection …*), `SOLUTION_UPDATED`, `PROJECT_UPDATED` | — |
 | An import, once, summarised: counts, skipped, first scans, credentials per host | `FORGE_IMPORT_APPLIED` | `VECTI-SEC-035` (5) when it created something |
+| The token within fourteen days of its expiry, expired, or replaced after either ([above](#token-expiry)) | `INTEGRATION_TOKEN_EXPIRING`, `_STOPPED`, `_RESTORED` | `VECTI-SEC-038` (4), `039` (7, failure), `040` (2) |
 
 The entries name the forge, the address, the owner, the kind of token, its scopes and whether it can
 write; never the token. See the [SIEM catalogue](../integrations/siem.md#event-catalogue).

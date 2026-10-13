@@ -6,9 +6,12 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.TeamChannels;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.notifications.internal.AlertChannel;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
@@ -29,7 +32,7 @@ import org.springframework.stereotype.Service;
  * with no webhook, and the payload testable with no clock.
  */
 @Service
-public class NotificationService implements NotificationChannel {
+public class NotificationService implements NotificationChannel, AlertChannel {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -208,6 +211,27 @@ public class NotificationService implements NotificationChannel {
                 teamId == null ? "global" : "team " + teamId,
                 // Logged per delivery rather than at startup: the secret is a runtime setting, and
                 // "is this deployment signing" is the question somebody asks while reading this line.
+                secret.isEmpty() ? "unsigned" : "signed");
+    }
+
+    @Override
+    public String alertKey() {
+        return "webhook";
+    }
+
+    /**
+     * A token's change of state, to the global webhook alone, signed as a scan delta is and under the same
+     * private-address rule. A team's channel is not told: the token is the installation's.
+     */
+    @Override
+    public void deliverAlert(TokenAlert alert, String messageId) {
+        OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+                ? OutboundPolicy.INTERNAL_ALLOWED
+                : OutboundPolicy.PUBLIC_ONLY;
+        String secret = signingSecret();
+        post.postSignedJson(destinationFor(null), TokenAlertMessages.webhook(alert, messageId), policy, "webhook URL",
+                secret, clock.instant());
+        log.info("Webhook notified of a token's change ({}), message {}, {}.", alert.notice().wireName(), messageId,
                 secret.isEmpty() ? "unsigned" : "signed");
     }
 

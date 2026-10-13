@@ -88,7 +88,7 @@ class TicketTrackerCaTest {
         OutboundUrlGuard guard = new OutboundUrlGuard();
         PinnedHttpSender sender = new PinnedHttpSender();
         service = new TicketService(settings, encryption, new OutboundPost(sender, guard, json),
-                new OutboundJson(sender, guard, json), json, Clock.systemUTC(), new TrackerTokenState(settings));
+                new OutboundJson(sender, guard, json), json, Clock.systemUTC(), new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
     }
 
     @AfterEach
@@ -187,7 +187,7 @@ class TicketTrackerCaTest {
         service = new TicketService(settings,
                 new EncryptionService(new EncryptionProperties(Optional.of(EncryptionKey.generate()), List.of())),
                 new OutboundPost(sender, guard, json), new OutboundJson(sender, guard, json), json,
-                Clock.fixed(Instant.now().plus(Duration.ofDays(400)), ZoneOffset.UTC), new TrackerTokenState(settings));
+                Clock.fixed(Instant.now().plus(Duration.ofDays(400)), ZoneOffset.UTC), new TrackerTokenState(settings, event -> {}, org.springframework.transaction.support.TransactionOperations.withoutTransaction()));
 
         assertThat(service.createForIssue(issue(), "team/service")).isEmpty();
         assertThat(service.closeTicket("#7", "clean scan")).isFalse();

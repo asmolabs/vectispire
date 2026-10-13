@@ -105,10 +105,25 @@ La carte du tracker sous **Réglages → Intégrations** montre désormais la vi
   normale au prochain appel que le tracker accepte, ou quand un nouveau jeton est enregistré, ce qui
   oublie tout ce qu'on savait du précédent.
 
-Chaque changement est écrit **une fois** dans le journal du serveur au niveau `WARN` — l'entrée dans les
-quatorze jours, l'expiration, le refus, le retour à la normale — jamais une fois par heure tant que rien
-ne change. Rien n'est envoyé à un canal de notification ni au SIEM, comme pour le jeton d'une connexion
-de forge : l'écran et le journal sont là où c'est dit. `GET /api/v1/settings/ticket-token` répond
+Chaque changement est dit **une fois** — l'entrée dans les quatorze jours, l'expiration, le refus, le
+retour en service — jamais une fois par heure tant que rien ne change, et depuis la 0.11.1 il est poussé,
+comme celui du jeton d'une connexion de forge :
+
+| Le changement | Entrée d'audit | Événement SIEM | Canaux |
+|---|---|---|---|
+| À quatorze jours de l'expiration | `INTEGRATION_TOKEN_EXPIRING` | `VECTI-SEC-038` (4) | oui |
+| Expiré, ou refusé par le tracker | `INTEGRATION_TOKEN_STOPPED` | `VECTI-SEC-039` (7) | oui |
+| De nouveau en service — accepté de nouveau, ou remplacé — ou plus sur le point d'expirer | `INTEGRATION_TOKEN_RESTORED` | `VECTI-SEC-040` (2) | oui |
+
+L'entrée nomme le tracker et son adresse (ressource `ticket_token`, sans acteur : personne ne l'a fait),
+dit la date ou le statut et depuis quand — **jamais le jeton**, ni un en-tête — et part au SIEM par le
+[crochet habituel](siem.md#catalogue-des-evenements) ; un SIEM au minimum d'usine (High) ne reçoit que le `039`.
+Le message atteint chaque [canal de notification](notifications.md#integration-token-alerts) configuré
+pour l'installation — le webhook global, Slack, Teams, Discord, le courriel — sous le même interrupteur
+des adresses privées, par l'outbox. Ce qui a été dit est gardé en base : un redémarrage ne redit rien, et
+de plusieurs instances une seule le dit. Un nouveau jeton est mesuré à ce qui a été dit du précédent :
+remplacer un jeton refusé annonce son retour en service ; retirer le jeton ne dit rien. Le journal du
+serveur garde sa ligne au niveau `WARN`. `GET /api/v1/settings/ticket-token` répond
 `expiresAt`, `expirySource` (`reported`, `declared` ou `unknown`), `refusedStatus`, `refusedSince` et
 `checkedAt` à côté de `configured`, et `PUT` répond de même une fois le tracker interrogé.
 

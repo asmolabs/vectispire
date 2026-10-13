@@ -58,6 +58,9 @@ class SecurityEventTypeTest {
         expected.put("FORGE_IMPORT_APPLIED", "VECTI-SEC-035");
         expected.put("FORGE_CONNECTION_REFUSED", "VECTI-SEC-036");
         expected.put("TRACKER_CONTRADICTS_TRIAGE", "VECTI-SEC-037");
+        expected.put("INTEGRATION_TOKEN_EXPIRING", "VECTI-SEC-038");
+        expected.put("INTEGRATION_TOKEN_STOPPED", "VECTI-SEC-039");
+        expected.put("INTEGRATION_TOKEN_RESTORED", "VECTI-SEC-040");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
@@ -86,6 +89,23 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.FORGE_IMPORT_APPLIED.cefSeverity()).isEqualTo(5);
         assertThat(SecurityEventType.FORGE_IMPORT_APPLIED.outcome()).isEqualTo(SecurityEventType.Outcome.SUCCESS);
         assertThat(SecurityEventType.signalledBy(AuditOperation.FORGE_IMPORT_APPLIED)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("038 to 040 are an integration token's change of state, each signalled by its own operation")
+    void integrationTokenStates() {
+        // Emitted since 0.11.1, once per change of a tracker token's or a forge connection's state: "stopped" at the
+        // factory minimum, "expires soon" below it, "works again" informational.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.INTEGRATION_TOKEN_EXPIRING))
+                .contains(SecurityEventType.INTEGRATION_TOKEN_EXPIRING);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.INTEGRATION_TOKEN_STOPPED))
+                .contains(SecurityEventType.INTEGRATION_TOKEN_STOPPED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.INTEGRATION_TOKEN_RESTORED))
+                .contains(SecurityEventType.INTEGRATION_TOKEN_RESTORED);
+        assertThat(SecurityEventType.INTEGRATION_TOKEN_EXPIRING.cefSeverity()).isEqualTo(4);
+        assertThat(SecurityEventType.INTEGRATION_TOKEN_STOPPED.cefSeverity()).isEqualTo(7);
+        assertThat(SecurityEventType.INTEGRATION_TOKEN_RESTORED.cefSeverity()).isEqualTo(2);
+        assertThat(SecurityEventType.INTEGRATION_TOKEN_STOPPED.outcome()).isEqualTo(SecurityEventType.Outcome.FAILURE);
     }
 
     @Test

@@ -49,6 +49,32 @@ Teams est atteint par un **workflow** Power Automate. Le connecteur Office 365 q
 Vectispire publie une carte adaptative : rien n'a donc à être cartographié dans le concepteur —
 créez le workflow, prenez son URL, collez-la.
 
+## Quand un jeton d'intégration change d'état {#integration-token-alerts}
+
+Depuis la 0.11.1, les mêmes canaux sont prévenus quand le [jeton du tracker](ticketing.md#token-expiry) ou
+le [jeton d'une connexion de forge](../administration/forge-connections.md#token-expiry) **change
+d'état** : quatorze jours avant son expiration, quand il a expiré ou que le serveur l'a refusé, et quand
+il fonctionne de nouveau ou n'est plus sur le point d'expirer. Une fois par changement, jamais une fois
+par heure ; un redémarrage ne redit rien.
+
+- **Les canaux de l'installation** : le webhook global, Slack, Teams, Discord et le courriel — chacun
+  configuré, une ligne de file d'envoi chacun, comme pour un delta de scan. Le webhook propre d'une
+  équipe n'est pas prévenu : le jeton est celui de l'installation. Le seuil des issues ne s'applique pas ;
+  il porte sur les constats.
+- **Les mêmes règles** : l'URL lue à l'envoi, l'interrupteur des adresses privées, la signature du
+  webhook.
+- **Ce qu'il dit** : le tracker ou la connexion par son nom, le serveur et son adresse, la date ou le
+  statut et depuis quand, et un lien vers l'écran où remplacer le jeton quand le déploiement connaît son
+  adresse publique. **Jamais le jeton**, ni un en-tête.
+- **Le corps du webhook** se distingue d'un delta de scan par `event: "token_state_changed"`, avec
+  `credential` (`tracker_token` ou `forge_connection`), `name`, `reference`, `state` et
+  `previous_state` (`none`, `expires_soon`, `expired`, `refused`), `signature_id` (l'[événement
+  SIEM](siem.md#catalogue-des-evenements), `VECTI-SEC-038` à `040`), `expires_at`, `refused_status`,
+  `refused_since`, `observed_at` et `message_id`.
+
+Le même changement est dans le journal d'audit et envoyé au SIEM — voir les tableaux des pages
+[tickets](ticketing.md#token-expiry) et [connexions de forge](../administration/forge-connections.md#token-expiry).
+
 ## Le rapport de posture hebdomadaire {#the-weekly-posture-report}
 
 Désactivé par défaut, et il existe pour couvrir l'angle mort que toutes les autres

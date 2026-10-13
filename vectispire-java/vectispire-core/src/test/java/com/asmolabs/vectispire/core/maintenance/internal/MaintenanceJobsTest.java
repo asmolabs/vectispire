@@ -57,7 +57,9 @@ import com.asmolabs.vectispire.core.targets.internal.RepositoryIdentityTask;
 import com.asmolabs.vectispire.core.targets.internal.OrphanedTargetRowsTask;
 import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
 import com.asmolabs.vectispire.core.forges.ForgeReviewService;
+import com.asmolabs.vectispire.core.forges.ForgeTokenWatch;
 import com.asmolabs.vectispire.core.forges.internal.ChangeReviewTask;
+import com.asmolabs.vectispire.core.forges.internal.ForgeTokenWatchTask;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssScoresSyncTask;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogueSyncTask;
 import com.asmolabs.vectispire.core.tickets.TicketService;
@@ -109,6 +111,7 @@ class MaintenanceJobsTest {
             SentMessagesTask.class,
             TicketSweepTask.class,
             TicketTokenCheckTask.class,
+            ForgeTokenWatchTask.class,
             InventoryBackfillTask.class,
             RepositoryIdentityTask.class,
             TriageExpiryTask.class,
@@ -151,6 +154,7 @@ class MaintenanceJobsTest {
     private ReportQueue reportQueue;
     private ReportDocumentRepository reportDocuments;
     private ForgeReviewService forgeReviews;
+    private ForgeTokenWatch forgeTokens;
     private BuildSbomInventory buildSboms;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
@@ -180,6 +184,7 @@ class MaintenanceJobsTest {
         reportQueue = mock(ReportQueue.class);
         reportDocuments = mock(ReportDocumentRepository.class);
         forgeReviews = mock(ForgeReviewService.class);
+        forgeTokens = mock(ForgeTokenWatch.class);
         buildSboms = mock(BuildSbomInventory.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
@@ -200,6 +205,7 @@ class MaintenanceJobsTest {
                 new SentMessagesTask(outbox),
                 new TicketSweepTask(tickets),
                 new TicketTokenCheckTask(trackerToken),
+                new ForgeTokenWatchTask(forgeTokens),
                 new InventoryBackfillTask(backfill),
                 new RepositoryIdentityTask(identities),
                 new TriageExpiryTask(triage),
@@ -250,7 +256,7 @@ class MaintenanceJobsTest {
         // cover less than its name says. In order, because two positions matter: the decisions
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
-        InOrder turn = inOrder(retention, outbox, tickets, trackerToken, backfill, identities, triage, breaches, digest,
+        InOrder turn = inOrder(retention, outbox, tickets, trackerToken, forgeTokens, backfill, identities, triage, breaches, digest,
                 complianceHistory, owaspWeekly, sessions, verdicts, snapshots, reportExports, reportDocuments, buildSboms, reviews, feed,
                 forgeReviews,
                 targetDeletion);
@@ -260,6 +266,9 @@ class MaintenanceJobsTest {
         // The only caller of the tracker token's check: without it an expiry is read when the token is saved
         // and never again, and nothing says it is near until the sweep starts failing.
         turn.verify(trackerToken).checkTokenIfDue();
+        // The only caller of the forge connections' token watch: without it a connection's token lapses with a word
+        // on its list as the only trace, and no channel, audit entry or SIEM event says so.
+        turn.verify(forgeTokens).watch();
         turn.verify(backfill).runOnce();
         // The only writer of the guard on the rows V73 found: without it, a second filing of any target
         // registered before the upgrade is accepted for as long as the install lives.

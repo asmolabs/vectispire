@@ -224,6 +224,27 @@ public enum SecurityEventType {
     TRACKER_CONTRADICTS_TRIAGE("VECTI-SEC-037", "A tracker contradicts a settled triage decision", 4,
             Outcome.DETECTED),
 
+    /**
+     * An integration token — the tracker's, or a forge connection's — is within fourteen days of its expiry. Below
+     * the factory minimum ({@code HIGH}) on purpose: a token still working is a task for this fortnight, not an
+     * incident, and a SOC that wants the notice lowers its minimum.
+     */
+    INTEGRATION_TOKEN_EXPIRING("VECTI-SEC-038", "Integration token expires soon", 4, Outcome.DETECTED),
+
+    /**
+     * An integration token stopped working: past its expiry, or refused by the server it is presented to. Tickets
+     * are no longer opened or closed, or a forge connection no longer reads anything — silently, until somebody
+     * looks. At the factory minimum, so that it reaches a SOC out of the box.
+     */
+    INTEGRATION_TOKEN_STOPPED("VECTI-SEC-039", "Integration token stopped working: expired or refused", 7,
+            Outcome.FAILURE),
+
+    /**
+     * An integration token said to expire soon, to have expired or to be refused no longer is — replaced, or
+     * accepted again. Informational: it closes what {@code 038} or {@code 039} opened.
+     */
+    INTEGRATION_TOKEN_RESTORED("VECTI-SEC-040", "Integration token working again", 2, Outcome.SUCCESS),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -353,6 +374,10 @@ public enum SecurityEventType {
             case REPORT_REFUSED -> Optional.of(REPORT_PLUGIN_REFUSED);
             case FORGE_CONNECTION_REFUSED -> Optional.of(FORGE_CONNECTION_REFUSED);
             case TRIAGE_CONTRADICTED_BY_TRACKER -> Optional.of(TRACKER_CONTRADICTS_TRIAGE);
+            // One operation per event, and each written once per change of the token's state: unambiguous.
+            case INTEGRATION_TOKEN_EXPIRING -> Optional.of(INTEGRATION_TOKEN_EXPIRING);
+            case INTEGRATION_TOKEN_STOPPED -> Optional.of(INTEGRATION_TOKEN_STOPPED);
+            case INTEGRATION_TOKEN_RESTORED -> Optional.of(INTEGRATION_TOKEN_RESTORED);
             case REPORT_PLUGIN_REGISTERED, REPORT_PLUGIN_UPDATED, REPORT_PLUGIN_APPROVED, REPORT_PLUGIN_ENABLED_CHANGED,
                     REPORT_PLUGIN_ACTIVATED, REPORT_PLUGIN_DEACTIVATED, REPORT_PLUGIN_WITHDRAWN ->
                     Optional.of(REPORT_PLUGIN_CHANGED);

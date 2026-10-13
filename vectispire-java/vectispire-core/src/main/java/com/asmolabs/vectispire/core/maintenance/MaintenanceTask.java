@@ -73,6 +73,8 @@ public interface MaintenanceTask {
         public static final int TICKET_SWEEP = 300;
         /** After the sweep, which may just have met a refusal: the tracker token's daily check and its notice. */
         public static final int TICKET_TOKEN_CHECK = 310;
+        /** Beside it: the forge connections' token expiries, compared with the clock and announced once per change. */
+        public static final int FORGE_TOKEN_WATCH = 320;
         public static final int INVENTORY_BACKFILL = 400;
         /** Beside the other backfill: the repository rows V73 and older instances left without their identity. */
         public static final int REPOSITORY_IDENTITIES = 410;

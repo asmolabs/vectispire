@@ -1,5 +1,8 @@
 /**
- * What a scan's delta says, and the channels that say it.
+ * What a scan's delta says, and the channels that say it — and an integration token's change of state ({@code
+ * TokenAlert}), said on the same channels and in the audit log. The tokens' owners, {@code tickets} and {@code
+ * forges}, publish that alert as an application event declared in the domain, beside the payloads it is rendered
+ * into: neither lists this module, and this module lists neither.
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
  * ModularityTest}, decision 0030): a dependency on a module, or on a named interface ({@code

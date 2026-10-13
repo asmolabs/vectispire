@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.core.notifications.internal;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.TeamsCard;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlert;
+import com.asmolabs.vectispire.common.domain.notifications.TokenAlertMessages;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
@@ -21,7 +23,7 @@ import org.springframework.stereotype.Service;
  * send rather than at queue time, so an operator fixing a typo does not have to re-run a scan.
  */
 @Service
-public class TeamsNotificationChannel implements NotificationChannel {
+public class TeamsNotificationChannel implements NotificationChannel, AlertChannel {
 
     private static final Logger log = LoggerFactory.getLogger(TeamsNotificationChannel.class);
 
@@ -66,6 +68,21 @@ public class TeamsNotificationChannel implements NotificationChannel {
                 "Teams webhook URL");
 
         log.info("Teams notified for scan {}, message {}.", payload.scanId(), payload.messageId());
+    }
+
+    @Override
+    public String alertKey() {
+        return "teams";
+    }
+
+    /** A token's change of state, to the same URL and under the same private-address rule as a scan's delta. */
+    @Override
+    public void deliverAlert(TokenAlert alert, String messageId) {
+        OutboundPolicy policy = settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+                ? OutboundPolicy.INTERNAL_ALLOWED
+                : OutboundPolicy.PUBLIC_ONLY;
+        post.postJson(url(), TokenAlertMessages.teams(alert, deployment.publicUrl().orElse(null)), policy, "Teams webhook URL");
+        log.info("Teams notified of a token's change ({}), message {}.", alert.notice().wireName(), messageId);
     }
 
     private String url() {
