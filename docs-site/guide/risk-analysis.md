@@ -141,6 +141,11 @@ clears it, with its report.
   findings, nothing found, not measured, no scanner here — and the *Not evidenced* section repeats it.
   None of the three empty states is a clean bill of health: a scanner that found nothing looked only at
   the part of the category it can see.
+- **The PDF carries the grid, in your language.** *Export PDF* writes the document in the language the
+  interface is shown in — English or French: its title, the provenance, how to read it, and **the
+  repository's OWASP grid** — the ten categories, each with its state and why, as the rules read the
+  repository when the document is generated (not as of the scan the report was written from). The
+  model's text follows it as the model wrote it, untranslated; a document in French says so in one line.
 - **After each scan, if you ask for it.** With **Write the OWASP report after each repository scan**
   (`ai_review_owasp_after_scan`, off by default) and model review on, a repository scan that completes
   asks for the report — built from that scan, never from a failed one, never for a container image. It is

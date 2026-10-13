@@ -10,6 +10,8 @@ import com.asmolabs.vectispire.core.compliance.AiReviewResultView;
 import com.asmolabs.vectispire.core.compliance.OwaspReport;
 import com.asmolabs.vectispire.core.compliance.OwaspReportService;
 import jakarta.servlet.http.HttpServletRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -111,10 +114,24 @@ public class OwaspController {
     /**
      * The report as a document. A failed run has no PDF, and is answered 409 rather than 404 —
      * see {@link OwaspReportService#pdf}.
+     *
+     * <p>{@code language} is the AI explanations' parameter, read the same way: the screen sends the one it
+     * is shown in, and a caller naming none gets English, as before.
      */
+    @Operation(summary = "OWASP report as a PDF", description = "The repository's last completed OWASP report as a "
+            + "PDF: its provenance, the coverage grid of the ten categories as the rules read the repository now — each "
+            + "category's state and why — and the model's text as written. language (en or fr, English by default) is "
+            + "the language of the document's own words, the grid's included; the model's text is not translated, and "
+            + "a document not in English says so. Another language answers 400. 404 for a repository the caller does "
+            + "not see or one never reviewed; 409 while the report is being written or when the last run failed.")
+    @ApiResponse(responseCode = "200", description = "PDF returned")
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
-        byte[] document = reports.pdf(id, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+    public ResponseEntity<byte[]> pdf(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @PathVariable long id,
+            @RequestParam(required = false) String language) {
+        byte[] document = reports.pdf(
+                id, visibility.of(principal.user().orElse(null), principal.credentialRestriction()), language);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

@@ -12,6 +12,11 @@ import java.util.stream.Collectors;
  * language — the interface keeps the reader's choice in the browser — so the screen says which one
  * it shows, and a caller that says nothing gets English. The two the interface is translated into,
  * and no more: a model asked for a language nobody reads here would answer in it.
+ *
+ * <p><b>Also the language of the OWASP report's PDF</b>, by the same {@code language} parameter: one way
+ * for a request to name its reader's language, so a second one — a header here, a code there — does not
+ * read the same request two ways. There the model is not asked anything; only the document's own words
+ * follow it.
  */
 public enum AdviceLanguage {
     ENGLISH("en", "English"),

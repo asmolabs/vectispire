@@ -156,6 +156,11 @@ le retire, avec son rapport.
   grille — constats, rien trouvé, non mesuré, aucun scanner ici — et la section *Not evidenced* le
   reprend. Aucun des trois états vides n'est un certificat de bonne santé : un scanner qui n'a rien
   trouvé n'a regardé que la part de la catégorie qu'il sait voir.
+- **Le PDF porte la grille, dans votre langue.** *Exporter en PDF* rédige le document dans la langue de
+  l'interface — anglais ou français : son titre, la provenance, la façon de le lire, et **la grille OWASP
+  du dépôt** — les dix catégories, chacune avec son état et sa raison, telles que les règles lisent le
+  dépôt à la génération du document (et non à la date du scan dont le rapport est tiré). Le texte du
+  modèle suit tel que le modèle l'a écrit, sans traduction ; un document en français le dit en une ligne.
 - **Après chaque scan, si vous le demandez.** Avec **Write the OWASP report after each repository scan**
   (`ai_review_owasp_after_scan`, désactivé par défaut) et la revue par modèle activée, un scan de dépôt
   qui se termine demande le rapport — tiré de ce scan, jamais d'un scan en échec, jamais pour une image

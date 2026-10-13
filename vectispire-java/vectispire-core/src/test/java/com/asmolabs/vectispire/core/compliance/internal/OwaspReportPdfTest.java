@@ -2,7 +2,18 @@ package com.asmolabs.vectispire.core.compliance.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
+import com.asmolabs.vectispire.common.domain.gate.Observation;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -31,7 +42,7 @@ class OwaspReportPdfTest {
     @Test
     @DisplayName("carries its provenance on the first page, where a forwarded file is read")
     void theProvenanceIsInTheDocument() throws Exception {
-        String text = textOf(OwaspReportPdf.render(SUBJECT, "## A03 — Injection\nA finding."));
+        String text = textOf(english(SUBJECT, "## A03 — Injection\nA finding."));
 
         assertThat(text).contains("OWASP Top 10:2021");
         assertThat(text).contains("Arm Libs Spring");
@@ -53,9 +64,9 @@ class OwaspReportPdfTest {
                 SUBJECT.targetName(), SUBJECT.branch(), SUBJECT.projectVersion(), SUBJECT.model(), SUBJECT.scanId(),
                 SUBJECT.scanAt(), SUBJECT.generatedAt(), SUBJECT.openIssues(), SUBJECT.brandName(), true);
 
-        String now = textOf(OwaspReportPdf.render(placed, "## A07 — Identification and Authentication Failures"))
+        String now = textOf(english(placed, "## A07 — Identification and Authentication Failures"))
                 .replaceAll("\\s+", " ");
-        String before = textOf(OwaspReportPdf.render(SUBJECT, "## A02 — Cryptographic Failures"))
+        String before = textOf(english(SUBJECT, "## A02 — Cryptographic Failures"))
                 .replaceAll("\\s+", " ");
 
         assertThat(now).contains("Vectispire's own rules place it in");
@@ -67,7 +78,7 @@ class OwaspReportPdfTest {
     @Test
     @DisplayName("renders the Markdown rather than printing its punctuation")
     void markdownBecomesTypography() throws Exception {
-        String text = textOf(OwaspReportPdf.render(
+        String text = textOf(english(
                 SUBJECT,
                 """
                 ## A06 — Vulnerable and Outdated Components
@@ -101,7 +112,7 @@ class OwaspReportPdfTest {
         // Compared with the line breaks removed: wrapping is exactly what puts them there, so
         // asserting on the raw text would assert on where the breaks fell rather than on the
         // sentence surviving — and that moves with the font.
-        String text = flat(OwaspReportPdf.render(SUBJECT, sentence));
+        String text = flat(english(SUBJECT, sentence));
 
         assertThat(text).contains(sentence);
     }
@@ -115,7 +126,7 @@ class OwaspReportPdfTest {
                     .append("Finding number ").append(index).append(" with a sentence about it.\n\n");
         }
 
-        byte[] pdf = OwaspReportPdf.render(SUBJECT, markdown.toString());
+        byte[] pdf = english(SUBJECT, markdown.toString());
         try (PDDocument document = Loader.loadPDF(pdf)) {
             assertThat(document.getNumberOfPages()).isGreaterThan(3);
             String text = new PDFTextStripper().getText(document);
@@ -129,7 +140,87 @@ class OwaspReportPdfTest {
     @Test
     @DisplayName("an empty answer is a sentence, not a blank page")
     void anEmptyReportSaysSo() throws Exception {
-        assertThat(textOf(OwaspReportPdf.render(SUBJECT, ""))).contains("The model returned an empty report.");
+        assertThat(textOf(english(SUBJECT, ""))).contains("The model returned an empty report.");
+    }
+
+    /**
+     * A grid whose lines say different things: a secret open (A07), the misconfiguration step absent on one
+     * repository and the other never scanned (A05), code analysis reaching one repository of two (A03), and
+     * the categories nothing here covers.
+     */
+    private static final OwaspCoverage.Grid GRID = OwaspCoverage.assess(new OwaspCoverage.Measurement(
+            true,
+            true,
+            Map.of(FindingType.SECRET, 2L, FindingType.VULNERABILITY, 0L, FindingType.EOL, 0L, FindingType.IAC, 0L),
+            Set.of("A03"),
+            Map.of(),
+            List.of(
+                    new OwaspCoverage.Evidence(
+                            new ScanTarget.Repository(1),
+                            Observation.OK,
+                            Optional.of(EnumSet.of(FindingType.VULNERABILITY, FindingType.EOL, FindingType.LICENSE,
+                                    FindingType.SECRET, FindingType.SAST)),
+                            Optional.of(Set.of(Language.JAVA)),
+                            Optional.of(Set.of("A03"))),
+                    OwaspCoverage.Evidence.neverScanned(new ScanTarget.Repository(2)))));
+
+    @Test
+    @DisplayName("asked in French, writes its own words in French — the grid's reasons included — and the model's as written")
+    void frenchLabelsAndTheModelAsWritten() throws Exception {
+        String text = flat(OwaspReportPdf.render(SUBJECT, "## A07 — Identification and Authentication Failures\n"
+                + "Two secrets are exposed.", GRID, AdviceLanguage.FRENCH));
+
+        assertThat(text).contains(
+                "OWASP Top 10:2021 — rapport de posture",
+                "Constats ouverts au moment de la rédaction : 38",
+                "Établi à partir du scan #32 du 2026-08-21 05:03 UTC",
+                "Rédigé par gemma4:26b",
+                "Comment le lire",
+                "Couverture de l'OWASP Top 10:2021, par règle",
+                "Aucun scanner de ce déploiement ne produit de constat dans cette catégorie.",
+                "Constats (2) — Des constats ouverts sont placés ici par règle.",
+                "1 des dépôts concernés par cette catégorie (2 au total) n'a pas été examiné pour elle par l'analyse "
+                        + "de code (1 n'a jamais terminé de scan)",
+                "2 des cibles concernées par cette catégorie (2 au total) n'ont pas été examinées pour elle par "
+                        + "configuration d'infrastructure (1 n'a jamais terminé de scan, 1 dont le dernier scan n'a pas "
+                        + "terminé cette étape)",
+                "rapport OWASP Top 10:2021 — Arm Libs Spring");
+        // The model's text is its own: printed as written, and the page says so rather than translating it.
+        assertThat(text).contains("Two secrets are exposed.", "reproduit tel qu'il l'a écrit");
+        assertThat(text).doesNotContain("How to read this", "Open findings at the time of writing",
+                "No scanner in this deployment", "posture report");
+    }
+
+    @Test
+    @DisplayName("carries the grid's ten categories, each with its state and why, as the rules read them")
+    void theGridsTenRows() throws Exception {
+        for (AdviceLanguage language : AdviceLanguage.values()) {
+            String text = flat(OwaspReportPdf.render(SUBJECT, "## A03 — Injection\nA finding.", GRID, language));
+            for (OwaspCoverage.CoverageLine line : GRID.lines()) {
+                assertThat(text).as("%s in %s", line.id(), language)
+                        .contains(line.id() + " " + line.title() + " " + OwaspReportWords.state(line, language) + " — ");
+            }
+        }
+        assertThat(GRID.lines()).hasSize(10);
+    }
+
+    @Test
+    @DisplayName("in English by default: the route's own sentences, and no word about translation")
+    void englishIsUnchanged() throws Exception {
+        String text = flat(english(SUBJECT, "## A03 — Injection\nA finding."));
+
+        assertThat(text).contains("OWASP Top 10:2021 — posture report", "How to read this",
+                "OWASP Top 10:2021 coverage, by rule", "No scanner here — No scanner in this deployment produces a "
+                        + "finding in this category.");
+        for (OwaspCoverage.CoverageLine line : GRID.lines()) {
+            assertThat(text).as(line.id()).contains(line.because());
+        }
+        assertThat(text).doesNotContain("Comment le lire", "reproduit tel qu'il l'a écrit", "translated");
+    }
+
+    /** The document as a caller naming no language gets it. */
+    private static byte[] english(OwaspReportPdf.Subject subject, String markdown) {
+        return OwaspReportPdf.render(subject, markdown, GRID, AdviceLanguage.ENGLISH);
     }
 
     /** The extracted text with its line breaks collapsed, for asserting on wrapped prose. */

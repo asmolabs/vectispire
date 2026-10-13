@@ -12,7 +12,6 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TargetsApi } from '../../core/api/targets.api';
 import { SolutionsApi } from '../../core/api/solutions.api';
 import { OwaspApi } from '../../core/api/owasp.api';
-import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { MonitoredRepository, OwaspBlock, OwaspReport, SolutionTree } from '../../core/api.models';
@@ -76,7 +75,6 @@ export class Owasp {
     private readonly targetsApi = inject(TargetsApi);
     private readonly solutionsApi = inject(SolutionsApi);
     private readonly owaspApi = inject(OwaspApi);
-    private readonly documentsApi = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
@@ -236,8 +234,9 @@ export class Owasp {
         }
         // Through HttpClient, never a navigation: the token is in memory and only the
         // interceptor puts it on a request. A navigation carries none, and the browser saves the
-        // 401's empty body as a zero-byte file.
-        this.documentsApi.downloadDocument(`/api/v1/repositories/${id}/owasp-review/export.pdf`).subscribe({
+        // 401's empty body as a zero-byte file. The reader's language goes with it: the document was
+        // English whoever asked.
+        this.owaspApi.owaspReportPdf(id, this.i18n.currentLang()).subscribe({
             next: (response) => saveDocument(response, `vectispire-owasp-${id}.pdf`),
             error: () => this.error.set(this.i18n.t('owasp.pdf_failed'))
         });
