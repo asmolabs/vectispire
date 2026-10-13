@@ -13,6 +13,32 @@ After that, both variables are ignored.
 An account has an `is_active` flag. A deactivated account cannot sign in, and its history
 stays intact — which is the point of deactivating rather than deleting one.
 
+### The password-change requirement
+
+An account created on the **Users** screen, one whose password an administrator resets, and the
+bootstrap account must change their password at their next sign-in; until they do, every route but
+the change-password one, the profile and signing out answers `403`. The list shows them as *Must
+change its password*.
+
+For an account the identity provider signs in — one bound to a provider subject, by the SCIM
+directory or a first single sign-on — the requirement cannot be met: it does not sign in with the
+password it was given, and the change-password screen asks for that password. Accounts the directory
+created on 0.10.0 or `v0.11.0-rc.1` are in that state. An administrator lifts it with the unlock
+button on the account's row, after a confirmation; the account's sessions are let through at their
+next request, without signing in again.
+
+- **Only for an account bound to the provider.** An account that signs in with its own password is
+  refused (`400`): the requirement is what makes a password somebody else chose — an administrator,
+  the bootstrap configuration — stop being a credential, and the account lifts it by changing the
+  password. The button is not offered for it.
+- **Never on one's own account**, and a superuser's only by a superuser, as for every other change to
+  a superuser's account.
+- **Recorded.** The audit log names who lifted it and for which account (`USER_UPDATED`), and the
+  entry reaches the SIEM as an account change (`VECTI-SEC-010`).
+- **Idempotent.** An account that owes nothing is answered as it is, with no change and no entry.
+
+The route is `DELETE /api/v1/users/{id}/password-change-requirement`, for administrators.
+
 ## Roles
 
 Roles decide what a person may **do**; teams decide what they may **see**. The two are independent

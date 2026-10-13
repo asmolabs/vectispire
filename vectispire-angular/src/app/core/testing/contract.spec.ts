@@ -113,6 +113,7 @@ describe('the fixture checker', () => {
                         role: 'READER',
                         isActive: true,
                         mustChangePassword: false,
+                        federated: false,
                         createdAt: '2026-01-01T00:00:00Z',
                         activeSessions: 0
                     }

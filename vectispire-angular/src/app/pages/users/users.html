@@ -93,6 +93,16 @@
                         [disabled]="busy() === user.id"
                         (onClick)="openReset(user)"
                     />
+                    @if (canLift(user)) {
+                        <p-button
+                            icon="pi pi-unlock"
+                            [text]="true"
+                            [rounded]="true"
+                            [ariaLabel]="'users.aria_lift_requirement' | translate: { name: user.username }"
+                            [disabled]="busy() === user.id"
+                            (onClick)="askLift(user)"
+                        />
+                    }
                     <p-button
                         icon="pi pi-trash"
                         severity="danger"
@@ -181,6 +191,28 @@
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="resetVisible.set(false)" />
         <p-button [label]="'users.reset' | translate" [loading]="saving()" (onClick)="confirmReset()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'users.lift_header' | translate"
+    [(visible)]="liftVisible"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+>
+    @if (pendingLift(); as user) {
+        <div class="flex flex-col gap-4">
+            <p id="lift-consequence" class="m-0">
+                {{ 'users.lift_consequence' | translate: { name: user.username } }}
+            </p>
+            @if (formError(); as message) {
+                <p-message severity="error" [closable]="false">{{ message }}</p-message>
+            }
+        </div>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="liftVisible.set(false)" />
+        <p-button id="lift-confirm" [label]="'users.lift' | translate" [loading]="saving()" (onClick)="confirmLift()" />
     </ng-template>
 </p-dialog>
 

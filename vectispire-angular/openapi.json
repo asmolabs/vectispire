@@ -11482,6 +11482,9 @@
           "email" : {
             "type" : "string"
           },
+          "federated" : {
+            "type" : "boolean"
+          },
           "id" : {
             "format" : "int64",
             "type" : "integer"
@@ -11499,7 +11502,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "activeSessions", "isActive", "mustChangePassword" ],
+        "required" : [ "activeSessions", "federated", "isActive", "mustChangePassword" ],
         "type" : "object"
       },
       "UserCreateRequest" : {
@@ -21289,6 +21292,33 @@
           },
           "required" : true
         },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserAdminSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "users-controller" ]
+      }
+    },
+    "/api/v1/users/{id}/password-change-requirement" : {
+      "delete" : {
+        "operationId" : "clearPasswordChangeRequirement",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {

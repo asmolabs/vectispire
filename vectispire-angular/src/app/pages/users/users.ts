@@ -78,6 +78,8 @@ export class Users {
     readonly deleteVisible = signal(false);
     readonly pendingReset = signal<UserSummary | null>(null);
     readonly pendingDelete = signal<UserSummary | null>(null);
+    readonly liftVisible = signal(false);
+    readonly pendingLift = signal<UserSummary | null>(null);
     readonly isEmpty = computed(() => this.users().length === 0);
 
     form = { username: '', displayName: '', role: 'USER', password: '' };
@@ -313,6 +315,39 @@ export class Users {
             error: (response) => {
                 this.saving.set(false);
                 this.formError.set(messageOf(response, this.i18n.t('users.error_reset')));
+            }
+        });
+    }
+
+    /**
+     * Offered where the server would accept it: an account the identity provider signs in, owing a
+     * change, and not one's own. An account signing in with its own password lifts the requirement by
+     * changing it — lifting it for them would keep valid a password somebody else chose.
+     */
+    canLift(user: UserSummary): boolean {
+        return user.mustChangePassword && user.federated && user.id !== this.currentUserId();
+    }
+
+    askLift(user: UserSummary): void {
+        this.pendingLift.set(user);
+        this.formError.set(null);
+        this.liftVisible.set(true);
+    }
+
+    /** The refusal stays in the dialog, read with `messageOf`: the server's sentence says which rule. */
+    confirmLift(): void {
+        const user = this.pendingLift();
+        if (!user) return;
+        this.saving.set(true);
+        this.accountsApi.clearPasswordChangeRequirement(user.id).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.liftVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.formError.set(messageOf(response, this.i18n.t('users.error_lift')));
             }
         });
     }

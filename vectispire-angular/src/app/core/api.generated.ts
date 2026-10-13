@@ -4348,6 +4348,22 @@ export interface paths {
         patch: operations["update_3"];
         trace?: never;
     };
+    "/api/v1/users/{id}/password-change-requirement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["clearPasswordChangeRequirement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{id}/targets": {
         parameters: {
             query?: never;
@@ -8800,6 +8816,7 @@ export interface components {
             createdAt?: string;
             displayName?: string;
             email?: string;
+            federated: boolean;
             /** Format: int64 */
             id?: number;
             isActive: boolean;
@@ -15774,6 +15791,28 @@ export interface operations {
                 "application/json": components["schemas"]["UserUpdateRequest"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserAdminSummary"];
+                };
+            };
+        };
+    };
+    clearPasswordChangeRequirement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
