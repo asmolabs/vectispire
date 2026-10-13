@@ -190,6 +190,12 @@ présente un secret :
 Un en-tête faux ou absent reçoit `401`, sans dire quel en-tête était attendu. Un secret enregistré
 qu'aucune clé configurée ne déchiffre refuse de la même façon : posez-le de nouveau.
 
+**Un refus est un document « problem »** ([RFC 9457](../reference/errors.md)), comme tout autre refus
+de l'API : le `400` d'un fournisseur inconnu ou d'un corps qui n'est pas du JSON, le `401` et le `403`
+ci-dessus portent leur phrase dans `detail`, en `application/problem+json`. Jusqu'à la 0.11.1, ils
+revenaient dans le corps d'un succès — `matched: false` et la phrase dans `actionTaken`. Une livraison
+qui a été lue — appariée, sans issue correspondante, déjà traitée — garde ce corps.
+
 **Une livraison n'est traitée qu'une fois.** L'empreinte de chaque corps accepté est gardée trente
 jours ; le même corps reçu de nouveau dans cette fenêtre — un rejeu, ou la redélivrance du tracker
 lui-même — reçoit `200` *« Delivery already processed »* et ne change rien.

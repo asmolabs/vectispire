@@ -1,6 +1,9 @@
 package com.asmolabs.vectispire.core.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -10,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * The webhook route, over HTTP, with and without a configured secret.
@@ -40,8 +44,9 @@ class TicketWebhookAuthRoutesTest extends ApiTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY))
                 .andExpect(status().isForbidden())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.actionTaken")
-                        .value(org.hamcrest.Matchers.containsString("not configured")));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("not configured")))
+                .andExpect(jsonPath("$.actionTaken").doesNotExist());
     }
 
     @Test
@@ -78,11 +83,41 @@ class TicketWebhookAuthRoutesTest extends ApiTestBase {
                         .content(BODY))
                 .andExpect(status().isUnauthorized());
 
-        mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+        MvcResult guessed = mvc.perform(post("/api/v1/tickets/webhook/gitlab")
                         .header("X-Gitlab-Token", "guessed")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.matched").doesNotExist())
+                .andReturn();
+        // No more than that: a caller learning which header was wrong learns which tracker we expect.
+        assertThat(detailOf(guessed)).isEqualTo("Webhook authentication failed");
+    }
+
+    @Test
+    @DisplayName("a provider it does not know, and a body that is not JSON, are 400 problems")
+    void malformedDeliveriesAreProblems() throws Exception {
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, "shared-with-gitlab");
+
+        MvcResult unknown = mvc.perform(post("/api/v1/tickets/webhook/bitbucket")
+                        .header("X-Vectispire-Token", "shared-with-gitlab")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(BODY))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andReturn();
+        assertThat(detailOf(unknown)).isEqualTo("Unsupported provider: bitbucket");
+
+        MvcResult notJson = mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+                        .header("X-Gitlab-Token", "shared-with-gitlab")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andReturn();
+        assertThat(detailOf(notJson)).isEqualTo("Malformed JSON body");
     }
 
     @Test

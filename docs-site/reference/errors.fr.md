@@ -61,7 +61,9 @@ ERROR … Unexpected failure 6f1c2a9e-… on PATCH /api/v1/users/12
 
 ## SCIM
 
-`/scim/v2/Users` répond à une valeur refusée, et à un compte protégé, dans le schéma d'erreur de la
+`/scim/v2/Users` et `/scim/v2/Groups` répondent à une valeur refusée, à un compte protégé, à un
+utilisateur ou un groupe absent (`404`) et à un `userName` ou un `displayName` déjà pris (`409`,
+`scimType` `uniqueness`) dans le schéma d'erreur de la
 [RFC 7644 §3.12](https://www.rfc-editor.org/rfc/rfc7644#section-3.12), parce que c'est ce qu'un
-client d'annuaire sait lire ; un filtre qu'il n'évalue pas reçoit `400` avec `scimType` `invalidFilter`. Tout autre refus sur les routes SCIM est un document « problem » comme
-ci-dessus.
+client d'annuaire sait lire ; un filtre qu'il n'évalue pas reçoit `400` avec `scimType` `invalidFilter`.
+Tout autre refus sur les routes SCIM — celui du jeton — est un document « problem » comme ci-dessus.

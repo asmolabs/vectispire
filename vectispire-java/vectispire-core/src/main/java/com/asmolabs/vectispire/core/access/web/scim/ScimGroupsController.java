@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.access.web.scim;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.core.access.ScimProvisioningService;
+import com.asmolabs.vectispire.core.access.web.scim.dto.ScimErrorResponse;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimGroupDto;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimPatchOp;
@@ -12,6 +14,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,14 +51,14 @@ public class ScimGroupsController {
     public ResponseEntity<ScimGroupDto> getGroup(@PathVariable Long id) {
         return provisioning.group(id)
                 .map(group -> ResponseEntity.ok(toDto(group)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
     }
 
     @PostMapping(consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> createGroup(@RequestBody ScimGroupDto dto, HttpServletRequest request) {
         return switch (provisioning.createGroup(dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request))) {
             case ScimProvisioningService.GroupCreation.NameTaken taken ->
-                    ResponseEntity.status(HttpStatus.CONFLICT).build();
+                    throw ScimRefusal.uniqueness("A group with this displayName already exists.");
             case ScimProvisioningService.GroupCreation.Created(ScimProvisioningService.GroupView group) ->
                     ResponseEntity.created(URI.create("/scim/v2/Groups/" + group.id())).body(toDto(group));
         };
@@ -67,7 +70,7 @@ public class ScimGroupsController {
 
         return provisioning.replaceGroup(id, dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request))
                 .map(group -> ResponseEntity.ok(toDto(group)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
     }
 
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
@@ -76,13 +79,30 @@ public class ScimGroupsController {
 
         return provisioning.patchGroup(id, ScimUsersController.operationsOf(patch), RequestActors.unnamed(request))
                 .map(group -> ResponseEntity.ok(toDto(group)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteGroup(@PathVariable Long id, HttpServletRequest request) {
         provisioning.deleteGroup(id, RequestActors.unnamed(request));
+    }
+
+    /** An absent group, a taken displayName: SCIM's error schema, never an empty body. */
+    @ExceptionHandler(ScimRefusal.class)
+    public ResponseEntity<ScimErrorResponse> handleRefusal(ScimRefusal refusal) {
+        return refusal.response();
+    }
+
+    /**
+     * A refusal the provisioning service wrote for the directory — a blank displayName — in SCIM's
+     * error schema, as the users' routes answer theirs; it reached the application's handler and came
+     * back a problem document a directory does not parse.
+     */
+    @ExceptionHandler(InvalidInputException.class)
+    public ResponseEntity<ScimErrorResponse> handleBadInput(InvalidInputException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ScimErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
     }
 
     private static List<String> memberValuesOf(ScimGroupDto dto) {

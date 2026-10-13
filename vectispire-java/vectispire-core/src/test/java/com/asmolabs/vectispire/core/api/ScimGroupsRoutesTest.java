@@ -75,7 +75,10 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.totalResults").value(1));
 
         mvc.perform(authenticated(get("/scim/v2/Groups/" + (id + 1000)), asAdmin()))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("404"))
+                .andExpect(jsonPath("$.detail").value("Group " + (id + 1000) + " not found."));
     }
 
     @Test
@@ -106,7 +109,18 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "payments"))))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("A group with this displayName already exists."));
+
+        // A blank name is the directory's mistake, told in the same schema rather than as a problem.
+        mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("displayName", " "))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("400"));
     }
 
     @Test
@@ -138,7 +152,8 @@ class ScimGroupsRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(put("/scim/v2/Groups/" + (id + 1000)), asAdmin())
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "Nobody"))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"));
     }
 
     @Test

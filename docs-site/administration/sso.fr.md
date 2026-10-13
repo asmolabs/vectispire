@@ -103,6 +103,10 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
   un `and` ou un `or`, `co`, une valeur sans guillemets — répond `400` avec `scimType` `invalidFilter`
   (RFC 7644 §3.4.2.2) ; il renvoyait tous les comptes, ce qu'un annuaire qui cherche avant de créer
   lisait comme une correspondance. Sans filtre, le point d'accès liste tous les comptes, comme avant.
+- **Un utilisateur ou un groupe absent reçoit `404`, un `userName` ou un `displayName` déjà pris `409`
+  avec `scimType` `uniqueness`** (RFC 7644 §3.3), tous deux dans le schéma d'erreur de SCIM avec un
+  `detail`. Jusqu'à la 0.11.1, les deux avaient un corps vide, qui ne donnait à l'annuaire rien à
+  journaliser ni de quoi reconnaître « déjà là ».
 
 ## Le second facteur relève du fournisseur
 

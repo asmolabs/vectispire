@@ -8938,6 +8938,15 @@ export interface components {
             targetKind?: string;
             targetName?: string;
         };
+        /** @description A refused delivery: an RFC 9457 problem whose detail says why. */
+        WebhookRefusal: {
+            detail?: string;
+            instance?: string;
+            /** Format: int32 */
+            status: number;
+            title?: string;
+            type?: string;
+        };
         WebhookRequest: {
             url?: string;
         };
@@ -15709,6 +15718,33 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WebhookSyncResult"];
+                };
+            };
+            /** @description Unsupported provider, or a body that is not JSON */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebhookRefusal"];
+                };
+            };
+            /** @description The delivery's token or signature was not accepted */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebhookRefusal"];
+                };
+            };
+            /** @description No webhook secret is configured on this instance */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebhookRefusal"];
                 };
             };
         };
