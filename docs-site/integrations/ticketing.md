@@ -181,6 +181,12 @@ presents one:
 A wrong or missing header is answered `401`, with no detail on which header was expected. A
 stored secret that no configured key can decrypt refuses the same way: set it again.
 
+**A refusal is a problem document** ([RFC 9457](../reference/errors.md)), like every other refusal
+of the API: the `400` of an unknown provider or a body that is not JSON, the `401` and the `403`
+above carry their sentence in `detail`, as `application/problem+json`. Until 0.11.1 they came back
+in the success body — `matched: false` and the sentence in `actionTaken`. A delivery that was read
+— matched, matching no issue, already processed — keeps that body.
+
 **A delivery is acted on once.** The hash of each accepted body is kept for thirty days; the same
 body arriving again within that window — a replay, or the tracker's own redelivery — is answered
 `200` *"Delivery already processed"* and changes nothing.

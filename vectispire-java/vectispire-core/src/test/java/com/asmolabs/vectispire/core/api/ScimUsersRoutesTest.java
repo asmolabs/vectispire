@@ -281,6 +281,39 @@ class ScimUsersRoutesTest extends ApiTestBase {
     // A filter the endpoint did not evaluate fell back to every account: a directory looking an account up
     // by e-mail before creating one read the first account of the list as its match.
 
+    @Test
+    @DisplayName("an absent account and a taken userName answer SCIM's error schema, never an empty body")
+    void absentAndTakenAreScimErrors() throws Exception {
+        long absent = 9_000_000L;
+        for (var request : List.of(
+                get("/scim/v2/Users/" + absent),
+                put("/scim/v2/Users/" + absent)
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-nobody"))),
+                patch("/scim/v2/Users/" + absent)
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of(
+                                "schemas", List.of("urn:ietf:params:scim:api:messages:2.0:PatchOp"),
+                                "Operations", List.of(Map.of("op", "replace", "path", "active", "value", false))))))) {
+            mvc.perform(authenticated(request, asAdmin()))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                    .andExpect(jsonPath("$.status").value("404"))
+                    .andExpect(jsonPath("$.detail").value("User " + absent + " not found."));
+        }
+
+        tokenFor("scim-taken", Role.USER, false);
+        mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-taken"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("409"))
+                // RFC 7644 §3.3: what a directory reads to link the existing account instead of failing.
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("An account with this userName already exists."));
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {
         "displayName eq \"Filter Person\"",

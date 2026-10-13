@@ -58,7 +58,7 @@ public class ScimUsersController {
     public ResponseEntity<ScimUserDto> getUser(@PathVariable Long id) {
         return provisioning.user(id)
                 .map(u -> ResponseEntity.ok(toDto(u)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
     }
 
     @PostMapping(consumes = {"application/scim+json", "application/json"})
@@ -67,7 +67,7 @@ public class ScimUsersController {
 
         return switch (provisioning.createUser(attributesOf(dto), RequestActors.unnamed(request))) {
             case ScimProvisioningService.UserCreation.UsernameTaken taken ->
-                    ResponseEntity.status(HttpStatus.CONFLICT).build();
+                    throw ScimRefusal.uniqueness("An account with this userName already exists.");
             case ScimProvisioningService.UserCreation.Created(UserView saved) ->
                     ResponseEntity.created(URI.create("/scim/v2/Users/" + saved.id())).body(toDto(saved));
         };
@@ -79,7 +79,7 @@ public class ScimUsersController {
 
         return provisioning.replaceUser(id, attributesOf(dto), RequestActors.unnamed(request))
                 .map(saved -> ResponseEntity.ok(toDto(saved)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
     }
 
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
@@ -88,13 +88,19 @@ public class ScimUsersController {
 
         return provisioning.patchUser(id, operationsOf(patch), RequestActors.unnamed(request))
                 .map(saved -> ResponseEntity.ok(toDto(saved)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long id, HttpServletRequest request) {
         provisioning.deleteUser(id, RequestActors.unnamed(request));
+    }
+
+    /** An absent account, a taken userName: SCIM's error schema, never an empty body. */
+    @ExceptionHandler(ScimRefusal.class)
+    public ResponseEntity<ScimErrorResponse> handleRefusal(ScimRefusal refusal) {
+        return refusal.response();
     }
 
     /** 403 rather than 404: the account exists and the directory may read it, only not change it. */

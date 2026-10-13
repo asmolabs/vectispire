@@ -97,6 +97,9 @@ the provider's configuration, so what it may do is deliberately bounded:
   `co`, an unquoted value — answers `400` with `scimType` `invalidFilter` (RFC 7644 §3.4.2.2); it used to
   return every account, which a directory looking up before creating read as a match. Without a filter
   the endpoint lists every account, as before.
+- **An absent user or group is `404`, a taken `userName` or `displayName` is `409` with `scimType`
+  `uniqueness`** (RFC 7644 §3.3), both in SCIM's error schema with a `detail`. Until 0.11.1 both had
+  an empty body, which gave a directory nothing to log and nothing to tell "already there" by.
 
 ## The second factor belongs to the provider
 

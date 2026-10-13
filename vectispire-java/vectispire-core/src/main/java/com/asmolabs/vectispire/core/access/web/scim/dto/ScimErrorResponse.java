@@ -18,6 +18,9 @@ public record ScimErrorResponse(
     /** RFC 7644 §3.12: the filter syntax was invalid, or the filter is not supported. */
     public static final String INVALID_FILTER = "invalidFilter";
 
+    /** RFC 7644 §3.12: a unique attribute's value is already in use. */
+    public static final String UNIQUENESS = "uniqueness";
+
     public static ScimErrorResponse of(int status, String detail) {
         return of(status, null, detail);
     }
