@@ -47,7 +47,11 @@ class GitHubReviewReader implements ReviewReader {
     @Override
     public Reading read(OutboundPager pager, String api, String forgeId, Optional<String> wanted, Instant since,
             int windowDays, int maxChanges) {
-        OutboundJson.Answer repository = pager.get(api + "/repositories/" + ReviewReader.segment(forgeId));
+        Optional<String> id = ForgePath.segment(forgeId);
+        if (id.isEmpty()) {
+            return new Reading.Unreadable("Repository id \"" + forgeId + "\" cannot be named in a GitHub API path.");
+        }
+        OutboundJson.Answer repository = pager.get(api + "/repositories/" + id.get());
         switch (repository.status()) {
             case 200 -> {
                 // Read below.
@@ -70,14 +74,21 @@ class GitHubReviewReader implements ReviewReader {
         if (branch.isEmpty()) {
             return new Reading.Unreadable("GitHub names no default branch for " + fullName + ".");
         }
-        // The owner and the name, each a path segment of its own.
-        String repo = api + "/repos/" + fullName.substring(0, fullName.indexOf('/')) + "/"
-                + ReviewReader.segment(fullName.substring(fullName.indexOf('/') + 1));
+        // The owner and the name, each a path segment of its own: both are the forge's text, and an owner carrying
+        // a slash or a question mark would otherwise choose the endpoint asked.
+        Optional<String> owner = ForgePath.segment(fullName.substring(0, fullName.indexOf('/')));
+        Optional<String> name = ForgePath.segment(fullName.substring(fullName.indexOf('/') + 1));
+        Optional<String> branchSegment = ForgePath.segment(branch.get());
+        if (owner.isEmpty() || name.isEmpty() || branchSegment.isEmpty()) {
+            return new Reading.Unreadable("GitHub named repository " + fullName + " or its branch " + branch.get()
+                    + " in a form no API path can carry.");
+        }
+        String repo = api + "/repos/" + owner.get() + "/" + name.get();
 
         Optional<ChangeReviewEvidence.Settings> settings = Optional.empty();
         List<String> unreadSettings = new ArrayList<>();
         int fromRules = -1;
-        OutboundJson.Answer rules = pager.get(repo + "/rules/branches/" + ReviewReader.segment(branch.get())
+        OutboundJson.Answer rules = pager.get(repo + "/rules/branches/" + branchSegment.get()
                 + "?per_page=100");
         switch (rules.status()) {
             case 200 -> {
@@ -96,7 +107,7 @@ class GitHubReviewReader implements ReviewReader {
         }
         int fromProtection = -1;
         boolean adminsBound = false;
-        OutboundJson.Answer protection = pager.get(repo + "/branches/" + ReviewReader.segment(branch.get())
+        OutboundJson.Answer protection = pager.get(repo + "/branches/" + branchSegment.get()
                 + "/protection");
         switch (protection.status()) {
             case 200 -> {
@@ -129,7 +140,7 @@ class GitHubReviewReader implements ReviewReader {
                     String.join(", ", said) + " on " + branch.get() + ", author approval prevented by GitHub"));
         }
 
-        History history = history(pager, repo, branch.get(), since, maxChanges);
+        History history = history(pager, repo, branchSegment.get(), since, maxChanges);
         if (history.rejected()) {
             return rejected();
         }
@@ -147,11 +158,12 @@ class GitHubReviewReader implements ReviewReader {
         static final History REJECTED = new History(Optional.empty(), Optional.empty(), true);
     }
 
-    private static History history(OutboundPager pager, String repo, String branch, Instant since, int maxChanges) {
+    private static History history(OutboundPager pager, String repo, String branchSegment, Instant since,
+            int maxChanges) {
         record Merged(long number, Instant at, String author) {}
         List<Merged> merged = new ArrayList<>();
         boolean complete = true;
-        Optional<String> url = Optional.of(repo + "/pulls?state=closed&base=" + ReviewReader.segment(branch)
+        Optional<String> url = Optional.of(repo + "/pulls?state=closed&base=" + branchSegment
                 + "&sort=updated&direction=desc&per_page=100");
         pages:
         while (url.isPresent()) {

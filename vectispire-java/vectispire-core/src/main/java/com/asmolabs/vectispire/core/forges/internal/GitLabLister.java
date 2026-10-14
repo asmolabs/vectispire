@@ -80,7 +80,14 @@ class GitLabLister implements ForgeLister {
         });
 
         for (String forgeId : listing.languagesWanted()) {
-            OutboundJson.Answer answer = pager.get(api + "/projects/" + forgeId + "/languages");
+            // The id is the forge's own, read from its listing: a number, but encoded all the same, since a text
+            // there would otherwise pick the endpoint asked.
+            Optional<String> segment = ForgePath.segment(forgeId);
+            if (segment.isEmpty()) {
+                listing.language(forgeId, null);
+                continue;
+            }
+            OutboundJson.Answer answer = pager.get(api + "/projects/" + segment.get() + "/languages");
             switch (answer.status()) {
                 case 200 -> listing.language(forgeId, mainLanguage(answer.body().orElse(null)));
                 case 401 -> throw rejected();

@@ -53,7 +53,11 @@ class GitLabReviewReader implements ReviewReader {
     @Override
     public Reading read(OutboundPager pager, String api, String forgeId, Optional<String> wanted, Instant since,
             int windowDays, int maxChanges) {
-        String projectUrl = api + "/projects/" + ReviewReader.segment(forgeId);
+        Optional<String> id = ForgePath.segment(forgeId);
+        if (id.isEmpty()) {
+            return new Reading.Unreadable("Project id \"" + forgeId + "\" cannot be named in a GitLab API path.");
+        }
+        String projectUrl = api + "/projects/" + id.get();
         OutboundJson.Answer project = pager.get(projectUrl);
         switch (project.status()) {
             case 200 -> {
@@ -75,12 +79,17 @@ class GitLabReviewReader implements ReviewReader {
         if (branch.isEmpty()) {
             return new Reading.Unreadable("GitLab names no default branch for " + path + ": the repository is empty.");
         }
+        Optional<String> branchSegment = ForgePath.segment(branch.get());
+        if (branchSegment.isEmpty()) {
+            return new Reading.Unreadable("Branch \"" + branch.get() + "\" of " + path
+                    + " cannot be named in a GitLab API path.");
+        }
 
-        Settings settings = settings(pager, projectUrl, branch.get());
+        Settings settings = settings(pager, projectUrl, branch.get(), branchSegment.get());
         if (settings.rejected()) {
             return rejected();
         }
-        History history = history(pager, projectUrl, branch.get(), since, maxChanges);
+        History history = history(pager, projectUrl, branchSegment.get(), since, maxChanges);
         if (history.rejected()) {
             return rejected();
         }
@@ -97,7 +106,7 @@ class GitLabReviewReader implements ReviewReader {
         }
     }
 
-    private static Settings settings(OutboundPager pager, String projectUrl, String branch) {
+    private static Settings settings(OutboundPager pager, String projectUrl, String branch, String branchSegment) {
         OutboundJson.Answer configuration = pager.get(projectUrl + "/approvals");
         switch (configuration.status()) {
             case 200 -> {
@@ -120,7 +129,7 @@ class GitLabReviewReader implements ReviewReader {
         // true means the author MAY approve; a field GitLab did not state is not "prevented".
         boolean authorPrevented = authorApproval != null && authorApproval.isBoolean() && !authorApproval.asBoolean();
 
-        OutboundJson.Answer protection = pager.get(projectUrl + "/protected_branches/" + ReviewReader.segment(branch));
+        OutboundJson.Answer protection = pager.get(projectUrl + "/protected_branches/" + branchSegment);
         boolean protectedBranch;
         boolean pushRefused;
         String push;
@@ -264,12 +273,13 @@ class GitLabReviewReader implements ReviewReader {
         static final History REJECTED = new History(Optional.empty(), Optional.empty(), true);
     }
 
-    private static History history(OutboundPager pager, String projectUrl, String branch, Instant since, int maxChanges) {
+    private static History history(OutboundPager pager, String projectUrl, String branchSegment, Instant since,
+            int maxChanges) {
         record Merged(String iid, Instant at, String author) {}
         List<Merged> merged = new ArrayList<>();
         boolean complete = true;
         Optional<String> url = Optional.of(projectUrl + "/merge_requests?state=merged&target_branch="
-                + ReviewReader.segment(branch) + "&updated_after=" + since + "&order_by=updated_at&sort=desc&per_page=100");
+                + branchSegment + "&updated_after=" + since + "&order_by=updated_at&sort=desc&per_page=100");
         pages:
         while (url.isPresent()) {
             OutboundJson.Answer page = pager.get(url.get());
@@ -303,7 +313,11 @@ class GitLabReviewReader implements ReviewReader {
         }
         List<MergedChange> changes = new ArrayList<>();
         for (Merged request : merged) {
-            OutboundJson.Answer approvals = pager.get(projectUrl + "/merge_requests/" + request.iid() + "/approvals");
+            Optional<String> iid = ForgePath.segment(request.iid());
+            if (iid.isEmpty()) {
+                return History.unread("GitLab answered a merge request without a number to ask its approvals by");
+            }
+            OutboundJson.Answer approvals = pager.get(projectUrl + "/merge_requests/" + iid.get() + "/approvals");
             switch (approvals.status()) {
                 case 200 -> {
                     // Read below.
