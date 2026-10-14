@@ -6,6 +6,7 @@ import { GatePolicies, THRESHOLD_KEYS } from './gate-policies';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
+import type { GatePolicyRequest } from '@/app/core/api.models';
 
 /**
  * The screen that decides what fails a build.
@@ -89,7 +90,7 @@ describe('the gate policy screen', () => {
         // applies, and that is exactly what somebody arriving here needs to be told.
         // The key, not the sentence: this harness renders keys unresolved, and pinning the
         // wording would break on the next rewording while proving nothing more.
-        expect(fixture.nativeElement.textContent).toContain('gate_policies.nothing_stored_strong');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('gate_policies.nothing_stored_strong');
         expect(fixture.componentInstance.globalPolicy()).toBeNull();
     });
 
@@ -142,15 +143,15 @@ describe('the gate policy screen', () => {
         fixture.componentInstance.save();
 
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
-        expect(request.request.body.fail_on_severity).toBe('none');
+        expect((request.request.body as GatePolicyRequest).fail_on_severity).toBe('none');
         // Every flag, always: the server refuses a partial policy rather than defaulting the
         // missing half, and a form that omitted one would only find out in production.
-        expect(request.request.body.fail_on_kev).toBe(true);
-        expect(request.request.body.fixable_only).toBe(false);
-        expect(request.request.body.include_triaged).toBe(false);
-        expect(request.request.body.include_ai_review).toBe(false);
-        expect(request.request.body.fail_on_uncovered_languages).toBe(false);
-        expect(request.request.body.include_plugins).toBe(false);
+        expect((request.request.body as GatePolicyRequest).fail_on_kev).toBe(true);
+        expect((request.request.body as GatePolicyRequest).fixable_only).toBe(false);
+        expect((request.request.body as GatePolicyRequest).include_triaged).toBe(false);
+        expect((request.request.body as GatePolicyRequest).include_ai_review).toBe(false);
+        expect((request.request.body as GatePolicyRequest).fail_on_uncovered_languages).toBe(false);
+        expect((request.request.body as GatePolicyRequest).include_plugins).toBe(false);
         request.flush({ ...GLOBAL, version: 1 });
     });
 
@@ -167,7 +168,7 @@ describe('the gate policy screen', () => {
         fixture.componentInstance.save();
 
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
-        expect(request.request.body.include_plugins).toBe(true);
+        expect((request.request.body as GatePolicyRequest).include_plugins).toBe(true);
         request.flush({ ...GLOBAL, include_plugins: true, version: 4 });
     });
 
@@ -188,7 +189,7 @@ describe('the gate policy screen', () => {
     it('says on the card whether plugin findings are counted', () => {
         load([{ ...GLOBAL, include_plugins: true }]);
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('gate_policies.plugins');
         expect(text).toContain('gate_policies.builtin_plugins_note');
     });
@@ -210,7 +211,7 @@ describe('the gate policy screen', () => {
         fixture.componentInstance.save();
 
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
-        expect(request.request.body.fail_on_uncovered_languages).toBe(true);
+        expect((request.request.body as GatePolicyRequest).fail_on_uncovered_languages).toBe(true);
         request.flush({ ...GLOBAL, version: 1 });
     });
 
@@ -315,6 +316,6 @@ describe('the gate policy screen', () => {
         // The server is the authority on what a policy may say; repeating its sentence is what
         // lets somebody fix the typo instead of guessing which field it disliked.
         expect(fixture.componentInstance.error()).toContain('hgh');
-        expect(fixture.nativeElement.textContent).toContain('hgh');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('hgh');
     });
 });

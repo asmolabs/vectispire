@@ -86,7 +86,7 @@ describe('the settings screen', () => {
     it('offers the connection test on the section that holds the model settings', () => {
         fixture.componentInstance.activeTab.set('ai');
         fixture.detectChanges();
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('Test the connection') || text.includes('settings.test_connection')).toBe(true);
     });
 
@@ -129,7 +129,7 @@ describe('the settings screen', () => {
 
         // Reachable without the model is the commonest misconfiguration, and a single green tick
         // would hide it until the first report failed on another screen.
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('is not installed there') || text.includes('gemma4:12b-it-qat')).toBe(true);
         expect(review.testingOllama()).toBe(false);
     });
@@ -154,7 +154,7 @@ describe('the settings screen', () => {
         fixture.componentInstance.activeTab.set('integrations');
         fixture.detectChanges();
 
-        const input = fixture.nativeElement.querySelector('input#webhook-secret') as HTMLInputElement | null;
+        const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input#webhook-secret');
         expect(input).not.toBeNull();
         input!.value = 'a-signing-key';
         input!.dispatchEvent(new Event('input'));

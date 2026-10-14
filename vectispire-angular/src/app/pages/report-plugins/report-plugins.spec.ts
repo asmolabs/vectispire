@@ -15,6 +15,7 @@ import {
     reportConflict
 } from '@/app/core/testing/report-plugins.fixtures';
 import { ReportPlugins } from './report-plugins';
+import type { ReportPluginManifest } from '@/app/core/api.models';
 
 /**
  * The report plugin registry, through the DOM.
@@ -215,7 +216,7 @@ describe('the report plugin registry', () => {
         type('#report-manifest', JSON.stringify({ ...REPORT_MANIFEST, timeout_seconds: 240 }));
         button(document, '[data-testid="save-manifest"]')!.click();
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/report-plugins/quarterly-summary' });
-        expect(request.request.body.timeout_seconds).toBe(240);
+        expect((request.request.body as ReportPluginManifest).timeout_seconds).toBe(240);
         request.flush(REPORT_PLUGIN);
         http.expectOne('/api/v1/report-plugins').flush([REPORT_PLUGIN]);
         fixture.detectChanges();

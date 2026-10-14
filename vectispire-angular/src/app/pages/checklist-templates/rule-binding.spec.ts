@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ChecklistPreview, ChecklistVersion } from '@/app/core/api.models';
+import type { ChecklistItemRule, ChecklistPreview, ChecklistVersion } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
 import {
@@ -429,7 +429,7 @@ describe('binding a rule to a template line', () => {
 
         button('rule-component-add').click();
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('#rule-versions-0')).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('#rule-versions-0')).toBeNull();
         expect(text('[data-testid="rule-components-hint"]')).toContain('whatever its version');
         type('#rule-purl-0', 'pkg:maven/org.example.platform');
         const request = keepAndSave();
@@ -455,9 +455,15 @@ describe('binding a rule to a template line', () => {
         choose('#rule-kind', 'Changes reviewed by a peer');
         await settle();
 
-        expect((fixture.nativeElement.querySelector('#rule-minimum-approvals') as HTMLInputElement).value).toBe('1');
-        expect((fixture.nativeElement.querySelector('#rule-window-days') as HTMLInputElement).value).toBe('30');
-        expect((fixture.nativeElement.querySelector('#rule-review-share') as HTMLInputElement).value).toBe('1');
+        expect(
+            ((fixture.nativeElement as HTMLElement).querySelector('#rule-minimum-approvals') as HTMLInputElement).value
+        ).toBe('1');
+        expect(
+            ((fixture.nativeElement as HTMLElement).querySelector('#rule-window-days') as HTMLInputElement).value
+        ).toBe('30');
+        expect(
+            ((fixture.nativeElement as HTMLElement).querySelector('#rule-review-share') as HTMLInputElement).value
+        ).toBe('1');
         type('#rule-branch', 'release 2026');
         button('rule-keep').click();
         fixture.detectChanges();
@@ -500,7 +506,7 @@ describe('binding a rule to a template line', () => {
         expect(text('[data-testid="rule-error"]')).toContain('applies to a pkg:maven/ package only');
         type('#rule-purl-0', 'pkg:maven/org.example.platform');
         const request = keepAndSave();
-        expect(request.request.body.items[0].rule.components).toEqual([
+        expect((request.request.body as { items: ChecklistItemRule[] }).items[0].rule?.components).toEqual([
             { purlPrefix: 'pkg:maven/org.example.platform', versions: ['[1.17,2.0)', '1.16.4'] }
         ]);
         request.flush(BOUND_VERSION);

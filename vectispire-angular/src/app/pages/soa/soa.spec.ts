@@ -7,7 +7,7 @@ import { Soa } from './soa';
 import { asSchema } from '@/app/core/testing/contract';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { useEnglish } from '@/app/core/testing/english';
-import type { SoaStatement } from '@/app/core/api.models';
+import type { DeclarationRequest, SoaStatement } from '@/app/core/api.models';
 import english from '../../../../public/i18n/en.json';
 import { APPLICABILITY_KEYS, DIVERGENCE_HELP_KEYS, DIVERGENCE_KEYS, EVIDENCE_KEYS, IMPLEMENTATION_KEYS } from './soa';
 
@@ -188,7 +188,7 @@ describe('the statement of applicability', () => {
 
         const call = http.expectOne('/api/v1/compliance/soa/ISO_27001/ISO-A.8.8');
         expect(call.request.method).toBe('PUT');
-        expect(call.request.body.applicability).toBe('APPLICABLE');
+        expect((call.request.body as DeclarationRequest).applicability).toBe('APPLICABLE');
         call.flush({});
 
         // Recomputing the divergence in the browser would make a second implementation of the
@@ -201,7 +201,7 @@ describe('the statement of applicability', () => {
         // displayed "n reviews overdue" and nothing said which, although the route existed.
         useEnglish();
         fixture.detectChanges();
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('ISO-A.8.8');
         expect(text).toContain('NIS2-ART21-2-E');
         // The framework is named on every row: the list crosses documents, and a row without its
@@ -227,7 +227,7 @@ describe('the statement of applicability', () => {
 
         // A panel shown when all is well loses its meaning within days, and then the one that
         // matters becomes invisible too.
-        expect(clean.nativeElement.textContent).not.toContain('Reviews overdue');
+        expect((clean.nativeElement as HTMLElement).textContent).not.toContain('Reviews overdue');
         expect(clean.componentInstance.overdue()).toEqual([]);
     });
 
