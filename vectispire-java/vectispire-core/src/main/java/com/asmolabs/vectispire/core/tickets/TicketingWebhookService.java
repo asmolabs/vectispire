@@ -156,27 +156,6 @@ public class TicketingWebhookService {
             return new Outcome.Rejected();
         }
 
-        // **A suspended tracker's delivery is accepted and ignored** (decision 0040 §3) — after the secret, so that
-        // a stranger is refused as before and learns nothing of the switch, and before anything is read or written.
-        // Not a 409: a tracker retries a delivery that failed, and GitLab disables a webhook after repeated
-        // failures, so a refusal here would leave the webhook broken once the governor switched the tracker back
-        // on. Nothing of it is applied, and nothing remembered either — not even in the replay table: a body never
-        // acted on is acted on once if it comes again after re-enabling, which is what it would have done had it
-        // arrived then.
-        Integration integration = Integration.of(provider);
-        if (!integrations.isEnabled(integration)) {
-            if (ignoring.add(integration.key())) {
-                log.info("Ticket webhook: the {} integration is disabled. Its deliveries are authenticated, answered "
-                        + "200 and ignored — no triage and no ticket state is changed — until a platform governor "
-                        + "re-enables it with PUT /api/v1/integrations/{}/enabled.", integration.key(), integration.key());
-            }
-            return new Outcome.IgnoredIntegrationDisabled(integration);
-        }
-        if (ignoring.remove(integration.key())) {
-            log.info("Ticket webhook: the {} integration is enabled again; its deliveries are applied again.",
-                    integration.key());
-        }
-
         // **Once per body.** A signed delivery captured on the wire stayed valid for ever: sent again,
         // it queued the same decision again. Remembered by the hash of the body, which the
         // signature covers — not by the delivery id, which travels in a header it does not.
@@ -195,6 +174,28 @@ public class TicketingWebhookService {
             }
             log.info("{} webhook body already processed; ignored.", provider);
             return new Outcome.AlreadyProcessed();
+        }
+
+        // **A suspended tracker's delivery is accepted and ignored** (decision 0040 §3) — after the secret, so that
+        // a stranger is refused as before and learns nothing of the switch, and before anything is read.
+        // Not a 409: a tracker retries a delivery that failed, and GitLab disables a webhook after repeated
+        // failures, so a refusal here would leave the webhook broken once the governor switched the tracker back
+        // on. Nothing of it is applied — but its body is in the replay table already, above: left out, a delivery
+        // captured while the tracker was off could be sent again once it was back on and be acted on then. The
+        // owner's call of 2026-10-14; the cost is that the tracker's own redelivery of an ignored event is not
+        // applied after re-enabling either.
+        Integration integration = Integration.of(provider);
+        if (!integrations.isEnabled(integration)) {
+            if (ignoring.add(integration.key())) {
+                log.info("Ticket webhook: the {} integration is disabled. Its deliveries are authenticated, answered "
+                        + "200 and ignored — no triage and no ticket state is changed — until a platform governor "
+                        + "re-enables it with PUT /api/v1/integrations/{}/enabled.", integration.key(), integration.key());
+            }
+            return new Outcome.IgnoredIntegrationDisabled(integration);
+        }
+        if (ignoring.remove(integration.key())) {
+            log.info("Ticket webhook: the {} integration is enabled again; its deliveries are applied again.",
+                    integration.key());
         }
 
         JsonNode payload;

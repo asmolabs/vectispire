@@ -156,8 +156,10 @@ Switching off the tracker this installation is configured for **suspends** it, a
   disabled — the one the route names, `/api/v1/tickets/webhook/{provider}` — is authenticated first,
   as always: without the secret it is refused `401` or `403`, suspended or not. Authenticated, it is
   answered `200` with `actionTaken` beginning `ignored_integration_disabled`, and nothing of it is
-  applied — no triage is queued, no ticket state recorded, and the body is not kept for the replay
-  check, so a delivery the tracker sends again after re-enabling is acted on once. A `200` rather than
+  applied — no triage is queued, no ticket state recorded. Its body does enter the replay check, so the
+  same delivery sent again after re-enabling — captured on the wire, or the tracker's own redelivery —
+  is answered *"Delivery already processed"* and changes nothing either; a change made in the tracker
+  while it was suspended is not caught up, edit the issue again to send it. A `200` rather than
   a `409` because a tracker retries a delivery that failed, and GitLab disables a webhook after
   repeated failures: the webhook would be broken by the time the tracker is switched back on. The
   server log says so once when the first delivery is ignored and once when one is applied again, not
@@ -237,8 +239,8 @@ body arriving again within that window — a replay, or the tracker's own redeli
 
 **A disabled tracker's delivery is ignored, not refused.** While the platform governor has the
 tracker's integration switched off, an authenticated delivery is answered `200`
-*"ignored_integration_disabled: …"* and changes nothing
-([when the tracker's integration is disabled](#tracker-suspended)).
+*"ignored_integration_disabled: …"* and changes nothing; its body is remembered like any other, so it is
+not acted on later either ([when the tracker's integration is disabled](#tracker-suspended)).
 
 **A decision is queued, never applied.** The issue moves to `pending_approval` with the proposed
 status and its justification, and stays *under investigation* in the exported VEX documents until a

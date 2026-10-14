@@ -47,7 +47,9 @@ the trackers' part of the sixth.
   to `POST /api/v1/tickets/webhook/{provider}` while that tracker's integration is disabled is answered
   `200`, `matched: false`, with `actionTaken` beginning `ignored_integration_disabled`; a delivery without
   the secret is refused `401` or `403` as before. Not a 409: the tracker would retry, and GitLab disables a
-  webhook after repeated failures.
+  webhook after repeated failures. Its body enters the replay check: the same delivery sent again after
+  re-enabling is answered *"Delivery already processed"*, and a change made in the tracker meanwhile is
+  not caught up.
 - **A new no-data reason, `forge_integration_disabled`**, in a checklist measurement's `reason` and
   everywhere that list of reasons is answered; a client switching over the reasons meets one it did not
   know.

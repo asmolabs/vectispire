@@ -164,8 +164,10 @@ Désactiver le tracker pour lequel l'installation est configurée le **suspend**
   authentifiée, comme toujours : sans le secret, elle est refusée `401` ou `403`, suspendue ou non.
   Authentifiée, elle reçoit `200` avec un `actionTaken` qui commence par
   `ignored_integration_disabled`, et rien n'en est appliqué — aucun triage mis en file, aucun état de
-  ticket enregistré, et le corps n'est pas gardé pour le contrôle de rejeu : une livraison que le
-  tracker renvoie après la réactivation est traitée une fois. Un `200` plutôt qu'un `409`, parce
+  ticket enregistré. Son corps entre bien dans le contrôle de rejeu : la même livraison renvoyée après
+  la réactivation — capturée sur le réseau, ou redélivrée par le tracker lui-même — reçoit
+  *« Delivery already processed »* et ne change rien non plus ; un changement fait dans le tracker
+  pendant la suspension n'est pas rattrapé, modifiez de nouveau le ticket pour l'envoyer. Un `200` plutôt qu'un `409`, parce
   qu'un tracker réessaie une livraison en échec et que GitLab désactive un webhook après des échecs
   répétés : le webhook serait cassé au moment où le tracker est réactivé. Le journal du serveur le dit
   une fois à la première livraison ignorée et une fois à la première de nouveau appliquée, pas à
@@ -248,8 +250,8 @@ lui-même — reçoit `200` *« Delivery already processed »* et ne change rien
 
 **La livraison d'un tracker désactivé est ignorée, pas refusée.** Tant que le gouverneur de la
 plateforme a désactivé l'intégration du tracker, une livraison authentifiée reçoit `200`
-*« ignored_integration_disabled: … »* et ne change rien
-([quand l'intégration du tracker est désactivée](#tracker-suspended)).
+*« ignored_integration_disabled: … »* et ne change rien ; son corps est gardé comme un autre, si bien
+qu'il n'est pas traité plus tard non plus ([quand l'intégration du tracker est désactivée](#tracker-suspended)).
 
 **Une décision est mise en file, jamais appliquée.** L'issue passe en `pending_approval` avec le
 statut proposé et sa justification, et reste *en cours d'investigation* dans les documents VEX

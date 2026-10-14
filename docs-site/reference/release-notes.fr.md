@@ -51,7 +51,9 @@ Vectispire peut parler, et la part du sixième qui touche les gestionnaires de t
   authentifiée sur `POST /api/v1/tickets/webhook/{provider}` tant que l'intégration de ce tracker est
   désactivée reçoit `200`, `matched: false`, avec un `actionTaken` qui commence par
   `ignored_integration_disabled` ; une livraison sans le secret est refusée `401` ou `403` comme avant.
-  Pas un 409 : le tracker réessaierait, et GitLab désactive un webhook après des échecs répétés.
+  Pas un 409 : le tracker réessaierait, et GitLab désactive un webhook après des échecs répétés. Son
+  corps entre dans le contrôle de rejeu : la même livraison renvoyée après la réactivation reçoit
+  *« Delivery already processed »*, et un changement fait dans le tracker entre-temps n'est pas rattrapé.
 - **Une nouvelle raison d'absence de données, `forge_integration_disabled`**, dans le `reason` d'une
   mesure de checklist et partout où cette liste de raisons est répondue ; un client qui aiguille sur les
   raisons en rencontre une qu'il ne connaissait pas.

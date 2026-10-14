@@ -81,11 +81,13 @@ class TrackerWebhookSuspensionRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a delivery is answered 200 ignored_integration_disabled and changes nothing; re-enabled, the same body is applied")
+    @DisplayName("a delivery is answered 200 ignored_integration_disabled, changes nothing and is remembered; re-enabled, "
+            + "the same body is a replay and a new one is applied")
     void ignoredThenApplied() throws Exception {
         IssueEntity issue = issue("fp-suspended-webhook", "SEC-4401");
         String body = FALSE_POSITIVE.formatted("SEC-4401");
         integrations.switchTo(JIRA, false, "test");
+        long remembered = deliveries.count();
 
         deliver(body)
                 .andExpect(status().isOk())
@@ -97,17 +99,26 @@ class TrackerWebhookSuspensionRoutesTest extends ApiTestBase {
         IssueEntity after = issues.findById(issue.getId()).orElseThrow();
         assertThat(after.getTriageStatus()).as("no triage is queued").isEqualTo("under_review");
         assertThat(after.getTriagedBy()).isNull();
-        assertThat(deliveries.count()).as("nothing is remembered of an ignored body, the replay table included")
-                .isZero();
+        assertThat(deliveries.count()).as("the ignored body is in the replay table, so it cannot be sent again later")
+                .isEqualTo(remembered + 1);
 
         integrations.switchTo(JIRA, true, "test");
 
+        // The same signed body, captured while the tracker was off, sent again once it is back on.
         deliver(body)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matched").value(false))
+                .andExpect(jsonPath("$.actionTaken").value("Delivery already processed"));
+        assertThat(issues.findById(issue.getId()).orElseThrow().getTriageStatus())
+                .as("a body ignored while suspended is not acted on once the tracker is enabled again")
+                .isEqualTo("under_review");
+
+        deliver(FALSE_POSITIVE.formatted("SEC-4401").replace("Security lead", "Security lead, again"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matched").value(true))
                 .andExpect(jsonPath("$.issueId").value(issue.getId()));
         assertThat(issues.findById(issue.getId()).orElseThrow().getTriageStatus())
-                .as("the body ignored while suspended is acted on once it is enabled again")
+                .as("a new delivery is applied once the tracker is enabled again")
                 .isEqualTo("pending_approval");
     }
 
