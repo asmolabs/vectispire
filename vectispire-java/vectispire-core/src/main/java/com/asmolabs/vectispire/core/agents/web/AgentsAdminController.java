@@ -245,7 +245,10 @@ public class AgentsAdminController {
         return answer;
     }
 
-    /** @param publicKey base64 Ed25519, or null/blank to stop requiring signed results */
+    /**
+     * @param publicKey base64 Ed25519, {@code "generate"} to have a pair made here, or null/blank to stop requiring
+     *     signed results
+     */
     public record SigningKeyRequest(@JsonProperty("public_key") String publicKey) {}
 
     /**
@@ -263,9 +266,10 @@ public class AgentsAdminController {
      * {@link ResultAttestation}.
      *
      * <p><b>The pair may be generated here, and that is a deliberate convenience with a cost.</b>
-     * Sending no {@code public_key} makes the control plane generate a pair, keep the public half
-     * and return the private one once — which means the private half existed here for the length
-     * of one response. An operator who would rather it never did generates the pair themselves
+     * Sending {@code "public_key": "generate"} makes the control plane generate a pair, keep the public
+     * half and return the private one once — which means the private half existed here for the length
+     * of one response. Sending none, or a blank one, is the other gesture: it removes the pinned key, and
+     * the agent's results are accepted on its API key alone again. An operator who would rather it never did generates the pair themselves
      * and sends only the public half; both paths are supported and the answer says which one ran.
      */
     @PutMapping("/{id}/signing-key")
