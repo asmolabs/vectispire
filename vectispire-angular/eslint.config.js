@@ -44,18 +44,45 @@ module.exports = tseslint.config(
         }
     },
     {
-        // Specs handle `any` by nature — `request.body`, `componentInstance` internals, JSON fixtures —
-        // and switching these three on there reported 241 findings of which none was a defect: the
-        // assertion that follows is the check. Everything else in the typed set still applies.
+        // **Specs are typed like the code they test.** The three `no-unsafe-*` rules used to be off
+        // here, on the ground that specs handle `any` by nature — `request.body`, `nativeElement` —
+        // and that the assertion which follows is the check. It is not: `body.expires_in_days` kept
+        // compiling whatever `TriageRequest` became, and `{ … } as never` opened sessions for a user
+        // with an `id` the server does not send and without the `mfaEnabled` it does. A body is read
+        // as the type the client method takes, the page as an `HTMLElement`, a fixture as its model.
+        //
+        // `as never` and `as unknown as` are the same hole spelt as a cast, so they are refused too.
+        // A value the client's union does not hold yet goes through `newerServerWord`
+        // (core/testing/contract.ts), which keeps the rest of the fixture checked. What must stay is
+        // allowed by a disable comment that says why (`-- reason`); scripts/check-spec-types.mjs
+        // refuses one without a reason and holds their number to a ratchet.
         files: ['**/*.spec.ts'],
-        // Not the Playwright specs. Their `any` is a body crossing the wire — a response's `json()`, a
-        // route's `postDataJSON()` — and the suite already types nearly every one, from
-        // `api.generated.ts` where the contract names it: the full set found three that did not.
+        // Not the Playwright specs. The `no-unsafe-*` rules reach them anyway, as errors from the
+        // recommended set above — the full set found three bodies they had left untyped. What this
+        // block adds there is the two cast bans, and the suite's two `as unknown as` (the
+        // `openapi.json` literal, Angular's debug `window.ng`) would each need an exception;
+        // scripts/check-spec-types.mjs reads `src/` only, so the two stay consistent.
         ignores: ['e2e/**'],
         rules: {
-            '@typescript-eslint/no-unsafe-member-access': 'off',
-            '@typescript-eslint/no-unsafe-call': 'off',
-            '@typescript-eslint/no-unsafe-assignment': 'off',
+            '@typescript-eslint/no-explicit-any': 'error',
+            '@typescript-eslint/no-unsafe-member-access': 'error',
+            '@typescript-eslint/no-unsafe-call': 'error',
+            '@typescript-eslint/no-unsafe-assignment': 'error',
+            '@typescript-eslint/no-unsafe-argument': 'error',
+            '@typescript-eslint/no-unsafe-return': 'error',
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: 'TSAsExpression > TSNeverKeyword.typeAnnotation',
+                    message:
+                        '`as never` fits anything and checks nothing: build the value with its real type, or use newerServerWord for a word the client does not know.'
+                },
+                {
+                    selector: 'TSAsExpression > TSAsExpression.expression > TSUnknownKeyword.typeAnnotation',
+                    message:
+                        '`as unknown as` silences the whole value: type the fixture, or use newerServerWord for the one field the client does not know.'
+                }
+            ],
             // `expect(router.navigate).toHaveBeenCalled…` hands a spy to an assertion, never calls it.
             '@typescript-eslint/unbound-method': 'off'
         }

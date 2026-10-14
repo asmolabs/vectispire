@@ -11,7 +11,7 @@
         "format": "prettier --write \"src/**/*.{ts,html,scss,css}\" \"e2e/**/*.ts\" playwright.config.ts --cache",
         "format:check": "prettier --check \"src/**/*.{ts,html,scss,css}\" \"e2e/**/*.ts\" playwright.config.ts",
         "lint": "eslint src e2e playwright.config.ts && tsc -p tsconfig.e2e.json",
-        "test": "node scripts/check-assets.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-dead-api-methods.mjs && node scripts/check-icon-buttons.mjs && node scripts/check-test-floor.mjs",
+        "test": "node scripts/check-assets.mjs && node scripts/check-i18n-keys.mjs && node scripts/check-dead-api-methods.mjs && node scripts/check-icon-buttons.mjs && node scripts/check-spec-types.mjs && node scripts/check-test-floor.mjs",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "generate:api": "openapi-typescript openapi.json -o src/app/core/api.generated.ts"
