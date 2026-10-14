@@ -15,7 +15,7 @@ import { missingFromBundles } from '@/app/core/testing/bundles';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import english from '../../../public/i18n/en.json';
 import french from '../../../public/i18n/fr.json';
-import type { OwaspGrid } from '@/app/core/api.models';
+import type { DeclarationRequest, OwaspGrid } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
@@ -71,8 +71,8 @@ describe('la grille OWASP', () => {
     it('shows a count only where something was counted', () => {
         // A "0" beside a category nothing looks at is the figure this whole grid exists not to
         // write.
-        const cells = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
-        expect([...cells].map((cell: HTMLElement) => cell.textContent.trim())).toEqual(['—', '3', '—', '—']);
+        const cells = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('tbody tr td:nth-child(3)');
+        expect([...cells].map((cell) => cell.textContent.trim())).toEqual(['—', '3', '—', '—']);
     });
 
     /**
@@ -87,8 +87,8 @@ describe('la grille OWASP', () => {
         } as OwaspGrid);
         fixture.detectChanges();
 
-        const cells = [...fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(2)')].map((cell: Element) =>
-            cell.textContent.trim()
+        const cells = [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr td:nth-child(2)')].map(
+            (cell: Element) => cell.textContent.trim()
         );
         expect(cells).toEqual([
             english.owasp_grid.state.NOT_COVERED,
@@ -124,7 +124,7 @@ describe('la grille OWASP', () => {
 
         // The report below carries its own errors; an empty grid is better than a red banner above
         // valid data.
-        expect(failed.nativeElement.textContent.trim()).toBe('');
+        expect((failed.nativeElement as HTMLElement).textContent.trim()).toBe('');
     });
 
     /**
@@ -184,7 +184,7 @@ describe('la grille OWASP', () => {
         fixture.componentInstance.grid.set(declared);
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Declared applicable');
         expect(text).toContain('partially in place');
         expect(text).toContain('c.moreau');
@@ -272,9 +272,9 @@ describe('la grille OWASP', () => {
             component.submit();
 
             const sent = http.expectOne({ method: 'PUT', url: '/api/v1/owasp/coverage/A01/declaration' });
-            expect(sent.request.body.applicability).toBe('APPLICABLE');
-            expect(sent.request.body.evidence_source).toBe('EXTERNAL');
-            expect(sent.request.body.external_evidence).toBe('Dossier QUAL-2026');
+            expect((sent.request.body as DeclarationRequest).applicability).toBe('APPLICABLE');
+            expect((sent.request.body as DeclarationRequest).evidence_source).toBe('EXTERNAL');
+            expect((sent.request.body as DeclarationRequest).external_evidence).toBe('Dossier QUAL-2026');
             sent.flush({});
 
             // Reloaded rather than merged in place: the grid carries counters, and recomputing
@@ -344,8 +344,8 @@ describe('la grille OWASP', () => {
         });
 
         function reasons(): string[] {
-            return [...fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(4)')].map((cell: Element) =>
-                cell.textContent.trim()
+            return [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr td:nth-child(4)')].map(
+                (cell: Element) => cell.textContent.trim()
             );
         }
 

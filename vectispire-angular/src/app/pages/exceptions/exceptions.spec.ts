@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Exceptions } from './exceptions';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
+import type { Schema } from '@/app/core/api.models';
 
 /**
  * The exceptions register, and the review that did not exist.
@@ -72,8 +73,8 @@ describe('le registre des exceptions', () => {
         component.submitReview();
 
         const call = http.expectOne('/api/v1/exceptions/41/reviews');
-        expect(call.request.body.outcome).toBe('CONFIRMED');
-        expect(call.request.body.new_expiry).toBeNull();
+        expect((call.request.body as Schema<'ReviewRequest'>).outcome).toBe('CONFIRMED');
+        expect((call.request.body as Schema<'ReviewRequest'>).new_expiry).toBeNull();
 
         // **The row comes back dated**, as the server would return it: the counters are derived
         // from the rows rather than taken from the server, so a data set where the counter moves
@@ -171,9 +172,9 @@ describe('le registre des exceptions', () => {
 
         expect(component.granted()).toBe(2);
         expect(component.awaiting()).toBe(1);
-        const labels = [...fixture.nativeElement.querySelectorAll('[data-testid="exception-decision"]')].map(
-            (cell: Element) => cell.textContent?.trim()
-        );
+        const labels = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="exception-decision"]')
+        ].map((cell: Element) => cell.textContent?.trim());
         expect(labels).toEqual(['Not affected', 'Will not fix — risk accepted']);
     });
 
@@ -203,9 +204,9 @@ describe('le registre des exceptions', () => {
         });
         fixture.detectChanges();
 
-        const requested = [...fixture.nativeElement.querySelectorAll('[data-testid="exception-requested"]')].map(
-            (cell: Element) => cell.textContent?.trim()
-        );
+        const requested = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="exception-requested"]')
+        ].map((cell: Element) => cell.textContent?.trim());
         expect(requested).toEqual(['asks for: Will not fix — risk accepted', 'asks for: Not affected']);
     });
 

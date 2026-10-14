@@ -8,6 +8,7 @@ import { asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { ACTIVATION, MANIFEST, PLUGIN, WAIVED_PLUGIN } from '@/app/core/testing/plugins.fixtures';
 import { Plugins, parseExitCodes } from './plugins';
+import type { PluginManifest } from '@/app/core/api.models';
 
 /**
  * The plugin registry.
@@ -286,8 +287,8 @@ describe('the plugin registry', () => {
         fixture.componentInstance.draft.name = 'ACME house rules v2';
         fixture.componentInstance.save();
         const request = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint' });
-        expect(request.request.body.id).toBe('acme-lint');
-        expect(request.request.body.name).toBe('ACME house rules v2');
+        expect((request.request.body as PluginManifest).id).toBe('acme-lint');
+        expect((request.request.body as PluginManifest).name).toBe('ACME house rules v2');
         request.flush(PLUGIN);
     });
 
@@ -331,7 +332,7 @@ describe('the plugin registry', () => {
         fixture.componentInstance.draft.signerKey = '  -----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----\n';
         fixture.componentInstance.save();
         const edited = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint' });
-        expect(edited.request.body.signature).toEqual({
+        expect((edited.request.body as PluginManifest).signature).toEqual({
             identity: RELEASE,
             issuer: GITHUB,
             public_key: '-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----'
@@ -342,7 +343,7 @@ describe('the plugin registry', () => {
         Object.assign(fixture.componentInstance.draft, { signerIdentity: '  ', signerIssuer: '', signerKey: '' });
         fixture.componentInstance.save();
         const unsigned = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint' });
-        expect(unsigned.request.body.signature).toBeNull();
+        expect((unsigned.request.body as PluginManifest).signature).toBeNull();
         unsigned.flush(PLUGIN);
     });
 

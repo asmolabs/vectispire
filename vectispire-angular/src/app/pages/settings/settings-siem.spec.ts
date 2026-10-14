@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
+import type { Schema } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SettingsState } from './settings-state';
 import { SettingsSiem } from './settings-siem';
@@ -84,13 +85,13 @@ describe('the SIEM card, its collector CA', () => {
         card.siemForm.tlsCaPem = `  ${pem}\n`;
         card.saveSiemConfig();
         const kept = http.expectOne('/api/v1/siem/config');
-        expect(kept.request.body.tlsCaPem).toBe(pem);
+        expect((kept.request.body as Schema<'SiemConfigRequest'>).tlsCaPem).toBe(pem);
         kept.flush(asSchema('SiemConfigResponse', tls));
 
         card.siemForm.tlsCaPem = '';
         card.saveSiemConfig();
         const removed = http.expectOne('/api/v1/siem/config');
-        expect(removed.request.body.tlsCaPem).toBe('');
+        expect((removed.request.body as Schema<'SiemConfigRequest'>).tlsCaPem).toBe('');
         removed.flush(
             asSchema('SiemConfigResponse', { ...tls, tlsCaPem: null, tlsCaSubject: null, tlsCaNotAfter: null })
         );
@@ -99,7 +100,9 @@ describe('the SIEM card, its collector CA', () => {
         card.siemForm.tlsCaPem = pem;
         card.saveSiemConfig();
         // Undefined, which the JSON body leaves out: absent, not blank, so nothing is removed by it.
-        expect(http.expectOne('/api/v1/siem/config').request.body.tlsCaPem).toBeUndefined();
+        expect(
+            (http.expectOne('/api/v1/siem/config').request.body as Schema<'SiemConfigRequest'>).tlsCaPem
+        ).toBeUndefined();
     });
 
     it('tests the CA on screen, saved or not', async () => {
@@ -109,6 +112,8 @@ describe('the SIEM card, its collector CA', () => {
         card.siemForm.tlsCaPem = 'unsaved';
         card.testSiem();
 
-        expect(http.expectOne('/api/v1/siem/test').request.body.tlsCaPem).toBe('unsaved');
+        expect((http.expectOne('/api/v1/siem/test').request.body as Schema<'SiemTestRequest'>).tlsCaPem).toBe(
+            'unsaved'
+        );
     });
 });
