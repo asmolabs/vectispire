@@ -263,6 +263,117 @@ class ScimGroupsRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a PATCH replace of the members replaces them, in either form, and an empty list empties the team")
+    void patchReplacesMembers() throws Exception {
+        long former = account("scim-former");
+        long kept = account("scim-kept-by-hand");
+        long newcomer = account("scim-newcomer");
+        long id = team("Payments");
+        members.save(new TeamMemberEntity(id, former, TeamMemberEntity.Origin.SCIM));
+        members.save(new TeamMemberEntity(id, kept, TeamMemberEntity.Origin.MANUAL));
+
+        // Read as an add, this left the former member in the team, with what the team grants. An id no
+        // account holds and an unknown username are skipped, as an add skips them.
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace",
+                                "path", "members",
+                                "value", List.of(
+                                        Map.of("value", String.valueOf(kept)),
+                                        Map.of("value", "scim-newcomer"),
+                                        Map.of("value", "9000000"),
+                                        Map.of("value", "nobody-at-all"))))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(2));
+        assertThat(members.findByTeamId(id))
+                .extracting(member -> member.getId().userId() + ":" + member.getOrigin())
+                .containsExactlyInAnyOrder(kept + ":manual", newcomer + ":scim");
+        assertThat(auditLogs.findAll())
+                .filteredOn(entry -> "SCIM patched team: Payments".equals(entry.getDescription()))
+                .hasSize(1);
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "Replace",
+                                "value", Map.of("members", List.of(Map.of("value", String.valueOf(former))))))))))
+                .andExpect(status().isOk());
+        assertThat(members.findByTeamId(id))
+                .extracting(member -> member.getId().userId())
+                .containsExactly(former);
+
+        // A replacement followed by a removal of everybody in the same PATCH: the bulk removal runs
+        // after the replacement's own removals and insertion, which must be written before it.
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(
+                                Map.of("op", "replace", "path", "members",
+                                        "value", List.of(Map.of("value", String.valueOf(newcomer)))),
+                                Map.of("op", "remove", "path", "members"),
+                                Map.of("op", "replace", "path", "members",
+                                        "value", List.of(Map.of("value", String.valueOf(former)))))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(1));
+        assertThat(members.findByTeamId(id))
+                .extracting(member -> member.getId().userId())
+                .containsExactly(former);
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace", "path", "members", "value", List.of()))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(0));
+        assertThat(members.findByTeamId(id)).isEmpty();
+
+        // An add naming an id no account holds was a 500 from the foreign key; it is skipped now.
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "add", "path", "members", "value", List.of(Map.of("value", "9000000"))))))))
+                .andExpect(status().isOk());
+        assertThat(members.findByTeamId(id)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a member replacement beside a refused rename is rolled back with it, and members that are not a list are a 400")
+    void aRefusedRenameRollsTheReplacementBack() throws Exception {
+        long staying = account("scim-staying");
+        long newcomer = account("scim-newcomer");
+        long id = team("Platform");
+        team("Payments");
+        members.save(new TeamMemberEntity(id, staying, TeamMemberEntity.Origin.SCIM));
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(
+                                Map.of("op", "replace", "path", "members",
+                                        "value", List.of(Map.of("value", String.valueOf(newcomer)))),
+                                Map.of("op", "replace", "path", "displayName", "value", "Payments"))))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.scimType").value("uniqueness"));
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace",
+                                "value", Map.of("displayName", "payments", "members", List.of())))))))
+                .andExpect(status().isConflict());
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace", "path", "members", "value", "nobody"))))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.detail").value("Group members must be a list."));
+
+        assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("Platform");
+        assertThat(members.findByTeamId(id))
+                .extracting(member -> member.getId().userId())
+                .containsExactly(staying);
+    }
+
+    @Test
     @DisplayName("patch a group: add a member, then remove one")
     void patchesGroup() throws Exception {
         long kept = account("scim-kept");

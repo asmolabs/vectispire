@@ -93,7 +93,7 @@ public class ScimGroupsController {
     @ApiResponse(responseCode = "200", description = "The group")
     @ApiResponse(responseCode = "404", description = "No group has this id",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
-    @ApiResponse(responseCode = "400", description = "A displayName that is not a string, blank, or past 100 characters",
+    @ApiResponse(responseCode = "400", description = "A displayName that is not a string, blank, or past 100 characters; members replaced by something other than a list",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Another group holds this displayName: scimType uniqueness",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))

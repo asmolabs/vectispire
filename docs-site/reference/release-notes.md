@@ -25,8 +25,12 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   `/scim/v2/Groups/{id}`) to a `displayName` another group holds is the same `409`, with nothing changed:
   the `PUT` answered `500`, and a `PATCH` rename — `replace` with the path `displayName`, or `displayName`
   in the value — was not applied at all, answering `200` with the old name. A group `displayName` past
-  100 characters is `400`, no longer `500`. The OpenAPI document declares, with the `ScimErrorResponse`
-  schema, every refusal the routes answer in it: the `400`s (`scimType` `invalidFilter` on the user
+  100 characters is `400`, no longer `500`. A `PATCH` `replace` of a group's `members` replaces them (RFC
+  7644 §3.5.2.3), with the path `members` or `members` in the value, and an empty list removes everyone: it
+  was read as an `add`, so a person the directory took out of the group kept the team and what it grants.
+  Like a `PUT`, it removes the unlisted members whoever added them. An unknown member is skipped, as an
+  `add` skips it; an `add` naming an id no account holds, which answered `500`, is skipped too.
+  The OpenAPI document declares, with the `ScimErrorResponse` schema, every refusal the routes answer in it: the `400`s (`scimType` `invalidFilter` on the user
   list), the `403` on an administrative account (`PUT`, `PATCH`, `DELETE /scim/v2/Users/{id}`), the
   `404`s and the `409`s; and it declares the `201` a creation (`POST /scim/v2/Users`, `/Groups`) answers,
   where it said `200`.

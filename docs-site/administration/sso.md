@@ -106,6 +106,14 @@ the provider's configuration, so what it may do is deliberately bounded:
   100 characters is `400`, and so is a blank one on a creation or a `PATCH` (a `PUT` without one keeps
   the name). Until 0.11.1 such a `PUT` answered `500`, and a `PATCH` rename was not applied at all: it
   answered `200` with the old name.
+- **A `PATCH` `replace` of a group's members replaces them** (RFC 7644 §3.5.2.3) — with the path
+  `members`, or with `members` in the value: the team's members become exactly the accounts listed, and
+  an empty list removes everyone. As a `PUT` does, it removes a member it does not list whoever added
+  them, an administrator included; a listed account already in the team keeps its membership as it was.
+  An entry naming no account — an unknown username or id — is skipped, as an `add` skips it; members
+  that are not a list are `400`. Until 0.11.1 a `replace` was read as an `add`: a person the directory
+  took out of the group stayed in the team, with what it grants. An `add` naming an id no account holds
+  answered `500`; it is skipped too.
 
 ## The second factor belongs to the provider
 
