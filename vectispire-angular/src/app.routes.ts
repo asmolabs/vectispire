@@ -328,11 +328,6 @@ export const appRoutes: Routes = [
         loadComponent: () => import('./app/pages/auth/login').then((m) => m.Login)
     },
     {
-        path: 'error',
-        title: 'titles.error',
-        loadComponent: () => import('./app/pages/auth/error').then((m) => m.Error)
-    },
-    {
         path: 'notfound',
         title: 'titles.notfound',
         loadComponent: () => import('./app/pages/notfound/notfound').then((m) => m.Notfound)
