@@ -251,6 +251,9 @@ Installé et sauvegardé à part. La chart pointe vers lui :
   le serveur évalue dans le fuseau de la session. Ne fixez pas `TZ` sur le pod.
 - **Sauvegardez avant chaque mise à jour.** Les migrations tournent au démarrage et n'ont pas de retour
   arrière. Revenir en arrière, c'est restaurer la sauvegarde et l'empreinte de l'image précédente.
+  Le passage depuis la version précédente est exécuté chaque nuit sur MySQL et PostgreSQL, sur une
+  base qui contient des données et qui se relit ensuite à l'identique ; aucune version n'est publiée
+  sur une nuit en échec.
 
 ### Installer
 

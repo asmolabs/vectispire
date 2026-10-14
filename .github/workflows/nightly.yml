@@ -188,6 +188,36 @@ jobs:
             vectispire-angular/test-results/
           retention-days: 7
 
+  # **The upgrade an installation takes next, executed on both engines** (decision 0043 §3, §6).
+  # `databases` migrates an empty schema; no job had ever started a new control plane on a database
+  # the previous release had been living in, which is the only way an operator ever runs a
+  # migration. A NOT NULL column without a default, or a backfill that is wrong, passes on zero rows
+  # and fails at the first installation with one. The drill starts the newest `v*` release by the
+  # digest the registry serves for its tag, writes accounts, a repository, settings, a secret and an
+  # API key through its API, stops it, starts this commit's image on the same database, and fails
+  # unless it becomes healthy — Flyway and `ddl-auto: validate` both run before health answers —
+  # and reads every one of those fields back unchanged.
+  #
+  # Built through the Dockerfile, as `restore` is: the drill never loads a page. Public images
+  # only, so the job needs no permission beyond reading the repository; `fetch-depth: 0` brings the
+  # tags the release is resolved from.
+  upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      # One engine's failure says nothing about the other's; both verdicts are wanted.
+      fail-fast: false
+      matrix:
+        engine: [mysql, postgresql]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: docker build -f Dockerfile -t vectispire:latest .
+      - run: ./scripts/upgrade-drill.sh
+        env:
+          ENGINE: ${{ matrix.engine }}
+
   # **The restore, executed.** A backup procedure nobody has run is a belief, and the one that
   # matters here is not "does the dump load" — it is whether the audit mirror still witnesses what
   # a restore lost. The drill takes a dump from a live control plane, performs audited actions

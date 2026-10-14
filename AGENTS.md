@@ -78,7 +78,11 @@ the files, `.dockerignore`, the Gradle build definition, the npm manifests, the 
 `images` builds with Jib and a broken Dockerfile was otherwise first seen by the nightly; a diff
 range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
-alongside `dockerfiles` and `restore` — on `cron: '30 2 * * *'`. On GitLab the nightly depended
+alongside `dockerfiles`, `restore` and `upgrade` — on `cron: '30 2 * * *'`. `upgrade` runs
+`scripts/upgrade-drill.sh` on MySQL and PostgreSQL: the newest `v*` release writes data through
+its API, this commit's image starts on the same database — Flyway and `ddl-auto: validate` before
+health — and reads every field back unchanged, unless `ci/upgrade/accepted-rewrites.txt` declares
+the migration that rewrites it. On GitLab the nightly depended
 on a schedule created in the project settings, invisible to anyone reading the repository, and it
 went unnoticed for two days; the `cron:` is in the file precisely so that gap cannot reopen. Note
 the GitHub rule behind it: a scheduled workflow runs from the **default branch only**, so a

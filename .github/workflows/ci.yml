@@ -165,7 +165,7 @@ jobs:
       # Our own CI scripts, in bash: not shipped, but a quoting slip in one is a check that
       # passes having read the wrong thing.
       - name: the CI's own scripts
-        run: shellcheck ci/openapi/compat.sh
+        run: shellcheck ci/openapi/compat.sh scripts/upgrade-drill.sh
 
   c4-drift:
     runs-on: ubuntu-24.04

@@ -241,7 +241,9 @@ Installed and backed up separately. The chart points at it:
 - **UTC**: `default_time_zone = '+00:00'`. Some columns default to `CURRENT_TIMESTAMP`, which the
   server evaluates in the session's time zone. Do not set `TZ` on the pod.
 - **Back up before every upgrade.** Migrations run at startup and have no way back. Rolling back
-  means restoring the backup and the previous image digest.
+  means restoring the backup and the previous image digest. The step from the previous release is
+  executed every night on MySQL and PostgreSQL over a database holding data, which then reads
+  back unchanged; a release is not cut on a night that failed.
 
 ### Installing
 

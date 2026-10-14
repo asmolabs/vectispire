@@ -1,0 +1,16 @@
+# Values a migration rewrites on purpose, read by scripts/upgrade-drill.sh.
+#
+# The drill writes data through the last release's API, upgrades, and fails on any field that does
+# not read back the same. A migration that changes a value deliberately — a backfill, a new default
+# applied to existing rows — is declared here, one line per field the drill reads, four fields
+# separated by " | ":
+#
+#   <release tag> | <field path, as the drill prints it> | <migration> | <why the new value is right>
+#
+# e.g., had it been written while the release was v0.10.0, V70's stamp on targets with no schedule:
+#
+#   v0.10.0 | repositories[upgrade-drill].lastScheduledScanAt | V70 | the first default round is spread from the upgrade
+#
+# **The list only shrinks.** A line for another tag than the release the drill starts from fails the
+# run, and so does a line no difference used: once the next tag carries the migration, there is
+# nothing left to accept. It is empty at every release, and the release notes name the rewrite.

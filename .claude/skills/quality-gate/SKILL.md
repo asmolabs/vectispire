@@ -88,6 +88,18 @@ MySQL and PostgreSQL (Testcontainers, needs Docker). A migration is written once
 dialect, when the structure does (decisions 0027, 0034); `MigrationLayoutTest` in `./gradlew build`
 refuses anything in between.
 
+**A migration that rewrites existing rows** — a backfill, a new default stamped on old targets — is
+also run the way an installation meets it: on a database the last release has written to.
+
+```bash
+docker build -f Dockerfile -t vectispire:latest . && ENGINE=mysql scripts/upgrade-drill.sh
+```
+
+(`ENGINE=postgresql` too; the nightly's `upgrade` job runs both.) A field it reads back changed on
+purpose goes into `ci/upgrade/accepted-rewrites.txt` with the migration and the reason, in the
+migration's commit, or the nightly stays red until the next tag. On an arm64
+machine the release image runs emulated: about a minute and a half per engine.
+
 ## 5. Contract — when a route's shape changed
 
 `ClientContractSpecTest` fails with the command. Regenerate, then the client types, and commit both:
