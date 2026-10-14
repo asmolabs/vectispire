@@ -133,11 +133,13 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import { messageOf } from '@/app/core/api-error';
-import { SEARCH_MAX_LENGTH } from '@/app/shared/search-bound';
+import { SearchBound, SearchBoundHint } from '@/app/shared/search-bound';
 
 @Component({
     selector: 'app-audit-log',
     imports: [
+        SearchBound,
+        SearchBoundHint,
         DatePipe,
         FormsModule,
         ButtonModule,
@@ -165,8 +167,6 @@ export class AuditLog {
     readonly verifying = signal(true);
     readonly verification = signal<AuditVerification | null>(null);
     readonly error = signal<string | null>(null);
-    /** The server's bound on the search, as the box's `maxlength`: a longer one would be a 400. */
-    readonly searchMax = SEARCH_MAX_LENGTH;
     private readonly operationTypes = signal<string[]>([]);
     readonly operationOptions = computed(() => {
         this.i18n.translations();
