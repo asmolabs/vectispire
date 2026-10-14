@@ -11,7 +11,7 @@
  * findings, and a fixture the cast had kept from its type. They were fixed on 2026-10-14 and the
  * rules switched on; ESLint now refuses a new one.
  *
- * <p><b>What this file adds to ESLint, and why ESLint cannot do it itself.</b> Two things:
+ * <p><b>What this file adds to ESLint, and why ESLint cannot do it itself.</b> Three things:
  *
  * <ul>
  *   <li><b>That the rules are still on for specs.</b> The hole this closes was not a missing rule but
@@ -52,16 +52,10 @@ const GUARDED = [
 /**
  * The disable comments a spec may carry for a guarded rule, each with the reason it stays.
  *
- * - `remediation.spec.ts`: `HighImpactFix.recommendedVersion` is claimed `string` in api.models.ts, and
- *   the server sends null when no finding announces a fix. The case under test is that null; the claim
- *   is the defect, and goes with this line once it says `string | null`.
  * - `search-bound.spec.ts`: the `openapi.json` import is typed as its literal — 240 paths whose
  *   operations, parameters and schemas are all weak shapes — and no narrower declared type accepts it.
  */
-const ALLOWED = [
-    'src/app/pages/remediation/remediation.spec.ts no-restricted-syntax',
-    'src/app/shared/search-bound.spec.ts no-restricted-syntax'
-];
+const ALLOWED = ['src/app/shared/search-bound.spec.ts no-restricted-syntax'];
 
 function* walk(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Dashboard } from './dashboard';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
-import type { GateViolation, SecurityGrade } from '../../core/api.models';
+import type { GateViolation, HighImpactFix, SecurityGrade } from '../../core/api.models';
 import { DATED_MARKER, type MarkerChart } from '../../shared/dated-marker';
 
 /**
@@ -915,5 +915,85 @@ describe('a dashboard panel that fails to load', () => {
         expect(page().querySelector('[data-testid="portfolio-error"]')?.textContent).toContain(
             'Impossible de charger les notes du portefeuille.'
         );
+    });
+});
+
+/**
+ * A high-impact fix with no published version. `recommendedVersion` is null when no finding
+ * announces a fix, and the row printed `v: 3.0.1 ➔ ` — an upgrade to nothing — while the
+ * remediation screen already said there was none. The contract now says the field may be null.
+ */
+describe('a high-impact fix no version fixes', () => {
+    let fixture: ComponentFixture<Dashboard>;
+    let http: HttpTestingController;
+
+    const fix = (packageName: string, recommendedVersion: string | null): HighImpactFix =>
+        asSchema('HighImpactFix', {
+            packageName,
+            currentVersion: '3.0.1',
+            recommendedVersion,
+            cveCountResolved: 2,
+            criticalCveCount: 0,
+            highCveCount: 1,
+            estimatedHours: 2,
+            leverageScore: 1,
+            affectedCves: ['CVE-2026-1234'],
+            affectedTargetNames: ['Arm Libs Spring']
+        });
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [Dashboard],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        useEnglish();
+        fixture = TestBed.createComponent(Dashboard);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+    }, 20_000);
+
+    it('says no fixed version is published instead of an arrow to nothing, and keeps the arrow for one', () => {
+        // The panels sit inside the overview: without it the page shows none of them.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(
+            asSchema('DashboardOverview', {
+                posture: {
+                    failingCount: 0,
+                    totalCount: 1,
+                    kevCount: 0,
+                    neverScannedCount: 0,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
+                },
+                backlogBySeverity: {},
+                qualityTotal: 0,
+                failing: [],
+                recentScans: []
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/remediation/debt').flush(
+            asSchema('SecurityDebtReport', {
+                totalOpenIssues: 2,
+                criticalIssues: 0,
+                highIssues: 2,
+                mediumIssues: 0,
+                lowIssues: 0,
+                totalEstimatedHours: 4,
+                totalEstimatedPersonDays: 0.5,
+                vulnerabilitiesDebtHours: 4,
+                secretsDebtHours: 0,
+                sastDebtHours: 0,
+                iacDebtHours: 0,
+                licenseDebtHours: 0,
+                eolDebtHours: 0,
+                topHighImpactFixes: [fix('openssl', null), fix('log4j-core', '2.17.1')]
+            })
+        );
+        fixture.detectChanges();
+
+        const versions = [
+            ...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="high-impact-version"]')
+        ].map((cell) => cell.textContent.trim());
+        expect(versions).toEqual(['v: 3.0.1 — no fixed version published', 'v: 3.0.1 ➔ 2.17.1']);
     });
 });

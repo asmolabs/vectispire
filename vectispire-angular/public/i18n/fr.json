@@ -834,6 +834,7 @@
     "high_impact": "Actions à Fort Impact (High-Impact Fixes)",
     "high_impact_help": "Classées par vulnérabilités corrigées par heure d'effort estimé, critiques et hautes pesant davantage",
     "no_high_impact": "Aucune action de remédiation prioritaire requise.",
+    "no_fixed_version": "v : {{version}} — aucune version corrigée publiée",
     "cves_resolved": "CVEs Résolues",
     "effort": "Effort Estimé",
     "targets_affected": "Cibles Affectées",
