@@ -834,6 +834,7 @@
     "high_impact": "High-impact fixes",
     "high_impact_help": "Ranked by vulnerabilities closed per hour of estimated effort, critical and high weighing more",
     "no_high_impact": "No remediation is ranked ahead of the rest.",
+    "no_fixed_version": "v: {{version}} — no fixed version published",
     "cves_resolved": "CVEs resolved",
     "effort": "Estimated effort",
     "targets_affected": "Targets affected",

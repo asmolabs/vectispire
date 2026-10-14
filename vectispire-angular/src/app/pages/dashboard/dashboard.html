@@ -316,8 +316,20 @@
                             <tr>
                                 <td>
                                     <div class="font-semibold">{{ fix.packageName }}</div>
-                                    <div class="text-xs text-muted-color">
-                                        v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}
+                                    <!--
+                                        Null when no finding announces a fix: an arrow to nothing read as
+                                        "upgrade to" with the version missing, where the answer is that there
+                                        is none to upgrade to.
+                                    -->
+                                    <div class="text-xs text-muted-color" data-testid="high-impact-version">
+                                        @if (fix.recommendedVersion) {
+                                            v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}
+                                        } @else {
+                                            {{
+                                                'dashboard.no_fixed_version'
+                                                    | translate: { version: fix.currentVersion }
+                                            }}
+                                        }
                                     </div>
                                 </td>
                                 <td>

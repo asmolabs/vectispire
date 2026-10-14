@@ -1977,7 +1977,8 @@ export type HighImpactFix = Refine<
     {
         packageName: string;
         currentVersion: string;
-        recommendedVersion: string;
+        /** Null when no finding announces a fix — the document says so too (`SecurityDebtReportView`). */
+        recommendedVersion: string | null;
         affectedCves: string[];
         affectedTargetNames: string[];
     }

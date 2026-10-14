@@ -129,10 +129,7 @@ describe('the remediation plan', () => {
         // **The defect this closes, one step further along.** The server returned the string
         // "latest-patch" for everybody, and the dashboard showed it behind an arrow. Now that it
         // can return nothing, the screen has to say what.
-        // The client's claim says `string`, and the server sends null here (SecurityDebtService.rank):
-        // the claim in api.models is what is wrong, and this case is the one the null reaches.
-        // eslint-disable-next-line no-restricted-syntax -- HighImpactFix.recommendedVersion is claimed non-null; the server sends null
-        answer([fix({ recommendedVersion: null as unknown as string })], { totalOpenIssues: 1 });
+        answer([fix({ recommendedVersion: null })], { totalOpenIssues: 1 });
 
         const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Aucune version corrigée publiée');
