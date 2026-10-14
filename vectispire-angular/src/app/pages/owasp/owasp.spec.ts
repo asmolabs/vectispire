@@ -765,4 +765,24 @@ describe('the current OWASP grid, over a project or a solution', () => {
         expect(owasp.selected).toBeNull();
         expect(page().textContent).not.toContain('The ledger report.');
     });
+
+    it('names both pickers by their labels, whatever they show', async () => {
+        // Each label's `for` pointed at the select's combobox, a span no label can name: the pickers
+        // were announced as the scope or the repository they showed, never as what they pick.
+        await open('/owasp?project_id=12', grid(GATEWAY));
+        expect(accessibleName('#grid-scope')).toBe('Scope');
+        expect(accessibleName('#repo')).toBe('Repository');
+    });
+
+    /** The name aria-labelledby resolves to, which wins over the value-filled aria-label. */
+    function accessibleName(selector: string): string {
+        const combobox = page().querySelector(selector);
+        expect(combobox?.getAttribute('role')).toBe('combobox');
+        return (combobox?.getAttribute('aria-labelledby') ?? '')
+            .split(/\s+/)
+            .filter((id) => id !== '')
+            .map((id) => page().querySelector(`#${id}`)?.textContent.trim() ?? '')
+            .join(' ')
+            .trim();
+    }
 });
