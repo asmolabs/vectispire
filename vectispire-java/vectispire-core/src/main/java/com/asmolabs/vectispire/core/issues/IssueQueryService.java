@@ -49,6 +49,15 @@ public class IssueQueryService {
      */
     public static final int MAX_PAGE_SIZE = 500;
 
+    /**
+     * The longest {@code identifier} the backlog's filter takes: the length of {@code t_issue.identifier}.
+     *
+     * <p><b>Public because the contract publishes it.</b> The route declares it as the parameter's
+     * {@code maxLength}, where clients read it; the route's description had spelt its own 255 beside this
+     * class's private one, two figures free to drift apart.
+     */
+    public static final int MAX_IDENTIFIER_LENGTH = 255;
+
     /** A detail page shows where an issue was seen, not every scan that ever ran. */
     private static final int MAX_SIGHTINGS = 100;
 
@@ -295,18 +304,8 @@ public class IssueQueryService {
      * hold, and it is refused in words rather than sent to the engine.
      */
     private static String identifier(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        String value = raw.trim();
-        if (value.length() > MAX_IDENTIFIER_LENGTH) {
-            throw new InvalidInputException("identifier is longer than " + MAX_IDENTIFIER_LENGTH + " characters.");
-        }
-        return value;
+        return BoundedText.optional(raw, MAX_IDENTIFIER_LENGTH, "identifier");
     }
-
-    /** The length of {@code t_issue.identifier}. */
-    private static final int MAX_IDENTIFIER_LENGTH = 255;
 
     /** The {@code owasp_category} that asks for every category, as compared once upper-cased. */
     private static final String ANY_OWASP_CATEGORY = "ANY";

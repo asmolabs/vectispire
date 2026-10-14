@@ -121,8 +121,9 @@ public class IssuesController {
             // **One identifier, exactly.** The links that mean "this CVE" — the remediation plan's, the OWASP
             // report's — carried `search`, a substring: `CVE-2021-4428` also listed `CVE-2021-44228`.
             @Parameter(description = "The issues whose identifier is exactly this one, case aside — CVE-2021-44228 "
-                    + "lists that CVE and not CVE-2021-442280. Up to 255 characters; blank is no filter. "
-                    + "Applied with the caller's visibility like every other filter.")
+                    + "lists that CVE and not CVE-2021-442280. Up to " + IssueQueryService.MAX_IDENTIFIER_LENGTH
+                    + " characters; blank is no filter. Applied with the caller's visibility like every other filter.",
+                    schema = @Schema(maxLength = IssueQueryService.MAX_IDENTIFIER_LENGTH))
             @RequestParam(required = false) String identifier,
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset,

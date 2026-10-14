@@ -15683,6 +15683,7 @@
           "name" : "identifier",
           "required" : false,
           "schema" : {
+            "maxLength" : 255,
             "type" : "string"
           }
         }, {
