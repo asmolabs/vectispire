@@ -8,7 +8,7 @@ npm start                 # from the root, serves on http://localhost:4280
 npm run build
 npm run lint              # ESLint, type-aware: TypeScript, Angular and template accessibility rules
 npm run format            # Prettier at 120 columns; CI runs `format:check` and fails on unformatted code
-npm test                  # asset, i18n and dead-API checks, then the Vitest suite
+npm test                  # asset, i18n and dead-API checks, then the Vitest suite and its test floor
 ```
 
 The dev server proxies `/api` to `http://localhost:3180` (see `proxy.conf.json`). The
@@ -136,6 +136,22 @@ asset: an unknown icon class renders an empty box and reports nothing. `pi-balan
 blank on seven screens; they became `pi-building-columns`, `pi-file`, `pi-share-alt` and
 `pi-code`. The known set is read from the stylesheet, so an upgrade that drops an icon fails
 here too.
+
+## Test floor
+
+`npm test` ends with `scripts/check-test-floor.mjs`, which runs `ng test` itself — one-shot,
+with Vitest's JSON report written beside the console output — and then refuses any spec file
+under `src/` that is absent from the run, ran no test, ran fewer tests than it declares, or
+reported more skipped tests than it writes as skipped (a `describe.skip`, a stray `.only`).
+What a file declares is counted from its syntax tree: one per `it(…)`/`test(…)`, one per
+`it.each(…)(…)`; `it.skip`, `it.todo` and `xit` are declared as not running. A test generated in
+a loop counts once, so the floor never exceeds a healthy run.
+
+It exists because a run once reported 113 files green and 1287 tests where 1339 were expected —
+`measurements.spec.ts`, 52 tests, gone — and Vitest saw nothing wrong; the cause never
+reproduced. The floor is counted from the source rather than kept in a committed baseline, so
+adding a test moves nothing else. Given any argument (`npm test -- --include=…`), the run may be
+partial and the floor is not checked; the script says so.
 
 ## Critical CSS inlining is off, and that is a security setting
 
