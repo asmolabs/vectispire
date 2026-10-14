@@ -22,10 +22,16 @@
 # A deployment that cannot accept it should set `VECTISPIRE_EMBEDDED_WORKER=false` and give the
 # work to a remote agent instead — which is the whole reason agents exist (decision 0003).
 
+# **Every base image is pinned by digest, the tag kept for the reader and for Dependabot.** A tag is
+# whatever its publisher pushed last: the same file built twice could run different bytes, and a
+# compromised push would reach the next build unseen. The digest is the multi-architecture index's
+# (`docker buildx imagetools inspect <image:tag>`), so amd64 and arm64 build the same release, and
+# Dependabot's `docker` ecosystem moves tag and digest together in a pull request somebody reviews.
+
 # --- The interface -----------------------------------------------------------------------
 # Its own stage so the JDK image never needs Node. The alternative — one image with both —
 # installs a toolchain into the build layer of something that has no other use for it.
-FROM node:24-alpine AS ui
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS ui
 
 WORKDIR /src
 # Manifests first: the install layer is rebuilt only when dependencies change, not on every
@@ -38,7 +44,7 @@ COPY vectispire-angular/ vectispire-angular/
 RUN npm run build --workspace @vectispire/frontend
 
 # --- The jar -----------------------------------------------------------------------------
-FROM eclipse-temurin:25-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine@sha256:3fd2d245c4e0eba615fe366a71b8bd25f5db7104f53e4026b24bf508b880bd2a AS build
 
 WORKDIR /src
 # The wrapper and the build definition before the sources, for the same layering reason: the
@@ -62,7 +68,7 @@ COPY --from=ui /src/vectispire-angular/dist/vectispire /ui
 RUN ./gradlew --no-daemon :vectispire-core:bootJar -PuiDist=/ui/browser -x test
 
 # --- The image that runs -----------------------------------------------------------------
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:25-jre-alpine@sha256:3c0a9084927a221ccd1d007fcaf614465672c0af37aaa834c5184483afe56d61
 
 # `git` is what clones the repositories the built-in worker scans. The Docker *client* is not
 # needed: the worker talks to the daemon over the mounted socket, from Java.
