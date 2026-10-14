@@ -102,6 +102,13 @@ the record has to be able to tell the difference.
   is named by the number in the link, over the ordinary empty list. Every filter on this page is kept
   in the address, so a filtered list can be bookmarked or sent, and **Back** returns to the page it
   was opened from.
+- **Search, and one identifier** — the search box matches part of an identifier, a package or a path:
+  `CVE-2021-4428` also finds `CVE-2021-44228`. A link that means one identifier — a CVE in the
+  [remediation plan](remediation.md), an identifier several issues share in an OWASP report — opens the
+  list with `identifier` instead, which matches **exactly** (case aside), so the list holds that
+  identifier and no neighbour. It shows above the list as a chip — **Identifier: CVE-2021-44228** — whose
+  cross takes it off; the search box stays free and still matches substrings beside it. Like every
+  filter it is narrowed to what you may see.
 - **Hide settled triage** — leaves out what was argued not affected, accepted as will not fix or
   marked fixed. It is the
   clause the dashboard's per-severity figures count by, and the links from those figures set it.

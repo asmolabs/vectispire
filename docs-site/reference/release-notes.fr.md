@@ -44,6 +44,9 @@
   avec son nombre de `targets`).
 - **Le PDF du rapport OWASP (`GET /api/v1/repositories/{id}/owasp-review/export.pdf`) accepte
   `language=en|fr`**, l'anglais par défaut ; une autre valeur répond 400.
+- **`GET /api/v1/issues` accepte `identifier`** : les issues dont l'identifiant est exactement celui donné,
+  sans tenir compte de la casse, dans la visibilité de l'appelant ; `search` cherche toujours une
+  sous-chaîne. Au-delà de 255 caractères, il répond 400.
 
 ### Nouveautés {#nouveautes-0111}
 
@@ -93,6 +96,10 @@
   et non plus par la valeur qu'ils affichent.
 - **La page `/error`, à laquelle aucun écran ne menait, disparaît** ; l'adresse affiche désormais l'écran
   « Page non trouvée ».
+- **Un lien vers un identifiant ouvre les problèmes de cet identifiant et d'aucun autre** : une CVE du plan
+  de remédiation, et un identifiant que plusieurs problèmes partagent dans un rapport OWASP, ouvraient la
+  liste par une recherche, si bien que `CVE-2021-4428` listait aussi `CVE-2021-44228`. La liste affiche
+  l'identifiant en pastille, qui le retire ([problèmes](../guide/issues.md#filtres-a-connaitre)).
 
 ## 0.11.0 — en préparation
 
