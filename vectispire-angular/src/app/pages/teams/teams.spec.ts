@@ -57,7 +57,9 @@ describe('the teams screen', () => {
                 activeSessions: 0
             }
         ],
-        total: 2
+        total: 2,
+        // The listing names its reader; this one is read by the administrator.
+        currentUserId: 1
     });
 
     const TARGETS = asSchema('Targets', {
@@ -87,6 +89,8 @@ describe('the teams screen', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         checklistsVisible: true,
+                        detectedLanguages: [],
+                        languagesUnknownFor: [],
                         repositoryCount: 0,
                         containerCount: 0,
                         openIssues,
