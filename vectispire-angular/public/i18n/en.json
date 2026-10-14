@@ -620,6 +620,7 @@
     "required": "required",
     "save": "Save",
     "search": "Search",
+    "search_bound_reached": "{{max}} characters at most",
     "status": "Status",
     "success": "Success",
     "unknown": "Unknown",

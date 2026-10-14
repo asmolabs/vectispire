@@ -82,11 +82,13 @@ function reviewDaysLeft(expiresAt: string | null | undefined, now: number = Date
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import { SeverityLabelPipe, severityTone, type SeverityTone } from '@/app/shared/severity';
-import { SEARCH_MAX_LENGTH } from '@/app/shared/search-bound';
+import { SearchBound, SearchBoundHint } from '@/app/shared/search-bound';
 
 @Component({
     selector: 'zs-issues',
     imports: [
+        SearchBound,
+        SearchBoundHint,
         DatePipe,
         FormsModule,
         RouterLink,
@@ -162,8 +164,6 @@ export class Issues {
     severity: string | null = null;
     type: string | null = null;
     search = '';
-    /** The server's bound on the search, as the box's `maxlength`: a longer one would be a 400. */
-    readonly searchMax = SEARCH_MAX_LENGTH;
 
     /**
      * The triage decision to narrow to.

@@ -55,17 +55,21 @@
             [ariaLabel]="'issues.col_triage' | translate"
             [showClear]="true"
         />
-        <p-iconfield>
-            <p-inputicon class="pi pi-search" />
-            <input
-                pInputText
-                [(ngModel)]="search"
-                [maxlength]="searchMax"
-                (keyup.enter)="filtersChanged()"
-                [placeholder]="'issues.search_placeholder' | translate"
-                [attr.aria-label]="'issues.search_label' | translate"
-            />
-        </p-iconfield>
+        <div class="flex flex-col">
+            <p-iconfield>
+                <p-inputicon class="pi pi-search" />
+                <input
+                    pInputText
+                    vsSearchBound
+                    #searchBound="vsSearchBound"
+                    [(ngModel)]="search"
+                    (keyup.enter)="filtersChanged()"
+                    [placeholder]="'issues.search_placeholder' | translate"
+                    [attr.aria-label]="'issues.search_label' | translate"
+                />
+            </p-iconfield>
+            <vs-search-bound-hint [bound]="searchBound" />
+        </div>
     </div>
 
     <!--

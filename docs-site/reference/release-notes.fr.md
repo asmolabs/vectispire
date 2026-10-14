@@ -46,14 +46,16 @@
   `language=en|fr`**, l'anglais par défaut ; une autre valeur répond 400.
 - **`GET /api/v1/issues` accepte `identifier`** : les issues dont l'identifiant est exactement celui donné,
   sans tenir compte de la casse, dans la visibilité de l'appelant ; `search` cherche toujours une
-  sous-chaîne. Au-delà de 255 caractères, il répond 400.
+  sous-chaîne. Au-delà de 255 caractères, la longueur de la colonne, il répond 400 ; le document OpenAPI
+  déclare cette borne (`maxLength`).
 - **Les recherches en texte libre des routes de liste répondent 400 au-delà de 500 caractères**, la raison
   dans `detail` : `search` sur `GET /api/v1/issues` et `GET /api/v1/audit-log`, `name` sur
   `GET /api/v1/inventory/search` et `/api/v1/inventory/versions`, `q` sur `GET /api/v1/blast-radius/explore`.
   Cinq cents est la plus longue colonne que l'une d'elles lit, si bien qu'aucune réponse n'est perdue ;
   elles partaient vers la base quelle que soit leur longueur. Le document OpenAPI déclare la borne
   (`maxLength`), et les champs de recherche des problèmes, du journal d'audit, de la recherche de
-  composants et du rayon d'impact n'en acceptent pas davantage.
+  composants et du rayon d'impact n'en acceptent pas davantage — et le disent sous le champ (« 500
+  caractères au plus ») une fois qu'il est plein, plutôt que d'ignorer la frappe sans un mot.
 
 ### Nouveautés {#nouveautes-0111}
 

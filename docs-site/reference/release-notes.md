@@ -42,13 +42,15 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   `language=en|fr`**, English by default; another value answers 400.
 - **`GET /api/v1/issues` takes `identifier`**: the issues whose identifier is exactly the one given, case
   aside, within the caller's visibility; `search` keeps matching a substring. One longer than 255
-  characters answers 400.
+  characters, the length of the column, answers 400; the OpenAPI document declares that bound
+  (`maxLength`).
 - **The list routes' free-text searches answer 400 past 500 characters**, with the reason in `detail`:
   `search` on `GET /api/v1/issues` and `GET /api/v1/audit-log`, `name` on `GET /api/v1/inventory/search`
   and `/api/v1/inventory/versions`, `q` on `GET /api/v1/blast-radius/explore`. Five hundred is the
   longest column any of them reads, so no answer is lost; they were sent to the database at any length.
   The OpenAPI document declares the bound (`maxLength`), and the search boxes of the issues, the audit
-  log, the component search and the blast radius take no more.
+  log, the component search and the blast radius take no more — and say so under the box ("500
+  characters at most") once it is full, rather than ignoring further typing without a word.
 
 ### New {#new-0111}
 

@@ -21,11 +21,13 @@ import type {
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import { messageOf } from '@/app/core/api-error';
-import { SEARCH_MAX_LENGTH } from '@/app/shared/search-bound';
+import { SearchBound, SearchBoundHint } from '@/app/shared/search-bound';
 
 @Component({
     selector: 'app-inventory',
     imports: [
+        SearchBound,
+        SearchBoundHint,
         DatePipe,
         FormsModule,
         CardModule,
@@ -49,8 +51,6 @@ export class Inventory {
     private readonly locale = inject(LOCALE_ID);
 
     name = '';
-    /** The server's bound on the search, as the box's `maxlength`: a longer one would be a 400. */
-    readonly searchMax = SEARCH_MAX_LENGTH;
     version = '';
 
     readonly occurrences = signal<InventoryOccurrence[]>([]);
