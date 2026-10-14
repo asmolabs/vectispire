@@ -8,7 +8,7 @@ npm start                 # from the root, serves on http://localhost:4280
 npm run build
 npm run lint              # ESLint, type-aware, over src/ and the Playwright suite; then tsc over the suite
 npm run format            # Prettier at 120 columns; CI runs `format:check` and fails on unformatted code
-npm test                  # asset, i18n and dead-API checks, then the Vitest suite and its test floor
+npm test                  # asset, i18n, dead-API, icon-button and spec-type checks, then the Vitest suite and its test floor
 ```
 
 The dev server proxies `/api` to `http://localhost:3180` (see `proxy.conf.json`). The
@@ -142,6 +142,21 @@ blank on seven screens; they became `pi-building-columns`, `pi-file`, `pi-share-
 `pi-code`. The known set is read from the stylesheet, so an upgrade that drops an icon fails
 here too.
 
+## Spec type checking
+
+The specs are linted with the same type-aware rules as the code, `no-unsafe-*` included, and
+`as never` and `as unknown as` are refused there by `no-restricted-syntax`. Those three rules used to
+be off for `*.spec.ts`: `request.body` and `fixture.nativeElement` are `any`, so an assertion on
+`body.expires_in_days` compiled whatever `TriageRequest` became, and twelve specs opened sessions
+for a user with an `id` the server does not send. A request body is read as the type the client
+method takes, the page as an `HTMLElement`; a word the client's union does not hold yet goes through
+`newerServerWord` in `core/testing/contract.ts`.
+
+`npm test` runs `scripts/check-spec-types.mjs`, which asks ESLint for the configuration it computes
+for every spec file and fails if any of those rules is not an error there — the hole was an override
+in `eslint.config.js`, not a missing rule — and holds the disable comments for them to a list,
+each with its reason. It refuses a run that found no spec file.
+
 ## Test floor
 
 `npm test` ends with `scripts/check-test-floor.mjs`, which runs `ng test` itself — one-shot,
@@ -171,9 +186,10 @@ all noise — TypeScript 6 includes no `@types` unless a config names them, so `
 and `node:*` were unresolved and `mysql2`'s connection, whose declarations build on Node's, had no
 `execute`. `tsconfig.e2e.json` names `node` (`@types/node` is `mysql2`'s required peer, so it is
 installed with it), and the e2e block of `eslint.config.js` lints against that file. Nine findings
-remained, each fixed in the code — two logins now read `LoginResponse` from `api.generated.ts`. The unit
-specs' exemption from the `no-unsafe-*` rules does not reach `e2e/`: there, `any` is a body that
-crossed the wire, and the suite already typed nearly every one.
+remained, each fixed in the code — two logins now read `LoginResponse` from `api.generated.ts`. The
+`no-unsafe-*` rules hold in `e2e/` as in `src/`, from the recommended set; the unit specs' cast bans
+and `check-spec-types.mjs` stay with `src/`, since the suite's two `as unknown as` — the
+`openapi.json` literal and Angular's debug `window.ng` — would each need an exception of their own.
 
 `eslint-plugin-playwright` is not installed: `forbidOnly` already fails a stray `test.only` in CI,
 and its other rules did not seem worth a dependency (and the `npm audit` that comes with one).
