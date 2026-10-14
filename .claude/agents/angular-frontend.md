@@ -134,7 +134,9 @@ e2e selectors (`id`s, test ids) the Playwright specs use; grep `e2e/` before mov
 
 ## Testing
 
-`npm test` runs the asset check, the i18n check, the dead-method check and Vitest. A behaviour that
+`npm test` runs the asset check, the i18n check, the dead-method check and Vitest, then the test
+floor: a spec that runs fewer tests than it declares, or is left out of the run, fails `npm test` —
+so a test is removed by deleting it, never by `describe.skip`. A behaviour that
 is only visible in the DOM — a field that must exist, a link that must carry a parameter — is tested
 through the DOM, not through the component: component tests all passed while a settings field had
 been missing for a month. **Mutation-check what you add**: break the code, see the test fail, restore.

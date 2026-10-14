@@ -70,7 +70,9 @@ npm ci && npm run lint && npm run format:check -w vectispire-angular && npm run 
 ```
 
 From the repository root. `npm test` includes the asset check, the i18n ratchets, the dead-API-method
-check and Vitest. After a dependency change, also confirm one copy of each `@angular/*`, `@openng/*`
+check and Vitest, then the test floor (`scripts/check-test-floor.mjs`): a spec file absent from the
+run, or running fewer tests than it declares, fails — once a run reported 52 tests fewer, every file
+green. After a dependency change, also confirm one copy of each `@angular/*`, `@openng/*`
 and `typescript` in `package-lock.json`, and `npm audit`.
 
 ## 4. Engine campaign — when engine-sensitive files changed
