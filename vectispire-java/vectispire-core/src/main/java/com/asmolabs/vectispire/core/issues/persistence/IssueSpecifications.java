@@ -96,7 +96,7 @@ public final class IssueSpecifications {
             // the column — and because the engines disagree otherwise: MySQL's collation ignores case,
             // PostgreSQL's `=` does not, and one link would answer two lists.
             predicates.add(builder.equal(
-                    builder.lower(root.get("identifier")), filters.identifier().toLowerCase(Locale.ROOT)));
+                    builder.lower(root.get("identifier")), IssueFilters.identifierKey(filters.identifier())));
         }
 
         if (filters.touchingSince() != null) {
