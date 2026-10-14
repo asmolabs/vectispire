@@ -10,6 +10,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import type { BulkTriageRequest, TriageRequest } from '@/app/core/api.models';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
 
@@ -84,7 +85,7 @@ describe('the issue backlog', () => {
 
         // Without this, fifty rows out of two hundred read as a backlog of fifty.
         expect(fixture.componentInstance.pageLabel()).toBe('1–50 of 228');
-        expect(fixture.nativeElement.textContent).toContain('1–50 of 228');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('1–50 of 228');
     });
 
     /**
@@ -124,7 +125,7 @@ describe('the issue backlog', () => {
             (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="issue-provenance"]')
         ).map((cell) => cell.textContent?.trim());
         expect(rows).toEqual(['analysed by Vectispire · acme-lint', 'declared by payments-ci · SonarQube']);
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Plugin (analysed by Vectispire)');
         expect(text).toContain('Imported (declared by CI)');
     });
@@ -178,9 +179,9 @@ describe('the issue backlog', () => {
     it('links each row to its detail', () => {
         firstPage(1);
 
-        const link = fixture.nativeElement.querySelector('a[href="/issues/1"]');
+        const link = (fixture.nativeElement as HTMLElement).querySelector('a[href="/issues/1"]');
         expect(link).not.toBeNull();
-        expect(link.textContent).toContain('CVE-2026-1234');
+        expect(link!.textContent).toContain('CVE-2026-1234');
     });
 
     it('says "no result" rather than showing an empty frame', () => {
@@ -232,7 +233,7 @@ describe('the issue backlog', () => {
 
         // Through the DOM and not through the field: a control wired to nothing looks identical
         // from the component's side, and that is precisely the state this screen was in.
-        fixture.nativeElement.querySelector('#filter-kev').click();
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#filter-kev')!.click();
         await fixture.whenStable();
         fixture.detectChanges();
 
@@ -381,9 +382,10 @@ describe('triaging a selection', () => {
         expect(call.request.method).toBe('POST');
         // The ids, and not a request per row: forty requests would be forty audit entries and
         // thirty-nine chances of a half-applied decision.
-        expect(call.request.body.ids).toEqual([11, 33]);
-        expect(call.request.body.status).toBe('not_affected');
-        expect(call.request.body.justification).toBe('vulnerable_code_not_in_execute_path');
+        const body = call.request.body as BulkTriageRequest;
+        expect(body.ids).toEqual([11, 33]);
+        expect(body.status).toBe('not_affected');
+        expect(body.justification).toBe('vulnerable_code_not_in_execute_path');
     });
 
     it('reloads and drops the selection once the batch is written', () => {
@@ -461,9 +463,11 @@ describe('triaging a selection', () => {
      * component's side — and "select all, decide once" is the whole flow this feature exists for.
      */
     it('ticks the page from the header checkbox and sends what it ticked', async () => {
-        const header = fixture.nativeElement.querySelector('p-tableheadercheckbox input[type="checkbox"]');
+        const header = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+            'p-tableheadercheckbox input[type="checkbox"]'
+        );
         expect(header).not.toBeNull();
-        header.click();
+        header!.click();
         await fixture.whenStable();
         fixture.detectChanges();
 
@@ -471,7 +475,7 @@ describe('triaging a selection', () => {
 
         fixture.componentInstance.openBulkTriage();
         fixture.componentInstance.submitTriage();
-        expect(http.expectOne('/api/v1/issues/triage').request.body.ids).toEqual([11, 22, 33]);
+        expect((http.expectOne('/api/v1/issues/triage').request.body as BulkTriageRequest).ids).toEqual([11, 22, 33]);
     });
 
     it('offers the action only once something is ticked, and says what it will do', () => {
@@ -489,21 +493,21 @@ describe('triaging a selection', () => {
         });
 
         as('CISO');
-        expect(fixture.nativeElement.textContent).not.toContain('(2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('(2)');
 
         component.selected.set([component.issues()[0], component.issues()[1]]);
         fixture.detectChanges();
 
         // The count is on the button because "Save" looks the same for one row and for forty.
-        expect(fixture.nativeElement.textContent).toContain('Trier (2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Trier (2)');
 
         // **The label is the promise.** An account without approval rights can triage, but its
         // decision goes into a queue: the screen announced "Triage" to it as to the others, and it
         // found out afterwards on seeing the tag turn to "Pending approval".
         as('USER');
         fixture.detectChanges();
-        expect(fixture.nativeElement.textContent).toContain('Envoyer pour approbation (2)');
-        expect(fixture.nativeElement.textContent).not.toContain('Trier (2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Envoyer pour approbation (2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Trier (2)');
 
         // An auditor observes and does not decide: the control is absent, not greyed out.
         //
@@ -513,8 +517,8 @@ describe('triaging a selection', () => {
         // shows.
         as('AUDITOR');
         fixture.detectChanges();
-        expect(fixture.nativeElement.textContent).not.toContain('(2)');
-        expect(fixture.nativeElement.textContent).toContain('issues.reads_only');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('(2)');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('issues.reads_only');
     });
 });
 
@@ -565,9 +569,9 @@ describe('the backlog opened from a dashboard link', () => {
         const fixture = await open({ is_kev: 'true' });
 
         expect(fixture.componentInstance.onlyKev).toBe(true);
-        const control = fixture.nativeElement.querySelector('#filter-kev');
+        const control = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-kev');
         expect(control).not.toBeNull();
-        expect(control.checked).toBe(true);
+        expect(control!.checked).toBe(true);
 
         // And it is still the filter the server was asked for, not only the box that is ticked.
         const http = TestBed.inject(HttpTestingController);
@@ -579,7 +583,9 @@ describe('the backlog opened from a dashboard link', () => {
         const fixture = await open({ overdue: 'true' });
 
         expect(fixture.componentInstance.overdue).toBe(true);
-        expect(fixture.nativeElement.querySelector('#filter-overdue').checked).toBe(true);
+        expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-overdue')!.checked).toBe(
+            true
+        );
     });
 
     it('and for the per-severity figures, which leave settled triage out', async () => {
@@ -588,7 +594,9 @@ describe('the backlog opened from a dashboard link', () => {
         const fixture = await open({ severity: 'critical', state: 'open', unsettled: 'true' });
 
         expect(fixture.componentInstance.unsettled).toBe(true);
-        expect(fixture.nativeElement.querySelector('#filter-unsettled').checked).toBe(true);
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-unsettled')!.checked
+        ).toBe(true);
     });
 
     it('shows nothing as active when the link carries no filter', async () => {
@@ -597,7 +605,9 @@ describe('the backlog opened from a dashboard link', () => {
         const fixture = await open({});
 
         expect(fixture.componentInstance.onlyKev).toBe(false);
-        expect(fixture.nativeElement.querySelector('#filter-kev').checked).toBe(false);
+        expect((fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-kev')!.checked).toBe(
+            false
+        );
     });
 });
 
@@ -1151,7 +1161,7 @@ describe('accepting a risk', () => {
         component.triageExpiresInDays = 90;
         component.submitTriage();
 
-        const body = http.expectOne('/api/v1/issues/7/triage').request.body;
+        const body = http.expectOne('/api/v1/issues/7/triage').request.body as TriageRequest;
         expect(body.status).toBe('will_not_fix');
         expect(body.justification).toBeNull();
         expect(body.expires_in_days).toBe(90);
@@ -1276,14 +1286,16 @@ describe('answering a request awaiting approval', () => {
         expect(component.canSubmitTriage()).toBe(true);
 
         component.submitTriage();
-        const body = http.expectOne('/api/v1/issues/8/triage').request.body;
+        const body = http.expectOne('/api/v1/issues/8/triage').request.body as TriageRequest;
         expect(body.status).toBe('will_not_fix');
         expect(body.justification).toBeNull();
         expect(body.expires_in_days).toBe(30);
     });
 
     it('says what the request asks for, in the row and in the dialog', async () => {
-        const requested = fixture.nativeElement.querySelectorAll('[data-testid="issue-requested-status"]');
+        const requested = (fixture.nativeElement as HTMLElement).querySelectorAll(
+            '[data-testid="issue-requested-status"]'
+        );
         expect(requested.length).toBe(1);
         expect(requested[0].textContent).toContain('Will not fix — risk accepted');
 
@@ -1389,7 +1401,7 @@ describe('applying the advisor suggestion', () => {
         expect(component.triageOptions().map((option) => option.value)).toContain(component.triageStatus);
 
         component.submitTriage();
-        expect(http.expectOne('/api/v1/issues/11/triage').request.body.status).toBe('under_review');
+        expect((http.expectOne('/api/v1/issues/11/triage').request.body as TriageRequest).status).toBe('under_review');
     });
 
     it('keeps a status the triage vocabulary shares', () => {
