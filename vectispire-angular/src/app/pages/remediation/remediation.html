@@ -209,11 +209,15 @@
                                 <div class="font-medium mb-2 text-sm">{{ 'remediation.cves' | translate }}</div>
                                 <div class="flex flex-wrap gap-1">
                                     @for (cve of fix.affectedCves; track cve) {
-                                        <!-- To the filtered list: this page says what to do, the other says on what. -->
+                                        <!--
+                                            To the filtered list: this page says what to do, the other says on what.
+                                            By `identifier`, exact: `search` matches a substring, and CVE-2021-4428
+                                            would also have listed CVE-2021-44228.
+                                        -->
                                         <a
                                             class="text-primary text-sm font-mono"
                                             [routerLink]="['/issues']"
-                                            [queryParams]="{ search: cve }"
+                                            [queryParams]="{ identifier: cve }"
                                             >{{ cve }}</a
                                         >
                                     }

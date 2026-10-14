@@ -68,10 +68,11 @@
     </div>
 
     <!--
-        The scope a link from the tree applies, shown and removable. A list narrowed to one project
-        with nothing on screen saying so reads as a backlog that lost most of its rows.
+        The scope a link from the tree applies, and the one identifier a link from a CVE applies, shown
+        and removable. A list narrowed to one project with nothing on screen saying so reads as a
+        backlog that lost most of its rows.
     -->
-    @if (projectLabel() !== null || solutionLabel() !== null) {
+    @if (projectLabel() !== null || solutionLabel() !== null || identifier() !== null) {
         <div class="flex flex-wrap items-center gap-2 mb-4" data-testid="issue-scope">
             @if (solutionLabel(); as name) {
                 <span
@@ -108,6 +109,25 @@
                         [ariaLabel]="'issues.aria_remove_project' | translate: { name }"
                         data-testid="remove-project"
                         (onClick)="removeProject()"
+                    />
+                </span>
+            }
+            @if (identifier(); as identifier) {
+                <span
+                    class="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+                    style="border-color: var(--surface-border)"
+                    data-testid="scope-identifier"
+                >
+                    <i class="pi pi-tag text-muted-color" aria-hidden="true"></i>
+                    {{ 'issues.chip_identifier' | translate: { identifier } }}
+                    <p-button
+                        icon="pi pi-times"
+                        [text]="true"
+                        [rounded]="true"
+                        size="small"
+                        [ariaLabel]="'issues.aria_remove_identifier' | translate: { identifier }"
+                        data-testid="remove-identifier"
+                        (onClick)="removeIdentifier()"
                     />
                 </span>
             }

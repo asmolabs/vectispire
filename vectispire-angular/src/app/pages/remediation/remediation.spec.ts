@@ -275,6 +275,23 @@ describe('the remediation plan', () => {
         expect(text).toContain('Rien à monter de version.');
         expect(text).toContain('4');
     });
+
+    it('opens the issues of exactly the CVE it names, not of every CVE containing it', () => {
+        // `search=CVE-2021-4428` also listed CVE-2021-44228: the link carries the exact identifier.
+        answer([fix({ affectedCves: ['CVE-2021-4428'] })]);
+        const details = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+            button.textContent?.includes('Détail')
+        );
+        details!.click();
+        fixture.detectChanges();
+
+        const link = [...(fixture.nativeElement as HTMLElement).querySelectorAll('a')].find(
+            (anchor) => anchor.textContent?.trim() === 'CVE-2021-4428'
+        );
+        const href = new URL(link!.getAttribute('href')!, 'http://localhost');
+        expect(href.pathname).toBe('/issues');
+        expect(Object.fromEntries(href.searchParams)).toEqual({ identifier: 'CVE-2021-4428' });
+    });
 });
 
 /**

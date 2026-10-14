@@ -67,12 +67,11 @@ function routeFor(identifier: string, link: OwaspIssueLink, repositoryId: number
     if (link.issueId != null) {
         return { commands: ['/issues', link.issueId] };
     }
-    // Several issues share the identifier — one CVE in three packages. The list is narrowed by a
-    // search, which matches substrings: `CVE-2026-1` also finds `CVE-2026-1000`, so the list can be
-    // a little longer than `count`. Accepted: it holds every issue meant, and a list one row long
-    // is a better landing than a link to only one of the three.
+    // Several issues share the identifier — one CVE in three packages — so the link opens the list of
+    // them, narrowed by `identifier`, which matches exactly: `search` matched substrings, so
+    // `CVE-2026-1` also listed `CVE-2026-1000` and the list could be longer than `count`.
     if (link.count > 1 && repositoryId !== null) {
-        return { commands: ['/issues'], queryParams: { repository_id: repositoryId, search: identifier } };
+        return { commands: ['/issues'], queryParams: { repository_id: repositoryId, identifier } };
     }
     return null;
 }

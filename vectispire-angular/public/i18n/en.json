@@ -1462,6 +1462,8 @@
     "chip_solution": "Solution: {{name}}",
     "aria_remove_project": "Remove the project filter {{name}}",
     "aria_remove_solution": "Remove the solution filter {{name}}",
+    "chip_identifier": "Identifier: {{identifier}}",
+    "aria_remove_identifier": "Remove the identifier filter {{identifier}}",
     "requested_status": "asks for: {{status}}",
     "triage_requested_hint": "This request asks for “{{status}}”. Grant it as asked, or turn it down — under review or affected — and record your own decision afterwards."
   },

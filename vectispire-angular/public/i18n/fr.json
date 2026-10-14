@@ -1462,6 +1462,8 @@
     "chip_solution": "Solution : {{name}}",
     "aria_remove_project": "Retirer le filtre sur le projet {{name}}",
     "aria_remove_solution": "Retirer le filtre sur la solution {{name}}",
+    "chip_identifier": "Identifiant : {{identifier}}",
+    "aria_remove_identifier": "Retirer le filtre sur l'identifiant {{identifier}}",
     "requested_status": "demande : {{status}}",
     "triage_requested_hint": "Cette demande porte sur « {{status}} ». Accordez-la telle quelle, ou refusez-la — en cours d'examen ou affecté — puis enregistrez votre propre décision."
   },
