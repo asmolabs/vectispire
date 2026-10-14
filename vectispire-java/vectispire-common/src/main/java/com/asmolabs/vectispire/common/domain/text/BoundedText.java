@@ -49,6 +49,19 @@ public final class BoundedText {
     public static final int TEXT_MAX = 16_000;
 
     /**
+     * The ceiling for a free-text search a list route takes — the backlog's {@code search}, the audit
+     * log's, the inventory's component name, the blast radius's {@code q}.
+     *
+     * <p><b>One figure for every search box</b>, so the screens cap their inputs with the one number the
+     * contract publishes rather than each route's own. Five hundred because it is the longest column any
+     * of those searches reads ({@code t_issue.file_path}): a term past it is a substring no row can hold,
+     * so refusing it loses no answer — and an unbounded one went to the engine as a {@code like} pattern
+     * of whatever length the request line allowed, beside the backlog's {@code identifier}, bounded since
+     * it was added.
+     */
+    public static final int SEARCH_MAX = 500;
+
+    /**
      * Trimmed, present, and no longer than {@code max}, or a refusal naming the field.
      *
      * @param what the field as the person who filled it knows it — "The repository name"
@@ -73,6 +86,18 @@ public final class BoundedText {
     public static String optional(String value, int max, String what) {
         String trimmed = value == null ? "" : value.trim();
         return trimmed.isEmpty() ? null : within(trimmed, max, what);
+    }
+
+    /**
+     * A search term as a list route applies it: trimmed, {@code null} when blank — no filter — and refused
+     * past {@link #SEARCH_MAX}.
+     *
+     * @param parameter the query parameter as the caller sent it — {@code search}, {@code q} — so the
+     *     refusal names what they can change
+     * @throws InvalidInputException too long
+     */
+    public static String search(String value, String parameter) {
+        return optional(value, SEARCH_MAX, parameter);
     }
 
     /**

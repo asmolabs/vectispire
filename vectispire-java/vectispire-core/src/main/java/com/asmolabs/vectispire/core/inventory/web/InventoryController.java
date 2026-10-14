@@ -1,9 +1,12 @@
 package com.asmolabs.vectispire.core.inventory.web;
 
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +44,8 @@ public class InventoryController {
     @GetMapping("/search")
     public InventoryQueryService.Results search(
             @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = "A substring of the component name, case aside. Up to " + BoundedText.SEARCH_MAX
+                    + " characters.", schema = @Schema(maxLength = BoundedText.SEARCH_MAX))
             @RequestParam String name,
             @RequestParam(required = false) String version) {
 
@@ -63,7 +68,10 @@ public class InventoryController {
      */
     @GetMapping("/versions")
     public List<String> versions(
-            @AuthenticationPrincipal VectispirePrincipal principal, @RequestParam String name) {
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = "A substring of the component name, case aside. Up to " + BoundedText.SEARCH_MAX
+                    + " characters; blank answers no version.", schema = @Schema(maxLength = BoundedText.SEARCH_MAX))
+            @RequestParam String name) {
         return inventory.versions(name, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 }

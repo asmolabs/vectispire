@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueOrdering;
@@ -224,7 +225,8 @@ public class IssueQueryService {
                 query.containerId(),
                 query.onlyDirect(),
                 query.onlyKev(),
-                query.search(),
+                // Bounded like `identifier` below, by the one figure every search box is capped with.
+                BoundedText.search(query.search(), "search"),
                 // Asking for the overdue also excludes what triage settled: a dismissed issue is
                 // not late, and a list that showed it would disagree with the figure that led here.
                 query.overdue() || query.unsettled(),

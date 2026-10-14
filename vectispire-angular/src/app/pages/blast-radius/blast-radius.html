@@ -36,6 +36,7 @@
                     type="text"
                     pInputText
                     [(ngModel)]="searchQuery"
+                    [maxlength]="searchMax"
                     (keydown.enter)="explore()"
                     [placeholder]="'blast_radius.search_placeholder' | translate"
                     class="w-full text-sm"

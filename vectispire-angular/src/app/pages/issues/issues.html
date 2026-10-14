@@ -60,6 +60,7 @@
             <input
                 pInputText
                 [(ngModel)]="search"
+                [maxlength]="searchMax"
                 (keyup.enter)="filtersChanged()"
                 [placeholder]="'issues.search_placeholder' | translate"
                 [attr.aria-label]="'issues.search_label' | translate"

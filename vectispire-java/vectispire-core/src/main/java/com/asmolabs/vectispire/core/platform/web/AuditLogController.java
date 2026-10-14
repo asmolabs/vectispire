@@ -1,8 +1,11 @@
 package com.asmolabs.vectispire.core.platform.web;
 
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.audit.AuditEntryView;
 import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,6 +59,9 @@ public class AuditLogController {
     public AuditLogPage list(
             @RequestParam(name = "operation_type", required = false) String operationType,
             @RequestParam(name = "user_id", required = false) String userId,
+            @Parameter(description = "Matches a substring of the description or the resource, case aside. Up to "
+                    + BoundedText.SEARCH_MAX + " characters; blank is no filter.",
+                    schema = @Schema(maxLength = BoundedText.SEARCH_MAX))
             @RequestParam(required = false) String search,
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset) {
