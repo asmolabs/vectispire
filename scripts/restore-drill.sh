@@ -42,7 +42,9 @@
 
 set -euo pipefail
 
-PREFIX="drill"
+# Overridable so that a machine where `drill-…` names are taken can run it beside them; the
+# nightly's failure step reads the default names. Set to empty, it is refused below.
+PREFIX="${DRILL_PREFIX-drill}"
 [ -n "$PREFIX" ] || { echo "refusing to run without a name prefix: it is the only thing keeping this off a deployment" >&2; exit 1; }
 
 IMAGE="${VECTISPIRE_IMAGE:-vectispire:latest}"
@@ -91,12 +93,28 @@ api() {
   docker run --rm --network "container:${container}" "$CURL_IMAGE" -s "$@"
 }
 
+# The password is read inside the container and handed over in an option file, as
+# `docs/en/BACKUP_AND_RESTORE.md` §2 does it: `-p<password>` would put it in the process list. The
+# drill's password is a throwaway, but the commands are the ones an operator copies, so they are the
+# documented ones. Here it comes from the container's `MYSQL_PASSWORD`; under Compose, from
+# `/run/secrets/mysql_password`. `printf` is a shell builtin, so it is no process's argument either.
+# Single-quoted on purpose: `$MYSQL_PASSWORD` is the container's, expanded by its shell, never here.
+# shellcheck disable=SC2016
+WITH_CLIENT_FILE='umask 077; cnf=$(mktemp)
+printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$MYSQL_PASSWORD" > "$cnf"'
+
+# Asked of the database's own container, by its network name — the address the control plane
+# uses, which the image's first-start server, networking off, does not answer on. **No credential:**
+# `mysqladmin ping` exits 0 for a server that answers, "Access denied" included — the question is
+# whether it listens, not who may sign in. It was a fresh `docker run --rm mysql mysqladmin ping
+# -pvectispire` per attempt: the password an argument, and a container per probe, which is what
+# once made `images`' wait take 67 minutes (ci.yml).
 wait_for_db() {
-  local name="$1"
-  for attempt in $(seq 1 120); do
-    if docker run --rm --network "$NET" "$MYSQL_IMAGE" \
-         mysqladmin ping -h "$name" -u vectispire -pvectispire --silent >/dev/null 2>&1; then
-      echo "  $name ready after ${attempt}s"; return 0
+  local name="$1" began
+  began=$(date +%s)
+  for _ in $(seq 1 120); do
+    if docker exec "$name" mysqladmin ping -h "$name" --silent >/dev/null 2>&1; then
+      echo "  $name ready after $(( $(date +%s) - began ))s"; return 0
     fi
     sleep 1
   done
@@ -222,13 +240,7 @@ echo "  $BEFORE"
 TOTAL_BEFORE=$(field "$BEFORE" total)
 
 log "2. the dump — taken from the running engine, as an operator would"
-# The password is read inside the container and handed over in an option file, as
-# `docs/en/BACKUP_AND_RESTORE.md` §2 does it: `-p<password>` would put it in the process list. The
-# drill's password is a throwaway, but the command is the one an operator copies, so it is the
-# documented one. Here it comes from the container's `MYSQL_PASSWORD`; under Compose, from
-# `/run/secrets/mysql_password`.
-WITH_CLIENT_FILE='umask 077; cnf=$(mktemp)
-printf "[client]\nuser=vectispire\npassword=\"%s\"\n" "$MYSQL_PASSWORD" > "$cnf"'
+# With the option file `WITH_CLIENT_FILE` writes, as the runbook's §2 does.
 docker exec "$DB_ORIGIN" sh -c "$WITH_CLIENT_FILE"'
 mysqldump --defaults-extra-file="$cnf" --single-transaction --routines --triggers vectispire
 status=$?; rm -f "$cnf"; exit $status' \

@@ -165,7 +165,7 @@ jobs:
       # Our own CI scripts, in bash: not shipped, but a quoting slip in one is a check that
       # passes having read the wrong thing.
       - name: the CI's own scripts
-        run: shellcheck ci/openapi/compat.sh scripts/upgrade-drill.sh
+        run: shellcheck ci/openapi/compat.sh scripts/upgrade-drill.sh scripts/restore-drill.sh
 
   c4-drift:
     runs-on: ubuntu-24.04
@@ -464,8 +464,11 @@ jobs:
           MYSQL_ROOT_PASSWORD: vectispire-ci
         # Healthy only once the real server listens on TCP: the image's first-start server runs with
         # networking off, so a ping over 127.0.0.1 does not answer before the suite could connect.
+        # No credential: `mysqladmin ping` exits 0 for a server that answers, "Access denied"
+        # included, and `-p…` would put the password in the arguments `ps` shows (release notes,
+        # 0.11.0 — the composition's healthcheck).
         options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pvectispire-ci"
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 30
@@ -720,8 +723,11 @@ jobs:
           #
           # The bound is now wall-clock and the message reports wall-clock, so the number in the
           # log and the number in the ceiling mean the same thing.
+          #
+          # No credential: `mysqladmin ping` exits 0 for a server that answers, "Access denied"
+          # included — whether it listens is the question — and `-p…` is an argument `ps` shows.
           deadline=$(( $(date +%s) + 120 ))
-          until docker exec db mysqladmin ping -h 127.0.0.1 -u vectispire -pvectispire --silent > /dev/null 2>&1; do
+          until docker exec db mysqladmin ping -h 127.0.0.1 --silent > /dev/null 2>&1; do
             if [ "$(date +%s)" -ge "$deadline" ]; then
               echo "the database never became reachable in 120s — last 100 lines:"
               docker logs --tail 100 db; exit 1
@@ -1002,9 +1008,11 @@ jobs:
           MYSQL_PASSWORD: vectispire-ci
         # Healthy only once the real server listens on TCP: the image's first-start server runs with
         # networking off, so a ping over 127.0.0.1 does not answer before the control plane could
-        # connect — and Hikari fails fast rather than retrying.
+        # connect — and Hikari fails fast rather than retrying. No credential: `mysqladmin ping`
+        # exits 0 for a server that answers, "Access denied" included, and `-p…` would put the
+        # password in the arguments `ps` shows (release notes, 0.11.0 — the composition's healthcheck).
         options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pvectispire-ci"
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 30

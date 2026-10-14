@@ -149,10 +149,22 @@ json() { python3 -c 'import json,sys; v=json.load(sys.stdin)
 for k in sys.argv[1].split("."): v = v.get(k) if isinstance(v, dict) else None
 print("" if v is None else v)' "$1"; }
 
+# **The password is never an argument**, not even this throwaway one: `docker exec -e
+# MYSQL_PWD=…` put it in the docker client's command line on the host, which every user of the
+# host reads, and MySQL deprecates `MYSQL_PWD` besides. Both clients read it inside the container
+# from the variable the server was created with: MySQL from an option file written by `printf`, a
+# shell builtin, readable by its owner alone (`write_client_file`); PostgreSQL from `PGPASSWORD`,
+# set by the container's shell and so in no argument list. The query is a positional parameter,
+# never spliced into the script, so its quotes are its own.
+CLIENT_FILE=/tmp/vs-up-client.cnf
+write_client_file() {
+  docker exec "$DB" sh -c 'umask 077
+printf "[client]\nuser=%s\npassword=\"%s\"\n" "$MYSQL_USER" "$MYSQL_PASSWORD" > "$1"' sh "$CLIENT_FILE"
+}
 sql() {
   case "$ENGINE" in
-    mysql) docker exec -e MYSQL_PWD="$DB_PASSWORD" "$DB" mysql -uvectispire -N -B vectispire -e "$1" ;;
-    postgresql) docker exec -e PGPASSWORD="$DB_PASSWORD" "$DB" psql -U vectispire -d vectispire -At -F $'\t' -c "$1" ;;
+    mysql) docker exec "$DB" sh -c 'exec mysql --defaults-extra-file="$1" -N -B vectispire -e "$2"' sh "$CLIENT_FILE" "$1" ;;
+    postgresql) docker exec "$DB" sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" exec psql -U vectispire -d vectispire -At -F "$(printf "\t")" -c "$1"' sh "$1" ;;
   esac
 }
 
@@ -170,8 +182,8 @@ failed_count()   {
 wait_for_db() {
   local deadline=$(( $(date +%s) + 180 ))
   until case "$ENGINE" in
-          mysql) docker exec -e MYSQL_PWD="$DB_PASSWORD" "$DB" mysql -h 127.0.0.1 -uvectispire -e 'SELECT 1' vectispire >/dev/null 2>&1 ;;
-          postgresql) docker exec -e PGPASSWORD="$DB_PASSWORD" "$DB" psql -h 127.0.0.1 -U vectispire -d vectispire -c 'SELECT 1' >/dev/null 2>&1 ;;
+          mysql) write_client_file 2>/dev/null && docker exec "$DB" sh -c 'exec mysql --defaults-extra-file="$1" -h 127.0.0.1 -e "SELECT 1" vectispire' sh "$CLIENT_FILE" >/dev/null 2>&1 ;;
+          postgresql) docker exec "$DB" sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" exec psql -h 127.0.0.1 -U vectispire -d vectispire -c "SELECT 1"' >/dev/null 2>&1 ;;
         esac; do
     [ "$(date +%s)" -lt "$deadline" ] || { docker logs --tail 60 "$DB" || true; fail "$DB never accepted a connection"; }
     sleep 1

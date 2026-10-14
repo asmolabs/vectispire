@@ -110,9 +110,11 @@ jobs:
           MYSQL_PASSWORD: vectispire-ci
         # Healthy only once the real server listens on TCP: the image's first-start server runs with
         # networking off, so a ping over 127.0.0.1 does not answer before the control plane could
-        # connect — and Hikari fails fast rather than retrying.
+        # connect — and Hikari fails fast rather than retrying. No credential: `mysqladmin ping`
+        # exits 0 for a server that answers, "Access denied" included, and `-p…` would put the
+        # password in the arguments `ps` shows (release notes, 0.11.0 — the composition's healthcheck).
         options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pvectispire-ci"
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 30
