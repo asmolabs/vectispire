@@ -145,6 +145,11 @@
 - **Un rapport OWASP compte les problèmes derrière un identifiant cité comme la liste qu'ouvre son lien les
   liste**, sans tenir compte de la casse : un identifiant que deux scanners écrivaient dans deux casses en
   comptait un, et son lien menait à ce seul problème quand la liste montrait les deux.
+- **Une action à fort impact qu'aucune version ne corrige affiche « aucune version corrigée publiée » sur
+  le tableau de bord**, comme le plan de remédiation le faisait déjà, au lieu d'une flèche qui ne mène à
+  rien. Le document OpenAPI déclare désormais `HighImpactFix.recommendedVersion` comme `string` ou `null`,
+  ce que le serveur envoie depuis que le champ ne porte plus « latest-patch » ; la réponse elle-même ne
+  change pas.
 
 ## 0.11.0 — en préparation
 
