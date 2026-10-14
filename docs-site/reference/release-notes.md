@@ -52,6 +52,19 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   log, the component search and the blast radius take no more — and say so under the box ("500
   characters at most") once it is full, rather than ignoring further typing without a word.
 
+- **The inventory lists page on request: `limit` and `offset` on `GET /api/v1/repositories`,
+  `/api/v1/containers`, `/api/v1/users`, `/api/v1/teams`, `/api/v1/api-keys`, `/api/v1/admin/agents` and
+  `/api/v1/projects/{id}/reports`.** Without either, each answers what it answered — the whole list, as the
+  same array (the report runs: the latest 200) — so nothing changes for a client that does not ask. With
+  `limit` (1 to 500) and `offset` (zero or a multiple of `limit`), it answers the same array cut from what
+  the caller sees, a page shorter than `limit` being the last; the report runs then reach past the latest
+  200. A `limit` outside 1–500, an `offset` between two pages or an `offset` without a `limit` answers 400
+  with the reason in `detail` — never a quietly shorter page. The repositories and the images are now
+  listed by `id`, the agents by name then `id` and the keys newest first then by `id`, so that the pages of
+  a list are the list cut in pieces; a list without a page has the same rows as before. `GET /api/v1/users`
+  gains `total`, every account whether or not the page shows them all. The forge discovery's repositories
+  and the import selection keep their bounds and their sentences, now one rule shared with these lists.
+
 ### New {#new-0111}
 
 - **Administrators lift a federated account's password-change requirement from the Users screen**

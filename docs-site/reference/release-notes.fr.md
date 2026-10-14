@@ -57,6 +57,21 @@
   composants et du rayon d'impact n'en acceptent pas davantage — et le disent sous le champ (« 500
   caractères au plus ») une fois qu'il est plein, plutôt que d'ignorer la frappe sans un mot.
 
+- **Les listes d'inventaire se paginent à la demande : `limit` et `offset` sur `GET /api/v1/repositories`,
+  `/api/v1/containers`, `/api/v1/users`, `/api/v1/teams`, `/api/v1/api-keys`, `/api/v1/admin/agents` et
+  `/api/v1/projects/{id}/reports`.** Sans l'un ni l'autre, chacune répond ce qu'elle répondait — la liste
+  entière, dans le même tableau (les exécutions de rapport : les 200 dernières) —, rien ne change donc pour
+  un client qui ne demande rien. Avec `limit` (1 à 500) et `offset` (zéro ou un multiple de `limit`), elle
+  rend le même tableau découpé dans ce que l'appelant voit, une page plus courte que `limit` étant la
+  dernière ; les exécutions de rapport vont alors au-delà des 200 dernières. Un `limit` hors de 1–500, un
+  `offset` entre deux pages ou un `offset` sans `limit` répond 400, la raison dans `detail` — jamais une
+  page silencieusement plus courte. Les dépôts et les images sont désormais listés par `id`, les agents par
+  nom puis `id` et les clés de la plus récente à la plus ancienne puis par `id`, afin que les pages d'une
+  liste soient la liste découpée ; une liste sans page a les mêmes lignes qu'avant. `GET /api/v1/users`
+  gagne `total`, tous les comptes, que la page les montre tous ou non. Les dépôts d'une découverte de forge
+  et la sélection d'import gardent leurs bornes et leurs phrases, désormais une règle partagée avec ces
+  listes.
+
 ### Nouveautés {#nouveautes-0111}
 
 - **Un administrateur lève l'obligation de changer de mot de passe d'un compte fédéré depuis l'écran
