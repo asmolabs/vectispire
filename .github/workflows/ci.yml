@@ -325,6 +325,26 @@ jobs:
             --framework dockerfile,github_actions \
             --directory . \
             --skip-path node_modules
+      # **A base image is named by digest** (`image:tag@sha256:…`, the multi-architecture index's),
+      # which checkov does not check: its rule refuses `latest`, not a tag that moves. A `FROM` by
+      # tag alone builds whatever was pushed under that tag last. A stage named earlier in the same
+      # file and `scratch` are not images. The count is printed so that a run reading no file is seen.
+      - name: every base image is pinned by digest
+        run: |
+          set -eu
+          files="$(find . -name 'Dockerfile*' -not -path '*/node_modules/*' -type f)"
+          test -n "$files"
+          echo "$files" | xargs awk '
+            FNR == 1 { delete stages; checked[FILENAME] = 1 }
+            toupper($1) == "FROM" {
+              image = $2
+              if (image ~ /^--platform=/) image = $3
+              for (i = 1; i <= NF; i++) if (toupper($i) == "AS") stages[$(i + 1)] = 1
+              if (image in stages || image == "scratch" || image ~ /@sha256:[0-9a-f]+$/) next
+              printf "%s:%d: %s: a base image by tag alone; pin it as image:tag@sha256:<index digest>\n", FILENAME, FNR, $0
+              bad = 1
+            }
+            END { n = 0; for (f in checked) n++; printf "%d Dockerfile(s) read\n", n; exit bad }'
 
   # **The Dockerfiles are built on push when what they read moved**, not only by the nightly.
   #
