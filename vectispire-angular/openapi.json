@@ -21651,6 +21651,16 @@
             },
             "description" : "The group created, its address in Location"
           },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "A displayName blank or past 100 characters"
+          },
           "409" : {
             "content" : {
               "application/scim+json" : {
@@ -21756,6 +21766,16 @@
             },
             "description" : "The group"
           },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "A displayName that is not a string, blank, or past 100 characters"
+          },
           "404" : {
             "content" : {
               "application/scim+json" : {
@@ -21765,6 +21785,16 @@
               }
             },
             "description" : "No group has this id"
+          },
+          "409" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "Another group holds this displayName: scimType uniqueness"
           }
         },
         "tags" : [ "scim-groups-controller" ]
@@ -21806,6 +21836,16 @@
             },
             "description" : "The group"
           },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "A displayName past 100 characters"
+          },
           "404" : {
             "content" : {
               "application/scim+json" : {
@@ -21815,6 +21855,16 @@
               }
             },
             "description" : "No group has this id"
+          },
+          "409" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "Another group holds this displayName: scimType uniqueness"
           }
         },
         "tags" : [ "scim-groups-controller" ]
@@ -21858,7 +21908,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "Every account, or the one the filter names"
+          },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "A filter other than userName eq or externalId eq: scimType invalidFilter"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -21891,6 +21951,16 @@
             },
             "description" : "The user created, its address in Location"
           },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "An attribute refused: a userName the account rules refuse, a value past its column, a role SCIM does not grant"
+          },
           "409" : {
             "content" : {
               "application/scim+json" : {
@@ -21919,7 +21989,17 @@
         } ],
         "responses" : {
           "204" : {
-            "description" : "No Content"
+            "description" : "Deleted, or already absent"
+          },
+          "403" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "An administrative account: administered in Vectispire, not through SCIM"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -21996,6 +22076,26 @@
             },
             "description" : "The user"
           },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "A displayName past its column"
+          },
+          "403" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "An administrative account: administered in Vectispire, not through SCIM"
+          },
           "404" : {
             "content" : {
               "application/scim+json" : {
@@ -22045,6 +22145,26 @@
               }
             },
             "description" : "The user"
+          },
+          "400" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "An attribute refused: a value past its column, a role SCIM does not grant, an externalId already bound or not the directory's to bind"
+          },
+          "403" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "An administrative account: administered in Vectispire, not through SCIM"
           },
           "404" : {
             "content" : {

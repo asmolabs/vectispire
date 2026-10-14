@@ -94,6 +94,33 @@ class ScimUsersRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the 403 on an administrative account and the 400 of a PATCH past a column are SCIM's error schema")
+    void refusalsAreScimErrors() throws Exception {
+        // Both are declared in the OpenAPI document with ScimErrorResponse (OpenApiRoutesTest): this is
+        // the body behind each declaration, a PATCH's 400 included, which no other case sends.
+        tokenFor("scim-protected", Role.ADMIN, false);
+        long admin = users.findByUsername("scim-protected").orElseThrow().getId();
+        mvc.perform(authenticated(delete("/scim/v2/Users/" + admin), asAdmin()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("403"));
+
+        tokenFor("scim-patched", Role.USER, false);
+        long id = users.findByUsername("scim-patched").orElseThrow().getId();
+        mvc.perform(authenticated(patch("/scim/v2/Users/" + id), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of(
+                                "schemas", List.of("urn:ietf:params:scim:api:messages:2.0:PatchOp"),
+                                "Operations", List.of(Map.of(
+                                        "op", "replace", "value", Map.of("displayName", "d".repeat(256))))))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("400"))
+                .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 255 characters."));
+        assertThat(users.findById(id).orElseThrow().getDisplayName()).isNotEqualTo("d".repeat(256));
+    }
+
+    @Test
     @DisplayName("SCIM grants no administrative role, on creation or replacement")
     void noAdministrativeGrant() throws Exception {
         tokenFor("scim-plain", Role.USER, false);

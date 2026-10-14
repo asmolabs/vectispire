@@ -16047,6 +16047,15 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
                 };
             };
+            /** @description A displayName blank or past 100 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
             /** @description Another group holds this displayName: scimType uniqueness */
             409: {
                 headers: {
@@ -16114,8 +16123,26 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
                 };
             };
+            /** @description A displayName past 100 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
             /** @description No group has this id */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
+            /** @description Another group holds this displayName: scimType uniqueness */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16170,8 +16197,26 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
                 };
             };
+            /** @description A displayName that is not a string, blank, or past 100 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
             /** @description No group has this id */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
+            /** @description Another group holds this displayName: scimType uniqueness */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16194,13 +16239,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description Every account, or the one the filter names */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimListResponseScimUserDto"];
+                };
+            };
+            /** @description A filter other than userName eq or externalId eq: scimType invalidFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16226,6 +16280,15 @@ export interface operations {
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+            /** @description An attribute refused: a userName the account rules refuse, a value past its column, a role SCIM does not grant */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
             /** @description Another user holds this userName: scimType uniqueness */
@@ -16295,6 +16358,24 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
                 };
             };
+            /** @description An attribute refused: a value past its column, a role SCIM does not grant, an externalId already bound or not the directory's to bind */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
+            /** @description An administrative account: administered in Vectispire, not through SCIM */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
             /** @description No user has this id */
             404: {
                 headers: {
@@ -16317,12 +16398,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No Content */
+            /** @description Deleted, or already absent */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description An administrative account: administered in Vectispire, not through SCIM */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
             };
         };
     };
@@ -16349,6 +16439,24 @@ export interface operations {
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+            /** @description A displayName past its column */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
+                };
+            };
+            /** @description An administrative account: administered in Vectispire, not through SCIM */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
             /** @description No user has this id */
