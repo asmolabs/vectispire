@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { appRoutes } from '../../../app.routes';
 import { SessionStore } from '../../core/session.store';
 import { useEnglish } from '../../core/testing/english';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The password change, through the application's own route table and with the input binding the
@@ -63,7 +64,7 @@ describe('the password change', () => {
     }
 
     it('takes a provisioned account to the page it asked for once the password is changed', async () => {
-        session.open('token', { username: 'x', role: 'USER', mustChangePassword: true } as never);
+        session.open('token', sessionUser('USER', { mustChangePassword: true }));
         await harness.navigateByUrl('/forbidden?from=link');
         expect(router.url).toBe('/change-password?returnUrl=%2Fforbidden%3Ffrom%3Dlink');
 
@@ -74,7 +75,7 @@ describe('the password change', () => {
     });
 
     it('goes to the dashboard when nothing was asked for', async () => {
-        session.open('token', { username: 'x', role: 'USER', mustChangePassword: false } as never);
+        session.open('token', sessionUser('USER'));
         await harness.navigateByUrl('/change-password');
 
         await change();
@@ -83,7 +84,7 @@ describe('the password change', () => {
     });
 
     it('never follows a returnUrl off this application', async () => {
-        session.open('token', { username: 'x', role: 'USER', mustChangePassword: false } as never);
+        session.open('token', sessionUser('USER'));
         for (const hostile of ['//evil.example', 'https://evil.example/', '/\\evil.example', 'javascript:alert(1)']) {
             await harness.navigateByUrl(`/change-password?returnUrl=${encodeURIComponent(hostile)}`);
 
@@ -94,7 +95,7 @@ describe('the password change', () => {
     });
 
     it('refuses a confirmation that differs, without asking the server', async () => {
-        session.open('token', { username: 'x', role: 'USER', mustChangePassword: false } as never);
+        session.open('token', sessionUser('USER'));
         await harness.navigateByUrl('/change-password');
 
         type('current', 'provisioned-password');
@@ -110,7 +111,7 @@ describe('the password change', () => {
     });
 
     it("shows the server's reason for refusing the new password, and stays", async () => {
-        session.open('token', { username: 'x', role: 'USER', mustChangePassword: false } as never);
+        session.open('token', sessionUser('USER'));
         await harness.navigateByUrl('/change-password?returnUrl=%2Fforbidden');
 
         type('current', 'provisioned-password');

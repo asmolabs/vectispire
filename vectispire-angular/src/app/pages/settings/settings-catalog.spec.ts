@@ -7,6 +7,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { Settings } from './settings';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The server's settings catalogue as the settings page lays it out: one card per section, on the tab
@@ -83,7 +84,7 @@ describe('the settings catalogue on the settings page', () => {
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
         useEnglish();
-        TestBed.inject(SessionStore).open('a-session', { username: 'someone', role } as never);
+        TestBed.inject(SessionStore).open('a-session', sessionUser(role, { username: 'someone' }));
         http = TestBed.inject(HttpTestingController);
         fixture = TestBed.createComponent(Settings);
         fixture.detectChanges();

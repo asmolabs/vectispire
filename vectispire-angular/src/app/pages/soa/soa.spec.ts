@@ -4,10 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Soa } from './soa';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, newerServerWord } from '@/app/core/testing/contract';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { useEnglish } from '@/app/core/testing/english';
-import type { DeclarationRequest, SoaStatement } from '@/app/core/api.models';
+import type { DeclarationRequest, Divergence, SoaLine, SoaStatement } from '@/app/core/api.models';
 import english from '../../../../public/i18n/en.json';
 import { APPLICABILITY_KEYS, DIVERGENCE_HELP_KEYS, DIVERGENCE_KEYS, EVIDENCE_KEYS, IMPLEMENTATION_KEYS } from './soa';
 
@@ -26,7 +26,7 @@ describe('the statement of applicability', () => {
     let fixture: ComponentFixture<Soa>;
     let http: HttpTestingController;
 
-    function line(id: string, divergence: string, declared: boolean) {
+    function line(id: string, divergence: Divergence, declared: boolean): SoaLine {
         return {
             control: { id, name: id, requirement: '', category: 'GOVERNANCE' },
             declaration: declared
@@ -51,8 +51,10 @@ describe('the statement of applicability', () => {
         };
     }
 
-    const STATEMENT = asSchema('SoaStatement', {
+    // Typed: it lacked the `title` the screen heads each statement with, and the header rendered empty.
+    const STATEMENT: SoaStatement = asSchema('SoaStatement', {
         framework: 'ISO_27001',
+        title: 'ISO/IEC 27001:2022',
         total: 4,
         declared: 3,
         findings: 2,
@@ -125,8 +127,14 @@ describe('the statement of applicability', () => {
     it('shows each cell in words, and a value it does not know as sent rather than as a key', () => {
         useEnglish();
         const [first, ...others] = STATEMENT.lines;
-        const unknown = { ...first, divergence: 'REWORDED_ON_THE_SERVER', measured: 'NO_DATA' };
-        fixture.componentInstance.statements.set([{ ...STATEMENT, lines: [unknown, ...others] } as SoaStatement]);
+        const unknown: SoaLine = {
+            ...first,
+            divergence: newerServerWord<Divergence>('REWORDED_ON_THE_SERVER'),
+            measured: 'NO_DATA'
+        };
+        fixture.componentInstance.statements.set([
+            { ...STATEMENT, lines: [unknown, ...others] } satisfies SoaStatement
+        ]);
         fixture.detectChanges();
 
         const text = (fixture.nativeElement as HTMLElement).textContent;

@@ -13,6 +13,7 @@ import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import type { BulkTriageRequest, TriageRequest } from '@/app/core/api.models';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The backlog.
@@ -304,7 +305,7 @@ describe('the issue backlog', () => {
         firstPage(1);
 
         const page = fixture.componentInstance;
-        page.openAiAdvisor({ id: 1 } as never);
+        page.openAiAdvisor(page.issues()[0]);
         const explain = http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1');
         expect(explain.request.params.get('language')).toBe('en');
         explain.error(new ProgressEvent('failed'));
@@ -481,8 +482,7 @@ describe('triaging a selection', () => {
     it('offers the action only once something is ticked, and says what it will do', () => {
         const component = fixture.componentInstance;
         const session = TestBed.inject(SessionStore);
-        const as = (role: string) =>
-            session.user.set({ id: 1, username: 'x', role, mustChangePassword: false } as never);
+        const as = (role: string) => session.user.set(sessionUser(role));
 
         // **A test dictionary, because the label now goes through i18n.** It was hard-coded, in
         // French, in a bilingual application — three times. What this case tests is unchanged: that
@@ -1105,12 +1105,7 @@ describe('accepting a risk', () => {
         }).compileComponents();
 
         useEnglish();
-        TestBed.inject(SessionStore).user.set({
-            id: 1,
-            username: 'x',
-            role: 'CISO',
-            mustChangePassword: false
-        } as never);
+        TestBed.inject(SessionStore).user.set(sessionUser('CISO'));
         fixture = TestBed.createComponent(Issues);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -1257,12 +1252,7 @@ describe('answering a request awaiting approval', () => {
         }).compileComponents();
 
         useEnglish();
-        TestBed.inject(SessionStore).user.set({
-            id: 1,
-            username: 'approver',
-            role: 'CISO',
-            mustChangePassword: false
-        } as never);
+        TestBed.inject(SessionStore).user.set(sessionUser('CISO', { username: 'approver' }));
         fixture = TestBed.createComponent(Issues);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();

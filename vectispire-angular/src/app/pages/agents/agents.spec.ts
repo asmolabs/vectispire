@@ -8,6 +8,7 @@ import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { SessionStore } from '@/app/core/session.store';
 import type { UnservedCredentialedScans } from '@/app/core/api.models';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * How many scans an agent runs at once, as the agents screen shows and changes it.
@@ -220,7 +221,7 @@ describe('the agents screen, on forgetting a sealing key', () => {
         }).compileComponents();
 
         useEnglish();
-        TestBed.inject(SessionStore).user.set({ id: 1, username: 'x', role, mustChangePassword: false } as never);
+        TestBed.inject(SessionStore).user.set(sessionUser(role));
         fixture = TestBed.createComponent(Agents);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();

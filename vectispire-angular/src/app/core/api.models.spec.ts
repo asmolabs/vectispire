@@ -21,8 +21,8 @@ describe('the claims the client makes about shapes the document under-describes'
         type Renamed = Refine<Schema<'TeamSummary'>, { nom: string }>;
 
         expect(true satisfies boolean).toBe(true);
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the reference keeps the type alive
-        return undefined as unknown as Renamed | undefined;
+        // The reference keeps the type alive, and `satisfies` makes it without a cast.
+        return undefined satisfies Renamed | undefined;
     });
 
     it('rejects a scalar claim the schema could not hold', () => {
@@ -31,8 +31,8 @@ describe('the claims the client makes about shapes the document under-describes'
         type Retyped = Refine<Schema<'TeamSummary'>, { name: number }>;
 
         expect(true satisfies boolean).toBe(true);
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the reference keeps the type alive
-        return undefined as unknown as Retyped | undefined;
+        // The reference keeps the type alive, and `satisfies` makes it without a cast.
+        return undefined satisfies Retyped | undefined;
     });
 
     it('accepts widening a property to null, which is the claim the document cannot make', () => {

@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
     ChecklistOfferedVersion,
+    ChecklistVersionUnrenderable,
     ChecklistProjectContext,
     ChecklistRevisionSummary,
     ChecklistView
@@ -1107,7 +1108,7 @@ describe('the project checklist screen', () => {
     });
 
     /** The `cells` member of a `checklist-version-unrenderable` refusal: a shared master and an array formula. */
-    const UNRENDERABLE = {
+    const UNRENDERABLE: Pick<ChecklistVersionUnrenderable, 'cells'> = {
         cells: [
             { cell: 'G7', kind: 'shared', range: 'G7:G9' },
             { cell: 'B3', kind: 'array', range: 'B3:C3' }
@@ -1159,7 +1160,7 @@ describe('the project checklist screen', () => {
     const OFFERED_UNRENDERABLE: ChecklistOfferedVersion[] = [
         OFFERED[0],
         { ...OFFERED[1], unrenderable: { detail: 'Version 2 of "release" cannot be signed off.', ...UNRENDERABLE } }
-    ] as ChecklistOfferedVersion[];
+    ];
 
     it('offers a version no sign-off could fill in disabled, saying why and naming its cells', async () => {
         await start('USER', 'someone', { offered: OFFERED_UNRENDERABLE });
@@ -1187,7 +1188,7 @@ describe('the project checklist screen', () => {
         const other = [
             OFFERED[0],
             { ...OFFERED[1], unrenderable: { detail: 'The sheet "Checklist" is missing.', cells: [] } }
-        ] as ChecklistOfferedVersion[];
+        ] satisfies ChecklistOfferedVersion[];
         await start('USER', 'carol', { revisions: [], offered: other });
 
         expect(text('[data-testid="open-unrenderable"]')).toBe(

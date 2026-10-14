@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { AppMenu } from './app.menu';
 import { SessionStore } from '@/app/core/session.store';
 import { useEnglish } from '@/app/core/testing/english';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * Where the sidebar files an entry, and for whom.
@@ -19,7 +20,7 @@ describe('the sidebar', () => {
             providers: [provideRouter([])]
         }).compileComponents();
         useEnglish();
-        TestBed.inject(SessionStore).open('a-token', { username: 'someone', role } as never);
+        TestBed.inject(SessionStore).open('a-token', sessionUser(role, { username: 'someone' }));
         const fixture = TestBed.createComponent(AppMenu);
         fixture.detectChanges();
         return fixture;

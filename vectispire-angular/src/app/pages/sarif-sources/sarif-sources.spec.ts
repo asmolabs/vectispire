@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, newerServerWord } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { SOURCE } from '@/app/core/testing/plugins.fixtures';
 import { SarifSources, toolsOf } from './sarif-sources';
@@ -121,7 +121,7 @@ describe('the declared sources', () => {
 
         fixture.componentInstance.sources.set([
             { ...SOURCE, kinds: ['sarif', 'coverage', 'test_report', 'sbom'] },
-            { ...SOURCE, id: 4, slug: 'future', kinds: ['spdx' as never] }
+            { ...SOURCE, id: 4, slug: 'future', kinds: [newerServerWord('spdx')] }
         ]);
         fixture.detectChanges();
         const kinds = (slug: string) =>

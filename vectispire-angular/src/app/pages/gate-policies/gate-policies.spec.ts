@@ -6,7 +6,7 @@ import { GatePolicies, THRESHOLD_KEYS } from './gate-policies';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
-import type { GatePolicyRequest } from '@/app/core/api.models';
+import type { GatePolicy, GatePolicyRequest } from '@/app/core/api.models';
 
 /**
  * The screen that decides what fails a build.
@@ -28,7 +28,7 @@ describe('the gate policy screen', () => {
 
     // Read against the document: this fixture survived the addition of a field the server now
     // always sends, and the form sent it back as `undefined` without anything saying so.
-    const BUILT_IN = asSchema('GatePolicyView', {
+    const BUILT_IN: GatePolicy = asSchema('GatePolicyView', {
         kind: 'built_in',
         target_id: null,
         target_name: null,
@@ -45,7 +45,7 @@ describe('the gate policy screen', () => {
         created_at: null
     });
 
-    const GLOBAL = {
+    const GLOBAL: GatePolicy = {
         ...BUILT_IN,
         kind: 'global',
         version: 3,
@@ -55,7 +55,7 @@ describe('the gate policy screen', () => {
         created_at: '2026-08-20T09:00:00Z'
     };
 
-    const OVERRIDE = {
+    const OVERRIDE: GatePolicy = {
         ...BUILT_IN,
         kind: 'repository',
         target_id: 5,
@@ -232,7 +232,7 @@ describe('the gate policy screen', () => {
     it('removes an override and reloads, so the target visibly inherits again', () => {
         load([GLOBAL, OVERRIDE]);
 
-        fixture.componentInstance.remove(OVERRIDE as never);
+        fixture.componentInstance.remove(OVERRIDE);
         http.expectOne({ method: 'DELETE', url: '/api/v1/gate/policies/repository/5' }).flush(null);
         http.expectOne('/api/v1/gate/policies').flush({ policies: [GLOBAL], built_in: BUILT_IN });
         fixture.detectChanges();

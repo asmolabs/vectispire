@@ -11,6 +11,7 @@ import {
 } from '@/app/core/testing/checklists.fixtures';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { LineMeasurement } from './line-measurement';
+import { newerServerWord } from '@/app/core/testing/contract';
 
 /**
  * One line's measurement on its own, for what the checklist page's suite (`measurements.spec.ts`,
@@ -96,17 +97,23 @@ describe('the measurement of a checklist line', () => {
         // A newer server's words, which today's document does not hold: built past `asSchema` on purpose.
         const found = {
             ...FAIL_MEASUREMENT,
-            outcome: 'partial',
+            outcome: newerServerWord('partial'),
             evidence: {
                 ...FAIL_MEASUREMENT.evidence,
-                repositories: [{ ...FAIL_MEASUREMENT.evidence.repositories[0], source: 'sbom_import', sourceId: 9 }]
+                repositories: [
+                    {
+                        ...FAIL_MEASUREMENT.evidence.repositories[0],
+                        source: newerServerWord('sbom_import'),
+                        sourceId: 9
+                    }
+                ]
             }
-        } as unknown as ChecklistMeasurement;
+        } satisfies ChecklistMeasurement;
         const page = render({
             ...failing(),
             measurement: found,
-            reconciliation: 'disputed'
-        } as unknown as MeasuredLine);
+            reconciliation: newerServerWord('disputed')
+        });
         named(page, 'Evidence measured for line 3')!.click();
         fixture.detectChanges();
 

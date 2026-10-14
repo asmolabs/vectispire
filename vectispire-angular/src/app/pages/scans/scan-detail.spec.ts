@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PLUGIN_REFUSAL_KEYS, ScanDetailPage } from './scan-detail';
 import { missingFromBundles } from '@/app/core/testing/bundles';
 import { I18nService } from '@/app/core/i18n/i18n.service';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, newerServerWord } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
@@ -420,7 +420,7 @@ describe('the scan detail', () => {
         await load({
             ...DETAIL,
             plugins: [
-                { ...unsigned, pluginId: 'revoked', refusal: 'key_revoked' as never },
+                { ...unsigned, pluginId: 'revoked', refusal: newerServerWord('key_revoked') },
                 { ...unsigned, pluginId: 'unexplained', refusal: null }
             ]
         });

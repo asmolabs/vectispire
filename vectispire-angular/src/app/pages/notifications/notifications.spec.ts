@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Notifications } from './notifications';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchemaList } from '@/app/core/testing/contract';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The notification channels screen. Sending a test posts into somebody's Slack, so the button is a
@@ -32,7 +33,7 @@ describe('the notification channels screen', () => {
             imports: [Notifications],
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
-        TestBed.inject(SessionStore).open('token', { username: 'x', role, mustChangePassword: false } as never);
+        TestBed.inject(SessionStore).open('token', sessionUser(role));
 
         fixture = TestBed.createComponent(Notifications);
         http = TestBed.inject(HttpTestingController);
