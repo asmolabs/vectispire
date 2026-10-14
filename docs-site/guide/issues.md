@@ -103,7 +103,8 @@ the record has to be able to tell the difference.
   in the address, so a filtered list can be bookmarked or sent, and **Back** returns to the page it
   was opened from.
 - **Search, and one identifier** — the search box matches part of an identifier, a package or a path:
-  `CVE-2021-4428` also finds `CVE-2021-44228`. A link that means one identifier — a CVE in the
+  `CVE-2021-4428` also finds `CVE-2021-44228`. It takes up to 500 characters, the longest of those
+  columns. A link that means one identifier — a CVE in the
   [remediation plan](remediation.md), an identifier several issues share in an OWASP report — opens the
   list with `identifier` instead, which matches **exactly** (case aside), so the list holds that
   identifier and no neighbour. It shows above the list as a chip — **Identifier: CVE-2021-44228** — whose

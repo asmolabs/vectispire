@@ -47,6 +47,13 @@
 - **`GET /api/v1/issues` accepte `identifier`** : les issues dont l'identifiant est exactement celui donné,
   sans tenir compte de la casse, dans la visibilité de l'appelant ; `search` cherche toujours une
   sous-chaîne. Au-delà de 255 caractères, il répond 400.
+- **Les recherches en texte libre des routes de liste répondent 400 au-delà de 500 caractères**, la raison
+  dans `detail` : `search` sur `GET /api/v1/issues` et `GET /api/v1/audit-log`, `name` sur
+  `GET /api/v1/inventory/search` et `/api/v1/inventory/versions`, `q` sur `GET /api/v1/blast-radius/explore`.
+  Cinq cents est la plus longue colonne que l'une d'elles lit, si bien qu'aucune réponse n'est perdue ;
+  elles partaient vers la base quelle que soit leur longueur. Le document OpenAPI déclare la borne
+  (`maxLength`), et les champs de recherche des problèmes, du journal d'audit, de la recherche de
+  composants et du rayon d'impact n'en acceptent pas davantage.
 
 ### Nouveautés {#nouveautes-0111}
 
@@ -118,6 +125,9 @@
   de remédiation, et un identifiant que plusieurs problèmes partagent dans un rapport OWASP, ouvraient la
   liste par une recherche, si bien que `CVE-2021-4428` listait aussi `CVE-2021-44228`. La liste affiche
   l'identifiant en pastille, qui le retire ([problèmes](../guide/issues.md#filtres-a-connaitre)).
+- **Un rapport OWASP compte les problèmes derrière un identifiant cité comme la liste qu'ouvre son lien les
+  liste**, sans tenir compte de la casse : un identifiant que deux scanners écrivaient dans deux casses en
+  comptait un, et son lien menait à ce seul problème quand la liste montrait les deux.
 
 ## 0.11.0 — en préparation
 

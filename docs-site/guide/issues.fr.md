@@ -110,7 +110,8 @@ différence.
   ordinaire. Chaque filtre de cette page est gardé dans l'adresse : une liste filtrée se met en favori
   ou s'envoie, et **Précédent** revient à la page d'où elle a été ouverte.
 - **Recherche, et un identifiant** — le champ de recherche trouve une partie d'un identifiant, d'un
-  paquet ou d'un chemin : `CVE-2021-4428` trouve aussi `CVE-2021-44228`. Un lien qui désigne un
+  paquet ou d'un chemin : `CVE-2021-4428` trouve aussi `CVE-2021-44228`. Il accepte jusqu'à 500
+  caractères, la plus longue de ces colonnes. Un lien qui désigne un
   identifiant — une CVE du [plan de remédiation](remediation.md), un identifiant que plusieurs problèmes
   partagent dans un rapport OWASP — ouvre la liste avec `identifier` à la place, qui correspond
   **exactement** (sans tenir compte de la casse) : la liste tient cet identifiant et aucun voisin. Il

@@ -43,6 +43,12 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **`GET /api/v1/issues` takes `identifier`**: the issues whose identifier is exactly the one given, case
   aside, within the caller's visibility; `search` keeps matching a substring. One longer than 255
   characters answers 400.
+- **The list routes' free-text searches answer 400 past 500 characters**, with the reason in `detail`:
+  `search` on `GET /api/v1/issues` and `GET /api/v1/audit-log`, `name` on `GET /api/v1/inventory/search`
+  and `/api/v1/inventory/versions`, `q` on `GET /api/v1/blast-radius/explore`. Five hundred is the
+  longest column any of them reads, so no answer is lost; they were sent to the database at any length.
+  The OpenAPI document declares the bound (`maxLength`), and the search boxes of the issues, the audit
+  log, the component search and the blast radius take no more.
 
 ### New {#new-0111}
 
@@ -107,6 +113,9 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   plan, and an identifier several issues share in an OWASP report, opened the list with a search, so
   `CVE-2021-4428` also listed `CVE-2021-44228`. The list shows the identifier as a chip that takes it off
   ([findings](../guide/issues.md#filters-worth-knowing)).
+- **An OWASP report counts the issues behind a cited identifier as the list its link opens lists them**,
+  case aside: an identifier two scanners wrote in two cases counted one, and its link led to that issue
+  alone while the list showed both.
 
 ## 0.11.0 — in preparation
 
