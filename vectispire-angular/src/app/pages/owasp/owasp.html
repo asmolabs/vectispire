@@ -48,9 +48,14 @@
     <p-card styleClass="mb-4">
         <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end">
             <div class="flex flex-col gap-1">
-                <label for="repo" class="text-sm text-muted-color">{{ 'owasp.repo_label' | translate }}</label>
+                <!-- The select puts inputId on a span with role combobox, which a label's for cannot
+                     name: the combobox took its name from the placeholder or the chosen repository. -->
+                <label id="repo-label" for="repo" class="text-sm text-muted-color">{{
+                    'owasp.repo_label' | translate
+                }}</label>
                 <p-select
                     inputId="repo"
+                    ariaLabelledBy="repo-label"
                     [options]="repositoryOptions()"
                     [(ngModel)]="selected"
                     optionLabel="displayName"

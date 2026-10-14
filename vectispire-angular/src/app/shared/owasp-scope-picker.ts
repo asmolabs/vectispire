@@ -21,9 +21,14 @@ import { OwaspScope, scopeOfValue, scopeOptions, scopeValue } from './owasp-scop
     // The host is the flex item, as the wrapping div was when the weekly view held the select itself.
     host: { class: 'flex flex-col gap-1' },
     template: `
-        <label [for]="inputId()" class="text-sm text-muted-color">{{ 'owasp_weekly.scope' | translate }}</label>
+        <!-- The select puts inputId on a span with role combobox, which a label's for cannot name:
+             the combobox took its name from the scope it showed, never from what it picks. -->
+        <label [id]="labelId()" [for]="inputId()" class="text-sm text-muted-color">{{
+            'owasp_weekly.scope' | translate
+        }}</label>
         <p-select
             [inputId]="inputId()"
+            [ariaLabelledBy]="labelId()"
             [options]="options()"
             optionLabel="label"
             optionValue="value"
@@ -45,6 +50,9 @@ export class OwaspScopePicker {
     readonly inputId = input.required<string>();
     readonly scope = input<OwaspScope>(null);
     readonly scopeChange = output<OwaspScope>();
+
+    /** Derived from the input id, so the grid's and the weekly view's pickers never share one. */
+    readonly labelId = computed(() => `${this.inputId()}-label`);
 
     readonly options = computed(() => {
         this.i18n.translations();
