@@ -153,7 +153,7 @@ describe('the issue detail', () => {
     it('shows the version each scan read, which is what dates the sighting', async () => {
         await load();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('CVE-2026-1234');
         expect(text).toContain('1.17.6');
         expect(text).toContain('openssl');
@@ -162,7 +162,7 @@ describe('the issue detail', () => {
     it('says an issue nobody triaged was never decided upon', async () => {
         await load();
 
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         // With the shipped bundle loaded the reader's words can be asserted, rather than either an
         // old sentence or the bare key.
         expect(text).toContain('no decision recorded');
@@ -189,7 +189,7 @@ describe('the issue detail', () => {
             ]
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.toLowerCase()).toContain('under review');
         expect(text.toLowerCase()).toContain('not affected');
         expect(text).toContain('Demonstration application.');
@@ -198,7 +198,7 @@ describe('the issue detail', () => {
     it('shows a status it has no word for as the server sent it, never as a key path', async () => {
         await load({ ...ISSUE, triageStatus: 'deferred' });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('deferred');
         expect(text).not.toContain('issues.triage_status.');
     });
@@ -223,7 +223,7 @@ describe('the issue detail', () => {
             ]
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('reopened — found again by a scan or an import, resolved since 02/05/2026');
         expect(text).not.toContain('expired automatically');
     });
@@ -232,7 +232,7 @@ describe('the issue detail', () => {
         await load({ ...ISSUE, fixVersions: null });
 
         // The case that needs a human decision is exactly the one an empty cell hides.
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('none published') || text.includes('issues.fix_none_published')).toBe(true);
     });
 
@@ -241,7 +241,7 @@ describe('the issue detail', () => {
 
         // "No ticket" and "the card showed nothing" look alike on screen and do not mean the same
         // thing; it is the sentence that makes somebody click "attach".
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('No ticket attached.');
         expect(text).toContain('Attach a ticket');
     });
@@ -263,7 +263,7 @@ describe('the issue detail', () => {
         call.flush({ ...ISSUE, ticketRef: 'SEC-1234', ticketUrl: 'https://tracker.invalid/SEC-1234' });
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('SEC-1234');
         expect(text).toContain('Closing this ticket can close this finding.');
         expect(page.editingTicket()).toBe(false);
@@ -325,7 +325,7 @@ describe('the issue detail', () => {
         // Offering a door the server closes is worse than offering nothing: the auditor clicks,
         // gets a refusal, and learns to distrust the screen.
         expect(fixture.componentInstance.canAttach()).toBe(false);
-        expect(fixture.nativeElement.textContent).not.toContain('Attach a ticket');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Attach a ticket');
     });
 
     it('reports a load failure instead of rendering half a page', async () => {
@@ -334,6 +334,6 @@ describe('the issue detail', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.issue()).toBeNull();
-        expect(fixture.nativeElement.textContent).toContain('could not be loaded');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('could not be loaded');
     });
 });
