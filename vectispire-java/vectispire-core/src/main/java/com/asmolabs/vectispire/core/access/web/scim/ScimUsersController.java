@@ -47,6 +47,9 @@ public class ScimUsersController {
         this.provisioning = provisioning;
     }
 
+    @ApiResponse(responseCode = "200", description = "Every account, or the one the filter names")
+    @ApiResponse(responseCode = "400", description = "A filter other than userName eq or externalId eq: scimType invalidFilter",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @GetMapping
     public ScimListResponse<ScimUserDto> listUsers(
             @RequestParam(required = false) String filter,
@@ -69,6 +72,8 @@ public class ScimUsersController {
 
     @ApiResponse(responseCode = "201", description = "The user created, its address in Location",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimUserDto.class)))
+    @ApiResponse(responseCode = "400", description = "An attribute refused: a userName the account rules refuse, a value past its column, a role SCIM does not grant",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Another user holds this userName: scimType uniqueness",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PostMapping(consumes = {"application/scim+json", "application/json"})
@@ -86,6 +91,10 @@ public class ScimUsersController {
     @ApiResponse(responseCode = "200", description = "The user")
     @ApiResponse(responseCode = "404", description = "No user has this id",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "400", description = "An attribute refused: a value past its column, a role SCIM does not grant, an externalId already bound or not the directory's to bind",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "403", description = "An administrative account: administered in Vectispire, not through SCIM",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PutMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> updateUser(
             @PathVariable Long id, @RequestBody ScimUserDto dto, HttpServletRequest request) {
@@ -98,6 +107,10 @@ public class ScimUsersController {
     @ApiResponse(responseCode = "200", description = "The user")
     @ApiResponse(responseCode = "404", description = "No user has this id",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "400", description = "A displayName past its column",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "403", description = "An administrative account: administered in Vectispire, not through SCIM",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> patchUser(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {
@@ -107,6 +120,9 @@ public class ScimUsersController {
                 .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
     }
 
+    @ApiResponse(responseCode = "204", description = "Deleted, or already absent")
+    @ApiResponse(responseCode = "403", description = "An administrative account: administered in Vectispire, not through SCIM",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long id, HttpServletRequest request) {

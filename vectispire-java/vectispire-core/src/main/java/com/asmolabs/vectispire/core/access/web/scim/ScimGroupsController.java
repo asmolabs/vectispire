@@ -62,6 +62,8 @@ public class ScimGroupsController {
 
     @ApiResponse(responseCode = "201", description = "The group created, its address in Location",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimGroupDto.class)))
+    @ApiResponse(responseCode = "400", description = "A displayName blank or past 100 characters",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Another group holds this displayName: scimType uniqueness",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PostMapping(consumes = {"application/scim+json", "application/json"})
@@ -77,6 +79,10 @@ public class ScimGroupsController {
     @ApiResponse(responseCode = "200", description = "The group")
     @ApiResponse(responseCode = "404", description = "No group has this id",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "400", description = "A displayName past 100 characters",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Another group holds this displayName: scimType uniqueness",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PutMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> updateGroup(
             @PathVariable Long id, @RequestBody ScimGroupDto dto, HttpServletRequest request) {
@@ -86,6 +92,10 @@ public class ScimGroupsController {
 
     @ApiResponse(responseCode = "200", description = "The group")
     @ApiResponse(responseCode = "404", description = "No group has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "400", description = "A displayName that is not a string, blank, or past 100 characters",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Another group holds this displayName: scimType uniqueness",
             content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> patchGroup(

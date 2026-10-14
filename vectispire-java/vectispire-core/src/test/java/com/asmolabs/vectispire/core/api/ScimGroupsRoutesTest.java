@@ -229,7 +229,7 @@ class ScimGroupsRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a displayName past the column is a SCIM 400 on creation, replacement and patch, and nothing is written")
+    @DisplayName("a displayName past the column, or not a string, is a SCIM 400 on creation, replacement and patch, and nothing is written")
     void aDisplayNamePastTheColumnIsRefused() throws Exception {
         long id = team("Platform");
         String tooLong = "g".repeat(101);
@@ -251,6 +251,13 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                                 "op", "replace", "path", "displayName", "value", tooLong))))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace", "path", "displayName", "value", 42))))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.detail").value("Group displayName must be a string."));
 
         assertThat(teams.findAll()).extracting(TeamEntity::getName).containsExactly("Platform");
     }
