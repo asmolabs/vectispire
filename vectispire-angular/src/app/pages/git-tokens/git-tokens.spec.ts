@@ -48,7 +48,7 @@ describe('the HTTPS tokens screen', () => {
     it('lists each token with its host, username and the number of repositories using it', () => {
         list();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('gitlab-read');
         // The host is the token's boundary; a list without it would hide where it may be sent.
         expect(text).toContain('gitlab.example.com');

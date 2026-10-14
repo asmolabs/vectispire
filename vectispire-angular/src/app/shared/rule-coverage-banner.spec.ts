@@ -51,7 +51,7 @@ describe('the rule coverage banner', () => {
 
     it('says nothing when every ecosystem in the estate has rules', () => {
         expect(fixture.componentInstance.visible()).toBe(false);
-        expect(fixture.nativeElement.textContent.trim()).toBe('');
+        expect((fixture.nativeElement as HTMLElement).textContent.trim()).toBe('');
     });
 
     it('warns when only the shipped rule is there', async () => {
@@ -76,7 +76,7 @@ describe('the rule coverage banner', () => {
         });
 
         expect(fixture.componentInstance.uncovered()).toEqual(['go']);
-        expect(fixture.nativeElement.textContent).toContain('go');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('go');
     });
 
     it('stays quiet when coverage could not be read', async () => {

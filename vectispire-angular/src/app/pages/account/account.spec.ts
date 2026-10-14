@@ -97,7 +97,7 @@ describe('the account screen', () => {
         // **The secret offered is not a factor switched on.** A clock that is out or a secret
         // copied wrong would otherwise show only at the next sign-out, that is too late.
         expect(page.mfaEnabled()).toBe(false);
-        expect(fixture.nativeElement.textContent).toContain('JBSW Y3DP EHPK 3PXP');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('JBSW Y3DP EHPK 3PXP');
 
         page.code = '123456';
         page.confirm();
@@ -123,7 +123,7 @@ describe('the account screen', () => {
 
         // Le serveur les chiffre et ne les rendra plus : sans l'avertissement, on ferme l'onglet
         // en pensant les retrouver.
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Write these down now');
         expect(text).toContain('aaaa-1111');
         expect(text).toContain('bbbb-2222');

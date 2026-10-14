@@ -197,7 +197,7 @@ describe('the API keys screen', () => {
         http.expectOne({ method: 'DELETE', url: '/api/v1/api-keys/5d0c8e3a-91f2-4b6e-a7d4-3c2b1e0f9a68' }).flush(null);
         list([]);
 
-        expect(fixture.nativeElement.textContent).toContain('api_keys.no_keys');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('api_keys.no_keys');
     });
 
     it('keeps the refusal of a revocation on screen through the reload that follows it', () => {

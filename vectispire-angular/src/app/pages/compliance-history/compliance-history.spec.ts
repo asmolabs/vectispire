@@ -83,14 +83,16 @@ describe('compliance progress', () => {
     it('says a series over a moving estate is not a trend', () => {
         // Without that note, two joined points read as a trajectory, whatever the distance between
         // the two estates that produced them.
-        expect(fixture.nativeElement.textContent).toContain('history_compliance.not_comparable');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('history_compliance.not_comparable');
     });
 
     it('shows no delta on the first capture', () => {
         // A "0" against the first month would read as "we did not move" where the true sentence is
         // "there is nothing to compare with".
-        const changes = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
-        expect([...changes].map((c: HTMLElement) => c.textContent.trim())).toEqual(['—', '0']);
+        const changes = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            'tbody tr td:nth-child(3)'
+        );
+        expect([...changes].map((c) => c.textContent.trim())).toEqual(['—', '0']);
     });
 
     it('scales the bar against one hundred and not against the series maximum', () => {
@@ -109,12 +111,12 @@ describe('compliance progress', () => {
         useFrench();
         fixture.detectChanges();
         expect(heading()).toBe('ISO/IEC 27001:2022');
-        expect(fixture.nativeElement.textContent).not.toContain('ISO_27001');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('ISO_27001');
     });
 
     it('announces the absence of captures rather than an empty chart', async () => {
         await mount([]);
 
-        expect(fixture.nativeElement.textContent).toContain('history_compliance.empty');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('history_compliance.empty');
     });
 });

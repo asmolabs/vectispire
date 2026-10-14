@@ -92,11 +92,11 @@ describe('the backlog trend', () => {
         });
 
         expect(fixture.componentInstance.meanLabel()).toBe('No measurement');
-        expect(fixture.nativeElement.textContent).toContain('Nothing was resolved in this window');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nothing was resolved in this window');
         // Read from the tile and not from the page, whose window buttons legitimately say
         // "30 days". What must never appear is a *measurement* of zero: it would read as "fixed
         // the day it appears" on a window where nothing was fixed at all.
-        const tile = fixture.nativeElement.querySelector('#mean-days-to-resolve');
+        const tile = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#mean-days-to-resolve')!;
         expect(tile.textContent.trim()).toBe('No measurement');
         expect(tile.textContent).not.toContain('0');
     });
@@ -110,7 +110,7 @@ describe('the backlog trend', () => {
 
         expect(fixture.componentInstance.meanLabel()).toBe('12.4 days');
         // An average with no denominator is a number people quote and should not.
-        expect(fixture.nativeElement.textContent).toContain('9 issues resolved');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('9 issues resolved');
     });
 
     it('writes the mean with the French decimal mark, and keeps its one decimal', () => {
@@ -123,7 +123,9 @@ describe('the backlog trend', () => {
         fixture.detectChanges();
 
         // "11.4 jours" was the screenshot: `toFixed` writes the English point whatever the language.
-        expect(fixture.nativeElement.querySelector('#mean-days-to-resolve').textContent.trim()).toBe('11,4 jours');
+        expect((fixture.nativeElement as HTMLElement).querySelector('#mean-days-to-resolve')!.textContent.trim()).toBe(
+            '11,4 jours'
+        );
         expect(fixture.componentInstance.meanLabel()).toBe('11,4 jours');
     });
 
@@ -278,7 +280,7 @@ describe('the backlog trend', () => {
 
         // An empty frame here reads as "no issue was ever opened", which is a statement about the
         // estate rather than about the request.
-        expect(fixture.nativeElement.textContent).toContain('Could not load the backlog trend.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Could not load the backlog trend.');
     });
 });
 
@@ -353,7 +355,7 @@ describe('the failing targets table', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('kev'));
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent as string).toContain('KEV');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('KEV');
     });
 
     it('tags a target nobody examined as such, and never as a severity', () => {
@@ -362,7 +364,7 @@ describe('the failing targets table', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('observation'));
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Not examined');
         expect(text).not.toContain('Severity');
     });
@@ -371,7 +373,7 @@ describe('the failing targets table', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('coverage'));
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Coverage');
         expect(text).not.toContain('Severity');
     });
@@ -467,7 +469,7 @@ describe('the failing targets table', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Severity');
         expect(text).toContain('known exploited');
     });

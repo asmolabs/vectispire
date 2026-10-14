@@ -97,7 +97,7 @@ describe('the attestation', () => {
         compliance();
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain("Chaîne d'audit intacte");
         expect(text).toContain('48219');
         expect(text).toContain('46');
@@ -131,7 +131,7 @@ describe('the attestation', () => {
         compliance();
         fixture.detectChanges();
 
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain("Chaîne d'audit rompue");
         expect(text).toContain('entry 41207 does not match its predecessor');
         expect(text).not.toContain("Chaîne d'audit intacte");
@@ -155,7 +155,7 @@ describe('the attestation', () => {
         });
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain("Chaîne d'audit intacte");
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain("Chaîne d'audit intacte");
         expect(fixture.componentInstance.compliance()).toBeNull();
     });
 
@@ -184,7 +184,7 @@ describe('the attestation', () => {
         compliance();
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain('The audit mirror is unreachable.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('The audit mirror is unreachable.');
     });
 
     it('names each framework and its verdict in words, never as the server spells them', () => {
@@ -202,6 +202,6 @@ describe('the attestation', () => {
             ['PCI-DSS v4.0', '64 %', 'Partiel'],
             ['SOC 2', '90 %', 'Conforme']
         ]);
-        expect(fixture.nativeElement.textContent).not.toMatch(/PARTIAL|COMPLIANT|NIS_2|PCI_DSS/);
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toMatch(/PARTIAL|COMPLIANT|NIS_2|PCI_DSS/);
     });
 });
