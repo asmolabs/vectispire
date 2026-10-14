@@ -12,7 +12,6 @@ import {
     LOOK_STATUS_KEYS,
     MEASURED_PROBLEM_KEYS,
     NO_DATA_KEYS,
-    NO_DATA_SHORT_KEYS,
     oneClickAnswer,
     OUTCOME_KEYS,
     RECONCILIATION_KEYS,
@@ -92,10 +91,6 @@ export class LineMeasurement {
 
     reasonSentence(reason: string): string {
         return this.label(NO_DATA_KEYS, reason);
-    }
-
-    reasonShort(reason: string): string {
-        return this.label(NO_DATA_SHORT_KEYS, reason);
     }
 
     reconciliationLabel(reconciliation: string): string {
