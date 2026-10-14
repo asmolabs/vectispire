@@ -72,6 +72,11 @@
   rafraîchissement à l'autre.
 - **Sur l'écran des politiques de gate, une dérogation dont la cible n'a plus de nom affiche son type dans
   la langue du lecteur** (« Dépôt n° 12 »).
+- **Sur la page OWASP, le sélecteur de périmètre et celui du dépôt du rapport sont annoncés par leur
+  libellé** (« Périmètre », « Dépôt ») à un lecteur d'écran, sur la grille comme sur la vue hebdomadaire,
+  et non plus par la valeur qu'ils affichent.
+- **La page `/error`, à laquelle aucun écran ne menait, disparaît** ; l'adresse affiche désormais l'écran
+  « Page non trouvée ».
 
 ## 0.11.0 — en préparation
 
