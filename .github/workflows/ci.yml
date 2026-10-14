@@ -704,12 +704,21 @@ jobs:
           grep -q "reads major 1 only" "$work/stderr"
           [ ! -e "$work/out3/summary.xlsx" ] || { echo "another major wrote a document"; exit 1; }
           echo "another major: exit 2, its reason on stderr, nothing written"
+      # The credentials are the step's environment and `-e NAME` hands them on by name: `-e
+      # NAME=value` is an argument of the docker client, which `ps` shows to the whole runner.
+      # Throwaway values, but the same rule as everywhere else, so the pattern copied is the right one.
       - name: the control plane image starts, migrates and serves
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_PASSWORD: vectispire
+          VECTISPIRE_DB_PASSWORD: vectispire
+          ENCRYPTION_KEY: Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=
+          VECTISPIRE_BOOTSTRAP_PASSWORD: CiSmoke2026!
         run: |
           docker network create smoke
           docker run -d --name db --network smoke \
-            -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
-            -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire mysql:8
+            -e MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=vectispire \
+            -e MYSQL_USER=vectispire -e MYSQL_PASSWORD mysql:8
           # Waited for before the application starts, not alongside it: Hikari is configured to
           # fail fast, so a control plane that boots one second early does not retry — it exits,
           # and the job reports a broken image when the truth is a slow database.
@@ -738,9 +747,9 @@ jobs:
           docker run -d --name vectispire-smoke --network smoke \
             -e VECTISPIRE_DB_URL="jdbc:mysql://db:3306/vectispire" \
             -e VECTISPIRE_DB_USER=vectispire \
-            -e VECTISPIRE_DB_PASSWORD=vectispire \
-            -e ENCRYPTION_KEY="Y2ktc21va2Uta2V5LW5vdC1hLXNlY3JldC0zMmI=" \
-            -e VECTISPIRE_BOOTSTRAP_PASSWORD="CiSmoke2026!" \
+            -e VECTISPIRE_DB_PASSWORD \
+            -e ENCRYPTION_KEY \
+            -e VECTISPIRE_BOOTSTRAP_PASSWORD \
             -e VECTISPIRE_EMBEDDED_WORKER=false \
             vectispire:latest
           # Probed from inside the container's own network namespace: the runner and the container
@@ -781,10 +790,12 @@ jobs:
       # control plane. What is asserted is the context coming up; the key is fake, so the
       # announcement that follows is refused, and that refusal is not the question.
       - name: the agent image starts
+        env:
+          VECTISPIRE_AGENT_TOKEN: smoke-not-a-real-key
         run: |
           docker run -d --name vectispire-agent-smoke --network smoke \
             -e VECTISPIRE_URL=http://vectispire-smoke:3180 \
-            -e VECTISPIRE_AGENT_TOKEN=smoke-not-a-real-key \
+            -e VECTISPIRE_AGENT_TOKEN \
             vectispire-agent:latest
           deadline=$(( $(date +%s) + 90 ))
           while :; do

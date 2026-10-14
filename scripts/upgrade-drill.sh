@@ -126,10 +126,16 @@ trap cleanup EXIT
 # One curl container on the drill's network for every call, rather than one per call: the control
 # plane is addressed by the alias both releases carry in turn, and the shell shares no `localhost`
 # with it. `-w` appends the status on its own line so a refusal cannot pass for a body. A failure
-# names the URL (the last argument) and not the arguments: those carry the session and passwords.
+# names the URL (the last argument) and nothing of the request.
+#
+# **Sessions, keys and passwords travel on stdin, never as arguments.** `-H "Authorization: …"`
+# and `-d '{"password":…}'` were arguments of `docker exec` on the host and of curl in its
+# container, which `ps` shows to every user of either. `api` reads a curl config (`-K -`) from its
+# stdin — `header` and `data-raw` lines, built by `bearer` and `body` below with `printf`, a shell
+# builtin — so what stays on the command line is the method, the content type and the URL.
 api() {
   local out status
-  out=$(docker exec "$CURL" curl -s -w '\n%{http_code}' "$@") || fail "curl could not reach ${!#}"
+  out=$(docker exec -i "$CURL" curl -s -K - -w '\n%{http_code}' "$@") || fail "curl could not reach ${!#}"
   status="${out##*$'\n'}"
   printf '%s' "${out%$'\n'*}"
   case "$status" in
@@ -137,12 +143,17 @@ api() {
     *) printf '\n' >&2; fail "HTTP $status on ${!#} — ${out%$'\n'*}" ;;
   esac
 }
-get()  { api -H "Authorization: Bearer $1" "http://app:3180$2"; }
-send() { api -X "$1" -H "Authorization: Bearer $2" -H 'Content-Type: application/json' -d "$4" "http://app:3180$3"; }
+# A curl config value is double-quoted with backslash escapes; JSON bodies carry both characters.
+cfg_quote() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
+bearer() { printf 'header = %s\n' "$(cfg_quote "Authorization: Bearer $1")"; }
+# `data-raw`, not `data`: a body starting with `@` must never be read as a file name.
+body()   { printf 'data-raw = %s\n' "$(cfg_quote "$1")"; }
+get()  { bearer "$1" | api "http://app:3180$2"; }
+send() { { bearer "$2"; body "$4"; } | api -X "$1" -H 'Content-Type: application/json' "http://app:3180$3"; }
 # Signing in carries no credential header at all: an empty bearer is a malformed one.
 login() {
-  api -X POST -H 'Content-Type: application/json' -d "{\"username\":\"$1\",\"password\":\"$2\"}" \
-    http://app:3180/api/v1/auth/login | json token
+  body "{\"username\":\"$1\",\"password\":\"$2\"}" \
+    | api -X POST -H 'Content-Type: application/json' http://app:3180/api/v1/auth/login | json token
 }
 
 json() { python3 -c 'import json,sys; v=json.load(sys.stdin)
@@ -206,15 +217,19 @@ wait_for_app() {
   echo "  $name healthy after $(( $(date +%s) - began ))s"
 }
 
+# A credential reaches a container as `-e NAME`, its value in the docker client's environment for
+# that one command: `-e NAME=value` is an argument, which `ps` shows to every user of the host.
 start_app() {
   local name="$1" image="$2"
+  VECTISPIRE_DB_PASSWORD="$DB_PASSWORD" ENCRYPTION_KEY="$DRILL_KEY" \
+  VECTISPIRE_BOOTSTRAP_PASSWORD="$BOOTSTRAP_PASSWORD" \
   docker run -d --name "$name" --network "$NET" --network-alias app \
     -e VECTISPIRE_DB_URL="$DB_URL" \
     -e VECTISPIRE_DB_USER=vectispire \
-    -e VECTISPIRE_DB_PASSWORD="$DB_PASSWORD" \
-    -e ENCRYPTION_KEY="$DRILL_KEY" \
+    -e VECTISPIRE_DB_PASSWORD \
+    -e ENCRYPTION_KEY \
     -e VECTISPIRE_BOOTSTRAP_USERNAME=admin \
-    -e VECTISPIRE_BOOTSTRAP_PASSWORD="$BOOTSTRAP_PASSWORD" \
+    -e VECTISPIRE_BOOTSTRAP_PASSWORD \
     -e VECTISPIRE_EMBEDDED_WORKER=false \
     "$image" >/dev/null
   wait_for_app "$name"
@@ -295,13 +310,15 @@ docker run -d --name "$CURL" --network "$NET" --entrypoint sleep "$CURL_IMAGE" 7
 log "1. an empty $ENGINE, migrated by $FROM_TAG"
 case "$ENGINE" in
   mysql)
+    MYSQL_ROOT_PASSWORD="$DB_PASSWORD" MYSQL_PASSWORD="$DB_PASSWORD" \
     docker run -d --name "$DB" --network "$NET" \
-      -e MYSQL_ROOT_PASSWORD="$DB_PASSWORD" -e MYSQL_DATABASE=vectispire \
-      -e MYSQL_USER=vectispire -e MYSQL_PASSWORD="$DB_PASSWORD" "$DB_IMAGE" >/dev/null ;;
+      -e MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=vectispire \
+      -e MYSQL_USER=vectispire -e MYSQL_PASSWORD "$DB_IMAGE" >/dev/null ;;
   postgresql)
+    POSTGRES_PASSWORD="$DB_PASSWORD" \
     docker run -d --name "$DB" --network "$NET" \
       -e POSTGRES_DB=vectispire -e POSTGRES_USER=vectispire \
-      -e POSTGRES_PASSWORD="$DB_PASSWORD" "$DB_IMAGE" >/dev/null ;;
+      -e POSTGRES_PASSWORD "$DB_IMAGE" >/dev/null ;;
 esac
 wait_for_db
 start_app "$APP_FROM" "$FROM_IMAGE"

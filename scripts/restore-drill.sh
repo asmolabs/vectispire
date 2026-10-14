@@ -88,10 +88,22 @@ trap cleanup EXIT
 
 # `--network container:<name>` rather than a published port: the container under test and this
 # shell do not share `localhost`, and publishing would collide with a running deployment.
+#
+# **Sessions and passwords travel on stdin, never as arguments.** `-H "Authorization: …"` and
+# `-d '{"password":…}'` were arguments of `docker run` on the host and of curl in its container,
+# which `ps` shows to every user of either. `api` reads a curl config (`-K -`) from its stdin —
+# `header` and `data-raw` lines built by `bearer` and `body` with `printf`, a shell builtin — so
+# the command line keeps the method, the content type and the URL. A call with nothing to hide
+# gives it `/dev/null`.
 api() {
   local container="$1"; shift
-  docker run --rm --network "container:${container}" "$CURL_IMAGE" -s "$@"
+  docker run -i --rm --network "container:${container}" "$CURL_IMAGE" -s -K - "$@"
 }
+# A curl config value is double-quoted with backslash escapes; JSON bodies carry both characters.
+cfg_quote() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
+bearer() { printf 'header = %s\n' "$(cfg_quote "Authorization: Bearer $1")"; }
+# `data-raw`, not `data`: a body starting with `@` must never be read as a file name.
+body()   { printf 'data-raw = %s\n' "$(cfg_quote "$1")"; }
 
 # The password is read inside the container and handed over in an option file, as
 # `docs/en/BACKUP_AND_RESTORE.md` §2 does it: `-p<password>` would put it in the process list. The
@@ -125,7 +137,7 @@ wait_for_db() {
 wait_for_app() {
   local name="$1"
   for attempt in $(seq 1 150); do
-    if api "$name" -f -o /dev/null "http://localhost:3180/actuator/health" 2>/dev/null; then
+    if api "$name" -f -o /dev/null "http://localhost:3180/actuator/health" </dev/null 2>/dev/null; then
       echo "  $name healthy after ${attempt}s"; return 0
     fi
     sleep 1
@@ -134,10 +146,13 @@ wait_for_app() {
   fail "$name never became healthy"
 }
 
+# A credential reaches a container as `-e NAME`, its value in the docker client's environment for
+# that one command: `-e NAME=value` is an argument, which `ps` shows to every user of the host.
 start_db() {
+  MYSQL_ROOT_PASSWORD=root MYSQL_PASSWORD=vectispire \
   docker run -d --name "$1" --network "$NET" \
-    -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=vectispire \
-    -e MYSQL_USER=vectispire -e MYSQL_PASSWORD=vectispire "$MYSQL_IMAGE" >/dev/null
+    -e MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=vectispire \
+    -e MYSQL_USER=vectispire -e MYSQL_PASSWORD "$MYSQL_IMAGE" >/dev/null
   wait_for_db "$1"
 }
 
@@ -145,14 +160,16 @@ start_db() {
 # costs one argument instead of a second script.
 start_app() {
   local name="$1" db="$2" volume="$3"
+  VECTISPIRE_DB_PASSWORD=vectispire ENCRYPTION_KEY="$DRILL_KEY" \
+  VECTISPIRE_BOOTSTRAP_PASSWORD="$BOOTSTRAP_PASSWORD" \
   docker run -d --name "$name" --network "$NET" \
     -v "${volume}:/var/lib/vectispire/audit" \
     -e VECTISPIRE_DB_URL="jdbc:mysql://${db}:3306/vectispire" \
     -e VECTISPIRE_DB_USER=vectispire \
-    -e VECTISPIRE_DB_PASSWORD=vectispire \
-    -e ENCRYPTION_KEY="$DRILL_KEY" \
+    -e VECTISPIRE_DB_PASSWORD \
+    -e ENCRYPTION_KEY \
     -e VECTISPIRE_BOOTSTRAP_USERNAME=admin \
-    -e VECTISPIRE_BOOTSTRAP_PASSWORD="$BOOTSTRAP_PASSWORD" \
+    -e VECTISPIRE_BOOTSTRAP_PASSWORD \
     -e VECTISPIRE_AUDIT_MIRROR="$MIRROR_PATH" \
     -e VECTISPIRE_EMBEDDED_WORKER=false \
     "$IMAGE" >/dev/null
@@ -167,30 +184,27 @@ json() { python3 -c 'import json,sys; v=json.load(sys.stdin).get(sys.argv[1]); p
 # guarded route. Rotating revokes every session the account had — including the one that made
 # the change — so the sign-in is repeated after it. Same shape as the browser suite's helper.
 sign_in() {
-  local app="$1" body token must
-  body=$(api "$app" -X POST -H 'Content-Type: application/json' \
-    -d "{\"username\":\"admin\",\"password\":\"$BOOTSTRAP_PASSWORD\"}" \
-    "http://localhost:3180/api/v1/auth/login")
-  token=$(printf '%s' "$body" | json token)
-  must=$(printf '%s' "$body" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("user",{}).get("mustChangePassword",False))')
+  local app="$1" reply token must
+  reply=$(body "{\"username\":\"admin\",\"password\":\"$BOOTSTRAP_PASSWORD\"}" \
+    | api "$app" -X POST -H 'Content-Type: application/json' "http://localhost:3180/api/v1/auth/login")
+  token=$(printf '%s' "$reply" | json token)
+  must=$(printf '%s' "$reply" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("user",{}).get("mustChangePassword",False))')
 
   if [ -z "$token" ]; then
-    body=$(api "$app" -X POST -H 'Content-Type: application/json' \
-      -d "{\"username\":\"admin\",\"password\":\"$ROTATED_PASSWORD\"}" \
-      "http://localhost:3180/api/v1/auth/login")
-    token=$(printf '%s' "$body" | json token)
+    reply=$(body "{\"username\":\"admin\",\"password\":\"$ROTATED_PASSWORD\"}" \
+      | api "$app" -X POST -H 'Content-Type: application/json' "http://localhost:3180/api/v1/auth/login")
+    token=$(printf '%s' "$reply" | json token)
     [ -n "$token" ] || fail "neither the bootstrap nor the rotated password was accepted on $app"
     printf '%s' "$token"; return
   fi
 
   if [ "$must" = "True" ]; then
-    api "$app" -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $token" \
-      -d "{\"current_password\":\"$BOOTSTRAP_PASSWORD\",\"new_password\":\"$ROTATED_PASSWORD\"}" \
-      -o /dev/null "http://localhost:3180/api/v1/auth/change-password"
-    body=$(api "$app" -X POST -H 'Content-Type: application/json' \
-      -d "{\"username\":\"admin\",\"password\":\"$ROTATED_PASSWORD\"}" \
-      "http://localhost:3180/api/v1/auth/login")
-    token=$(printf '%s' "$body" | json token)
+    { bearer "$token"; body "{\"current_password\":\"$BOOTSTRAP_PASSWORD\",\"new_password\":\"$ROTATED_PASSWORD\"}"; } \
+      | api "$app" -X POST -H 'Content-Type: application/json' \
+          -o /dev/null "http://localhost:3180/api/v1/auth/change-password"
+    reply=$(body "{\"username\":\"admin\",\"password\":\"$ROTATED_PASSWORD\"}" \
+      | api "$app" -X POST -H 'Content-Type: application/json' "http://localhost:3180/api/v1/auth/login")
+    token=$(printf '%s' "$reply" | json token)
     [ -n "$token" ] || fail "the rotated password was refused right after being set"
   fi
   printf '%s' "$token"
@@ -198,7 +212,7 @@ sign_in() {
 
 verify() {
   local app="$1" token="$2"
-  api "$app" -H "Authorization: Bearer $token" "http://localhost:3180/api/v1/audit-log/verify"
+  bearer "$token" | api "$app" "http://localhost:3180/api/v1/audit-log/verify"
 }
 
 field() { printf '%s' "$1" | json "$2"; }
@@ -209,9 +223,9 @@ field() { printf '%s' "$1" | json "$2"; }
 audited_actions() {
   local app="$1" count="$2"
   for _ in $(seq 1 "$count"); do
-    api "$app" -X POST -H 'Content-Type: application/json' \
-      -d '{"username":"admin","password":"deliberately-wrong-for-the-drill"}' \
-      -o /dev/null "http://localhost:3180/api/v1/auth/login" || true
+    body '{"username":"admin","password":"deliberately-wrong-for-the-drill"}' \
+      | api "$app" -X POST -H 'Content-Type: application/json' \
+          -o /dev/null "http://localhost:3180/api/v1/auth/login" || true
   done
 }
 
