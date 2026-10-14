@@ -8020,6 +8020,12 @@ export interface components {
             intervalMinutes?: number;
             mode?: string;
         };
+        ScimErrorResponse: {
+            detail?: string;
+            schemas?: string[];
+            scimType?: string;
+            status?: string;
+        };
         ScimGroupDto: {
             displayName?: string;
             externalId?: string;
@@ -16032,13 +16038,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description The group created, its address in Location */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+            /** @description Another group holds this displayName: scimType uniqueness */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16054,13 +16069,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description The group */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+            /** @description No group has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16081,13 +16105,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The group */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+            /** @description No group has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16128,13 +16161,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The group */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
+                };
+            };
+            /** @description No group has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16177,13 +16219,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description The user created, its address in Location */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+            /** @description Another user holds this userName: scimType uniqueness */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16199,13 +16250,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description The user */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+            /** @description No user has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16226,13 +16286,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The user */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+            /** @description No user has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };
@@ -16273,13 +16342,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
+            /** @description The user */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/scim+json": components["schemas"]["ScimUserDto"];
+                };
+            };
+            /** @description No user has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": components["schemas"]["ScimErrorResponse"];
                 };
             };
         };

@@ -9,6 +9,9 @@ import com.asmolabs.vectispire.core.access.web.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimUserDto;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -54,6 +57,9 @@ public class ScimUsersController {
         return ScimListResponse.of(resources);
     }
 
+    @ApiResponse(responseCode = "200", description = "The user")
+    @ApiResponse(responseCode = "404", description = "No user has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @GetMapping("/{id}")
     public ResponseEntity<ScimUserDto> getUser(@PathVariable Long id) {
         return provisioning.user(id)
@@ -61,6 +67,10 @@ public class ScimUsersController {
                 .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
     }
 
+    @ApiResponse(responseCode = "201", description = "The user created, its address in Location",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimUserDto.class)))
+    @ApiResponse(responseCode = "409", description = "Another user holds this userName: scimType uniqueness",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PostMapping(consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> createUser(
             @RequestBody ScimUserDto dto, HttpServletRequest request) {
@@ -73,6 +83,9 @@ public class ScimUsersController {
         };
     }
 
+    @ApiResponse(responseCode = "200", description = "The user")
+    @ApiResponse(responseCode = "404", description = "No user has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PutMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> updateUser(
             @PathVariable Long id, @RequestBody ScimUserDto dto, HttpServletRequest request) {
@@ -82,6 +95,9 @@ public class ScimUsersController {
                 .orElseThrow(() -> ScimRefusal.notFound("User " + id + " not found."));
     }
 
+    @ApiResponse(responseCode = "200", description = "The user")
+    @ApiResponse(responseCode = "404", description = "No user has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> patchUser(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {

@@ -8,6 +8,9 @@ import com.asmolabs.vectispire.core.access.web.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -47,6 +50,9 @@ public class ScimGroupsController {
         return ScimListResponse.of(provisioning.groups().stream().map(ScimGroupsController::toDto).toList());
     }
 
+    @ApiResponse(responseCode = "200", description = "The group")
+    @ApiResponse(responseCode = "404", description = "No group has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @GetMapping("/{id}")
     public ResponseEntity<ScimGroupDto> getGroup(@PathVariable Long id) {
         return provisioning.group(id)
@@ -54,6 +60,10 @@ public class ScimGroupsController {
                 .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
     }
 
+    @ApiResponse(responseCode = "201", description = "The group created, its address in Location",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimGroupDto.class)))
+    @ApiResponse(responseCode = "409", description = "Another group holds this displayName: scimType uniqueness",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PostMapping(consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> createGroup(@RequestBody ScimGroupDto dto, HttpServletRequest request) {
         return switch (provisioning.createGroup(dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request))) {
@@ -64,6 +74,9 @@ public class ScimGroupsController {
         };
     }
 
+    @ApiResponse(responseCode = "200", description = "The group")
+    @ApiResponse(responseCode = "404", description = "No group has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PutMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> updateGroup(
             @PathVariable Long id, @RequestBody ScimGroupDto dto, HttpServletRequest request) {
@@ -73,6 +86,9 @@ public class ScimGroupsController {
                 .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
     }
 
+    @ApiResponse(responseCode = "200", description = "The group")
+    @ApiResponse(responseCode = "404", description = "No group has this id",
+            content = @Content(mediaType = "application/scim+json", schema = @Schema(implementation = ScimErrorResponse.class)))
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> patchGroup(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {
