@@ -30,6 +30,10 @@ describe('the repository list', () => {
         subPath: 'backend',
         scanIntervalMinutes: null,
         scanCron: null,
+        requiredAgentLabel: null,
+        sshKeyId: null,
+        httpsTokenId: null,
+        detectedLanguages: null,
         openIssues: 38,
         scanManualOnly: false,
         lastScan: {
@@ -648,6 +652,10 @@ describe('the repository list, refreshed and paged', () => {
             subPath: null,
             scanIntervalMinutes: null,
             scanCron: null,
+            requiredAgentLabel: null,
+            sshKeyId: null,
+            httpsTokenId: null,
+            detectedLanguages: null,
             openIssues: 0,
             scanManualOnly: false,
             lastScan: { id: 1000 + id, status, createdAt: '2026-08-21T05:03:00Z', error: null }

@@ -7,7 +7,9 @@ import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Owasp } from './owasp';
-import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import type { OwaspReport, OwaspWeeklyScope } from '@/app/core/api.models';
+import { asSchema } from '@/app/core/testing/contract';
+import { repositorySummary } from '@/app/core/testing/targets.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
@@ -60,26 +62,22 @@ describe('the OWASP report screen', () => {
         fixture.detectChanges();
 
         // The constructor asks for the repositories it offers in the picker.
-        http.expectOne('/api/v1/repositories').flush(
-            asSchemaList('RepositorySummary', [
-                {
-                    id: 5,
-                    displayName: 'Arm Libs Spring',
-                    url: 'ssh://git@example.com/art/arm.git',
-                    branch: 'master',
-                    openIssues: 0,
-                    scanManualOnly: false
-                }
-            ])
-        );
+        http.expectOne('/api/v1/repositories').flush([
+            repositorySummary(5, {
+                displayName: 'Arm Libs Spring',
+                url: 'ssh://git@example.com/art/arm.git',
+                branch: 'master'
+            })
+        ]);
         fixture.detectChanges();
     });
 
-    function runProducing(report: Record<string, unknown>): void {
+    /** `inputs` is null unless a case is about it: a report written before they were recorded. */
+    function runProducing(report: Omit<OwaspReport, 'inputs'> & Partial<OwaspReport>): void {
         fixture.componentInstance.selected = 5;
         fixture.componentInstance.run();
         http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' }).flush(
-            asSchema('Report', report)
+            asSchema('Report', { inputs: null, ...report })
         );
         fixture.detectChanges();
     }
@@ -531,11 +529,25 @@ describe('the current OWASP grid, over a project or a solution', () => {
         unfiled: { repositoryCount: 1, containerCount: 0, repositories: [{ id: 7, name: 'tools' }] }
     };
 
-    function grid(scope: Record<string, unknown> | null) {
+    function grid(scope: OwaspWeeklyScope | null) {
         return asSchema('DeclaredGrid', {
             lines: [
-                { id: 'A01', title: 'Broken Access Control', state: 'NOT_COVERED', findings: 0, because: 'x' },
-                { id: 'A06', title: 'Vulnerable Components', state: 'FINDINGS', findings: 4, because: 'y' }
+                {
+                    id: 'A01',
+                    title: 'Broken Access Control',
+                    state: 'NOT_COVERED' as const,
+                    findings: 0,
+                    because: 'x',
+                    declaration: null
+                },
+                {
+                    id: 'A06',
+                    title: 'Vulnerable Components',
+                    state: 'FINDINGS' as const,
+                    findings: 4,
+                    because: 'y',
+                    declaration: null
+                }
             ],
             covered: 9,
             withFindings: 1,
@@ -544,7 +556,13 @@ describe('the current OWASP grid, over a project or a solution', () => {
         });
     }
 
-    const GATEWAY = { kind: 'project', id: 12, name: 'Payments / Gateway', partial: false, targetCount: 3 };
+    const GATEWAY: OwaspWeeklyScope = {
+        kind: 'project',
+        id: 12,
+        name: 'Payments / Gateway',
+        partial: false,
+        targetCount: 3
+    };
 
     beforeEach(async () => {
         TestBed.configureTestingModule({
