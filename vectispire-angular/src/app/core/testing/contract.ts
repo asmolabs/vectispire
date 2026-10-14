@@ -96,7 +96,8 @@ export function newerServerWord<T extends string>(word: string): T {
 
 interface JsonSchema {
     $ref?: string;
-    type?: string;
+    /** A list where the document says a field may be null — OpenAPI 3.1's `["string", "null"]`. */
+    type?: string | string[];
     format?: string;
     required?: string[];
     properties?: Record<string, JsonSchema>;
@@ -275,7 +276,12 @@ function vocabulary(schemaName: string, value: unknown, path: string): string[] 
         );
 }
 
-function against(schema: JsonSchema, value: unknown, path: string): string[] {
+function against(declared: JsonSchema, value: unknown, path: string): string[] {
+    // `["string", "null"]` is a string the server may send as null, which is accepted below anyway;
+    // what remains to check is the one other type.
+    const schema: JsonSchema & { type?: string } = Array.isArray(declared.type)
+        ? { ...declared, type: declared.type.find((type) => type !== 'null') }
+        : { ...declared, type: declared.type };
     if (schema.$ref) {
         return check(schema.$ref.split('/').pop() as string, value, path);
     }
@@ -348,7 +354,7 @@ function object(schema: JsonSchema, value: unknown, path: string): string[] {
     return problems;
 }
 
-function scalar(schema: JsonSchema, value: unknown, path: string): string[] {
+function scalar(schema: JsonSchema & { type?: string }, value: unknown, path: string): string[] {
     const actual = typeOf(value);
     const expected = schema.type === 'integer' ? 'number' : schema.type;
     if (actual !== expected) {

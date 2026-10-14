@@ -1,10 +1,8 @@
 package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
-import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
@@ -60,12 +58,12 @@ public class SecurityDebtController {
     }
 
     @GetMapping("/debt")
-    public SecurityDebtReport debt(
+    public SecurityDebtReportView debt(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(value = "repoId", required = false) Long repoId,
             @RequestParam(value = "containerId", required = false) Long containerId) {
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
-        return securityDebtService.calculateDebt(repoId, containerId, allowed);
+        return SecurityDebtReportView.of(securityDebtService.calculateDebt(repoId, containerId, allowed));
     }
 
     /**
@@ -86,7 +84,7 @@ public class SecurityDebtController {
     }
 
     @GetMapping("/high-impact-fixes")
-    public List<HighImpactFix> highImpactFixes(
+    public List<SecurityDebtReportView.HighImpactFixView> highImpactFixes(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(value = "repoId", required = false) Long repoId,
             @RequestParam(value = "containerId", required = false) Long containerId,
@@ -94,6 +92,8 @@ public class SecurityDebtController {
             // value into its bounds rather than refusing, a plan being no place to answer 400.
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
         Visibility allowed = visibilityService.of(principal.user().orElse(null), principal.credentialRestriction());
-        return securityDebtService.highImpactFixes(repoId, containerId, limit, allowed);
+        return securityDebtService.highImpactFixes(repoId, containerId, limit, allowed).stream()
+                .map(SecurityDebtReportView.HighImpactFixView::of)
+                .toList();
     }
 }

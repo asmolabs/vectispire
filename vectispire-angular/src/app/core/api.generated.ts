@@ -6448,7 +6448,8 @@ export interface components {
             /** Format: double */
             leverageScore: number;
             packageName?: string;
-            recommendedVersion?: string;
+            /** @description The highest version the findings say fixes it; null when none announces a fix. */
+            recommendedVersion?: string | null;
         };
         IacFinding: {
             checkId?: string;

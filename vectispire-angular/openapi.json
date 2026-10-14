@@ -5217,7 +5217,8 @@
             "type" : "string"
           },
           "recommendedVersion" : {
-            "type" : "string"
+            "description" : "The highest version the findings say fixes it; null when none announces a fix.",
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "criticalCveCount", "cveCountResolved", "estimatedHours", "highCveCount", "leverageScore" ],
