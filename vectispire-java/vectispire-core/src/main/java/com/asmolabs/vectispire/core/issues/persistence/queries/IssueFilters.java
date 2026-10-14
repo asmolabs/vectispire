@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -279,5 +280,22 @@ public record IssueFilters(
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
                 excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspPlacement, lifetime,
                 exact);
+    }
+
+    /**
+     * The form in which {@link #identifier} meets the column: what two identifiers are compared as when
+     * the exact filter says they are one.
+     *
+     * <p><b>The one definition of "this identifier"</b>, for the filter and for every figure that links to
+     * it. {@code IssueSpecifications} compares {@code lower(identifier)} with this; the OWASP report counts
+     * the issues behind a cited identifier by grouping on it, both sides, and opens the list with the
+     * identifier as cited. It counted with {@code equals} while the list matched case aside, so the link
+     * to {@code GHSA-abcd-…} said one where the list it opened showed two. The engine's {@code lower} and this
+     * agree on the identifiers scanners write, which are ASCII; beyond them MySQL's collation also sets
+     * accents aside, which no identifier here carries. Not trimmed: the request's value is
+     * trimmed where it is parsed, and the column is compared as stored.
+     */
+    public static String identifierKey(String identifier) {
+        return identifier == null ? null : identifier.toLowerCase(Locale.ROOT);
     }
 }

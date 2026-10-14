@@ -150,6 +150,38 @@ class OwaspReportLinksRoutesTest extends ApiTestBase {
                 .as("settled triage included: the model was shown it").isEqualTo(2);
     }
 
+    /**
+     * One advisory written in two cases by two scanners. The list the link opens matches case aside, so
+     * the count beside the link must too — counted by {@code equals}, it said one, and with one the link
+     * went straight to that issue while the other stayed out of reach.
+     */
+    @Test
+    @DisplayName("an identifier written in two cases is counted as the list it links to lists it, from either case")
+    void countedByTheListsRule() throws Exception {
+        long repository = repository();
+        long scan = scan(repository);
+        issue(repository, FindingType.VULNERABILITY, null, "GHSA-jfh8-c2jp-5v3q", TriageStatus.UNDER_REVIEW,
+                IssueState.OPEN);
+        issue(repository, FindingType.VULNERABILITY, null, "GHSA-JFH8-C2JP-5V3Q", TriageStatus.UNDER_REVIEW,
+                IssueState.OPEN);
+        // The neighbour a substring would count, and the case rule must not.
+        issue(repository, FindingType.VULNERABILITY, null, "GHSA-jfh8-c2jp-5v3qx", TriageStatus.UNDER_REVIEW,
+                IssueState.OPEN);
+        review(repository, scan, "## A06 — Vulnerable\n\nGHSA-jfh8-c2jp-5v3q.",
+                List.of("GHSA-jfh8-c2jp-5v3q", "ghsa-JFH8-c2jp-5V3Q"));
+
+        JsonNode linked = report(repository, asAdmin()).path("issueLinks");
+
+        assertThat(fieldNames(linked)).containsExactly("GHSA-jfh8-c2jp-5v3q", "ghsa-JFH8-c2jp-5V3Q");
+        for (String cited : fieldNames(linked)) {
+            assertThat(linked.path(cited).path("count").asLong())
+                    .as("the figure on %s's link", cited)
+                    .isEqualTo(2)
+                    .isEqualTo(listedCarrying(repository, cited, asAdmin()));
+            assertThat(linked.path(cited).path("issueId").isNull()).as("two issues: a list, not one").isTrue();
+        }
+    }
+
     @Test
     @DisplayName("a report written before the shown identifiers were recorded says so, rather than that there is nothing to link")
     void notRecordedIsNotNone() throws Exception {
@@ -233,6 +265,16 @@ class OwaspReportLinksRoutesTest extends ApiTestBase {
     private long listed(long repository, String category, String token) throws Exception {
         return json.readTree(mvc.perform(authenticated(get("/api/v1/issues?repository_id=" + repository
                                 + "&owasp_category=" + category + "&unsettled=true&limit=500"), token))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString())
+                .path("total").asLong();
+    }
+
+    /** The {@code total} of the list an identifier's link opens, as {@code report-links.ts} builds it. */
+    private long listedCarrying(long repository, String identifier, String token) throws Exception {
+        return json.readTree(mvc.perform(authenticated(get("/api/v1/issues")
+                                        .param("repository_id", Long.toString(repository))
+                                        .param("identifier", identifier), token))
                         .andExpect(status().isOk())
                         .andReturn().getResponse().getContentAsString())
                 .path("total").asLong();

@@ -59,8 +59,13 @@ public class OwaspReportLinks {
      * the audited repository or an upstream rule author. Linking every CVE-looking string of the prose
      * would let either author mint links into the backlog that read as scanner findings — so the
      * candidates are what the review recorded it showed the model ({@code evidence_identifiers}), and a
-     * citation outside them stays text. Matched exactly, as the evidence carried it: a substring would
-     * let {@code CVE-2026-1} lead to {@code CVE-2026-12}.
+     * citation outside them stays text. Matched exactly: a substring would let {@code CVE-2026-1} lead to
+     * {@code CVE-2026-12}.
+     *
+     * <p><b>Counted by the rule of the list the link opens</b>, {@link IssueFilters#identifierKey}, on both
+     * sides. A count by {@code equals} said one for {@code GHSA-abcd-…} where the list, matching case aside,
+     * showed the two issues a scanner had written in two cases — and with one, the link went straight to
+     * that issue and the other was nowhere.
      *
      * @param shown the identifiers the review recorded, or null when it recorded none (before V84)
      * @return null when {@code shown} is null — not recorded, rather than nothing to link
@@ -80,13 +85,14 @@ public class OwaspReportLinks {
                         allowed),
                 IssueRows.Identified.class)) {
             if (issue.identifier() != null) {
-                carrying.computeIfAbsent(issue.identifier(), any -> new ArrayList<>()).add(issue.id());
+                carrying.computeIfAbsent(IssueFilters.identifierKey(issue.identifier()), any -> new ArrayList<>())
+                        .add(issue.id());
             }
         }
 
         Map<String, OwaspReport.IssueLink> links = new LinkedHashMap<>();
         for (String identifier : shown) {
-            List<Long> ids = carrying.get(identifier);
+            List<Long> ids = carrying.get(IssueFilters.identifierKey(identifier));
             if (ids != null && !ids.isEmpty()) {
                 links.put(identifier, new OwaspReport.IssueLink(ids.size() == 1 ? ids.getFirst() : null, ids.size()));
             }
