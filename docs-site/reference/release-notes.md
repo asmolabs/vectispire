@@ -10,6 +10,11 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   `VECTISPIRE_SCAN_MAX_CONCURRENT` below 1 (it was silently read as 2; to switch the worker off, use
   `VECTISPIRE_EMBEDDED_WORKER=false`), and a session, leader or queue duration under one second, such as
   `VECTISPIRE_SESSION_IDLE=60` with no unit, which was read as 60 ms.
+- **A remote agent whose `VECTISPIRE_AGENT_WAIT` or `VECTISPIRE_AGENT_RETRY` is under `1s`, or whose
+  `VECTISPIRE_AGENT_HEARTBEAT` is under `5s`, no longer starts**; it used to run on the floor in silence.
+  The message names the variable and its value — `30` with no unit is 30 ms: write `30s`. Check these
+  three variables on every agent before upgrading it. A value over its ceiling (`5m`, `5m`, `10m`) still
+  starts, lowered to the ceiling, with a warning naming the variable.
 
 ### Changes an integration can see {#changes-an-integration-can-see-0111}
 
@@ -57,10 +62,6 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **The synthesized OpenAPI export of a repository's discovered endpoints is valid JSON whatever its paths
   and summaries contain**, with one operation per method, and a handler for any method expanded to the
   methods the path does not declare.
-- **The remote agent now warns at start when `VECTISPIRE_AGENT_WAIT`, `VECTISPIRE_AGENT_RETRY` or
-  `VECTISPIRE_AGENT_HEARTBEAT` is outside its range** (1s–5m, 1s–5m, 5s–10m), naming the variable and the
-  value it uses instead. A bare number such as `30` is read as milliseconds and raised to the floor. The
-  behaviour is unchanged; only the silence is gone.
 - **When a panel cannot load, it now says so and shows the server's reason**, instead of staying empty —
   the dashboard, SBOM comparison, agents, attestation, history, audit log and compliance.
 - **The repository and image lists refresh in the background while a scan runs**, without flashing and

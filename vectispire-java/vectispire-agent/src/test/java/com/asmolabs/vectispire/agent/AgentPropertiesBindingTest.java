@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.agent;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -13,9 +14,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.slf4j.LoggerFactory;
@@ -71,15 +75,39 @@ class AgentPropertiesBindingTest {
         assertThat(warnings()).isEmpty();
     }
 
-    @Test
-    @DisplayName("a bare number is milliseconds: raised to the floor, and the start says so by name")
-    void underTheFloorIsRaisedAloud() {
-        AgentProperties bound = bind(Map.of("vectispire.agent.claim-wait", "30"));
+    @Configuration(proxyBeanMethods = false)
+    @EnableConfigurationProperties(AgentProperties.class)
+    static class Bound {}
 
-        assertThat(bound.claimWait()).isEqualTo(Duration.ofSeconds(1));
-        assertThat(warnings()).containsExactly(
-                "vectispire.agent.claim-wait (VECTISPIRE_AGENT_WAIT) is 30ms, under its floor of 1s: the agent uses 1s. "
-                        + "A bare number is read as milliseconds; write the unit, as in 30s.");
+    @Test
+    @DisplayName("a bare number is milliseconds: under the floor, the start is refused naming the property")
+    void underTheFloorStopsTheStart() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(Bound.class)
+                .withPropertyValues("vectispire.agent.claim-wait=30")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasMessageContaining("vectispire.agent")
+                            .rootCause()
+                            .hasMessage("vectispire.agent.claim-wait (VECTISPIRE_AGENT_WAIT) is 30ms, under its floor "
+                                    + "of 1s: the agent does not start. A bare number is read as milliseconds; "
+                                    + "write the unit, as in 30s.");
+                });
+    }
+
+    @Test
+    @DisplayName("each duration has its own floor, and a value just under it is refused by its own name")
+    void eachFloorRefusesByName() {
+        assertThatThrownBy(() -> bind(Map.of("vectispire.agent.retry-delay", "0s")))
+                .rootCause()
+                .hasMessageStartingWith("vectispire.agent.retry-delay (VECTISPIRE_AGENT_RETRY) is 0s, under its floor of 1s");
+        assertThatThrownBy(() -> bind(Map.of("vectispire.agent.heartbeat", "4s")))
+                .rootCause()
+                .hasMessageStartingWith("vectispire.agent.heartbeat (VECTISPIRE_AGENT_HEARTBEAT) is 4s, under its floor of 5s");
+        assertThatThrownBy(() -> bind(Map.of("vectispire.agent.claim-wait", "999ms")))
+                .rootCause()
+                .hasMessageStartingWith("vectispire.agent.claim-wait (VECTISPIRE_AGENT_WAIT) is 999ms, under its floor of 1s");
     }
 
     @Test
@@ -87,15 +115,14 @@ class AgentPropertiesBindingTest {
     void overTheCeilingIsLoweredAloud() {
         AgentProperties bound = bind(Map.of(
                 "vectispire.agent.heartbeat", "1h",
-                "vectispire.agent.retry-delay", "0s"));
+                "vectispire.agent.claim-wait", "6m"));
 
         assertThat(bound.heartbeat()).isEqualTo(Duration.ofMinutes(10));
-        assertThat(bound.retryDelay()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(bound.claimWait()).isEqualTo(Duration.ofMinutes(5));
         assertThat(warnings()).containsExactlyInAnyOrder(
                 "vectispire.agent.heartbeat (VECTISPIRE_AGENT_HEARTBEAT) is 60m, over its ceiling of 10m: "
                         + "the agent uses 10m.",
-                "vectispire.agent.retry-delay (VECTISPIRE_AGENT_RETRY) is 0s, under its floor of 1s: the agent uses 1s. "
-                        + "A bare number is read as milliseconds; write the unit, as in 30s.");
+                "vectispire.agent.claim-wait (VECTISPIRE_AGENT_WAIT) is 6m, over its ceiling of 5m: the agent uses 5m.");
     }
 
     @Test
