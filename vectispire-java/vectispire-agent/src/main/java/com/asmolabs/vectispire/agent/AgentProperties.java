@@ -11,8 +11,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * Everything the agent needs to know, and nothing more.
  *
  * <p>The three durations are bounded — {@code claimWait} and {@code retryDelay} between a second and
- * five minutes, {@code heartbeat} between five seconds and ten minutes; a value outside is replaced
- * by the bound it crossed, and the start says so in a warning that names the property.
+ * five minutes, {@code heartbeat} between five seconds and ten minutes. A value under its floor stops
+ * the start with a message naming the property; a value over its ceiling is lowered to it, and the
+ * start says so in a warning that names the property.
  *
  * @param url the control plane's address. A fixed configuration value, which is why redirects
  *     are refused: it has no reason to redirect, and following one would send a scan's results
@@ -88,35 +89,42 @@ public record AgentProperties(
         url = url == null ? "" : url.trim().replaceAll("/+$", "");
         token = token == null ? "" : token.trim();
         signingKey = signingKey == null ? "" : signingKey.trim();
-        claimWait = clamp("claim-wait", "VECTISPIRE_AGENT_WAIT", claimWait, Duration.ofSeconds(1), Duration.ofMinutes(5));
-        retryDelay = clamp("retry-delay", "VECTISPIRE_AGENT_RETRY", retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
-        heartbeat = clamp("heartbeat", "VECTISPIRE_AGENT_HEARTBEAT", heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
+        claimWait = bounded("claim-wait", "VECTISPIRE_AGENT_WAIT", claimWait, Duration.ofSeconds(1), Duration.ofMinutes(5));
+        retryDelay = bounded("retry-delay", "VECTISPIRE_AGENT_RETRY", retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
+        heartbeat = bounded("heartbeat", "VECTISPIRE_AGENT_HEARTBEAT", heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
         // Absent means "no override", which is the same thing every blank field means.
         images = images == null ? new Images("", "", "", "", "", "", false) : images;
         vulnerabilityDbDir = vulnerabilityDbDir == null ? "" : vulnerabilityDbDir.trim();
     }
 
     /**
-     * A bound, and the operator told when it applies.
+     * A bound, and what the operator is told when a value crosses it.
      *
-     * <p><b>Clamped and not refused</b>, unlike the control plane's durations under a second
-     * ({@code ConfigurationPropertiesValidationTest}): every bound here lands on a value the agent
-     * works at — a floor of a second keeps a failed poll from spinning, the control plane holds a
-     * claim thirty seconds at most whatever is asked, and a ten-minute beat is still under the
-     * default twenty-minute lease. What was wrong was the silence: {@code 30} with its unit
-     * forgotten binds as thirty milliseconds, and the agent polled every second for a reason nobody
-     * could read. A null is the convenience constructor's "unset", not an operator's value, and
-     * takes the floor without a word.
+     * <p><b>Under the floor, the start is refused</b>, as the control plane refuses its durations under
+     * a second ({@code ConfigurationPropertiesValidationTest}). The value there is almost always
+     * {@code 30} with its unit forgotten, which binds as thirty milliseconds: raising it to the floor
+     * (until 0.11.1, first in silence and then with a warning) did land on a value the agent works at,
+     * but not on the one its operator meant — a poll every second where thirty were asked — and a
+     * warning in a log nobody reads at start is how that went unseen. A message that stops the start
+     * is read.
+     *
+     * <p><b>Over the ceiling, still lowered and warned, not refused.</b> The ceiling honours what was
+     * asked in its direction — the control plane holds a claim thirty seconds whatever is asked, and a
+     * ten-minute beat is still under the default twenty-minute lease — and an agent configured with a
+     * long beat has run on the ceiling since the bound existed; stopping it at an upgrade for a value
+     * it worked with would turn a harmless setting into an outage.
+     *
+     * <p>A null is the convenience constructor's "unset", not an operator's value, and takes the floor
+     * without a word.
      */
-    private static Duration clamp(String property, String variable, Duration value, Duration min, Duration max) {
+    private static Duration bounded(String property, String variable, Duration value, Duration min, Duration max) {
         if (value == null) {
             return min;
         }
         if (value.compareTo(min) < 0) {
-            log.warn("vectispire.agent.{} ({}) is {}, under its floor of {}: the agent uses {}. A bare number is "
-                            + "read as milliseconds; write the unit, as in 30s.",
-                    property, variable, spoken(value), spoken(min), spoken(min));
-            return min;
+            throw new IllegalArgumentException(("vectispire.agent.%s (%s) is %s, under its floor of %s: the agent "
+                            + "does not start. A bare number is read as milliseconds; write the unit, as in 30s.")
+                    .formatted(property, variable, spoken(value), spoken(min)));
         }
         if (value.compareTo(max) > 0) {
             log.warn("vectispire.agent.{} ({}) is {}, over its ceiling of {}: the agent uses {}.",

@@ -10,6 +10,12 @@
   nomme :** `VECTISPIRE_SCAN_MAX_CONCURRENT` inférieur à 1 (lu en silence comme 2 ; pour couper le worker,
   `VECTISPIRE_EMBEDDED_WORKER=false`), et une durée de session, de bail du leader ou de file inférieure à une
   seconde, comme `VECTISPIRE_SESSION_IDLE=60` sans unité, qui était lu comme 60 ms.
+- **Un agent distant dont `VECTISPIRE_AGENT_WAIT` ou `VECTISPIRE_AGENT_RETRY` est inférieur à `1s`, ou dont
+  `VECTISPIRE_AGENT_HEARTBEAT` est inférieur à `5s`, ne démarre plus** ; il tournait en silence sur le
+  plancher. Le message nomme la variable et sa valeur — `30` sans unité vaut 30 ms : écrivez `30s`.
+  Vérifiez ces trois variables sur chaque agent avant de le mettre à jour. Une valeur au-dessus de son
+  plafond (`5m`, `5m`, `10m`) démarre toujours, ramenée au plafond, avec un avertissement qui nomme la
+  variable.
 
 ### Changements visibles d'une intégration {#changements-visibles-dune-integration-0111}
 
@@ -60,10 +66,6 @@
 - **L'export OpenAPI synthétisé à partir des points d'accès découverts d'un dépôt est du JSON valide quel
   que soit le contenu de ses chemins et résumés**, avec une opération par méthode, et un gestionnaire de
   toutes les méthodes est développé en chacune des méthodes que le chemin ne déclare pas.
-- **L'agent distant avertit désormais au démarrage lorsque `VECTISPIRE_AGENT_WAIT`, `VECTISPIRE_AGENT_RETRY`
-  ou `VECTISPIRE_AGENT_HEARTBEAT` sort de sa plage** (1s–5m, 1s–5m, 5s–10m), en nommant la variable et la
-  valeur retenue à sa place. Un nombre nu comme `30` se lit en millisecondes et est relevé au plancher. Le
-  comportement est inchangé ; seul le silence disparaît.
 - **Un panneau qui ne peut pas se charger le dit désormais, avec la raison donnée par le serveur**, au lieu
   de rester vide — le tableau de bord, la comparaison de SBOM, les agents, l'attestation, l'historique, le
   journal d'audit et la conformité.
