@@ -40,6 +40,9 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   and `gaps` (each `gap`, `NEVER_SCANNED`, `LAST_SCAN_FAILED`…, with its count of `targets`).
 - **The OWASP report's PDF (`GET /api/v1/repositories/{id}/owasp-review/export.pdf`) takes
   `language=en|fr`**, English by default; another value answers 400.
+- **`GET /api/v1/issues` takes `identifier`**: the issues whose identifier is exactly the one given, case
+  aside, within the caller's visibility; `search` keeps matching a substring. One longer than 255
+  characters answers 400.
 
 ### New {#new-0111}
 
@@ -84,6 +87,10 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   ("Scope", "Repository") to a screen reader, on the grid and on the weekly view, rather than by the value
   they show.
 - **The `/error` page, which no screen led to, is gone**; the address now shows the page-not-found screen.
+- **A link to one identifier opens the issues of that identifier and no others**: a CVE in the remediation
+  plan, and an identifier several issues share in an OWASP report, opened the list with a search, so
+  `CVE-2021-4428` also listed `CVE-2021-44228`. The list shows the identifier as a chip that takes it off
+  ([findings](../guide/issues.md#filters-worth-knowing)).
 
 ## 0.11.0 — 2026-10-25
 
