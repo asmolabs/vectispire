@@ -2,7 +2,7 @@ import { HttpClient, provideHttpClient, withInterceptors, withXhr } from '@angul
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router, UrlTree, provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { authInterceptor } from './auth.interceptor';
 import { SessionStore } from './session.store';
 
@@ -11,7 +11,7 @@ describe('the session interceptor', () => {
     let http: HttpTestingController;
     let router: Router;
     let session: SessionStore;
-    let navigate: ReturnType<typeof vi.spyOn>;
+    let navigate: MockInstance<Router['navigateByUrl']>;
 
     beforeEach(() => {
         TestBed.resetTestingModule();

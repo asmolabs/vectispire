@@ -3,9 +3,10 @@ import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { Login } from './login';
 import { asSchema } from '@/app/core/testing/contract';
+import type { Schema } from '@/app/core/api.models';
 
 /**
  * The sign-in screen, and the four ways a failure can be described.
@@ -19,7 +20,7 @@ import { asSchema } from '@/app/core/testing/contract';
 describe('the sign-in screen', () => {
     let fixture: ComponentFixture<Login>;
     let http: HttpTestingController;
-    let navigate: ReturnType<typeof vi.spyOn>;
+    let navigate: MockInstance<Router['navigateByUrl']>;
 
     // `id` does not exist on this shape: the login response carries the signed-in account, not the
     // administration record. The fixture had been inventing one all along.
@@ -197,7 +198,7 @@ describe('the sign-in screen', () => {
         const call = http.expectOne((c) => c.url === '/api/v1/auth/login');
 
         // A client-chosen id was a counter the caller could reset on every attempt.
-        expect(call.request.body).toEqual({ username: expect.any(String), password: expect.any(String) });
+        expect(call.request.body).toEqual({ username: 'admin', password: 'whatever' } satisfies Schema<'LoginRequest'>);
         call.flush({}, { status: 401, statusText: 'Unauthorized' });
     });
 
