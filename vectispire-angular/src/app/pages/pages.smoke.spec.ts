@@ -100,7 +100,10 @@ describe('every screen', () => {
             return asSchema('PortfolioScorecard', {
                 totalTargets: 0,
                 observedTargets: 0,
-                grades: ['A_PLUS', 'A', 'B', 'C', 'D', 'F', 'NO_DATA'].map((grade) => ({ grade, targets: 0 })),
+                grades: (['A_PLUS', 'A', 'B', 'C', 'D', 'F', 'NO_DATA'] as const).map((grade) => ({
+                    grade,
+                    targets: 0
+                })),
                 weakestTarget: null,
                 riskPoints: 0,
                 openCriticalCount: 0,
@@ -145,7 +148,7 @@ describe('every screen', () => {
         // The grid is one verdict per category: returned empty, it is an object of ten rows, never
         // a bare list.
         if (url.endsWith('/owasp/coverage')) {
-            return asSchema('DeclaredGrid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0 });
+            return asSchema('DeclaredGrid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0, scope: null });
         }
         if (url.endsWith('/compliance/scope')) {
             return asSchema('ScopeView', {
@@ -163,7 +166,7 @@ describe('every screen', () => {
             });
         }
         if (url.includes('/gate/verdicts')) {
-            return asSchema('VerdictRegister', { verdicts: [], passed: 0, refused: 0 });
+            return asSchema('VerdictRegister', { verdicts: [], passed: 0, refused: 0, next_cursor: null });
         }
         if (url.includes('/exceptions')) {
             return asSchema('Register', {
@@ -171,7 +174,8 @@ describe('every screen', () => {
                 granted: 0,
                 awaiting_approval: 0,
                 lapsed: 0,
-                never_reviewed: 0
+                never_reviewed: 0,
+                next_cursor: null
             });
         }
         // The tree, not a collection: the solutions and the "no project" group beside them. Read by

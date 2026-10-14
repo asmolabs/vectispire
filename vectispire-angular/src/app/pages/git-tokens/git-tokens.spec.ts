@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GitTokens } from './git-tokens';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import type { GitTokenSummary } from '@/app/core/api.models';
 
 /**
  * The HTTPS tokens screen.
@@ -38,7 +39,7 @@ describe('the HTTPS tokens screen', () => {
         fixture.detectChanges();
     });
 
-    function list(tokens: unknown[] = [TOKEN]): void {
+    function list(tokens: GitTokenSummary[] = [TOKEN]): void {
         http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/git-tokens').flush(
             asSchemaList('GitTokenSummary', tokens)
         );

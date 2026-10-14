@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Dashboard } from './dashboard';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
-import type { SecurityGrade } from '../../core/api.models';
+import type { GateViolation, SecurityGrade } from '../../core/api.models';
 import { DATED_MARKER, type MarkerChart } from '../../shared/dated-marker';
 
 /**
@@ -182,7 +182,14 @@ describe('the backlog trend', () => {
         // Cleared while the answer is in flight: a curve left under a new window's label is a
         // chart that says thirty days and shows a year.
         expect(fixture.componentInstance.trends()).toBeNull();
-        call.flush(asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 }));
+        call.flush(
+            asSchema('Trends', {
+                points: [],
+                mean_days_to_resolve: null,
+                resolved_in_window: 0,
+                score_formula_changed_on: null
+            })
+        );
     });
 
     /**
@@ -205,7 +212,12 @@ describe('the backlog trend', () => {
         expect(analytics.map((call) => call.request.params.get('days'))).toEqual(['90', '30']);
 
         const series = (mean: number) =>
-            asSchema('Trends', { points: [], mean_days_to_resolve: mean, resolved_in_window: 1 });
+            asSchema('Trends', {
+                points: [],
+                mean_days_to_resolve: mean,
+                resolved_in_window: 1,
+                score_formula_changed_on: null
+            });
         const posture = (critical: number, windowDays: number) =>
             asSchema('PostureTrendAnalytics', {
                 mttrBySeverity: { CRITICAL: critical },
@@ -298,7 +310,7 @@ describe('the failing targets table', () => {
     let fixture: ComponentFixture<Dashboard>;
     let http: HttpTestingController;
 
-    const failing = (rule: string) =>
+    const failing = (rule: GateViolation['rule']) =>
         asSchema('DashboardOverview', {
             posture: {
                 failingCount: 1,
@@ -425,10 +437,12 @@ describe('the failing targets table', () => {
                 asSchema('RecentScan', {
                     id: 34,
                     repoId: 5,
+                    containerId: null,
                     targetKind: 'repository',
                     targetName: 'Recently Scanned',
                     status: 'completed',
                     findingsCount: 1234,
+                    error: null,
                     createdAt: '2026-08-21T05:03:00Z'
                 })
             ]

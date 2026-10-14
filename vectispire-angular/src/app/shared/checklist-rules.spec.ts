@@ -188,7 +188,7 @@ describe('the checklist rules, as the form reads them', () => {
             scopeInclude: ' org/example/** , ',
             scopeExclude: ''
         };
-        expect(asSchema('ChecklistRuleForm', ruleOf(draft))).toEqual({
+        expect(asSchema('ChecklistRuleForm', ruleOf(draft)!)).toEqual({
             kind: 'coverage_threshold',
             maxAgeDays: 7,
             metric: 'line',
@@ -309,7 +309,7 @@ describe('the checklist rules, as the form reads them', () => {
             ...present([' pkg:maven/org.example.platform ']),
             components: [{ purlPrefix: ' pkg:maven/org.example.platform ', versions: '1.0' }]
         });
-        expect(asSchema('ChecklistRuleForm', rule)).toEqual({
+        expect(asSchema('ChecklistRuleForm', rule!)).toEqual({
             kind: 'component_present',
             maxAgeDays: 7,
             components: [{ purlPrefix: 'pkg:maven/org.example.platform' }]
@@ -334,7 +334,7 @@ describe('the checklist rules, as the form reads them', () => {
         expect(review.branch).toBe('');
         expect(problem(review)).toBeNull();
         // Blank is the default branch: the key is left out, never sent empty.
-        expect(asSchema('ChecklistRuleForm', ruleOf(review))).toEqual({
+        expect(asSchema('ChecklistRuleForm', ruleOf(review)!)).toEqual({
             kind: 'change_review',
             maxAgeDays: 7,
             minimumApprovals: 1,
@@ -435,7 +435,7 @@ describe('the checklist rules, as the form reads them', () => {
     it('states only the halves of a threshold given: a blank maxOpen is left out, never sent as null', () => {
         const draft = findings();
         draft.thresholds.medium = { maxOpen: null, minResolvedRatio: 0.6 };
-        expect(asSchema('ChecklistRuleForm', ruleOf(draft))).toEqual({
+        expect(asSchema('ChecklistRuleForm', ruleOf(draft)!)).toEqual({
             kind: 'findings_threshold',
             maxAgeDays: 7,
             scopes: ['builtin:secret'],

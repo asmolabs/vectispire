@@ -7,6 +7,7 @@ import { GateVerdicts } from './gate-verdicts';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
+import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
 
 /**
  * The verdict register, and the number it must not invent.
@@ -19,7 +20,7 @@ describe('le registre des verdicts', () => {
     let fixture: ComponentFixture<GateVerdicts>;
     let http: HttpTestingController;
 
-    function row(id: string, passed: boolean) {
+    function row(id: string, passed: boolean): RegisteredVerdict {
         return {
             id,
             target_kind: 'REPOSITORY',
@@ -38,7 +39,8 @@ describe('le registre des verdicts', () => {
         };
     }
 
-    async function mount(body: Record<string, unknown>) {
+    /** The register's last page unless a case says otherwise: `next_cursor` null. */
+    async function mount(body: Omit<VerdictRegister, 'next_cursor'> & Partial<VerdictRegister>) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [GateVerdicts],
@@ -48,7 +50,9 @@ describe('le registre des verdicts', () => {
         fixture = TestBed.createComponent(GateVerdicts);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
-        http.expectOne((call) => call.url === '/api/v1/gate/verdicts').flush(asSchema('VerdictRegister', body));
+        http.expectOne((call) => call.url === '/api/v1/gate/verdicts').flush(
+            asSchema('VerdictRegister', { next_cursor: null, ...body })
+        );
     }
 
     beforeEach(async () => {

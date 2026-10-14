@@ -61,7 +61,10 @@ describe('the scan detail', () => {
                 filePath: null,
                 line: null,
                 description: 'A flaw in the parser.',
-                link: null
+                link: null,
+                tool: null,
+                toolName: null,
+                toolVersion: null
             }
         ],
         plugins: [],

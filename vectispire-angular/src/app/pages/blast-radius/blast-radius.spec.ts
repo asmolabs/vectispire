@@ -44,7 +44,18 @@ describe('the blast-radius explorer', () => {
             totalTargetsAffected: 1,
             targets: [],
             graph: {
-                nodes: [{ id: query, label: `graph of ${query}`, type: 'PACKAGE', isDirect: true, riskScore: 40 }],
+                nodes: [
+                    {
+                        id: query,
+                        label: `graph of ${query}`,
+                        type: 'PACKAGE',
+                        isDirect: true,
+                        riskScore: 40,
+                        cves: [],
+                        version: null,
+                        ecosystem: null
+                    }
+                ],
                 edges: []
             }
         });

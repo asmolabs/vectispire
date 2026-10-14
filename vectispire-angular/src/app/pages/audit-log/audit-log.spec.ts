@@ -90,7 +90,8 @@ describe('the audit chain verdict', () => {
                 missingFromTable: 0,
                 total: verified + unverifiable,
                 unverifiable,
-                verified
+                verified,
+                checkedAt: '2026-10-01T09:00:00Z'
             })
         );
         fixture.detectChanges();
@@ -159,7 +160,8 @@ describe('the audit log when a read fails', () => {
             missingFromTable: 0,
             total: 1,
             unverifiable: 0,
-            verified: 1
+            verified: 1,
+            checkedAt: '2026-10-01T09:00:00Z'
         });
         expect(open([verified], [problem('Audit table is locked for archiving.'), failure])).toContain(
             'Audit table is locked for archiving.'

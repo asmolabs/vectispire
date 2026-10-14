@@ -18,6 +18,7 @@ import {
     SKIP_REASON_KEYS,
     UNJUDGED_KEYS
 } from '@/app/shared/forge-words';
+import type { ForgeConnection } from '@/app/core/api.models';
 
 const CERTIFICATE = '-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIU\n-----END CERTIFICATE-----';
 const PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END PRIVATE KEY-----'; // gitleaks:allow
@@ -62,7 +63,7 @@ describe('the forge connections screen', () => {
         await settle();
     }
 
-    function list(connections: unknown[] = [CONNECTION]): void {
+    function list(connections: ForgeConnection[] = [CONNECTION]): void {
         http.expectOne({ method: 'GET', url: '/api/v1/forge-connections' }).flush(
             asSchemaList('ForgeConnectionView', connections)
         );
