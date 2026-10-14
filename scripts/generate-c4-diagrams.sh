@@ -33,7 +33,9 @@ fi
 # failure — somebody edits the model and forgets to regenerate. It does not catch a hand-edited
 # `.puml`, which the diff-based check did. Anybody hand-editing a generated file has already
 # decided to; the person who forgets is the one this protects.
-sha256() { command -v sha256sum > /dev/null && sha256sum "$1" | cut -d" " -f1 || shasum -a 256 "$1" | cut -d" " -f1; }
+sha256() {
+  if command -v sha256sum > /dev/null; then sha256sum "$1" | cut -d" " -f1; else shasum -a 256 "$1" | cut -d" " -f1; fi
+}
 sha256 "${C4_DIR}/workspace.dsl" > "${OUTPUT_DIR}/.workspace.sha256"
 echo "==> Recorded the model fingerprint in ${OUTPUT_DIR}/.workspace.sha256"
 

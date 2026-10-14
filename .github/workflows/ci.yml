@@ -162,10 +162,16 @@ jobs:
           sh ci/check-cli-pin.sh
           shellcheck --shell=sh ci/vectispire-gate.sh ci/gitlab/check-gate-pin.sh ci/check-cli-pin.sh \
             scripts/vectispire-cli.sh
-      # Our own CI scripts, in bash: not shipped, but a quoting slip in one is a check that
-      # passes having read the wrong thing.
-      - name: the CI's own scripts
-        run: shellcheck ci/openapi/compat.sh scripts/upgrade-drill.sh scripts/restore-drill.sh
+      # Our own scripts, in bash: not shipped, but a quoting slip in one is a check that passes
+      # having read the wrong thing. **Every tracked `.sh` outside the shipped four**, rather than a
+      # list: the list named three, and `composition-scan-check.sh` — which the `images` job runs on
+      # every push — had never been linted. A new script is checked by being committed.
+      - name: our own scripts
+        run: |
+          git ls-files -z '*.sh' \
+            | grep -zv -e '^ci/vectispire-gate\.sh$' -e '^ci/gitlab/check-gate-pin\.sh$' \
+                -e '^ci/check-cli-pin\.sh$' -e '^scripts/vectispire-cli\.sh$' -e '^docs/analysis/attic/' \
+            | xargs -0 --verbose shellcheck
 
   c4-drift:
     runs-on: ubuntu-24.04
