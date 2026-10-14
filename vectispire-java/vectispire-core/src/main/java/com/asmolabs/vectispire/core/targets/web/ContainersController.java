@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
@@ -17,6 +18,8 @@ import com.asmolabs.vectispire.core.targets.web.RepositoriesController.LastScan;
 import com.asmolabs.vectispire.core.targets.web.RepositoriesController.QueuedScan;
 import com.asmolabs.vectispire.core.targets.web.RepositoriesController.ScheduleInForce;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -83,8 +87,14 @@ public class ContainersController {
 
     @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
-    public List<ContainerSummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
-        return inventory.list(allowed(principal)).stream()
+    public List<ContainerSummary> list(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return inventory.list(allowed(principal), limit, offset).stream()
                 .map(ContainersController::summaryOf)
                 .toList();
     }

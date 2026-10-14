@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
@@ -18,6 +19,7 @@ import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -139,12 +142,20 @@ public class RepositoriesController {
             + "; when the caller sees that target, the problem's existingRepositoryId names it.";
 
     /** The list, with each target's latest scan and how many issues are waiting on it. */
-    @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible to the caller.")
+    @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible "
+            + "to the caller, by id. With limit, one page of them: the same array, cut from what the caller sees; a "
+            + "page shorter than limit is the last.")
     @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
     @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
-    public List<RepositorySummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
-        return inventory.list(allowed(principal)).stream()
+    public List<RepositorySummary> list(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return inventory.list(allowed(principal), limit, offset).stream()
                 .map(RepositoriesController::summaryOf)
                 .toList();
     }

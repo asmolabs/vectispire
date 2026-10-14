@@ -19,6 +19,13 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
 
     List<AgentEntity> findAllByOrderByNameAsc();
 
+    /**
+     * The fleet as its list shows it: by name, then by identifier. Two agents may share a name, and an order
+     * that leaves them tied is not one a page can be cut from — the same agent could open one page and close
+     * the next.
+     */
+    List<AgentEntity> findAllByOrderByNameAscIdAsc();
+
     List<AgentEntity> findByEnabledTrue();
 
     /**

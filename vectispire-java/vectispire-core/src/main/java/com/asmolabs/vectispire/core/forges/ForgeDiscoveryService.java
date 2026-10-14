@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.forges.DiscoveryReason;
 import com.asmolabs.vectispire.common.domain.forges.DiscoveryState;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.forges.UnreadableNamespace;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -53,9 +54,6 @@ public class ForgeDiscoveryService {
 
     /** A connection's runs, newest first: a screen's page, not its history. */
     static final int LISTED = 50;
-
-    /** The largest page of the snapshot a request reads. */
-    static final int MAX_LIMIT = 500;
 
     /** Which repositories of a run a reader asks for. */
     public enum Change {
@@ -184,20 +182,13 @@ public class ForgeDiscoveryService {
     public RepositoryPage repositories(UUID connectionId, long discoveryId, String change, Integer limit, Integer offset) {
         ForgeDiscoveryEntity run = requireDiscovery(connectionId, discoveryId);
         Change wanted = Change.parse(change);
-        int size = limit == null ? 100 : limit;
-        int from = offset == null ? 0 : offset;
-        if (size < 1 || size > MAX_LIMIT) {
-            throw new InvalidInputException("The limit is between 1 and " + MAX_LIMIT + ".");
-        }
-        if (from < 0 || from % size != 0) {
-            throw new InvalidInputException("The offset is zero or a multiple of the limit.");
-        }
+        ListWindow window = ListWindow.of(limit, offset, 100);
         if (wanted == Change.GONE && DiscoveryState.ofStored(run.getState()) != DiscoveryState.COMPLETED) {
             throw new InvalidInputException("Only a completed discovery says which repositories are gone; this one is "
                     + run.getState() + DiscoveryReason.ofStored(run.getReason()).map(r -> " (" + r.wireName() + ")")
                     .orElse("") + ".");
         }
-        PageRequest page = PageRequest.of(from / size, size, Sort.by("fullPath", "id"));
+        PageRequest page = PageRequest.of(window.page(), window.limit(), Sort.by("fullPath", "id"));
         Page<ForgeRepositoryEntity> found = switch (wanted) {
             case ALL -> repositories.findByConnectionIdAndLastSeenBy(connectionId, discoveryId, page);
             case NEW -> repositories.findByConnectionIdAndFirstSeenBy(connectionId, discoveryId, page);
@@ -205,7 +196,7 @@ public class ForgeDiscoveryService {
             case GONE -> repositories.findByConnectionIdAndGoneBy(connectionId, discoveryId, page);
         };
         return new RepositoryPage(found.getContent().stream().map(ForgeDiscoveryService::view).toList(),
-                found.getTotalElements(), size, from);
+                found.getTotalElements(), window.limit(), window.offset());
     }
 
     private ForgeConnectionEntity requireConnection(UUID connectionId) {

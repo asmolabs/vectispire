@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
@@ -26,6 +27,7 @@ import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -158,12 +160,38 @@ public class RepositoryAdministrationService {
 
     /** Every repository the allowance permits, with each one's latest scan and open issue count. */
     public List<Listed> list(Visibility allowed) {
+        return list(allowed, Optional.empty());
+    }
+
+    /**
+     * The repositories the allowance permits, by identifier, all of them or one page.
+     *
+     * <p><b>The page is cut from what the caller sees, after the allowance</b>: an offset counting the
+     * estate's rows would start a restricted reader's second page among targets they may not see, and hand
+     * them fewer rows than they asked for while more remained. Ordered by identifier in both forms, so the
+     * pages of a list are the list cut in pieces; it was the table's own order before, which is the
+     * identifier's on MySQL and whatever the heap holds on PostgreSQL.
+     *
+     * <p>What a row carries beyond its own columns — its project's name, its languages — is read for the
+     * page's rows only; the latest scans and the open counts are still read for the estate in one grouped
+     * query each, which a page does not shorten.
+     *
+     * @param limit rows per page, or null for the whole list ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<Listed> list(Visibility allowed, Integer limit, Integer offset) {
+        return list(allowed, ListWindow.requested(limit, offset));
+    }
+
+    private List<Listed> list(Visibility allowed, Optional<ListWindow> window) {
         Map<Long, LatestScan> latest = scans.latestPerRepository();
         Map<Long, Long> open = backlog.openPerRepository();
 
-        List<RepositoryEntity> visible = repositories.findAll().stream()
+        List<RepositoryEntity> permitted = repositories.findAll().stream()
                 .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
+                .sorted(Comparator.comparing(RepositoryEntity::getId))
                 .toList();
+        List<RepositoryEntity> visible = window.map(page -> page.of(permitted)).orElse(permitted);
         // Named for the visible rows only, in one pass: a project's name is shown only beside a
         // repository the reader already sees, so the list reveals no project the tree would not.
         Map<Long, String> projectNames = naming.projectNames(visible.stream()

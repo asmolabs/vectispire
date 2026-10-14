@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.forges;
 
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.forges.SelectionFilter;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.forges.ForgeImports.ForgeCandidate;
 import com.asmolabs.vectispire.core.forges.ForgeImports.ForgeCandidatePage;
@@ -14,10 +15,10 @@ import com.asmolabs.vectispire.core.forges.ForgeImports.ForgeSelection;
 import com.asmolabs.vectispire.core.forges.ForgeImports.ForgeSelectionChange;
 import com.asmolabs.vectispire.core.forges.ForgeImports.ForgeSelectionFilters;
 import com.asmolabs.vectispire.core.forges.ForgeImports.ForgeSolutionPlan;
-import com.asmolabs.vectispire.core.forges.internal.ImportPlanner;
 import com.asmolabs.vectispire.core.forges.internal.ImportPlanner.Plan;
 import com.asmolabs.vectispire.core.forges.internal.ImportPlanner.Row;
 import com.asmolabs.vectispire.core.forges.internal.ImportPlanner.Source;
+import com.asmolabs.vectispire.core.forges.internal.ImportPlanner;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,9 +47,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class ForgeSelectionService {
-
-    /** The largest page of the table a request reads. */
-    static final int MAX_LIMIT = 500;
 
     /** A selection's operations, as a screen names them. */
     enum Operation {
@@ -88,14 +86,7 @@ public class ForgeSelectionService {
             UUID connectionId, long discoveryId, ForgeSelectionFilters filters, Integer limit, Integer offset) {
         Source source = planner.source(connectionId, discoveryId);
         SelectionFilter filter = filterOf(filters);
-        int size = limit == null ? 100 : limit;
-        int from = offset == null ? 0 : offset;
-        if (size < 1 || size > MAX_LIMIT) {
-            throw new InvalidInputException("The limit is between 1 and " + MAX_LIMIT + ".");
-        }
-        if (from < 0 || from % size != 0) {
-            throw new InvalidInputException("The offset is zero or a multiple of the limit.");
-        }
+        ListWindow window = ListWindow.of(limit, offset, 100);
         Instant now = clock.instant();
         List<Row> rows = planner.rows(source);
         Map<SelectionFilter.Judged, Long> unjudged = new EnumMap<>(SelectionFilter.Judged.class);
@@ -109,8 +100,8 @@ public class ForgeSelectionService {
         }
         Map<String, Long> counted = new LinkedHashMap<>();
         unjudged.forEach((judged, count) -> counted.put(judged.wireName(), count));
-        List<ForgeCandidate> page = matching.subList(Math.min(from, matching.size()), Math.min(from + size, matching.size()));
-        return new ForgeCandidatePage(source.discoveryId(), List.copyOf(page), matching.size(), size, from, rows.size(),
+        return new ForgeCandidatePage(source.discoveryId(), window.of(matching), matching.size(), window.limit(),
+                window.offset(), rows.size(),
                 counted);
     }
 

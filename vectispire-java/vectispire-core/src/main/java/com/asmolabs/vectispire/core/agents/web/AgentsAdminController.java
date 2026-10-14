@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
@@ -8,6 +9,8 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentAdministrationService;
 import com.asmolabs.vectispire.core.agents.CredentialedBacklog;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -185,8 +189,13 @@ public class AgentsAdminController {
     }
 
     @GetMapping
-    public List<AgentSummary> list() {
-        return administration.list().stream()
+    public List<AgentSummary> list(
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return administration.list(limit, offset).stream()
                 .map(view -> {
                     AgentView agent = view.agent();
                     return new AgentSummary(

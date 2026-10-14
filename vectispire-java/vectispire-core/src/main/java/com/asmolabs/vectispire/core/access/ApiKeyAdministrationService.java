@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
@@ -94,12 +95,20 @@ public class ApiKeyAdministrationService {
 
     public record TargetOptions(List<TargetOption> repositories, List<TargetOption> containers) {}
 
-    public List<KeyView> list() {
+    /**
+     * The keys, newest first, all of them or one page.
+     *
+     * @param limit rows per page, or null for every key ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses
+     */
+    public List<KeyView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         Instant asOf = clock.instant();
         GrantableTargets.Labels names = targets.labels();
         Map<Long, String> owners = new HashMap<>();
         users.findAll().forEach(user -> owners.put(user.getId(), user.getUsername()));
-        return keys.findAllByOrderByCreatedAtDesc().stream()
+        List<ApiKeyEntity> every = keys.findAllByOrderByCreatedAtDescIdDesc();
+        return window.map(page -> page.of(every)).orElse(every).stream()
                 .map(key -> viewOf(key, asOf, names, owners))
                 .toList();
     }

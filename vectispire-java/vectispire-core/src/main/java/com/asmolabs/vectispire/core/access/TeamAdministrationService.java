@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -121,7 +122,15 @@ public class TeamAdministrationService {
     /** @param kind {@code repository}, {@code container} or {@code project} */
     public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
 
-    public List<TeamView> list() {
+    /**
+     * The teams by name, all of them or one page. A name is unique whatever its casing, so the order is one a
+     * page can be cut from; the identifier settles what the rule would let through.
+     *
+     * @param limit rows per page, or null for every team ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<TeamView> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         // Counted in two queries rather than in one per team: the screen shows every team, and a
         // per-team count is where a list endpoint quietly becomes N+1.
         Map<Long, Long> members = countBy(memberships.findAll().stream()
@@ -132,8 +141,11 @@ public class TeamAdministrationService {
                 .map(TeamWebhookEntity::getTeamId)
                 .collect(Collectors.toSet());
 
-        return teams.findAll().stream()
-                .sorted(Comparator.comparing(TeamEntity::getName, String.CASE_INSENSITIVE_ORDER))
+        List<TeamEntity> ordered = teams.findAll().stream()
+                .sorted(Comparator.comparing(TeamEntity::getName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(TeamEntity::getId))
+                .toList();
+        return window.map(page -> page.of(ordered)).orElse(ordered).stream()
                 .map(team -> TeamView.of(
                         team,
                         members.getOrDefault(team.getId(), 0L).intValue(),

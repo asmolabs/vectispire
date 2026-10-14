@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -31,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -274,9 +276,21 @@ public class AgentAdministrationService {
     }
 
     public List<Listed> list() {
+        return list(null, null);
+    }
+
+    /**
+     * The fleet by name, all of it or one page.
+     *
+     * @param limit rows per page, or null for the whole fleet ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses
+     */
+    public List<Listed> list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         Instant asOf = clock.instant();
         Map<String, Long> running = runningByAgent();
-        return agents.findAllByOrderByNameAsc().stream()
+        List<AgentEntity> fleet = agents.findAllByOrderByNameAscIdAsc();
+        return window.map(page -> page.of(fleet)).orElse(fleet).stream()
                 .map(agent -> new Listed(
                         AgentViews.of(agent),
                         isOnline(agent, asOf),

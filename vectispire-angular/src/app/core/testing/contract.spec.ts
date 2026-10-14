@@ -118,7 +118,8 @@ describe('the fixture checker', () => {
                         activeSessions: 0
                     }
                 ],
-                currentUserId: 1
+                currentUserId: 1,
+                total: 1
             })
         ).toThrow(/UserListing\.users\[0\]\.role: .*"READER"/);
     });

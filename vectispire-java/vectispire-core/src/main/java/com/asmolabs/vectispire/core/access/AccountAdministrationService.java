@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -86,12 +87,27 @@ public class AccountAdministrationService {
     /** Every field optional: absent means "leave it as it is". */
     public record AccountChange(String role, Boolean isActive, String password) {}
 
-    public List<AccountView> list() {
+    /**
+     * The accounts on one page of the administration list, and how many there are on every page.
+     *
+     * @param total the accounts the list holds, whether or not the page shows them all
+     */
+    public record Accounts(List<AccountView> accounts, long total) {}
+
+    /**
+     * The accounts by username — unique, so the order a page is cut from — all of them or one page.
+     *
+     * @param limit rows per page, or null for every account ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses
+     */
+    public Accounts list(Integer limit, Integer offset) {
+        Optional<ListWindow> window = ListWindow.requested(limit, offset);
         Map<Long, Long> active = activeSessionsByUser();
+        List<UserEntity> every = users.findAllByOrderByUsernameAsc();
         List<AccountView> views = new ArrayList<>();
-        users.findAllByOrderByUsernameAsc()
+        window.map(page -> page.of(every)).orElse(every)
                 .forEach(user -> views.add(new AccountView(UserView.of(user), active.getOrDefault(user.getId(), 0L))));
-        return views;
+        return new Accounts(views, every.size());
     }
 
     /**

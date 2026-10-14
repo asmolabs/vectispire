@@ -22,7 +22,12 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
      */
     List<ApiKeyEntity> findByPrefix(String prefix);
 
-    List<ApiKeyEntity> findAllByOrderByCreatedAtDesc();
+    /**
+     * The keys as their list shows them, newest first. The identifier breaks a tie on the instant — keys
+     * issued by a script can share one — so that a page of the list is cut from one order, not from
+     * whichever the engine picked for that read.
+     */
+    List<ApiKeyEntity> findAllByOrderByCreatedAtDescIdDesc();
 
     @Transactional
     @Modifying(clearAutomatically = true)

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.reportplugins.web;
 
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -9,6 +10,7 @@ import com.asmolabs.vectispire.core.reportplugins.ReportDocumentStanding;
 import com.asmolabs.vectispire.core.reportplugins.ReportRunService;
 import com.asmolabs.vectispire.core.reportplugins.ReportRunView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -92,12 +95,20 @@ public class ProjectReportsController {
     @Operation(summary = "List project reports", description = "The project's report runs, newest first, the latest "
             + "200: state (pending, running, produced, failed, refused), the reason and detail of a run that did not "
             + "produce, the manifest, image, signer and export it ran with, the output's size and SHA-256. For a caller "
-            + "who sees the whole project; 404 \"Project not found.\" otherwise.")
+            + "who sees the whole project; 404 \"Project not found.\" otherwise. With limit, one page of every run, "
+            + "older ones included; a page shorter than limit is the last.")
     @GetMapping
     @RequiresAccount
     public List<ReportRunView> list(
-            @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        return reports.runs(projectId, allowanceOf(principal));
+            @PathVariable long projectId,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = "Rows per page, 1 to " + ListWindow.MAX_LIMIT + "; 400 beyond. Absent, with no "
+                    + "offset, the latest 200 runs are answered, as before paging existed.",
+                    schema = @Schema(minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        return reports.runs(projectId, allowanceOf(principal), limit, offset);
     }
 
     @Operation(summary = "Get project report", description = "One report run of the project. 404 \"Project not "
