@@ -149,7 +149,7 @@ describe('the OWASP report screen', () => {
         });
         vi.useFakeTimers();
         try {
-            const review = (status: string, blocks: unknown[]) =>
+            const review = (status: OwaspReport['status'], blocks: OwaspReport['blocks']) =>
                 asSchema('Report', {
                     id: 4,
                     status,
@@ -158,6 +158,7 @@ describe('the OWASP report screen', () => {
                     blocks,
                     error: null,
                     scanId: 34,
+                    inputs: null,
                     createdAt: '2026-08-21T07:40:01Z'
                 });
             const page = (): string => (fixture.nativeElement as HTMLElement).textContent;
@@ -716,14 +717,7 @@ describe('the current OWASP grid, over a project or a solution', () => {
             [7, 'tools']
         ] as const
     ).map(([id, displayName]) =>
-        asSchema('RepositorySummary', {
-            id,
-            displayName,
-            url: `ssh://git@example.com/r/${displayName}.git`,
-            branch: 'main',
-            openIssues: 0,
-            scanManualOnly: false
-        })
+        repositorySummary(id, { displayName, url: `ssh://git@example.com/r/${displayName}.git` })
     );
 
     /**
@@ -770,6 +764,7 @@ describe('the current OWASP grid, over a project or a solution', () => {
                 blocks: [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'The ledger report.' }],
                 error: null,
                 scanId: 1,
+                inputs: null,
                 createdAt: '2026-08-21T07:40:01Z'
             })
         );
