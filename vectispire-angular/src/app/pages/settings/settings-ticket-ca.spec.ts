@@ -96,7 +96,9 @@ describe('the tracker CA field', () => {
 
     it('keeps every line of a paste, for the save to send', async () => {
         const page = await render('ADMIN');
-        http.expectOne('/api/v1/settings/ticket-ca').flush(asSchema('TicketCaState', { pinned: false }));
+        http.expectOne('/api/v1/settings/ticket-ca').flush(
+            asSchema('TicketCaState', { pinned: false, subject: null, notAfter: null })
+        );
 
         const area = page.querySelector('textarea#ticket_ca_pem') as HTMLTextAreaElement;
         const bundle = `${pem}\n${pem}`;
@@ -107,7 +109,9 @@ describe('the tracker CA field', () => {
 
     it('says when the stored text no longer reads as a CA, rather than nothing', async () => {
         const page = await render('ADMIN');
-        http.expectOne('/api/v1/settings/ticket-ca').flush(asSchema('TicketCaState', { pinned: true }));
+        http.expectOne('/api/v1/settings/ticket-ca').flush(
+            asSchema('TicketCaState', { pinned: true, subject: null, notAfter: null })
+        );
         fixture.detectChanges();
 
         expect(page.querySelector('[data-testid="ticket-ca-unreadable"]')).not.toBeNull();

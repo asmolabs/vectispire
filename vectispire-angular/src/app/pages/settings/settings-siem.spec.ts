@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
-import type { Schema } from '@/app/core/api.models';
+import type { Schema, SiemConfig } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SettingsState } from './settings-state';
 import { SettingsSiem } from './settings-siem';
@@ -18,7 +18,7 @@ describe('the SIEM card, its collector CA', () => {
 
     const pem = '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----';
 
-    const tls = {
+    const tls: SiemConfig = {
         enabled: true,
         protocol: 'SYSLOG_TLS',
         endpoint: 'collector.corp:6514',
@@ -48,7 +48,7 @@ describe('the SIEM card, its collector CA', () => {
         http = TestBed.inject(HttpTestingController);
     });
 
-    async function loaded(config: Record<string, unknown>): Promise<HTMLElement> {
+    async function loaded(config: SiemConfig): Promise<HTMLElement> {
         http.expectOne('/api/v1/siem/config').flush(asSchema('SiemConfigResponse', config));
         fixture.detectChanges();
         await fixture.whenStable();

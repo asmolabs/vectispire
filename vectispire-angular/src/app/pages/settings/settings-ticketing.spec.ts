@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import { Settings } from './settings';
+import { ticketTokenState } from '@/app/core/testing/settings.fixtures';
 
 /**
  * The tracker cards of the Integrations tab, as an operator wires a tracker: the token Vectispire
@@ -38,7 +39,7 @@ describe('the tracker cards of the settings page', () => {
             call.flush(structuredClone(CATALOGUE))
         );
         http.match({ method: 'GET', url: '/api/v1/settings/ticket-token' }).forEach((call) =>
-            call.flush(asSchema('TicketTokenState', { configured: false, expirySource: 'unknown' }))
+            call.flush(asSchema('TicketTokenState', ticketTokenState({ configured: false })))
         );
         for (const url of ['webhook-secret', 'ticket-webhook-secret']) {
             http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((call) =>
@@ -114,7 +115,7 @@ describe('the tracker cards of the settings page', () => {
         await save('ticket-token', 'a-tracker-token');
         const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings/ticket-token' });
         expect(put.request.body).toEqual({ token: 'a-tracker-token' });
-        put.flush(asSchema('TicketTokenState', { configured: true, expirySource: 'unknown' }));
+        put.flush(asSchema('TicketTokenState', ticketTokenState({ configured: true })));
         fixture.detectChanges();
         await fixture.whenStable();
 
