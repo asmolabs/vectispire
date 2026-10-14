@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Containers } from './containers';
+import type { NewContainer } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 
@@ -49,7 +50,7 @@ describe('the container list', () => {
     it('keeps every field the row carried', () => {
         load();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('nginx');
         expect(text).toContain('12 outstanding');
     });
@@ -59,23 +60,25 @@ describe('the container list', () => {
 
         // Sixty characters of hexadecimal would push everything else off a phone, and a digest is
         // read to be compared rather than to be read.
-        const shortened = fixture.nativeElement.querySelector('[title*="sha256:"]');
+        const shortened = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[title*="sha256:"]');
         expect(shortened).not.toBeNull();
-        expect(shortened.getAttribute('title')).toContain('1234567890abcdef');
-        expect(shortened.textContent.length).toBeLessThan(CONTAINER.reference.length);
+        expect(shortened!.getAttribute('title')).toContain('1234567890abcdef');
+        expect(shortened!.textContent.length).toBeLessThan(CONTAINER.reference.length);
     });
 
     it("links the outstanding count to that image's backlog", () => {
         load();
 
-        const link = fixture.nativeElement.querySelector('a[href*="/issues"]');
-        expect(link.getAttribute('href')).toContain('container_id=3');
+        const link = (fixture.nativeElement as HTMLElement).querySelector('a[href*="/issues"]');
+        expect(link?.getAttribute('href')).toContain('container_id=3');
     });
 
     it("shows the image's project, linking to its place in the solutions tree", () => {
         load({ ...CONTAINER, projectId: 12, projectName: 'Payments / Ledger' });
 
-        const project = fixture.nativeElement.querySelector('[data-testid="container-project"]') as HTMLElement;
+        const project = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-testid="container-project"]'
+        ) as HTMLElement;
         expect(project.textContent).toContain('Project:');
         const link = project.querySelector('a');
         expect(link?.textContent?.trim()).toBe('Payments / Ledger');
@@ -85,35 +88,37 @@ describe('the container list', () => {
     it('says "no project" of an image in none, and links to that group', () => {
         load({ ...CONTAINER, projectId: null, projectName: null });
 
-        const link = fixture.nativeElement.querySelector('[data-testid="container-project"] a') as HTMLElement;
+        const link = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-testid="container-project"] a'
+        ) as HTMLElement;
         expect(link.textContent?.trim()).toBe('no project');
         expect(link.getAttribute('href')).toBe('/solutions#unfiled');
     });
 
     it('says "nothing outstanding" rather than showing a bare zero', () => {
         load({ ...CONTAINER, openIssues: 0 });
-        expect(fixture.nativeElement.textContent).toContain('nothing outstanding');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('nothing outstanding');
     });
 
     it('says a never-scanned image was never scanned', () => {
         load({ ...CONTAINER, lastScan: null });
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('Never scanned') || text.includes('scans.never_scanned')).toBe(true);
     });
 
     it('says an image with no schedule of its own runs on the default, and how often', () => {
         load({ ...CONTAINER, schedule: { mode: 'default', intervalMinutes: 10080 } });
-        expect(fixture.nativeElement.textContent).toContain('weekly (default)');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('weekly (default)');
     });
 
     it('says an image set to manual only is scanned only when somebody asks', () => {
         load({ ...CONTAINER, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
-        expect(fixture.nativeElement.textContent).toContain('manual only');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('manual only');
     });
 
     it('says a custom interval in hours rather than in minutes', () => {
         load({ ...CONTAINER, scanIntervalMinutes: 360, schedule: { mode: 'interval', intervalMinutes: 360 } });
-        expect(fixture.nativeElement.textContent).toContain('every 6 h');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('every 6 h');
     });
 
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
@@ -125,7 +130,7 @@ describe('the container list', () => {
         });
         // Read through the English bundle, so the expression itself is asserted: it can only be
         // reached by the branch that prefers the expression over the interval.
-        expect(fixture.nativeElement.textContent).toContain('cron 0 3 * * *');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('cron 0 3 * * *');
     });
 
     /**
@@ -144,7 +149,8 @@ describe('the container list', () => {
         fixture.componentInstance.form.scanCron = '0 3 * * *';
         fixture.componentInstance.submit();
 
-        const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/containers').request.body;
+        const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/containers').request
+            .body as NewContainer;
         expect(body.scanIntervalMinutes).toBe(1440);
         expect(body.scanCron).toBe('0 3 * * *');
     });
@@ -177,7 +183,7 @@ describe('the container list', () => {
 
         const call = http.expectOne((request) => request.method === 'PATCH');
         expect(call.request.url).toBe('/api/v1/containers/3');
-        expect(call.request.body.scanCron).toBe('0 3 * * *');
+        expect((call.request.body as Partial<NewContainer>).scanCron).toBe('0 3 * * *');
     });
 
     it('clears an interval with zero, because absent means "leave alone" on the update path', () => {
@@ -188,7 +194,7 @@ describe('the container list', () => {
         fixture.componentInstance.form.scanCron = '';
         fixture.componentInstance.submit();
 
-        const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+        const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewContainer>;
         // `undefined` here would leave the old interval in place while the form showed nothing —
         // the operator would believe the rescan was off and the registry would carry on being
         // pulled. The empty cron needs no such trick: the server distinguishes it from absent.
