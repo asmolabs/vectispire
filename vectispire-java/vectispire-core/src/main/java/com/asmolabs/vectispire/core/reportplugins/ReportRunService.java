@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunReason;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -67,6 +68,15 @@ import org.springframework.transaction.support.TransactionTemplate;
  * — and the download is audited, {@code REPORT_DOWNLOADED}. Every other answer is a 404 in words: the project's
  * first, then the run's, then a run that produced nothing, then a document past the evidence window — the run is
  * visible by then, so saying which is no disclosure.
+ *
+ * <p><b>A download by a role the export is refused to is signalled as the export leaving</b>, {@code VECTI-SEC-032}.
+ * A document renders the export its run handed the plugin, and that export was signalled when it was handed over:
+ * for a write account or an auditor, who may take the export itself, the download is a copy of what the SOC already
+ * saw leave. The platform governor may not take the export (answer 4), yet reads the runs and downloads their
+ * documents as whoever sees the whole project does (§4's table): the document is then a project's triaged state
+ * reaching a role the export is refused to, and the SOC hears of it as it hears of an export — the export's SHA-256
+ * first. Refusing the governor the document instead would leave the role that withdraws a manifest's documents
+ * unable to read one.
  */
 @Service
 public class ReportRunService {
@@ -209,8 +219,8 @@ public class ReportRunService {
      *     run's 404 — for a run absent and for one whose export carried a target the caller does not see, alike —,
      *     a run that produced no document, or a document purged past the evidence window
      */
-    public ReportDocumentDownload document(long projectId, long runId, VisibilityService.Allowance allowance,
-            RequestActor actor) {
+    public ReportDocumentDownload document(long projectId, long runId, UserView downloader,
+            VisibilityService.Allowance allowance, RequestActor actor) {
         ReportPluginService.requireWholeProject(projects, projectId, allowance);
         // The run's 404 too for a reader who does not see every target its export carried: the project may have
         // dropped one since, and its findings are in the document (decision 0042).
@@ -229,12 +239,24 @@ public class ReportRunService {
 
         Optional<ReportWithdrawal> withdrawal = withdrawals.of(run.getManifestDigest());
 
-        audit.record(actor.entry(AuditOperation.REPORT_DOWNLOADED, String.valueOf(runId),
-                "Report downloaded, run " + runId + ": output " + run.getOutputSha256() + ", package "
-                        + document.getSha256() + "; report plugin \"" + run.getPluginId() + "\", project \""
-                        + run.getProjectName() + "\" (" + projectId + ")"
-                        + withdrawal.map(found -> "; served as withdrawn, its manifest withdrawn at "
-                                + found.withdrawnAt() + ".").orElse(".")));
+        if (ProjectExportService.mayExport(downloader)) {
+            audit.record(actor.entry(AuditOperation.REPORT_DOWNLOADED, String.valueOf(runId),
+                    "Report downloaded, run " + runId + ": output " + run.getOutputSha256() + ", package "
+                            + document.getSha256() + "; report plugin \"" + run.getPluginId() + "\", project \""
+                            + run.getProjectName() + "\" (" + projectId + ")"
+                            + withdrawal.map(found -> "; served as withdrawn, its manifest withdrawn at "
+                                    + found.withdrawnAt() + ".").orElse(".")));
+        } else {
+            // The export's digest first, as on every VECTI-SEC-032, then the package's and the project's id: the
+            // column keeps 255 characters, and a third digest would push the project out of it. The output's digest
+            // is the package's provenance subject, and on the run.
+            audit.record(actor.entry(AuditOperation.REPORT_DOWNLOADED, String.valueOf(runId),
+                    "Governor's report download, export.json SHA-256 " + run.getExportSha256() + ": run " + runId
+                            + ", package " + document.getSha256() + withdrawal.map(found -> ", served as withdrawn")
+                                    .orElse("") + "; project " + projectId + " \"" + run.getProjectName()
+                            + "\", report plugin \"" + run.getPluginId() + "\".")
+                    .signalling(SecurityEventType.PROJECT_EXPORTED));
+        }
         return new ReportDocumentDownload("report-" + runId + "-" + run.getPluginId() + ".zip", document.getSha256(),
                 document.getContent(), withdrawal);
     }

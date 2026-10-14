@@ -406,7 +406,11 @@ key), `REPORT_FAILED` or `REPORT_REFUSED` — each in the requester's name. **A 
 `VECTI-SEC-033`**, an output refused included (its SHA-256 in the entry): an image without a verified signer
 asked to run, or a file that is not what it declared, is how a tampered plugin shows itself. A failure for an
 ordinary reason is audited, not signalled. A download records `REPORT_DOWNLOADED`, with the output's and the
-package's SHA-256, in the downloader's name — and, for a withdrawn document, that it was served as withdrawn. A
+package's SHA-256, in the downloader's name — and, for a withdrawn document, that it was served as withdrawn.
+**A download by the platform governor is also sent to the SIEM as `VECTI-SEC-032`**, the export's SHA-256 first:
+the governor may not take a project's export, and a document is that export rendered, so it reaches the role the
+way an export would. Anybody else's download is a copy of an export already signalled when the plugin received
+it, and is audited only. A
 withdrawal's `REPORT_PLUGIN_WITHDRAWN` names the number of documents withdrawn with the digest, then the
 justification.
 

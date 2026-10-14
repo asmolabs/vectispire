@@ -705,6 +705,43 @@ class ReportRunsRoutesTest extends ApiTestBase {
         }
 
         /**
+         * The governor may not take a project's export, and reads the runs and their documents all the same: the
+         * document is the export's content reaching a role the export is refused to, and the SOC hears of it as of an
+         * export. A write account's or an auditor's download is a copy of an export already signalled when the plugin
+         * received it, and raises nothing more.
+         */
+        @Test
+        @DisplayName("a download by the governor, whom the export is refused to, is signalled VECTI-SEC-032; anybody else's is not")
+        void governorsDownloadIsSignalled() throws Exception {
+            long runId = idOf(request(asAdmin()).andExpect(status().isAccepted()));
+            worker.drain();
+            String exportSha256 = run(runId).at("/exportSha256").asText();
+            assertThat(exportSha256).hasSize(64);
+            siem();
+
+            download(asAdmin(), project, runId).andExpect(status().isOk());
+            download(asAuditor(), project, runId).andExpect(status().isOk());
+            assertThat(siemEvents()).as("a copy of an export the SOC already saw leave").isEmpty();
+
+            download(governor, project, runId).andExpect(status().isOk());
+
+            assertThat(siemPayloads()).singleElement().satisfies(event -> {
+                assertThat(event.path("eventType").asText()).isEqualTo("PROJECT_EXPORTED");
+                assertThat(event.path("message").asText()).as("the export's digest first, as on every VECTI-SEC-032")
+                        .startsWith("Governor's report download, export.json SHA-256 " + exportSha256 + ": run " + runId
+                                + ", package ");
+                assertThat(event.path("extensions").path("act").asText()).isEqualTo("REPORT_DOWNLOADED");
+                assertThat(event.path("extensions").path("suser").asText()).startsWith("governor-");
+            });
+            assertThat(entries(AuditOperation.REPORT_DOWNLOADED)).hasSize(3)
+                    .filteredOn(entry -> entry.getUserId().startsWith("governor-")).singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains(exportSha256)
+                            .endsWith("; project " + project + " \"Checkout\", report plugin \"summary\"."));
+            assertThat(entries(AuditOperation.PROJECT_EXPORTED)).as("one audit entry per gesture: the download's")
+                    .hasSize(1);
+        }
+
+        /**
          * A document is evidence of a moment; the project moves after it. Served to whoever sees the project whole
          * at the download, it handed a repository's findings to a reader the repository was never shown, once the
          * repository had left the project (decision 0042).
@@ -1048,6 +1085,20 @@ class ReportRunsRoutesTest extends ApiTestBase {
                                 {"enabled": true, "protocol": "SYSLOG_UDP", "endpoint": "127.0.0.1:9", "minSeverity": "LOW"}"""))
                 .andExpect(status().isOk());
         outbox.deleteAll();
+    }
+
+    /** The SIEM events queued in the outbox, as stored. */
+    private List<JsonNode> siemPayloads() {
+        return outbox.findAll().stream()
+                .filter(row -> SiemEvents.TYPE.equals(row.getMessageType()))
+                .map(row -> {
+                    try {
+                        return json.readTree(row.getPayload());
+                    } catch (Exception unreadable) {
+                        throw new IllegalStateException(unreadable);
+                    }
+                })
+                .toList();
     }
 
     /** The SIEM event types queued in the outbox. */

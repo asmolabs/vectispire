@@ -425,7 +425,11 @@ comme `VECTI-SEC-033`**, une sortie refusée comprise (son SHA-256 dans l'entré
 vérifié sollicitée pour s'exécuter, ou un fichier qui n'est pas ce qu'il déclarait, c'est ainsi qu'un plugin
 altéré se trahit. Un échec pour une raison ordinaire est journalisé, pas signalé. Un téléchargement
 enregistre `REPORT_DOWNLOADED`, avec les SHA-256 de la sortie et du paquet, au nom de qui télécharge — et, pour
-un document retiré, qu'il a été servi comme retiré. Le `REPORT_PLUGIN_WITHDRAWN` d'un retrait indique le nombre
+un document retiré, qu'il a été servi comme retiré. **Un téléchargement par le gouverneur de la plateforme est
+aussi envoyé au SIEM comme `VECTI-SEC-032`**, le SHA-256 de l'export en tête : le gouverneur ne peut pas prendre
+l'export d'un projet, et un document est cet export mis en forme, si bien qu'il atteint ce rôle comme le ferait un
+export. Le téléchargement de tout autre est une copie d'un export déjà signalé quand le plugin l'a reçu, et n'est
+que journalisé. Le `REPORT_PLUGIN_WITHDRAWN` d'un retrait indique le nombre
 de documents retirés avec le digest, puis la justification.
 
 ## Refus
