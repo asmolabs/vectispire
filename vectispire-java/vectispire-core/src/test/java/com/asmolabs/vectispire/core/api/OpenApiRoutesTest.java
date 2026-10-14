@@ -62,6 +62,32 @@ class OpenApiRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the SCIM routes declare the 404 and 409 they answer, in SCIM's error schema, and a creation's 201")
+    void declaresTheScimRefusals() throws Exception {
+        // The routes answered both in ScimErrorResponse since 0.11.1 while the document declared a 200
+        // alone (and a 200 for a creation that answers 201): a client generated from it had no type for
+        // the body a directory reads `scimType` from.
+        String error = "#/components/schemas/ScimErrorResponse";
+        var spec = mvc.perform(authenticated(get("/v3/api-docs"), asReader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.ScimErrorResponse.properties.scimType.type").value("string"));
+        for (String resource : new String[] {"Users", "Groups"}) {
+            String item = "$.paths['/scim/v2/" + resource + "/{id}']";
+            for (String method : new String[] {"get", "put", "patch"}) {
+                spec.andExpect(jsonPath(item + "." + method + ".responses['404'].content['application/scim+json'].schema['$ref']")
+                                .value(error))
+                        .andExpect(jsonPath(item + "." + method + ".responses['200'].content['application/scim+json'].schema['$ref']")
+                                .value("#/components/schemas/Scim" + resource.substring(0, resource.length() - 1) + "Dto"));
+            }
+            String create = "$.paths['/scim/v2/" + resource + "'].post.responses";
+            spec.andExpect(jsonPath(create + "['409'].content['application/scim+json'].schema['$ref']").value(error))
+                    .andExpect(jsonPath(create + "['201'].content['application/scim+json'].schema['$ref']")
+                            .value("#/components/schemas/Scim" + resource.substring(0, resource.length() - 1) + "Dto"))
+                    .andExpect(jsonPath(create + "['200']").doesNotExist());
+        }
+    }
+
+    @Test
     @DisplayName("refuses the specification to an anonymous caller unless the setting says otherwise")
     void refusesTheSpecificationAnonymously() throws Exception {
         // The default this test pins. It used to be `permitAll` with no way to say otherwise,

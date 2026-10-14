@@ -9410,6 +9410,26 @@
         },
         "type" : "object"
       },
+      "ScimErrorResponse" : {
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "schemas" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "scimType" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ScimGroupDto" : {
         "properties" : {
           "displayName" : {
@@ -21621,7 +21641,7 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
+          "201" : {
             "content" : {
               "application/scim+json" : {
                 "schema" : {
@@ -21629,7 +21649,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The group created, its address in Location"
+          },
+          "409" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "Another group holds this displayName: scimType uniqueness"
           }
         },
         "tags" : [ "scim-groups-controller" ]
@@ -21674,7 +21704,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The group"
+          },
+          "404" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "No group has this id"
           }
         },
         "tags" : [ "scim-groups-controller" ]
@@ -21714,7 +21754,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The group"
+          },
+          "404" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "No group has this id"
           }
         },
         "tags" : [ "scim-groups-controller" ]
@@ -21754,7 +21804,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The group"
+          },
+          "404" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "No group has this id"
           }
         },
         "tags" : [ "scim-groups-controller" ]
@@ -21821,7 +21881,7 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
+          "201" : {
             "content" : {
               "application/scim+json" : {
                 "schema" : {
@@ -21829,7 +21889,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The user created, its address in Location"
+          },
+          "409" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "Another user holds this userName: scimType uniqueness"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -21874,7 +21944,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The user"
+          },
+          "404" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "No user has this id"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -21914,7 +21994,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The user"
+          },
+          "404" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "No user has this id"
           }
         },
         "tags" : [ "scim-users-controller" ]
@@ -21954,7 +22044,17 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The user"
+          },
+          "404" : {
+            "content" : {
+              "application/scim+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScimErrorResponse"
+                }
+              }
+            },
+            "description" : "No user has this id"
           }
         },
         "tags" : [ "scim-users-controller" ]
