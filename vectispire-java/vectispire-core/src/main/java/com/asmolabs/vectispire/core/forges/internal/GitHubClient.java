@@ -8,8 +8,6 @@ import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.common.domain.forges.ForgeVersion;
 import com.asmolabs.vectispire.common.domain.forges.TokenExpiry;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -44,8 +42,10 @@ class GitHubClient implements ForgeClient {
     @Override
     public Probe probe(Target target, String token) {
         ForgeEdition edition = target.address().edition();
+        String owner = ForgePath.segment(target.owner()).orElseThrow(() -> new ForgeConnectionRefusal(
+                Reason.OWNER_NOT_FOUND, "GitHub names no organisation or user \"" + target.owner() + "\"."));
         OutboundJson.Answer answer = outbound.answer(
-                target.address().apiRoot() + "/users/" + URLEncoder.encode(target.owner(), StandardCharsets.UTF_8),
+                target.address().apiRoot() + "/users/" + owner,
                 target.policy(),
                 edition.label() + " at " + target.address().baseUrl(),
                 Map.of("Authorization", "Bearer " + token, "X-GitHub-Api-Version", API_VERSION),

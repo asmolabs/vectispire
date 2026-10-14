@@ -6,8 +6,6 @@ import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPager;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -99,8 +97,13 @@ class GitHubLister implements ForgeLister {
         }
         for (String organisation : organisations.values()) {
             listing.namespace(organisation);
-            walk(pager, api + "/orgs/" + URLEncoder.encode(organisation, StandardCharsets.UTF_8)
-                    + "/repos?type=all&sort=full_name&per_page=100", organisation, false, listing);
+            Optional<String> segment = ForgePath.segment(organisation);
+            if (segment.isEmpty()) {
+                listing.unreadable(organisation, "GitHub named this organisation in a form no API path can carry.");
+                continue;
+            }
+            walk(pager, api + "/orgs/" + segment.get() + "/repos?type=all&sort=full_name&per_page=100", organisation,
+                    false, listing);
         }
         if (classic || ownerIsUser) {
             listing.namespace(login);

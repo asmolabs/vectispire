@@ -4,8 +4,6 @@ import com.asmolabs.vectispire.common.domain.checklists.ChangeReviewEvidence;
 import com.asmolabs.vectispire.common.domain.forges.ForgeKind;
 import com.asmolabs.vectispire.core.outbound.OutboundPager;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -51,11 +49,6 @@ public interface ReviewReader {
 
         /** The forge would not answer about the project at all. */
         record Unreadable(String why) implements Reading {}
-    }
-
-    /** A path segment — a branch, a project's full name — as an API path takes it: slashes too. */
-    static String segment(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     static Optional<Instant> instant(JsonNode value) {
