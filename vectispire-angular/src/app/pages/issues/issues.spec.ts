@@ -10,7 +10,8 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
-import type { BulkTriageRequest, TriageRequest } from '@/app/core/api.models';
+import type { BulkTriageRequest, Issue, TriageRequest } from '@/app/core/api.models';
+import { backlogEntry } from '@/app/core/testing/issues.fixtures';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { openLink, openedLink, reopenedLink, resolvedLink } from '@/app/shared/owasp-weekly';
 import { sessionUser } from '@/app/core/testing/session.fixtures';
@@ -26,24 +27,13 @@ describe('the issue backlog', () => {
     let fixture: ComponentFixture<Issues>;
     let http: HttpTestingController;
 
-    function issue(id: number, identifier: string): Record<string, unknown> {
-        return asSchema('BacklogEntry', {
-            id,
+    function issue(id: number, identifier: string): Issue {
+        return backlogEntry(id, {
             repoId: 5,
-            containerId: null,
-            targetKind: 'repository',
             targetName: 'Arm Libs Spring',
-            type: 'vulnerability',
             identifier,
-            severity: 'high',
             packageName: 'openssl',
-            packageVersion: '3.0.1',
-            state: 'open',
-            firstSeenAt: '2026-03-03T08:00:00Z',
-            lastSeenAt: '2026-08-21T05:03:00Z',
-            timesSeen: 1,
-            triageStatus: 'under_review',
-            isKev: false
+            packageVersion: '3.0.1'
         });
     }
 
@@ -334,20 +324,8 @@ describe('triaging a selection', () => {
     let fixture: ComponentFixture<Issues>;
     let http: HttpTestingController;
 
-    function row(id: number): Record<string, unknown> {
-        return asSchema('BacklogEntry', {
-            id,
-            targetKind: 'repository',
-            type: 'vulnerability',
-            identifier: `CVE-2026-${id}`,
-            severity: 'high',
-            state: 'open',
-            firstSeenAt: '2026-03-03T08:00:00Z',
-            lastSeenAt: '2026-08-21T05:03:00Z',
-            timesSeen: 1,
-            triageStatus: 'under_review',
-            isKev: false
-        });
+    function row(id: number): Issue {
+        return backlogEntry(id);
     }
 
     beforeEach(async () => {
@@ -405,7 +383,10 @@ describe('triaging a selection', () => {
                     state: 'open',
                     triageStatus: 'not_affected',
                     isKev: false,
-                    timesSeen: 1
+                    timesSeen: 1,
+                    identifier: null,
+                    ticketRef: null,
+                    ticketUrl: null
                 }
             ])
         );
@@ -640,6 +621,8 @@ describe('the backlog narrowed to a project or a solution', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         checklistsVisible: true,
+                        detectedLanguages: [],
+                        languagesUnknownFor: [],
                         repositoryCount: 1,
                         containerCount: 0,
                         openIssues: { critical: 0, high: 1, medium: 0, low: 0, negligible: 0, unknown: 0, total: 1 },
@@ -853,24 +836,15 @@ describe('the backlog opened from a weekly OWASP figure', () => {
     let http: HttpTestingController;
     const page = () => harness.routeNativeElement as HTMLElement;
 
-    function issueRow(id: number) {
-        return asSchema('BacklogEntry', {
-            id,
+    function issueRow(id: number): Issue {
+        return backlogEntry(id, {
             repoId: 5,
-            containerId: null,
-            targetKind: 'repository',
             targetName: 'Arm Libs Spring',
-            type: 'vulnerability',
-            identifier: `CVE-2026-${id}`,
-            severity: 'high',
             packageName: 'openssl',
             packageVersion: '3.0.1',
             state: id % 2 === 0 ? 'resolved' : 'open',
             firstSeenAt: '2026-09-03T08:00:00Z',
-            lastSeenAt: '2026-09-21T05:03:00Z',
-            timesSeen: 1,
-            triageStatus: 'under_review',
-            isKev: false
+            lastSeenAt: '2026-09-21T05:03:00Z'
         });
     }
 
@@ -1083,19 +1057,7 @@ describe('accepting a risk', () => {
     let fixture: ComponentFixture<Issues>;
     let http: HttpTestingController;
 
-    const ROW = asSchema('BacklogEntry', {
-        id: 7,
-        targetKind: 'repository',
-        type: 'vulnerability',
-        identifier: 'CVE-2026-7',
-        severity: 'high',
-        state: 'open',
-        firstSeenAt: '2026-03-03T08:00:00Z',
-        lastSeenAt: '2026-08-21T05:03:00Z',
-        timesSeen: 1,
-        triageStatus: 'under_review',
-        isKev: false
-    });
+    const ROW = backlogEntry(7);
 
     beforeEach(async () => {
         TestBed.resetTestingModule();
@@ -1207,20 +1169,8 @@ describe('answering a request awaiting approval', () => {
     const DAY = 86_400_000;
     const proposedReview = new Date(Date.now() + 30 * DAY - 60_000).toISOString();
 
-    function row(id: number, fields: Record<string, unknown>): Record<string, unknown> {
-        return asSchema('BacklogEntry', {
-            id,
-            targetKind: 'repository',
-            type: 'vulnerability',
-            identifier: `CVE-2026-${id}`,
-            severity: 'high',
-            state: 'open',
-            firstSeenAt: '2026-03-03T08:00:00Z',
-            lastSeenAt: '2026-08-21T05:03:00Z',
-            timesSeen: 1,
-            isKev: false,
-            ...fields
-        });
+    function row(id: number, fields: Partial<Issue>): Issue {
+        return backlogEntry(id, fields);
     }
 
     const ROWS = [
@@ -1330,19 +1280,7 @@ describe('applying the advisor suggestion', () => {
     let fixture: ComponentFixture<Issues>;
     let http: HttpTestingController;
 
-    const ROW = asSchema('BacklogEntry', {
-        id: 11,
-        targetKind: 'repository',
-        type: 'vulnerability',
-        identifier: 'CVE-2026-11',
-        severity: 'high',
-        state: 'open',
-        firstSeenAt: '2026-03-03T08:00:00Z',
-        lastSeenAt: '2026-08-21T05:03:00Z',
-        timesSeen: 1,
-        triageStatus: 'affected',
-        isKev: false
-    });
+    const ROW = backlogEntry(11, { triageStatus: 'affected' });
 
     function advise(status: string): void {
         const component = fixture.componentInstance;

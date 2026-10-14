@@ -50,9 +50,15 @@ describe('the issue detail', () => {
         triageComment: null,
         triagedBy: null,
         triagedAt: null,
+        triageExpiresAt: null,
+        triageRequestedStatus: null,
         isDirectDependency: true,
         ticketRef: null,
         ticketUrl: null,
+        tool: null,
+        toolName: null,
+        toolVersion: null,
+        importSource: null,
         sightings: [
             {
                 scanId: 34,

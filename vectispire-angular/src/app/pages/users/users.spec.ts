@@ -73,6 +73,8 @@ describe('the accounts screen', () => {
                         createdAt: '2026-09-01T00:00:00Z',
                         partial: false,
                         checklistsVisible: true,
+                        detectedLanguages: [],
+                        languagesUnknownFor: [],
                         repositoryCount: 1,
                         containerCount: 0,
                         openIssues,
