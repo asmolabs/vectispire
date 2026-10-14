@@ -784,6 +784,47 @@ describe('the backlog narrowed to a project or a solution', () => {
         expect(page().textContent).toContain('No issue matches these filters');
     });
 
+    it('sends the identifier a link carries as itself, never as a search, and names it in a chip', async () => {
+        const params = await open('/issues?identifier=CVE-2021-4428&repository_id=5');
+
+        expect(params.get('identifier')).toBe('CVE-2021-4428');
+        expect(params.has('search')).toBe(false);
+        expect(params.get('repository_id')).toBe('5');
+        expect(page().querySelector('[data-testid="scope-identifier"]')?.textContent).toContain(
+            'Identifier: CVE-2021-4428'
+        );
+        // The search box stays free text: the identifier is not written into it.
+        expect((page().querySelector('p-iconfield input') as HTMLInputElement).value).toBe('');
+        expect(button('Remove the identifier filter CVE-2021-4428')).toBeDefined();
+    });
+
+    it('takes the identifier off the URL and the request, and leaves the rest of the link alone', async () => {
+        await open('/issues?identifier=CVE-2021-4428&repository_id=5');
+
+        button('Remove the identifier filter CVE-2021-4428')!.click();
+        const params = await nextRequest();
+
+        expect(params.has('identifier')).toBe(false);
+        expect(params.get('repository_id')).toBe('5');
+        const url = TestBed.inject(Router).url;
+        expect(url).not.toContain('identifier');
+        expect(url).toContain('repository_id=5');
+        expect(page().querySelector('[data-testid="scope-identifier"]')).toBeNull();
+    });
+
+    it('keeps the identifier when another control moves, and a search beside it stays a search', async () => {
+        await open('/issues?identifier=CVE-2021-4428');
+        const component = harness.routeDebugElement!.componentInstance as Issues;
+
+        component.search = 'log4j';
+        component.filtersChanged();
+        const params = await nextRequest();
+
+        expect(params.get('identifier')).toBe('CVE-2021-4428');
+        expect(params.get('search')).toBe('log4j');
+        expect(TestBed.inject(Router).url).toContain('identifier=CVE-2021-4428');
+    });
+
     it('does not read the tree when the link carries no scope', async () => {
         await harness.navigateByUrl('/issues');
         expect(http.match((call) => call.url === '/api/v1/solutions')).toEqual([]);

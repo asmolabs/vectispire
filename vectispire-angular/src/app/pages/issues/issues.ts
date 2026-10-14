@@ -75,7 +75,7 @@ function reviewDaysLeft(expiresAt: string | null | undefined, now: number = Date
  * the button stays disabled while it is empty: better to prevent the submission than to explain
  * a refusal afterwards.
  *
- * **The same dialog decides one row or the selection.** Narrow to a CVE with the search, tick the
+ * **The same dialog decides one row or the selection.** Narrow to a CVE (`identifier`), tick the
  * page, decide once — the filters are the grouping, which is why there is no "group by CVE" here
  * and no second route on the server either.
  */
@@ -243,6 +243,15 @@ export class Issues {
         if (id === null) return null;
         return (this.tree()?.solutions ?? []).find((candidate) => candidate.id === id)?.name ?? `#${id}`;
     });
+
+    /**
+     * One identifier, matched exactly — what a link meaning "this CVE" carries (the remediation plan's,
+     * the OWASP report's). Those links used to carry `search`, a substring, so the issues of
+     * `CVE-2021-4428` came with those of `CVE-2021-44228`. From the URL alone and shown as a chip: the
+     * search box is free text and keeps its substring, and writing the identifier into it would turn
+     * the next Enter back into the wider search.
+     */
+    readonly identifier = signal<string | null>(null);
 
     /**
      * The weekly OWASP view's drill-down: a category as the grid places it, and the dates of an
@@ -519,6 +528,7 @@ export class Issues {
         this.onlyDirect = params.get('only_direct') === 'true';
         this.triageFilter = params.get('triage_status');
         this.search = params.get('search') ?? '';
+        this.identifier.set(params.get('identifier')?.trim() || null);
         this.projectId.set(idOf(params.get('project_id')));
         this.solutionId.set(idOf(params.get('solution_id')));
     }
@@ -540,6 +550,7 @@ export class Issues {
             overdue: this.overdue || undefined,
             unsettled: this.unsettled || undefined,
             search: this.search || undefined,
+            identifier: this.identifier() ?? undefined,
             owasp_category: this.owaspCategory() ?? undefined,
             open_at: this.openAt() ?? undefined,
             first_seen_from: this.firstSeenFrom() ?? undefined,
@@ -584,6 +595,11 @@ export class Issues {
 
     removeSolution(): void {
         this.solutionId.set(null);
+        this.filtersChanged();
+    }
+
+    removeIdentifier(): void {
+        this.identifier.set(null);
         this.filtersChanged();
     }
 
@@ -648,6 +664,7 @@ export class Issues {
                 overdue: this.overdue || undefined,
                 unsettled: this.unsettled || undefined,
                 search: this.search || undefined,
+                identifier: this.identifier() ?? undefined,
                 owasp_category: this.owaspCategory() ?? undefined,
                 open_at: this.openAt() ?? undefined,
                 first_seen_from: this.firstSeenFrom() ?? undefined,

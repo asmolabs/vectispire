@@ -475,7 +475,7 @@ describe('the OWASP report, linked to the backlog', () => {
         ]);
         const several = hrefOf(links[3]);
         expect(several.pathname).toBe('/issues');
-        expect(Object.fromEntries(several.searchParams)).toEqual({ repository_id: '5', search: 'CVE-2026-7' });
+        expect(Object.fromEntries(several.searchParams)).toEqual({ repository_id: '5', identifier: 'CVE-2026-7' });
     });
 
     it('renders a report written before links were recorded as text, without an error', () => {

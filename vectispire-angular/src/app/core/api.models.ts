@@ -434,7 +434,11 @@ export interface IssueFilters {
     /** The same, over every project of the solution. Combines with `project_id`: both apply. */
     solution_id?: number;
     only_direct?: boolean;
+    /** A substring of the identifier, the package or the path — what a person types. */
     search?: string;
+    /** One identifier exactly, case aside — what a link meaning "this CVE" carries. `search` would
+     *  also list its neighbours: `CVE-2021-4428` finds `CVE-2021-44228`. */
+    identifier?: string;
     /** The weekly OWASP view's drill-down: a category as the grid places it (`A01`…`A10`), or `any` of them. */
     owasp_category?: string;
     /** Open at the end of that day, UTC — what a week's open count counts at its Sunday. */

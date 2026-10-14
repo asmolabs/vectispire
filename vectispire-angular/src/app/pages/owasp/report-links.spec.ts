@@ -67,9 +67,11 @@ describe('the identifiers of a report, as links', () => {
         expect(render(issueLinker({ 'CVE-2026-1': one(1) }, 5)('cve-2026-1'))).toBe('cve-2026-1');
     });
 
-    it('opens the repository backlog searched by the identifier when several issues carry it', () => {
+    it('opens the repository backlog narrowed to exactly the identifier when several issues carry it', () => {
         const link = issueLinker({ 'CVE-2026-7': { issueId: null, count: 3 } }, 5);
-        expect(render(link('CVE-2026-7 again'))).toBe('[CVE-2026-7→/issues?repository_id=5&search=CVE-2026-7] again');
+        expect(render(link('CVE-2026-7 again'))).toBe(
+            '[CVE-2026-7→/issues?repository_id=5&identifier=CVE-2026-7] again'
+        );
     });
 
     it('leaves as text an identifier that resolves to nothing it can open', () => {
