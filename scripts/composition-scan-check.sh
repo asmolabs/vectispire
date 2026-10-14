@@ -353,10 +353,39 @@ register() { # body -> repository id
   printf '%s' "$repository" | json 'd["id"]'
 }
 
+# **A scan the schedule queued first is this one.** Since V70 a target with no schedule of its own is
+# rescanned on the default interval, and one never picked up is due at once: the scheduler's next tick
+# can queue a repository registered here before the script asks, and the request is then refused — the
+# queue stacks no second pending scan of a target — so the check failed whenever a tick fell before
+# the request: between the registration and it, or, for the SSH repository scanned twice, after the
+# first of its scans had finished (seen under emulation, where everything is slower; 2026-10-14). The scan
+# waiting is the same examination of the same tree, so it is followed exactly as if it had been queued
+# here, and judged the same way. Matched on the refusal itself — a 409, with no type of its own, and
+# `ScanTriggerService`'s sentence, which `ErrorResponsesTest` pins — and not on the status alone: any
+# other refusal still fails the check.
+already_queued='A scan of this target is already queued.'
 queue() { # repository id -> scan id
-  local scan_id
-  scan_id="$(bearer "$session" | curl -sf -K - -X POST "$base/api/v1/repositories/$1/scan" | json 'd["id"]')"
-  echo "── scan $scan_id queued" >&2
+  local response code answer scan_id
+  response="$(bearer "$session" | curl -s -K - -w '\n%{http_code}' -X POST "$base/api/v1/repositories/$1/scan")"
+  code="${response##*$'\n'}"; answer="${response%$'\n'*}"
+  if [ "$code" = 200 ]; then
+    scan_id="$(printf '%s' "$answer" | json 'd["id"]')"
+    echo "── scan $scan_id queued" >&2
+  elif [ "$code" = 409 ] && printf '%s' "$answer" | ALREADY="$already_queued" python3 -c '
+import json, os, sys
+d = json.load(sys.stdin)
+sys.exit(not (d.get("status") == 409 and d.get("type", "about:blank") == "about:blank"
+              and d.get("detail") == os.environ["ALREADY"]))' 2>/dev/null; then
+    # Through the history the session already reads, under the same visibility. Pending or already
+    # claimed — the refusal and this read are two requests, and an executor may take it in between;
+    # the newest, should a scan still be running behind the waiting one.
+    scan_id="$(bearer "$session" | curl -sf -K - "$base/api/v1/scans?repo_id=$1" \
+      | json 'max((s["id"] for s in d if s["status"] in ("pending", "scanning")), default="")')"
+    [ -n "$scan_id" ] || fail "repository $1 was refused as already queued, and no scan of it is pending or running"
+    echo "── scan $scan_id adopted: queued for repository $1 before this script asked" >&2
+  else
+    fail "the scan of repository $1 was refused ($code): $answer"
+  fi
   printf '%s' "$scan_id"
 }
 
