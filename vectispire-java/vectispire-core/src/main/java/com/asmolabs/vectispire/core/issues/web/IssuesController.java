@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.issues.IssueQueryService;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.issues.TriageApprovalDiffersException;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -111,7 +112,14 @@ public class IssuesController {
             // like the scorecard, the gate and EPSS; a link from "3 critical" to a list of five
             // reads as the figure being wrong. Acts on `true` alone, like the switches above.
             @RequestParam(required = false, defaultValue = "false") boolean unsettled,
+            @Parameter(description = "Matches a substring of the identifier, the package or the file path, case aside.")
             @RequestParam(required = false) String search,
+            // **One identifier, exactly.** The links that mean "this CVE" — the remediation plan's, the OWASP
+            // report's — carried `search`, a substring: `CVE-2021-4428` also listed `CVE-2021-44228`.
+            @Parameter(description = "The issues whose identifier is exactly this one, case aside — CVE-2021-44228 "
+                    + "lists that CVE and not CVE-2021-442280. Up to 255 characters; blank is no filter. "
+                    + "Applied with the caller's visibility like every other filter.")
+            @RequestParam(required = false) String identifier,
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset,
             // **The weekly OWASP view's drill-down.** A category as the grid places it — a vulnerability
@@ -131,7 +139,7 @@ public class IssuesController {
         return queries.page(
                 new IssueQueryService.BacklogQuery(
                         state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId,
-                        onlyDirect, onlyKev, overdue, unsettled, search, limit, offset,
+                        onlyDirect, onlyKev, overdue, unsettled, search, identifier, limit, offset,
                         owaspCategory, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo,
                         reopenedFrom, reopenedTo),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter

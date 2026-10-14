@@ -42,6 +42,10 @@ import java.util.stream.Collectors;
  *     in any, by {@code OwaspCoverage.placementOf} — a vulnerability is {@code A06} with no column — or
  *     null for no such narrowing
  * @param lifetime the dates an issue's life must cross, or null for none
+ * @param identifier the issues carrying exactly this identifier, case aside — what a link meaning "this
+ *     CVE" asks — or null for no such narrowing. Not {@code search}, which matches a substring of the
+ *     identifier, the package and the path: a link to {@code CVE-2021-4428} by search also listed
+ *     {@code CVE-2021-44228}
  */
 public record IssueFilters(
         String state,
@@ -60,7 +64,8 @@ public record IssueFilters(
         boolean cveOnly,
         Set<ScanTarget> targetsWithin,
         OwaspPlacement owaspPlacement,
-        Lifetime lifetime) {
+        Lifetime lifetime,
+        String identifier) {
 
     public IssueFilters {
         targetsWithin = targetsWithin == null ? null : Set.copyOf(targetsWithin);
@@ -117,7 +122,7 @@ public record IssueFilters(
         }
     }
 
-    /** Every criterion but the two the backlog's drill-down adds. */
+    /** Every criterion but the two the backlog's drill-down adds, and the exact identifier. */
     public IssueFilters(
             String state,
             String severity,
@@ -135,7 +140,7 @@ public record IssueFilters(
             boolean cveOnly,
             Set<ScanTarget> targetsWithin) {
         this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, null, null);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, null, null, null);
     }
 
     /** Every criterion but the narrowing to a project's or a solution's targets. */
@@ -221,7 +226,8 @@ public record IssueFilters(
      */
     public IssueFilters touching(Instant windowStart) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin, owaspPlacement, lifetime);
+                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, targetsWithin, owaspPlacement, lifetime,
+                identifier);
     }
 
     /**
@@ -231,7 +237,8 @@ public record IssueFilters(
      */
     public IssueFilters onlyCves() {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin, owaspPlacement, lifetime);
+                excludeSettled, overdueBefore, visibility, touchingSince, true, targetsWithin, owaspPlacement, lifetime,
+                identifier);
     }
 
     /**
@@ -246,18 +253,31 @@ public record IssueFilters(
             narrowed = narrowed.stream().filter(targetsWithin::contains).collect(Collectors.toUnmodifiableSet());
         }
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed, owaspPlacement, lifetime);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed, owaspPlacement, lifetime,
+                identifier);
     }
 
     /** The issues placed where {@code placement} says, or every one when it is null. Replaces an earlier one. */
     public IssueFilters placedIn(OwaspPlacement placement) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, placement, lifetime);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, placement, lifetime,
+                identifier);
     }
 
     /** The issues whose dates say what {@code asked} asks, or every one when it is null. Replaces an earlier one. */
     public IssueFilters living(Lifetime asked) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspPlacement, asked);
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspPlacement, asked,
+                identifier);
+    }
+
+    /**
+     * The issues carrying exactly {@code exact}, case aside, or every one when it is null. Replaces an
+     * earlier one; narrows beside the visibility and never replaces it.
+     */
+    public IssueFilters identifiedAs(String exact) {
+        return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, targetsWithin, owaspPlacement, lifetime,
+                exact);
     }
 }

@@ -272,12 +272,12 @@ class OwaspWeeklyHistoryIntegrationTest {
     private static IssueQueryService.BacklogQuery query(
             String category, String openAt, String firstSeenFrom, String firstSeenTo, String resolvedFrom, String resolvedTo) {
         return new IssueQueryService.BacklogQuery(null, null, null, null, null, null, null, null, false, false, false,
-                false, null, 500, 0, category, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo, null, null);
+                false, null, null, 500, 0, category, openAt, firstSeenFrom, firstSeenTo, resolvedFrom, resolvedTo, null, null);
     }
 
     private static IssueQueryService.BacklogQuery reopenedQuery(String category, String from, String to) {
         return new IssueQueryService.BacklogQuery(null, null, null, null, null, null, null, null, false, false, false,
-                false, null, 500, 0, category, null, null, null, null, null, from, to);
+                false, null, null, 500, 0, category, null, null, null, null, null, from, to);
     }
 
     private void reopening(long issueId, Instant at) {

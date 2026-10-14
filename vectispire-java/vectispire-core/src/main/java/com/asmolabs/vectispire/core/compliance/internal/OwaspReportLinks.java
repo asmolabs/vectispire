@@ -98,7 +98,7 @@ public class OwaspReportLinks {
     private static IssueQueryService.BacklogQuery backlogOf(long repositoryId, String category) {
         return new IssueQueryService.BacklogQuery(
                 null, null, null, null, repositoryId, null, null, null,
-                false, false, false, true, null, 1, 0,
+                false, false, false, true, null, null, 1, 0,
                 category, null, null, null, null, null, null, null);
     }
 }
