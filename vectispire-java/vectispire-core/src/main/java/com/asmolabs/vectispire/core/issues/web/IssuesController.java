@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.issues.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -15,6 +16,7 @@ import com.asmolabs.vectispire.core.issues.TriageApprovalDiffersException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -112,7 +114,9 @@ public class IssuesController {
             // like the scorecard, the gate and EPSS; a link from "3 critical" to a list of five
             // reads as the figure being wrong. Acts on `true` alone, like the switches above.
             @RequestParam(required = false, defaultValue = "false") boolean unsettled,
-            @Parameter(description = "Matches a substring of the identifier, the package or the file path, case aside.")
+            @Parameter(description = "Matches a substring of the identifier, the package or the file path, case aside. "
+                    + "Up to " + BoundedText.SEARCH_MAX + " characters; blank is no filter.",
+                    schema = @Schema(maxLength = BoundedText.SEARCH_MAX))
             @RequestParam(required = false) String search,
             // **One identifier, exactly.** The links that mean "this CVE" — the remediation plan's, the OWASP
             // report's — carried `search`, a substring: `CVE-2021-4428` also listed `CVE-2021-44228`.

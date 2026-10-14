@@ -9657,6 +9657,7 @@ export interface operations {
             query?: {
                 operation_type?: string;
                 user_id?: string;
+                /** @description Matches a substring of the description or the resource, case aside. Up to 500 characters; blank is no filter. */
                 search?: string;
                 limit?: number;
                 offset?: number;
@@ -9943,6 +9944,7 @@ export interface operations {
     explore: {
         parameters: {
             query?: {
+                /** @description A CVE identifier, matched exactly, or a substring of a package name or purl, case aside. Up to 500 characters; blank is the whole graph. */
                 q?: string;
             };
             header?: never;
@@ -11698,6 +11700,7 @@ export interface operations {
     search: {
         parameters: {
             query: {
+                /** @description A substring of the component name, case aside. Up to 500 characters. */
                 name: string;
                 version?: string;
             };
@@ -11721,6 +11724,7 @@ export interface operations {
     versions: {
         parameters: {
             query: {
+                /** @description A substring of the component name, case aside. Up to 500 characters; blank answers no version. */
                 name: string;
             };
             header?: never;
@@ -11755,7 +11759,7 @@ export interface operations {
                 is_kev?: boolean;
                 overdue?: boolean;
                 unsettled?: boolean;
-                /** @description Matches a substring of the identifier, the package or the file path, case aside. */
+                /** @description Matches a substring of the identifier, the package or the file path, case aside. Up to 500 characters; blank is no filter. */
                 search?: string;
                 /** @description The issues whose identifier is exactly this one, case aside — CVE-2021-44228 lists that CVE and not CVE-2021-442280. Up to 255 characters; blank is no filter. Applied with the caller's visibility like every other filter. */
                 identifier?: string;

@@ -13,6 +13,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { messageOf } from '@/app/core/api-error';
 import { LatestRequest } from '@/app/core/latest-request';
 import { TargetKindPipe } from '@/app/shared/target-kind';
+import { SEARCH_MAX_LENGTH } from '@/app/shared/search-bound';
 
 @Component({
     selector: 'app-blast-radius',
@@ -35,6 +36,8 @@ export class BlastRadius implements OnInit {
     private readonly i18n = inject(I18nService);
 
     searchQuery = '';
+    /** The server's bound on the search, as the box's `maxlength`: a longer one would be a 400. */
+    readonly searchMax = SEARCH_MAX_LENGTH;
     /**
      * Two flags, one per request. A single `loading` was shared by the ranking and the exploration:
      * whichever answered first switched it off, and the page showed the ranking or an empty detail

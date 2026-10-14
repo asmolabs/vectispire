@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphEdge;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphNode;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
@@ -21,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -57,7 +59,8 @@ public class BlastRadiusService {
      */
     @Transactional(readOnly = true)
     public BlastRadiusReport explore(String rawQuery, Visibility allowed) {
-        String query = rawQuery != null ? rawQuery.trim() : "";
+        // Bounded like every list route's free text; blank stays the whole graph it always was.
+        String query = Objects.requireNonNullElse(BoundedText.search(rawQuery, "q"), "");
         boolean isCveQuery = query.toUpperCase(Locale.ROOT).startsWith("CVE-");
 
         List<ScanCatalog.FindingOnScan> rows = findingsRepo.findingsForGraph(query, isCveQuery, true, allowed);

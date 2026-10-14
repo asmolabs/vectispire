@@ -30,6 +30,7 @@
                     pInputText
                     id="name"
                     [(ngModel)]="name"
+                    [maxlength]="searchMax"
                     (keyup.enter)="search()"
                     [placeholder]="'inventory.library_placeholder' | translate"
                     class="w-full sm:min-w-[22rem]"

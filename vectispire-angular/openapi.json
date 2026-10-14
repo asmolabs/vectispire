@@ -12756,10 +12756,12 @@
             "type" : "string"
           }
         }, {
+          "description" : "Matches a substring of the description or the resource, case aside. Up to 500 characters; blank is no filter.",
           "in" : "query",
           "name" : "search",
           "required" : false,
           "schema" : {
+            "maxLength" : 500,
             "type" : "string"
           }
         }, {
@@ -13080,10 +13082,12 @@
       "get" : {
         "operationId" : "explore",
         "parameters" : [ {
+          "description" : "A CVE identifier, matched exactly, or a substring of a package name or purl, case aside. Up to 500 characters; blank is the whole graph.",
           "in" : "query",
           "name" : "q",
           "required" : false,
           "schema" : {
+            "maxLength" : 500,
             "type" : "string"
           }
         } ],
@@ -15507,10 +15511,12 @@
       "get" : {
         "operationId" : "search",
         "parameters" : [ {
+          "description" : "A substring of the component name, case aside. Up to 500 characters.",
           "in" : "query",
           "name" : "name",
           "required" : true,
           "schema" : {
+            "maxLength" : 500,
             "type" : "string"
           }
         }, {
@@ -15540,10 +15546,12 @@
       "get" : {
         "operationId" : "versions",
         "parameters" : [ {
+          "description" : "A substring of the component name, case aside. Up to 500 characters; blank answers no version.",
           "in" : "query",
           "name" : "name",
           "required" : true,
           "schema" : {
+            "maxLength" : 500,
             "type" : "string"
           }
         } ],
@@ -15661,11 +15669,12 @@
             "type" : "boolean"
           }
         }, {
-          "description" : "Matches a substring of the identifier, the package or the file path, case aside.",
+          "description" : "Matches a substring of the identifier, the package or the file path, case aside. Up to 500 characters; blank is no filter.",
           "in" : "query",
           "name" : "search",
           "required" : false,
           "schema" : {
+            "maxLength" : 500,
             "type" : "string"
           }
         }, {

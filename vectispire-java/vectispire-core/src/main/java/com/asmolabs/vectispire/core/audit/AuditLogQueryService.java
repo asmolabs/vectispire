@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.audit;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -58,16 +59,18 @@ public class AuditLogQueryService {
      * {@code limit}/{@code offset} as on {@code /issues}.
      *
      * <p>One pagination convention across the API beats a local convenience, and the client's
-     * page type relies on it.
+     * page type relies on it. {@code search} is bounded like every list route's free text
+     * ({@link BoundedText#SEARCH_MAX}), refused in words past it.
      */
     public Entries page(String operationType, String userId, String search, int limit, int offset) {
         int size = Math.clamp(limit, 1, MAX_PAGE_SIZE);
         int from = Math.max(offset, 0);
 
+        String term = BoundedText.search(search, "search");
         Page<AuditLogEntity> page = entries.findFiltered(
                 blankToNull(operationType),
                 blankToNull(userId),
-                blankToNull(search) == null ? null : "%" + search.trim().toLowerCase(Locale.ROOT) + "%",
+                term == null ? null : "%" + term.toLowerCase(Locale.ROOT) + "%",
                 PageRequest.of(from / Math.max(size, 1), size,
                         Sort.by(Sort.Order.desc("timestamp"), Sort.Order.desc("id"))));
 

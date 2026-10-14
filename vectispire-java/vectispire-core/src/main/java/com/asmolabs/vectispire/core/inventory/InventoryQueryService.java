@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.sbom.ComponentOrigin;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
@@ -99,7 +100,8 @@ public class InventoryQueryService {
 
     /** @throws InvalidInputException for a blank name: searching for everything is not a search */
     public Results search(String name, String version, Visibility allowed) {
-        if (name == null || name.isBlank()) {
+        String wanted = BoundedText.search(name, "name");
+        if (wanted == null) {
             throw new InvalidInputException("A component name is required.");
         }
 
@@ -107,7 +109,7 @@ public class InventoryQueryService {
 
         // One over the cap, so "there are more" is known rather than guessed from a full page.
         List<ComponentEntity> rows = components.search(
-                "%" + name.trim().toLowerCase(Locale.ROOT) + "%",
+                "%" + wanted.toLowerCase(Locale.ROOT) + "%",
                 version == null || version.isBlank() ? null : version.trim(),
                 Limit.of(MAX_ROWS + 1));
 
@@ -140,14 +142,15 @@ public class InventoryQueryService {
      * second field asks before anything is typed, and that is not a malformed request.
      */
     public List<String> versions(String name, Visibility allowed) {
-        if (name == null || name.isBlank()) {
+        String wanted = BoundedText.search(name, "name");
+        if (wanted == null) {
             return List.of();
         }
 
         // The cap is applied to rows, and a row is a (version, target) pair, so a version present
         // on many targets costs many rows. Deliberately generous for that reason: capping tightly
         // here would drop versions the caller may see, which reads as "we do not run it".
-        return components.versionsOf("%" + name.trim().toLowerCase(Locale.ROOT) + "%", Limit.of(MAX_ROWS))
+        return components.versionsOf("%" + wanted.toLowerCase(Locale.ROOT) + "%", Limit.of(MAX_ROWS))
                 .stream()
                 .filter(row -> allowed.permits(targetOf((Long) row[1], (Long) row[2])))
                 .map(row -> (String) row[0])
