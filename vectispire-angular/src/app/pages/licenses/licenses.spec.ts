@@ -5,8 +5,10 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Licenses } from './licenses';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
+import type { LicenseCompatibility, LicenseRiskCategory } from '@/app/core/api.models';
+import { containerSummary, repositorySummary } from '@/app/core/testing/targets.fixtures';
 
 /**
  * The licence screen, and the three places it decides rather than displays.
@@ -29,7 +31,7 @@ describe('the licence inventory screen', () => {
         breakdownByRisk: { PERMISSIVE: 2, WEAK_COPYLEFT: 0, STRONG_COPYLEFT: 1 }
     });
 
-    const entry = (packageName: string, license: string, riskCategory: string, compliant: boolean) =>
+    const entry = (packageName: string, license: string, riskCategory: LicenseRiskCategory, compliant: boolean) =>
         asSchema('LicenseEntry', {
             packageName,
             packageVersion: '1.0.0',
@@ -49,7 +51,7 @@ describe('the licence inventory screen', () => {
         entry('jackson', 'Apache-2.0', 'PERMISSIVE', false)
     ];
 
-    const conflict = (packageName: string, compatibility: string) =>
+    const conflict = (packageName: string, compatibility: LicenseCompatibility) =>
         asSchema('LicenseConflict', {
             packageName,
             packageVersion: '1.0.0',
@@ -70,26 +72,16 @@ describe('the licence inventory screen', () => {
     /** Answers whatever the page asked for on this pass, and hands back the fixtures. */
     function settle(): void {
         http.match((call) => call.url === '/api/v1/repositories').forEach((call) =>
-            call.flush(
-                asSchemaList('RepositorySummary', [
-                    {
-                        id: 7,
-                        name: 'ours',
-                        displayName: 'Ours',
-                        url: 'ssh://git@example.invalid/ours.git',
-                        branch: 'main',
-                        openIssues: 0,
-                        scanManualOnly: false
-                    }
-                ])
-            )
+            call.flush([
+                repositorySummary(7, {
+                    name: 'ours',
+                    displayName: 'Ours',
+                    url: 'ssh://git@example.invalid/ours.git'
+                })
+            ])
         );
         http.match((call) => call.url === '/api/v1/containers').forEach((call) =>
-            call.flush(
-                asSchemaList('ContainerSummary', [
-                    { id: 3, reference: 'registry.invalid/app:1.0', openIssues: 0, scanManualOnly: false }
-                ])
-            )
+            call.flush([containerSummary(3, { imageName: 'app', reference: 'registry.invalid/app:1.0' })])
         );
         http.match((call) => call.url === '/api/v1/licenses/summary').forEach((call) => call.flush(SUMMARY));
         http.match((call) => call.url === '/api/v1/licenses/inventory').forEach((call) => call.flush(INVENTORY));

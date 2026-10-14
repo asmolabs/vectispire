@@ -24,6 +24,10 @@ describe('the container list', () => {
         reference: 'nginx@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
         tag: 'sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
         openIssues: 12,
+        registry: null,
+        scanIntervalMinutes: null,
+        scanCron: null,
+        requiredAgentLabel: null,
         scanManualOnly: false,
         lastScan: { id: 18, status: 'completed', createdAt: '2026-08-21T05:03:00Z', error: null }
     });
@@ -256,6 +260,10 @@ describe('the container list, refreshed and paged', () => {
             reference: `registry.invalid/image-${id}:1.0`,
             tag: '1.0',
             openIssues: 0,
+            registry: null,
+            scanIntervalMinutes: null,
+            scanCron: null,
+            requiredAgentLabel: null,
             scanManualOnly: false,
             lastScan: { id: 1000 + id, status, createdAt: '2026-08-21T05:03:00Z', error: null }
         });
