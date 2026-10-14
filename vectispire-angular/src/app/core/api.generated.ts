@@ -16197,7 +16197,7 @@ export interface operations {
                     "application/scim+json": components["schemas"]["ScimGroupDto"];
                 };
             };
-            /** @description A displayName that is not a string, blank, or past 100 characters */
+            /** @description A displayName that is not a string, blank, or past 100 characters; members replaced by something other than a list */
             400: {
                 headers: {
                     [name: string]: unknown;

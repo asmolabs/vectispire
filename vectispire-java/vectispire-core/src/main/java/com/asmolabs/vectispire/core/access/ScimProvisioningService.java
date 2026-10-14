@@ -19,10 +19,13 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
@@ -565,6 +568,10 @@ public class ScimProvisioningService {
      * members were read: the rename answered 200 with the old name and was recorded as a patch, so the
      * directory believed a name the team did not carry. A name another team holds is refused as the
      * replacement refuses it.
+     *
+     * <p><b>A {@code replace} of the members replaces them</b> (RFC 7644 §3.5.2.3): it was read as an
+     * {@code add}, so a directory that synchronises a group by replacing its member list never removed
+     * anybody — a person taken out of the group in the directory kept the team, and what it grants.
      */
     public GroupChange patchGroup(Long id, List<PatchOperation> operations, RequestActor origin) {
         GroupChange outcome = transactions.execute(status -> {
@@ -589,7 +596,12 @@ public class ScimProvisioningService {
                             // member clears the persistence context, and a pending rename with it.
                             teams.saveAndFlush(team);
                         }
-                        handleAddMembers(id, op.value());
+                        Optional<JsonNode> replacement = "replace".equals(opType) ? memberReplacementOf(op) : Optional.empty();
+                        if (replacement.isPresent()) {
+                            replaceMembers(id, replacement.get());
+                        } else {
+                            handleAddMembers(id, op.value());
+                        }
                     } else if ("remove".equals(opType)) {
                         handleRemoveMembers(id, op);
                     }
@@ -603,6 +615,59 @@ public class ScimProvisioningService {
             recordGroup(origin, "SCIM patched team: " + group.name(), group.name());
         }
         return outcome;
+    }
+
+    /**
+     * The member list a {@code replace} sets, if it sets one: the value of the path {@code members}, or
+     * the {@code members} of a value without a path. Refused when it is not a list, rather than read as
+     * nothing — an empty list is a statement (nobody), an unreadable one is not.
+     */
+    private static Optional<JsonNode> memberReplacementOf(PatchOperation op) {
+        JsonNode value = op.value();
+        JsonNode list;
+        if (op.path() != null && !op.path().isBlank()) {
+            if (!"members".equals(op.path().trim().toLowerCase(Locale.ROOT))) {
+                return Optional.empty();
+            }
+            list = value;
+        } else if (value != null && value.isObject() && value.has("members")) {
+            list = value.get("members");
+        } else {
+            return Optional.empty();
+        }
+        if (list == null || !list.isArray()) {
+            throw new InvalidInputException("Group members must be a list.");
+        }
+        return Optional.of(list);
+    }
+
+    /**
+     * Makes the team's members exactly the accounts listed: the others' memberships are removed,
+     * whatever set them — the replacement by PUT does the same — and the listed accounts not yet in
+     * it join as SCIM's. A listed account already a member keeps its row, and the channel that set
+     * it. An entry naming no account is skipped, as {@code add} skips it, so a list of unknown
+     * accounts empties the team: what the directory said is that none of the people it knows remains.
+     */
+    private void replaceMembers(Long teamId, JsonNode items) {
+        Set<Long> listed = new LinkedHashSet<>();
+        for (JsonNode item : items) {
+            if (item != null && item.has("value")) {
+                resolveUserId(item.get("value").asString()).ifPresent(listed::add);
+            }
+        }
+        Set<Long> kept = new HashSet<>();
+        for (TeamMemberEntity membership : members.findByTeamId(teamId)) {
+            if (listed.contains(membership.getId().userId())) {
+                kept.add(membership.getId().userId());
+            } else {
+                members.delete(membership);
+            }
+        }
+        for (Long userId : listed) {
+            if (!kept.contains(userId)) {
+                members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM));
+            }
+        }
     }
 
     /** The name a PATCH operation sets, if it sets one; refused when it is not a name. */
@@ -695,7 +760,10 @@ public class ScimProvisioningService {
     private Optional<Long> resolveUserId(String value) {
         if (value == null || value.isBlank()) return Optional.empty();
         try {
-            return Optional.of(Long.parseLong(value.trim()));
+            long id = Long.parseLong(value.trim());
+            // An id no account holds is skipped, as an unknown username is: it reached the insert and
+            // the foreign key answered the whole request 500.
+            return users.existsById(id) ? Optional.of(id) : Optional.empty();
         } catch (NumberFormatException e) {
             return users.findByUsername(value.trim().toLowerCase(Locale.ROOT)).map(UserEntity::getId);
         }

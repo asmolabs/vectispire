@@ -113,6 +113,15 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
   de plus de 100 caractères reçoit `400`, tout comme un nom vide à la création ou dans un `PATCH` (un
   `PUT` qui n'en porte pas garde le nom). Jusqu'à la 0.11.1, un tel `PUT` répondait `500`, et un
   renommage par `PATCH` n'était pas appliqué du tout : il répondait `200` avec l'ancien nom.
+- **Un `replace` des membres d'un groupe par `PATCH` les remplace** (RFC 7644 §3.5.2.3) — avec le
+  chemin `members`, ou avec `members` dans la valeur : les membres de l'équipe deviennent exactement les
+  comptes listés, et une liste vide retire tout le monde. Comme un `PUT`, il retire un membre qu'il ne
+  liste pas, quel que soit qui l'a ajouté, administrateur compris ; un compte listé déjà dans l'équipe
+  garde son appartenance telle quelle. Une entrée qui ne nomme aucun compte — un nom d'utilisateur ou un
+  identifiant inconnu — est ignorée, comme un `add` l'ignore ; des membres qui ne sont pas une liste
+  reçoivent `400`. Jusqu'à la 0.11.1, un `replace` était lu comme un `add` : une personne que l'annuaire
+  retirait du groupe restait dans l'équipe, avec ce qu'elle accorde. Un `add` nommant un identifiant
+  qu'aucun compte ne porte répondait `500` ; il est ignoré lui aussi.
 
 ## Le second facteur relève du fournisseur
 

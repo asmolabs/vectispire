@@ -26,8 +26,14 @@
   (`PUT` ou `PATCH` `/scim/v2/Groups/{id}`) avec le `displayName` d'un autre groupe reçoit le même `409`,
   sans rien changer : le `PUT` répondait `500`, et un renommage par `PATCH` — `replace` avec le chemin
   `displayName`, ou `displayName` dans la valeur — n'était pas appliqué du tout, et répondait `200` avec
-  l'ancien nom. Un `displayName` de groupe de plus de 100 caractères reçoit `400`, et non plus `500`. Le
-  document OpenAPI déclare, avec le schéma `ScimErrorResponse`, chaque refus que les routes y répondent :
+  l'ancien nom. Un `displayName` de groupe de plus de 100 caractères reçoit `400`, et non plus `500`. Un
+  `replace` des `members` d'un groupe par `PATCH` les remplace (RFC 7644 §3.5.2.3), avec le chemin
+  `members` ou `members` dans la valeur, et une liste vide retire tout le monde : il était lu comme un
+  `add`, si bien qu'une personne que l'annuaire retirait du groupe gardait l'équipe et ce qu'elle accorde.
+  Comme un `PUT`, il retire les membres non listés, quel que soit qui les a ajoutés. Un membre inconnu est
+  ignoré, comme un `add` l'ignore ; un `add` nommant un identifiant qu'aucun compte ne porte, qui répondait
+  `500`, est ignoré lui aussi.
+  Le document OpenAPI déclare, avec le schéma `ScimErrorResponse`, chaque refus que les routes y répondent :
   les `400` (`scimType` `invalidFilter` sur la liste des utilisateurs), le `403` sur un compte
   administratif (`PUT`, `PATCH`, `DELETE /scim/v2/Users/{id}`), les `404` et les `409` ; et il déclare le
   `201` que répond une création (`POST /scim/v2/Users`, `/Groups`), là où il annonçait `200`.
