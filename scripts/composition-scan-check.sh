@@ -272,6 +272,16 @@ networks:
 EOF
 
 base="http://127.0.0.1:$PORT"
+# **Sessions, keys and passwords reach curl on stdin, never as arguments.** `-H "Authorization: …"` and
+# `-d '{"password":…}'` were arguments of curl, which `ps` shows to every user of the host, a CI runner
+# included. A call that carries one reads a curl config (`-K -`) from its stdin: `header` and `data-raw`
+# lines built by `bearer` and `body` with `printf`, a shell builtin, as the drills do. What stays on the
+# command line is the method, the content type and the URL.
+# A curl config value is double-quoted with backslash escapes; JSON bodies carry both characters.
+cfg_quote() { local s="${1//\\/\\\\}"; printf '"%s"' "${s//\"/\\\"}"; }
+bearer() { printf 'header = %s\n' "$(cfg_quote "Authorization: Bearer $1")"; }
+# `data-raw`, not `data`: a body starting with `@` must never be read as a file name.
+body()   { printf 'data-raw = %s\n' "$(cfg_quote "$1")"; }
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
 # Publishes the fixture database in an executor's cache, laid out as `VulnerabilityDatabase` lays out
@@ -299,17 +309,18 @@ until curl -sf "$base/actuator/health" > /dev/null 2>&1; do
 done
 
 login() {
-  curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"username\":\"admin\",\"password\":\"$1\"}" "$base/api/v1/auth/login" | json 'd["token"]'
+  body "{\"username\":\"admin\",\"password\":\"$1\"}" \
+    | curl -sf -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/auth/login" | json 'd["token"]'
 }
 rotated="Rotated-$(openssl rand -hex 12)!"
 first="$(login "$password")"
-curl -sf -o /dev/null -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $first" \
-  -d "{\"current_password\":\"$password\",\"new_password\":\"$rotated\"}" "$base/api/v1/auth/change-password"
-bearer="Authorization: Bearer $(login "$rotated")"
+{ bearer "$first"; body "{\"current_password\":\"$password\",\"new_password\":\"$rotated\"}"; } \
+  | curl -sf -K - -o /dev/null -X POST -H 'Content-Type: application/json' "$base/api/v1/auth/change-password"
+session="$(login "$rotated")"
 # The SAST step is off on a fresh installation (`sast_enabled`), and the dispatcher leaves it off the
 # task: without this the engine never starts, and no step fails to say so.
-sast="$(curl -s -X PUT -H "$bearer" -H 'Content-Type: application/json' -d '{"sast_enabled":"true"}' "$base/api/v1/settings")"
+sast="$({ bearer "$session"; body '{"sast_enabled":"true"}'; } \
+  | curl -s -K - -X PUT -H 'Content-Type: application/json' "$base/api/v1/settings")"
 [ "$(printf '%s' "$sast" | json 'd["updated"]' 2>/dev/null)" = 1 ] || fail "SAST could not be switched on: $sast"
 
 if [ "$MODE" = agent ]; then
@@ -317,11 +328,12 @@ if [ "$MODE" = agent ]; then
   # `delegated`, with a signing key pinned before it starts: that is the only way a managed key
   # reaches an agent (sealed for its process, decision 0031), and the SSH scan below needs one. The
   # repository without a credential goes to it all the same.
-  declared="$(curl -sf -X POST -H "$bearer" -H 'Content-Type: application/json' \
-    -d '{"name":"scan-check","credentials_mode":"delegated"}' "$base/api/v1/admin/agents")"
+  declared="$({ bearer "$session"; body '{"name":"scan-check","credentials_mode":"delegated"}'; } \
+    | curl -sf -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/admin/agents")"
   agent_id="$(printf '%s' "$declared" | json 'd["id"]')"
-  signing="$(curl -sf -X PUT -H "$bearer" -H 'Content-Type: application/json' -d '{"public_key":"generate"}' \
-    "$base/api/v1/admin/agents/$agent_id/signing-key" | json 'd["privateKey"]')"
+  signing="$({ bearer "$session"; body '{"public_key":"generate"}'; } \
+    | curl -sf -K - -X PUT -H 'Content-Type: application/json' "$base/api/v1/admin/agents/$agent_id/signing-key" \
+    | json 'd["privateKey"]')"
   # From the environment rather than the `.env`: the process's own variables win over the file.
   VECTISPIRE_AGENT_TOKEN="$(printf '%s' "$declared" | json 'd["secret"]')" VECTISPIRE_AGENT_SIGNING_KEY="$signing" \
     "${compose[@]}" up -d --no-build --pull missing agent-docker-proxy agent-work-dir agent >/dev/null
@@ -335,14 +347,15 @@ echo "── ready in $(elapsed "$started_at")"
 
 register() { # body -> repository id
   local repository
-  repository="$(curl -s -X POST -H "$bearer" -H 'Content-Type: application/json' -d "$1" "$base/api/v1/repositories")"
+  repository="$({ bearer "$session"; body "$1"; } \
+    | curl -s -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/repositories")"
   printf '%s' "$repository" | json 'd["id"]' > /dev/null 2>&1 || fail "the fixture repository was refused: $repository"
   printf '%s' "$repository" | json 'd["id"]'
 }
 
 queue() { # repository id -> scan id
   local scan_id
-  scan_id="$(curl -sf -X POST -H "$bearer" "$base/api/v1/repositories/$1/scan" | json 'd["id"]')"
+  scan_id="$(bearer "$session" | curl -sf -K - -X POST "$base/api/v1/repositories/$1/scan" | json 'd["id"]')"
   echo "── scan $scan_id queued" >&2
   printf '%s' "$scan_id"
 }
@@ -353,7 +366,7 @@ scan() {
   scan_id="$(queue "$1")"
   deadline=$(( $(date +%s) + 900 ))
   while :; do
-    detail="$(curl -sf -H "$bearer" "$base/api/v1/scans/$scan_id")"
+    detail="$(bearer "$session" | curl -sf -K - "$base/api/v1/scans/$scan_id")"
     status="$(printf '%s' "$detail" | json 'd["scan"]["status"]')"
     case "$status" in
       pending | scanning) ;;
@@ -409,9 +422,12 @@ echo "✓ the composition scans: the tree reached every scanner, and each read i
 
 # ── Over SSH, with a managed key.
 echo "── the same repository over SSH, with a deployment key registered through the API"
-key_id="$(python3 -c 'import json, sys; print(json.dumps({"name": "scan-check", "private_key": open(sys.argv[1]).read(),
-    "public_key": open(sys.argv[2]).read().strip()}))' "$work/ssh/deploy" "$work/ssh/deploy.pub" \
-  | curl -sf -X POST -H "$bearer" -H 'Content-Type: application/json' --data-binary @- "$base/api/v1/ssh-keys" | json 'd["id"]')"
+# The private key was piped already; it now shares stdin with the session, as one `data-raw` line —
+# `json.dumps` writes its line breaks as `\n`, so the body has none of its own.
+key_id="$({ bearer "$session"; body "$(python3 -c 'import json, sys; print(json.dumps({"name": "scan-check",
+    "private_key": open(sys.argv[1]).read(), "public_key": open(sys.argv[2]).read().strip()}))' \
+    "$work/ssh/deploy" "$work/ssh/deploy.pub")"; } \
+  | curl -sf -K - -X POST -H 'Content-Type: application/json' "$base/api/v1/ssh-keys" | json 'd["id"]')"
 ssh_repo="$(register "{\"url\":\"ssh://git@sshfixture/srv/fixture.git\",\"branch\":\"main\",\"name\":\"scan-check-ssh\",\"sshKeyId\":\"$key_id\"}")"
 scan "$ssh_repo"
 scanned_the_tree
@@ -462,7 +478,7 @@ echo "✓ a changed host key is refused, and said to be one"
 first_attempt() {
   local ended deadline=$(( $(date +%s) + 300 ))
   while :; do
-    detail="$(curl -sf -H "$bearer" "$base/api/v1/scans/$1")"
+    detail="$(bearer "$session" | curl -sf -K - "$base/api/v1/scans/$1")"
     ended="$(printf '%s' "$detail" | json 'd["scan"]["attempts"] >= 1 and d["scan"]["status"] != "scanning"')"
     [ "$ended" = True ] && return
     [ "$(date +%s)" -lt "$deadline" ] || fail "scan $1 did not end its first attempt in 300s"
