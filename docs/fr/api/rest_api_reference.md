@@ -6,6 +6,15 @@ complet, généré, est le document OpenAPI,
 [`vectispire-angular/openapi.json`](../../../vectispire-angular/openapi.json), qu'un test garde
 aligné sur les routes que le serveur répond ; chaque ligne ci-dessous est vérifiée contre lui.
 
+**D'une version à l'autre, le contrat ne fait que grandir.** La CI compare ce document à celui du
+dernier tag de version et échoue sur un changement qui casse un client — une route, une opération,
+un `operationId` ou un champ de réponse retiré, un champ de requête devenu obligatoire, une énumération
+de requête restreinte, un type changé ([décision 0043](../../architecture/fr/decisions/0043-what-1-0-promises.md),
+§1). Une rupture acceptée délibérément est inscrite, avec sa raison, dans
+[`ci/openapi/accepted-breaks.txt`](../../../ci/openapi/accepted-breaks.txt) et nommée dans les notes de
+version. Un nouveau champ de réponse ou une nouvelle valeur d'énumération n'est pas une rupture : un
+client ignore un champ qu'il ne connaît pas et affiche tel quel une valeur qu'il ne connaît pas.
+
 ---
 
 ## 🔒 Sécurité et Authentification

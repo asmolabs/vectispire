@@ -1,0 +1,13 @@
+# Breaking changes to the REST API accepted against the last release, read by ci/openapi/compat.sh.
+#
+# One line per break, five fields separated by " | ":
+#
+#   <base tag> | <oasdiff rule id> | <METHOD /path> | <oasdiff's text, exactly> | <why it is accepted>
+#
+# compat.sh prints the first four fields of any break it refuses; the fifth is the review's. A break
+# is accepted here only when it cannot wait for decision 0043 §1's path — deprecated, announced in the
+# release notes, removed two minors later — and the release notes name it.
+#
+# **The list only shrinks.** A line for another tag than the current base fails the run, and so does
+# a line matching no break: once the next tag is cut the break is in the release, and the line has
+# nothing left to accept. It is empty at every release.

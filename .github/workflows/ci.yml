@@ -162,6 +162,10 @@ jobs:
           sh ci/check-cli-pin.sh
           shellcheck --shell=sh ci/vectispire-gate.sh ci/gitlab/check-gate-pin.sh ci/check-cli-pin.sh \
             scripts/vectispire-cli.sh
+      # Our own CI scripts, in bash: not shipped, but a quoting slip in one is a check that
+      # passes having read the wrong thing.
+      - name: the CI's own scripts
+        run: shellcheck ci/openapi/compat.sh
 
   c4-drift:
     runs-on: ubuntu-24.04
@@ -192,6 +196,29 @@ jobs:
             exit 1
           fi
           echo "C4 diagrams are in step with the model."
+
+  # **The API against the last release, as a diff rather than in a browser** (decision 0043 §1).
+  # `ClientContractSpecTest`, in `jvm`, keeps `openapi.json` equal to what the application serves —
+  # and is made green again by regenerating the file, so it says that the contract moved, never
+  # whether the move breaks a client. This says that: a removed route or operation, a removed
+  # response field, a request field become required, a narrowed request enum, a changed type or
+  # operationId, against the newest `v*` tag HEAD descends from. `e2e` does not run on a backend
+  # change, and a renamed response field touches no front-end file; this is where it is caught.
+  #
+  # oasdiff runs at a digest from inside the script, which says which of its checks were re-levelled
+  # for what springdoc emits. An intentional break goes into `ci/openapi/accepted-breaks.txt`, with
+  # its reason, in the same commit; there is no flag that skips the check. The script counts the
+  # operations of both documents before the diff and refuses a run over none — a missing tag in a
+  # shallow checkout would otherwise compare nothing and say so in green.
+  api-compat:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The tags, and the history `--merged HEAD` reads to pick the one HEAD descends from.
+          fetch-depth: 0
+      - run: ci/openapi/compat.sh
 
   dockerfile-policy:
     runs-on: ubuntu-24.04

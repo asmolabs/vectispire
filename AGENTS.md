@@ -58,7 +58,9 @@ the checks lived only in that inert directory while the sole remote was GitLab, 
 *nothing had ever been verified by a machine* until 2026-08-25.
 
 On a push to `develop` and on every pull request, the `verify` workflow (`ci.yml`) runs
-`secrets`, `docs-consistency` (links and doc facts), `c4-drift`, `dockerfile-policy`, `jvm`
+`secrets`, `docs-consistency` (links and doc facts), `c4-drift`, `api-compat` (the served
+`openapi.json` against the last `v*` tag, failing on a change that breaks a client unless
+`ci/openapi/accepted-breaks.txt` lists it with its reason), `dockerfile-policy`, `jvm`
 (`./gradlew build`), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
 `vulnerabilities` and `npm-audit`; `images` then builds the three images with Jib — the control plane, the agent and the demonstration
 report plugin — **starts the control plane against a real MySQL** before believing them, and renders an

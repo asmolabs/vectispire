@@ -102,6 +102,19 @@ method named like an existing one renumbers springdoc's suffixes. `PublishedOper
 it; the answer is `@Operation(operationId = …)` on the new route, never an edit of
 `published-operation-ids.txt` (decision 0043, §1).
 
+Then compare the contract with the last release, as CI's `api-compat` does:
+
+```bash
+ci/openapi/compat.sh
+```
+
+It fails on a change that breaks a client of the last `v*` tag — a removed route, operation,
+`operationId` or response field, a request field made required, a narrowed request enum, a changed
+type. The answer is the additive form (a new field beside the old one, the old one `deprecated`),
+not a regeneration. A break that cannot wait goes into `ci/openapi/accepted-breaks.txt` with its
+reason, in the same commit, and into the release notes; a line for an older tag or for a break that
+no longer happens fails the run, so the list is empty again at each release.
+
 ## 6. Docs — when docs, README or AGENTS changed, and whenever behaviour did
 
 ```bash

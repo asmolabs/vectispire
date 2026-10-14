@@ -6,6 +6,15 @@ generated contract is the OpenAPI document,
 [`vectispire-angular/openapi.json`](../../../vectispire-angular/openapi.json), which a test keeps
 in step with the routes the server answers; every row below is checked against it.
 
+**Between releases the contract only grows.** CI compares that document with the one at the last
+release tag and fails on a change that breaks a client of it — a route, an operation, an
+`operationId` or a response field removed, a request field made required, a request enum
+narrowed, a type changed ([decision 0043](../../architecture/en/decisions/0043-what-1-0-promises.md),
+§1). A break accepted on purpose is listed, with its reason, in
+[`ci/openapi/accepted-breaks.txt`](../../../ci/openapi/accepted-breaks.txt) and named in the release
+notes. New response fields and new enum values are not breaks: a client ignores a field it does not
+know and shows a value it does not know as sent.
+
 ---
 
 ## 🔒 Security & Authentication
