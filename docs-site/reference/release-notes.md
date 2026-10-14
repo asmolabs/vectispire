@@ -21,9 +21,15 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **The ticket webhook's refusals (400, 401, 403) are RFC 9457 problem documents** with the reason in
   `detail`, no longer the success body with `matched: false` and `actionTaken`.
 - **SCIM answers a missing user or group (404) and a taken `userName` or `displayName` (409, `scimType`
-  `uniqueness`) in SCIM's error schema** instead of an empty body. The OpenAPI document declares both, with
-  the `ScimErrorResponse` schema, and declares the `201` a creation (`POST /scim/v2/Users`, `/Groups`)
-  answers, where it said `200`.
+  `uniqueness`) in SCIM's error schema** instead of an empty body. A group renamed (`PUT` or `PATCH`
+  `/scim/v2/Groups/{id}`) to a `displayName` another group holds is the same `409`, with nothing changed:
+  the `PUT` answered `500`, and a `PATCH` rename — `replace` with the path `displayName`, or `displayName`
+  in the value — was not applied at all, answering `200` with the old name. A group `displayName` past
+  100 characters is `400`, no longer `500`. The OpenAPI document declares, with the `ScimErrorResponse`
+  schema, every refusal the routes answer in it: the `400`s (`scimType` `invalidFilter` on the user
+  list), the `403` on an administrative account (`PUT`, `PATCH`, `DELETE /scim/v2/Users/{id}`), the
+  `404`s and the `409`s; and it declares the `201` a creation (`POST /scim/v2/Users`, `/Groups`) answers,
+  where it said `200`.
 - **Each line of the OWASP Top 10 grid (`GET /api/v1/owasp/coverage`) carries `reason` beside `because`,
   which is kept:** `code`, one of fourteen (`NO_SCANNER` … `REPOSITORIES_NOT_EXAMINED`), and its values —
   `types`, the finding types it names by wire name, and for a scope examined in part `missing`, `applicable`

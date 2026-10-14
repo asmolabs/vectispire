@@ -107,6 +107,12 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
   avec `scimType` `uniqueness`** (RFC 7644 §3.3), tous deux dans le schéma d'erreur de SCIM avec un
   `detail`. Jusqu'à la 0.11.1, les deux avaient un corps vide, qui ne donnait à l'annuaire rien à
   journaliser ni de quoi reconnaître « déjà là ».
+- **Un groupe se renomme par `PUT` ou par `PATCH`** — `replace` avec le chemin `displayName`, ou avec
+  `displayName` dans la valeur. Un nom qu'un autre groupe porte, quelle que soit sa casse, reçoit `409`
+  avec `scimType` `uniqueness` et ne change rien, pas même les membres envoyés à côté. Un `displayName`
+  de plus de 100 caractères reçoit `400`, tout comme un nom vide à la création ou dans un `PATCH` (un
+  `PUT` qui n'en porte pas garde le nom). Jusqu'à la 0.11.1, un tel `PUT` répondait `500`, et un
+  renommage par `PATCH` n'était pas appliqué du tout : il répondait `200` avec l'ancien nom.
 
 ## Le second facteur relève du fournisseur
 

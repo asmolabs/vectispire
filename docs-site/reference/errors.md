@@ -62,4 +62,5 @@ ERROR … Unexpected failure 6f1c2a9e-… on PATCH /api/v1/users/12
 or group (`404`) and a taken `userName` or `displayName` (`409`, `scimType` `uniqueness`) in the error
 schema of [RFC 7644 §3.12](https://www.rfc-editor.org/rfc/rfc7644#section-3.12), because that is what a
 directory client parses; a filter it does not evaluate is `400` with `scimType` `invalidFilter`. Every
-other refusal on the SCIM routes — the token's — is a problem document as above.
+other refusal on the SCIM routes — the token's, a body that is not JSON, a `startIndex` or `count` that
+is not a number — is a problem document as above.
