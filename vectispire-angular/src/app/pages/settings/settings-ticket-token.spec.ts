@@ -8,6 +8,8 @@ import english from '../../../../public/i18n/en.json';
 import french from '../../../../public/i18n/fr.json';
 import { SettingsState } from './settings-state';
 import { SettingsTicketing } from './settings-ticketing';
+import type { TicketTokenState } from '@/app/core/api.models';
+import { ticketTokenState } from '@/app/core/testing/settings.fixtures';
 
 /**
  * The tracker token's life on the tracker card, announced as the forge connections' list announces a
@@ -48,8 +50,9 @@ describe('the tracker token, its expiry and its refusal', () => {
         http = TestBed.inject(HttpTestingController);
     });
 
-    async function loaded(state: Record<string, unknown>): Promise<HTMLElement> {
-        http.expectOne('/api/v1/settings/ticket-token').flush(asSchema('TicketTokenState', state));
+    /** What a case does not set is what the server sends for it unknown: null, never absent. */
+    async function loaded(state: Partial<TicketTokenState>): Promise<HTMLElement> {
+        http.expectOne('/api/v1/settings/ticket-token').flush(asSchema('TicketTokenState', ticketTokenState(state)));
         http.match('/api/v1/settings/webhook-secret').forEach((r) => r.flush({ configured: false }));
         http.match('/api/v1/settings/ticket-webhook-secret').forEach((r) => r.flush({ configured: false }));
         fixture.detectChanges();

@@ -25,7 +25,9 @@ describe('the notification channels screen', () => {
             destination: 'https://hooks.slack.com/services/T000/B000/…',
             supportedEvents: []
         },
-        { type: 'scan_delta_teams', name: 'Teams', configured: false, destination: null, supportedEvents: [] }
+        // An unconfigured channel's destination is empty, never null: `maskDestination` answers "" to a
+        // blank setting.
+        { type: 'scan_delta_teams', name: 'Teams', configured: false, destination: '', supportedEvents: [] }
     ]);
 
     async function open(role: string): Promise<void> {

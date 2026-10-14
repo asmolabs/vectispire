@@ -2,6 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { EpssFeedStatus, ThreatIntelSyncStatus } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SettingsState } from './settings-state';
@@ -19,7 +20,7 @@ describe('the threat feeds card', () => {
     let fixture: ComponentFixture<SettingsThreatIntel>;
     let http: HttpTestingController;
 
-    const synced = {
+    const synced: ThreatIntelSyncStatus = {
         lastSyncedAt: '2026-09-27T06:00:00Z',
         totalCves: 1480,
         totalKev: 1478,
@@ -42,7 +43,7 @@ describe('the threat feeds card', () => {
         }
     };
 
-    const epssNever = {
+    const epssNever: EpssFeedStatus = {
         status: 'NEVER_SYNCED',
         lastSyncedAt: null,
         modelVersion: null,
@@ -84,7 +85,7 @@ describe('the threat feeds card', () => {
         http = TestBed.inject(HttpTestingController);
     });
 
-    function loaded(status: Record<string, unknown>): HTMLElement {
+    function loaded(status: ThreatIntelSyncStatus): HTMLElement {
         fixture.detectChanges();
         http.expectOne('/api/v1/threat-intel/status').flush(asSchema('ThreatIntelSyncStatus', status));
         fixture.detectChanges();
