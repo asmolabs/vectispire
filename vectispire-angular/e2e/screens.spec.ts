@@ -2535,7 +2535,8 @@ test.describe('documentation screenshots', () => {
                     activeSessions: 0,
                     createdAt: '2026-06-11T14:25:00Z'
                 }
-            ]
+            ],
+            total: 3
         });
         await enterApp(page, locale);
         await openScreen(page, '/users');

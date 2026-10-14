@@ -42,7 +42,8 @@ describe('the accounts screen', () => {
 
     const LIST = asSchema('UserListing', {
         users: [account(1, 'admin', 'ADMIN'), account(2, 'reader', 'USER')],
-        currentUserId: 1
+        currentUserId: 1,
+        total: 2
     });
 
     const TARGETS = asSchema('Targets', {
@@ -358,7 +359,8 @@ describe('the accounts screen', () => {
                 account(3, 'provisioned', 'USER', true, { mustChangePassword: true, federated: true }),
                 account(4, 'local', 'USER', true, { mustChangePassword: true })
             ],
-            currentUserId: 1
+            currentUserId: 1,
+            total: 3
         });
 
         const liftButton = (name: string) =>

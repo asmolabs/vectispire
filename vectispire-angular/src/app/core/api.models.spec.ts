@@ -57,7 +57,7 @@ describe('the claims the client makes about shapes the document under-describes'
     });
 
     it('carries a refined type through a nested one', () => {
-        const listing: UserList = { users: [], currentUserId: null };
+        const listing: UserList = { users: [], currentUserId: null, total: 0 };
 
         // `users` is `UserSummary[]`, not the document's looser shape: reading `email` off an
         // element gives `string | null` rather than `string | undefined`.

@@ -56,7 +56,8 @@ describe('the teams screen', () => {
                 createdAt: '2026-01-01T00:00:00Z',
                 activeSessions: 0
             }
-        ]
+        ],
+        total: 2
     });
 
     const TARGETS = asSchema('Targets', {

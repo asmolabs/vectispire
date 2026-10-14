@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
@@ -22,6 +23,7 @@ import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -105,12 +107,29 @@ public class ContainerAdministrationService {
     public record Triggered(ContainerView container, TargetScans.Queued scan) {}
 
     public List<Listed> list(Visibility allowed) {
+        return list(allowed, Optional.empty());
+    }
+
+    /**
+     * The images the allowance permits, by identifier, all of them or one page — cut from what the caller
+     * sees, for the reasons {@link RepositoryAdministrationService#list(Visibility, Integer, Integer)} gives.
+     *
+     * @param limit rows per page, or null for the whole list ({@link ListWindow#requested})
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException a window the rule refuses
+     */
+    public List<Listed> list(Visibility allowed, Integer limit, Integer offset) {
+        return list(allowed, ListWindow.requested(limit, offset));
+    }
+
+    private List<Listed> list(Visibility allowed, Optional<ListWindow> window) {
         Map<Long, LatestScan> latest = scans.latestPerContainer();
         Map<Long, Long> open = backlog.openPerContainer();
 
-        List<ContainerEntity> visible = containers.findAll().stream()
+        List<ContainerEntity> permitted = containers.findAll().stream()
                 .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
+                .sorted(Comparator.comparing(ContainerEntity::getId))
                 .toList();
+        List<ContainerEntity> visible = window.map(page -> page.of(permitted)).orElse(permitted);
         // Named for the visible rows only, as the repository list does: a project's name is shown only
         // beside an image the reader already sees.
         Map<Long, String> projectNames = naming.projectNames(visible.stream()

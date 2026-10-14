@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.reportplugins;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunReason;
 import com.asmolabs.vectispire.common.domain.reportplugins.ReportRunState;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -192,10 +193,22 @@ public class ReportRunService {
         return view(saved, Optional.empty());
     }
 
-    /** The project's runs, newest first, for a caller who sees the whole project; 404 otherwise. */
-    public List<ReportRunView> runs(long projectId, VisibilityService.Allowance allowance) {
+    /**
+     * The project's runs, newest first, for a caller who sees the whole project; 404 otherwise. The latest
+     * {@link #LISTED} unless a page is asked for — and a page reaches past them, which is how a client reads a
+     * project's older runs without the screen's list growing with its history.
+     *
+     * @param limit rows per page, or null for the latest {@link #LISTED} ({@link ListWindow#requested})
+     * @throws InvalidInputException a window the rule refuses — after the project's 404, so a refusal of the
+     *     parameters says nothing about a project the caller cannot see
+     */
+    public List<ReportRunView> runs(
+            long projectId, VisibilityService.Allowance allowance, Integer limit, Integer offset) {
         ReportPluginService.requireWholeProject(projects, projectId, allowance);
-        List<ReportRunEntity> page = runs.findByProjectIdOrderByRequestedAtDescIdDesc(projectId, PageRequest.of(0, LISTED));
+        PageRequest asked = ListWindow.requested(limit, offset)
+                .map(window -> PageRequest.of(window.page(), window.limit()))
+                .orElse(PageRequest.of(0, LISTED));
+        List<ReportRunEntity> page = runs.findByProjectIdOrderByRequestedAtDescIdDesc(projectId, asked);
         Map<String, ReportWithdrawal> withdrawn = withdrawals.of(page.stream().map(ReportRunEntity::getManifestDigest).toList());
         return page.stream()
                 .map(run -> view(run, Optional.ofNullable(run.getManifestDigest()).map(withdrawn::get)))

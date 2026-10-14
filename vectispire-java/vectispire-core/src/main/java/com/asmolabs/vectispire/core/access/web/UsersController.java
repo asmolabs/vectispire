@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.paging.ListWindow;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
@@ -10,6 +11,8 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -61,7 +65,11 @@ public class UsersController {
             Instant createdAt,
             long activeSessions) {}
 
-    public record UserListing(List<UserAdminSummary> users, Long currentUserId) {}
+    /**
+     * @param total every account the list holds — {@code users}' length unless a page was asked for, as the
+     *     backlog's and the audit log's pages count theirs
+     */
+    public record UserListing(List<UserAdminSummary> users, Long currentUserId, long total) {}
 
     /**
      * A grant as the screen sends it.
@@ -84,12 +92,19 @@ public class UsersController {
     public record UserUpdateRequest(String role, @JsonProperty("is_active") Boolean isActive, String password) {}
 
     @GetMapping
-    public UserListing list(@AuthenticationPrincipal VectispirePrincipal principal) {
-        List<UserAdminSummary> summaries = accounts.list().stream().map(UsersController::summaryOf).toList();
+    public UserListing list(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @Parameter(description = ListWindow.LIMIT_ON_REQUEST,
+                    schema = @Schema(minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+            @RequestParam(required = false) Integer limit,
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(minimum = "0"))
+            @RequestParam(required = false) Integer offset) {
+        AccountAdministrationService.Accounts listed = accounts.list(limit, offset);
+        List<UserAdminSummary> summaries = listed.accounts().stream().map(UsersController::summaryOf).toList();
 
         // The screen needs to know which account is its own, so it does not offer actions the
         // server will refuse anyway.
-        return new UserListing(summaries, principal.user().map(UserView::id).orElse(null));
+        return new UserListing(summaries, principal.user().map(UserView::id).orElse(null), listed.total());
     }
 
     @PostMapping
