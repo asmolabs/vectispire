@@ -15,6 +15,14 @@ describe('the fixture checker', () => {
                 id: 34,
                 status: 'completed',
                 branch: 'master',
+                targetKind: 'repository',
+                targetName: 'Arm Libs Spring',
+                targetId: 5,
+                createdAt: '2026-08-21T05:03:00Z',
+                durationMs: 1200,
+                error: null,
+                claimedBy: null,
+                notBefore: null,
                 attempts: 1,
                 findingsCount: 0,
                 newIssuesCount: 0,
@@ -23,7 +31,12 @@ describe('the fixture checker', () => {
             hasSbom: false,
             findings: [],
             findingsTotal: 0,
-            findingsTruncated: false
+            findingsTruncated: false,
+            subPath: null,
+            projectType: null,
+            projectVersion: null,
+            plugins: [],
+            examinedTypes: null
         });
 
         expect(detail.hasSbom).toBe(false);
@@ -37,6 +50,7 @@ describe('the fixture checker', () => {
     it('refuses a fixture that spreads a nested shape flat', () => {
         expect(() =>
             asSchema('ScanDetail', {
+                // @ts-expect-error the compiler refuses it as well, since `asSchema` holds a fixture to its model
                 id: 34,
                 status: 'completed',
                 branch: 'master',
@@ -49,6 +63,7 @@ describe('the fixture checker', () => {
     });
 
     it('refuses a fixture that omits what the document marks always sent', () => {
+        // @ts-expect-error the model claims the two booleans, which the compiler checks too
         expect(() => asSchema('UserSummary', { username: 'c.moreau', role: 'USER' })).toThrow(
             /mustChangePassword: the document marks this always sent/
         );
@@ -56,6 +71,7 @@ describe('the fixture checker', () => {
 
     it('refuses a scalar of the wrong type, at the path where it sits', () => {
         expect(() =>
+            // @ts-expect-error a number where the model says string, refused by the compiler first
             asSchema('TeamSummary', { id: 4, name: 7, memberCount: 0, targetCount: 0, notified: false })
         ).toThrow(/TeamSummary\.name: the document says string, the fixture holds number/);
     });
@@ -79,7 +95,8 @@ describe('the fixture checker', () => {
     it('checks each element of a list, and says which one', () => {
         expect(() =>
             asSchemaList('TeamSummary', [
-                { id: 1, name: 'ok', memberCount: 0, targetCount: 0, notified: false },
+                { id: 1, name: 'ok', description: null, memberCount: 0, targetCount: 0, notified: false },
+                // @ts-expect-error a key the model does not have
                 { nom: 'oops' }
             ])
         ).toThrow(/nom: the fixture carries this/);

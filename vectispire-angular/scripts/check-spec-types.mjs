@@ -23,6 +23,9 @@
  *       why (`-- reason`), and the ones that exist are written in {@link ALLOWED} — file and rule —
  *       so a new one is a decision in the commit that makes it, and one removed asks for its line to
  *       go. A plain count would let a swap through: one fixed, another added, the number unchanged.
+ *   <li><b>That every model is in `schema-models.ts`.</b> `asSchema` holds a fixture to the model the
+ *       client reads its schema as, through that map; a model missing from it would leave its
+ *       fixtures to the run-time check, which cannot see a field the server always sends as null.
  * </ul>
  *
  * <p>It refuses a run that examined no spec file: a guard that reads nothing reports green.
@@ -116,6 +119,21 @@ for (const exception of ALLOWED.filter((entry) => !found.includes(entry))) {
     problems.push(`${exception}: listed in ALLOWED and no longer in the code — remove its line, the ratchet only goes down`);
 }
 
+// 3. Every model the client builds on a schema is in the map `asSchema` holds fixtures to: a model
+// left out would let its fixtures fall back to the run-time check alone, silently.
+const models = readFileSync(join(root, 'src/app/core/api.models.ts'), 'utf8');
+const map = readFileSync(join(root, 'src/app/core/testing/schema-models.ts'), 'utf8');
+const declared = [
+    ...models.matchAll(/export type (\w+) =\s*Refine<\s*Schema<'(\w+)'>/g),
+    ...models.matchAll(/export type (\w+) = Schema<'(\w+)'>;/g)
+];
+if (declared.length === 0) problems.push('api.models.ts: no model built on a schema was found — the pattern no longer reads it');
+for (const [, model, schema] of declared) {
+    if (!map.includes(`    ${schema}: Models.${model};`)) {
+        problems.push(`schema-models.ts: \`${schema}: Models.${model};\` is missing — its fixtures are not checked against the model`);
+    }
+}
+
 if (problems.length > 0) {
     console.error(`${problems.length} problem(s) with the typing of the specs:`);
     for (const problem of problems) console.error(`  ${problem}`);
@@ -123,5 +141,5 @@ if (problems.length > 0) {
 }
 console.log(
     `Spec type check: ${specs.length} spec files, ${GUARDED.length} rules on as errors in each, ` +
-        `${found.length} listed exception(s).`
+        `${found.length} listed exception(s), ${declared.length} models held to their fixtures.`
 );

@@ -157,6 +157,15 @@ for every spec file and fails if any of those rules is not an error there — th
 in `eslint.config.js`, not a missing rule — and holds the disable comments for them to a list,
 each with its reason. It refuses a run that found no spec file.
 
+**A fixture is held to the client's model at compile time.** `asSchema` reads a fixture against
+`openapi.json` at run time, and the document marks only primitives required, so a fixture missing a
+field the server always sends as null passed. Its type parameter is now bound to the model the
+client reads that schema as (`core/testing/schema-models.ts`): switching that on gave eighty-four
+compile errors, among them an OWASP grid without the `declaration` of each line and a statement of
+applicability without the `title` its header shows. The builders beside it (`backlogEntry`,
+`repositorySummary`, `containerSummary`, `sessionUser`, `ticketTokenState`) write the fields a case
+does not set as that null. The spec-type check refuses a model missing from the map.
+
 ## Test floor
 
 `npm test` ends with `scripts/check-test-floor.mjs`, which runs `ng test` itself — one-shot,

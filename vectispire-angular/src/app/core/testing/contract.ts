@@ -1,5 +1,6 @@
 import document from '../../../../openapi.json';
 import type { components } from '../api.generated';
+import type { ModelOf } from './schema-models';
 
 type Schemas = components['schemas'];
 
@@ -42,8 +43,16 @@ type Schemas = components['schemas'];
  * <p>Unknown schema names fail rather than pass: a fixture pointing at a schema the document does
  * not have is a fixture nobody can check, and silently accepting it would be the failure this
  * whole file is about.
+ *
+ * <p><b>And the compiler holds the fixture to the client's model of the schema</b> — `T extends
+ * ModelOf<K>` (schema-models.ts). The document cannot say a reference field is always sent, so the
+ * run-time check passed fixtures missing what `api.models.ts` claims: every OWASP line's
+ * `declaration`, a statement's `title`, thirty fields of a backlog row. The screens are typed against
+ * those claims, and were tested with data the claims say cannot arrive. The builders in this
+ * directory (`backlogEntry`, `repositorySummary`, …) write the fields a case does not care about as
+ * the null the server sends.
  */
-export function asSchema<K extends keyof Schemas, T>(name: K, fixture: T): T {
+export function asSchema<K extends keyof Schemas, T extends ModelOf<K>>(name: K, fixture: T): T {
     const problems = check(name, fixture, name);
     if (problems.length > 0) {
         throw new Error(
@@ -67,7 +76,7 @@ export function asSchema<K extends keyof Schemas, T>(name: K, fixture: T): T {
  * lines asserting away a looseness that is an artefact of the generator. The literal already has
  * the better type; what this adds is the check that it is also the true one.
  */
-export function asSchemaList<K extends keyof Schemas, T>(name: K, fixtures: T[]): T[] {
+export function asSchemaList<K extends keyof Schemas, T extends ModelOf<K>>(name: K, fixtures: T[]): T[] {
     return fixtures.map((fixture) => asSchema(name, fixture));
 }
 
