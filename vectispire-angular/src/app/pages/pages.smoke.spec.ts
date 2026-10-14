@@ -318,7 +318,6 @@ describe('every screen', () => {
         'scans/:id': 'takes its id from the route: a required input left unset throws NG0950 before the template',
         login: 'outside the layout, and its own spec file tests it',
         'change-password': 'outside the layout, tested by the browser suite',
-        error: 'a static page with no server call',
         'issues/:id': 'takes its id from the route, like the scan detail',
         'projects/:projectId/checklist':
             'takes its project from the route; its own spec mounts it, empty project included',
