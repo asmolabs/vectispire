@@ -79,6 +79,8 @@ public class IssueQueryService {
      * @param projectId the issues of the repositories and images filed in this project now — see {@link #page}
      *     for what a reader who sees part of it, or none, is answered
      * @param solutionId the same over every project of the solution; with {@code projectId}, both hold
+     * @param identifier the issues carrying exactly this identifier, case aside, where {@code search} matches a
+     *     substring — the parameter a link meaning one identifier carries
      * @param owaspCategory {@code A01}…{@code A10}: the issues the OWASP grid places there; {@code any}: the
      *     issues it places in one of the ten, whichever — see {@link #page}
      * @param openAt an ISO date: the issues open at the end of that day, UTC
@@ -105,6 +107,7 @@ public class IssueQueryService {
             boolean overdue,
             boolean unsettled,
             String search,
+            String identifier,
             int limit,
             int offset,
             String owaspCategory,
@@ -116,7 +119,7 @@ public class IssueQueryService {
             String reopenedFrom,
             String reopenedTo) {
 
-        /** Every filter but the drill-down's, which none of these callers asks. */
+        /** Every filter but the drill-down's and the exact identifier, which none of these callers asks. */
         public BacklogQuery(
                 String state,
                 String severity,
@@ -134,7 +137,8 @@ public class IssueQueryService {
                 int limit,
                 int offset) {
             this(state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId, onlyDirect,
-                    onlyKev, overdue, unsettled, search, limit, offset, null, null, null, null, null, null, null, null);
+                    onlyKev, overdue, unsettled, search, null, limit, offset, null, null, null, null, null, null, null,
+                    null);
         }
     }
 
@@ -227,7 +231,8 @@ public class IssueQueryService {
                 query.overdue() ? sla.overdueThresholds() : Map.of(),
                 allowed)
                 .placedIn(owaspPlacement(query.owaspCategory()))
-                .living(lifetime);
+                .living(lifetime)
+                .identifiedAs(identifier(query.identifier()));
         if (query.projectId() != null) {
             filters = filters.within(solutions.members(query.projectId())
                     .map(SolutionQueryService.ProjectMembers::targets)
@@ -281,6 +286,25 @@ public class IssueQueryService {
         }
         return new IssueFilters.OwaspPlacement.In(value);
     }
+
+    /**
+     * The exact identifier asked, trimmed; blank is no filter. <b>Bounded by the column</b>: no issue carries
+     * an identifier longer than {@link #MAX_IDENTIFIER_LENGTH}, so a longer one asks nothing an answer could
+     * hold, and it is refused in words rather than sent to the engine.
+     */
+    private static String identifier(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String value = raw.trim();
+        if (value.length() > MAX_IDENTIFIER_LENGTH) {
+            throw new InvalidInputException("identifier is longer than " + MAX_IDENTIFIER_LENGTH + " characters.");
+        }
+        return value;
+    }
+
+    /** The length of {@code t_issue.identifier}. */
+    private static final int MAX_IDENTIFIER_LENGTH = 255;
 
     /** The {@code owasp_category} that asks for every category, as compared once upper-cased. */
     private static final String ANY_OWASP_CATEGORY = "ANY";

@@ -11755,7 +11755,10 @@ export interface operations {
                 is_kev?: boolean;
                 overdue?: boolean;
                 unsettled?: boolean;
+                /** @description Matches a substring of the identifier, the package or the file path, case aside. */
                 search?: string;
+                /** @description The issues whose identifier is exactly this one, case aside — CVE-2021-44228 lists that CVE and not CVE-2021-442280. Up to 255 characters; blank is no filter. Applied with the caller's visibility like every other filter. */
+                identifier?: string;
                 limit?: number;
                 offset?: number;
                 owasp_category?: string;

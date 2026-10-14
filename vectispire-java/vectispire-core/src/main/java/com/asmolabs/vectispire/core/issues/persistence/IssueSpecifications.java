@@ -90,6 +90,15 @@ public final class IssueSpecifications {
                     builder.like(builder.lower(root.get("filePath")), pattern)));
         }
 
+        if (filters.identifier() != null && !filters.identifier().isBlank()) {
+            // **Equal, not like**: a link meaning one identifier opened the search, so `CVE-2021-4428`
+            // also listed `CVE-2021-44228`. Lower-cased on both sides, as the search and `cveOnly` read
+            // the column — and because the engines disagree otherwise: MySQL's collation ignores case,
+            // PostgreSQL's `=` does not, and one link would answer two lists.
+            predicates.add(builder.equal(
+                    builder.lower(root.get("identifier")), filters.identifier().toLowerCase(Locale.ROOT)));
+        }
+
         if (filters.touchingSince() != null) {
             // This is `PostureTrendAnalytics.touchesWindow` written as a query, and the two have to
             // say the same thing: an issue resolved before the window opened cannot appear in any of
