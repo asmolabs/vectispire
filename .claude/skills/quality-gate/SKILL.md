@@ -98,7 +98,10 @@ docker build -f Dockerfile -t vectispire:latest . && ENGINE=mysql scripts/upgrad
 (`ENGINE=postgresql` too; the nightly's `upgrade` job runs both.) A field it reads back changed on
 purpose goes into `ci/upgrade/accepted-rewrites.txt` with the migration and the reason, in the
 migration's commit, or the nightly stays red until the next tag. On an arm64
-machine the release image runs emulated: about a minute and a half per engine.
+machine the release image runs emulated: about a minute and a half per engine. The drill verifies
+the release image's signature with cosign before pulling it and stops if that fails — it needs
+the network to ghcr.io and Sigstore, and there is no switch to skip it; `FROM_IMAGE` must be a
+digest and comes with its `FROM_TAG`.
 
 ## 5. Contract — when a route's shape changed
 

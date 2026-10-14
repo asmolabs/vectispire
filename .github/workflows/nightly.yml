@@ -192,15 +192,19 @@ jobs:
   # `databases` migrates an empty schema; no job had ever started a new control plane on a database
   # the previous release had been living in, which is the only way an operator ever runs a
   # migration. A NOT NULL column without a default, or a backfill that is wrong, passes on zero rows
-  # and fails at the first installation with one. The drill starts the newest `v*` release by the
-  # digest the registry serves for its tag, writes accounts, a repository, settings, a secret and an
-  # API key through its API, stops it, starts this commit's image on the same database, and fails
-  # unless it becomes healthy — Flyway and `ddl-auto: validate` both run before health answers —
-  # and reads every one of those fields back unchanged.
+  # and fails at the first installation with one. The drill resolves the newest `v*` release to the
+  # digest the registry serves for its tag, verifies that digest with cosign against the release
+  # workflow's identity at that tag — refusing to run it otherwise — writes accounts, a repository,
+  # settings, a secret and an API key through its API, stops it, starts this commit's image on the
+  # same database, and fails unless it becomes healthy — Flyway and `ddl-auto: validate` both run
+  # before health answers — and reads every one of those fields back unchanged.
   #
   # Built through the Dockerfile, as `restore` is: the drill never loads a page. Public images
   # only, so the job needs no permission beyond reading the repository; `fetch-depth: 0` brings the
-  # tags the release is resolved from.
+  # tags the release is resolved from. The verification needs none either — no `id-token`, which
+  # signing needs and verifying does not: the signature, the certificate and the transparency-log
+  # proof are public, read from ghcr.io, and Sigstore's trust root from its TUF repository, both
+  # over the runner's ordinary network.
   upgrade:
     runs-on: ubuntu-24.04
     timeout-minutes: 40

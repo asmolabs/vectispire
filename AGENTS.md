@@ -79,7 +79,9 @@ the files, `.dockerignore`, the Gradle build definition, the npm manifests, the 
 range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
 alongside `dockerfiles`, `restore` and `upgrade` — on `cron: '30 2 * * *'`. `upgrade` runs
-`scripts/upgrade-drill.sh` on MySQL and PostgreSQL: the newest `v*` release writes data through
+`scripts/upgrade-drill.sh` on MySQL and PostgreSQL: the newest `v*` release — by the digest the
+registry serves, run only once `cosign verify` accepts it against `release.yml`'s identity at that
+tag, with the cosign `ImageSignatureVerifier` pins — writes data through
 its API, this commit's image starts on the same database — Flyway and `ddl-auto: validate` before
 health — and reads every field back unchanged, unless `ci/upgrade/accepted-rewrites.txt` declares
 the migration that rewrites it. On GitLab the nightly depended

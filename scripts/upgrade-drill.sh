@@ -14,7 +14,8 @@
 # **What it establishes**, on one engine per run (ENGINE=mysql or ENGINE=postgresql):
 #
 #   1. The previous release (the newest `v*` tag, release candidates included, at the digest the
-#      registry serves for it) migrates an empty schema and serves.
+#      registry serves for it, its signature verified with cosign against that tag's release
+#      workflow before it is pulled) migrates an empty schema and serves.
 #   2. Through its API, rows that migrations will meet: the bootstrap account's password changed,
 #      a second account, a solution and a project, a repository target, settings, the webhook
 #      signing secret, an API key, and the audit trail all of that writes.
@@ -46,7 +47,7 @@
 #   scripts/upgrade-drill.sh                                    # mysql, needs vectispire:latest
 #   ENGINE=postgresql scripts/upgrade-drill.sh
 #   TO_IMAGE=vectispire:verify FROM_TAG=v0.10.0 scripts/upgrade-drill.sh
-#   FROM_IMAGE=ghcr.io/asmolabs/vectispire@sha256:… scripts/upgrade-drill.sh
+#   FROM_TAG=v0.10.0 FROM_IMAGE=ghcr.io/asmolabs/vectispire@sha256:… scripts/upgrade-drill.sh
 #   KEEP=1 scripts/upgrade-drill.sh                             # leave the containers up on failure
 
 set -euo pipefail
@@ -60,6 +61,11 @@ ENGINE="${ENGINE:-mysql}"
 TO_IMAGE="${TO_IMAGE:-vectispire:latest}"
 REGISTRY="${REGISTRY:-ghcr.io/asmolabs/vectispire}"
 CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.11.1}"
+# `ImageSignatureVerifier.COSIGN`: v3.1.3, the release workflow's version, by the digest of its
+# multi-architecture index — one pin for the verifier the product runs and the one the drill runs,
+# native on the runner and on arm64. Not overridable: a verifier the environment chooses verifies
+# whatever the environment wants.
+COSIGN_IMAGE="ghcr.io/sigstore/cosign/cosign@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8"
 # Values a migration since the release rewrites on purpose, each with its reason (see the file).
 REWRITES="ci/upgrade/accepted-rewrites.txt"
 # Generous: on a developer's arm64 machine the release image (amd64 only) runs emulated, and a
@@ -83,6 +89,7 @@ DB="${PREFIX}-${ENGINE}-db"
 APP_FROM="${PREFIX}-${ENGINE}-from"
 APP_TO="${PREFIX}-${ENGINE}-to"
 CURL="${PREFIX}-${ENGINE}-curl"
+COSIGN="${PREFIX}-${ENGINE}-cosign"
 # Not secrets, and they must not look like any: the database lives and dies inside this script.
 DRILL_KEY="dXBncmFkZS1kcmlsbC1rZXktbm90LWEtc2VjcmV0LTI="  # gitleaks:allow — base64 of "upgrade-drill-key-not-a-secret-2", invented
 DB_PASSWORD="vectispire-upgrade-drill"
@@ -108,7 +115,7 @@ cleanup() {
     echo "KEEP=1 — leaving $APP_FROM $APP_TO $DB $CURL up"
     return
   fi
-  for c in "$CURL" "$APP_TO" "$APP_FROM" "$DB"; do
+  for c in "$COSIGN" "$CURL" "$APP_TO" "$APP_FROM" "$DB"; do
     docker rm -f "$c" >/dev/null 2>&1 || true
   done
   docker network rm "$NET" >/dev/null 2>&1 || true
@@ -228,15 +235,42 @@ if [ -z "${FROM_IMAGE:-}" ]; then
   # not where this commit's users come from.
   FROM_TAG="${FROM_TAG:-$(git -c versionsort.suffix=-rc tag -l 'v*' --merged HEAD --sort=-v:refname | head -n 1)}"
   [ -n "$FROM_TAG" ] || fail "no v* tag reachable from HEAD — the checkout needs its tags (fetch-depth: 0)"
-  docker pull -q "$REGISTRY:${FROM_TAG#v}" >/dev/null \
-    || fail "$REGISTRY:${FROM_TAG#v} cannot be pulled — was $FROM_TAG published?"
-  # Run by digest, so both phases and the log name the same bytes whatever the tag does meanwhile.
-  FROM_IMAGE=$(docker image inspect -f '{{index .RepoDigests 0}}' "$REGISTRY:${FROM_TAG#v}")
+  # The digest is asked of the registry before anything is pulled, and everything after — the
+  # verification, the pull, both phases, the log — names those bytes whatever the tag does
+  # meanwhile. `json .Manifest` rather than `.Manifest.Digest`: Docker Desktop's buildx ignores
+  # that template on a single-platform manifest and prints the whole description instead.
+  FROM_DIGEST=$(docker buildx imagetools inspect "$REGISTRY:${FROM_TAG#v}" --format '{{json .Manifest}}' | json digest) \
+    || fail "$REGISTRY:${FROM_TAG#v} cannot be resolved — was $FROM_TAG published?"
+  case "$FROM_DIGEST" in
+    sha256:*) ;;
+    *) fail "$REGISTRY:${FROM_TAG#v} resolved to [$FROM_DIGEST], not a digest" ;;
+  esac
+  FROM_IMAGE="$REGISTRY@$FROM_DIGEST"
 else
-  docker image inspect "$FROM_IMAGE" >/dev/null 2>&1 || docker pull -q "$FROM_IMAGE" >/dev/null \
-    || fail "$FROM_IMAGE cannot be pulled"
-  FROM_TAG="${FROM_TAG:-(given)}"
+  # A given image is held to the resolved one's rule: by digest, and verified against the tag it
+  # stands for. An image its release workflow did not sign is not the previous release.
+  case "$FROM_IMAGE" in
+    *@sha256:*) ;;
+    *) fail "FROM_IMAGE must name a digest (…@sha256:…), not [$FROM_IMAGE]" ;;
+  esac
+  [ -n "${FROM_TAG:-}" ] || fail "FROM_IMAGE needs FROM_TAG: its signature is checked against that tag's release workflow"
 fi
+
+# **Verified before it is pulled, with the command a consumer runs.** The image started first is
+# handed the database's password and an encryption key; "the digest the registry serves" says which
+# bytes, not whose. The identity names the release workflow at that tag and the issuer GitHub's
+# OIDC — the pair `release.yml` signs with and then verifies itself. Anything but cosign's exit 0
+# stops the drill, and there is no switch to skip it: a drill that ran an unverified image and
+# passed would be green over the one thing it never looked at. Verifying needs no credential —
+# the image and its signature are public, the trust root is Sigstore's — only the network.
+FROM_IDENTITY="https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/$FROM_TAG"
+FROM_ISSUER="https://token.actions.githubusercontent.com"
+docker run --rm --name "$COSIGN" --cap-drop ALL --security-opt no-new-privileges "$COSIGN_IMAGE" verify \
+    "--certificate-identity=$FROM_IDENTITY" "--certificate-oidc-issuer=$FROM_ISSUER" \
+    "$FROM_IMAGE" > "$WORK/cosign.json" 2> "$WORK/cosign.err" \
+  || { sed 's/^/    /' "$WORK/cosign.err" >&2; fail "$FROM_IMAGE is not verified as signed by $FROM_IDENTITY — not run"; }
+sed -e '/^[[:space:]]*$/d' -e 's/^/  cosign: /' "$WORK/cosign.err"
+docker pull -q "$FROM_IMAGE" >/dev/null || fail "$FROM_IMAGE cannot be pulled"
 echo "  from  $FROM_TAG  $FROM_IMAGE"
 echo "  to    $TO_IMAGE ($(docker image inspect -f '{{.Id}}' "$TO_IMAGE" | cut -c1-19))"
 echo "  on    $ENGINE ($DB_IMAGE)"
