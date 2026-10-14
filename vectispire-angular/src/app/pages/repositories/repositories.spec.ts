@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Repositories } from './repositories';
+import type { NewRepository } from '@/app/core/api.models';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { version as RELEASE } from '../../../../package.json';
@@ -60,7 +61,7 @@ describe('the repository list', () => {
     it('keeps every field the row carried', () => {
         load();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Arm Libs Spring');
         expect(text).toContain('ssh://git@bitbucket.example.com/art/basalt-libs-spring.git');
         expect(text).toContain('master');
@@ -72,21 +73,23 @@ describe('the repository list', () => {
 
     it('shows the sub-path, or a monorepo registered twice reads as one target listed twice', () => {
         load();
-        expect(fixture.nativeElement.textContent).toContain('backend');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('backend');
     });
 
     it("links the outstanding count to that target's backlog", () => {
         load();
 
-        const link = fixture.nativeElement.querySelector('a[href*="/issues"]');
+        const link = (fixture.nativeElement as HTMLElement).querySelector('a[href*="/issues"]');
         expect(link).not.toBeNull();
-        expect(link.getAttribute('href')).toContain('repository_id=5');
+        expect(link!.getAttribute('href')).toContain('repository_id=5');
     });
 
     it('names the project a repository is filed in, and links to it in the tree', () => {
         load(asSchema('RepositorySummary', { ...REPOSITORY, projectId: 11, projectName: 'Gateway' }));
 
-        const cell = fixture.nativeElement.querySelector('[data-testid="repository-project"]') as HTMLElement;
+        const cell = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-testid="repository-project"]'
+        ) as HTMLElement;
         expect(cell.textContent).toContain('Gateway');
         const link = cell.querySelector('a') as HTMLAnchorElement;
         // The fragment is the project's anchor in the tree, so the link lands on the project and not
@@ -100,7 +103,7 @@ describe('the repository list', () => {
      */
     describe('the languages detected in it', () => {
         const languages = () =>
-            fixture.nativeElement.querySelector('[data-testid="repository-languages"]') as HTMLElement;
+            (fixture.nativeElement as HTMLElement).querySelector('[data-testid="repository-languages"]') as HTMLElement;
 
         it('shows each language as a tag', () => {
             load(asSchema('RepositorySummary', { ...REPOSITORY, detectedLanguages: ['java', 'typescript'] }));
@@ -133,7 +136,9 @@ describe('the repository list', () => {
     it("opens the repository's imports from its row: latest coverage, latest test report, SARIF history", () => {
         load();
 
-        const button = fixture.nativeElement.querySelector('[data-testid="sarif-imports-btn"] button') as HTMLElement;
+        const button = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-testid="sarif-imports-btn"] button'
+        ) as HTMLElement;
         expect(button).not.toBeNull();
         button.click();
         fixture.detectChanges();
@@ -154,20 +159,22 @@ describe('the repository list', () => {
     it('shows a dash, and no link, for a repository in no project', () => {
         load();
 
-        const cell = fixture.nativeElement.querySelector('[data-testid="repository-project"]') as HTMLElement;
+        const cell = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-testid="repository-project"]'
+        ) as HTMLElement;
         expect(cell.textContent).toContain('—');
         expect(cell.querySelector('a')).toBeNull();
     });
 
     it('says "nothing outstanding" rather than showing a bare zero', () => {
         load({ ...REPOSITORY, openIssues: 0 });
-        expect(fixture.nativeElement.textContent).toContain('repositories.nothing_outstanding');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('repositories.nothing_outstanding');
     });
 
     it('says a never-scanned target was never scanned', () => {
         load({ ...REPOSITORY, lastScan: null });
         // An empty cell reads as missing data; "never scanned" is a fact about the target.
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('Never scanned') || text.includes('scans.never_scanned')).toBe(true);
     });
 
@@ -180,15 +187,15 @@ describe('the repository list', () => {
         load({ ...REPOSITORY, schedule: { mode: 'default', intervalMinutes: 10080 } });
         // Until 0.11.0 this said "manual only" — worked out here, from two empty fields, on the day the
         // server started rescanning such a target weekly. The server's answer is what is shown now.
-        expect(fixture.nativeElement.textContent).toContain('schedule.label_default');
-        expect(fixture.nativeElement.textContent).not.toContain('schedule.label_manual');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('schedule.label_default');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('schedule.label_manual');
     });
 
     it('says a target set to manual only is scanned only when somebody asks', () => {
         load({ ...REPOSITORY, scanManualOnly: true, schedule: { mode: 'manual', intervalMinutes: null } });
         // A blank schedule column reads as "nothing to say here"; the target is in fact never
         // rescanned, which is the one thing about it worth knowing.
-        expect(fixture.nativeElement.textContent).toContain('schedule.label_manual');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('schedule.label_manual');
     });
 
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
@@ -199,7 +206,7 @@ describe('the repository list', () => {
             schedule: { mode: 'cron', intervalMinutes: null }
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         // The key, since the label is translated now and this harness leaves keys
         // unresolved. `label_cron` is still the whole assertion: it can only be reached
         // by the branch that prefers the expression over the interval.
@@ -225,7 +232,7 @@ describe('the repository list', () => {
         fixture.componentInstance.submit();
 
         const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request
-            .body;
+            .body as NewRepository;
         expect(body.scanIntervalMinutes).toBe(720);
         expect(body.scanCron).toBe('0 2 * * *');
     });
@@ -238,7 +245,7 @@ describe('the repository list', () => {
         fixture.componentInstance.form.scanCron = '';
         fixture.componentInstance.submit();
 
-        const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+        const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
         // `undefined` here would leave the old interval in place while the form showed nothing —
         // the operator would believe the schedule was off and the scans would carry on.
         expect(body.scanIntervalMinutes).toBe(0);
@@ -254,7 +261,7 @@ describe('the repository list', () => {
         fixture.componentInstance.submit();
 
         // Sent on the update path: absent would leave it alone, which is right only by luck.
-        const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+        const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
         expect(body.scanManualOnly).toBe(true);
     });
 
@@ -537,7 +544,7 @@ describe('the repository list', () => {
             screen.submit();
 
             const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request
-                .body;
+                .body as NewRepository;
             expect(body.https_token_id).toBe('tok-gitlab');
             expect(body.sshKeyId).toBe('');
         });
@@ -551,7 +558,7 @@ describe('the repository list', () => {
             screen.form.sshKeyId = 'key-1';
             screen.submit();
 
-            const body = http.expectOne((call) => call.method === 'POST').request.body;
+            const body = http.expectOne((call) => call.method === 'POST').request.body as NewRepository;
             expect(body.sshKeyId).toBe('key-1');
             expect('https_token_id' in body && body.https_token_id !== undefined).toBe(false);
         });
@@ -569,7 +576,7 @@ describe('the repository list', () => {
             screen.form.credentialKind = 'none';
             screen.submit();
 
-            const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+            const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
             expect(body.https_token_id).toBe('');
             expect(body.sshKeyId).toBe('');
         });
@@ -584,7 +591,7 @@ describe('the repository list', () => {
             expect(screen.form.credentialKind).toBe('none');
             screen.submit();
 
-            const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+            const body = http.expectOne((call) => call.method === 'PATCH').request.body as Partial<NewRepository>;
             expect(body.sshKeyId).toBe('');
         });
 
