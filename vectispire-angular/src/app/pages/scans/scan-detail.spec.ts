@@ -198,7 +198,7 @@ describe('the scan detail', () => {
     it('names the scan and its target from the nested summary', async () => {
         await load();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('34');
         expect(text).toContain('Arm Libs Spring');
         expect(text).toContain('master');
@@ -207,7 +207,7 @@ describe('the scan detail', () => {
     it('shows the three counters the summary carries', async () => {
         await load();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('3');
         expect(text).toContain('2');
         expect(text).toContain('1');
@@ -271,7 +271,7 @@ describe('the scan detail', () => {
             { status: 500, statusText: 'Internal Server Error' }
         );
         fixture.detectChanges();
-        expect(fixture.nativeElement.textContent as string).toContain('Scan store is read-only.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Scan store is read-only.');
 
         fixture.componentRef.setInput('id', '35');
         fixture.detectChanges();
@@ -282,7 +282,7 @@ describe('the scan detail', () => {
         );
         fixture.detectChanges();
         // A 404 reads as an absence, in the screen's sentence (no bundle is loaded here: the key).
-        expect(fixture.nativeElement.textContent as string).toContain('scans.error_not_found');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('scans.error_not_found');
     });
 
     it('reports a failure from the summary, not from the detail', async () => {
@@ -291,7 +291,7 @@ describe('the scan detail', () => {
             scan: { ...DETAIL.scan, status: 'failed', error: 'the agent never claimed it' }
         });
 
-        expect(fixture.nativeElement.textContent as string).toContain('the agent never claimed it');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('the agent never claimed it');
     });
 
     it('says when a waiting scan whose attempt could not run may be tried again', async () => {
@@ -306,7 +306,9 @@ describe('the scan detail', () => {
             }
         });
 
-        const retry = fixture.nativeElement.querySelector('[data-testid="scan-retry-at"]') as HTMLElement | null;
+        const retry = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+            '[data-testid="scan-retry-at"]'
+        );
         expect(retry).not.toBeNull();
         expect(retry?.textContent).toContain('Retry at');
     });
@@ -322,13 +324,13 @@ describe('the scan detail', () => {
         expect(page.retryAt({ ...DETAIL.scan, status: 'pending', notBefore: later })).toBe(later);
 
         await load();
-        expect(fixture.nativeElement.querySelector('[data-testid="scan-retry-at"]')).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="scan-retry-at"]')).toBeNull();
     });
 
     it('lists the findings of this scan', async () => {
         await load();
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('CVE-2026-1234');
         expect(text).toContain('openssl');
     });
@@ -352,7 +354,9 @@ describe('the scan detail', () => {
             }
         );
 
-        expect(fixture.nativeElement.textContent as string).toContain('Code analysis covers one pattern, in Python.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+            'Code analysis covers one pattern, in Python.'
+        );
     });
 
     /**
@@ -438,7 +442,7 @@ describe('the scan detail', () => {
 
         const link = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="plugin-outcome"] a');
         expect(link?.getAttribute('href')).toBe('/plugins?id=acme-lint');
-        expect(fixture.nativeElement.textContent as string).toContain('c'.repeat(12));
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('c'.repeat(12));
     });
 
     it('shows no plugin card for a scan that ran none', async () => {
@@ -467,7 +471,7 @@ describe('the scan detail', () => {
         expect(tool?.textContent).toContain('scans.reported_by');
         // The type's own label, a literal key: the dynamic `issues.types.${type}` it replaces was
         // invisible to the i18n check.
-        expect(fixture.nativeElement.textContent as string).toContain('issues.types.plugin');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('issues.types.plugin');
     });
 
     /**
@@ -523,7 +527,7 @@ describe('the scan detail', () => {
     it('stays quiet when the estate is covered, so the one that matters stays visible', async () => {
         await load();
 
-        expect(fixture.nativeElement.textContent as string).not.toContain('Code analysis covers');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Code analysis covers');
     });
 
     /**

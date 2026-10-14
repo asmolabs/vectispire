@@ -390,7 +390,7 @@ describe('every screen', () => {
         }
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toBeDefined();
+        expect((fixture.nativeElement as HTMLElement).textContent).toBeDefined();
         http.verify();
     });
 
@@ -449,7 +449,7 @@ describe('every screen', () => {
         }
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toBeDefined();
+        expect((fixture.nativeElement as HTMLElement).textContent).toBeDefined();
         http.verify();
     });
 });

@@ -99,7 +99,7 @@ describe('the OWASP report screen', () => {
             createdAt: '2026-08-21T07:57:53Z'
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('A03 — Injection');
         expect(text).toContain('A finding.');
         // The hashes are typography, not content. Printing them is what the block rendering
@@ -120,7 +120,7 @@ describe('the OWASP report screen', () => {
         });
 
         // A run that vanished would leave this page identical to one nobody ever asked for.
-        expect(fixture.nativeElement.textContent).toContain('Ollama: request timed out');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ollama: request timed out');
     });
 
     it('a review still being written says so, and renders no report', () => {
@@ -140,7 +140,7 @@ describe('the OWASP report screen', () => {
             createdAt: '2026-08-21T07:40:01Z'
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Another request is waiting for the model');
     });
 
@@ -203,7 +203,7 @@ describe('the OWASP report screen', () => {
         });
         // A PDF of "the model could not be reached", under an OWASP cover, would look like a
         // report and say nothing — and a file travels away from the screen that explained it.
-        expect(fixture.nativeElement.textContent).not.toContain('Export PDF');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Export PDF');
 
         runProducing({
             id: 4,
@@ -215,7 +215,7 @@ describe('the OWASP report screen', () => {
             scanId: 34,
             createdAt: '2026-08-21T07:57:53Z'
         });
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('Export PDF') || text.includes('owasp.export_pdf')).toBe(true);
     });
 
@@ -300,7 +300,7 @@ describe('the OWASP report screen', () => {
             createdAt: '2026-09-17T09:00:00Z'
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Repository: basalt-libs');
         // Said where a reader sees it, not only in the code: the prose is a commentary, and nothing
         // it asserts becomes a finding or reaches a gate.
@@ -322,7 +322,7 @@ describe('the OWASP report screen', () => {
             createdAt: '2026-09-17T09:00:00Z'
         });
 
-        expect(fixture.nativeElement.textContent as string).not.toContain('What the model was given');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('What the model was given');
     });
 });
 

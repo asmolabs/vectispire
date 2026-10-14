@@ -81,7 +81,7 @@ describe('the SSH keys screen', () => {
     it('lists each key with its shortened public key and the repositories using it', () => {
         list();
 
-        const row = fixture.nativeElement.querySelector('tbody tr') as HTMLElement;
+        const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr') as HTMLElement;
         expect(row.textContent).toContain('deploy-payments');
         // 44 characters and an ellipsis: the whole line would crush every other column.
         expect(row.textContent).toContain(`${KEY.publicKey.slice(0, 44)}…`);
@@ -97,7 +97,7 @@ describe('the SSH keys screen', () => {
 
         // No bundle is loaded, so a tag shows its key: what matters is *which* — a literal one, and
         // for a state the client does not know, the unreadable one rather than a built path.
-        const tags = [...fixture.nativeElement.querySelectorAll('tbody p-tag')].map((tag: Element) =>
+        const tags = [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody p-tag')].map((tag: Element) =>
             tag.textContent.trim()
         );
         expect(tags).toEqual(['ssh_keys.encryption_status.rotate', 'ssh_keys.encryption_status.unreadable']);
@@ -106,7 +106,7 @@ describe('the SSH keys screen', () => {
     it('says when there is no key', () => {
         list([]);
 
-        expect(fixture.nativeElement.textContent).toContain('ssh_keys.no_keys');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('ssh_keys.no_keys');
     });
 
     it('says the list could not be loaded', () => {
@@ -136,7 +136,7 @@ describe('the SSH keys screen', () => {
         list();
 
         expect(fixture.componentInstance.formVisible()).toBe(false);
-        expect(fixture.nativeElement.querySelector('tbody')?.textContent).toContain('deploy-payments');
+        expect((fixture.nativeElement as HTMLElement).querySelector('tbody')?.textContent).toContain('deploy-payments');
     });
 
     it("keeps the dialog open on the server's refusal, and shows its reason", () => {
@@ -166,7 +166,7 @@ describe('the SSH keys screen', () => {
         http.expectOne((call) => call.method === 'DELETE' && call.url === `/api/v1/ssh-keys/${KEY.id}`).flush(null);
         list([]);
 
-        expect(fixture.nativeElement.textContent).toContain('ssh_keys.no_keys');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('ssh_keys.no_keys');
     });
 
     it('says why a key still in use cannot be deleted', () => {

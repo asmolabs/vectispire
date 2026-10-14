@@ -119,7 +119,7 @@ describe('the remediation plan', () => {
 
         // **The order is the information.** A page that ranks by leverage and then reorders by
         // name, or that a `track` would shuffle, turns a work order into a list.
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.indexOf('log4j-core')).toBeLessThan(text.indexOf('openssl'));
         expect(text).toContain('2.14.1');
         expect(text).toContain('2.17.1');
@@ -131,7 +131,7 @@ describe('the remediation plan', () => {
         // can return nothing, the screen has to say what.
         answer([fix({ recommendedVersion: null as unknown as string })], { totalOpenIssues: 1 });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Aucune version corrigée publiée');
         expect(text).not.toContain('latest-patch');
     });
@@ -145,7 +145,7 @@ describe('the remediation plan', () => {
         }
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain('log4j-core');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('log4j-core');
         expect(fixture.componentInstance.error()).toBeNull();
     });
 
@@ -212,7 +212,7 @@ describe('the remediation plan', () => {
             }
         );
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Ce que ce plan ne referme pas');
         expect(text).toContain('12 des 412 constats ouverts');
         expect(text).toContain('Les 400 autres');
@@ -233,7 +233,7 @@ describe('the remediation plan', () => {
             }
         );
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).not.toContain('Ce que ce plan ne referme pas');
         expect(text).toContain('Les 12 constats ouverts se ferment tous');
     });
@@ -252,7 +252,7 @@ describe('the remediation plan', () => {
             }
         );
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain("constats d'un autre type");
         expect(text).not.toContain('remediation.gap');
     });
@@ -260,7 +260,7 @@ describe('the remediation plan', () => {
     it('shows no admission when the server did not answer, and keeps the plan', () => {
         answer([fix({})], { totalOpenIssues: 9 });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('log4j-core');
         expect(text).not.toContain('Ce que ce plan ne referme pas');
         expect(fixture.componentInstance.error()).toBeNull();
@@ -271,7 +271,7 @@ describe('the remediation plan', () => {
 
         // Four open findings and no plan row: the message must explain that the plan ranks only
         // what a version bump closes, without which the screen looks broken.
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('Rien à monter de version.');
         expect(text).toContain('4');
     });

@@ -129,7 +129,9 @@ describe('the agents screen, on concurrent scans', () => {
     });
 
     it('shows each agent as running out of allowed', () => {
-        const cell = fixture.nativeElement.querySelector('td[title*="allowed at once"]') as HTMLElement;
+        const cell = (fixture.nativeElement as HTMLElement).querySelector(
+            'td[title*="allowed at once"]'
+        ) as HTMLElement;
         expect(cell.textContent?.replace(/\s+/g, ' ').trim()).toBe('2 / 4');
     });
 
@@ -240,7 +242,9 @@ describe('the agents screen, on forgetting a sealing key', () => {
     }
 
     function button(testId: string): HTMLButtonElement | null {
-        return fixture.nativeElement.querySelector(`[data-testid="${testId}"] button`) as HTMLButtonElement | null;
+        return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+            `[data-testid="${testId}"] button`
+        );
     }
 
     // The dialog may be rendered outside the component's element, so it is looked for in the page.
@@ -279,8 +283,10 @@ describe('the agents screen, on forgetting a sealing key', () => {
 
         flushLoad([{ ...SEALING, sealsCredentials: false }]);
         expect(button('reset-sealing-key')).toBeNull();
-        expect(fixture.nativeElement.textContent).toContain('credentials withheld');
-        expect(fixture.nativeElement.textContent).toContain('The sealing key of runner-dmz-02 is forgotten');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('credentials withheld');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+            'The sealing key of runner-dmz-02 is forgotten'
+        );
     });
 
     it('sends nothing when the confirmation is cancelled', async () => {
@@ -303,7 +309,7 @@ describe('the agents screen, on forgetting a sealing key', () => {
             { status: 404, statusText: 'Not Found' }
         );
         flushLoad([]);
-        expect(fixture.nativeElement.textContent).toContain('This agent no longer exists.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('This agent no longer exists.');
     });
 });
 
@@ -350,7 +356,9 @@ describe('the agents screen, on credentialed scans nobody can take', () => {
     }
 
     function banner(): string | null {
-        const found = fixture.nativeElement.querySelector('[data-testid="credentialed-backlog"]') as HTMLElement | null;
+        const found = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+            '[data-testid="credentialed-backlog"]'
+        );
         return found ? (found.textContent ?? '').replace(/\s+/g, ' ').trim() : null;
     }
 

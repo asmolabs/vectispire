@@ -76,7 +76,7 @@ describe('the component search', () => {
     it('shows the library version and our release side by side', () => {
         search('log4j', '', { occurrences: [OCCURRENCE], total: 1, truncated: false });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text).toContain('log4j-core');
         expect(text).toContain('2.14.1');
         // The half that makes the answer actionable rather than merely true.
@@ -100,7 +100,7 @@ describe('the component search', () => {
         search('log4j', '', { occurrences: [OCCURRENCE], total: 500, truncated: true });
 
         // A capped list read as complete is a wrong answer to "is that all of them".
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('narrow the search by version') || text.includes('inventory.truncated_warn')).toBe(true);
     });
 
@@ -111,7 +111,7 @@ describe('the component search', () => {
             truncated: false
         });
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         // Several ecosystems ship no dependency graph; "transitive" there would state something
         // nothing established.
         expect(text).toContain('unknown');
@@ -153,7 +153,7 @@ describe('the component search', () => {
     it('distinguishes "nothing catalogued" from "we do not use it"', () => {
         search('nothing', '', { occurrences: [], total: 0, truncated: false });
 
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('No scan has catalogued this component') || text.includes('inventory.no_results')).toBe(
             true
         );

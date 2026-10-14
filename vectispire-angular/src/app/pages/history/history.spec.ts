@@ -107,7 +107,7 @@ describe('the history screen', () => {
     it('opens the first target rather than waiting for a click', () => {
         load();
         expect(fixture.componentInstance.selectedId()).toBe(5);
-        expect(fixture.nativeElement.textContent).toContain('Arm Libs Spring');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Arm Libs Spring');
     });
 
     // Red here, orange on the dashboard: the same high finding changed colour between two screens.
@@ -155,7 +155,7 @@ describe('the history screen', () => {
         load();
         // A counter at zero cannot distinguish "nothing was triaged" from "the decisions predate
         // the recording of this history", and those say very different things about the process.
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(
             text.includes('No triage decision has been recorded') || text.includes('history.no_decisions_recorded')
         ).toBe(true);
@@ -178,7 +178,7 @@ describe('the history screen', () => {
             }
         ]);
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.toLowerCase()).toContain('under review');
         expect(text.toLowerCase()).toContain('not affected');
         expect(text).toContain('alice');
@@ -202,7 +202,7 @@ describe('the history screen', () => {
             }
         ]);
 
-        const text = fixture.nativeElement.textContent;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('expired automatically') || text.includes('history.expired_auto')).toBe(true);
     });
 
@@ -223,7 +223,7 @@ describe('the history screen', () => {
             }
         ]);
 
-        const text = fixture.nativeElement.textContent as string;
+        const text = (fixture.nativeElement as HTMLElement).textContent;
         expect(text.includes('resolved since 02/05/2026') || text.includes('history.reopened_since')).toBe(true);
         expect(text.includes('expired automatically') || text.includes('history.expired_auto')).toBe(false);
     });
@@ -249,7 +249,7 @@ describe('the history screen', () => {
         );
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain('History index is being rebuilt.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('History index is being rebuilt.');
     });
 
     it('shows a failed dossier in the server’s words', () => {
@@ -260,6 +260,6 @@ describe('the history screen', () => {
         );
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain('Repository 5 is no longer monitored.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Repository 5 is no longer monitored.');
     });
 });

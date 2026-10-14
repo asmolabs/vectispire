@@ -67,14 +67,14 @@ describe("a repository's SARIF imports", () => {
         fixture.detectChanges();
 
         expect((fixture.nativeElement as HTMLElement).querySelector('input[type="file"], button')).toBeNull();
-        expect(fixture.nativeElement.textContent).toContain('No SARIF report was imported');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('No SARIF report was imported');
     });
 
     it('reads a 404 as a repository that is not visible, and says nothing more', () => {
         http.expectOne('/api/v1/repositories/42/sarif-imports').flush(null, { status: 404, statusText: 'Not Found' });
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain('does not exist or is not visible to you');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('does not exist or is not visible to you');
     });
 
     it("follows the input to another repository's history", () => {
