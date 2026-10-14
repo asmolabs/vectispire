@@ -7,6 +7,7 @@ import { missingFromBundles } from '@/app/core/testing/bundles';
 import { useEnglish } from '@/app/core/testing/english';
 import english from '../../../../public/i18n/en.json';
 import { Forbidden, NEED_KEYS } from './forbidden';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The refusal page, read as the person refused reads it: a heading saying what the page needs, and
@@ -31,7 +32,7 @@ describe('the refusal page', () => {
             ]
         });
         useEnglish();
-        TestBed.inject(SessionStore).user.set({ id: 1, username: 'x', role, mustChangePassword: false } as never);
+        TestBed.inject(SessionStore).user.set(sessionUser(role));
         const fixture = TestBed.createComponent(Forbidden);
         fixture.detectChanges();
         return fixture.nativeElement as HTMLElement;

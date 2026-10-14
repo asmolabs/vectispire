@@ -8,6 +8,7 @@ import { appRoutes } from '../../app.routes';
 import { safeReturnUrl } from './auth.guard';
 import { SessionStore } from './session.store';
 import { useEnglish } from './testing/english';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The shell's guard, exercised through **the application's own route table.**
@@ -52,7 +53,7 @@ describe('the shell, signed out', () => {
     });
 
     it('keeps a provisioned account on the password change, wherever it tries to go, and remembers where', async () => {
-        session.open('token', { username: 'x', role: 'ADMIN', mustChangePassword: true } as never);
+        session.open('token', sessionUser('ADMIN', { mustChangePassword: true }));
         const harness = await RouterTestingHarness.create();
         await harness.navigateByUrl('/forbidden');
 
@@ -60,7 +61,7 @@ describe('the shell, signed out', () => {
     });
 
     it('lets a session in', async () => {
-        session.open('token', { username: 'x', role: 'USER', mustChangePassword: false } as never);
+        session.open('token', sessionUser('USER'));
         const harness = await RouterTestingHarness.create();
         await harness.navigateByUrl('/forbidden');
 

@@ -8,6 +8,7 @@ import type { SettingDefinition } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import { SettingsCatalog } from './settings-catalog';
 import { SettingsState } from './settings-state';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The tracker CA in the tracker card: a PEM bundle is several lines, so it is a text area and not the
@@ -58,7 +59,7 @@ describe('the tracker CA field', () => {
         TestBed.inject(I18nService).translations.set({
             settings: { ticket_ca_pinned: 'Pinned: {{subject}}, valid until {{date}}' }
         });
-        TestBed.inject(SessionStore).open('a-token', { username: 'someone', role } as never);
+        TestBed.inject(SessionStore).open('a-token', sessionUser(role, { username: 'someone' }));
         http = TestBed.inject(HttpTestingController);
 
         fixture = TestBed.createComponent(SettingsCatalog);

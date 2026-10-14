@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, provideRouter, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { requires, Need } from './role.guard';
 import { SessionStore } from './session.store';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The guards, and the two ways they can be wrong.
@@ -25,11 +26,11 @@ describe('the role guards', () => {
         if (role === null) {
             session.close();
         } else {
-            session.open('token', { id: 1, username: 'x', role, mustChangePassword: false } as never);
+            session.open('token', sessionUser(role));
         }
         const guard = requires(need);
         return TestBed.runInInjectionContext(() =>
-            guard({ routeConfig: { path: 'settings' } } as never, {} as never)
+            guard({ routeConfig: { path: 'settings' } } as ActivatedRouteSnapshot, {} as RouterStateSnapshot)
         ) as true | UrlTree;
     }
 

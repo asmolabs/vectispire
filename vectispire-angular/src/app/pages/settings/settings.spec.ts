@@ -8,6 +8,7 @@ import { Settings } from './settings';
 import { SettingsCatalog } from './settings-catalog';
 import { SettingsModelReview } from './settings-model-review';
 import { SettingsTicketing } from './settings-ticketing';
+import type { SettingDefinition } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -67,6 +68,24 @@ describe('the settings screen', () => {
         ]
     });
 
+    /** One catalogue entry, whole: the predicates below take a `SettingDefinition`, not the two flags they read. */
+    function setting(key: string, changes: Partial<SettingDefinition> = {}): SettingDefinition {
+        const entry: SettingDefinition = {
+            key,
+            type: 'text',
+            section: 'Notifications',
+            label: key,
+            help: '',
+            default: '',
+            value: '',
+            configured: false,
+            governor_only: false,
+            administrator_only: false,
+            ...changes
+        };
+        return asSchema('SettingView', entry);
+    }
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [Settings],
@@ -93,8 +112,8 @@ describe('the settings screen', () => {
     it('greys out where a credential is sent for an account that may not set the credential', () => {
         // The server refuses the change for anyone but an administrator; an editable field would
         // only turn a deliberate rule into a 403 after the fact. No session here: not an admin.
-        const destination = { administrator_only: true, governor_only: false } as never;
-        const ordinary = { administrator_only: false, governor_only: false } as never;
+        const destination = setting('ticket_webhook_url', { administrator_only: true });
+        const ordinary = setting('notification_webhook_url');
 
         expect(section(SettingsCatalog).isReadOnlyHere(destination)).toBe(true);
         expect(section(SettingsCatalog).isReadOnlyHere(ordinary)).toBe(false);
@@ -103,8 +122,8 @@ describe('the settings screen', () => {
     it('keys the button to the settings, not to the section title', () => {
         // A label is prose and prose gets reworded; keying the button to it made it vanish
         // silently once already. The keys are the contract.
-        const modelReview = { settings: [{ key: 'ai_review_model' }] } as never;
-        const notifications = { settings: [{ key: 'notification_webhook_url' }] } as never;
+        const modelReview = { settings: [setting('ai_review_model')] };
+        const notifications = { settings: [setting('notification_webhook_url')] };
 
         expect(section(SettingsCatalog).isModelReview(modelReview)).toBe(true);
         expect(section(SettingsCatalog).isModelReview(notifications)).toBe(false);

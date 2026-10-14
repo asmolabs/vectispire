@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ComplianceHistoryPage } from './compliance-history';
+import type { ComplianceMovement, ComplianceStep } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 
@@ -24,7 +25,7 @@ describe('compliance progress', () => {
     let fixture: ComponentFixture<ComplianceHistoryPage>;
     let http: HttpTestingController;
 
-    function step(period: string, score: number, movement: string, targets = 10) {
+    function step(period: string, score: number, movement: ComplianceMovement, targets = 10): ComplianceStep {
         return asSchema('Step', {
             snapshot: {
                 period,
@@ -98,8 +99,8 @@ describe('compliance progress', () => {
     it('scales the bar against one hundred and not against the series maximum', () => {
         // A scale that adjusts itself would make a two-point gain look like a leap.
         const component = fixture.componentInstance;
-        expect(component.height(step('2026-08', 50, 'STEADY') as never)).toBe(50);
-        expect(component.height(step('2026-08', 0, 'STEADY') as never)).toBeGreaterThan(0);
+        expect(component.height(step('2026-08', 50, 'STEADY'))).toBe(50);
+        expect(component.height(step('2026-08', 0, 'STEADY'))).toBeGreaterThan(0);
     });
 
     it("heads each series with the standard's name, not the Java constant", () => {

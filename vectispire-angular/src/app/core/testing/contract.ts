@@ -71,6 +71,20 @@ export function asSchemaList<K extends keyof Schemas, T>(name: K, fixtures: T[])
     return fixtures.map((fixture) => asSchema(name, fixture));
 }
 
+/**
+ * A word a newer server could send that this client's union does not hold yet — an outcome, a
+ * refusal, a kind. The screens must show it as sent rather than as a key path (decision 0019), and
+ * the spec that proves it has to put an impossible value into a typed fixture.
+ *
+ * <p>That is the one cast a spec has a reason to make, so it is made here, by name, with the rest
+ * of the fixture still checked: `{ ...SOURCE, kinds: [newerServerWord('spdx')] }` keeps every
+ * other field typed, where `{ ... } as never` or `as unknown as` silenced the whole object and
+ * hid a missing field beside the word under test.
+ */
+export function newerServerWord<T extends string>(word: string): T {
+    return word as T;
+}
+
 interface JsonSchema {
     $ref?: string;
     type?: string;

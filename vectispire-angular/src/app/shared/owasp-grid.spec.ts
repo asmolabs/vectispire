@@ -15,10 +15,10 @@ import { missingFromBundles } from '@/app/core/testing/bundles';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 import english from '../../../public/i18n/en.json';
 import french from '../../../public/i18n/fr.json';
-import type { DeclarationRequest, OwaspGrid } from '@/app/core/api.models';
+import type { DeclarationRequest, OwaspCoverageLine, OwaspGrid, OwaspState } from '@/app/core/api.models';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, newerServerWord } from '@/app/core/testing/contract';
 
 /**
  * The grid of ten, and the distinction that justifies it.
@@ -31,11 +31,13 @@ describe('la grille OWASP', () => {
     let fixture: ComponentFixture<OwaspGridComponent>;
     let http: HttpTestingController;
 
-    function line(id: string, state: string, findings = 0) {
-        return { id, title: id, state, findings, because: 'parce que.' };
+    // Typed: the lines lacked the `declaration` and the grid the `scope` the server sends as null, and
+    // a cast at the one use that needed the type had kept that from showing.
+    function line(id: string, state: OwaspState, findings = 0): OwaspCoverageLine {
+        return { id, title: id, state, findings, because: 'parce que.', declaration: null };
     }
 
-    const GRID = asSchema('DeclaredGrid', {
+    const GRID: OwaspGrid = asSchema('DeclaredGrid', {
         lines: [
             line('A01', 'NOT_COVERED'),
             line('A05', 'FINDINGS', 3),
@@ -44,7 +46,8 @@ describe('la grille OWASP', () => {
         ],
         covered: 3,
         withFindings: 1,
-        unmeasured: 1
+        unmeasured: 1,
+        scope: null
     });
 
     beforeEach(async () => {
@@ -83,8 +86,8 @@ describe('la grille OWASP', () => {
         useEnglish();
         fixture.componentInstance.grid.set({
             ...GRID,
-            lines: [...GRID.lines, line('A10', 'PARTLY_MEASURED')]
-        } as OwaspGrid);
+            lines: [...GRID.lines, line('A10', newerServerWord('PARTLY_MEASURED'))]
+        } satisfies OwaspGrid);
         fixture.detectChanges();
 
         const cells = [...(fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr td:nth-child(2)')].map(
@@ -289,7 +292,9 @@ describe('la grille OWASP', () => {
      * the screen writes the sentence, putting the counts, the types and the reasons where French puts them.
      */
     describe('the reason, as a code', () => {
-        const reasoned = asSchema('DeclaredGrid', {
+        // Typed, where a cast at each use had hidden that every line lacked its `declaration` and the
+        // grid its `scope`, both of which the server sends as null when there is none.
+        const reasoned: OwaspGrid = asSchema('DeclaredGrid', {
             lines: [
                 {
                     id: 'A06',
@@ -298,6 +303,7 @@ describe('la grille OWASP', () => {
                     findings: 0,
                     because:
                         'Scanned by vulnerability, eol — the latest scan of every target it applies to examined it — with nothing open.',
+                    declaration: null,
                     reason: {
                         code: 'EXAMINED_NOTHING_OPEN',
                         types: ['vulnerability', 'eol'],
@@ -312,6 +318,7 @@ describe('la grille OWASP', () => {
                     state: 'NOT_MEASURED',
                     findings: 0,
                     because: 'two of three targets were not examined (in English).',
+                    declaration: null,
                     reason: {
                         code: 'TARGETS_NOT_EXAMINED',
                         types: ['secret'],
@@ -329,6 +336,7 @@ describe('la grille OWASP', () => {
                     state: 'NOT_MEASURED',
                     findings: 0,
                     because: 'One repository was not examined (in English).',
+                    declaration: null,
                     reason: {
                         code: 'REPOSITORIES_NOT_EXAMINED',
                         types: [],
@@ -340,7 +348,8 @@ describe('la grille OWASP', () => {
             ],
             covered: 3,
             withFindings: 0,
-            unmeasured: 2
+            unmeasured: 2,
+            scope: null
         });
 
         function reasons(): string[] {
@@ -351,7 +360,7 @@ describe('la grille OWASP', () => {
 
         it('writes the French sentence, with its counts, types and reasons, to a French reader', () => {
             useFrench();
-            fixture.componentInstance.grid.set(reasoned as OwaspGrid);
+            fixture.componentInstance.grid.set(reasoned);
             fixture.detectChanges();
 
             expect(reasons()).toEqual([
@@ -368,7 +377,7 @@ describe('la grille OWASP', () => {
 
         it('writes the English one to an English reader', () => {
             useEnglish();
-            fixture.componentInstance.grid.set(reasoned as OwaspGrid);
+            fixture.componentInstance.grid.set(reasoned);
             fixture.detectChanges();
 
             expect(reasons()[0]).toBe(
@@ -391,11 +400,14 @@ describe('la grille OWASP', () => {
             fixture.componentInstance.grid.set({
                 ...reasoned,
                 lines: [
-                    { ...first, reason: { ...first.reason, code: 'PARTLY_EXAMINED' } },
-                    { ...second, reason: { ...second.reason, gaps: [{ gap: 'SCANNER_ON_STRIKE', targets: 2 }] } },
+                    { ...first, reason: { ...first.reason!, code: newerServerWord('PARTLY_EXAMINED') } },
+                    {
+                        ...second,
+                        reason: { ...second.reason!, gaps: [{ gap: newerServerWord('SCANNER_ON_STRIKE'), targets: 2 }] }
+                    },
                     { ...third, reason: undefined }
                 ]
-            } as unknown as OwaspGrid);
+            });
             fixture.detectChanges();
 
             expect(reasons()).toEqual([first.because, second.because, third.because]);

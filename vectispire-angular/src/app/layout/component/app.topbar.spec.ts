@@ -7,6 +7,7 @@ import { AppTopbar } from './app.topbar';
 import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /**
  * The sign-out button.
@@ -50,7 +51,7 @@ describe('la barre du haut', () => {
         });
 
         session = TestBed.inject(SessionStore);
-        session.open('a-token', { username: 'c.moreau', role: 'USER' } as never);
+        session.open('a-token', sessionUser('USER', { username: 'c.moreau' }));
 
         router = TestBed.inject(Router);
         vi.spyOn(router, 'navigate').mockResolvedValue(true);

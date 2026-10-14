@@ -5,6 +5,7 @@ import { Router, UrlTree, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { authInterceptor } from './auth.interceptor';
 import { SessionStore } from './session.store';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 
 /** The 401 that ends a session, and the page it should not make the person lose. */
 describe('the session interceptor', () => {
@@ -26,7 +27,7 @@ describe('the session interceptor', () => {
         router = TestBed.inject(Router);
         session = TestBed.inject(SessionStore);
         navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-        session.open('expired', { username: 'x', role: 'USER', mustChangePassword: false } as never);
+        session.open('expired', sessionUser('USER'));
     });
 
     function where(): string {

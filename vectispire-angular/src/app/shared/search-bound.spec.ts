@@ -19,6 +19,7 @@ interface Operation {
 
 /** The `maxLength` the contract publishes for one query parameter of one route. */
 function publishedBound(path: string, parameter: string): number | undefined {
+    // eslint-disable-next-line no-restricted-syntax -- the JSON import's literal type is 240 paths of weak shapes no narrower type accepts
     const paths = document.paths as unknown as Record<string, { get?: Operation }>;
     return paths[path]?.get?.parameters?.find((declared) => declared.name === parameter)?.schema?.maxLength;
 }
