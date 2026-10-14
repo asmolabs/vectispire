@@ -157,6 +157,105 @@ class ScimGroupsRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a rename to a displayName another group holds is 409 uniqueness, by PUT or PATCH, and changes nothing")
+    void aRenameToATakenNameIsRefused() throws Exception {
+        long member = account("scim-staying");
+        long id = team("Platform");
+        team("Payments");
+        members.save(new TeamMemberEntity(id, member, TeamMemberEntity.Origin.SCIM));
+        long entriesBefore = auditLogs.count();
+
+        // The name compared as the creation compares it, whatever its case: two teams a screen shows
+        // as one. A PUT went on to rewrite the row, and the unique constraint answered it 500 at the
+        // flush — on MySQL, whose collation folds case, and not at all on PostgreSQL, whose does not.
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("displayName", "payments", "members", List.of()))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.status").value("409"))
+                .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                .andExpect(jsonPath("$.detail").value("A group with this displayName already exists."));
+
+        // Both forms a directory sends a rename in; each carries a membership change beside it, which
+        // must not survive the refusal either.
+        for (Map<String, Object> operation : List.of(
+                Map.<String, Object>of("op", "replace", "path", "displayName", "value", "Payments"),
+                Map.<String, Object>of("op", "Replace", "value", Map.of("displayName", "PAYMENTS")))) {
+            mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                            .contentType(SCIM)
+                            .content(write(Map.of("Operations", List.of(
+                                    Map.of("op", "remove", "path", "members"),
+                                    operation)))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.scimType").value("uniqueness"))
+                    .andExpect(jsonPath("$.detail").value("A group with this displayName already exists."));
+        }
+
+        assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("Platform");
+        assertThat(members.findByTeamId(id))
+                .extracting(m -> m.getId().userId())
+                .containsExactly(member);
+        assertThat(auditLogs.count()).isEqualTo(entriesBefore);
+    }
+
+    @Test
+    @DisplayName("a PATCH renames a group, in either form a directory sends, and its own name in another case is no conflict")
+    void patchRenamesGroup() throws Exception {
+        long id = team("Platform");
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace", "path", "displayName", "value", "Platform Engineering"))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Platform Engineering"));
+        assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("Platform Engineering");
+        assertAudited("SCIM patched team: Platform Engineering");
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "Replace", "value", Map.of("displayName", "platform engineering")))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("platform engineering"));
+        assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("platform engineering");
+
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("displayName", "Platform Engineering"))))
+                .andExpect(status().isOk());
+        assertThat(teams.findById(id).orElseThrow().getName()).isEqualTo("Platform Engineering");
+    }
+
+    @Test
+    @DisplayName("a displayName past the column is a SCIM 400 on creation, replacement and patch, and nothing is written")
+    void aDisplayNamePastTheColumnIsRefused() throws Exception {
+        long id = team("Platform");
+        String tooLong = "g".repeat(101);
+
+        mvc.perform(authenticated(post("/scim/v2/Groups"), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("displayName", tooLong))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.schemas[0]").value("urn:ietf:params:scim:api:messages:2.0:Error"))
+                .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
+        mvc.perform(authenticated(put("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("displayName", tooLong))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "replace", "path", "displayName", "value", tooLong))))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("The SCIM attribute displayName is longer than 100 characters."));
+
+        assertThat(teams.findAll()).extracting(TeamEntity::getName).containsExactly("Platform");
+    }
+
+    @Test
     @DisplayName("patch a group: add a member, then remove one")
     void patchesGroup() throws Exception {
         long kept = account("scim-kept");

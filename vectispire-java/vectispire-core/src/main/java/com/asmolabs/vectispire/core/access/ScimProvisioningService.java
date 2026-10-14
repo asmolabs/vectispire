@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -158,6 +159,18 @@ public class ScimProvisioningService {
         record Created(GroupView group) implements GroupCreation {}
 
         record NameTaken() implements GroupCreation {}
+    }
+
+    /**
+     * A replacement's or a patch's outcome. {@code NameTaken} is a rename to a name another team holds,
+     * refused with nothing written — the membership rewrite beside it included.
+     */
+    public sealed interface GroupChange {
+        record Changed(GroupView group) implements GroupChange {}
+
+        record Absent() implements GroupChange {}
+
+        record NameTaken() implements GroupChange {}
     }
 
     // --- Users ---------------------------------------------------------------------------------
@@ -468,10 +481,7 @@ public class ScimProvisioningService {
 
     /** @param memberValues each member's SCIM {@code value}: an account id, or a username */
     public GroupCreation createGroup(String displayName, List<String> memberValues, RequestActor origin) {
-        String name = displayName == null ? "" : displayName.trim();
-        if (name.isBlank()) {
-            throw new InvalidInputException("Group displayName cannot be blank.");
-        }
+        String name = groupName(displayName);
 
         GroupCreation outcome = transactions.execute(status -> {
             if (teams.findByNameIgnoreCase(name).isPresent()) {
@@ -501,17 +511,29 @@ public class ScimProvisioningService {
         return outcome;
     }
 
-    /** Replaces the name, when one is given, and the whole membership. Empty when there is no such team. */
-    public Optional<GroupView> replaceGroup(Long id, String displayName, List<String> memberValues, RequestActor origin) {
-        Optional<GroupView> replaced = transactions.execute(status -> {
+    /**
+     * Replaces the name, when one is given, and the whole membership.
+     *
+     * <p><b>A name another team holds is refused before anything is written</b>, as the creation
+     * refuses it and compared the same way, whatever its case. The rename went on to the flush and the
+     * unique constraint answered it 500 — on MySQL, whose collation folds case, while PostgreSQL's
+     * does not and stored a second team the screens show under the same name.
+     */
+    public GroupChange replaceGroup(Long id, String displayName, List<String> memberValues, RequestActor origin) {
+        // A blank name leaves the team's as it is: a replacement whose document omits it is not a rename.
+        String name = displayName == null || displayName.isBlank() ? null : groupName(displayName);
+        GroupChange outcome = transactions.execute(status -> {
             Optional<TeamEntity> found = teams.findById(id);
             if (found.isEmpty()) {
-                return Optional.<GroupView>empty();
+                return new GroupChange.Absent();
             }
 
             TeamEntity team = found.get();
-            if (displayName != null && !displayName.isBlank()) {
-                team.setName(displayName.trim());
+            if (name != null) {
+                if (takenByAnother(name, id)) {
+                    return new GroupChange.NameTaken();
+                }
+                team.setName(name);
                 // Flushed now, not at commit: `deleteByTeamId` below clears the persistence
                 // context, and a rename still pending in it was discarded — the response carried
                 // the new name, the row kept the old one, and nothing failed.
@@ -526,20 +548,29 @@ public class ScimProvisioningService {
                 }
             }
 
-            return Optional.of(viewOf(team, members.findMembershipsOf(id)));
+            return new GroupChange.Changed(viewOf(team, members.findMembershipsOf(id)));
         });
 
-        replaced.ifPresent(group ->
-                recordGroup(origin, "SCIM updated team: " + group.name(), group.name()));
-        return replaced;
+        if (outcome instanceof GroupChange.Changed(GroupView group)) {
+            recordGroup(origin, "SCIM updated team: " + group.name(), group.name());
+        }
+        return outcome;
     }
 
-    /** Empty when there is no such team. */
-    public Optional<GroupView> patchGroup(Long id, List<PatchOperation> operations, RequestActor origin) {
-        Optional<GroupView> patched = transactions.execute(status -> {
+    /**
+     * Applies the operations in order, in one transaction: an operation refused rolls back those before it.
+     *
+     * <p><b>A rename is an operation too.</b> A directory renames a group by PATCH — {@code replace} with
+     * the path {@code displayName}, or with no path and {@code displayName} in the value — and only the
+     * members were read: the rename answered 200 with the old name and was recorded as a patch, so the
+     * directory believed a name the team did not carry. A name another team holds is refused as the
+     * replacement refuses it.
+     */
+    public GroupChange patchGroup(Long id, List<PatchOperation> operations, RequestActor origin) {
+        GroupChange outcome = transactions.execute(status -> {
             Optional<TeamEntity> found = teams.findById(id);
             if (found.isEmpty()) {
-                return Optional.<GroupView>empty();
+                return new GroupChange.Absent();
             }
 
             TeamEntity team = found.get();
@@ -547,6 +578,17 @@ public class ScimProvisioningService {
                 for (PatchOperation op : operations) {
                     String opType = op.op() == null ? "" : op.op().toLowerCase(Locale.ROOT);
                     if ("add".equals(opType) || "replace".equals(opType)) {
+                        Optional<String> rename = renameOf(op);
+                        if (rename.isPresent()) {
+                            if (takenByAnother(rename.get(), id)) {
+                                status.setRollbackOnly();
+                                return new GroupChange.NameTaken();
+                            }
+                            team.setName(rename.get());
+                            // Flushed for the reason the replacement flushes: a removal of every
+                            // member clears the persistence context, and a pending rename with it.
+                            teams.saveAndFlush(team);
+                        }
                         handleAddMembers(id, op.value());
                     } else if ("remove".equals(opType)) {
                         handleRemoveMembers(id, op);
@@ -554,12 +596,50 @@ public class ScimProvisioningService {
                 }
             }
 
-            return Optional.of(viewOf(team, members.findMembershipsOf(id)));
+            return new GroupChange.Changed(viewOf(team, members.findMembershipsOf(id)));
         });
 
-        patched.ifPresent(group ->
-                recordGroup(origin, "SCIM patched team: " + group.name(), group.name()));
-        return patched;
+        if (outcome instanceof GroupChange.Changed(GroupView group)) {
+            recordGroup(origin, "SCIM patched team: " + group.name(), group.name());
+        }
+        return outcome;
+    }
+
+    /** The name a PATCH operation sets, if it sets one; refused when it is not a name. */
+    private static Optional<String> renameOf(PatchOperation op) {
+        JsonNode value = op.value();
+        if (op.path() != null && !op.path().isBlank()) {
+            if (!"displayname".equals(op.path().trim().toLowerCase(Locale.ROOT))) {
+                return Optional.empty();
+            }
+            if (value == null || !value.isString()) {
+                throw new InvalidInputException("Group displayName must be a string.");
+            }
+            return Optional.of(groupName(value.asString()));
+        }
+        if (value != null && value.isObject() && value.has("displayName")) {
+            if (!value.get("displayName").isString()) {
+                throw new InvalidInputException("Group displayName must be a string.");
+            }
+            return Optional.of(groupName(value.get("displayName").asString()));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Trimmed, present, and within the column: a name past it was a 500 from the insert, the
+     * directory's mistake reported as the server's.
+     */
+    private static String groupName(String displayName) {
+        String name = displayName == null ? "" : displayName.trim();
+        if (name.isEmpty()) {
+            throw new InvalidInputException("Group displayName cannot be blank.");
+        }
+        return BoundedText.within(name, TeamRules.MAX_NAME_LENGTH, "The SCIM attribute displayName");
+    }
+
+    private boolean takenByAnother(String name, Long id) {
+        return teams.findByNameIgnoreCase(name).filter(other -> !other.getId().equals(id)).isPresent();
     }
 
     /** Idempotent, as RFC 7644 lets it be: deleting a group that is not there is not an error. */

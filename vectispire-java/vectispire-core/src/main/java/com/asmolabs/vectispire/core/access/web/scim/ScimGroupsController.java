@@ -81,9 +81,7 @@ public class ScimGroupsController {
     public ResponseEntity<ScimGroupDto> updateGroup(
             @PathVariable Long id, @RequestBody ScimGroupDto dto, HttpServletRequest request) {
 
-        return provisioning.replaceGroup(id, dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request))
-                .map(group -> ResponseEntity.ok(toDto(group)))
-                .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
+        return answer(id, provisioning.replaceGroup(id, dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request)));
     }
 
     @ApiResponse(responseCode = "200", description = "The group")
@@ -93,9 +91,18 @@ public class ScimGroupsController {
     public ResponseEntity<ScimGroupDto> patchGroup(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {
 
-        return provisioning.patchGroup(id, ScimUsersController.operationsOf(patch), RequestActors.unnamed(request))
-                .map(group -> ResponseEntity.ok(toDto(group)))
-                .orElseThrow(() -> ScimRefusal.notFound("Group " + id + " not found."));
+        return answer(id, provisioning.patchGroup(id, ScimUsersController.operationsOf(patch), RequestActors.unnamed(request)));
+    }
+
+    private static ResponseEntity<ScimGroupDto> answer(Long id, ScimProvisioningService.GroupChange change) {
+        return switch (change) {
+            case ScimProvisioningService.GroupChange.Changed(ScimProvisioningService.GroupView group) ->
+                    ResponseEntity.ok(toDto(group));
+            case ScimProvisioningService.GroupChange.Absent absent ->
+                    throw ScimRefusal.notFound("Group " + id + " not found.");
+            case ScimProvisioningService.GroupChange.NameTaken taken ->
+                    throw ScimRefusal.uniqueness("A group with this displayName already exists.");
+        };
     }
 
     @DeleteMapping("/{id}")
