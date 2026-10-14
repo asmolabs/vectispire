@@ -146,6 +146,29 @@ describe('the fixture checker', () => {
         expect(asSchema('QueuedScan', { id: 1, status: 'scanning' }).status).toBe('scanning');
     });
 
+    /**
+     * OpenAPI 3.1 says "may be null" as a list of types — `HighImpactFix.recommendedVersion` is
+     * `["string", "null"]`. Null passes, and the other type is still the one a value is held to.
+     */
+    it('reads a type listed beside null as that type', () => {
+        const fix = {
+            packageName: 'openssl',
+            currentVersion: '3.0.1',
+            cveCountResolved: 1,
+            criticalCveCount: 0,
+            highCveCount: 1,
+            estimatedHours: 1,
+            leverageScore: 1,
+            affectedCves: [],
+            affectedTargetNames: []
+        };
+        expect(asSchema('HighImpactFix', { ...fix, recommendedVersion: null }).recommendedVersion).toBeNull();
+        expect(() =>
+            // @ts-expect-error a number where the model says string or null
+            asSchema('HighImpactFix', { ...fix, recommendedVersion: 3 })
+        ).toThrow(/HighImpactFix\.recommendedVersion: the document says string, the fixture holds number/);
+    });
+
     /** A fixture pointing at a schema nobody publishes is a fixture nobody can check. */
     it('refuses a schema name the document does not have', () => {
         // @ts-expect-error the name is not one of the document's schemas, and the type says so too
