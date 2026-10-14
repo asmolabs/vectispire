@@ -22,9 +22,15 @@
 - **Les refus du webhook de tickets (400, 401, 403) sont des documents « problem » RFC 9457**, la raison
   dans `detail`, et non plus le corps d'un succès avec `matched: false` et `actionTaken`.
 - **SCIM répond à un utilisateur ou un groupe absent (404) et à un `userName` ou un `displayName` déjà pris
-  (409, `scimType` `uniqueness`) dans le schéma d'erreur SCIM** au lieu d'un corps vide. Le document OpenAPI
-  les déclare tous deux, avec le schéma `ScimErrorResponse`, et déclare le `201` que répond une création
-  (`POST /scim/v2/Users`, `/Groups`), là où il annonçait `200`.
+  (409, `scimType` `uniqueness`) dans le schéma d'erreur SCIM** au lieu d'un corps vide. Un groupe renommé
+  (`PUT` ou `PATCH` `/scim/v2/Groups/{id}`) avec le `displayName` d'un autre groupe reçoit le même `409`,
+  sans rien changer : le `PUT` répondait `500`, et un renommage par `PATCH` — `replace` avec le chemin
+  `displayName`, ou `displayName` dans la valeur — n'était pas appliqué du tout, et répondait `200` avec
+  l'ancien nom. Un `displayName` de groupe de plus de 100 caractères reçoit `400`, et non plus `500`. Le
+  document OpenAPI déclare, avec le schéma `ScimErrorResponse`, chaque refus que les routes y répondent :
+  les `400` (`scimType` `invalidFilter` sur la liste des utilisateurs), le `403` sur un compte
+  administratif (`PUT`, `PATCH`, `DELETE /scim/v2/Users/{id}`), les `404` et les `409` ; et il déclare le
+  `201` que répond une création (`POST /scim/v2/Users`, `/Groups`), là où il annonçait `200`.
 - **Chaque ligne de la grille OWASP Top 10 (`GET /api/v1/owasp/coverage`) porte `reason` à côté de
   `because`, qui est conservé :** `code`, l'un de quatorze (`NO_SCANNER` … `REPOSITORIES_NOT_EXAMINED`), et
   ses valeurs — `types`, les types de constat qu'il nomme par leur nom d'échange, et pour un périmètre

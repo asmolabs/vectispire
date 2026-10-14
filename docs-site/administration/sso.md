@@ -100,6 +100,12 @@ the provider's configuration, so what it may do is deliberately bounded:
 - **An absent user or group is `404`, a taken `userName` or `displayName` is `409` with `scimType`
   `uniqueness`** (RFC 7644 §3.3), both in SCIM's error schema with a `detail`. Until 0.11.1 both had
   an empty body, which gave a directory nothing to log and nothing to tell "already there" by.
+- **A group is renamed by `PUT` or by `PATCH`** — `replace` with the path `displayName`, or with
+  `displayName` in the value. A name another group holds, in any case, is `409` with `scimType`
+  `uniqueness` and changes nothing, the members sent beside it included. A `displayName` longer than
+  100 characters is `400`, and so is a blank one on a creation or a `PATCH` (a `PUT` without one keeps
+  the name). Until 0.11.1 such a `PUT` answered `500`, and a `PATCH` rename was not applied at all: it
+  answered `200` with the old name.
 
 ## The second factor belongs to the provider
 
