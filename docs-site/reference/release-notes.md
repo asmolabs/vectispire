@@ -131,6 +131,10 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
 - **An OWASP report counts the issues behind a cited identifier as the list its link opens lists them**,
   case aside: an identifier two scanners wrote in two cases counted one, and its link led to that issue
   alone while the list showed both.
+- **A high-impact fix no version fixes says "no fixed version published" on the dashboard**, as the
+  remediation plan already did, instead of an arrow pointing at nothing. The OpenAPI document now
+  declares `HighImpactFix.recommendedVersion` as `string` or `null`, which is what the server has sent
+  since the field stopped carrying "latest-patch"; the response itself is unchanged.
 
 ## 0.11.0 — 2026-10-25
 
