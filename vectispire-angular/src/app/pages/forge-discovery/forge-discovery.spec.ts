@@ -17,6 +17,7 @@ import {
     RUNNING_DISCOVERY,
     repository
 } from '@/app/core/testing/forges.fixtures';
+import type { ForgeConnection, ForgeDiscovery } from '@/app/core/api.models';
 
 /**
  * A connection's discovery, through the DOM: the run's state and counters while it moves, why it ended short,
@@ -37,7 +38,7 @@ describe('the discovery page', () => {
         fixture.detectChanges();
     };
 
-    function open(connection: object = CONNECTION, history: object[] = [COMPLETED_DISCOVERY]): void {
+    function open(connection: ForgeConnection = CONNECTION, history: ForgeDiscovery[] = [COMPLETED_DISCOVERY]): void {
         fixture = TestBed.createComponent(ForgeDiscoveryPage);
         fixture.componentRef.setInput('connectionId', CONNECTION_ID);
         http = TestBed.inject(HttpTestingController);
@@ -47,7 +48,7 @@ describe('the discovery page', () => {
         fixture.detectChanges();
     }
 
-    function discovery(changes: object): object {
+    function discovery(changes: Partial<ForgeDiscovery>): ForgeDiscovery {
         return asSchema('ForgeDiscoveryView', { ...COMPLETED_DISCOVERY, ...changes });
     }
 

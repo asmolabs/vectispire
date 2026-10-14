@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RuleCoverageBanner } from './rule-coverage-banner';
+import type { RuleCoverageAssessment } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -17,7 +18,7 @@ describe('the rule coverage banner', () => {
     let fixture: ComponentFixture<RuleCoverageBanner>;
     let http: HttpTestingController;
 
-    async function mount(body: Record<string, unknown> | null) {
+    async function mount(body: RuleCoverageAssessment | null) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [RuleCoverageBanner],

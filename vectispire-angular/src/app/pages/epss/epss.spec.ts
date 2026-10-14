@@ -24,6 +24,7 @@ describe('EPSS prioritisation', () => {
         epssScore: 0.97,
         epssPercentile: 0.99,
         isKev: true,
+        dateAdded: '2021-12-10',
         notes: null
     });
 

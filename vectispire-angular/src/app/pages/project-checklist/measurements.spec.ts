@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
 import type {
+    AsMeasuredSkipReason,
+    ChecklistAsMeasuredSkip,
     ChecklistLine,
     ChecklistMeasurements,
     ChecklistView,
@@ -422,7 +424,12 @@ describe('the measured lines of a project checklist', () => {
         checklist: { ...OFFERING.checklist, edition: 6 },
         lines: [MEASURED_READY_LINE, ANSWERED_MET, MEASURED_OPEN_LINE]
     });
-    const skip = (itemId: number, position: number, reason: string, extra: Record<string, unknown> = {}) => ({
+    const skip = (
+        itemId: number,
+        position: number,
+        reason: AsMeasuredSkipReason,
+        extra: Partial<ChecklistAsMeasuredSkip> = {}
+    ): ChecklistAsMeasuredSkip => ({
         itemId,
         position,
         reason,

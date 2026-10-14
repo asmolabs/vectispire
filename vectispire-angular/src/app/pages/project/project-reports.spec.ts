@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { missingFromBundles } from '@/app/core/testing/bundles';
-import { asSchemaList } from '@/app/core/testing/contract';
+import type { ReportPluginActivation, ReportRun } from '@/app/core/api.models';
+import { asSchemaList, newerServerWord } from '@/app/core/testing/contract';
+import { sessionUser } from '@/app/core/testing/session.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import {
     FAILED_RUN,
@@ -56,17 +58,11 @@ describe('a project’s reports', () => {
 
     async function open(
         role: string,
-        runs: object[] = [PRODUCED_RUN, FAILED_RUN, REFUSED_RUN],
-        activations: object[] = [REPORT_ACTIVATION, ANOTHER],
+        runs: ReportRun[] = [PRODUCED_RUN, FAILED_RUN, REFUSED_RUN],
+        activations: ReportPluginActivation[] = [REPORT_ACTIVATION, ANOTHER],
         checked = true
     ): Promise<void> {
-        TestBed.inject(SessionStore).open('token', {
-            username: 'someone',
-            displayName: null,
-            role,
-            mustChangePassword: false,
-            mfaEnabled: false
-        });
+        TestBed.inject(SessionStore).open('token', sessionUser(role, { username: 'someone' }));
         useEnglish();
         fixture = TestBed.createComponent(ProjectReports);
         fixture.componentRef.setInput('projectId', 12);
@@ -111,7 +107,12 @@ describe('a project’s reports', () => {
 
     it('shows a reason this client does not know as sent, never as a key', async () => {
         // Newer than the document this client was built from, so not held to it.
-        await open('USER', [{ ...FAILED_RUN, reason: 'brand_new_reason' }], [REPORT_ACTIVATION], false);
+        await open(
+            'USER',
+            [{ ...FAILED_RUN, reason: newerServerWord('brand_new_reason') }],
+            [REPORT_ACTIVATION],
+            false
+        );
         expect(text('[data-testid="run-reason"]', row(33))).toBe('brand_new_reason');
     });
 

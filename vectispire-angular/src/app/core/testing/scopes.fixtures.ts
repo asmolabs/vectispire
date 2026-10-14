@@ -41,7 +41,7 @@ const controls = (status: 'COMPLIANT' | 'NO_DATA', score: number) => [
             id: 'NIS2-ART21-VULN',
             name: 'Vulnerability Handling',
             requirement: 'All known vulnerabilities must be tracked.',
-            category: 'VULNERABILITY_MANAGEMENT'
+            category: 'VULNERABILITY_MANAGEMENT' as const
         },
         status,
         scorePercentage: score,

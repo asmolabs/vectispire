@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { Security } from './security';
+import type { TargetPosture } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 
@@ -14,7 +15,7 @@ import { useEnglish, useFrench } from '@/app/core/testing/english';
 describe('the security posture', () => {
     let fixture: ComponentFixture<Security>;
 
-    function target(targetId: number, source: string, version: number | null) {
+    function target(targetId: number, source: string, version: number | null): TargetPosture {
         return {
             kind: 'repository',
             targetId,
@@ -29,7 +30,7 @@ describe('the security posture', () => {
         };
     }
 
-    async function mount(targets: ReturnType<typeof target>[]) {
+    async function mount(targets: TargetPosture[]) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Security],

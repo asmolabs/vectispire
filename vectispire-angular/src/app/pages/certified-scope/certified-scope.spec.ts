@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CertifiedScope } from './certified-scope';
 import { asSchema } from '@/app/core/testing/contract';
+import type { ScopeCoverage } from '@/app/core/api.models';
 
 /**
  * The certified scope, and the two ways of misreading an absent number.
@@ -21,7 +22,7 @@ describe('the certified scope', () => {
     let fixture: ComponentFixture<CertifiedScope>;
     let http: HttpTestingController;
 
-    async function mount(coverage: Record<string, number>) {
+    async function mount(coverage: ScopeCoverage) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [CertifiedScope],

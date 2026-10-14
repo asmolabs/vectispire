@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SshKeys } from './ssh-keys';
-import { asSchema, asSchemaList } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList, newerServerWord } from '@/app/core/testing/contract';
+import type { SshKeySummary } from '@/app/core/api.models';
 
 /**
  * The deployment keys screen, driven as an operator drives it: the buttons, the fields, the dialogs.
@@ -16,10 +17,11 @@ describe('the SSH keys screen', () => {
     let fixture: ComponentFixture<SshKeys>;
     let http: HttpTestingController;
 
+    const PUBLIC_KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl deploy';
     const KEY = asSchema('SshKeySummary', {
         id: '7c2e9a10-4b1d-4f3a-8e55-0d6b2c9f1a37',
         name: 'deploy-payments',
-        publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl deploy',
+        publicKey: PUBLIC_KEY,
         createdAt: '2026-09-20T08:00:00Z',
         encryptionState: 'current',
         usedByRepositories: 3
@@ -36,7 +38,7 @@ describe('the SSH keys screen', () => {
         fixture.detectChanges();
     });
 
-    function list(keys: unknown[] = [KEY]): void {
+    function list(keys: SshKeySummary[] = [KEY]): void {
         http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/ssh-keys').flush(
             asSchemaList('SshKeySummary', keys)
         );
@@ -84,15 +86,15 @@ describe('the SSH keys screen', () => {
         const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr') as HTMLElement;
         expect(row.textContent).toContain('deploy-payments');
         // 44 characters and an ellipsis: the whole line would crush every other column.
-        expect(row.textContent).toContain(`${KEY.publicKey.slice(0, 44)}…`);
-        expect(row.querySelector('[title]')?.getAttribute('title')).toBe(KEY.publicKey);
+        expect(row.textContent).toContain(`${PUBLIC_KEY.slice(0, 44)}…`);
+        expect(row.querySelector('[title]')?.getAttribute('title')).toBe(PUBLIC_KEY);
         expect(row.textContent).toContain('3');
     });
 
     it('badges each encryption state in words, and an unknown one as unreadable', () => {
         list([
             { ...KEY, id: 'a', name: 'old', encryptionState: 'previous_key' },
-            { ...KEY, id: 'b', name: 'odd', encryptionState: 'sealed_by_hsm' }
+            { ...KEY, id: 'b', name: 'odd', encryptionState: newerServerWord('sealed_by_hsm') }
         ]);
 
         // No bundle is loaded, so a tag shows its key: what matters is *which* — a literal one, and
