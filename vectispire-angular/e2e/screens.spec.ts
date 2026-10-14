@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import openapi from '../openapi.json';
 import { asSchema, asSchemaList } from '../src/app/core/testing/contract';
+import type { ModelOf } from '../src/app/core/testing/schema-models';
 
 /**
  * The documentation's screenshots, produced rather than taken.
@@ -234,7 +235,12 @@ async function stubEverything(page: Page): Promise<void> {
     await stub(
         page,
         '**/api/v1/dashboard/trends*',
-        asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 })
+        asSchema('Trends', {
+            points: [],
+            mean_days_to_resolve: null,
+            resolved_in_window: 0,
+            score_formula_changed_on: null
+        })
     );
     // The three other panels of the same page, which every capture also lands on. An estate with
     // nothing measured: zeros and nulls the contract allows, not `{}`, which the debt card printed
@@ -607,7 +613,7 @@ const SECURITY_DEBT = {
  * `Observation.refusal` words it. No issue, package or severity: the refusal is about the absence of
  * an examination, not about a finding.
  */
-const NEVER_EXAMINED = {
+const NEVER_EXAMINED: ModelOf<'ViolationView'> = {
     rule: 'observation',
     issueId: null,
     identifier: null,
@@ -616,7 +622,7 @@ const NEVER_EXAMINED = {
     fixVersions: null,
     reason: 'no scan of this target has completed — it was never examined, and an empty backlog is not a clean one'
 };
-const LAST_SCAN_FAILED = {
+const LAST_SCAN_FAILED: ModelOf<'ViolationView'> = {
     ...NEVER_EXAMINED,
     reason: 'the last scan of this target failed — its backlog is not an observation of the code as it is'
 };
@@ -633,7 +639,7 @@ const severityViolation = (
     severity: string,
     pkg: string,
     fixVersions: string
-) => ({
+): ModelOf<'ViolationView'> => ({
     rule: 'severity',
     issueId,
     identifier,
@@ -642,7 +648,7 @@ const severityViolation = (
     fixVersions,
     reason: `severity ${severity} >= threshold high`
 });
-const HELIOS_VIOLATIONS = [
+const HELIOS_VIOLATIONS: ModelOf<'ViolationView'>[] = [
     {
         rule: 'kev',
         issueId: 41,
@@ -666,7 +672,7 @@ const API_IMAGE_VIOLATIONS = [
  * the way a reader reaches a scan. Scan 34 is the SBOM comparison's newest — seven issues, one new,
  * three resolved — and the scan detail capture opens it.
  */
-const DASHBOARD_OVERVIEW = {
+const DASHBOARD_OVERVIEW = asSchema('DashboardOverview', {
     posture: {
         totalCount: 14,
         failingCount: 4,
@@ -737,7 +743,7 @@ const DASHBOARD_OVERVIEW = {
             findingsCount: 0
         }
     ]
-};
+});
 
 /** An `OpenIssues` tally, its total the sum of its severities as the server counts it. */
 const openIssues = (critical: number, high: number, medium: number, low: number) => ({
@@ -1743,7 +1749,7 @@ test.describe('documentation screenshots', () => {
         // each other is a capture of a defect, whatever each card says on its own.
         // The failing targets carry the violations the gate verdicts capture counts, so the
         // Violations column reads four and two where the verdict register says four and two.
-        await stub(page, '**/api/v1/dashboard', asSchema('DashboardOverview', DASHBOARD_OVERVIEW));
+        await stub(page, '**/api/v1/dashboard', DASHBOARD_OVERVIEW);
         // Two charts rather than two axes: the backlog and the daily movements differ by two
         // orders of magnitude, so the capture has to show both curves readable.
         const days = [
