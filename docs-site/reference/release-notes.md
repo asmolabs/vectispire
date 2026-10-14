@@ -61,6 +61,22 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   follows the reader's language for its own words, includes the repository's coverage grid (the ten
   categories with their state and why), and prints the model's text as written.
 
+### Security {#security-0111}
+
+- **A name a forge returns or a person types no longer changes which forge API endpoint is called.** The
+  discovery, the change-review readings and the connection check encode every project, owner, repository,
+  branch and merge-request number as one path segment, slashes included, and refuse one made only of dots,
+  which then reads as unknown or unreadable, in words.
+- **A report's document downloaded by the platform governor is sent to the SIEM as `VECTI-SEC-032`**, the
+  export's SHA-256 first, the action `REPORT_DOWNLOADED` and the target the run: the governor may not take a
+  project's export, and a document is that export rendered. Anybody else's download stays audited only, as a
+  copy of an export already signalled when the plugin received it
+  ([SIEM](../integrations/siem.md), [report plugins](../administration/report-plugins.md#requesting-a-report)).
+- **The `Dockerfile`, `Dockerfile.agent` and `Dockerfile.cli` name their base images by digest**
+  (`image:tag@sha256:…`, the multi-architecture index), so one file builds the same bases until a reviewed
+  update moves them; the `dockerfile-policy` check refuses a base image named by tag alone. The images
+  published with Jib were already pinned.
+
 ### Fixed {#fixed-0111}
 
 - **Headings, paragraphs, links and cards follow the sizes and spacing their screens give them**; the

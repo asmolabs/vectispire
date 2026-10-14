@@ -67,6 +67,24 @@
   OWASP suit la langue du lecteur pour ses propres mots, contient la grille de couverture du dépôt (les dix
   catégories avec leur état et leur raison) et reproduit le texte du modèle tel qu'il l'a écrit.
 
+### Sécurité {#securite-0111}
+
+- **Un nom renvoyé par une forge ou saisi par une personne ne change plus le point d'API de la forge
+  appelé.** La découverte, les lectures de revue des changements et la vérification d'une connexion encodent
+  chaque projet, propriétaire, dépôt, branche et numéro de merge request comme un seul segment de chemin,
+  barres obliques comprises, et refusent celui qui n'est fait que de points, qui se lit alors inconnu ou
+  illisible, en mots.
+- **Le document d'un rapport téléchargé par le gouverneur de la plateforme est envoyé au SIEM comme
+  `VECTI-SEC-032`**, le SHA-256 de l'export en tête, l'action `REPORT_DOWNLOADED` et la cible l'exécution :
+  le gouverneur ne peut pas prendre l'export d'un projet, et un document est cet export mis en forme. Le
+  téléchargement de tout autre reste seulement journalisé, comme copie d'un export déjà signalé quand le
+  plugin l'a reçu ([SIEM](../integrations/siem.fr.md),
+  [plugins de rapport](../administration/report-plugins.fr.md#demander-un-rapport)).
+- **Le `Dockerfile`, `Dockerfile.agent` et `Dockerfile.cli` nomment leurs images de base par digest**
+  (`image:tag@sha256:…`, l'index multi-architecture), si bien qu'un même fichier construit les mêmes bases
+  jusqu'à ce qu'une mise à jour relue les déplace ; le contrôle `dockerfile-policy` refuse une image de base
+  nommée par son seul tag. Les images publiées avec Jib l'étaient déjà.
+
 ### Corrigé {#corrige-0111}
 
 - **Les titres, paragraphes, liens et cartes suivent désormais les tailles et espacements que leur donne
