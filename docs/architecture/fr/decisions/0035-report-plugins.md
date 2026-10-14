@@ -761,6 +761,9 @@ que le §3 laissait ouverts ou énonçait vaguement. Le code est dans `common/do
   `nosniff`, `Content-Security-Policy: sandbox` ; à quiconque voit le projet entier (aucune clé d'intégration) ; 404
   en mots pour une exécution qui n'a pas produit ou dont la fenêtre des preuves a purgé le document ; journalisé
   `REPORT_DOWNLOADED`, une nouvelle opération, non signalée — c'est la sortie de l'export qui était l'événement.
+  (Amendé le 2026-10-14 : un téléchargement par le gouverneur de la plateforme, à qui l'export est refusé, est
+  signalé `VECTI-SEC-032`, le SHA-256 de l'export en tête — pour ce rôle, le document est l'export qui arrive, et
+  rien ne l'avait signalé.)
 - **La provenance est un in-toto Statement v1**, type de prédicat `https://vectispire.dev/report-provenance/v1`,
   dans l'enveloppe DSSE du paquet de preuves (`SigningKeyService.wrapAndSignDsse`, l'encodage de
   pré-authentification) — vérifiée par `cosign verify-blob-attestation --key … --type <type de prédicat>`, qui

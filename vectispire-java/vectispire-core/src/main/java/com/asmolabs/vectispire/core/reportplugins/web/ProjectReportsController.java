@@ -124,7 +124,8 @@ public class ProjectReportsController {
             + "not the project's, one that produced no document, or a document purged past the evidence window. "
             + "A document whose manifest the platform governor withdrew is still served: the header "
             + "Vectispire-Document-Status says withdrawn (upheld otherwise), and the run carries the withdrawal's "
-            + "instant, author and justification. Audited REPORT_DOWNLOADED.")
+            + "instant, author and justification. Audited REPORT_DOWNLOADED; a download by the platform governor, "
+            + "whom the project export is refused to, is signalled VECTI-SEC-032 as well.")
     @ApiResponse(responseCode = "200", description = "The package, application/zip",
             content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")),
             headers = @Header(name = DOCUMENT_STATUS, description = "upheld, or withdrawn when the manifest that "
@@ -137,8 +138,8 @@ public class ProjectReportsController {
             @PathVariable long runId,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
-        ReportDocumentDownload document = reports.document(projectId, runId, allowanceOf(principal),
-                RequestActors.of(principal, request));
+        ReportDocumentDownload document = reports.document(projectId, runId, principal.requireUser(),
+                allowanceOf(principal), RequestActors.of(principal, request));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(document.fileName(), StandardCharsets.UTF_8).build().toString())

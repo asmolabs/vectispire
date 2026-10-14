@@ -179,7 +179,9 @@ public enum SecurityEventType {
 
     /**
      * A project's whole triaged state left the platform as an export (decision 0035 §4): downloaded, or handed to
-     * a report plugin's container — who took it, of which project, and its digest.
+     * a report plugin's container — who took it, of which project, and its digest. Also a report's document
+     * downloaded by the platform governor, a role the export itself is refused to ({@code REPORT_DOWNLOADED},
+     * signalled by its writer).
      */
     PROJECT_EXPORTED("VECTI-SEC-032", "Project export left the platform", 4, Outcome.SUCCESS),
 
@@ -432,6 +434,8 @@ public enum SecurityEventType {
                     // address elsewhere is FORGE_CONNECTION_REFUSED's VECTI-SEC-036.
                     FORGE_DISCOVERY_REQUESTED,
                     // A download of what was produced, like CHECKLIST_EXPORTED: the export leaving was the event.
+                    // Except for the platform governor, whom the export is refused to: its writer names
+                    // PROJECT_EXPORTED itself, since only it knows the downloader's role.
                     REPORT_DOWNLOADED -> Optional.empty();
         };
     }

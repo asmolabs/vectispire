@@ -696,7 +696,9 @@ or stated loosely. The code is in `common/domain/reportplugins` (`ReportOutputCh
   travel with the document, and the declared type is the entry's. Served as an attachment, `nosniff`,
   `Content-Security-Policy: sandbox`; to whoever sees the whole project (no integration key); 404 in words for a
   run that did not produce or whose document the evidence window purged; audited `REPORT_DOWNLOADED`, a new
-  operation, not signalled — the export leaving was the event.
+  operation, not signalled — the export leaving was the event. (Amended on 2026-10-14: a download by the platform
+  governor, whom the export is refused to, is signalled `VECTI-SEC-032`, the export's SHA-256 first — for that
+  role the document is the export arriving, and nothing had signalled it.)
 - **The provenance is an in-toto Statement v1**, predicate type `https://vectispire.dev/report-provenance/v1`, in
   the evidence bundle's DSSE envelope (`SigningKeyService.wrapAndSignDsse`, the pre-authentication encoding) —
   verified by `cosign verify-blob-attestation --key … --type <predicate type>`, which checks the subject's digest

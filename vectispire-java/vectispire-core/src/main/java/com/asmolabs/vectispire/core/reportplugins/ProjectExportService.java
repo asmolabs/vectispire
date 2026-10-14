@@ -362,13 +362,18 @@ public class ProjectExportService {
                 List.copyOf(carried));
     }
 
+    /** Whether {@code account}'s role may take a project's export: {@link #requireMayExport}'s rule, as a question. */
+    static boolean mayExport(UserView account) {
+        Optional<Role> role = Optional.ofNullable(account).flatMap(user -> Role.of(user.role()));
+        return role.isPresent() && (role.get().canCauseEffects() || role.get() == Role.AUDITOR);
+    }
+
     /**
      * Write accounts and auditors (decision 0035, answer 4): an auditor reads a project's whole state
      * already, and an export is reading. The governor — no effects, no triage — is the one role left out.
      */
     static void requireMayExport(UserView requester) {
-        Optional<Role> role = Optional.ofNullable(requester).flatMap(user -> Role.of(user.role()));
-        if (role.isEmpty() || !(role.get().canCauseEffects() || role.get() == Role.AUDITOR)) {
+        if (!mayExport(requester)) {
             throw new AccessDeniedException("A project export is taken by a write account or an auditor; the platform "
                     + "governor's role acts on nothing a project holds.");
         }
