@@ -67,6 +67,10 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   without erasing an error; they are paged by 20, and the current page is kept across refreshes.
 - **On the gate policies screen, an override whose target has no name shows its kind in the reader's
   language** ("Repository #12").
+- **On the OWASP page, the scope picker and the report's repository picker are announced by their labels**
+  ("Scope", "Repository") to a screen reader, on the grid and on the weekly view, rather than by the value
+  they show.
+- **The `/error` page, which no screen led to, is gone**; the address now shows the page-not-found screen.
 
 ## 0.11.0 — 2026-10-25
 
