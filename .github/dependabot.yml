@@ -17,6 +17,8 @@
 #   without. A bump here must also be regenerated with the command in `requirements.in`, so the
 #   hashes of every transitive package agree; Dependabot updates the line it names.
 # - `docker` — Angular refuses Node 25, which `.nvmrc` pins to LTS 24 for the same reason.
+# - `docker-compose` — never a MySQL major: the server line owns the data volume, and 8.4 → 9 is
+#   an upgrade with no way back. Never Vectispire's own images either: the release sets their tag.
 #
 # The scanners Vectispire runs on its targets are pinned by digest in `ScannerImages` and are not
 # here: they are updated deliberately, together with `ci.yml`, so the same scanner audits
@@ -144,3 +146,22 @@ updates:
     ignore:
       - dependency-name: node
         update-types: [version-update:semver-major]
+
+  # **The shipped composition's third-party images, by tag and digest.** They are pinned as
+  # `name:tag@sha256:…` and the `dockerfile-policy` job refuses a tag alone; Dependabot moves the
+  # two together — a new patch, or the same tag republished — which a digest nobody refreshes
+  # would otherwise turn into a frozen image collecting CVEs.
+  - package-ecosystem: docker-compose
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: mysql
+        update-types: [version-update:semver-major]
+      # `ghcr.io/asmolabs/vectispire` and `-agent`: tagged by the release that ships this file.
+      - dependency-name: "*asmolabs/vectispire*"
+    groups:
+      compose:
+        patterns: ["*"]
+        update-types: [minor, patch]

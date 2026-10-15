@@ -234,6 +234,79 @@ jobs:
       options: --entrypoint=""
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # **A composition's image is named by digest** (`image: name:tag@sha256:<64 hex>`, the
+      # multi-architecture index's), and checkov's compose support stops at `latest`. The public
+      # `docker-compose.yml` ran `mysql:8` — whatever was pushed under that tag on the day of the
+      # pull, beside the volume holding every installation's data — and Keycloak by tag, and no
+      # check covered a compose file at all. The tag stays beside the digest: it is what a reader
+      # and Dependabot read, the digest is what is pulled.
+      #
+      # Two exceptions, each written out rather than inferred. An alias (`image: *anchor`) is the
+      # value of an anchor checked where it is defined — on an `image:` line above it in the same
+      # file, or the alias is refused: an anchor set on an `x-` key would otherwise pass unread.
+      # Vectispire's own two images keep a release tag (`ghcr.io/asmolabs/vectispire[-agent]:X.Y.Z`):
+      # the file ships inside the release that builds them, and nothing rewrites a digest into it
+      # (the comment above `control-plane` says why).
+      # An interpolated image (`${…}`) is refused: none of these files uses one, and one would
+      # hand the pin to whoever writes the `.env`.
+      #
+      # Found with `find`, not `git ls-files`: in this container git refuses the checkout as
+      # another user's (see `secrets`). No file, or no image read, fails: a policy that read
+      # nothing has checked nothing (AGENTS.md: never skip silently). A digest is checked by length
+      # rather than `{64}`, which not every awk reads: the image's is mawk.
+      - name: every compose image is pinned by digest
+        run: |
+          set -eu
+          files="$(find . \( -name 'docker-compose*.yml' -o -name 'docker-compose*.yaml' \
+              -o -name 'compose*.yml' -o -name 'compose*.yaml' \) \
+              -not -path '*/node_modules/*' -not -path './.git/*' -type f)"
+          if [ -z "$files" ]; then
+            echo "::error::no compose file found: the policy would have checked nothing"; exit 1
+          fi
+          # shellcheck disable=SC2016 # an awk program: its `$` are awk's, not the shell's
+          echo "$files" | xargs awk -v sq="'" '
+            FNR == 1 { read[FILENAME] = 1 }
+            {
+              line = $0
+              sub(/^[ \t]*(-[ \t]+)?/, "", line)
+              if (line !~ /^image:[ \t]/) next
+              image = line
+              sub(/^image:[ \t]*/, "", image)
+              sub(/[ \t]+#.*$/, "", image)
+              gsub(/"/, "", image); gsub(sq, "", image)
+              if (image ~ /^&/) {
+                anchor = image; sub(/^&/, "", anchor); sub(/[ \t].*$/, "", anchor)
+                anchors[FILENAME, anchor] = 1
+                sub(/^&[^ \t]+[ \t]*/, "", image)
+              }
+              if (image ~ /^\*/) {
+                alias = substr(image, 2)
+                if ((FILENAME, alias) in anchors) next
+                printf "%s:%d: %s: an alias of no image: anchor read above it\n", FILENAME, FNR, image
+                bad = 1; next
+              }
+              images++
+              name = image; sub(/@.*$/, "", name)
+              last = name; sub(/^.*\//, "", last)
+              digest = image; sub(/^[^@]*@sha256:/, "", digest)
+              if (image ~ /\$/) {
+                why = "an interpolated image: whoever writes the .env would choose what is pulled"
+              } else if (image ~ /^ghcr\.io\/asmolabs\/vectispire(-agent)?:[0-9]+\.[0-9]+\.[0-9]+$/) {
+                own++; next
+              } else if (image ~ /@sha256:[0-9a-f]+$/ && length(digest) == 64 && last ~ /:/) {
+                next
+              } else {
+                why = "not name:tag@sha256:<64 hex>; pin it by the multi-architecture index digest"
+              }
+              printf "%s:%d: %s: %s\n", FILENAME, FNR, image, why
+              bad = 1
+            }
+            END {
+              n = 0; for (f in read) n++
+              printf "%d compose file(s), %d image(s) read, %d of them Vectispire images by release tag\n", n, images + 0, own + 0
+              if (images == 0) { print "no image read: the policy checked nothing"; exit 1 }
+              exit (bad ? 1 : 0)
+            }'
       # **The product's own scanner, pointed at the product**, at the digest `ScannerImages`
       # pins — so the version auditing this repository is the version auditing its targets.
       #
