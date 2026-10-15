@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Owasp } from './owasp';
 import type { OwaspReport, OwaspWeeklyScope } from '@/app/core/api.models';
 import { asSchema } from '@/app/core/testing/contract';
+import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
 import { repositorySummary } from '@/app/core/testing/targets.fixtures';
 import { useEnglish } from '@/app/core/testing/english';
 import { I18nService } from '@/app/core/i18n/i18n.service';
@@ -33,6 +34,9 @@ import { OwaspScopePicker } from '@/app/shared/owasp-scope-picker';
 function silenceAnchorNavigation(): void {
     HTMLAnchorElement.prototype.click = function click() {};
 }
+
+/** The estate's grid with nothing measured yet, for the cases about the report card beneath it. */
+const EMPTY_GRID = asSchema('DeclaredGrid', { lines: [], covered: 0, withFindings: 0, unmeasured: 0, scope: null });
 
 describe('the OWASP report screen', () => {
     let fixture: ComponentFixture<Owasp>;
@@ -381,7 +385,13 @@ describe('the OWASP report, linked to the backlog', () => {
         fixture.detectChanges();
         http.expectOne('/api/v1/repositories').flush([]);
         // The grid above asks for its own data; this describe is about the report card.
-        for (const request of http.match(() => true)) request.flush({ lines: [], covered: 0, withFindings: 0 });
+        // The scope picker's tree was answered with the grid's shape, as was the grid itself without its
+        // `unmeasured` and `scope`: each read now gets its own answer.
+        for (const request of http.match(() => true)) {
+            if (request.request.url === '/api/v1/solutions') request.flush(EMPTY_TREE);
+            else if (request.request.url === '/api/v1/owasp/coverage') request.flush(EMPTY_GRID);
+            else throw new Error(`An unexpected read: ${request.request.url}`);
+        }
         fixture.detectChanges();
     });
 

@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Inventory } from './inventory';
 import { I18nService } from '@/app/core/i18n/i18n.service';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { useEnglish, useFrench } from '@/app/core/testing/english';
 
 /**
@@ -276,10 +276,12 @@ describe('the component search', () => {
         page.diffTarget = 'repo:5';
         page.onTargetChosen();
         const at = new Date(2026, 8, 18, 11, 5).toISOString();
-        http.expectOne((request) => request.url.includes('/api/v1/scans')).flush([
-            { ...scan(34, at), findingsCount: 1234 },
-            { ...scan(33, at), findingsCount: 1 }
-        ]);
+        http.expectOne((request) => request.url.includes('/api/v1/scans')).flush(
+            asSchemaList('ScanSummary', [
+                { ...scan(34, at), findingsCount: 1234 },
+                { ...scan(33, at), findingsCount: 1 }
+            ])
+        );
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();

@@ -278,7 +278,22 @@ describe('la grille OWASP', () => {
             expect((sent.request.body as DeclarationRequest).applicability).toBe('APPLICABLE');
             expect((sent.request.body as DeclarationRequest).evidence_source).toBe('EXTERNAL');
             expect((sent.request.body as DeclarationRequest).external_evidence).toBe('Dossier QUAL-2026');
-            sent.flush({});
+            sent.flush(
+                asSchema('Declaration', {
+                    framework: 'OWASP_2021',
+                    controlId: 'A01',
+                    applicability: 'APPLICABLE',
+                    implementation: null,
+                    justification: 'Revue de conception à chaque évolution majeure.',
+                    evidenceSource: 'EXTERNAL',
+                    externalEvidence: 'Dossier QUAL-2026',
+                    owner: 'c.moreau',
+                    decidedBy: 'c.moreau',
+                    decidedAt: '2026-10-15T08:00:00Z',
+                    reviewedAt: null,
+                    reviewDueAt: null
+                })
+            );
 
             // Reloaded rather than merged in place: the grid carries counters, and recomputing
             // them in the browser would make a second implementation of them.

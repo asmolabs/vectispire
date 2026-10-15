@@ -9,6 +9,7 @@ import { useEnglish } from '@/app/core/testing/english';
 import { threeWeeks } from '@/app/core/testing/owasp-weekly.fixtures';
 import { addDays, currentMonday } from '@/app/shared/owasp-weekly';
 import { OwaspWeekly } from './owasp-weekly';
+import { EMPTY_TREE } from '@/app/core/testing/scopes.fixtures';
 
 @Component({ selector: 'zs-nowhere', template: '' })
 class Nowhere {}
@@ -54,7 +55,7 @@ describe('the weekly OWASP view', () => {
                 asked = new URLSearchParams(request.request.urlWithParams.split('?')[1] ?? '');
                 request.flush(threeWeeks());
             } else {
-                request.flush({ solutions: [], unfiled: { repositoryCount: 0, containerCount: 0, repositories: [] } });
+                request.flush(EMPTY_TREE);
             }
         }
         await harness.fixture.whenStable();

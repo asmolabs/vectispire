@@ -82,22 +82,24 @@ describe('Compliance Page', () => {
      */
     it('draws the per-target matrix in the global view, each row offering to narrow the page to its target', () => {
         fixture.detectChanges();
-        http.expectOne('/api/v1/compliance/summary').flush({
-            ...MOCK_SUMMARY,
-            targets: [
-                {
-                    targetId: 'REPOSITORY:3',
-                    name: 'billing',
-                    type: 'REPOSITORY',
-                    gateStatus: 'PASSED',
-                    openIssuesCount: 0,
-                    overdueCount: 0,
-                    overallStatus: 'COMPLIANT',
-                    overallScore: 95,
-                    frameworkScores: { NIS_2: 95 }
-                }
-            ]
-        });
+        http.expectOne('/api/v1/compliance/summary').flush(
+            asSchema('ComplianceSummary', {
+                ...MOCK_SUMMARY,
+                targets: [
+                    {
+                        targetId: 'REPOSITORY:3',
+                        name: 'billing',
+                        type: 'REPOSITORY',
+                        gateStatus: 'PASSED',
+                        openIssuesCount: 0,
+                        overdueCount: 0,
+                        overallStatus: 'COMPLIANT',
+                        overallScore: 95,
+                        frameworkScores: { NIS_2: 95 }
+                    }
+                ]
+            })
+        );
         fixture.detectChanges();
 
         const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="matrix-row"]');
@@ -183,11 +185,23 @@ describe('Compliance Page', () => {
 
         it('saves the aggregate OpenVEX, CSAF and CycloneDX as indented JSON', async () => {
             click('compliance.export_vex');
-            http.expectOne('/api/v1/vex/aggregate.json').flush({ statements: [] });
+            const vex = asSchema('OpenVexDocument', {
+                '@context': 'https://openvex.dev/ns/v0.2.0',
+                '@id': 'https://vectispire.invalid/vex/aggregate',
+                author: 'Vectispire',
+                role: 'Document Creator',
+                timestamp: '2026-10-15T08:00:00Z',
+                version: 1,
+                tooling: 'Vectispire',
+                statements: []
+            });
+            http.expectOne('/api/v1/vex/aggregate.json').flush(vex);
             click('compliance.export_csaf');
-            http.expectOne((r) => r.url.includes('/csaf/')).flush({ document: {} });
+            http.expectOne((r) => r.url.includes('/csaf/')).flush(asSchema('CsafDocument', { document: {} }));
             click('compliance.export_cyclonedx');
-            http.expectOne((r) => r.url.includes('cyclonedx')).flush({ bomFormat: 'CycloneDX' });
+            http.expectOne((r) => r.url.includes('cyclonedx')).flush(
+                asSchema('CycloneDxDocument', { bomFormat: 'CycloneDX', specVersion: '1.6', version: 1 })
+            );
 
             expect(saved.map((file) => file.name)).toEqual([
                 'vectispire-aggregate-openvex.json',
@@ -195,7 +209,8 @@ describe('Compliance Page', () => {
                 'vectispire-aggregate-cyclonedx-vex.json'
             ]);
             expect(saved.every((file) => file.blob.type === 'application/json')).toBe(true);
-            expect(await saved[0].blob.text()).toBe('{\n  "statements": []\n}');
+            // Indented as it arrived, every field kept: the file is the server's document, not a summary.
+            expect(await saved[0].blob.text()).toBe(JSON.stringify(vex, null, 2));
         });
 
         it('saves the signing key as a PEM file', async () => {
