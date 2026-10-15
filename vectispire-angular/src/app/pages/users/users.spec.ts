@@ -394,6 +394,10 @@ describe('the accounts screen', () => {
             expect(document.querySelector('#lift-consequence')?.textContent).toContain(
                 'provisioned signs in through the identity provider'
             );
+            // The lift discards the password it was given and closes its sessions: the dialog says so.
+            expect(document.querySelector('#lift-consequence')?.textContent).toContain(
+                'the password it was given stops working'
+            );
 
             document.querySelector<HTMLButtonElement>('#lift-confirm button')!.click();
             await fixture.whenStable();

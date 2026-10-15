@@ -21,11 +21,19 @@ the change-password one, the profile and signing out answers `403`. The list sho
 change its password*.
 
 For an account the identity provider signs in — one bound to a provider subject, by the SCIM
-directory or a first single sign-on — the requirement cannot be met: it does not sign in with the
+directory or a first single sign-on — the requirement cannot be met: its owner does not know the
 password it was given, and the change-password screen asks for that password. Accounts the directory
 created on 0.10.0 or `v0.11.0-rc.1` are in that state. An administrator lifts it with the unlock
-button on the account's row, after a confirmation; the account's sessions are let through at their
-next request, without signing in again.
+button on the account's row, after a confirmation.
+
+- **The lift discards the local password.** Binding an account to a provider subject keeps the
+  password it had, and the password sign-in still accepts it. Lifting the requirement replaces that
+  password with one nobody knows, in the same change, so the account signs in through the provider
+  only: a password an administrator typed stops working rather than staying valid for good. To give
+  the account a password again, reset it — which sets the requirement again.
+- **Its open sessions close.** A session held on the change-password screen may have been opened
+  with that password; the account signs in again through the provider. Its API keys stay: none can
+  have been issued while the requirement held.
 
 - **Only for an account bound to the provider.** An account that signs in with its own password is
   refused (`400`): the requirement is what makes a password somebody else chose — an administrator,

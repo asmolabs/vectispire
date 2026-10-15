@@ -2979,7 +2979,7 @@
     "must_change_its_password": "Doit changer son mot de passe",
     "lift": "Lever",
     "lift_header": "Lever l'obligation de changer de mot de passe ?",
-    "lift_consequence": "{{name}} se connecte par le fournisseur d'identité : ses sessions ne seront plus retenues sur l'écran de changement de mot de passe. Le journal d'audit enregistre qui l'a levée.",
+    "lift_consequence": "{{name}} se connecte par le fournisseur d'identité : le mot de passe qu'il a reçu cesse de fonctionner et ses sessions ouvertes se ferment — il se reconnecte par le fournisseur. Le journal d'audit enregistre qui l'a levée.",
     "aria_lift_requirement": "Lever l'obligation de changer de mot de passe de {{name}}",
     "error_lift": "L'obligation n'a pas pu être levée.",
     "empty": "Aucun compte.",

@@ -94,7 +94,9 @@
 - **Un administrateur lève l'obligation de changer de mot de passe d'un compte fédéré depuis l'écran
   Utilisateurs** (`DELETE /api/v1/users/{id}/password-change-requirement`). C'est refusé pour un compte qui
   se connecte avec son propre mot de passe, pour son propre compte, et pour celui d'un superutilisateur sauf
-  par un superutilisateur. Cela remplace l'instruction SQL que la section *Avant la mise à jour* de la 0.11.0
+  par un superutilisateur. La levée écarte le mot de passe local du compte et ferme ses sessions, si bien que
+  le compte ne se connecte plus que par le fournisseur d'identité : un mot de passe qu'un administrateur a un
+  jour saisi pour lui ne reste pas valide. Cela remplace l'instruction SQL que la section *Avant la mise à jour* de la 0.11.0
   donnait pour les comptes créés par l'annuaire SCIM
   ([utilisateurs et équipes](../administration/users-and-teams.md#lobligation-de-changer-de-mot-de-passe)).
 - **Le changement d'état d'un jeton est signalé une fois**, pour le jeton du gestionnaire de tickets et pour

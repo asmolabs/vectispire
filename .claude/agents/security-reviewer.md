@@ -38,7 +38,11 @@ the traps that have already produced defects here.
 **Authentication.** Throttles keyed on something the client chooses (a body field, a raw
 percent-encoded path, a case/accent variant of a username); second factors limited per challenge
 instead of per account; enumeration by timing; tokens compared without constant time; SSO account
-linking on unverified claims.
+linking on unverified claims. **A control lifted is a credential to remove**: when a gesture lifts a
+guard on a credential (the forced password change), ask whether that credential still works afterwards,
+by every way in — a binding to a provider subject never stopped the password sign-in from reading the
+stored hash, so lifting the flag on a federated account left an administrator's password valid for good,
+and the held session opened with it became a full one.
 
 **Trust boundaries.** An actor or author taken from a payload, a webhook, an uploaded document
 instead of the principal. Anonymous routes (`@OpenToAnonymous`, webhooks, badges) and what they move
