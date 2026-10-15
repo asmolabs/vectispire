@@ -139,10 +139,14 @@ To follow 0.11.0; not released yet. What follows is what 0.11.1 will contain, ag
   update moves them; the `dockerfile-policy` check refuses a base image named by tag alone, by a digest
   that is not a whole sha256, or under a stage name of its own line. The images published with Jib were
   already pinned.
-- **The dashboard's recent scans show a restricted reader only the scans of the targets they may see**: a
-  scan naming both an image the reader was granted and a repository they were not is the repository's, as
-  in the scan history, and is no longer listed — with that repository's name — on the reader's home page.
-  A reader granted both sees it once, where it was listed twice.
+- **A record naming both a repository and an image is its repository's on every read of a restricted
+  reader**, as it already was in the scan history: the dashboard's recent scans, the gate verdict register,
+  the exceptions register, the issues list and the figures built on it, and the blast radius no longer
+  show it — nor its repository's name, nor count it, nor page through it — to a reader granted the image
+  and not the repository. A reader granted both sees it once, where the recent scans listed it twice, and
+  the blast radius counts it as one target. Vectispire does not write such records today; a database
+  restored or edited by hand may hold them, and so may the issues of an installation that ran 0.9.0 or
+  earlier, whose issue synchronisation copied both columns of the scan it read.
 
 ### Fixed {#fixed-0111}
 

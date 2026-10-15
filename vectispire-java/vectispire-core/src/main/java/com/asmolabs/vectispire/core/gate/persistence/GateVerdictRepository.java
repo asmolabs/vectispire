@@ -14,6 +14,20 @@ import org.springframework.transaction.annotation.Transactional;
 public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, java.util.UUID> {
 
     /**
+     * The verdicts whose target is among {@code :repoIds} and {@code :containerIds}, the target being the
+     * row's repository when it names one and its image otherwise — {@code GateVerdictView.target()}, which
+     * {@code Visibility.permits} is asked of, and the rule the scan history applies.
+     *
+     * <p><b>Not {@code repoId in :repoIds or containerId in :containerIds}</b>, which this register read
+     * with until 0.11.1. The gate writes one column per verdict, but the schema does not require it, and a
+     * row naming both — restored, written by hand — matched through the image a reader was granted while it
+     * belongs to a repository they were not: the second lock in the service dropped it from the page, but
+     * the cursor is taken from the rows read, so it named that row's instant and id. One spelling, so the
+     * first page and the next cannot drift apart.
+     */
+    String WITHIN = "(v.repoId in :repoIds or (v.repoId is null and v.containerId in :containerIds))";
+
+    /**
      * The register, newest first, bounded.
      *
      * <p><b>No visibility clause here, and that is deliberate.</b> Whose estate a row belongs to
@@ -79,7 +93,7 @@ public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, 
      */
     @Query("""
             select v from GateVerdictEntity v
-             where v.repoId in :repoIds or v.containerId in :containerIds
+             where\s""" + WITHIN + """
              order by v.decidedAt desc, v.id desc""")
     List<GateVerdictEntity> firstPageWithin(
             @Param("repoIds") Collection<Long> repoIds, @Param("containerIds") Collection<Long> containerIds,
@@ -88,7 +102,7 @@ public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, 
     /** {@link #pageAfter}, within the targets a restricted reader may see; see {@link #firstPageWithin}. */
     @Query("""
             select v from GateVerdictEntity v
-             where (v.repoId in :repoIds or v.containerId in :containerIds)
+             where\s""" + WITHIN + """
                and (v.decidedAt < :decidedAt or (v.decidedAt = :decidedAt and v.id < :id))
              order by v.decidedAt desc, v.id desc""")
     List<GateVerdictEntity> pageAfterWithin(

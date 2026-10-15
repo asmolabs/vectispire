@@ -152,10 +152,16 @@
   jusqu'à ce qu'une mise à jour relue les déplace ; le contrôle `dockerfile-policy` refuse une image de base
   nommée par son seul tag, par un digest qui n'est pas un sha256 entier, ou sous un nom d'étape de sa propre
   ligne. Les images publiées avec Jib l'étaient déjà.
-- **Les derniers scans du tableau de bord ne montrent à un lecteur restreint que ceux des cibles qu'il
-  voit** : un scan qui nomme à la fois une image accordée au lecteur et un dépôt qui ne l'est pas est celui
-  du dépôt, comme dans l'historique des scans, et n'apparaît plus — avec le nom de ce dépôt — sur sa page
-  d'accueil. Un lecteur à qui les deux sont accordés le voit une fois, là où il apparaissait deux fois.
+- **Un enregistrement qui nomme à la fois un dépôt et une image est celui du dépôt dans toutes les
+  lectures d'un lecteur restreint**, comme il l'était déjà dans l'historique des scans : les derniers scans
+  du tableau de bord, le registre des verdicts de la barrière, le registre des exceptions, la liste des
+  issues et les chiffres qui en dérivent, et le rayon d'impact ne le montrent plus — ni le nom de son dépôt,
+  ni ne le comptent, ni ne le parcourent de page en page — à un lecteur à qui l'image est accordée et pas le
+  dépôt. Un lecteur à qui les deux sont accordés le voit une fois, là où les derniers scans le montraient
+  deux fois, et le rayon d'impact le compte pour une seule cible. Vectispire n'écrit pas aujourd'hui de tels
+  enregistrements ; une base restaurée ou modifiée à la main peut en contenir, de même que les issues d'une
+  installation qui a fait tourner la 0.9.0 ou une version antérieure, dont la synchronisation des issues
+  copiait les deux colonnes du scan qu'elle lisait.
 
 ### Corrigé {#corrige-0111}
 

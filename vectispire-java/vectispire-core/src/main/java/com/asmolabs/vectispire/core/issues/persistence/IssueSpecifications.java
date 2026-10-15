@@ -354,6 +354,13 @@ public final class IssueSpecifications {
      * list, and every figure built on this predicate — which {@code WideAllowanceIntegrationTest}
      * measured before this was written. A repository and an image are still told apart by their own
      * column: one identifier may name both, and a grant on one is no grant on the other.
+     *
+     * <p><b>An issue naming both is its repository's</b> — {@code IssueEntity.target()}, which {@code
+     * Visibility.permits} is asked of, and the rule the scan history applies — so the image's column is
+     * read only where the repository's is null, as {@code IssueRepository.WITHIN} reads it for the
+     * exceptions register. Matched by either column, such an issue was in the backlog, its counts and
+     * every figure built on this predicate for a reader granted the image and not the repository — and the
+     * issue sync's first version copied both columns of its scan.
      */
     private static Predicate visible(
             jakarta.persistence.criteria.Root<IssueEntity> root,
@@ -373,7 +380,8 @@ public final class IssueSpecifications {
             either.add(literalIn(builder, root.<Long>get("repoId"), repositories));
         }
         if (!containers.isEmpty()) {
-            either.add(literalIn(builder, root.<Long>get("containerId"), containers));
+            either.add(builder.and(
+                    builder.isNull(root.get("repoId")), literalIn(builder, root.<Long>get("containerId"), containers)));
         }
         return either.isEmpty() ? builder.disjunction() : builder.or(either.toArray(Predicate[]::new));
     }
@@ -396,7 +404,8 @@ public final class IssueSpecifications {
      * targets}' own tables, so there is nothing to inject, and the cost accepted is a statement text that
      * differs per project. They are still grouped in lists of {@link #IN_LIST_BATCH}, the batch every
      * id-list query here uses, sorted so the same project renders the same SQL. It is {@link #visible}'s
-     * predicate, and for the same reason a repository and an image are each matched by their own column.
+     * predicate, and for the same reason a repository and an image are each matched by their own column —
+     * and an issue naming both is its repository's, so a project holding the image alone does not count it.
      */
     private static Predicate within(
             jakarta.persistence.criteria.Root<IssueEntity> root,

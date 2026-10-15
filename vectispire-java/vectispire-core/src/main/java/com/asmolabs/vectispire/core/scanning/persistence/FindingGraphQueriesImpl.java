@@ -144,11 +144,15 @@ public class FindingGraphQueriesImpl implements FindingGraphQueries {
                         // dispersion term of the score, which saturates at five: counting scans
                         // meant a package in one nightly-scanned repository hit the cap within
                         // the week, so the term that was supposed to say "this is everywhere"
-                        // said 40 for everything and the list collapsed into a CVSS sort. A scan
-                        // carries one of these two columns and never both, so the two counts sum
-                        // to the targets — and `count(distinct)` drops the nulls that make it so.
+                        // said 40 for everything and the list collapsed into a CVSS sort. A scan's
+                        // target is its repository, else its image (ScanEntity.target()), so the
+                        // image is counted only where no repository is named and the two counts sum
+                        // to the targets — `count(distinct)` drops the nulls that make it so.
                         builder.countDistinct(scan.get("repoId")).alias(REPOS),
-                        builder.countDistinct(scan.get("containerId")).alias(CONTAINERS),
+                        builder.countDistinct(builder.<Long>selectCase()
+                                        .when(builder.isNull(scan.get("repoId")), scan.<Long>get("containerId"))
+                                        .otherwise(builder.nullLiteral(Long.class)))
+                                .alias(CONTAINERS),
                         builder.sum(directFlag).alias(DIRECT),
                         builder.count(finding.get("id")).alias(TOTAL),
                         builder.countDistinct(cveIdentifier).alias(CVES),
@@ -204,7 +208,11 @@ public class FindingGraphQueriesImpl implements FindingGraphQueries {
                 either.add(literalIn(builder, scan.<Long>get("repoId"), repositories));
             }
             if (!containers.isEmpty()) {
-                either.add(literalIn(builder, scan.<Long>get("containerId"), containers));
+                // A scan naming both is its repository's (ScanEntity.target()): the image's column is read
+                // only where the repository's is null, or a reader granted the image and not the repository
+                // was counted that repository's packages.
+                either.add(builder.and(
+                        builder.isNull(scan.get("repoId")), literalIn(builder, scan.<Long>get("containerId"), containers)));
             }
             // A false predicate rather than none: the two read alike and mean the opposite.
             return either.isEmpty()
