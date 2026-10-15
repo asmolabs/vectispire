@@ -104,9 +104,9 @@ public class ProjectReportsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Rows per page, 1 to " + ListWindow.MAX_LIMIT + "; 400 beyond. Absent, with no "
                     + "offset, the latest 200 runs are answered, as before paging existed.",
-                    schema = @Schema(minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
+                    schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "" + ListWindow.MAX_LIMIT))
             @RequestParam(required = false) Integer limit,
-            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(minimum = "0"))
+            @Parameter(description = ListWindow.OFFSET_ON_REQUEST, schema = @Schema(type = "integer", format = "int32", minimum = "0"))
             @RequestParam(required = false) Integer offset) {
         return reports.runs(projectId, allowanceOf(principal), limit, offset);
     }

@@ -11997,9 +11997,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -12007,8 +12008,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -12567,9 +12569,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -12577,8 +12580,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -14121,9 +14125,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -14131,8 +14136,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -18144,9 +18150,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -18154,8 +18161,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -18735,9 +18743,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -18745,8 +18754,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -21151,9 +21161,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -21161,8 +21172,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
@@ -21591,9 +21603,10 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "maximum" : 500,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "Rows to skip, zero or a multiple of limit (0); read only with a limit, 400 without one.",
@@ -21601,8 +21614,9 @@
           "name" : "offset",
           "required" : false,
           "schema" : {
+            "format" : "int32",
             "minimum" : 0,
-            "type" : "string"
+            "type" : "integer"
           }
         } ],
         "responses" : {
